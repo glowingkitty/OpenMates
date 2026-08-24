@@ -157,7 +157,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 37ac33ae20bf1bae731f0594a292ded0a53234ca
+  subject_commit: 7b325aa94ce7b04ced000d491180d7806ce6753a
 
 approvals:
   product_contract:
@@ -598,7 +598,7 @@ tests:
       - Dev, production, and self-host report subjects and namespaces are isolated.
       - One channel failure preserves the other channel result and yields partial failure.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q", run_id: "red:operational-digest-import-missing-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Collection failed because the planned operational_monitoring service does not exist."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py backend/tests/test_operational_monitoring_tasks.py backend/tests/test_verify_operational_monitoring.py -q", run_id: "local:operational-monitoring-pytest-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_health_status_alerts.py backend/tests/test_payment_readiness.py backend/tests/test_operational_monitoring_digest.py backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py backend/tests/test_verify_operational_monitoring.py -q", run_id: "local:monitoring-regression-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z", summary: "57 focused backend tests passed."}}
   - id: T-ALERT-RULES
     type: lint
     file: backend/core/monitoring/prometheus/alert_rule_tests.yml
@@ -623,7 +623,7 @@ tests:
       - Self-host inventory and structured/human output contain no billing fields, labels, or check IDs.
       - Independent notification retries, deduplication, and recovery remain deterministic.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts", run_id: "red:cli-operational-monitoring-exports-missing-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "CLI test import failed because operational planning, receipt, and freshness helpers are not implemented."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "npm --prefix frontend/packages/openmates-cli run test:unit:server", run_id: "local:cli-server-tests-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts", run_id: "local:cli-server-tests-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z", summary: "82 CLI server tests passed."}}
   - id: T-SELFHOST-CONTRACT
     type: lint
     file: scripts/audit_operational_monitoring_contract.py
@@ -646,7 +646,7 @@ tests:
       - Snapshot, graph, email, Discord, receipt, and log models reject forbidden private fields.
       - Destination values and secrets are never rendered or persisted.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "red:operational-privacy-contract-20260814T1735Z", timestamp: "2026-08-14T17:35:26Z", summary: "Audit reported missing privacy denylist, receipt integrity fields, and operational service implementation."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:operational-privacy-contract-20260814T2313Z", subject_commit: "3763a29", timestamp: "2026-08-14T23:13:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:operational-privacy-contract-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z"}}
   - id: T-PAYMENT-READINESS
     type: pytest
     file: backend/tests/test_payment_readiness.py
@@ -660,7 +660,7 @@ tests:
       - No method capable of creating or mutating a Stripe object is called.
       - Missing, failed, skipped-required, or stale checks cannot produce healthy readiness.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_payment_readiness.py -q", run_id: "local:red-payment-readiness-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Collection failed because payment_readiness.py does not exist."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_payment_readiness.py -q", run_id: "local:monitoring-regression-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z"}}
   - id: T-PROVIDER-STATUS
     type: pytest
     file: backend/tests/test_operational_monitoring_digest.py
@@ -673,7 +673,7 @@ tests:
       - Missing timestamps become stale rather than healthy.
       - Credentials and raw provider errors are rejected from snapshot and delivery output.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q", run_id: "local:red-provider-status-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Snapshot builder rejected provider_health and summarize_provider_health was absent."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_operational_monitoring_digest.py -q", run_id: "local:monitoring-regression-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z"}}
   - id: T-DISCORD-RESOLVER
     type: pytest
     file: backend/tests/test_degraded_services_discord_report.py
@@ -686,7 +686,7 @@ tests:
       - Missing canonical and fallback destinations return unavailable rather than success.
       - A production daily all-clear is rendered when no issue is active.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py -q", run_id: "local:red-discord-resolver-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Collection failed because the canonical operations destination resolver was absent."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_degraded_services_discord_report.py backend/tests/test_operational_monitoring_tasks.py -q", run_id: "local:monitoring-regression-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z"}}
   - id: T-OPERATIONAL-AUDIT
     type: lint
     file: scripts/audit_operational_monitoring_contract.py
@@ -698,7 +698,7 @@ tests:
       - Required Stripe event subscriptions derive from backend-handled event types.
       - All operator Discord paths use one shared resolver.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:red-operational-audit-20260824T1306Z", timestamp: "2026-08-24T13:06:08Z", summary: "Audit reported missing payment service, provider freshness, shared Discord resolution, and redacted Stripe health mode."}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/audit_operational_monitoring_contract.py --privacy", run_id: "local:operational-privacy-contract-20260824T1503Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:03:01Z"}}
   - id: T-E2E-STRIPE-EU
     type: playwright
     file: frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
@@ -710,7 +710,7 @@ tests:
       - Authenticated EU Stripe sandbox purchase reaches purchase success.
       - Stripe Payment Element and payment_intent.succeeded settlement remain functional after deployment.
     red_phase: {required: false, expected: not_applicable_existing_behavior, status: not_applicable, evidence: {status: not_applicable, summary: "Existing production behavior is unchanged; this is a post-deploy regression gate.", timestamp: "2026-08-24T11:45:00Z"}}
-    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --spec settings-buy-credits-stripe-eu.spec.ts --gate-deploy --require-exact-commit --expected-commit 7b325aa94ce7b04ced000d491180d7806ce6753a", run_id: "32741546881", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T15:00:56Z"}}
   - id: T-E2E-STRIPE-MANAGED
     type: playwright
     file: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
@@ -722,7 +722,7 @@ tests:
       - Authenticated Managed Payments sandbox Checkout Session reaches purchase success.
       - Checkout webhook settlement, payment confirmation, email/PDF, and refund remain functional after deployment.
     red_phase: {required: false, expected: not_applicable_existing_behavior, status: not_applicable, evidence: {status: not_applicable, summary: "Existing production behavior is unchanged; this is a post-deploy regression gate.", timestamp: "2026-08-24T11:45:00Z"}}
-    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --spec settings-buy-credits-stripe-managed.spec.ts --gate-deploy --require-exact-commit --expected-commit 7b325aa94ce7b04ced000d491180d7806ce6753a", run_id: "32741385021", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T14:58:35Z"}}
 
 verifications:
   - id: V-DEV-REAL-DELIVERY
@@ -732,22 +732,22 @@ verifications:
     covers: [AC-1, AC-4]
     status: passed
     command: python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord
-    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord", run_id: "test-results/operational-monitoring/verification-dev-20260815T184623Z.json", subject_commit: "dc1c9f5d88dbefc00189d291e5060312e8de27b5", summary: "Accepted labeled dev delivery to email and Discord; report_id operational-development-20260815T184619Z-caebd84d; sha256 39b40d5b899a205753ddb3504ed5d1eef302acc38cb8b4088068dfc24e449ffd.", timestamp: "2026-08-15T18:46:23Z"}
+    evidence: {status: passed, command: "python3 scripts/verify_operational_monitoring.py --target dev --window-hours 24 --send email,discord --skip-build --evidence-dir /tmp/opencode/operational-monitoring-df04", run_id: "/tmp/opencode/operational-monitoring-df04/verification-dev-20260824T144856Z.json", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", summary: "Accepted labeled dev email and Discord delivery; report operational-development-20260824T144852Z-39e8c265; Discord fallback source was explicitly recorded without destination data.", timestamp: "2026-08-24T14:48:56Z"}
   - id: V-DEV-ARTIFACT-REVIEW
     kind: artifact_review
     phase: green
     required_for_done: true
     covers: [AC-4, AC-8]
     status: passed
-    evidence: {status: passed, summary: "Inspected generated report artifact latest.png and delivery metadata latest.json for report operational-development-20260815T184619Z-caebd84d. The report is readable, labeled [OpenMates DEV], uses the real 24-hour window, has no visible clipping, and contains aggregate operational data without private user content.", run_id: "test-results/operational-monitoring/latest.png", subject_commit: "dc1c9f5d88dbefc00189d291e5060312e8de27b5", timestamp: "2026-08-15T18:46:23Z"}
+    evidence: {status: passed, summary: "Inspected latest.png and latest.json for operational-development-20260824T144852Z-39e8c265. Defects: none; no clipping, overlap, private data, or raw destination values. Accepted differences: dev Prometheus and provider collectors were unavailable and rendered explicit no-data/unavailable states; EU card rendered healthy and Managed rendered unavailable with sanitized missing events.", run_id: "test-results/operational-monitoring/latest.png", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", timestamp: "2026-08-24T14:48:56Z"}
   - id: V-DEV-FAILURE-DRILL
     kind: manual_check
     phase: green
     required_for_done: true
     covers: [AC-5, AC-7]
-    status: pending
+    status: blocked
     command: python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore
-    evidence: {status: "", summary: "Controlled dev-only drills must prove independent firing, deduplication, restoration, and one recovery event.", timestamp: ""}
+    evidence: {status: blocked, command: "python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore", run_id: "local:unsupported-drill-20260824T1501Z", subject_commit: "7b325aa94ce7b04ced000d491180d7806ce6753a", summary: "Verifier rejected --drill and --restore as unsupported; no fault was injected. A deterministic dev-only drill implementation is still required.", timestamp: "2026-08-24T15:01:00Z"}
   - id: V-DEV-ROLLOUT-GATE
     kind: deterministic_check
     phase: final
@@ -1005,8 +1005,10 @@ attempts:
 
 handoff:
   current_task_id: TASK-10
-  next_action: Deploy the scoped monitoring implementation to dev and run both existing Stripe purchase regression specs.
-  command: python3 scripts/sessions.py deploy --session df04 --title "Add payment readiness monitoring" --message "Add non-mutating payment readiness and unified operations alerts"
-  expected_outcome: Dev deployment completes and yields a commit for gated EU and Managed Stripe Playwright verification.
-  blocker: null
+  next_action: Restore real dev Prometheus/provider freshness and implement the bounded dev failure/recovery drill before production rollout.
+  command: python3 scripts/verify_operational_monitoring.py --target dev --drill api-down,stale-report,disk-warning --restore
+  expected_outcome: Dev reports include fresh resource/provider data and controlled drills prove firing, deduplication, restoration, and recovery.
+  blocker:
+    id: dev-rollout-gates
+    reason: The verifier has no --drill/--restore implementation, dev Prometheus queries are unavailable from the API container, provider health jobs are blocked behind a large Celery queue backlog, and the seven-day fresh-report gate has not elapsed.
   last_verified_commit: 37ac33ae20bf1bae731f0594a292ded0a53234ca
