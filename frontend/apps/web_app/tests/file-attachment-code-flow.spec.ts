@@ -241,12 +241,16 @@ test('code run output becomes the default code embed preview after reload', asyn
 
 	await openNewChat(page, log);
 	const editor = page.getByTestId('message-editor');
-	await editor.click();
-	await page.keyboard.type('Please run this Python file and keep the result visible:');
+	const editable = editor.locator('[contenteditable="true"]').first();
+	const requestText = 'Please run this Python file and keep the result visible:';
+	await expect(editable).toBeVisible({ timeout: 10000 });
+	await editable.click();
+	await editable.pressSequentially(requestText);
+	await expect(editor).toContainText(requestText);
 
 	await attachFiles(page, [CODE_RUN_REQUESTS_PY], log);
 	await page.waitForTimeout(5000);
-	await expect(editor).toContainText('Please run this Python file and keep the result visible:');
+	await expect(editor).toContainText(requestText);
 
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
