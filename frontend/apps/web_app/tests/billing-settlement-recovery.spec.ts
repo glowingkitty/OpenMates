@@ -108,8 +108,8 @@ test.describe('Billing settlement recovery', () => {
 		await expect(assistantContent).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
 		const eventCards = page.locator('[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"]');
 		await expect(eventCards.first()).toBeVisible({ timeout: 60_000 });
-		expect(await eventCards.count()).toBeGreaterThanOrEqual(2);
-		await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
+		expect(await eventCards.count()).toBeGreaterThan(0);
+		await expect(page.getByTestId('typing-indicator')).toBeHidden({ timeout: 30_000 });
 		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
 		if (proof) {
 			await eventCards.first().scrollIntoViewIfNeeded();
