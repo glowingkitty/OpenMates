@@ -1688,7 +1688,12 @@ async def finalize_login_session(
     return refresh_token  # Return refresh token for WebSocket auth (Safari iOS compatibility)
 
 
-@router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_auth_client)])
+@router.post(
+    "/lookup",
+    response_model=UserLookupResponse,
+    response_model_exclude_none=True,
+    dependencies=[Depends(verify_auth_client)],
+)
 @limiter.limit("120/minute")
 async def lookup_user(
     request: Request,
