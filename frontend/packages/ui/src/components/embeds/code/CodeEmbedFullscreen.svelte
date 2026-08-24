@@ -1266,6 +1266,13 @@
     runError = status.error || null;
   }
 
+  async function syncAuthoritativeRunStatus(status: CodeRunStatus) {
+    syncRunStatus(status);
+    if (!TERMINAL_RUN_STATUSES.has(status.status)) return;
+    await tick();
+    await persistRunOutput();
+  }
+
   function applyRunUpdate(update: Partial<CodeRunStatus>) {
     if (update.status) runStatus = update.status;
     if (update.status === 'cancelling') runCancelRequested = true;
@@ -1292,7 +1299,7 @@
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data) as CodeRunStreamMessage;
       if (message.type === 'code_run_snapshot') {
-        syncRunStatus(message.payload);
+        void syncAuthoritativeRunStatus(message.payload);
         return;
       }
       if (message.type === 'code_run_update') {
@@ -1321,7 +1328,7 @@
   async function pollRunStatus(executionId: string) {
     try {
       const status = await getCodeRunStatus(executionId);
-      syncRunStatus(status);
+      await syncAuthoritativeRunStatus(status);
       if (!TERMINAL_RUN_STATUSES.has(status.status)) {
         runPollTimer = setTimeout(() => pollRunStatus(executionId), 1000);
       }
