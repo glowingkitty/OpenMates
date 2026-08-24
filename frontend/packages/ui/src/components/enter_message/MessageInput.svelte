@@ -619,6 +619,7 @@
 
     const PLACEHOLDER_CYCLE_MS = 8000;
     const PLACEHOLDER_FADE_MS = 220;
+    const RECORDING_PLACEHOLDER_MIN_WIDTH_PX = 768;
     const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
     let placeholderCycleTimer: ReturnType<typeof setInterval> | null = null;
     let placeholderCycleFadeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -640,7 +641,12 @@
     }
 
     function hasKeyboardShortcutSupport(): boolean {
-        return isDesktop();
+        return isDesktop() && window.innerWidth >= RECORDING_PLACEHOLDER_MIN_WIDTH_PX;
+    }
+
+    function canShowRecordingPlaceholderHint(): boolean {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth >= RECORDING_PLACEHOLDER_MIN_WIDTH_PX;
     }
 
     function getBasePlaceholderText(): string {
@@ -662,7 +668,7 @@
             return;
         }
 
-        if (showRecordingPlaceholderHint) {
+        if (showRecordingPlaceholderHint && canShowRecordingPlaceholderHint()) {
             if (hasKeyboardShortcutSupport()) {
                 const shortcutKey = isMacPlatform()
                     ? 'enter_message.placeholder.record_shortcut_mac_desktop'
