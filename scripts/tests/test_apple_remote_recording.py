@@ -43,6 +43,7 @@ def test_recording_command_owns_video_result_bundle_and_cleanup() -> None:
     )
 
     assert "recordVideo" in command
+    assert "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" in command
     assert "-resultBundlePath" in command
     assert "result.xcresult" in command
     assert "xcresulttool" in command

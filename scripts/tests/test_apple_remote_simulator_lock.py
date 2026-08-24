@@ -48,6 +48,7 @@ def test_ios_unit_test_command_skips_ui_test_target() -> None:
 
     assert "-only-testing OpenMatesTests/SettingsModesParityTests" in command
     assert "-scheme OpenMates_iOS_Unit_Tests" in command
+    assert "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" in command
 
 
 # contract-test: infrastructure

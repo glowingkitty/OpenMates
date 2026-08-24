@@ -6,6 +6,8 @@ validate command construction and parser registration only, so no private SSH
 configuration, simulator UUID, local Mac path, or Xcode installation is needed.
 """
 
+# contract-test-file: infrastructure
+
 from __future__ import annotations
 
 import importlib.util
@@ -53,6 +55,7 @@ def test_doctor_command_checks_remote_readiness_without_exposing_repo_path() -> 
 
     assert "xcodebuild" in command
     assert "simctl" in command
+    assert "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" in command
     assert "git" in command
     assert "OpenMates.xcodeproj" in command
     assert "watch_test_status" in command

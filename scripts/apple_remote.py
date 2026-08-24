@@ -35,6 +35,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_CONFIG_PATH = Path.home() / ".config" / "openmates" / "apple-remote.json"
 REMOTE_LABEL = "macos-peer"
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
+DEFAULT_XCODE_DEVELOPER_DIR = "/Applications/Xcode.app/Contents/Developer"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-simulator.lock"
 DESTRUCTIVE_TOKENS = {
@@ -3436,9 +3437,13 @@ def simulator_locked_command(parts: Sequence[str]) -> str:
     return shell_join(["python3", "-c", SIMULATOR_LOCK_SCRIPT, SIMULATOR_LOCK_PATH, *parts])
 
 
+def with_xcode_developer_dir(command: str) -> str:
+    return f"DEVELOPER_DIR={shlex.quote(DEFAULT_XCODE_DEVELOPER_DIR)} {command}"
+
+
 def build_ios_command(simulator: str) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = simulator_locked_command([
+    xcodebuild = with_xcode_developer_dir(simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -3447,7 +3452,7 @@ def build_ios_command(simulator: str) -> str:
         "-destination",
         f"platform=iOS Simulator,name={simulator}",
         "build",
-    ])
+    ]))
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
@@ -3567,7 +3572,7 @@ def test_ios_command(
     locked_parts = parts
     if expected_commit:
         locked_parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts]
-    xcodebuild = simulator_locked_command(locked_parts)
+    xcodebuild = with_xcode_developer_dir(simulator_locked_command(locked_parts))
     if test_account_env is not None:
         xcodebuild = with_env_assignments(xcodebuild, test_account_env)
     if test_account_env:
@@ -3604,6 +3609,7 @@ def recorded_test_ios_command(
         expected_commit,
         "true" if proof else "false",
     ])
+    command = with_xcode_developer_dir(command)
     if test_account_env is not None:
         command = with_env_assignments(command, test_account_env)
     workflow = f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {command}"
@@ -4204,7 +4210,9 @@ def verify_watch_startup_command(simulator: str, duration: int) -> str:
 
 
 def apple_remote_doctor_command(repo_path: str | None) -> str:
-    return shell_join(["python3", "-c", APPLE_REMOTE_DOCTOR_SCRIPT, repo_path or ""])
+    return with_xcode_developer_dir(
+        shell_join(["python3", "-c", APPLE_REMOTE_DOCTOR_SCRIPT, repo_path or ""])
+    )
 
 
 def verify_ios_startup_command(simulator: str, duration: int, fresh_install: bool = False) -> str:
