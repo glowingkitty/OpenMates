@@ -5711,6 +5711,11 @@ def main(argv: list[str] | None = None) -> int:
     import_state_parser = sub.add_parser("import-state", help="Import a legacy tests-state.json snapshot into the Directus test control plane")
     import_state_parser.add_argument("path")
 
+    recover_daily_parser = sub.add_parser("recover-daily", help="Finalize an orphaned daily runner and send its terminal Discord status")
+    recover_daily_parser.add_argument("--returncode", type=int, default=1)
+    recover_daily_parser.add_argument("--timed-out", action="store_true")
+    recover_daily_parser.add_argument("--yes", action="store_true", required=True)
+
     campaign_parser = sub.add_parser("campaign", help="Manage durable failed-test debug campaigns")
     campaign_sub = campaign_parser.add_subparsers(dest="campaign_command", required=True)
     campaign_start = campaign_sub.add_parser("start", help="Create or resume a campaign")
@@ -5910,6 +5915,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "import-state":
         state = import_state_snapshot(Path(args.path))
         print(json.dumps(state, indent=2, sort_keys=True))
+        return 0
+    if args.command == "recover-daily":
+        commit = record_runner_failure_fallback(
+            runner_args=["--daily", "--no-fail-fast"],
+            returncode=None if args.timed_out else args.returncode,
+            timed_out=args.timed_out,
+        )
+        print(json.dumps({"recovered": True, "git_sha": commit}, indent=2, sort_keys=True))
         return 0
     if args.command == "campaign":
         try:

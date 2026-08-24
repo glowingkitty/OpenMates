@@ -1824,3 +1824,20 @@ def test_daily_terminal_retry_does_not_turn_test_failures_into_runner_crash(tmp_
     assert result["flags"].get("runner_crashed") is None
     assert result["flags"]["notifications_complete"] is True
     assert result["flags"]["notification_retry_attempted"] is True
+
+
+def test_recover_daily_command_uses_explicit_runner_fallback(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    calls = []
+    monkeypatch.setattr(
+        tests_control,
+        "record_runner_failure_fallback",
+        lambda **kwargs: calls.append(kwargs) or "abc123def",
+    )
+
+    assert tests_control.main(["recover-daily", "--returncode", "1", "--yes"]) == 0
+    assert calls == [{
+        "runner_args": ["--daily", "--no-fail-fast"],
+        "returncode": 1,
+        "timed_out": False,
+    }]
