@@ -16,7 +16,7 @@ import { expect, test } from '@playwright/test';
 
 const RESERVED_APPLE_PROOF_SLOT = '14';
 
-test('encrypts the reserved Apple proof account for dev-server relay', async (_fixtures, testInfo) => {
+test('encrypts the reserved Apple proof account for dev-server relay', async ({ browserName: _browserName }, testInfo) => {
 	const sourceSlot = process.env.OPENMATES_TEST_ACCOUNT_SOURCE_SLOT;
 	expect(sourceSlot).toBe(RESERVED_APPLE_PROOF_SLOT);
 
