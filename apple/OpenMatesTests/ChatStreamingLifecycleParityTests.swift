@@ -272,6 +272,42 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         ))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.ordered-final
+    func testSupersededConnectionAttemptCannotMutateCurrentSocket() {
+        XCTAssertTrue(WebSocketManager.shouldContinueConnectionAttempt(
+            expectedGeneration: 4,
+            currentGeneration: 4,
+            isCancelled: false
+        ))
+        XCTAssertFalse(WebSocketManager.shouldContinueConnectionAttempt(
+            expectedGeneration: 3,
+            currentGeneration: 4,
+            isCancelled: false
+        ))
+        XCTAssertFalse(WebSocketManager.shouldContinueConnectionAttempt(
+            expectedGeneration: 4,
+            currentGeneration: 4,
+            isCancelled: true
+        ))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.ordered-final,chats.message.identity-idempotent
+    func testStaleQueuedAndUnidentifiedCancelEventsCannotReplaceCurrentTask() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat-1", taskId: "task-new", userMessageId: "user-new"))
+
+        XCTAssertFalse(state.apply(.messageQueued(
+            chatId: "chat-1",
+            taskId: "task-old",
+            userMessageId: "user-old",
+            message: "Old queued message"
+        )))
+        XCTAssertFalse(state.apply(.cancelRequested(chatId: "chat-1", taskId: nil)))
+        XCTAssertEqual(state.phase, .sending)
+        XCTAssertEqual(state.taskId, "task-new")
+        XCTAssertNil(state.queuedMessageText)
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation
     func testTerminalEventClearsStreamingMessageSelectionBeforeNextSend() {
         let viewModel = ChatViewModel()
