@@ -465,7 +465,7 @@ def route_defect(defect: str, *, prior_automatic_rerenders: int) -> dict[str, An
         return {
             "verdict": "product_defect",
             "return_stage": "implementation",
-            "automatic_correction": False,
+            "automatic_correction": True,
             "next_action": "return_to_failing_test",
         }
     return {
@@ -768,6 +768,8 @@ def review_defect_fingerprint(review: dict[str, Any]) -> str:
             "id": item.get("id"),
             "category": item.get("category"),
             "severity": item.get("severity"),
+            "intent": item.get("intent"),
+            "quality_categories": sorted(map(str, item.get("quality_categories") or [])),
             "frames": sorted(map(str, item.get("frames") or [])),
         }
         for item in review.get("incidental_findings", [])
@@ -784,21 +786,61 @@ def review_defect_fingerprint(review: dict[str, Any]) -> str:
 def review_next_action(review: dict[str, Any], *, prior_defect_fingerprints: list[str]) -> dict[str, Any]:
     status = str(review.get("status") or "")
     if status == "passed":
-        return {"requires_user_input": False, "automatic_correction": False, "return_stage": "complete"}
+        return {
+            "requires_user_input": False,
+            "automatic_correction": False,
+            "return_stage": "complete",
+            "disposition": "publish",
+        }
     fingerprint = review_defect_fingerprint(review)
     repeated = fingerprint in prior_defect_fingerprints
     uncertain = status == "uncertain"
     confidence = review.get("confidence")
-    low_confidence_product = status == "product_defect" and (
-        isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or confidence < 0.9
+    findings = [item for item in review.get("incidental_findings", []) if isinstance(item, dict)]
+    unclear_intent = any(item.get("intent") == "unclear" for item in findings)
+    uncertain_quality = any(
+        result == "uncertain"
+        for frame_review in review.get("frame_reviews", [])
+        if isinstance(frame_review, dict)
+        for result in (frame_review.get("checks") or {}).values()
     )
-    requires_user = uncertain or repeated or low_confidence_product
+    low_confidence_finding = any(
+        isinstance(item.get("confidence"), bool)
+        or not isinstance(item.get("confidence"), (int, float))
+        or item["confidence"] < 0.9
+        for item in findings
+    )
+    low_confidence_product = status == "product_defect" and (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or confidence < 0.9
+        or low_confidence_finding
+    )
+    requires_user = uncertain or repeated or low_confidence_product or unclear_intent or uncertain_quality
+    disposition = "ask_user" if requires_user else {
+        "capture_defect": "recapture",
+        "render_defect": "rerender",
+        "product_defect": "auto_fix",
+    }.get(status, "review")
+    return_stage = {
+        "recapture": "capture",
+        "rerender": "render",
+        "auto_fix": "implementation",
+        "ask_user": "review",
+    }.get(disposition, "review")
+    next_action = {
+        "recapture": "Recapture the required product state with visible transitions.",
+        "rerender": "Rerender the proof without changing product pixels or assertions.",
+        "auto_fix": "Add or strengthen a failing test, fix the product, deploy, and recapture replacement proof.",
+        "ask_user": "Show the representative blocker frame and ask the user for consent before product-code changes.",
+    }.get(disposition, "Review the classified defect.")
     return {
         "requires_user_input": requires_user,
         "automatic_correction": not requires_user and status in {"capture_defect", "render_defect", "product_defect"},
-        "return_stage": review.get("return_stage", "review"),
+        "return_stage": return_stage,
+        "disposition": disposition,
         "defect_fingerprint": fingerprint,
-        "next_action": review.get("next_action", "Ask the user what to do next."),
+        "next_action": next_action,
     }
 
 
@@ -930,9 +972,9 @@ def review_run(
     reviewer_runner: Any = _default_reviewer_runner,
 ) -> dict[str, Any]:
     try:
-        from scripts.spec_demo import record_review_receipt, validate_review_request_files
+        from scripts.spec_demo import record_review_receipt, review_request_hash, validate_review_request_files
     except ModuleNotFoundError:
-        from spec_demo import record_review_receipt, validate_review_request_files
+        from spec_demo import record_review_receipt, review_request_hash, validate_review_request_files
 
     canonical_runs_root = (RESULTS_DIR / "proof-videos").resolve()
     if not run_dir.resolve().is_relative_to(canonical_runs_root):
@@ -1002,9 +1044,13 @@ def review_run(
 
     prompt = {
         "instructions": (
-            "Review every supplied frame. Evaluate every expected assertion and independently scan for obvious visual-integrity "
-            "defects including clipping, overlap, overflow, incorrect geometry or colors, stale loading, raw implementation text, "
-            "broken navigation, and unresponsive controls. Never omit a supplied frame or inspect the full video."
+            "Review every supplied frame. Before evaluating assertions, inspect each frame as a critical UI quality reviewer whose "
+            "goal is to find reasons the proof must not pass. Record every required frame_reviews category, then separately evaluate "
+            "the expected assertions and narration alignment. Scan for clipping, overlap, overflow, suspicious unused container space, "
+            "incorrect geometry or colors, low contrast or unreadable text, stale loading, raw implementation text, broken navigation, "
+            "missing or malformed icons, broken media, and unresponsive controls. Classify visible product defects as obvious only when "
+            "the UI is objectively broken; use unclear when design intent is plausible and user consent is required before code changes. "
+            "Never omit a supplied frame or inspect the full video."
             " Captions may be delivered as toggleable sidecar metadata rather than burned into the reviewed frames; do not report "
             "missing burned-in caption pixels as a defect unless the approved contract explicitly requires visible in-frame captions."
             " Read each image from read_path, but cite its canonical path field in the JSON response."
@@ -1014,8 +1060,15 @@ def review_run(
             "confidence": "number from 0 to 1",
             "frame_index_hash": request.get("frame_index_hash"),
             "reviewed_frames": "every canonical frame path exactly once",
+            "frame_reviews": (
+                "one item per frame with frame, checks, and observation; checks must include layout, readability, geometry, controls, "
+                "visual_assets, application_state, consistency, and proof_alignment, each pass|fail|uncertain"
+            ),
             "assertions": "one verdict for each expected_proof claim_id with id, verdict, frames, observation",
-            "incidental_findings": "list of id, category, severity, confidence, frames, observation",
+            "incidental_findings": (
+                "list of id, category, severity, confidence, intent=obvious|unclear, quality_categories, frames, observation; "
+                "quality_categories must identify the failed or uncertain frame-review checks supported by the finding"
+            ),
             "return_stage": "complete|capture|render|implementation|review",
             "next_action": "one bounded next action",
         },
@@ -1035,6 +1088,7 @@ def review_run(
     receipt["proof_group_id"] = request.get("proof_group_id")
     receipt["source_artifact_hash"] = (request.get("video_metadata") or {}).get("sha256")
     receipt["caption_artifact_hash"] = (request.get("video_metadata") or {}).get("captions_sha256")
+    receipt["review_request_hash"] = review_request_hash(request)
     receipt["subject_commit"] = request.get("subject_commit")
     receipt["correction_round"] = correction_round
     receipt["correction_kind"] = correction_kind

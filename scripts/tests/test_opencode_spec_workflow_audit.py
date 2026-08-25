@@ -228,6 +228,8 @@ def test_opencode_spec_workflow_audit_requires_bounded_proof_reviewer(tmp_path):
 
     assert any("full video" in failure for failure in failures)
     assert any("product_defect" in failure for failure in failures)
+    assert any("frame_reviews" in failure for failure in failures)
+    assert any("Before evaluating" in failure for failure in failures)
 
 
 def test_opencode_spec_workflow_audit_requires_demonstration_instruction_terms():

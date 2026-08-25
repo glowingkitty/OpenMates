@@ -77,7 +77,10 @@ python3 scripts/proof_video_workflow.py review --run-dir <path> --correction-rou
 ```
 
 Review every clean frame in the immutable one-to-twelve-frame device index plus the
-complete device-applicable WebVTT cue text, approved device-applicable assertions, and deterministic metadata. Return exactly one status:
+complete device-applicable WebVTT cue text, approved device-applicable assertions,
+and deterministic metadata. Before evaluating assertions, complete the mandatory
+per-frame critical UI scan for layout, readability, geometry, controls, visual
+assets, application state, consistency, and proof alignment. Return exactly one status:
 
 - `passed`
 - `capture_defect`
@@ -87,15 +90,17 @@ complete device-applicable WebVTT cue text, approved device-applicable assertion
 
 Every verdict needs frame-grounded observations. Blank opening frames may be corrected mechanically once. Caption syntax, ordering, and bounds are deterministic checks rather than visual-review concerns. Unexplained scroll state returns to
 capture. Clipping, broken headers, wrong UI state, raw implementation text, stale
-loading, and broken navigation are product defects: add or strengthen a failing
-test, fix the product, deploy, and recapture. Never hide them through trimming,
-cropping, caption edits, or transcript edits.
+loading, and broken navigation are product defects. When the reviewer classifies
+the defect intent as `obvious`, automatically add or strengthen a failing test,
+fix the product, deploy, and recapture. When intent is `unclear`, upload the
+representative blocker frame and ask the user for consent before product-code
+changes. Never hide defects through trimming, cropping, caption edits, or transcript edits.
 
 The entire proof contract is limited to six AI review calls and forty-eight cumulative submitted frames.
 It permits one initial review plus at most two
 automatic correction rounds, including at most one product-code correction round.
-Re-review only changed device hashes. Uncertain findings, repeated defect
-fingerprints, or exhausted budgets require immediate user input.
+Re-review only changed device hashes. Unclear intent, uncertain findings, repeated
+defect fingerprints, or exhausted budgets require immediate user input.
 
 If review returns any blocker status (`capture_defect`, `render_defect`,
 `product_defect`, or `uncertain`), inspect the returned `blocker_media` metadata

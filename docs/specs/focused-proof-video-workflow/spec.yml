@@ -20,6 +20,8 @@ scope:
     - Render sentence-level captions at bottom center with bounded whole-video slowdown and final-frame hold.
     - Enforce fixed duration, frame-count, concurrency, analysis-call, cumulative-frame, and automatic-correction limits.
     - Build an immutable hash-bound frame bundle for assertion and independent visual-integrity review, then classify failures as capture, render, product, or uncertain.
+    - Require a complete per-frame quality scan before assertion review so obvious UI defects cannot be hidden by a technically supported proof claim.
+    - Route obvious product defects back to automatic failing-test and implementation repair while requiring user consent before changing UI whose intent is unclear.
     - Persist review budgets across commands, cache only fully revalidated unchanged device evidence, and bind completion/publication to a canonical review receipt.
     - Update the create-demo-video skill and completion hint to use the focused entry point.
     - Define a typed proof contract directly in each proof-enabled `.spec.ts` file.
@@ -82,6 +84,8 @@ clarification:
       answer: No. All OpenMates CLI E2E journeys use real terminal-emulator screen recordings; PTY events remain sidecar provenance only.
     - question: Is implementation and end-to-end proof output approved now?
       answer: Yes. The user requested implementation, tests, and one web plus one CLI proof video in the current chat.
+    - question: How should generalized screenshot review route visible UI defects?
+      answer: The reviewer must independently inspect every frame for obvious UI breakage before evaluating proof assertions. Obvious defects should be fixed automatically; unclear design intent must be shown to the user for consent before code changes.
 
 apple_impact:
   affected_files: [none]
@@ -100,8 +104,8 @@ approvals:
     reason: The user explicitly classified this as repository-local OpenCode workflow tooling rather than an OpenMates product feature.
   implementation_plan:
     status: approved
-    approved_at: "2026-08-20T00:00:00Z"
-    reason: The user approved spec-owned proof contracts, fast source runs, deterministic Remotion browser composition, real CLI terminal capture, implementation, tests, and in-chat web and CLI proof outputs.
+    approved_at: "2026-08-25T00:00:00Z"
+    reason: The user approved generalized per-frame critical UI review, automatic repair of obvious defects, and consent-gated changes when visual intent is unclear.
 
 decisions:
   - id: D-1
@@ -154,6 +158,16 @@ decisions:
     decision: CLI proof commands are visibly typed character by character at a short fixed interval before execution.
     reason: Human-speed command entry makes terminal proof easier to follow and avoids an unauthentic full command appearing in one frame.
     decided_at: "2026-08-21T00:00:00Z"
+  - id: D-11
+    status: active
+    decision: Every frame receives an explicit layout, readability, geometry, controls, visual-assets, application-state, consistency, and proof-alignment scan before assertion evaluation.
+    reason: Requiring only an empty incidental-findings list allowed reviewers to focus on claim timing and silently miss obvious UI defects.
+    decided_at: "2026-08-25T00:00:00Z"
+  - id: D-12
+    status: active
+    decision: Obvious product defects automatically return to failing-test and implementation repair; unclear intent or reviewer uncertainty requires user consent before product-code changes.
+    reason: Objective breakage should not consume a user decision, while subjective design changes must not be made without approval.
+    decided_at: "2026-08-25T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -167,12 +181,18 @@ attempts:
     approach: Use a Schema V2 tooling spec with an explicit no-product-contract classification.
     outcome: succeeded
     recorded_at: "2026-08-12T00:00:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-14
+    approach: Add mandatory frame-quality receipt and consent-routing tests before implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-25T00:00:00Z"
+    reason: Seven focused failures confirmed that frame_reviews were unsupported, unclear intent still auto-corrected, and reviewer audits did not require the generalized protocol; one additional pre-existing skill-mirror drift was unrelated.
 
 handoff:
-  current_task_id: TASK-13
-  next_action: Review final embedded response media in the OpenCode chat.
-  command: none
-  expected_outcome: User confirms the published web and CLI proof videos are acceptable.
+  current_task_id: TASK-14
+  next_action: Add red tests for mandatory per-frame quality scans and obvious-versus-unclear repair routing.
+  command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_review.py scripts/tests/test_proof_video_workflow.py -q
+  expected_outcome: New quality-scan and consent-routing tests fail before implementation.
   blocker: null
   last_verified_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
 
@@ -271,6 +291,17 @@ scenarios:
     then:
       - Both videos pass deterministic media checks and bounded frame review.
       - Both hash-bound captioned videos are published through OpenCode response media and embedded in the current chat.
+  - id: S-10
+    title: Generalized critical UI review and consent routing
+    given:
+      - A bounded proof bundle contains narration, assertions, and one to twelve clean frames for a device.
+    when:
+      - The proof-video reviewer evaluates the bundle.
+    then:
+      - The reviewer first records every required visual-quality category for every frame without using the proof assertions as an approval target.
+      - A passed receipt is invalid if any frame category is missing, failed, or uncertain.
+      - Obvious unreadability, clipping, overlap, overflow, broken geometry, malformed assets, stale state, raw implementation text, or assertion mismatch returns to automatic repair.
+      - A possible defect whose product intent is unclear requires user consent before any product-code change.
 
 acceptance_criteria:
   - { id: AC-1, scenario: S-1, text: "The single start command infers current session, subject commit, and matching passing run when unambiguous and emits one actionable blocker otherwise.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
@@ -286,6 +317,8 @@ acceptance_criteria:
   - { id: AC-11, scenario: S-8, text: "A deterministic audit covers all real CLI E2E entry points and rejects unclassified direct CLI spawning that bypasses the shared recorder.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-RECORDING-AUDIT] }
   - { id: AC-12, scenario: S-8, text: "Passed and failed CLI E2E attempts retain real terminal recordings with status and attempt metadata, while proof publication accepts only passed current-commit evidence.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
   - { id: AC-13, scenario: S-9, text: "One deployed web proof and one real CLI E2E proof pass bounded review and are embedded with toggleable hash-bound WebVTT captions in the implementation chat.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [V-WEB-PROOF, V-CLI-PROOF] }
+  - { id: AC-14, scenario: S-10, text: "Every canonical frame has one complete quality scan covering layout, readability, geometry, controls, visual assets, application state, consistency, and proof alignment; publication rejects missing, failed, or uncertain scan categories.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT] }
+  - { id: AC-15, scenario: S-10, text: "Obvious product defects route to automatic failing-test and implementation repair, while unclear intent, low-confidence product findings, and reviewer uncertainty require user consent before product-code changes.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT] }
 
 assumptions:
   - id: A-1
@@ -843,6 +876,50 @@ tasks:
     blockers: []
     follow_up_tasks: []
     ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
+  - id: TASK-14
+    title: Add generalized visual-review red tests
+    status: in_progress
+    phase: running_checks
+    covers: { scenarios: [S-10], acceptance_criteria: [AC-14, AC-15] }
+    expected_files: [scripts/tests/test_spec_demonstration_review.py, scripts/tests/test_proof_video_workflow.py, scripts/tests/test_opencode_spec_workflow_audit.py]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT]
+    dependencies: [TASK-13]
+    blockers: []
+    follow_up_tasks: [TASK-15]
+    ownership: { files: [scripts/tests/test_spec_demonstration_review.py, scripts/tests/test_proof_video_workflow.py, scripts/tests/test_opencode_spec_workflow_audit.py], shared_files: [] }
+  - id: TASK-15
+    title: Enforce per-frame critical UI quality receipts
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-10], acceptance_criteria: [AC-14] }
+    expected_files: [.claude/agents/proof-video-reviewer.md, scripts/proof_video_workflow.py, scripts/spec_demo.py]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT]
+    dependencies: [TASK-14]
+    blockers: []
+    follow_up_tasks: [TASK-16]
+    ownership: { files: [.claude/agents/proof-video-reviewer.md, scripts/proof_video_workflow.py, scripts/spec_demo.py], shared_files: [] }
+  - id: TASK-16
+    title: Enforce automatic-repair versus consent routing
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-10], acceptance_criteria: [AC-15] }
+    expected_files: [.claude/skills/create-demo-video/SKILL.md, AGENTS.md, docs/contributing/guides/agent-workflow-core.md, scripts/proof_video_workflow.py]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-AUDIT]
+    dependencies: [TASK-15]
+    blockers: []
+    follow_up_tasks: [TASK-17]
+    ownership: { files: [.claude/skills/create-demo-video/SKILL.md, AGENTS.md, docs/contributing/guides/agent-workflow-core.md, scripts/proof_video_workflow.py], shared_files: [] }
+  - id: TASK-17
+    title: Verify and deploy generalized proof review
+    status: pending
+    phase: running_checks
+    covers: { scenarios: [S-10], acceptance_criteria: [AC-14, AC-15] }
+    expected_files: [docs/specs/focused-proof-video-workflow/spec.yml]
+    verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT]
+    dependencies: [TASK-16]
+    blockers: []
+    follow_up_tasks: []
+    ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
 
 risks:
   - risk: Metadata inference may select stale or ambiguous test evidence.
@@ -853,5 +930,7 @@ risks:
     mitigation: Process one device at a time, cap output, calls, and cumulative frame submissions, avoid OCR/full scans, revalidate caches by source/contract/frame hashes, and allow only two correction rounds.
   - risk: Trimming could hide a product defect.
     mitigation: Trim only to an explicit ready marker with a small fixed lead; semantic product defects return to implementation.
+  - risk: A reviewer could treat subjective visual preference as an objective defect and trigger unwanted product changes.
+    mitigation: Automatic repair requires explicit obvious intent classification; unclear intent, uncertain categories, and low-confidence findings require user consent.
 
 open_questions: []

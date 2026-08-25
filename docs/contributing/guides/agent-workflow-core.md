@@ -152,6 +152,10 @@ and preserve product audio when playback is part of the claim. Give the active a
 and bounded image frames, never the full video. Use a default three-second
 interval plus event boundaries, request exact-timestamp frames only when needed,
 then upload the approved proof media with `scripts/opencode_response_media.py`.
+The reviewer must complete an explicit quality scan for every frame before
+evaluating assertions; an empty incidental-finding list is not evidence that the
+scan happened. Every frame must be checked for layout, readability, geometry,
+controls, visual assets, application state, consistency, and proof alignment.
 When review fails, the workflow emits a representative blocker frame image and
 `image_upload_command`; upload and embed that image in the blocker response before
 asking for user input or pausing.
@@ -164,6 +168,10 @@ classify it as an implementation defect and automatically return to a failing
 test, product fix, deploy, source rerun, and replacement recording. Do not
 accept, document as an accepted difference, or narrate around an obvious
 rendering defect.
+If the visible concern could plausibly be intentional design, classify its intent
+as unclear, upload the representative blocker frame, and ask the user for consent
+before changing product code. Do not automatically repair subjective or ambiguous
+visual differences.
 
 ## Agent Workflow Retrospective
 

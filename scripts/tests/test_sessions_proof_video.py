@@ -555,10 +555,23 @@ def test_proof_video_publish_uploads_response_media_without_discord(
 def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") -> Path:
     run_dir = tmp_path / "proof"
     run_dir.mkdir()
-    frame_index_hash = "sha256:" + "f" * 64
     proof_contract_hash = "sha256:" + "c" * 64
-    proof_group_id = "sha256:" + "e" * 64
     video_hash = "sha256:" + "d" * 64
+    frame_path = run_dir / "frames" / "frame.png"
+    frame_path.parent.mkdir()
+    frame_path.write_bytes(b"frame")
+    request = spec_demo.build_review_request(
+        spec_id="session-proof",
+        subject_commit=subject_commit,
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": spec_demo.sha256_file(frame_path)}],
+        video_metadata={"duration_seconds": 1.0, "sha256": video_hash, "width": 320, "height": 240},
+        narration_audio={"status": "not_required", "provider": "", "model": "", "voice": "", "path": "", "sha256": "", "mime_type": "", "duration_seconds": 0.0, "reused_from": ""},
+        proof_contract_hash=proof_contract_hash,
+    )
+    frame_index_hash = str(request["frame_index_hash"])
+    proof_group_id = str(request["proof_group_id"])
     receipt = {
         "status": "passed",
         "reviewer_session_id": "ses_reviewer",
@@ -566,13 +579,41 @@ def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") ->
         "proof_contract_hash": proof_contract_hash,
         "proof_group_id": proof_group_id,
         "source_artifact_hash": video_hash,
+        "review_request_hash": spec_demo.review_request_hash(request),
         "subject_commit": subject_commit,
         "correction_round": 0,
         "correction_kind": "none",
+        "reviewed_frames": ["frames/frame.png"],
+        "frame_reviews": [
+            {
+                "frame": "frames/frame.png",
+                "checks": {
+                    "layout": "pass",
+                    "readability": "pass",
+                    "geometry": "pass",
+                    "controls": "pass",
+                    "visual_assets": "pass",
+                    "application_state": "pass",
+                    "consistency": "pass",
+                    "proof_alignment": "pass",
+                },
+                "observation": "Completed the independent critical UI scan.",
+            }
+        ],
+        "assertions": [
+            {
+                "id": "visible",
+                "verdict": "supported",
+                "frames": ["frames/frame.png"],
+                "observation": "The expected state is visible.",
+            }
+        ],
+        "incidental_findings": [],
         "workflow": {"requires_user_input": False},
     }
     receipt_path = run_dir / "review-receipt.json"
     receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+    (run_dir / "review-request.json").write_text(json.dumps(request, sort_keys=True) + "\n", encoding="utf-8")
     receipt_hash = f"sha256:{hashlib.sha256(receipt_path.read_bytes()).hexdigest()}"
     manifest_path = run_dir / "manifest.json"
     manifest_path.write_text(

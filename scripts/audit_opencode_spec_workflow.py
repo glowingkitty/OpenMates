@@ -64,6 +64,9 @@ SKILL_TERMS = {
         "periodically every five seconds",
         "forty-eight cumulative submitted frames",
         "proof_video_workflow.py review",
+        "mandatory\nper-frame critical UI scan",
+        "intent as `obvious`",
+        "ask the user for consent",
     },
     ".claude/skills/specify/SKILL.md": {
         "Risk tier",
@@ -123,6 +126,10 @@ PROOF_REVIEWER_TERMS = {
     "product_defect",
     "uncertain",
     "incidental_findings",
+    "frame_reviews",
+    "Before evaluating",
+    "intent as `obvious`",
+    "requires user consent before code changes",
     "every supplied frame",
 }
 OPENCODE_PROOF_REVIEWER_TERMS = {
@@ -138,6 +145,8 @@ INSTRUCTION_TERMS = {
     "AGENTS.md": {"continue through all actionable tasks", "temporary file waits", "Agent Workflow Retrospective", "task-closing", "None observed", "Every implemented executable spec", "snippet_html", "same task-closing assistant response"},
     "CLAUDE.md": {"Agent Workflow Retrospective", "task-closing", "None observed"},
     "docs/contributing/guides/agent-workflow-core.md": {"Lazy-load", "Final responses", "verification commands", "full video", "proof-video", "narration audio is optional", "opencode_response_media.py", "actual `openmates` CLI", "--latest-run-type", "every `*.spec.ts` run", "OpenMates CLI E2E", "Agent Workflow Retrospective", "task-closing", "None observed", "Every implemented executable spec", "snippet_html", "same task-closing response"},
+    "scripts/spec_demo.py": {"REVIEW_QUALITY_CATEGORIES", "frame_reviews", "canonical review request"},
+    "scripts/proof_video_workflow.py": {"disposition", "auto_fix", "ask_user", "Before evaluating assertions"},
     ".claude/rules/session-lifecycle.md": {
         "Active executable specs are non-interruptible",
         "File waits are not user blockers",

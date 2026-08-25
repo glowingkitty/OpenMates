@@ -71,6 +71,17 @@ DEFAULT_NARRATION_PROVIDER = "elevenlabs"
 DEFAULT_NARRATION_MODEL = "eleven_flash_v2_5"
 DEFAULT_NARRATION_VOICE = "warm_neutral"
 REVIEW_VERDICTS = {"supported", "contradicted", "not_visible", "ambiguous", "wrong_time"}
+REVIEW_QUALITY_CATEGORIES = {
+    "layout",
+    "readability",
+    "geometry",
+    "controls",
+    "visual_assets",
+    "application_state",
+    "consistency",
+    "proof_alignment",
+}
+REVIEW_QUALITY_RESULTS = {"pass", "fail", "uncertain"}
 DEFECT_RETURN_STAGES = {
     "implementation": "implementation",
     "test_coverage": "tests",
@@ -1636,6 +1647,12 @@ def frame_index_hash(frames: list[dict[str, Any]]) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def review_request_hash(request: dict[str, Any]) -> str:
+    """Bind a receipt to all canonical frame, caption, claim, and metadata fields."""
+    payload = json.dumps(request, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
 def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> None:
     """Recompute the index and verify every reviewed frame is contained and unchanged."""
     assert_frame_only_review_request(request)
@@ -1673,7 +1690,9 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         "status",
         "confidence",
         "frame_index_hash",
+        "review_request_hash",
         "reviewed_frames",
+        "frame_reviews",
         "assertions",
         "incidental_findings",
         "return_stage",
@@ -1702,6 +1721,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         or receipt.get("proof_group_id") != request.get("proof_group_id")
         or receipt.get("source_artifact_hash") != (request.get("video_metadata") or {}).get("sha256")
         or receipt.get("caption_artifact_hash") != (request.get("video_metadata") or {}).get("captions_sha256")
+        or receipt.get("review_request_hash") != review_request_hash(request)
         or receipt.get("subject_commit") != request.get("subject_commit")
         or receipt.get("device") != (request.get("video_metadata") or {}).get("device_profile", "unspecified-device")
         or receipt.get("correction_round") not in range(3)
@@ -1711,6 +1731,22 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         raise DemonstrationError("Review receipt is missing canonical runner provenance")
 
     known_frames = {str(frame["path"]) for frame in request.get("frames", []) if isinstance(frame, dict)}
+    frame_reviews = receipt.get("frame_reviews")
+    if not isinstance(frame_reviews, list):
+        raise DemonstrationError("Review receipt frame_reviews must be a list")
+    frame_review_paths = [str(item.get("frame")) for item in frame_reviews if isinstance(item, dict)]
+    if len(frame_review_paths) != len(set(frame_review_paths)) or set(frame_review_paths) != known_frames:
+        raise DemonstrationError("Review receipt must provide one quality scan for every canonical frame")
+    for frame_review in frame_reviews:
+        if set(frame_review) != {"frame", "checks", "observation"}:
+            raise DemonstrationError("Review receipt frame-review fields do not match the canonical schema")
+        checks = frame_review.get("checks")
+        if not isinstance(checks, dict) or set(checks) != REVIEW_QUALITY_CATEGORIES:
+            raise DemonstrationError("Every frame quality scan must include all required categories")
+        if any(result not in REVIEW_QUALITY_RESULTS for result in checks.values()):
+            raise DemonstrationError("Frame quality scan results must be pass, fail, or uncertain")
+        if not isinstance(frame_review.get("observation"), str) or not frame_review["observation"].strip():
+            raise DemonstrationError("Every frame quality scan requires a frame-grounded observation")
     expected_ids = {
         str(item["claim_id"])
         for item in request.get("expected_proof", [])
@@ -1747,13 +1783,24 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if not isinstance(incidental, list):
         raise DemonstrationError("Review receipt incidental_findings must be a list")
     validate_citations(incidental, "incidental finding") if incidental else None
-    allowed_incidental_fields = {"id", "category", "severity", "confidence", "frames", "observation"}
+    allowed_incidental_fields = {
+        "id",
+        "category",
+        "severity",
+        "confidence",
+        "intent",
+        "quality_categories",
+        "frames",
+        "observation",
+    }
     allowed_incidental_categories = {
         "clipping",
         "overlap",
         "overflow",
         "geometry",
         "color",
+        "contrast",
+        "icon",
         "loading",
         "raw_text",
         "navigation",
@@ -1764,9 +1811,14 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         if set(finding) != allowed_incidental_fields:
             raise DemonstrationError("Review receipt incidental-finding fields do not match the canonical schema")
         finding_confidence = finding.get("confidence")
+        quality_categories = finding.get("quality_categories")
         if (
             finding.get("category") not in allowed_incidental_categories
             or finding.get("severity") not in {"blocking", "warning"}
+            or finding.get("intent") not in {"obvious", "unclear"}
+            or not isinstance(quality_categories, list)
+            or not quality_categories
+            or not set(map(str, quality_categories)).issubset(REVIEW_QUALITY_CATEGORIES)
             or isinstance(finding_confidence, bool)
             or not isinstance(finding_confidence, (int, float))
             or not 0 <= finding_confidence <= 1
@@ -1780,14 +1832,41 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     ):
         raise DemonstrationError("Review receipt must attest every canonical frame exactly once")
     blocking = [item for item in incidental if item.get("severity") == "blocking"]
+    nonpassing_quality = [
+        (str(item["frame"]), str(category), str(result))
+        for item in frame_reviews
+        for category, result in item["checks"].items()
+        if result != "pass"
+    ]
+    frame_checks = {str(item["frame"]): item["checks"] for item in frame_reviews}
+    for finding in incidental:
+        if not all(
+            frame_checks.get(str(frame), {}).get(str(category)) in {"fail", "uncertain"}
+            for frame in finding.get("frames", [])
+            for category in finding.get("quality_categories", [])
+        ):
+            raise DemonstrationError("Every incidental finding must cite a matching non-passing frame quality category")
     status = receipt.get("status")
     if status == "passed":
         if any(item.get("verdict") != "supported" for item in assertions):
             raise DemonstrationError("Passed review receipt contains an unsupported assertion")
-        if blocking:
-            raise DemonstrationError("Passed review receipt contains a blocking incidental finding")
+        if incidental:
+            raise DemonstrationError("Passed review receipt contains an unresolved incidental finding")
+        if nonpassing_quality:
+            raise DemonstrationError("Passed review receipt contains a non-passing frame quality scan")
     elif status not in {"capture_defect", "render_defect", "product_defect", "uncertain"}:
         raise DemonstrationError(f"Unsupported review receipt status: {status}")
+    if status == "product_defect" and not blocking:
+        raise DemonstrationError("Product-defect review receipt requires a blocking incidental finding")
+    if any(
+        not any(
+            frame in set(map(str, finding.get("frames", [])))
+            and category in set(map(str, finding.get("quality_categories", [])))
+            for finding in incidental
+        )
+        for frame, category, _result in nonpassing_quality
+    ):
+        raise DemonstrationError("Every non-passing frame quality category requires a matching cited incidental finding")
     confidence = receipt.get("confidence")
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
         raise DemonstrationError("Review receipt confidence must be between zero and one")
@@ -2239,6 +2318,21 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
     if sha256_file(receipt_path) != expected_hash:
         raise DemonstrationError("AI review receipt hash no longer matches the reviewed manifest")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    request_path = run_dir / "review-request.json"
+    if not request_path.is_file():
+        raise DemonstrationError("Publication requires the canonical review request")
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    validate_review_request_files(run_dir, request)
+    canonical_frames = {
+        str(item.get("path"))
+        for item in request.get("frames", [])
+        if isinstance(item, dict) and item.get("path")
+    }
+    canonical_assertions = {
+        str(item.get("claim_id"))
+        for item in request.get("expected_proof", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
     if (
         receipt.get("status") != "passed"
         or not str(receipt.get("reviewer_session_id") or "").strip()
@@ -2250,9 +2344,32 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
         or receipt.get("subject_commit") != manifest.get("subject_commit")
         or receipt.get("correction_round") not in range(3)
         or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
+        or receipt.get("review_request_hash") != review_request_hash(request)
         or not isinstance(receipt.get("workflow"), dict)
     ):
         raise DemonstrationError("AI review receipt does not match the passed manifest review")
+    frame_reviews = receipt.get("frame_reviews")
+    reviewed_frames = receipt.get("reviewed_frames")
+    assertion_records = receipt.get("assertions")
+    if (
+        not isinstance(frame_reviews, list)
+        or not isinstance(reviewed_frames, list)
+        or not canonical_frames
+        or set(map(str, reviewed_frames)) != canonical_frames
+        or {str(item.get("frame")) for item in frame_reviews if isinstance(item, dict)}
+        != canonical_frames
+        or any(
+            not isinstance(item, dict)
+            or set(item.get("checks") or {}) != REVIEW_QUALITY_CATEGORIES
+            or any(result != "pass" for result in (item.get("checks") or {}).values())
+            for item in frame_reviews
+        )
+        or receipt.get("incidental_findings") != []
+        or not isinstance(assertion_records, list)
+        or {str(item.get("id")) for item in assertion_records if isinstance(item, dict)} != canonical_assertions
+        or any(item.get("verdict") != "supported" for item in assertion_records if isinstance(item, dict))
+    ):
+        raise DemonstrationError("AI review receipt lacks complete passed frame quality scans")
     if verify_video:
         video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path") or ""))
         expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")

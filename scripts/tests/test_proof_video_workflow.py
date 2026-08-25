@@ -11,6 +11,7 @@ the workflow never needs real credentials or user data.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -18,6 +19,25 @@ import subprocess
 import pytest
 
 from scripts import proof_video_workflow as workflow
+
+
+def frame_quality_review(frame: str, **overrides: str) -> dict[str, object]:
+    checks = {
+        "layout": "pass",
+        "readability": "pass",
+        "geometry": "pass",
+        "controls": "pass",
+        "visual_assets": "pass",
+        "application_state": "pass",
+        "consistency": "pass",
+        "proof_alignment": "pass",
+    }
+    checks.update(overrides)
+    return {
+        "frame": frame,
+        "checks": checks,
+        "observation": "Completed the independent critical UI scan.",
+    }
 
 
 def test_resolve_current_context_matches_session_commit_and_passing_spec() -> None:
@@ -685,7 +705,7 @@ def test_review_bundle_is_frame_only_and_bounded(tmp_path: Path) -> None:
     [
         ("blank_first_frame", "render", True),
         ("unexplained_scroll_state", "capture", False),
-        ("clipped_header", "implementation", False),
+        ("clipped_header", "implementation", True),
     ],
 )
 def test_defect_routing_never_hides_product_defects(defect: str, expected_stage: str, automatic: bool) -> None:
@@ -979,6 +999,70 @@ def test_uncertain_review_requires_user_input_immediately() -> None:
     assert result["automatic_correction"] is False
 
 
+def test_obvious_product_defect_routes_to_automatic_implementation_repair() -> None:
+    result = workflow.review_next_action(
+        {
+            "status": "product_defect",
+            "confidence": 0.98,
+            "assertions": [],
+            "frame_reviews": [],
+            "incidental_findings": [
+                {
+                    "id": "UI-1",
+                    "category": "contrast",
+                    "severity": "blocking",
+                    "confidence": 0.98,
+                    "intent": "obvious",
+                    "quality_categories": ["readability"],
+                    "frames": ["frames/frame-0001.png"],
+                    "observation": "Text is unreadable against the menu background.",
+                }
+            ],
+            "return_stage": "capture",
+            "next_action": "Crop around the unreadable menu.",
+        },
+        prior_defect_fingerprints=[],
+    )
+
+    assert result["requires_user_input"] is False
+    assert result["automatic_correction"] is True
+    assert result["disposition"] == "auto_fix"
+    assert result["return_stage"] == "implementation"
+    assert "failing test" in result["next_action"]
+
+
+def test_unclear_product_intent_requires_user_consent_before_code_changes() -> None:
+    result = workflow.review_next_action(
+        {
+            "status": "product_defect",
+            "confidence": 0.98,
+            "assertions": [],
+            "frame_reviews": [],
+            "incidental_findings": [
+                {
+                    "id": "UI-1",
+                    "category": "geometry",
+                    "severity": "blocking",
+                    "confidence": 0.98,
+                    "intent": "unclear",
+                    "quality_categories": ["layout", "geometry"],
+                    "frames": ["frames/frame-0001.png"],
+                    "observation": "The content uses only half of the available pane, but this may be intentional.",
+                }
+            ],
+            "return_stage": "implementation",
+            "next_action": "Ask whether the narrow layout is intentional.",
+        },
+        prior_defect_fingerprints=[],
+    )
+
+    assert result["requires_user_input"] is True
+    assert result["automatic_correction"] is False
+    assert result["disposition"] == "ask_user"
+    assert result["return_stage"] == "review"
+    assert "consent" in result["next_action"]
+
+
 def test_repeated_defect_requires_user_input() -> None:
     review = {
         "status": "render_defect",
@@ -1060,6 +1144,7 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
                 "confidence": 0.99,
                 "frame_index_hash": request["frame_index_hash"],
                 "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
                 "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible in the frame."}],
                 "incidental_findings": [],
                 "return_stage": "complete",
@@ -1109,8 +1194,20 @@ def test_review_run_includes_blocker_media_for_failed_review(
                 "confidence": 0.95,
                 "frame_index_hash": request["frame_index_hash"],
                 "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", application_state="fail", proof_alignment="fail")],
                 "assertions": [{"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Blank frame."}],
-                "incidental_findings": [],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "loading",
+                        "severity": "blocking",
+                        "confidence": 0.99,
+                        "intent": "obvious",
+                        "quality_categories": ["application_state", "proof_alignment"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The frame is blank instead of showing the proof state.",
+                    }
+                ],
                 "return_stage": "render",
                 "next_action": "Regenerate the video.",
             },
@@ -1131,6 +1228,81 @@ def test_review_run_includes_blocker_media_for_failed_review(
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 
+def test_review_publication_integrity_rejects_empty_self_consistent_quality_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "integrity")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
+                "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    result = workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    receipt_path = run_dir / "review-receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["reviewed_frames"] = []
+    receipt["frame_reviews"] = []
+    receipt["assertions"] = []
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+    result["manifest"]["review"]["receipt_sha256"] = "sha256:" + hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+
+    from scripts import spec_demo
+
+    with pytest.raises(spec_demo.DemonstrationError, match="complete passed frame quality scans"):
+        spec_demo.require_review_receipt_integrity(run_dir, result["manifest"], verify_video=False)
+
+
+def test_review_publication_integrity_rejects_changed_canonical_claim_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "changed-request")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
+                "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    result = workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    request_path = run_dir / "review-request.json"
+    changed = json.loads(request_path.read_text(encoding="utf-8"))
+    changed["expected_proof"][0]["text"] = "A different visual claim."
+    request_path.write_text(json.dumps(changed), encoding="utf-8")
+
+    from scripts import spec_demo
+
+    with pytest.raises(spec_demo.DemonstrationError, match="passed manifest review"):
+        spec_demo.require_review_receipt_integrity(run_dir, result["manifest"], verify_video=False)
+
+
 def test_review_run_rejects_tampered_cached_receipt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
@@ -1143,6 +1315,7 @@ def test_review_run_rejects_tampered_cached_receipt(tmp_path: Path, monkeypatch:
                 "confidence": 0.99,
                 "frame_index_hash": request["frame_index_hash"],
                 "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
                 "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
                 "incidental_findings": [],
                 "return_stage": "complete",
@@ -1184,6 +1357,7 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
                 "confidence": 0.99,
                 "frame_index_hash": request["frame_index_hash"],
                 "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
                 "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
                 "incidental_findings": [],
                 "return_stage": "complete",
