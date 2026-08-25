@@ -849,13 +849,21 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
 
     if review_status == "passed":
         return {}
+
+    def resolve_artifact(value: str) -> Path:
+        path = Path(value)
+        if path.is_absolute():
+            return path
+        for candidate in (path, REPO_ROOT / path, run_dir / path):
+            if candidate.is_file():
+                return candidate
+        return run_dir / path
+
     video_value = str(manifest.get("video_path") or "")
     if not video_value:
         source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
         video_value = str(source.get("artifact_path") or "")
-    video_path = Path(video_value)
-    if video_value and not video_path.is_absolute():
-        video_path = run_dir / video_path
+    video_path = resolve_artifact(video_value) if video_value else Path()
 
     record: dict[str, Any] = {
         "status": "required",
@@ -867,9 +875,15 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
 
     caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
     captions_value = str(caption_artifact.get("path") or "")
-    captions_path = Path(captions_value) if captions_value else None
-    if captions_path is not None and not captions_path.is_absolute():
-        captions_path = run_dir / captions_path
+    captions_path = resolve_artifact(captions_value) if captions_value else None
+
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    latest_attempt = attempts[-1] if attempts and isinstance(attempts[-1], dict) else {}
+    findings = latest_attempt.get("incidental_findings") if isinstance(latest_attempt.get("incidental_findings"), list) else []
+    first_finding = findings[0] if findings and isinstance(findings[0], dict) else {}
+    finding_frames = first_finding.get("frames") if isinstance(first_finding.get("frames"), list) else []
+    image_path = resolve_artifact(str(finding_frames[0])) if finding_frames else None
 
     alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
     command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
@@ -885,6 +899,18 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
             ]
         )
         record["captions_path"] = str(captions_path)
+    if image_path is not None and image_path.is_file():
+        record["image_path"] = str(image_path)
+        record["image_upload_command"] = " ".join(
+            shlex.quote(part)
+            for part in (
+                "python3",
+                "scripts/opencode_response_media.py",
+                str(image_path),
+                "--alt",
+                f"Blocked proof frame for {manifest.get('spec_id', 'session-proof')} ({review_status})",
+            )
+        )
     command.extend(["--alt", alt])
     return {
         **record,
@@ -1096,7 +1122,11 @@ def review_run(
     receipt["correction_kind"] = correction_kind
     prior_fingerprints = [str(value) for value in budget.get("defect_fingerprints", [])]
     decision = review_next_action(receipt, prior_defect_fingerprints=prior_fingerprints)
-    blocker_media = proof_blocker_media(run_dir, existing_manifest, str(receipt.get("status") or ""))
+    blocker_manifest = {
+        **existing_manifest,
+        "review": {"attempts": [receipt]},
+    }
+    blocker_media = proof_blocker_media(run_dir, blocker_manifest, str(receipt.get("status") or ""))
     if blocker_media:
         decision["blocker_media"] = blocker_media
     receipt["workflow"] = decision

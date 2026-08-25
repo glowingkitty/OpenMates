@@ -1228,6 +1228,8 @@ def test_review_run_includes_blocker_media_for_failed_review(
     assert blocker_media["media_status"] == "available"
     assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
     assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert blocker_media["image_path"] == str(run_dir / "frames" / "frame.png")
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 
