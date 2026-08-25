@@ -113,7 +113,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             connectionState = .connected
             reconnectDelay = 1.0
             startPingTimer()
-            receiveMessages()
+            receiveMessages(from: webSocketTask)
             await recoveryCoordinator?.handleTransportConnected()
             let currentSyncState = syncStateProvider?() ?? activeSyncState
             activeSyncState = currentSyncState
@@ -264,14 +264,18 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     // MARK: - Receive loop
 
-    private func receiveMessages() {
-        webSocketTask?.receive { [weak self] result in
+    private func receiveMessages(from receivingTask: URLSessionWebSocketTask?) {
+        receivingTask?.receive { [weak self, weak receivingTask] result in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, let receivingTask,
+                      Self.isCurrentSocket(
+                          callbackTaskIdentifier: receivingTask.taskIdentifier,
+                          currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+                      ) else { return }
                 switch result {
                 case .success(let message):
                     self.handleRawMessage(message)
-                    self.receiveMessages()
+                    self.receiveMessages(from: receivingTask)
                 case .failure(let error):
                     print("[WS] Receive error: \(error.localizedDescription)")
                     self.handleDisconnect()
@@ -575,11 +579,18 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.webSocketTask?.sendPing { error in
+                guard let self, let pingTask = self.webSocketTask else { return }
+                let taskIdentifier = pingTask.taskIdentifier
+                pingTask.sendPing { error in
                     if let error {
                         print("[WS] Ping error: \(error.localizedDescription)")
-                        Task { @MainActor in
-                            self?.handleDisconnect()
+                        Task { @MainActor [weak self] in
+                            guard let self,
+                                  Self.isCurrentSocket(
+                                      callbackTaskIdentifier: taskIdentifier,
+                                      currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+                                  ) else { return }
+                            self.handleDisconnect()
                         }
                     }
                 }
@@ -619,13 +630,24 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
     }
 
+    static func isCurrentSocket(
+        callbackTaskIdentifier: Int,
+        currentTaskIdentifier: Int?
+    ) -> Bool {
+        guard let currentTaskIdentifier else { return false }
+        callbackTaskIdentifier == currentTaskIdentifier
+    }
+
     nonisolated func urlSession(
         _ session: URLSession,
         webSocketTask: URLSessionWebSocketTask,
         didOpenWithProtocol protocol: String?
     ) {
         Task { @MainActor [weak self] in
-            guard let self, self.webSocketTask?.taskIdentifier == webSocketTask.taskIdentifier else { return }
+            guard let self, Self.isCurrentSocket(
+                callbackTaskIdentifier: webSocketTask.taskIdentifier,
+                currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+            ) else { return }
             self.didOpenCurrentSocket = true
         }
     }
@@ -637,7 +659,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         reason: Data?
     ) {
         Task { @MainActor [weak self] in
-            guard let self, self.webSocketTask?.taskIdentifier == webSocketTask.taskIdentifier else { return }
+            guard let self, Self.isCurrentSocket(
+                callbackTaskIdentifier: webSocketTask.taskIdentifier,
+                currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+            ) else { return }
             self.handleDisconnect()
         }
     }

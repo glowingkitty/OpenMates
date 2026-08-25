@@ -113,7 +113,7 @@ struct ChatStreamingLifecycleState: Equatable {
             }
 
         case .messageReady(let chatId, let messageId):
-            if let activeMessageId = self.messageId, messageId != activeMessageId {
+            guard let activeMessageId = self.messageId, messageId == activeMessageId else {
                 return false
             }
             self.chatId = chatId
