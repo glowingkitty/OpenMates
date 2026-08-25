@@ -108,6 +108,7 @@ test('DeepSeek V4 Pro completes and the chat remains available after reload', as
 
 	const assistant = page.getByTestId('message-assistant').last();
 	await expect(assistant).toContainText('DEEPSEEK-WEB-OK', { timeout: 120_000 });
+	await expect(assistant).not.toContainText('Sorry, something went wrong');
 	const generatedBy = assistant.getByTestId('generated-by');
 	await expect(generatedBy).toContainText('DeepSeek V4 Pro', { timeout: 120_000 });
 	if (proof) {
@@ -122,6 +123,7 @@ test('DeepSeek V4 Pro completes and the chat remains available after reload', as
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30_000 });
 	const reloadedAssistant = page.getByTestId('message-assistant').last();
 	await expect(reloadedAssistant).toContainText('DEEPSEEK-WEB-OK', { timeout: 60_000 });
+	await expect(reloadedAssistant).not.toContainText('Sorry, something went wrong');
 	await expect(reloadedAssistant.getByTestId('generated-by')).toContainText('DeepSeek V4 Pro');
 	if (proof) {
 		await proof.assert('deepseek.reload-complete', async () => {
