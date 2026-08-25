@@ -15,10 +15,31 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {CLI_DIST, createOpenmatesCliRecordingBin, deriveApiUrl, runCliProof} = require('./cli-test-helpers.ts');
+const {CLI_DIST, createOpenmatesCliRecordingBin, deriveApiUrl, extractCliProofFrame, runCliProof} = require('./cli-test-helpers.ts');
 
 test('exports CLI proof helper', () => {
 	assert.equal(typeof runCliProof, 'function');
+});
+
+test('extracts a PNG checkpoint frame from a CLI recording', () => {
+	const png = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+	let invocation;
+	const frame = extractCliProofFrame('/tmp/raw-terminal.mp4', (command, args, options) => {
+		invocation = {command, args, options};
+		return {
+		status: 0,
+		stdout: png,
+		stderr: Buffer.alloc(0)
+		};
+	});
+
+	assert.equal(frame, png);
+	assert.equal(invocation.command, 'ffmpeg');
+	assert.deepEqual(invocation.args, [
+		'-v', 'error', '-sseof', '-0.1', '-i', '/tmp/raw-terminal.mp4',
+		'-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'
+	]);
+	assert.equal(invocation.options.encoding, null);
 });
 
 test('derives dev API URL from dev app URL', () => {

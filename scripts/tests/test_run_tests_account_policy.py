@@ -352,6 +352,47 @@ def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
     assert result.tests[0]["error"] == "Run was cancelled"
 
 
+def test_playwright_artifact_error_fails_only_the_affected_spec(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    artifact = tmp_path / "artifact"
+    artifact.mkdir()
+    (artifact / "playwright.json").write_text('{"suites":[]}', encoding="utf-8")
+
+    class FakeClient:
+        last_dispatch_error = ""
+
+        def dispatch_spec(self, spec, *_args, **_kwargs):
+            return {"broken.spec.ts": 101, "healthy.spec.ts": 102}[spec]
+
+        def wait_for_runs(self, run_ids, _fail_fast):
+            return {run_id: {"status": "completed", "conclusion": "success"} for run_id in run_ids}
+
+        def download_artifact(self, *_args, **_kwargs):
+            return artifact
+
+    runner = run_tests.BatchRunner(
+        client=FakeClient(),
+        specs=["broken.spec.ts", "healthy.spec.ts"],
+        batch_size=2,
+        fail_fast=False,
+    )
+    monkeypatch.setattr(runner, "_persist_failure_artifacts", lambda *_args: None)
+    monkeypatch.setattr(runner, "_persist_credential_update_artifacts", lambda *_args: None)
+    monkeypatch.setattr(runner, "_collect_video_paths", lambda *_args: [])
+    monkeypatch.setattr(
+        runner,
+        "_persist_recording_artifacts",
+        lambda spec, _path: (_ for _ in ()).throw(RuntimeError("malformed proof timeline"))
+        if spec == "broken.spec.ts"
+        else None,
+    )
+
+    result = runner.run_all_batches()
+
+    assert [test["status"] for test in result.tests] == ["failed", "passed"]
+    assert result.tests[0]["error"] == "Artifact processing failed: malformed proof timeline"
+
+
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
     run_tests = load_run_tests_module()
     regular_specs = [f"regular-{index}.spec.ts" for index in range(5)]

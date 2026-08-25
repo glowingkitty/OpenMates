@@ -13,7 +13,7 @@
  */
 export {};
 
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const REPOSITORY_ROOT = path.resolve(__dirname, '../../../../..');
@@ -38,6 +38,26 @@ function deriveApiUrl(baseUrl: string): string {
 		/* fall through */
 	}
 	return 'https://api.openmates.org';
+}
+
+function extractCliProofFrame(
+	videoPath: string,
+	run = spawnSync
+): Buffer {
+	const result = run('ffmpeg', [
+		'-v', 'error',
+		'-sseof', '-0.1',
+		'-i', videoPath,
+		'-frames:v', '1',
+		'-f', 'image2pipe',
+		'-vcodec', 'png',
+		'pipe:1'
+	], {encoding: null, maxBuffer: 16 * 1024 * 1024});
+	if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout) || result.stdout.length === 0) {
+		const detail = result.error?.message || result.stderr?.toString() || 'empty frame output';
+		throw new Error(`CLI proof frame extraction failed: ${String(detail).slice(-1000)}`);
+	}
+	return result.stdout;
 }
 
 /**
@@ -156,9 +176,14 @@ async function runCliProof(
 ): Promise<{ result: { code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }; proof: any; recording: Record<string, string> }> {
 	const { createVideoProofRuntime } = require('./video-proof.ts');
 	const specName = path.basename(testInfo.file || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e.spec.ts');
+	const proofState: {recording?: Record<string, string>} = {};
 	const proof = createVideoProofRuntime(definition, {
 		device: 'cli-terminal',
-		attach: async (name: string, attachment: {body: Buffer; contentType: string}) => testInfo.attach(name, attachment)
+		attach: async (name: string, attachment: {body: Buffer; contentType: string}) => testInfo.attach(name, attachment),
+		captureFrame: async () => {
+			if (!proofState.recording) throw new Error('CLI proof checkpoint was captured before the terminal recording completed');
+			return extractCliProofFrame(proofState.recording.videoPath);
+		}
 	});
 	const result = await proof.action('run-openmates-cli', async () => runCli(apiUrl, args, timeoutMs, {
 		...options,
@@ -170,6 +195,7 @@ async function runCliProof(
 	}));
 	if (!result.recording) throw new Error('CLI proof run did not produce a real terminal recording');
 	const recording = result.recording;
+	proofState.recording = recording;
 	await testInfo.attach('openmates-cli-real-terminal-video', {path: recording.videoPath, contentType: 'video/mp4'});
 	await testInfo.attach('openmates-cli-real-terminal-manifest', {path: recording.manifestPath, contentType: 'application/json'});
 	await testInfo.attach('openmates-cli-real-terminal-transcript', {path: recording.transcriptPath, contentType: 'text/plain'});
@@ -219,6 +245,7 @@ function expectCliSuccess(
 module.exports = {
 	CLI_DIST,
 	deriveApiUrl,
+	extractCliProofFrame,
 	runCli,
 	runCliProof,
 	parseCliJson,

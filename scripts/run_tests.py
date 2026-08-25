@@ -2197,7 +2197,12 @@ class BatchRunner:
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
                 self._persist_credential_update_artifacts(spec, art_path)
-                proof_timeline_path = self._persist_recording_artifacts(spec, art_path)
+                try:
+                    proof_timeline_path = self._persist_recording_artifacts(spec, art_path)
+                except Exception as exc:
+                    status = "failed"
+                    error = f"Artifact processing failed: {exc}"
+                    _log(f"  Artifact processing failed for {spec}: {exc}", "ERROR")
                 video_paths = self._collect_video_paths(art_path)
 
                 # Collect screenshot paths relative to test-results/
@@ -3014,27 +3019,28 @@ class NotificationService:
             return
 
         started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        trigger_type = "Scheduled (daily)" if os.environ.get("DAILY_RUN_ENVIRONMENT") else "Manual"
         subject = f"[OpenMates] Test run started ({environment})"
         body = (
             f"Test run started at {started_at}\n"
             f"Environment: {environment}\n"
             f"Git: {git_sha}@{git_branch}\n"
-            f"Trigger: {'Scheduled (daily)' if os.environ.get('DAILY_RUN_ENVIRONMENT') else 'Manual'}"
+            f"Trigger: {trigger_type}"
         )
 
-        if self.brevo_api_key:
-            self._send_via_brevo(subject, body)
-        elif self.internal_token:
-            self._send_via_internal_api("dispatch-test-start-email", {
+        self._send_email(
+            subject,
+            body,
+            "dispatch-test-start-email",
+            {
                 "recipient_email": self.admin_email,
                 "environment": environment,
-                "trigger_type": "Scheduled (daily)",
+                "trigger_type": trigger_type,
                 "git_sha": git_sha,
                 "git_branch": git_branch,
                 "started_at": started_at,
-            })
-        else:
-            _log("No email credentials available — skipping start email", "WARN")
+            },
+        )
 
     def send_daily_discord_status(
         self,
@@ -3147,6 +3153,7 @@ class NotificationService:
         subject = f"[OpenMates] {status} ({result.environment})"
 
         # --- Email path (existing) ---
+        email_delivered = False
         if not self.admin_email:
             _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
         else:
@@ -3154,22 +3161,23 @@ class NotificationService:
             html = self._build_summary_html(result)
             text = self._build_summary_text(result)
 
-            if self.brevo_api_key:
-                self._send_via_brevo(subject, text, html)
-            elif self.internal_token:
-                # Fall back to internal API
-                payload = self._build_internal_api_payload(result)
-                self._send_via_internal_api("dispatch-test-summary-email", payload)
-            else:
-                _log("No email credentials available — skipping summary email", "WARN")
+            email_delivered = self._send_email(
+                subject,
+                text,
+                "dispatch-test-summary-email",
+                self._build_internal_api_payload(result),
+                html,
+            )
 
         # --- Discord fallback (OPE-76) ---
         # Fires for EVERY run — nightly success gives a visible heartbeat so we
         # notice if the whole pipeline goes quiet. Failures get a louder ping.
         discord_delivered = self._send_summary_to_discord(result)
+        result.flags["email_delivered"] = email_delivered
+        result.flags["discord_delivered"] = discord_delivered
 
         self.send_urgent_essential_failure_email(result)
-        return discord_delivered
+        return email_delivered or discord_delivered
 
     def send_urgent_essential_failure_email(self, result: RunResult) -> None:
         """Send a separate admin email when signup, login, or chat flow fails."""
@@ -3200,16 +3208,15 @@ class NotificationService:
             suites=self._essential_failed_suites(result, essential_failed),
         )
 
-        if self.brevo_api_key:
-            html = self._build_summary_html(urgent_result)
-            text = self._build_summary_text(urgent_result)
-            self._send_via_brevo(ESSENTIAL_FAILURE_SUBJECT, text, html)
-        elif self.internal_token:
-            payload = self._build_internal_api_payload(urgent_result)
-            payload["subject_override"] = ESSENTIAL_FAILURE_SUBJECT
-            self._send_via_internal_api("dispatch-test-summary-email", payload)
-        else:
-            _log("No email credentials available — skipping urgent essential-flow email", "WARN")
+        payload = self._build_internal_api_payload(urgent_result)
+        payload["subject_override"] = ESSENTIAL_FAILURE_SUBJECT
+        self._send_email(
+            ESSENTIAL_FAILURE_SUBJECT,
+            self._build_summary_text(urgent_result),
+            "dispatch-test-summary-email",
+            payload,
+            self._build_summary_html(urgent_result),
+        )
 
     def send_prod_failure_email(self, result: RunResult, mode_label: str, run_url: Optional[str] = None) -> None:
         """Send a production smoke failure email from the dev-server runner."""
@@ -3230,15 +3237,10 @@ class NotificationService:
                 f'<p><a href="{run_url}" style="color:#60a5fa">View GitHub Actions run</a></p></body></html>',
             )
 
-        if self.brevo_api_key:
-            self._send_via_brevo(subject, text, html)
-        elif self.internal_token:
-            payload = self._build_internal_api_payload(result)
-            payload["subject_override"] = subject
-            payload["run_url"] = run_url
-            self._send_via_internal_api("dispatch-test-summary-email", payload)
-        else:
-            _log("No email credentials available — cannot send prod smoke failure email", "ERROR")
+        payload = self._build_internal_api_payload(result)
+        payload["subject_override"] = subject
+        payload["run_url"] = run_url
+        self._send_email(subject, text, "dispatch-test-summary-email", payload, html)
 
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
@@ -3272,7 +3274,23 @@ class NotificationService:
 
     # --- Private methods ---
 
-    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> None:
+    def _send_email(
+        self,
+        subject: str,
+        text: str,
+        internal_endpoint: str,
+        internal_payload: dict,
+        html: Optional[str] = None,
+    ) -> bool:
+        """Use the server-managed email path first, with direct Brevo as fallback."""
+        if self.internal_token and self._send_via_internal_api(internal_endpoint, internal_payload):
+            return True
+        if self.brevo_api_key:
+            return self._send_via_brevo(subject, text, html)
+        _log("No working email transport available", "WARN")
+        return False
+
+    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> bool:
         """Send email directly via Brevo API."""
         payload = {
             "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
@@ -3297,11 +3315,13 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email sent via Brevo to {self.admin_email}")
+            return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
+        return False
 
     def _is_essential_test(self, test_entry: dict, suite_name: str = "") -> bool:
         searchable = " ".join(
@@ -4245,8 +4265,8 @@ class NotificationService:
             )
         return (posted, edited, recovered)
 
-    def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
-        """Send via internal API as fallback."""
+    def _send_via_internal_api(self, endpoint: str, payload: dict) -> bool:
+        """Dispatch email through the server-managed internal API."""
         url = f"{self.internal_api_url}/internal/{endpoint}"
         try:
             body = json.dumps(payload).encode("utf-8")
@@ -4257,8 +4277,10 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email dispatched via internal API ({endpoint})")
+            return True
         except Exception as e:
             _log(f"Internal API email dispatch failed: {e}", "WARN")
+            return False
 
     def _build_summary_html(self, result: RunResult) -> str:
         """Build a simple HTML email for test results."""

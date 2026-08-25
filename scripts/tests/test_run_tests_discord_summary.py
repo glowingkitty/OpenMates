@@ -187,6 +187,130 @@ def test_discord_summary_payload_uses_grouped_failure_embeds(monkeypatch):
     assert captured["timeout"] == 30
 
 
+def test_summary_email_prefers_internal_api_when_both_transports_are_configured(monkeypatch):
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    calls = []
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or True
+    service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: True
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    delivered = service.send_summary_email(result)
+
+    assert delivered is True
+    assert calls == [("internal", "dispatch-test-summary-email")]
+    assert result.flags["email_delivered"] is True
+    assert result.flags["discord_delivered"] is True
+
+
+def test_summary_email_falls_back_to_brevo_when_internal_dispatch_fails():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    calls = []
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or False
+    service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: True
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    delivered = service.send_summary_email(result)
+
+    assert delivered is True
+    assert calls == [
+        ("internal", "dispatch-test-summary-email"),
+        ("brevo", None),
+    ]
+
+
+def test_summary_email_is_delivered_when_optional_discord_is_unconfigured():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = ""
+    service._send_via_internal_api = lambda *_args: True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: False
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    assert service.send_summary_email(result) is True
+    assert result.flags["email_delivered"] is True
+    assert result.flags["discord_delivered"] is False
+
+
+def test_manual_start_email_preserves_manual_trigger_type(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.delenv("DAILY_RUN_ENVIRONMENT", raising=False)
+    payloads = []
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service._send_email = lambda _subject, _text, endpoint, payload: payloads.append((endpoint, payload)) or True
+
+    service.send_start_email("abc123", "dev", "development")
+
+    assert payloads[0][0] == "dispatch-test-start-email"
+    assert payloads[0][1]["trigger_type"] == "Manual"
+
+
 def test_daily_discord_status_reports_phase_and_elapsed_time(monkeypatch):
     run_tests = load_run_tests_module()
     captured = {}
