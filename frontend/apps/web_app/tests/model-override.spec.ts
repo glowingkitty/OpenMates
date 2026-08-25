@@ -419,7 +419,7 @@ test('select deepseek v4 pro via @ mention dropdown and complete a live response
 	await startNewChat(page, logCheckpoint);
 	await selectModelViaMentionDropdown(
 		page,
-		'deepseek',
+		'deepseek-v4-pro',
 		'DeepSeek V4 Pro',
 		logCheckpoint,
 		takeStepScreenshot,
