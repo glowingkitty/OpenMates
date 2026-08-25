@@ -385,6 +385,7 @@ async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_
     uploads: list[dict[str, object]] = []
     indexed: list[dict[str, object]] = []
     cached: list[dict[str, object]] = []
+    s3_initialize_modes: list[bool] = []
 
     class FakeEncryptionService:
         def __init__(self, **_kwargs):
@@ -414,7 +415,8 @@ async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_
         def __init__(self, **_kwargs):
             pass
 
-        async def initialize(self):
+        async def initialize(self, *, configure_buckets: bool = True):
+            s3_initialize_modes.append(configure_buckets)
             return None
 
         async def upload_file(self, **kwargs):
@@ -514,6 +516,7 @@ async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_
     )
 
     assert "native_render_payload" not in stored[0]
+    assert s3_initialize_modes == [False, False]
     assert chat_bound[0]["native_render_payload"] == {
         "app_id": "images",
         "frontend_type": "image",

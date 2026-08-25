@@ -198,7 +198,7 @@ async def _persist_code_run_artifacts(
         await encryption_service.initialize()
         directus_service = DirectusService(cache_service=cache_service, encryption_service=encryption_service)
         s3_service = S3UploadService(secrets_manager=secrets_manager)
-        await s3_service.initialize()
+        await s3_service.initialize(configure_buckets=False)
 
         user_profile = await directus_service.get_user_fields_direct(user_id, ["vault_key_id", "storage_used_bytes"])
         vault_key_id = (user_profile or {}).get("vault_key_id")

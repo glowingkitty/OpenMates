@@ -42,9 +42,12 @@ class S3UploadService:
         # Get current environment - needed before initialization
         self.environment = os.getenv('SERVER_ENVIRONMENT', 'development')
 
-    async def initialize(self):
+    async def initialize(self, *, configure_buckets: bool = True):
         """
-        Asynchronously fetch secrets and initialize S3 clients, buckets, CORS, and lifecycle policies.
+        Asynchronously fetch secrets and initialize S3 clients.
+
+        Bucket, lifecycle, and CORS reconciliation is startup work. Request-time
+        callers can skip it after the runtime has already initialized storage.
         """
         logger.info("Initializing S3 service asynchronously...")
         
@@ -111,11 +114,12 @@ class S3UploadService:
         
         logger.info("S3 clients created.")
 
-        # Initialize buckets (check existence, create if needed, apply lifecycle)
-        await self._initialize_buckets() # Make this async
-        
-        # Apply CORS settings to required buckets (should happen after buckets exist)
-        apply_cors_settings(self.client)
+        if configure_buckets:
+            # Initialize buckets (check existence, create if needed, apply lifecycle)
+            await self._initialize_buckets() # Make this async
+
+            # Apply CORS settings to required buckets (should happen after buckets exist)
+            apply_cors_settings(self.client)
         
         logger.info("S3 service initialization complete.")
 
