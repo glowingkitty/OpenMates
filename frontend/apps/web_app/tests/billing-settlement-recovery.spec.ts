@@ -147,7 +147,7 @@ test.describe('Billing settlement recovery', () => {
 				await expect(reloadedAssistant).toHaveAttribute('data-streaming', 'false');
 				await expect(reloadedCards.first()).toBeVisible();
 			});
-			await page.waitForTimeout(3_000);
+			await page.waitForTimeout(8_000);
 			await proof.checkpoint('completion-survives-reload');
 			await proof.attach();
 			return;
