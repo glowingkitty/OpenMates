@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class ChatFlowRealAccountUITests: XCTestCase {
-    private let markerPrompt = "Kyoto and Osaka quick tip test"
+    private let markerPrompt = "Reply with exactly: Kyoto and Osaka are neighboring cities."
     private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
     private let assistantResponseTimeout: TimeInterval = 90
 
@@ -142,7 +142,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "devices": [profile],
                 "transcript": [
                     ["id": "login", "text": "OpenMates signs in and restores the native chat shell.", "checkpoint": "login-ready", "devices": [profile]],
-                    ["id": "message", "text": "The sent travel question remains visible in the native conversation.", "checkpoint": "response-ready", "devices": [profile]],
+                    ["id": "message", "text": "The sent travel prompt remains visible in the native conversation.", "checkpoint": "response-ready", "devices": [profile]],
                     ["id": "chat", "text": "One assistant response appears below that message without duplication.", "checkpoint": "response-ready", "devices": [profile]],
                 ],
                 "assertions": [
