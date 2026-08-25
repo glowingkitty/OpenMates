@@ -222,6 +222,50 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertTrue(state.isActive)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.ordered-final,chats.message.identity-idempotent
+    func testStaleTerminalEventsCannotCompleteCurrentTurn() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat-1", taskId: "task-new", userMessageId: "user-new"))
+        state.apply(.typingStarted(chatId: "chat-1", messageId: "assistant-new", metadata: nil))
+
+        XCTAssertFalse(state.apply(.messageReady(chatId: "chat-1", messageId: "assistant-old")))
+        XCTAssertFalse(state.apply(.cancelRequested(chatId: "chat-1", taskId: "task-old")))
+        XCTAssertFalse(state.apply(.postProcessingCompleted(
+            chatId: "chat-1",
+            taskId: "task-old",
+            followUpSuggestions: [],
+            newChatSuggestions: [],
+            chatSummary: nil,
+            chatTags: [],
+            updatedTitle: nil
+        )))
+        XCTAssertEqual(state.phase, .typing)
+        XCTAssertEqual(state.messageId, "assistant-new")
+        XCTAssertEqual(state.taskId, "task-new")
+        XCTAssertTrue(state.isActive)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testTerminalEventClearsStreamingMessageSelectionBeforeNextSend() {
+        let viewModel = ChatViewModel()
+        viewModel.handleStreamEvent(.typingStarted(
+            chatId: "chat-1",
+            messageId: "assistant-1",
+            metadata: nil
+        ))
+        XCTAssertEqual(viewModel.streamingMessageId, "assistant-1")
+
+        viewModel.handleStreamEvent(.messageReady(chatId: "chat-1", messageId: "assistant-1"))
+        XCTAssertNil(viewModel.streamingMessageId)
+
+        viewModel.handleStreamEvent(.taskInitiated(
+            chatId: "chat-1",
+            taskId: "task-2",
+            userMessageId: "user-2"
+        ))
+        XCTAssertNil(viewModel.streamingMessageId)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCancelAITaskPayloadMatchesWebContract() {
         let payload = ChatSendPipeline().cancelAITaskPayload(taskId: "task-1", chatId: "chat-1")
