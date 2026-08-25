@@ -346,7 +346,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(terminal).toBeVisible({ timeout: 10000 });
 	await expect(terminal).toContainText('Hello, World!');
 	await artifactCards.nth(1).getByTestId('code-run-artifact-child-open').click();
-	const fileChild = fullscreenOverlay.getByTestId('file-embed-fullscreen');
+	const fileChild = page.getByTestId('file-embed-fullscreen');
 	await expect(fileChild).toBeVisible({ timeout: 10000 });
 	await expect(fileChild).toContainText('outputs/result.txt');
 	await expect(fileChild.getByTestId('file-embed-executable-preview')).toHaveCount(0);
