@@ -20,6 +20,7 @@ const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
 const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
+const STALE_SELECTION_DELAY_MS = 750;
 const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 4_000 : 0;
 
 async function holdProofVideoState(page: any): Promise<void> {
@@ -290,7 +291,44 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
 		await holdProofVideoState(page);
+
+		const sidebar = page.getByTestId('activity-history-wrapper');
+		if (!(await sidebar.isVisible().catch(() => false))) {
+			await page.getByTestId('sidebar-toggle').click();
+			await expect(sidebar).toBeVisible({ timeout: 10_000 });
+		}
+		const firstChatRow = page.locator(
+			`[data-testid="chat-item-wrapper"][data-chat-id="${firstLocalChat.chatId}"]`
+		);
+		const secondChatRow = page.locator(
+			`[data-testid="chat-item-wrapper"][data-chat-id="${secondLocalChat.chatId}"]`
+		);
+		await expect(firstChatRow).toBeVisible({ timeout: 10_000 });
+		await expect(secondChatRow).toBeVisible({ timeout: 10_000 });
+		await page.evaluate(({ chatId, delayMs }: { chatId: string; delayMs: number }) => {
+			(window as typeof window & {
+				__openmatesE2EChatSelectionDelays?: Record<string, number>;
+			}).__openmatesE2EChatSelectionDelays = { [chatId]: delayMs };
+		}, { chatId: firstLocalChat.chatId, delayMs: STALE_SELECTION_DELAY_MS });
+
+		await firstChatRow.click();
+		await secondChatRow.click();
+		await expect(secondChatRow).toHaveAttribute('data-active', 'true');
+		await page.waitForTimeout(STALE_SELECTION_DELAY_MS + 250);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
+			'data-current-chat-id',
+			secondLocalChat.chatId
+		);
+		await expect.poll(() => new URL(page.url()).hash).toContain(
+			`chat-id=${encodeURIComponent(secondLocalChat.chatId)}`
+		);
+		await expect(secondChatRow).toHaveAttribute('data-active', 'true');
 	} finally {
+		await page.evaluate(() => {
+			delete (window as typeof window & {
+				__openmatesE2EChatSelectionDelays?: Record<string, number>;
+			}).__openmatesE2EChatSelectionDelays;
+		}).catch(() => undefined);
 		if (!repairReleased) releaseRepair();
 		if (repairRequested) await repairFinished;
 		await page.unroute(windowRoute, delayRepairResponse);

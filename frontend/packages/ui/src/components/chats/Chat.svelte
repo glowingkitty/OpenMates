@@ -2079,6 +2079,7 @@
   class="chat-item-wrapper"
   data-testid="chat-item-wrapper"
   data-chat-id={chat?.chat_id ?? ''}
+  data-active={isActive ? 'true' : 'false'}
   class:active={isActive}
   role="button"
   tabindex="0"

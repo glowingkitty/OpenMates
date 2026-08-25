@@ -1978,12 +1978,12 @@ assertions:
       surface: gui.web
     - &id205
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 341
+      line: 379
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id207
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 551
+      line: 589
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id208
@@ -2041,7 +2041,7 @@ assertions:
       surface: gui.web
     - &id206
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 540
+      line: 578
       name: continue carousel remains visible during reconnect churn
       surface: gui.web
     - &id213
@@ -2127,7 +2127,7 @@ assertions:
       surface: gui.web
     - &id220
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 341
+      line: 379
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id221
@@ -8069,12 +8069,12 @@ assertions:
       surface: gui.apple
     - &id877
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 341
+      line: 379
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id879
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 551
+      line: 589
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     supporting_tests:
@@ -8095,7 +8095,7 @@ assertions:
       surface: gui.web
     - &id878
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 540
+      line: 578
       name: continue carousel remains visible during reconnect churn
       surface: gui.web
     tests:
@@ -8357,12 +8357,12 @@ assertions:
       surface: gui.web
     - &id930
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 341
+      line: 379
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id932
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 551
+      line: 589
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id933
@@ -8713,7 +8713,7 @@ assertions:
       surface: rest_api
     - &id931
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 540
+      line: 578
       name: continue carousel remains visible during reconnect churn
       surface: gui.web
     - &id936
@@ -9002,12 +9002,12 @@ assertions:
       surface: gui.web
     - &id1005
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 341
+      line: 379
       name: startup sync is bounded and older content hydrates on demand
       surface: gui.web
     - &id1006
       path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-      line: 551
+      line: 589
       name: cached short chat opens coherently before delayed completeness repair
       surface: gui.web
     - &id1011

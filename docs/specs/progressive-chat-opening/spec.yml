@@ -13,9 +13,9 @@ contract_refs:
     role: inherited
     fingerprint: 64a83835eff186a6ddb9f6dc51d7f8235c4c3591366d614a1dc8db9d581f0503
   - id: feature.chats
-    version: 1
+    version: 2
     role: inherited
-    fingerprint: 71abe35624ec3f3c7572c36e627f823f268b43e27bd5fdb8e284dd38fbc68354
+    fingerprint: 1781cf9cedac41a38e6a735dd5cdc539917258e2fbb7209a49a49d666328f4e6
 
 contract_impact:
   classification: semantic_change
@@ -170,13 +170,14 @@ scenarios:
       - Welcome content, previous-chat messages, and ciphertext remain hidden.
       - A failed repair produces a visible target-specific retry or error state.
   - id: S-3
-    title: Rapid navigation rejects stale completion
+    title: Rapid navigation rejects stale invocation and completion
     given:
       - Alice opens chat A and its local or remote hydration remains pending.
     when:
       - Alice selects chat B before chat A finishes.
     then:
       - Chat B remains the only visible chat surface.
+      - A delayed chat A load cannot start after chat B becomes the current selection.
       - Stale chat A header, messages, repair, and welcome reconciliation cannot commit into chat B.
 
 acceptance_criteria:
@@ -200,7 +201,7 @@ acceptance_criteria:
     contract_assertions: [chat-navigation.open.local-first-coherent, chats.persistence.client-encrypted]
   - id: AC-3
     scenario: S-3
-    text: A stale local or remote completion for chat A cannot overwrite selected chat B, duplicate messages, or regress chronological ordering.
+    text: A stale load invocation or local or remote completion for chat A cannot overwrite selected chat B, duplicate messages, or regress chronological ordering.
     required: true
     status: pending
     coverage_status: covered
@@ -260,7 +261,7 @@ tests:
       - Select a locally cached short chat while delaying its real bounded-window request.
       - Welcome disappears and the selected chat shell/local count becomes visible before the delayed request completes.
       - Cold local history remains target-specific while hydration is pending.
-      - Rapid A-to-B selection rejects stale A completion and preserves unique ordered B messages.
+      - Rapid A-to-B selection rejects stale A invocation and completion while preserving the selected hash, highlighted row, rendered chat identity, and unique ordered B messages.
     red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec startup-sync-contract.spec.ts --gate-deploy --expected-commit 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646", run_id: "31959715689", subject_commit: "106b79999d6f45eaa5b1e03fd635ba0f8cfb2646", target: app.dev.openmates.org, timestamp: "2026-08-16T16:51:03Z", summary: "The delayed real bounded-window response kept welcome-content visible after the short cached chat was selected, reproducing R5L8Q."}}
     green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {}}
   - id: T-WEB-MESSAGE-SYNC

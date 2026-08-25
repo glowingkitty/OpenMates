@@ -123,6 +123,17 @@
 	const ANONYMOUS_RELOAD_CATEGORY = 'general_knowledge';
 	const ANONYMOUS_RELOAD_ICON = 'sparkles';
 
+	async function waitForE2EChatSelectionDelay(chatId: string): Promise<void> {
+		if (!browser || !window.location.hostname.endsWith('.dev.openmates.org')) return;
+		const testWindow = window as typeof window & {
+			__openmatesE2EChatSelectionDelays?: Record<string, number>;
+		};
+		const delayMs = testWindow.__openmatesE2EChatSelectionDelays?.[chatId] ?? 0;
+		if (delayMs <= 0) return;
+		delete testWindow.__openmatesE2EChatSelectionDelays?.[chatId];
+		await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+	}
+
 	function createAnonymousReloadChat(chatId: string): Chat {
 		const now = Math.floor(Date.now() / 1000);
 		return {
@@ -3410,6 +3421,7 @@
 		const selectedChat: Chat = event.detail.chat;
 		console.debug('[+page.svelte] Received chatSelected event:', selectedChat.chat_id); // Use chat_id
 		notFoundPathStore.set(null);
+		await waitForE2EChatSelectionDelay(selectedChat.chat_id);
 
 		// Retry mechanism with multiple attempts to ensure chat loads (critical for SEO)
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
