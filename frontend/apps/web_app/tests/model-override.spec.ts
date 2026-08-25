@@ -37,6 +37,8 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const SHOULD_SKIP_GPT54_LIVE = !process.env.E2E_USE_MOCKS && !process.env.TEST_LIVE_RECORD;
 const GPT54_LIVE_SKIP_REASON = 'GPT-5.4 live OpenAI route is quota-dependent; deterministic coverage runs via recorded fixtures.';
+const SHOULD_SKIP_DEEPSEEK_MOCK = Boolean(process.env.E2E_USE_MOCKS);
+const DEEPSEEK_MOCK_SKIP_REASON = 'DeepSeek provider health requires a live inference run, not a recorded fixture.';
 
 async function focusMessageEditor(messageEditor: any): Promise<void> {
 	await messageEditor.click();
@@ -305,6 +307,7 @@ async function waitForResponseAndVerifyModel(
  * 5. Send message
  * 6. Verify response shows "Qwen" in generated-by text
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('select qwen model via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -384,6 +387,65 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
 	logCheckpoint('Qwen model mention test completed successfully.');
 });
 
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
+test('select deepseek v4 pro via @ mention dropdown and complete a live response', async ({ page }: { page: any }) => {
+	test.skip(SHOULD_SKIP_DEEPSEEK_MOCK, DEEPSEEK_MOCK_SKIP_REASON);
+
+	page.on('console', (msg: any) => {
+		const timestamp = new Date().toISOString();
+		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
+	});
+
+	page.on('request', (request: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] >> ${request.method()} ${request.url()}`);
+	});
+
+	page.on('response', (response: any) => {
+		const timestamp = new Date().toISOString();
+		networkActivities.push(`[${timestamp}] << ${response.status()} ${response.url()}`);
+	});
+
+	test.slow();
+	test.setTimeout(180000);
+
+	const logCheckpoint = createSignupLogger('MODEL_MENTION_DEEPSEEK');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'deepseek' });
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await archiveExistingScreenshots(logCheckpoint);
+
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+	await selectModelViaMentionDropdown(
+		page,
+		'deepseek',
+		'DeepSeek V4 Pro',
+		logCheckpoint,
+		takeStepScreenshot,
+		'deepseek'
+	);
+	await typeQuestionAndSend(
+		page,
+		'Reply with exactly: DEEPSEEK-WEB-OK',
+		logCheckpoint,
+		takeStepScreenshot,
+		'deepseek',
+		'model_override_deepseek_v4_pro'
+	);
+
+	const response = await waitForResponseAndVerifyModel(
+		page,
+		/deepseek v4 pro/i,
+		logCheckpoint,
+		takeStepScreenshot,
+		'deepseek'
+	);
+	expect(response).toContain('DEEPSEEK-WEB-OK');
+	await assertNoMissingTranslations(page);
+	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'deepseek-cleanup');
+});
+
 /**
  * Test: Select GPT-5.4 model via @ mention dropdown and verify it's used.
  *
@@ -395,6 +457,7 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
  * 5. Send message
  * 6. Verify response shows "GPT-5.4" in generated-by text
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any }) => {
 	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
 
@@ -484,6 +547,7 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
  * 4. Test GPT-5.4: Select via @gpt-5.4, send question, verify response
  * 5. Delete chat
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: { page: any }) => {
 	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
 
@@ -605,6 +669,7 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
  * 5. Send message
  * 6. Verify response shows "Kimi" in generated-by text
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('select kimi k2.6 model via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
