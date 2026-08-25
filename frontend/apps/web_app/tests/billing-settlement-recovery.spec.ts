@@ -121,6 +121,7 @@ test.describe('Billing settlement recovery', () => {
 				await expect(assistantContent).toHaveAttribute('data-streaming', 'false');
 				await expect(eventCards.first()).toBeVisible();
 			});
+			await page.waitForTimeout(750);
 			await proof.checkpoint('response-completed');
 		}
 
@@ -138,13 +139,15 @@ test.describe('Billing settlement recovery', () => {
 		await expect(reloadedMapView.getByText('Loading referenced embeds...')).toHaveCount(0);
 		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
 		if (proof) {
-			await reloadedAssistant.evaluate((element: HTMLElement) =>
-				element.scrollIntoView({ block: 'end', behavior: 'instant' })
-			);
+			await reloadedAssistant.evaluate((element: HTMLElement) => {
+				const responseEnd = element.lastElementChild || element;
+				responseEnd.scrollIntoView({ block: 'end', behavior: 'instant' });
+			});
 			await proof.assert('completion-survives-reload', async () => {
 				await expect(reloadedAssistant).toHaveAttribute('data-streaming', 'false');
 				await expect(reloadedCards.first()).toBeVisible();
 			});
+			await page.waitForTimeout(750);
 			await proof.checkpoint('completion-survives-reload');
 			await proof.attach();
 			return;
