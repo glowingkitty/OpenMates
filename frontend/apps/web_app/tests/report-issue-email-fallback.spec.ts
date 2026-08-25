@@ -18,6 +18,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 
 const BASE_URL: string = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const IS_PROOF_CAPTURE = Number.isFinite(PROOF_VIDEO_WIDTH) && PROOF_VIDEO_WIDTH > 0;
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 
 async function captureBrowserProofFrame(page: any): Promise<Buffer> {
@@ -108,14 +109,8 @@ test.describe('Report Issue Email Fallback', () => {
 			await expect(titleInput).toHaveValue('Messages remain stuck while sending');
 		});
 		await proof.checkpoint('issue-details-entered');
-		await page.getByTestId('report-issue-user-flow').fill('I opened a chat, wrote a message, and pressed send.');
-		await page.getByTestId('report-issue-expected-behaviour').fill('The message should be sent.');
-		await page.getByTestId('report-issue-actual-behaviour').fill('The sending indicator never stops.');
 
 		const emailFallback = page.getByTestId('report-issue-email-fallback');
-		await emailFallback.evaluate((element: HTMLElement) => {
-			element.scrollIntoView({ block: 'center' });
-		});
 		await expect(emailFallback).toBeVisible();
 		await expect(emailFallback).toHaveText('Send an email instead');
 		await proof.assert('report-issue.email-fallback.visible', async () => {
@@ -123,6 +118,20 @@ test.describe('Report Issue Email Fallback', () => {
 			await expect(emailFallback).toHaveText('Send an email instead');
 		});
 		await proof.checkpoint('fallback-visible');
+		await proof.attach();
+		if (IS_PROOF_CAPTURE) {
+			await page.waitForTimeout(1500);
+		}
+
+		await page.getByTestId('report-issue-user-flow').fill('I opened a chat, wrote a message, and pressed send.');
+		await page.getByTestId('report-issue-expected-behaviour').fill('The message should be sent.');
+		await page.getByTestId('report-issue-actual-behaviour').fill('The sending indicator never stops.');
+
+		await emailFallback.evaluate((element: HTMLElement) => {
+			element.scrollIntoView({ block: 'center' });
+		});
+		await expect(emailFallback).toBeVisible();
+		await expect(emailFallback).toHaveText('Send an email instead');
 
 		const href = await emailFallback.getAttribute('href');
 		expect(href).toBeTruthy();
@@ -146,7 +155,6 @@ test.describe('Report Issue Email Fallback', () => {
 		expect(body).not.toMatch(
 			/console_logs|indexeddb_report|last_messages_html|action_history|trace_ids|session_id|picked_element_html|estimated_location/i
 		);
-		await proof.attach();
 		logCheckpoint('Email fallback contains user-visible issue details and excludes hidden diagnostics.');
 	});
 });
