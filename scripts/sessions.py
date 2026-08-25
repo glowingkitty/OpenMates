@@ -60,7 +60,6 @@ import mimetypes
 import os
 import re
 import secrets
-import shlex
 import shutil
 import socket
 import sqlite3
@@ -7939,48 +7938,13 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
     """Return response-ready media metadata when a proof-video record is blocked."""
 
     try:
-        from scripts.spec_demo import resolve_run_artifact_path
+        from scripts.proof_video_workflow import proof_blocker_media
     except ModuleNotFoundError:
-        from spec_demo import resolve_run_artifact_path
+        from proof_video_workflow import proof_blocker_media
 
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     review_status = str(review.get("status") or "pending")
-    if review_status == "passed":
-        return {}
-    video_value = str(manifest.get("video_path") or "")
-    video_path = resolve_run_artifact_path(run_dir, video_value) if video_value else run_dir
-    record: dict[str, Any] = {
-        "status": "required",
-        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
-        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
-    }
-    if not video_value or not video_path.is_file():
-        return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
-
-    caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
-    captions_value = str(caption_artifact.get("path") or "")
-    captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
-    alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
-    if captions_path is not None and captions_path.is_file():
-        command.extend(
-            [
-                "--captions",
-                str(captions_path),
-                "--captions-language",
-                str(caption_artifact.get("language") or "und"),
-                "--captions-label",
-                str(caption_artifact.get("label") or "Captions"),
-            ]
-        )
-        record["captions_path"] = str(captions_path)
-    command.extend(["--alt", alt])
-    return {
-        **record,
-        "media_status": "available",
-        "video_path": str(video_path),
-        "upload_command": " ".join(shlex.quote(part) for part in command),
-    }
+    return proof_blocker_media(run_dir, manifest, review_status)
 
 
 def cmd_proof_video(args: argparse.Namespace) -> None:

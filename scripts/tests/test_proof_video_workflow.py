@@ -1233,6 +1233,36 @@ def test_review_run_includes_blocker_media_for_failed_review(
     assert result["receipt"]["workflow"]["blocker_media"] == blocker_media
 
 
+def test_blocker_media_uses_assertion_frame_when_failed_review_has_no_finding(tmp_path: Path) -> None:
+    run_dir = tmp_path / "proof"
+    frame = run_dir / "frames" / "frame.png"
+    video = run_dir / "demo.mp4"
+    frame.parent.mkdir(parents=True)
+    frame.write_bytes(b"frame")
+    video.write_bytes(b"video")
+    manifest = {
+        "video_path": str(video),
+        "review": {
+            "status": "failed",
+            "attempts": [
+                {
+                    "assertions": [
+                        {"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"]}
+                    ],
+                    "incidental_findings": [],
+                    "frame_reviews": [],
+                    "reviewed_frames": ["frames/frame.png"],
+                }
+            ],
+        },
+    }
+
+    blocker_media = workflow.proof_blocker_media(run_dir, manifest, "capture_defect")
+
+    assert blocker_media["image_path"] == str(frame)
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+
+
 def test_review_publication_integrity_rejects_empty_self_consistent_quality_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

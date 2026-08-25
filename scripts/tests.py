@@ -1746,6 +1746,19 @@ def auto_finalize_proof_video_sources(
         timeline_events = [item for item in timeline.get("events") or [] if isinstance(item, dict)]
         assertion_events = [item for item in timeline.get("assertion_results") or [] if isinstance(item, dict)]
         checkpoint_times = [float(item.get("at_ms") or 0) / 1000 for item in timeline_events if item.get("kind") == "checkpoint"]
+        contract_checkpoint_ids = {
+            str(item.get("checkpoint"))
+            for collection in (contract.get("transcript"), contract.get("assertions"))
+            for item in (collection if isinstance(collection, list) else [])
+            if isinstance(item, dict)
+            and item.get("checkpoint")
+            and device_profile in (item.get("devices") if isinstance(item.get("devices"), list) else [])
+        }
+        proof_checkpoint_times = [
+            float(item.get("at_ms") or 0) / 1000
+            for item in timeline_events
+            if item.get("kind") == "checkpoint" and str(item.get("id") or "") in contract_checkpoint_ids
+        ]
         checkpoint_times_by_id = {
             str(item.get("id")): float(item.get("at_ms") or 0) / 1000
             for item in timeline_events
@@ -1764,7 +1777,7 @@ def auto_finalize_proof_video_sources(
                 if item.get(key) is not None:
                     action_times.append(float(item.get(key) or 0) / 1000)
         assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
-        ready_times = [value for value in (checkpoint_times or assertion_times) if value >= 0]
+        ready_times = [value for value in (proof_checkpoint_times or checkpoint_times or assertion_times) if value >= 0]
         ready_timestamp_seconds = min(ready_times) if ready_times else None
         source_media_duration_seconds = float(active_source_duration_hook(source_video))
         proof_end_times = [value for value in [*checkpoint_times, *assertion_times] if value >= 0]

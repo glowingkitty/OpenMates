@@ -850,14 +850,13 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
     if review_status == "passed":
         return {}
 
+    try:
+        from scripts.spec_demo import resolve_run_artifact_path
+    except ModuleNotFoundError:
+        from spec_demo import resolve_run_artifact_path
+
     def resolve_artifact(value: str) -> Path:
-        path = Path(value)
-        if path.is_absolute():
-            return path
-        for candidate in (path, REPO_ROOT / path, run_dir / path):
-            if candidate.is_file():
-                return candidate
-        return run_dir / path
+        return resolve_run_artifact_path(run_dir, value)
 
     video_value = str(manifest.get("video_path") or "")
     if not video_value:
@@ -883,7 +882,39 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
     findings = latest_attempt.get("incidental_findings") if isinstance(latest_attempt.get("incidental_findings"), list) else []
     first_finding = findings[0] if findings and isinstance(findings[0], dict) else {}
     finding_frames = first_finding.get("frames") if isinstance(first_finding.get("frames"), list) else []
-    image_path = resolve_artifact(str(finding_frames[0])) if finding_frames else None
+    assertions = latest_attempt.get("assertions") if isinstance(latest_attempt.get("assertions"), list) else []
+    first_assertion = next(
+        (item for item in assertions if isinstance(item, dict) and item.get("verdict") != "supported"),
+        {},
+    )
+    assertion_frames = first_assertion.get("frames") if isinstance(first_assertion.get("frames"), list) else []
+    frame_reviews = latest_attempt.get("frame_reviews") if isinstance(latest_attempt.get("frame_reviews"), list) else []
+    nonpassing_review = next(
+        (
+            item
+            for item in frame_reviews
+            if isinstance(item, dict)
+            and isinstance(item.get("checks"), dict)
+            and any(value != "pass" for value in item["checks"].values())
+        ),
+        {},
+    )
+    fallback_frame = str(nonpassing_review.get("frame") or "")
+    reviewed_frames = latest_attempt.get("reviewed_frames") if isinstance(latest_attempt.get("reviewed_frames"), list) else []
+    image_value = next(
+        (
+            str(value)
+            for value in (
+                finding_frames[0] if finding_frames else "",
+                assertion_frames[0] if assertion_frames else "",
+                fallback_frame,
+                reviewed_frames[0] if reviewed_frames else "",
+            )
+            if value
+        ),
+        "",
+    )
+    image_path = resolve_artifact(image_value) if image_value else None
 
     alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
     command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
