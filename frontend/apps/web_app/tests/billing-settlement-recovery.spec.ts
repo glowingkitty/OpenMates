@@ -92,7 +92,7 @@ test.describe('Billing settlement recovery', () => {
 		await loginToTestAccount(page, log, screenshot);
 		await dismissSecurityReminderIfPresent(page, log);
 		await startNewChat(page, log);
-		const message = 'For two Berlin weekends, June 20-21 and June 27-28, 2026, search for technology events for each weekend and compare the best options.';
+		const message = 'For the next two Berlin weekends, search for technology events for each weekend, compare the best options, and only include events located in Berlin.';
 		await sendMessage(page, message, log, screenshot, 'billing-settlement-recovery');
 
 		const userMessage = page.getByTestId('message-user').last();

@@ -1912,8 +1912,11 @@
     }
 
     .map-view-card {
-      min-width: 240px;
+      box-sizing: border-box;
+      flex: 0 0 100%;
+      min-width: 0;
       scroll-snap-align: start;
+      scroll-snap-stop: always;
     }
 
     .map-view-card strong {
