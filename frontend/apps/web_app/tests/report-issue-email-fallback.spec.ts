@@ -42,6 +42,12 @@ const proofContract = defineVideoProof({
 			text: 'The Report Issue screen offers Send an email instead below the normal submit button.',
 			checkpoint: 'fallback-visible',
 			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'issue-details-entered',
+			text: 'The short description field keeps the issue text while the email fallback remains available.',
+			checkpoint: 'issue-details-entered',
+			devices: ['web-laptop', 'web-phone']
 		}
 	],
 	assertions: [
@@ -55,6 +61,12 @@ const proofContract = defineVideoProof({
 			id: 'report-issue.email-fallback.visible',
 			checkpoint: 'fallback-visible',
 			visual: 'The Send an email instead fallback link is visible below Submit Issue without clipping or overlap.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'report-issue.short-description.visible',
+			checkpoint: 'issue-details-entered',
+			visual: 'The short description field contains the entered issue summary on the Report Issue screen.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -90,7 +102,12 @@ test.describe('Report Issue Email Fallback', () => {
 		});
 		await proof.checkpoint('report-issue-open');
 
-		await page.getByTestId('report-issue-title').fill('Messages remain stuck while sending');
+		const titleInput = page.getByTestId('report-issue-title');
+		await titleInput.fill('Messages remain stuck while sending');
+		await proof.assert('report-issue.short-description.visible', async () => {
+			await expect(titleInput).toHaveValue('Messages remain stuck while sending');
+		});
+		await proof.checkpoint('issue-details-entered');
 		await page.getByTestId('report-issue-user-flow').fill('I opened a chat, wrote a message, and pressed send.');
 		await page.getByTestId('report-issue-expected-behaviour').fill('The message should be sent.');
 		await page.getByTestId('report-issue-actual-behaviour').fill('The sending indicator never stops.');
