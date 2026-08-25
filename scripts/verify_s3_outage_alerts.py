@@ -80,28 +80,33 @@ def _transition_drill() -> dict[str, Any]:
 
 
 def _delivery_drill(channels: str) -> dict[str, Any]:
-    completed = subprocess.run(
-        [
-            sys.executable,
-            str(ROOT / "scripts" / "verify_post_update_notifications.py"),
-            "--target",
-            "dev",
-            "--channels",
-            channels,
-        ],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=180,
-    )
-    try:
-        payload = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("notification_delivery_drill_invalid_json") from exc
-    if completed.returncode != 0 or payload.get("status") != "passed":
-        raise RuntimeError("notification_delivery_drill_failed")
-    return payload
+    results: dict[str, Any] = {}
+    for event_kind in ("incident", "critical", "recovery"):
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "verify_post_update_notifications.py"),
+                "--target",
+                "dev",
+                "--channels",
+                channels,
+                "--event-kind",
+                event_kind,
+            ],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        try:
+            payload = json.loads(completed.stdout)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("notification_delivery_drill_invalid_json") from exc
+        if completed.returncode != 0 or payload.get("status") != "passed":
+            raise RuntimeError(f"notification_delivery_drill_failed:{event_kind}")
+        results[event_kind] = payload
+    return {"status": "passed", "events": results}
 
 
 def main() -> int:

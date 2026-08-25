@@ -3237,6 +3237,13 @@ async function serverNotifications(rest: string[], flags: Record<string, string 
   const role = getServerRole(flags, config);
   const channel = typeof flags.channel === "string" ? flags.channel : "all";
   if (!new Set(["email", "discord", "webhook", "all"]).has(channel)) throw new Error("--channel must be email, discord, webhook, or all.");
+  const eventKind = typeof flags["event-kind"] === "string" ? flags["event-kind"] : "delivery_test";
+  if (!new Set(["delivery_test", "incident", "critical", "recovery"]).has(eventKind)) {
+    throw new Error("--event-kind must be delivery_test, incident, critical, or recovery.");
+  }
+  if (eventKind !== "delivery_test" && readEnvMap(installPath).SERVER_ENVIRONMENT !== "development") {
+    throw new Error("Synthetic notification event kinds are restricted to development.");
+  }
   const notificationConfig = runtimeNotificationConfig(installPath);
   if (channel !== "all") {
     if (channel !== "email") notificationConfig.email = undefined;
@@ -3245,14 +3252,15 @@ async function serverNotifications(rest: string[], flags: Record<string, string 
   }
   const deliveries = await deliverRuntimeNotification(notificationConfig, {
     role,
-    kind: "delivery_test",
+    kind: eventKind as RuntimeNotificationPayload["kind"],
     occurredAt: new Date().toISOString(),
-    checkIds: ["monitor"],
-    sanitizedReason: "operator_requested_delivery_test",
+    checkIds: [eventKind === "delivery_test" ? "monitor" : "core.object_storage"],
+    sanitizedReason: eventKind === "recovery" ? "storage_available" : eventKind === "delivery_test" ? "operator_requested_delivery_test" : "storage_unavailable",
   });
   const output = {
     command: "notifications test",
     role,
+    eventKind,
     configured: deliveries.length > 0,
     discordDestination: channel === "discord" || channel === "all"
       ? { source: notificationConfig.discordDestinationSource, fallbackUsed: notificationConfig.discordFallbackUsed }

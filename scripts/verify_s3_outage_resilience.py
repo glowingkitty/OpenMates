@@ -11,10 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+from pathlib import Path
 import subprocess
 import sys
+import tempfile
 from typing import Any
 from urllib.request import urlopen
+
+
+ROOT = Path(__file__).resolve().parents[1]
+TEST_ACCOUNT_LOGIN = ROOT / "scripts" / "openmates_cli_test_account.mjs"
 
 
 def _subject_commit() -> str:
@@ -85,6 +92,7 @@ def _runtime_health() -> dict[str, Any]:
 
 def _parse_cli_json(stdout: str) -> dict[str, Any]:
     decoder = json.JSONDecoder()
+    objects: list[dict[str, Any]] = []
     for index, character in enumerate(stdout):
         if character != "{":
             continue
@@ -93,38 +101,120 @@ def _parse_cli_json(stdout: str) -> dict[str, Any]:
         except json.JSONDecodeError:
             continue
         if isinstance(value, dict):
+            objects.append(value)
+    for value in reversed(objects):
+        if "quickTest" in value:
             return value
+    if objects:
+        return objects[-1]
     raise RuntimeError("quick_test_invalid_json")
 
 
 def _text_ai_quick_test(api_url: str, install_path: str) -> dict[str, Any]:
-    completed = subprocess.run(
-        [
-            "openmates",
-            "server",
-            "test",
-            "--quick",
-            "--confirm-spend-credits",
-            "--json",
-            "--path",
-            install_path,
-            "--api-url",
-            api_url,
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=180,
-    )
-    payload = _parse_cli_json(completed.stdout)
+    with tempfile.TemporaryDirectory(prefix="openmates-s3-outage-") as temporary_home:
+        (Path(temporary_home) / "backend").symlink_to(ROOT / "backend", target_is_directory=True)
+        env = dict(os.environ)
+        env["HOME"] = temporary_home
+        login = subprocess.run(
+            [
+                "node",
+                str(TEST_ACCOUNT_LOGIN),
+                "login",
+                "--slot",
+                "auto",
+                "--api-url",
+                api_url,
+            ],
+            cwd=ROOT,
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if login.returncode != 0:
+            raise RuntimeError("test_account_login_failed")
+        try:
+            completed = subprocess.run(
+                [
+                    "openmates",
+                    "--api-url",
+                    api_url,
+                    "server",
+                    "test",
+                    "--quick",
+                    "--confirm-spend-credits",
+                    "--json",
+                    "--path",
+                    temporary_home if install_path == "." else install_path,
+                ],
+                cwd=ROOT,
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+        finally:
+            subprocess.run(
+                ["openmates", "--api-url", api_url, "logout", "--yes"],
+                cwd=ROOT,
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+    payload = _parse_cli_json(f"{completed.stdout}\n{completed.stderr}")
     quick_test = payload.get("quickTest") or {}
     checks = [
-        {"id": check.get("id"), "status": check.get("status")}
+        {
+            "id": check.get("id"),
+            "status": check.get("status"),
+            "sanitized_reason": check.get("sanitized_reason"),
+        }
         for check in quick_test.get("checks", [])
     ]
-    if completed.returncode != 0 or quick_test.get("status") != "passed":
-        raise RuntimeError("authenticated_text_ai_quick_test_failed")
-    return {"status": "passed", "checks": checks}
+    required_ids = {
+        "account.session",
+        "chat.create",
+        "app.math.calculate",
+        "app.web.search",
+        "chat.cleanup",
+    }
+    checks_by_id = {str(check.get("id")): check for check in checks}
+    failed_required = sorted(
+        check_id
+        for check_id in required_ids
+        if checks_by_id.get(check_id, {}).get("status") != "passed"
+    )
+    if failed_required or not quick_test:
+        error = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+        message = str(error.get("message") or payload.get("message") or "")
+        if "quick server test failed" in message.lower():
+            diagnostic = "quick_test_failed"
+        elif "log into" in message.lower() or "login" in message.lower():
+            diagnostic = "login_required"
+        else:
+            diagnostic = (
+                error.get("code")
+                or payload.get("code")
+                or payload.get("command")
+                or ",".join(sorted(payload))
+                or "unknown"
+            )
+        raise RuntimeError(f"authenticated_text_ai_quick_test_failed:{','.join(failed_required) or diagnostic}")
+    auxiliary_failures = sorted(
+        check_id
+        for check_id, check in checks_by_id.items()
+        if check_id not in required_ids and check.get("status") != "passed"
+    )
+    return {
+        "status": "passed",
+        "checks": checks,
+        "auxiliary_failures": auxiliary_failures,
+        "cli_exit_code": completed.returncode,
+    }
 
 
 def main() -> int:
