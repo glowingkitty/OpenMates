@@ -187,7 +187,7 @@ acceptance_criteria:
     contract_assertions: [storage-resilience.jobs.preserve-and-retry]
     text: Representative archive, deletion, and cleanup jobs preserve authoritative source state and retry intent when S3 is unavailable.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND-S3-JOBS, T-STORAGE-GATE-AUDIT]
@@ -196,7 +196,7 @@ acceptance_criteria:
     contract_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.content.privacy-boundary]
     text: Two failures open one warning, one continuous hour opens one critical escalation, one success resolves once, all configured channels are attempted independently, and payloads remain sanitized.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS, V-DEV-S3-ALERT-DRILL]
@@ -205,7 +205,7 @@ acceptance_criteria:
     contract_assertions: [storage-resilience.monitoring.not-configured]
     text: Missing intentional storage configuration reports not_configured without creating an outage transition.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: cli
     verification_ids: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS]
@@ -214,7 +214,7 @@ acceptance_criteria:
     contract_assertions: [storage-resilience.content.privacy-boundary]
     text: Storage health logs, state, metrics, digest, and notifications exclude credentials, sensitive endpoints, bucket/object keys, filenames, user identifiers, content, ciphertext, and provider bodies.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: full_ci
     verification_ids: [T-CLI-STORAGE-ALERTS, T-STORAGE-GATE-AUDIT, V-DEV-S3-ALERT-DRILL]
@@ -454,9 +454,14 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-4, AC-6]
-    status: pending
+    status: passed
     command: python3 scripts/verify_s3_outage_alerts.py --environment development
-    evidence: {status: pending}
+    evidence:
+      status: passed
+      run_id: test-results/s3-outage-alerts/development-20260825T154131Z.json
+      timestamp: "2026-08-25T15:41:31Z"
+      subject_commit: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f
+      summary: Compiled policy emitted exactly one warning, one one-hour critical escalation, and one recovery; configured development email, Discord, and signed webhook delivery each succeeded in one attempt with sanitized receipts.
 demonstration:
   eligibility:
     status: not_applicable
@@ -487,7 +492,7 @@ risks:
 
 open_questions: []
 
-implementation_state: {subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704}
+implementation_state: {subject_commit: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f}
 approvals:
   product_contract:
     status: approved
@@ -529,6 +534,11 @@ attempts:
     approach: Implement bounded optional probing and warning, critical, recovery, and not-configured state transitions on top of landed operational monitoring.
     outcome: succeeded
     recorded_at: "2026-08-25T14:53:03Z"
+  - id: ATTEMPT-6
+    task_id: TASK-8
+    approach: Run controlled warning, one-hour escalation, and recovery transitions and verify every configured development notification channel independently.
+    outcome: succeeded
+    recorded_at: "2026-08-25T15:41:31Z"
 
 implementation_plan:
   spec_path: docs/specs/s3-outage-resilience/spec.yml
@@ -783,10 +793,14 @@ tasks:
 
 handoff:
   current_task_id: TASK-7
-  last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  last_verified_commit: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f
   status: running_checks
-  summary: Backend isolation, destructive-job preservation, optional runtime probing, and CLI warning/escalation/recovery transitions are locally green.
-  next_action: Deploy the scoped change to dev, restart affected services, and run the controlled API continuity and alert-delivery drills.
+  summary: Backend isolation, destructive-job preservation, public degraded liveness, optional runtime probing, and live development alert delivery are green; authenticated text generation remains unproven in this worktree.
+  next_action: Complete one credential-backed text-generation check against the dev API, then record V-DEV-S3-OUTAGE and finish the spec.
   command: python3 scripts/verify_s3_outage_resilience.py --api-url https://api.dev.openmates.org
-  expected_outcome: API liveness and text AI remain available while storage-required work fails with the stable retryable error.
-  blocker: null
+  expected_outcome: API liveness and authenticated text AI remain available while object storage reports optional degraded state.
+  blocker:
+    task_id: TASK-7
+    requires_user_input: false
+    reason: The current worktree has no CLI login or test-account credentials; the restored credential-backed campaign may provide equivalent evidence.
+    next_action: Use credential-backed dev evidence to prove one text generation while object storage remains unavailable.

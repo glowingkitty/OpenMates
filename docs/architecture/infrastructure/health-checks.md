@@ -1,10 +1,12 @@
 ---
 status: active
-last_verified: 2026-08-15
+last_verified: 2026-08-25
 key_files:
 - backend/core/api/app/tasks/health_check_tasks.py
 - backend/core/api/app/tasks/celery_config.py
 - backend/core/api/app/routes/status_routes.py
+- backend/scripts/runtime_health_verifier.py
+- backend/core/api/app/services/s3/service.py
 claims:
 - id: arch-infrastructure-health-checks-behavior
   type: unit
@@ -154,6 +156,21 @@ Error sanitization: HTTP codes -> numeric string, timeouts -> `"timeout"`, conne
 ## Host Operational Monitoring
 
 CLI-managed servers install a host systemd verifier and independent watchdog in addition to Celery health checks. The verifier runs every five minutes and covers role health, API availability, host disk, notification configuration, and read-only billing readiness only for verified official-cloud deployments. Self-host inventories omit all billing checks and never read payment-provider credentials.
+
+`core.object_storage` is an optional bounded check. Configured storage that
+times out or returns a provider failure reports `failed/storage_unavailable`
+without failing required core health; absent intentional configuration reports
+`skipped/not_configured`. Two failures open one warning, one continuous hour
+opens one critical escalation, and one successful probe emits one recovery.
+Only stable check IDs and sanitized failure classes enter host state, digests,
+or notifications.
+
+Remote bucket, ACL, lifecycle, and CORS reconciliation runs outside API
+liveness. Its failure keeps the API available in a degraded state. Operations
+that need durable object storage use the shared availability gate before
+provider execution or charging and return retryable
+`storage_temporarily_unavailable`; destructive jobs preserve authoritative
+source records and retry intent until storage succeeds.
 
 When a verified email or Discord destination exists, the same host scheduler sends a compact daily 24-hour operational digest at 08:30 UTC. The report watchdog opens one incident after 26 hours without an accepted report and emits one recovery event after delivery resumes. Host notification delivery retries independently and does not depend on the API or Celery task scheduler.
 

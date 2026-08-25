@@ -139,6 +139,13 @@ The host CLI invokes `backend/scripts/runtime_health_verifier.py` inside the rol
 
 Core chat plumbing is tested with a dedicated provider-free Celery task routed to `app_ai`; it exercises dispatch, worker execution, result transport, and Redis without model inference or user records. Celery Beat writes a no-spend scheduler heartbeat through the `health_check` queue. Database, cache, Vault, upload antivirus, and preview renderer checks use role-specific operational probes.
 
+Object storage is an optional degraded dependency for core API and text-AI
+liveness. API startup configures the S3 client locally, records remote bucket
+or CORS reconciliation failures, and retries reconciliation in the background.
+Storage-required tasks initialize storage lazily and must pass the shared
+availability guard before paid provider work or charging; no durable local
+fallback is permitted.
+
 The host owns incident state and notification delivery so API/Celery failure cannot suppress stale detection. It installs separate systemd monitor and watchdog timers, stores mode-`0600` atomic state under `<install>/.openmates/runtime-health/`, and sends independently retried email, Discord, or signed webhook events. Generic webhook delivery pins a validated public address, rejects redirects/private networks, and includes replay-bounded HMAC headers.
 
 Billing authority comes only from `OPENMATES_DEPLOYMENT_MODE`. `official_cloud` additionally requires agreeing overlay, environment, package-import, hosting-domain, and encrypted-domain witnesses. Any missing or conflicting witness selects `self_host` before billing imports or secret reads. Self-host inventories contain no billing check IDs; official-cloud checks are read-only and cannot create payment-provider resources.

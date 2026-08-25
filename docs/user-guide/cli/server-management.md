@@ -254,6 +254,13 @@ The checklist has a 60-second global deadline. It verifies the required role ser
 | `upload` | Upload API, Vault, and ClamAV connectivity |
 | `preview` | Preview API and renderer health |
 
+Core verification also reports `core.object_storage` as an optional check. A
+temporary S3-compatible storage outage makes the server `degraded`, but does
+not fail API liveness, text-only AI, or non-storage skills. Uploads, stored-file
+reads, and generated media that require durable storage fail before paid work
+with retryable `storage_temporarily_unavailable`; there is no local-disk
+fallback.
+
 When a required check fails, the CLI:
 
 - Leaves the newly updated containers running for diagnosis.
@@ -306,12 +313,14 @@ Runtime state is stored at `<install>/.openmates/runtime-health/<role>.json`. Th
 Alert behavior:
 
 - Transient failures alert after two consecutive failures of the same check.
+- Object-storage degradation escalates once after one continuous hour.
 - Credential and required-configuration failures alert immediately.
 - A verifier timestamp older than 15 minutes produces a stale-monitor alert.
 - One recovery event is sent when an open incident clears.
 - A healthy installation sends at most one green heartbeat per UTC day.
 - Email, Discord, and generic webhook delivery are attempted independently, with bounded retries.
 - API, host, disk, official-cloud billing-readiness, and monitor-staleness failures use the host notifier, so at least one configured email or Discord path remains independent of API and Celery health.
+- Intentionally unconfigured object storage reports `not_configured` and does not open or recover a provider-outage incident.
 
 ## Runtime Notifications
 
