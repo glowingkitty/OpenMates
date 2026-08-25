@@ -3267,7 +3267,8 @@ async function serverNotifications(rest: string[], flags: Record<string, string 
       : undefined,
     deliveries,
   };
-  if (flags.json === true) printJson(output);
+  if (flags.json === true && flags.compact === true) console.log(JSON.stringify(output));
+  else if (flags.json === true) printJson(output);
   else console.log(JSON.stringify(output, null, 2));
   if (deliveries.some((delivery) => delivery.status === "exhausted")) throw new Error("One or more notification delivery tests failed.");
 }
