@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - technical-users
   - contributors
-last_verified: 2026-08-14
+last_verified: 2026-08-25
 claims:
   - id: cli-server-config-saves-loads-and-removes
     type: unit
@@ -30,6 +30,10 @@ claims:
     type: e2e
     file: frontend/apps/web_app/tests/selfhost-smoke.spec.ts
     assertion: openmates server make-admin promotes a self-hosted signup user to admin
+  - id: public-cli-docs-exclude-private-cloud-operations
+    type: unit
+    file: scripts/tests/test_cloud_only_operator_exclusions.py
+    assertion: public-cli-docs-exclude-private-cloud-operations
 coverage:
   policy: assertion-backed
   reviewed_context:
@@ -50,7 +54,7 @@ coverage:
 - Image-mode updates create a rotating latest pre-update backup for data-bearing roles before containers are replaced.
 - Install and update provision a five-minute host runtime monitor plus an independent stale watchdog. Installing system units requires root privileges.
 - Updates run a bounded runtime-contract checklist after container readiness; required failures leave the updated containers running and record a degraded update instead of rolling data back automatically.
-- Self-hosted installations never run billing checks. Read-only billing readiness checks exist only for verified `official_cloud` deployments.
+- Self-hosted installations never run billing checks.
 - Image-mode install defaults to invite-only signup; edit `.env` for email-domain allowlists or invite-plus-domain mode.
 - Starting the server warns when no real LLM API key is configured, but still starts the backend and web app. AI model processing stays unavailable until a real key is added.
 
@@ -95,10 +99,9 @@ To manage an existing checkout in place without cloning, pulling, or changing it
 
 ```bash
 openmates server register --path /path/to/OpenMates
-openmates server register --path /path/to/OpenMates --official-cloud --with-overrides --exclude webapp
 ```
 
-Registration only records the runtime mode, Compose overlays, and default service set. An official-cloud registration automatically excludes the bundled web app; normal self-host registrations and installations continue to include it.
+Registration records the runtime mode, Compose configuration, and default service set. Self-host registrations and installations include the bundled web app.
 
 Image-mode install defaults to `invite_only`. The install output includes the first signup invite code. That invite creates a normal user; grant admin privileges after signup with `openmates server make-admin <email>`. Source-mode installs still use the repository setup script behavior.
 
@@ -223,8 +226,6 @@ openmates server update --force
 
 Image-mode installs refresh the runtime Compose template from the packaged CLI templates, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, wait for role-specific health checks, and then run the runtime-contract checklist. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
 
-For backend-only production servers where the official web app is hosted separately, use `openmates server start --exclude webapp` after host restarts and `openmates server update --exclude webapp` for source-mode updates. The filtered update rebuilds/restarts every selected backend service and skips the web app health check.
-
 Managed-clone source installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. Registered working-tree servers never pull or alter Git state: `update` builds the current checkout exactly as it exists. Automated `git stash` is not supported.
 
 Only one update may mutate an installation at a time, including updates requested for different roles. If a crashed process leaves `.openmates/server-update.lock`, verify that no update process is running before removing that lock explicitly; the CLI never takes over a stale lock automatically.
@@ -304,7 +305,7 @@ openmates server monitoring report-watchdog --role core --path ~/openmates --jso
 
 The installation always creates two five-minute runtime-health services and timers. When at least one verified report channel is configured, it also creates a daily 08:30 UTC operational digest and a five-minute report-freshness watchdog. Host systemd is the only digest scheduler, preventing duplicate Celery and host deliveries.
 
-The digest summarizes the preceding 24 hours of aggregate resource, activity, processing, and issue data in a compact graph. Official cloud reports also include aggregate billing readiness/outcomes. Self-host reports omit billing entirely and do not query billing collections or credentials. Email is enabled only after a bounded Brevo account probe; the generated service requests only channels that passed configuration checks.
+The digest summarizes the preceding 24 hours of aggregate resource, activity, processing, and issue data in a compact graph. Self-host reports omit billing entirely and do not query billing collections or credentials. Email is enabled only after a bounded Brevo account probe; the generated service requests only channels that passed configuration checks.
 
 An accepted report updates host-owned freshness metrics and append-only redacted receipt history under `<install>/.openmates/runtime-health/`. A missing accepted report becomes an incident after 26 hours. Disabling all digest destinations removes the digest timers and freshness metrics rather than generating a false stale incident.
 
@@ -319,7 +320,7 @@ Alert behavior:
 - One recovery event is sent when an open incident clears.
 - A healthy installation sends at most one green heartbeat per UTC day.
 - Email, Discord, and generic webhook delivery are attempted independently, with bounded retries.
-- API, host, disk, official-cloud billing-readiness, and monitor-staleness failures use the host notifier, so at least one configured email or Discord path remains independent of API and Celery health.
+- API, host, disk, and monitor-staleness failures use the host notifier, so at least one configured email or Discord path remains independent of API and Celery health.
 - Intentionally unconfigured object storage reports `not_configured` and does not open or recover a provider-outage incident.
 
 ## Runtime Notifications
@@ -351,17 +352,6 @@ openmates server notifications test --channel all --json
 ```
 
 Generic webhooks use canonical JSON and include `X-OpenMates-Timestamp`, `X-OpenMates-Event-Id`, and `X-OpenMates-Signature` (`sha256=<HMAC>`). Production delivery requires HTTPS on port 443, disables redirects, validates every resolved address, rejects non-public destinations, pins the validated address for the connection, and bounds request time and response size.
-
-## Deployment Mode and Billing Checks
-
-`OPENMATES_DEPLOYMENT_MODE` is the local billing-authority setting. Supported values are `self_host` and `official_cloud`.
-
-- Normal open-source installations use `self_host`. Their inventory omits every `billing.*` check and never reads Stripe credentials or emits billing incidents.
-- `official_cloud` is reserved for the OpenMates-operated overlay. Billing checks run only when deployment mode, overlay package marker, environment, importable private overlay, hosting domain, and encrypted domain policy all agree.
-- Missing, duplicate, malformed, conflicting, or unavailable witnesses fail closed to the self-host/no-billing inventory before Stripe secrets are read.
-- Official-cloud billing probes are read-only: they retrieve account readiness and inspect routes, workers, webhook configuration, and freshness. They never create or mutate payments, customers, invoices, subscriptions, charges, or refunds.
-
-Self-hosters should not enable `official_cloud`; it requires the private deployment overlay and domain policy.
 
 ## Backups and Restore
 
