@@ -36,6 +36,24 @@ _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 _SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
 
 
+class WorkflowServiceTask(BaseServiceTask):
+    """Initialize only the core services required by workflow tasks."""
+
+    async def initialize_services(self) -> None:
+        await self.initialize_core_services()
+
+
+async def _run_with_workflow_services(
+    task: WorkflowServiceTask,
+    operation: Callable[[], Awaitable[dict[str, Any]]],
+) -> dict[str, Any]:
+    try:
+        await task.initialize_services()
+        return await operation()
+    finally:
+        await task.cleanup_services()
+
+
 def get_workflow_service() -> WorkflowService:
     return _WORKFLOW_SERVICE
 
@@ -290,7 +308,7 @@ def _value_at_path(payload: dict[str, Any], path: str) -> Any:
     return value
 
 
-@app.task(name="workflows.cleanup_expired_temporary", base=BaseServiceTask, bind=True)
+@app.task(name="workflows.cleanup_expired_temporary", base=WorkflowServiceTask, bind=True)
 def cleanup_expired_temporary_workflows_task(self: BaseServiceTask, user_id: str | None = None, now: int | None = None) -> dict[str, Any]:
     try:
         return cleanup_expired_temporary_workflows(user_id=user_id, now=now)
@@ -299,7 +317,7 @@ def cleanup_expired_temporary_workflows_task(self: BaseServiceTask, user_id: str
         raise
 
 
-@app.task(name="workflows.run", base=BaseServiceTask, bind=True)
+@app.task(name="workflows.run", base=WorkflowServiceTask, bind=True)
 def run_workflow_task(
     self: BaseServiceTask,
     workflow_id: str,
@@ -310,8 +328,7 @@ def run_workflow_task(
     input_payload: dict[str, Any],
 ) -> dict[str, Any]:
     try:
-        async def run() -> dict[str, Any]:
-            await self.initialize_services()
+        async def operation() -> dict[str, Any]:
             return await run_workflow_now(
                 workflow_id,
                 user_id,
@@ -326,21 +343,20 @@ def run_workflow_task(
                 ),
             )
 
-        return asyncio.run(run())
+        return asyncio.run(_run_with_workflow_services(self, operation))
     except Exception as exc:
         logger.error("Workflow run task failed: %s", exc, exc_info=True)
         raise
 
 
-@app.task(name="workflows.run_scheduled_trigger", base=BaseServiceTask, bind=True)
+@app.task(name="workflows.run_scheduled_trigger", base=WorkflowServiceTask, bind=True)
 def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str) -> dict[str, Any]:
     try:
         if not _acquire_scheduled_execution_lock(trigger_id):
             logger.info("Workflow scheduled trigger execution already attempted: trigger_id=%s", trigger_id)
             return {"accepted": False, "deduplicated": True, "trigger_id": trigger_id}
 
-        async def run() -> dict[str, Any]:
-            await self.initialize_services()
+        async def operation() -> dict[str, Any]:
             return await run_scheduled_workflow_trigger_now(
                 trigger_id,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
@@ -350,41 +366,39 @@ def run_scheduled_workflow_trigger_task(self: BaseServiceTask, trigger_id: str) 
                 ),
             )
 
-        return asyncio.run(run())
+        return asyncio.run(_run_with_workflow_services(self, operation))
     except Exception as exc:
         logger.error("Workflow scheduled trigger task failed: %s", exc, exc_info=True)
         raise
 
 
-@app.task(name="workflows.scan_due_triggers", base=BaseServiceTask, bind=True)
+@app.task(name="workflows.scan_due_triggers", base=WorkflowServiceTask, bind=True)
 def scan_due_workflow_triggers_task(self: BaseServiceTask, now: int | None = None, limit: int = 100) -> dict[str, Any]:
     try:
-        async def run() -> dict[str, Any]:
-            await self.initialize_services()
+        async def operation() -> dict[str, Any]:
             return await scan_due_workflow_triggers_now(
                 now=now,
                 limit=limit,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
             )
 
-        return asyncio.run(run())
+        return asyncio.run(_run_with_workflow_services(self, operation))
     except Exception as exc:
         logger.error("Workflow due-trigger scanner task failed: %s", exc, exc_info=True)
         raise
 
 
-@app.task(name="workflows.dispatch_event", base=BaseServiceTask, bind=True)
+@app.task(name="workflows.dispatch_event", base=WorkflowServiceTask, bind=True)
 def dispatch_workflow_event_task(self: BaseServiceTask, user_id: str, event: dict[str, Any]) -> dict[str, Any]:
     try:
-        async def run() -> dict[str, Any]:
-            await self.initialize_services()
+        async def operation() -> dict[str, Any]:
             return await _dispatch_workflow_event_async(
                 user_id,
                 event,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
             )
 
-        return asyncio.run(run())
+        return asyncio.run(_run_with_workflow_services(self, operation))
     except Exception as exc:
         logger.error("Workflow event dispatch task failed: %s", exc, exc_info=True)
         raise
