@@ -1053,7 +1053,9 @@ def review_run(
             "Never omit a supplied frame or inspect the full video."
             " Captions may be delivered as toggleable sidecar metadata rather than burned into the reviewed frames; do not report "
             "missing burned-in caption pixels as a defect unless the approved contract explicitly requires visible in-frame captions."
-            " Read each image from read_path, but cite its canonical path field in the JSON response."
+            " For every incidental finding, every listed quality category must be fail or uncertain on every cited frame; split findings "
+            "when cited frames have different non-passing category sets. Read each image from read_path, but cite its canonical path field "
+            "in the JSON response."
         ),
         "required_output": {
             "status": "passed|capture_defect|render_defect|product_defect|uncertain",
@@ -1067,7 +1069,7 @@ def review_run(
             "assertions": "one verdict for each expected_proof claim_id with id, verdict, frames, observation",
             "incidental_findings": (
                 "list of id, category, severity, confidence, intent=obvious|unclear, quality_categories, frames, observation; "
-                "quality_categories must identify the failed or uncertain frame-review checks supported by the finding"
+                "every quality_categories value must be fail or uncertain on every cited frame, so split findings when category sets differ"
             ),
             "return_stage": "complete|capture|render|implementation|review",
             "next_action": "one bounded next action",

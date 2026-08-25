@@ -1764,7 +1764,7 @@ def auto_finalize_proof_video_sources(
                 if item.get(key) is not None:
                     action_times.append(float(item.get(key) or 0) / 1000)
         assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
-        ready_times = [value for value in [*checkpoint_times, *action_times, *assertion_times] if value >= 0]
+        ready_times = [value for value in (checkpoint_times or assertion_times) if value >= 0]
         ready_timestamp_seconds = min(ready_times) if ready_times else None
         source_media_duration_seconds = float(active_source_duration_hook(source_video))
         proof_end_times = [value for value in [*checkpoint_times, *assertion_times] if value >= 0]

@@ -103,5 +103,8 @@ Return only this JSON shape:
 Return `passed` only when every assertion is supported, every quality category for
 every frame is `pass`, and there are no incidental findings. Every failed or
 uncertain frame category must have a cited finding whose `quality_categories`
-includes that exact check. Return `uncertain` rather than guessing; uncertainty
-asks the user immediately and is not an automatic retry.
+includes that exact check. For every finding, every category in
+`quality_categories` must be non-passing on every cited frame. Split a finding
+when cited frames have different non-passing category sets. Return `uncertain`
+rather than guessing; uncertainty asks the user immediately and is not an
+automatic retry.

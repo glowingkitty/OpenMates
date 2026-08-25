@@ -1137,7 +1137,10 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
     run_dir, request = _write_review_run(tmp_path / "proof-videos" / "first")
     monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
 
-    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+    def reviewer(prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        prompt_data = json.loads(prompt.read_text(encoding="utf-8"))
+        assert "every listed quality category must be fail or uncertain on every cited frame" in prompt_data["instructions"]
+        assert "split findings when category sets differ" in prompt_data["required_output"]["incidental_findings"]
         return (
             {
                 "status": "passed",
