@@ -41,6 +41,7 @@ from backend.core.api.app.utils.text_sanitization import (
 from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.tracing.ai_observability import ai_provider_span
 from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
@@ -932,7 +933,8 @@ async def call_preprocessing_llm(
     secrets_manager: Optional[SecretsManager] = None,
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
     dynamic_context: Optional[Dict[str, Any]] = None,
-    fallback_models: Optional[List[str]] = None  # List of fallback model IDs to try if primary fails
+    fallback_models: Optional[List[str]] = None,  # List of fallback model IDs to try if primary fails
+    observability_purpose: str = "preprocess",
 ) -> LLMPreprocessingCallResult:
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -1339,7 +1341,11 @@ async def call_preprocessing_llm(
                 f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
             )
 
-            result = await _call_single_provider(provider_model_id, is_last_provider=is_last_provider)
+            with ai_provider_span(observability_purpose):
+                result = await _call_single_provider(
+                    provider_model_id,
+                    is_last_provider=is_last_provider,
+                )
 
             # Success — return immediately.
             # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.

@@ -154,6 +154,7 @@ async def validate_inspiration(
 
     try:
         result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            observability_purpose="inspiration",
             task_id=f"{task_id}_validator",
             model_id=VALIDATOR_MODEL_ID,
             message_history=messages,

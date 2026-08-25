@@ -1,7 +1,7 @@
 schema_version: 1
 id: architecture.app-skill-execution
 version: 1
-status: approved
+status: draft
 title: App Skill Execution
 summary: >
   OpenMates executes registered app skills through one validated, scoped contract
@@ -12,10 +12,12 @@ scope:
     - Registered app-skill dispatch through assistant, Workflow, REST, CLI, and SDK surfaces
     - Request validation, external-output sanitization, and safe visible failures
     - Equivalent request, result, error, billing, and safety semantics across supported surfaces
+    - Explicitly opted-in concurrent assistant execution for independent read-only skill calls
   excludes:
     - Provider-specific request and result fields
     - Client-specific visual layout
     - Internal provider wrapper implementation
+    - Automatic parallelization of undeclared, dependent, or mutating calls
 
 models:
   AppSkillInvocation:
@@ -55,6 +57,20 @@ models:
       required: true
       constraints: {must_remain_false_on_failure: true}
 
+  ParallelSafeSkillBatch:
+    eligibility:
+      type: static_opt_in
+      required: true
+      constraints: {parallel_safe_true_required: true, default_serial: true, same_model_batch_only: true}
+    execution:
+      type: bounded_concurrency
+      required: true
+      constraints: {maximum_parallel_calls: 3, original_result_order: true, cancellation_propagates: true}
+    forbidden:
+      type: serial_only
+      required: true
+      constraints: {undeclared_dependent_mutating_payment_account_workspace_calls: true}
+
 assertions:
   - id: app-skills.execution.registered-validated
     type: security
@@ -76,6 +92,10 @@ assertions:
     type: parity
     must: REST API, CLI, npm/pip SDKs, assistant, Workflow, and GUI clients preserve the applicable validated request, structured result, visible error, billing, and output-safety semantics of each app skill.
     depends_on: [models, examples.surface_parity, surfaces]
+  - id: app-skills.execution.parallel-safe
+    type: security
+    must: Assistant tool calls run concurrently only when every call in the same model-emitted batch has explicit static parallel_safe true metadata; concurrency is bounded to three, result messages retain original call order, cancellation reaches unfinished calls, per-call billing and normalized failures remain visible, and every undeclared, dependent, mutating, payment, account, or workspace batch remains serial.
+    depends_on: [models.ParallelSafeSkillBatch, examples.parallel_execution]
 
 surfaces:
   rest_api: {required: true}
@@ -96,4 +116,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution]

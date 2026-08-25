@@ -7,10 +7,18 @@ contract_refs:
   - id: architecture.ai-request-observability
     version: 1
     role: primary
-    fingerprint: 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06
+    fingerprint: ac095368bd6e8207f20b95e9104ea50bf43b064ebeb8271897400879f100317c
+  - id: architecture.app-skill-execution
+    version: 1
+    role: inherited
+    fingerprint: 8dbeaf9d0a02dfa78421db9a8cf77d2222bb1278b0e1b5040e95f9732fcbc739
+  - id: feature.chats
+    version: 2
+    role: inherited
+    fingerprint: bb0d29f5f38ee69991fa503113c237723cad31b71340d86e8370670bbf9a6c3c
 
 contract_impact:
-  classification: new_contract
+  classification: semantic_change
   contract_update_required: true
   affected_assertions:
     - ai-request-observability.propagation.complete
@@ -23,6 +31,8 @@ contract_impact:
     - ai-request-observability.retention.verified
     - ai-request-observability.alerts.discord-email-fallback
     - ai-request-observability.no-behavior-change
+    - app-skills.execution.parallel-safe
+    - chats.streaming.ordered-final
   reason: >
     The approved contract establishes complete AI-turn tracing, identity-free
     metrics, content-free diagnostics, strict export allowlists, operator
@@ -73,8 +83,13 @@ scope:
     - Send content-free AI observability alerts to connected Discord first.
     - Use server-admin email only when Discord is unavailable and server-owner email notifications are enabled.
     - Require a separate approval before production rollout.
+    - Preserve every repeated provider, iteration, and tool span with lifecycle and completion timing.
+    - Reuse unchanged decrypted embed versions only inside one finalization request.
+    - Coalesce ordinary content delivery for at most 50 milliseconds while preserving structural event order and final flush.
+    - Run same-batch app-skill calls concurrently only when every call explicitly declares parallel_safe true.
   out:
-    - Prompt, model-routing, context-window, tool-planning, billing-authority, or processing-order optimization.
+    - Prompt, model-routing, context-window, tool-planning, or billing-authority optimization.
+    - Parallel execution of undeclared, dependent, mutating, payment, account, or workspace tools.
     - User-facing web, Apple, npm SDK, or pip SDK observability features.
     - Public or developer telemetry APIs.
     - Prompt, response, message, tool parameter/result, URL, filename, ciphertext, key, provider payload, or raw stack-trace storage.
@@ -134,6 +149,8 @@ clarification:
       answer: No. First establish instrumentation and the debug CLI, then add dashboards and alerts from measured baseline data.
     - question: Which notification channel should AI observability alerts use?
       answer: Discord is primary; enabled server-admin email is fallback only when Discord is unavailable.
+    - question: How are independent tool calls identified for safe concurrency?
+      answer: Static parallel_safe true metadata is required for every same-batch call; all mixed or undeclared batches remain serial, concurrency is capped at three, and result order is preserved.
   vision_summary: >
     Diagnose AI latency through a privacy-safe baseline before changing AI
     behavior. Ship reliable propagation, strict privacy filtering, AI phase
@@ -181,6 +198,11 @@ decisions:
     decision: Connected Discord is primary; enabled server-admin email is attempted only when Discord is unavailable.
     reason: This avoids duplicate notifications while preserving an operator fallback.
     decided_at: "2026-08-24T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Implement only the approved request-scoped embed reuse, bounded content coalescing, and static-opt-in tool concurrency optimizations before baseline-derived alert work.
+    reason: Recent dev traces identify repeated finalization work and serial tool/stream overhead; the amended contracts preserve output, ordering, billing, safety, and privacy semantics.
+    decided_at: "2026-08-24T23:00:00Z"
 
 scenarios:
   - id: S-1
@@ -245,6 +267,27 @@ scenarios:
     alternatives:
       - If Discord is unavailable and server-owner email notifications are enabled, one content-free email fallback is attempted.
       - If both channels are unavailable or disabled, state remains explicitly undelivered rather than falsely successful.
+  - id: S-7
+    title: Finalization reuses unchanged embed versions within one request
+    given: [Multiple read-only validators need the same parent and child embed versions.]
+    when: [Finalization verifies quotes, display text, and inline references.]
+    then: [Each unchanged version is loaded and decrypted once, mutations invalidate the request snapshot, and decrypted data is never shared across requests.]
+  - id: S-8
+    title: Ordinary streaming updates coalesce without semantic drift
+    given: [Provider content chunks arrive within 50 milliseconds.]
+    when: [The worker publishes cumulative chat content and structural events.]
+    then: [Ordinary content may be combined, structural events flush pending content immediately, and final content and order remain exact.]
+  - id: S-9
+    title: Explicitly safe tool batches execute concurrently
+    given: [One model batch contains only app-skill calls with static parallel_safe true metadata.]
+    when: [The assistant executes the batch.]
+    then: [At most three calls overlap, results retain model order, cancellation propagates, and billing and visible failures remain per call.]
+    alternatives: [Any mixed, undeclared, dependent, mutating, payment, account, or workspace batch executes serially.]
+  - id: S-10
+    title: Expanded waterfall distinguishes repeated work and completion stages
+    given: [A turn has repeated providers, iterations, tools, lifecycle setup, finalization, and a post-marker worker tail.]
+    when: [Telemetry exports and the operator CLI renders the trace.]
+    then: [All repeated spans, provider purposes, lifecycle gaps, terminal class, first token, final marker, and worker tail remain separately visible without private content.]
 
 acceptance_criteria:
   - id: AC-1
@@ -328,6 +371,42 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids: [T-AI-WATERFALL, V-DEV-AI-TRACE]
     contract_assertions: [ai-request-observability.no-behavior-change]
+  - id: AC-10
+    scenario: S-7
+    text: Embed finalization loads and decrypts each unchanged version once per request and invalidates the request-scoped graph after mutation without changing final artifacts.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-EMBED-FINALIZATION-REUSE]
+    contract_assertions: [ai-request-observability.no-behavior-change]
+  - id: AC-11
+    scenario: S-8
+    text: Ordinary cumulative content updates coalesce for no more than 50 milliseconds while structural events remain immediate and exact final output/order is preserved.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-STREAM-COALESCING, V-DEV-STREAMING]
+    contract_assertions: [chats.streaming.ordered-final]
+  - id: AC-12
+    scenario: S-9
+    text: Only all-opted-in same-batch tool calls overlap with maximum concurrency three; mixed batches stay serial and output, billing, failure, cancellation, and order semantics remain unchanged.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-SAFE-TOOLS, V-DEV-AI-TRACE]
+    contract_assertions: [app-skills.execution.parallel-safe]
+  - id: AC-13
+    scenario: S-10
+    text: Telemetry and the debug CLI preserve repeated spans, provider purposes, lifecycle gaps, terminal-aware expectations, and separate first-token/final-marker/worker-tail timing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-EXPANDED-WATERFALL, T-DEBUG-TRACE, V-DEV-AI-TRACE]
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.operator-debug.waterfall]
 
 assumptions:
   - id: A-1
@@ -521,13 +600,63 @@ tests:
       - Payloads and receipts remain content-free and destination-free.
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
     green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-EMBED-FINALIZATION-REUSE
+    type: pytest
+    file: backend/tests/test_ai_finalization_embed_graph.py
+    command: python3 -m pytest backend/tests/test_ai_finalization_embed_graph.py backend/tests/test_quote_verification.py backend/tests/test_embed_link_fixes.py -q
+    covers: [AC-10]
+    contract_assertions: [ai-request-observability.no-behavior-change]
+    assertions:
+      - Quote, display-text, and inline-reference validators share one request-scoped decoded graph.
+      - Concurrent reads coalesce and each unchanged version loads/decrypts once.
+      - Mutation invalidates the affected node and a later read sees the new version.
+      - Separate requests never share decrypted graph nodes.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-STREAM-COALESCING
+    type: pytest
+    file: backend/tests/test_stream_consumer_publish_coalescing.py
+    command: python3 -m pytest backend/tests/test_stream_consumer_publish_coalescing.py backend/tests/test_stream_paragraph_contract.py backend/tests/test_stream_consumer_recovery.py -q
+    covers: [AC-11]
+    contract_assertions: [chats.streaming.ordered-final]
+    assertions:
+      - Ordinary cumulative snapshots coalesce for at most 50 milliseconds.
+      - Structural, error, cancellation, embed, and final events flush pending text first.
+      - Final content, sequence order, recovery metadata, and interruption flags remain exact.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-PARALLEL-SAFE-TOOLS
+    type: pytest
+    file: backend/tests/test_app_skill_parallel_execution.py
+    command: python3 -m pytest backend/tests/test_app_skill_parallel_execution.py backend/tests/test_task_main_processor_tools.py -q
+    covers: [AC-12]
+    contract_assertions: [app-skills.execution.parallel-safe]
+    assertions:
+      - Skill metadata defaults parallel_safe to false and mixed batches stay serial.
+      - Eligible calls overlap with peak concurrency three and results retain model order.
+      - Per-call billing, normalized failures, and cancellation remain visible and deterministic.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+  - id: T-EXPANDED-WATERFALL
+    type: pytest
+    file: backend/tests/test_ai_request_observability.py
+    command: python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_debug_trace.py backend/tests/test_tracing/test_privacy_filter.py -q
+    covers: [AC-13]
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.operator-debug.waterfall, ai-request-observability.exporter.allowlist]
+    assertions:
+      - Provider purpose and terminal class use reviewed enums and unknown values are rejected.
+      - Lifecycle spans and first-token/final-marker/worker-tail metrics contain no identity or content.
+      - Repeated providers, iterations, and tools render count, total, and maximum without overwrite.
+      - Missing phases depend on terminal class rather than treating expected early termination as telemetry loss.
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
 
 verifications:
   - id: V-DEV-AI-TRACE
     kind: manual_check
     phase: green
     required_for_done: true
-    covers: [AC-1, AC-3, AC-4, AC-9]
+    covers: [AC-1, AC-3, AC-4, AC-9, AC-12, AC-13]
     status: passed
     command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>
     evidence: {status: passed, command: "docker exec api python /app/backend/scripts/debug.py trace request --id 51da18a56b10e63468023da4c89447cc", run_id: "51da18a56b10e63468023da4c89447cc", subject_commit: "7a635511b6212cf0b39070f717ea79ede2d7a15a", target: api.dev.openmates.org, summary: "Real browser trace linked web-app, API, and AI worker in 12.918 seconds; queue, prepare, preprocess, main, iteration, provider, billing, persistence, validation, final marker, and postprocess were present with no missing phases.", timestamp: "2026-08-24T18:51:02Z"}
@@ -539,6 +668,14 @@ verifications:
     status: passed
     command: python3 scripts/verify_ai_observability.py retention --target dev
     evidence: {status: passed, command: "python3 scripts/verify_ai_observability.py retention --target dev --json", run_id: "dev-retention-20260824", subject_commit: "50470f3a50c8cf76fbeb3e7cc9d2165d7b1c9f59", summary: "OpenObserve v0.70.0-rc3 traces inherit the configured 14-day retention, below the 30-day policy maximum.", timestamp: "2026-08-24T18:51:02Z"}
+  - id: V-DEV-STREAMING
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-11]
+    status: pending
+    command: python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit <COMMIT>
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", target: app.dev.openmates.org, summary: "", timestamp: ""}
   - id: V-DEV-BASELINE
     kind: artifact_review
     phase: green
@@ -605,12 +742,17 @@ implementation_plan:
     - ai-request-observability.retention.verified
     - ai-request-observability.alerts.discord-email-fallback
     - ai-request-observability.no-behavior-change
+    - app-skills.execution.parallel-safe
+    - chats.streaming.ordered-final
   architecture: >
     Reuse the existing OpenTelemetry-to-OpenObserve path, but make standard OTel
     context propagation and a reviewed attribute registry authoritative. Add
     low-cardinality histograms for all turns, sampled structural spans for
     request waterfalls, and a bounded diagnostic scope. Reuse existing
     operational monitoring delivery for milestone-two Discord-first alerts.
+    The resumed implementation adds request-scoped embed graph reuse, a 50ms
+    content-only stream coalescer with forced structural flushes, and static
+    metadata-opted same-batch tool concurrency capped at three.
   existing_patterns:
     - Shared Python tracing setup already configures OTLP export and automatic FastAPI, HTTPX, Celery, and Redis instrumentation.
     - W3C traceparent helpers already carry context in reserved WebSocket payload metadata.
@@ -623,6 +765,9 @@ implementation_plan:
     - The privacy exporter drops unknown and forbidden attributes before OTLP sends spans to self-hosted OpenObserve.
     - The operator CLI queries one trace and renders only reviewed structural fields and missing-span diagnostics.
     - After the baseline gate, aggregate rules create incidents routed to Discord or conditional server-admin email fallback.
+    - Finalization validators share one decoded embed graph that is discarded after the request and invalidated after mutation.
+    - Ordinary cumulative content updates pass through a bounded coalescer; structural events flush pending content first.
+    - The main processor plans each model tool batch serially, overlaps execution only for all-opted-in calls, then applies billing/results in original order.
   phase_order:
     - Write and record failing propagation, privacy, waterfall, debug, audit, and alert-routing tests before product source changes.
     - Milestone 1A: repair browser/WebSocket/Celery/worker context and make privacy allowlists authoritative.
@@ -632,6 +777,10 @@ implementation_plan:
     - Milestone 2: create dashboards, derive sustained thresholds, and implement Discord-first alert fallback.
     - Run controlled dev alert drills and artifact review.
     - Request separate production approval; do not activate production telemetry changes or alerts before it.
+    - Resumed slice A: add red tests, then fix repeated-span rendering, provider purposes, lifecycle spans, terminal classes, and completion timing.
+    - Resumed slice B: add red tests, then implement request-scoped embed reuse and bounded stream coalescing.
+    - Resumed slice C: add static metadata and red tests, then implement bounded all-opted-in tool execution with ordered post-processing.
+    - Deploy to dev, run real trace/streaming evidence, review proof media for the changed web streaming surface, then request user confirmation before Apple parity.
   affected_files:
     - {path: frontend/packages/ui/src/services/tracing/wsSpans.ts, reason: Create active request spans, inject traceparent, and record request traces consistently.}
     - {path: frontend/packages/ui/src/services/sendersChatMessages.ts, reason: Keep the send span active through WebSocket payload injection.}
@@ -646,6 +795,10 @@ implementation_plan:
     - {path: backend/core/api/app/services/operational_monitoring.py, reason: Reuse content-free Discord-primary and conditional email-fallback delivery.}
     - {path: scripts/audit_ai_observability_contract.py, reason: Prevent unreviewed telemetry fields and missing worker initialization.}
     - {path: scripts/verify_ai_observability.py, reason: Verify retention, baseline completeness, and controlled alert routing.}
+    - {path: backend/shared/python_schemas/app_metadata_schemas.py, reason: Add default-false static parallel_safe skill metadata.}
+    - {path: backend/apps/ai/tasks/stream_consumer.py, reason: Add request-scoped embed graph reuse, content coalescing, forced flushes, and lifecycle spans.}
+    - {path: backend/apps/ai/services/embed_service.py, reason: Accept request-predecoded graph nodes during quote verification.}
+    - {path: backend/apps/ai/processing/main_processor.py, reason: Plan eligible tool batches and execute provider work concurrently with ordered result application.}
   verification_strategy:
     - Require red tests to fail for the discovered propagation, privacy, worker-init, waterfall, and routing gaps.
     - Run focused backend pytest and dispatched Vitest green checks.
@@ -654,6 +807,9 @@ implementation_plan:
     - Run the deterministic source audit and retention verifier.
     - Delay dashboard thresholds and alerts until seven days of complete dev evidence pass privacy review.
     - Drill Discord acceptance, Discord unavailability with enabled email, and both unavailable/disabled states.
+    - Record red then green focused tests for embed load/decrypt counts, streaming ordering/final flush, tool concurrency/order/cancellation, and repeated-span CLI output.
+    - Deploy API and AI worker changes, run one normal and one opted-in multi-tool dev request, and inspect privacy-safe trace output.
+    - Run deployed chat streaming performance Playwright and proof-video review because content delivery cadence is user observable.
   verification_order:
     - T-TRACE-PROPAGATION, T-WEB-TRACE-CONTEXT, T-TRACE-PRIVACY, T-AI-WATERFALL, T-DEBUG-TRACE, T-OBSERVABILITY-AUDIT, and T-AI-ALERT-ROUTING red evidence.
     - Milestone-one focused green tests and deterministic audit.
@@ -661,15 +817,21 @@ implementation_plan:
     - V-DEV-BASELINE after seven complete privacy-valid days.
     - Milestone-two T-AI-ALERT-ROUTING, V-DASHBOARD-REVIEW, and V-DEV-ALERT-DRILL.
     - V-SPEC-VERIFY, then separate V-PRODUCTION-ROLLOUT approval.
+    - T-EXPANDED-WATERFALL red/green before performance implementation.
+    - T-EMBED-FINALIZATION-REUSE and T-STREAM-COALESCING red/green.
+    - T-PARALLEL-SAFE-TOOLS red/green, then V-DEV-AI-TRACE and V-DEV-STREAMING against deployed code.
   risks:
     - High-cardinality attributes can increase OpenObserve cost; reviewed enums and histograms are mandatory.
     - Incorrect context attachment can join unrelated users' turns; context teardown and concurrency tests are mandatory.
     - Exact counts can fingerprint uncommon requests; default buckets and expiring diagnostic scope are mandatory.
     - Instrumentation overhead can affect latency; measure exporter and span overhead and keep content transformation out of the hot path.
     - Alert thresholds can become noisy; milestone two remains blocked until baseline coverage is sufficient.
+    - Stale request-scoped embed nodes can hide mutations; every in-request mutation must invalidate the affected node.
+    - Content coalescing can reorder structural events; every structural/error/final path must force-flush pending content first.
+    - Tool concurrency can change side effects or billing; default false, all-call eligibility, serial preflight, ordered application, and maximum three are mandatory.
   open_questions: []
   separate_technical_approval_required: false
-  first_slice: Add red tests for exporter allowlisting and end-to-end trace context before product source changes.
+  first_slice: Add red tests for repeated-span aggregation, provider-purpose allowlisting, completion timing, and terminal-aware missing phases.
 
 tasks:
   - id: TASK-1
@@ -723,7 +885,7 @@ tasks:
   - id: TASK-5
     title: Collect and review seven-day dev baseline
     phase: running_checks
-    status: in_progress
+    status: blocked
     covers: {scenarios: [S-5], acceptance_criteria: [AC-6, AC-7]}
     contract_assertions: [ai-request-observability.default-metrics.identity-free, ai-request-observability.retention.verified]
     expected_files: [scripts/verify_ai_observability.py, scripts/tests/test_verify_ai_observability.py, docs/specs/ai-request-observability/spec.yml]
@@ -756,6 +918,66 @@ tasks:
     blockers: [explicit_production_approval]
     ownership: {session: 0d33, files: [docs/specs/ai-request-observability/spec.yml], shared_files: []}
     follow_up_tasks: []
+  - id: TASK-8
+    title: Expand privacy-safe waterfall and debug aggregation
+    phase: working_tasks
+    status: in_progress
+    covers: {scenarios: [S-3, S-10], acceptance_criteria: [AC-3, AC-4, AC-13]}
+    contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.operator-debug.waterfall, ai-request-observability.exporter.allowlist]
+    expected_files: [backend/shared/python_utils/tracing/ai_observability.py, backend/shared/python_utils/tracing/privacy_filter.py, backend/apps/ai/tasks/ask_skill_task.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/postprocessor.py, backend/apps/ai/tasks/stream_consumer.py, backend/scripts/debug_trace.py, backend/tests/test_ai_request_observability.py, backend/tests/test_tracing/test_debug_trace.py]
+    verification_ids: [T-EXPANDED-WATERFALL, T-TRACE-PRIVACY, T-OBSERVABILITY-AUDIT]
+    dependencies: [TASK-4]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/shared/python_utils/tracing/ai_observability.py, backend/shared/python_utils/tracing/privacy_filter.py, backend/apps/ai/tasks/ask_skill_task.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/postprocessor.py, backend/apps/ai/tasks/stream_consumer.py, backend/scripts/debug_trace.py, backend/tests/test_ai_request_observability.py, backend/tests/test_tracing/test_debug_trace.py], shared_files: []}
+    follow_up_tasks: [TASK-9]
+  - id: TASK-9
+    title: Reuse request-scoped embed graph during finalization
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-7], acceptance_criteria: [AC-10]}
+    contract_assertions: [ai-request-observability.no-behavior-change]
+    expected_files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/services/embed_service.py, backend/tests/test_ai_finalization_embed_graph.py, backend/tests/test_quote_verification.py, backend/tests/test_embed_link_fixes.py]
+    verification_ids: [T-EMBED-FINALIZATION-REUSE]
+    dependencies: [TASK-8]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/services/embed_service.py, backend/tests/test_ai_finalization_embed_graph.py], shared_files: [backend/tests/test_quote_verification.py, backend/tests/test_embed_link_fixes.py]}
+    follow_up_tasks: [TASK-10]
+  - id: TASK-10
+    title: Coalesce ordinary stream content with forced structural flushes
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-8], acceptance_criteria: [AC-11]}
+    contract_assertions: [chats.streaming.ordered-final]
+    expected_files: [backend/apps/ai/tasks/stream_consumer.py, backend/tests/test_stream_consumer_publish_coalescing.py]
+    verification_ids: [T-STREAM-COALESCING, V-DEV-STREAMING]
+    dependencies: [TASK-9]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/tests/test_stream_consumer_publish_coalescing.py], shared_files: [backend/apps/ai/tasks/stream_consumer.py]}
+    follow_up_tasks: [TASK-11]
+  - id: TASK-11
+    title: Execute explicitly parallel-safe tool batches with deterministic results
+    phase: working_tasks
+    status: pending
+    covers: {scenarios: [S-9], acceptance_criteria: [AC-12]}
+    contract_assertions: [app-skills.execution.parallel-safe]
+    expected_files: [backend/shared/python_schemas/app_metadata_schemas.py, backend/apps/ai/processing/main_processor.py, backend/apps/web/app.yml, backend/apps/news/app.yml, backend/apps/events/app.yml, backend/apps/weather/app.yml, backend/tests/test_app_skill_parallel_execution.py]
+    verification_ids: [T-PARALLEL-SAFE-TOOLS, V-DEV-AI-TRACE]
+    dependencies: [TASK-10]
+    blockers: []
+    ownership: {session: 0d33, files: [backend/shared/python_schemas/app_metadata_schemas.py, backend/tests/test_app_skill_parallel_execution.py], shared_files: [backend/apps/ai/processing/main_processor.py, backend/apps/web/app.yml, backend/apps/news/app.yml, backend/apps/events/app.yml, backend/apps/weather/app.yml]}
+    follow_up_tasks: [TASK-12]
+  - id: TASK-12
+    title: Deploy and verify real trace, streaming, performance, and parity evidence
+    phase: running_checks
+    status: pending
+    covers: {scenarios: [S-7, S-8, S-9, S-10], acceptance_criteria: [AC-10, AC-11, AC-12, AC-13]}
+    contract_assertions: [ai-request-observability.waterfall.complete, app-skills.execution.parallel-safe, chats.streaming.ordered-final]
+    expected_files: [docs/specs/ai-request-observability/spec.yml]
+    verification_ids: [V-DEV-AI-TRACE, V-DEV-STREAMING, V-SPEC-VERIFY]
+    dependencies: [TASK-8, TASK-9, TASK-10, TASK-11]
+    blockers: []
+    ownership: {session: 0d33, files: [docs/specs/ai-request-observability/spec.yml], shared_files: []}
+    follow_up_tasks: [TASK-5]
 
 attempts:
   - id: ATTEMPT-1
@@ -790,15 +1012,9 @@ attempts:
     evidence: Commit 4627373114de056e79e0a6d30b3fbb0af70233e0 passed three focused tests and the live gate returned an expected privacy-safe 0-of-7 pending result.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Re-run the deterministic baseline gate after seven fully completed UTC dev days, then review sample representativeness before dashboard or threshold work.
-  command: python3 scripts/verify_ai_observability.py baseline --target dev --days 7 --json
-  expected_outcome: The gate reports seven complete days with sampled AI turns containing every required phase and no trace identifiers in its aggregate output.
-  blocker:
-    kind: elapsed_baseline_window
-    task_id: TASK-5
-    requires_user_input: false
-    reason: Seven fully completed privacy-valid dev days have not elapsed since milestone-one instrumentation reached dev.
-    question: ""
-    next_action: Re-run V-DEV-BASELINE after the required UTC-day window has elapsed.
+  current_task_id: TASK-8
+  next_action: Write and run the expanded waterfall red tests before editing product source.
+  command: python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_debug_trace.py backend/tests/test_tracing/test_privacy_filter.py -q
+  expected_outcome: New tests fail for repeated-span overwrite, missing provider purposes/lifecycle timing, and terminal-unaware phase diagnostics.
+  blocker: null
   last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704

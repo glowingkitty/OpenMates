@@ -20,6 +20,7 @@ from typing import Any, Dict, Sequence
 
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import Status
 
 from backend.shared.python_utils.tracing.user_tier import determine_user_tier
@@ -37,7 +38,6 @@ DEFAULT_ALLOWED_ATTRS = frozenset({
     "http.status_code",
     "http.request.method",
     "http.response.status_code",
-    "server.address",
     "server.port",
     "network.protocol.version",
     "rpc.system",
@@ -46,7 +46,6 @@ DEFAULT_ALLOWED_ATTRS = frozenset({
     "db.system",
     "messaging.system",
     "messaging.operation",
-    "messaging.destination.name",
     "ws.message_type",
     "cache.hit",
     "celery.queue",
@@ -58,6 +57,11 @@ DEFAULT_ALLOWED_ATTRS = frozenset({
     "ai.duration_ms",
     "ai.ttft_ms",
     "ai.stream_duration_ms",
+    "ai.provider_purpose",
+    "ai.terminal_class",
+    "ai.first_token_ms",
+    "ai.final_marker_ms",
+    "ai.worker_tail_ms",
     "ai.token_count_bucket",
     "ai.character_count_bucket",
     "ai.message_count_bucket",
@@ -127,14 +131,25 @@ class _FilteredSpan:
     delegates all properties to the original span but overrides attributes.
     """
 
-    def __init__(self, original: ReadableSpan, filtered_attrs: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        original: ReadableSpan,
+        filtered_attrs: Dict[str, Any],
+        filtered_resource: Resource,
+    ) -> None:
         self._original = original
         self._filtered_attrs = filtered_attrs
+        self._filtered_resource = filtered_resource
 
     @property
     def attributes(self) -> Dict[str, Any]:
         """Return the filtered attributes instead of the original ones."""
         return self._filtered_attrs
+
+    @property
+    def resource(self) -> Resource:
+        """Return only reviewed resource attributes to prevent OTLP bypasses."""
+        return self._filtered_resource
 
     @property
     def events(self) -> tuple:
@@ -184,7 +199,9 @@ class TracePrivacyFilter(SpanExporter):
             attrs = dict(span.attributes) if span.attributes else {}
             tier = determine_user_tier(attrs)
             filtered_attrs = _filter_attributes(attrs, tier)
-            filtered_spans.append(_FilteredSpan(span, filtered_attrs))
+            resource_attrs = dict(span.resource.attributes) if span.resource else {}
+            filtered_resource = Resource(_filter_attributes(resource_attrs, tier))
+            filtered_spans.append(_FilteredSpan(span, filtered_attrs, filtered_resource))
 
         return self._inner.export(filtered_spans)
 

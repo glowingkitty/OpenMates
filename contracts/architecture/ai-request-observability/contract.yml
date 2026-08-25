@@ -27,6 +27,8 @@ scope:
       operator access, dashboards, alerts, and a content-free debug CLI waterfall
     - Discord-first operator alert delivery with optional enabled server-admin
       email fallback when Discord is unavailable
+    - Repeated-span aggregation, provider-purpose attribution, user-completion
+      timing, worker-tail timing, named lifecycle gaps, and terminal-aware phase expectations
   excludes:
     - Any prompt, response, chat title, message body, tool parameter, tool output,
       URL, filename, ciphertext, key material, provider raw payload, or raw stack trace
@@ -88,7 +90,11 @@ models:
     postprocess:
       type: span_group
       required: false
-      constraints: {after_final_marker_visible: true}
+      constraints: {after_final_marker_visible: true, provider_children: true, delivery_tail_visible: true}
+    lifecycle_gaps:
+      type: span_group
+      required: true
+      constraints: {setup_compression_pre_main_response_finalize_queue_handoff_visible_when_present: true}
 
   AIAlertRouting:
     discord:
@@ -145,6 +151,18 @@ models:
       type: enum
       required: true
       constraints: {normalized: true, raw_error_text_forbidden: true}
+    provider_purpose:
+      type: enum
+      required: false
+      constraints: {values: [preprocess, main, postprocess, translation, compression, safety, inspiration]}
+    terminal_class:
+      type: enum
+      required: true
+      constraints: {values: [completed, failed_before_main, failed_during_main, billing_failed, soft_limited, revoked, worker_interrupted]}
+    completion_timing:
+      type: numeric_duration_set
+      required: true
+      constraints: {first_token_final_marker_worker_tail_separate: true, non_negative: true}
 
   ForbiddenTelemetryFields:
     content:
@@ -171,7 +189,7 @@ assertions:
     depends_on: [models.AIPhaseWaterfall, examples.trace_propagation]
   - id: ai-request-observability.waterfall.complete
     type: behavior
-    must: The AI waterfall exposes queue delay, preparation, preprocessing local work and provider calls, main-model iteration TTFT and streaming duration, each executed tool's bounded metadata, final validation, billing, encrypted persistence, final marker publication, and postprocessing when present.
+    must: The AI waterfall exposes queue delay, setup, optional compression, preparation, preprocessing and provider calls, pre-main work, every main iteration/provider/tool span, response finalization, validation, billing, encrypted persistence, final marker publication, postprocessing providers and delivery, queued-turn handoff, and separate first-token, final-marker, and worker-tail timing when present.
     depends_on: [models.AIPhaseWaterfall, examples.diagnostic_traces]
   - id: ai-request-observability.default-metrics.identity-free
     type: privacy
@@ -191,7 +209,7 @@ assertions:
     depends_on: [models.ForbiddenTelemetryFields, examples.privacy_boundaries]
   - id: ai-request-observability.operator-debug.waterfall
     type: behavior
-    must: Operator tooling can render a content-free waterfall for a supplied trace ID, showing phase durations, token and size buckets or diagnostic exact counts, tool capability categories, status classes, retries, cache results, and missing-span diagnostics without printing raw span payloads.
+    must: Operator tooling renders repeated providers, iterations, and tools without overwriting them, showing count, total child time, critical-path maximum, parent, bounded metadata, terminal-aware missing-span diagnostics, and no raw span payloads or private content.
     depends_on: [models.AIPhaseWaterfall, examples.dashboards_and_cli]
   - id: ai-request-observability.retention.verified
     type: security

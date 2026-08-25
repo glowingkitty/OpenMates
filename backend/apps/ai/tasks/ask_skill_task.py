@@ -56,8 +56,10 @@ from backend.shared.python_utils.learning_mode import (
     learning_mode_context_from_preferences,
 )
 from backend.shared.python_utils.tracing.ai_observability import (
+    AICompletionTiming,
     AI_QUEUE_ENQUEUED_AT_HEADER,
     ai_phase_span,
+    record_ai_completion_timing,
     record_ai_queue_span,
 )
 from .stream_consumer import _consume_main_processing_stream
@@ -667,7 +669,8 @@ async def _finalize_legacy_cutover_admission(
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
-    skill_config: AskSkillDefaultConfig
+    skill_config: AskSkillDefaultConfig,
+    completion_timing: Optional[AICompletionTiming] = None,
 ):
     """
     Asynchronous core logic for processing the AI skill ask task.
@@ -689,32 +692,33 @@ async def _async_process_ai_skill_ask_task(
     encryption_service_instance = None
 
     try:
-        secrets_manager = SecretsManager()
-        await secrets_manager.initialize()
-        logger.info(f"[Task ID: {task_id}] SecretsManager initialized.")
+        with ai_phase_span("setup"):
+            secrets_manager = SecretsManager()
+            await secrets_manager.initialize()
+            logger.info(f"[Task ID: {task_id}] SecretsManager initialized.")
 
-        # PERFORMANCE OPTIMIZATION: Try to use worker-level cache service first
-        # Falls back to creating a new instance if the worker-level service is unavailable
-        try:
-            from backend.core.api.app.tasks.celery_config import get_worker_cache_service
-            cache_service_instance = await get_worker_cache_service()
-            logger.info(f"[Task ID: {task_id}] Using worker-level CacheService (connection pooling)")
-        except Exception as e:
-            logger.warning(f"[Task ID: {task_id}] Could not get worker-level CacheService ({e}), creating new instance")
-            cache_service_instance = CacheService()
-            await cache_service_instance.client 
-            logger.info(f"[Task ID: {task_id}] CacheService initialized (new instance)")
-        
-        encryption_service_instance = EncryptionService(
-            cache_service=cache_service_instance
-        )
-        logger.info(f"[Task ID: {task_id}] EncryptionService initialized.")
+            # PERFORMANCE OPTIMIZATION: Try to use worker-level cache service first
+            # Falls back to creating a new instance if the worker-level service is unavailable
+            try:
+                from backend.core.api.app.tasks.celery_config import get_worker_cache_service
+                cache_service_instance = await get_worker_cache_service()
+                logger.info(f"[Task ID: {task_id}] Using worker-level CacheService (connection pooling)")
+            except Exception as e:
+                logger.warning(f"[Task ID: {task_id}] Could not get worker-level CacheService ({e}), creating new instance")
+                cache_service_instance = CacheService()
+                await cache_service_instance.client
+                logger.info(f"[Task ID: {task_id}] CacheService initialized (new instance)")
 
-        directus_service_instance = DirectusService(
-            cache_service=cache_service_instance,
-            encryption_service=encryption_service_instance 
-        )
-        logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+            encryption_service_instance = EncryptionService(
+                cache_service=cache_service_instance
+            )
+            logger.info(f"[Task ID: {task_id}] EncryptionService initialized.")
+
+            directus_service_instance = DirectusService(
+                cache_service=cache_service_instance,
+                encryption_service=encryption_service_instance
+            )
+            logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
         if request_data.is_sub_chat:
             if not all((
@@ -1303,12 +1307,13 @@ async def _async_process_ai_skill_ask_task(
                         )
 
                     # Run compression
-                    compression_result = await compress_chat_history(
-                        message_history=message_dicts_for_compression,
-                        task_id=task_id,
-                        secrets_manager=secrets_manager,
-                        compression_threshold=compression_threshold,
-                    )
+                    with ai_phase_span("compression"):
+                        compression_result = await compress_chat_history(
+                            message_history=message_dicts_for_compression,
+                            task_id=task_id,
+                            secrets_manager=secrets_manager,
+                            compression_threshold=compression_threshold,
+                        )
 
                     if compression_result.was_compressed and compression_result.summary_content:
                         compression_performed = True
@@ -1948,6 +1953,7 @@ async def _async_process_ai_skill_ask_task(
                     always_include_skills=skill_config.always_include_skills if skill_config else None,
                     user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
                     skill_config_dict=skill_config_dict,
+                    completion_timing=completion_timing,
                 )
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 
@@ -2200,14 +2206,15 @@ async def _async_process_ai_skill_ask_task(
                     skill_config_dict = skill_config.model_dump() if hasattr(skill_config, 'model_dump') else {}
                     
                     # Dispatch new task via Celery
-                    new_task_result = celery_config.app.send_task(
-                        name='apps.ai.tasks.skill_ask',
-                        kwargs={
-                            "request_data_dict": combined_request.model_dump(),
-                            "skill_config_dict": skill_config_dict
-                        },
-                        queue='app_ai'
-                    )
+                    with ai_phase_span("queue_handoff"):
+                        new_task_result = celery_config.app.send_task(
+                            name='apps.ai.tasks.skill_ask',
+                            kwargs={
+                                "request_data_dict": combined_request.model_dump(),
+                                "skill_config_dict": skill_config_dict
+                            },
+                            queue='app_ai'
+                        )
                     
                     logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {new_task_result.id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
                     
@@ -2420,7 +2427,8 @@ async def _async_process_ai_skill_ask_task(
                 logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
-            await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
+            with ai_phase_span("postprocess.delivery"):
+                await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
             logger.info(f"[Task ID: {task_id}] Published post-processing results to Redis channel '{postprocessing_channel}'")
 
             # --- Cache daily inspiration topic suggestions ---
@@ -2613,6 +2621,10 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     # Custom flags on 'self' are no longer initialized here,
     # their status will be derived from the async helper's return value.
 
+    completion_timing = AICompletionTiming.start()
+    turn_scope = ai_phase_span("turn")
+    turn_span = turn_scope.__enter__()
+
     try:
         with ai_phase_span("prepare"):
             request_data = AskSkillRequest(**request_data_dict)
@@ -2620,6 +2632,12 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     except ValidationError as e:
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
+        record_ai_completion_timing(
+            turn_span,
+            worker_tail_ms=completion_timing.worker_tail_ms(),
+            terminal_class="failed_before_main",
+        )
+        turn_scope.__exit__(None, None, None)
         raise Ignore()
 
     # Idempotency dedup is now handled globally by `DedupedTask.__call__`
@@ -2636,14 +2654,19 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     
     task_result_dict: Optional[Dict[str, Any]] = None
     legacy_completion_requires_persistence = False
+    terminal_class = "worker_interrupted"
     try:
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
-        with ai_phase_span("turn"):
-            task_result_dict = loop.run_until_complete(
-                _async_process_ai_skill_ask_task(task_id, request_data, skill_config) # 'self' is not passed
+        task_result_dict = loop.run_until_complete(
+            _async_process_ai_skill_ask_task(
+                task_id,
+                request_data,
+                skill_config,
+                completion_timing=completion_timing,
             )
+        )
         legacy_completion_requires_persistence = completion_requires_persistence(
             task_result_dict
         )
@@ -2665,6 +2688,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
         # Handle results that indicate logical failure within the async logic
         if isinstance(task_result_dict, dict) and task_result_dict.get("_celery_task_state") == "FAILURE":
+            terminal_class = "failed_before_main"
             failure_meta = {k: v for k, v in task_result_dict.items() if k not in ["_celery_task_state", "task_id"]}
             failure_meta['exc_type'] = str(task_result_dict.get('reason', 'AsyncLogicError'))
             failure_meta['exc_message'] = str(task_result_dict.get('message', 'Async task indicated failure.'))
@@ -2681,6 +2705,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         
         # If successful or partially successful (due to interruption)
         if isinstance(task_result_dict, dict):
+            terminal_class = (
+                "revoked" if task_result_dict.get("interrupted_by_revocation")
+                else "soft_limited" if task_result_dict.get("interrupted_by_soft_time_limit")
+                else "completed"
+            )
             success_meta = {
                 'status_message': task_result_dict.get('status'),
                 'preprocessing_summary': task_result_dict.get('preprocessing_summary'),
@@ -2711,6 +2740,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        terminal_class = "revoked" if was_revoked else "soft_limited"
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -2759,6 +2789,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        terminal_class = "revoked" if was_revoked else (
+            "billing_failed" if completion_timing.billing_failed
+            else "failed_during_main" if completion_timing.first_token_ms is not None
+            else "failed_before_main"
+        )
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -2806,6 +2841,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        terminal_class = "revoked" if was_revoked else (
+            "billing_failed" if completion_timing.billing_failed
+            else "failed_during_main" if completion_timing.first_token_ms is not None
+            else "failed_before_main"
+        )
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -2876,5 +2916,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 deactivate_mock_mode()
             except ImportError:
                 pass
+        record_ai_completion_timing(
+            turn_span,
+            first_token_ms=completion_timing.first_token_ms,
+            final_marker_ms=completion_timing.final_marker_ms,
+            worker_tail_ms=completion_timing.worker_tail_ms(),
+            terminal_class=terminal_class,
+        )
+        turn_scope.__exit__(None, None, None)
         loop.close()
         logger.info(f"[Task ID: {task_id}] Async event loop closed.")

@@ -78,6 +78,11 @@ SAFE_JSON_FIELDS = frozenset({
     "ai.request_count_bucket",
     "ai.result_count_bucket",
     "ai.retry_count_bucket",
+    "ai.provider_purpose",
+    "ai.terminal_class",
+    "ai.first_token_ms",
+    "ai.final_marker_ms",
+    "ai.worker_tail_ms",
 })
 
 AI_REQUIRED_PHASES = (
@@ -93,6 +98,37 @@ AI_REQUIRED_PHASES = (
     "finalize.marker",
     "postprocess",
 )
+AI_PHASE_DISPLAY_ORDER = (
+    "queue",
+    "prepare",
+    "setup",
+    "compression",
+    "preprocess",
+    "pre_main",
+    "main",
+    "main.iteration",
+    "provider",
+    "tool",
+    "main.response_finalize",
+    "finalize.billing",
+    "finalize.persistence",
+    "finalize.validation",
+    "finalize.marker",
+    "postprocess",
+    "postprocess.delivery",
+    "queue_handoff",
+)
+AI_TERMINAL_REQUIRED_PHASES = {
+    "completed": AI_REQUIRED_PHASES,
+    "failed_before_main": (),
+    "failed_during_main": ("queue", "prepare", "preprocess", "main"),
+    "billing_failed": (
+        "queue", "prepare", "preprocess", "main", "main.iteration", "provider", "finalize.billing",
+    ),
+    "soft_limited": ("queue", "prepare", "preprocess", "main"),
+    "revoked": ("queue", "prepare", "preprocess", "main"),
+    "worker_interrupted": (),
+}
 
 # Maximum results per query
 DEFAULT_QUERY_LIMIT = 50
@@ -606,22 +642,50 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
             f"{root_operation} ({total_duration_ms:.0f}ms) {overall_status}"
         )
 
-        ai_spans = {
-            str(span.get("operation_name", ""))[3:]: span
-            for span in trace_spans
-            if str(span.get("operation_name", "")).startswith("ai.")
-        }
+        ai_spans: Dict[str, List[Dict[str, Any]]] = {}
+        for span in trace_spans:
+            operation = str(span.get("operation_name", ""))
+            if operation.startswith("ai."):
+                ai_spans.setdefault(operation[3:], []).append(span)
         if "turn" in ai_spans:
             output_lines.append("  AI phase waterfall:")
-            for phase in AI_REQUIRED_PHASES:
-                span = ai_spans.get(phase)
-                if not span:
+            for phase in AI_PHASE_DISPLAY_ORDER:
+                phase_spans = ai_spans.get(phase, [])
+                if not phase_spans:
                     continue
-                duration_ms = span.get("duration", 0) / 1000.0
+                if len(phase_spans) == 1:
+                    span = phase_spans[0]
+                    duration_ms = span.get("duration", 0) / 1000.0
+                    output_lines.append(
+                        f"    {phase}: {duration_ms:.0f}ms {_display_span_status(span)}"
+                    )
+                    continue
+                durations_ms = [span.get("duration", 0) / 1000.0 for span in phase_spans]
+                status = "ERROR" if any(_is_error_span(span) for span in phase_spans) else "OK"
+                parent_operations = sorted({
+                    str(span_map.get(str(span.get("parent_span_id", "")), {}).get("operation_name", "unknown"))
+                    for span in phase_spans
+                })
                 output_lines.append(
-                    f"    {phase}: {duration_ms:.0f}ms {_display_span_status(span)}"
+                    f"    {phase}: count={len(phase_spans)} "
+                    f"total={sum(durations_ms):.0f}ms max={max(durations_ms):.0f}ms "
+                    f"{status} parents={','.join(parent_operations)}"
                 )
-            missing = [phase for phase in AI_REQUIRED_PHASES if phase not in ai_spans]
+            turn_span = ai_spans["turn"][0]
+            terminal_class = str(turn_span.get("ai.terminal_class", "completed"))
+            output_lines.append(f"  Terminal class: {terminal_class}")
+            timing = []
+            for key, label in (
+                ("ai.first_token_ms", "first-token"),
+                ("ai.final_marker_ms", "final-marker"),
+                ("ai.worker_tail_ms", "worker-tail"),
+            ):
+                if key in turn_span:
+                    timing.append(f"{label}={float(turn_span[key]):.0f}ms")
+            if timing:
+                output_lines.append("  Completion timing: " + ", ".join(timing))
+            required_phases = AI_TERMINAL_REQUIRED_PHASES.get(terminal_class, AI_REQUIRED_PHASES)
+            missing = [phase for phase in required_phases if phase not in ai_spans]
             output_lines.append(
                 "  Missing AI phases: " + (", ".join(missing) if missing else "none")
             )

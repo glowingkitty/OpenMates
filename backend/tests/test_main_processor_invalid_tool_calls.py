@@ -8,6 +8,7 @@
 import asyncio
 import copy
 import importlib
+import ast
 import inspect
 import json
 import sys
@@ -196,9 +197,24 @@ _get_variable_preflight_reserved_credits = main_processor._get_variable_prefligh
 
 def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
     source = inspect.getsource(main_processor.handle_main_processing)
-    dispatch_marker = source.index("execute_skill_with_multiple_requests(")
+    dispatch_calls = [
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "execute_skill_with_multiple_requests"
+    ]
 
-    assert "secrets_manager=secrets_manager" in source[dispatch_marker:dispatch_marker + 700]
+    assert dispatch_calls
+    assert all(
+        any(
+            keyword.arg == "secrets_manager"
+            and isinstance(keyword.value, ast.Name)
+            and keyword.value.id == "secrets_manager"
+            for keyword in call.keywords
+        )
+        for call in dispatch_calls
+    )
 
 
 def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:

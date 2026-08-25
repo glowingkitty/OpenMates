@@ -24,6 +24,7 @@ def _export(attributes: dict, environment: str = "production") -> dict:
     exporter = TracePrivacyFilter(inner=inner)
     span = MagicMock()
     span.attributes = attributes
+    span.resource.attributes = {}
 
     with patch.dict(os.environ, {"SERVER_ENVIRONMENT": environment}):
         exporter.export([span])
@@ -47,6 +48,11 @@ class TestTracePrivacyFilterAllowlist:
             "ai.model_family": "fast_routing_llm",
             "ai.capability_category": "web_search",
             "ai.duration_ms": 125.5,
+            "ai.provider_purpose": "postprocess",
+            "ai.terminal_class": "completed",
+            "ai.first_token_ms": 800.0,
+            "ai.final_marker_ms": 10_000.0,
+            "ai.worker_tail_ms": 5_000.0,
             "ai.token_count_bucket": "10k_50k",
             "ai.retry_count_bucket": "0",
         }
@@ -72,6 +78,8 @@ class TestTracePrivacyFilterAllowlist:
             "exception.message": "private provider response",
             "exception.stacktrace": "private stack",
             "url.full": "https://example.invalid/private",
+            "server.address": "private-provider.example",
+            "messaging.destination.name": "chat_stream::private-chat-id",
             "file.name": "private.pdf",
         }
 
@@ -97,11 +105,39 @@ class TestTracePrivacyFilterAllowlist:
         original.links = [MagicMock(attributes={"user.id": "private"})]
         original.status.status_code = MagicMock()
         original.status.description = "private provider response"
-        filtered = _FilteredSpan(original, {"service.name": "api"})
+        from opentelemetry.sdk.resources import Resource
+
+        filtered = _FilteredSpan(
+            original,
+            {"service.name": "api"},
+            Resource({"service.name": "api"}),
+        )
 
         assert filtered.events == ()
         assert filtered.links == ()
         assert filtered.status.description is None
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.exporter.allowlist,ai-request-observability.structural-traces.content-free
+    def test_filters_resource_attributes_before_otlp_export(self):
+        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
+
+        inner = MagicMock()
+        inner.export.return_value = SpanExportResult.SUCCESS
+        span = MagicMock()
+        span.attributes = {"ai.phase": "main"}
+        span.resource.attributes = {
+            "service.name": "app-ai-worker",
+            "server.address": "private-provider.example",
+            "messaging.destination.name": "chat_stream::private-chat-id",
+            "deployment.environment": "private-environment",
+        }
+
+        TracePrivacyFilter(inner).export([span])
+
+        filtered_span = inner.export.call_args[0][0][0]
+        assert dict(filtered_span.resource.attributes) == {
+            "service.name": "app-ai-worker",
+        }
 
 
 class TestTracePrivacyFilterDiagnosticMode:

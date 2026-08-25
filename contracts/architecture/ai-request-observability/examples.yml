@@ -64,6 +64,15 @@ diagnostic_traces:
       exact_non_sensitive_ids: [model_id, app_id, skill_id]
       exact_sensitive_tool_names: collapsed_or_omitted
       expires: true
+  - id: repeated-provider-tool-aggregation
+    given: {main_iterations: 4, provider_calls: 4, tool_calls: 2, terminal_class: completed}
+    expect:
+      cli_rows:
+        main_iteration: {count: 4, total_and_max_visible: true}
+        provider: {count: 4, total_and_max_visible: true}
+        tool: {count: 2, total_and_max_visible: true}
+      overwritten_repeated_spans: false
+      completion_timing: [first_token, final_marker, worker_tail]
 
 privacy_boundaries:
   - id: prohibited-fields-dropped

@@ -170,6 +170,7 @@ async def _classify_channels_with_llm(
 
     try:
         result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+            observability_purpose="inspiration",
             task_id=f"{task_id}_channel_classifier",
             model_id=CHANNEL_CLASSIFIER_MODEL_ID,
             message_history=messages,

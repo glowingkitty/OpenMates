@@ -72,3 +72,11 @@ conversation_fork:
   - id: fork-through-first-assistant-message
     input: {source_messages: [user-1, assistant-1, user-2, assistant-2], boundary_message_id: assistant-1}
     expect: {fork_messages: [user-1, assistant-1], source_messages_unchanged: true, active_chat_replaced_automatically: false, open_action_available: true}
+
+streaming_delivery:
+  - id: bounded-content-coalescing
+    given: {provider_chunks_arrive_faster_than_delivery: true}
+    expect: {maximum_coalescing_ms: 50, chunk_order_preserved: true, exact_final_content: true, final_flush: true}
+  - id: structural-event-flush
+    given: {pending_content: true, next_event: tool_or_embed_or_error_or_cancellation_or_final_marker}
+    expect: {pending_content_flushed_first: true, structural_event_immediate: true, original_order_preserved: true}

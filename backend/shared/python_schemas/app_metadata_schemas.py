@@ -94,6 +94,14 @@ class AppSkillDefinition(BaseModel):
     description_translation_key: str  # Required: Translation key for skill description (e.g., "app_translations.web.skills.search.description")
     class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - omitted for unimplemented placeholders
     default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented skill ships off by default.")
+    parallel_safe: bool = Field(
+        default=False,
+        description=(
+            "Permit concurrent execution only when the skill is read-only, has no ordering "
+            "dependency on other calls in the model batch, and cannot mutate account, payment, "
+            "or workspace state. Defaults to false."
+        ),
+    )
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
     icon_image: Optional[str] = Field(default=None, description="Filename of the skill icon shown in Apps settings.")

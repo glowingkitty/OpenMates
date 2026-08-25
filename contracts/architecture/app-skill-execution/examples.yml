@@ -46,3 +46,14 @@ surface_parity:
     cli: openmates apps events search --input <JSON> --json
     rest: POST /v1/apps/events/skills/search
     expect: {same_request_contract: true, same_result_contract: true, same_error_contract: true}
+
+parallel_execution:
+  - id: explicit-read-only-batch
+    given: {surface: assistant, same_model_batch: true, calls: 3, every_call_parallel_safe: true}
+    expect: {maximum_concurrent_calls: 3, result_order: original_model_call_order, billing: per_call}
+  - id: mixed-or-undeclared-batch
+    given: {one_call: undeclared_or_dependent_or_mutating_or_payment_or_account_or_workspace}
+    expect: {execution: serial, order: original_model_call_order}
+  - id: concurrent-failure
+    given: {eligible_batch: true, one_call_fails: true}
+    expect: {normalized_failure_visible: true, sibling_results_visible: true, hidden_failure: false}

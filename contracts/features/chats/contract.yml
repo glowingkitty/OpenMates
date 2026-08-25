@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.chats
 version: 2
-status: approved
+status: draft
 title: Chats
 summary: >
   OpenMates chats preserve client-side encryption boundaries, stable message
@@ -17,6 +17,7 @@ scope:
     - Local message status precedence for visible user gates and provisional assistant states.
     - Chat-key readiness and missing local chat-shell hydration before encrypted writes.
     - Non-destructive conversation forks through a selected message boundary.
+    - Ordered bounded streaming delivery and terminal flush semantics.
   excludes:
     - Anonymous or incognito chats that never enter authenticated server persistence.
     - Automatic paid inference replay after recovery job expiry.
@@ -125,6 +126,16 @@ models:
       type: timestamp
       required: true
 
+  ChatStreamDelivery:
+    content_updates:
+      type: ordered_incremental_stream
+      required: true
+      constraints: {maximum_coalescing_ms: 50, exact_final_content: true, final_flush_required: true}
+    structural_events:
+      type: immediate_ordered_events
+      required: true
+      constraints: {tools_embeds_errors_cancellation_final_marker_not_coalesced: true}
+
 assertions:
   - id: chats.persistence.client-encrypted
     type: privacy
@@ -158,6 +169,10 @@ assertions:
     type: behavior
     must: A conversation fork creates a new independently identified encrypted saved chat containing source messages only through the selected message boundary, leaves the source chat unchanged, completes without replacing the active chat, and provides an explicit action to open the fork.
     depends_on: [models.ChatFork, examples.conversation_fork]
+  - id: chats.streaming.ordered-final
+    type: behavior
+    must: Streaming preserves provider chunk order and exact final content; ordinary content updates may be coalesced for at most 50 milliseconds, while tool, embed, error, cancellation, and final-marker events flush pending content and remain immediate in original order.
+    depends_on: [models.ChatStreamDelivery, examples.streaming_delivery]
   - id: chats.surface.semantic-parity
     type: parity
     must: Web, Apple, and CLI preserve the same encryption-boundary, identity-idempotency, recovery-takeover, lease-fencing, pending-delivery, local-state, key-gating, and visible-failure semantics; npm and pip SDKs cannot bypass server-authoritative recovery safety but are not user-facing takeover surfaces.
@@ -186,4 +201,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [encryption_boundary, identity_idempotency, recovery_takeover, lease_fencing, pending_completion, local_state_precedence, key_gated_recovery, conversation_fork]
+  required_groups: [encryption_boundary, identity_idempotency, recovery_takeover, lease_fencing, pending_completion, local_state_precedence, key_gated_recovery, conversation_fork, streaming_delivery]

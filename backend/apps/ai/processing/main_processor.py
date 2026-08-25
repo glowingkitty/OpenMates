@@ -1,10 +1,11 @@
 # backend/apps/ai/processing/main_processor.py
 # Handles the main processing stage of AI skill requests.
 
+import asyncio
 import importlib
 import inspect
 import logging
-from typing import Dict, Any, List, Optional, AsyncIterator, Tuple, Union
+from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Tuple, TypeVar, Union
 import json
 import re
 import httpx
@@ -38,6 +39,7 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_blocked_skill,
     is_learning_mode_enabled,
 )
+from backend.shared.python_utils.tracing.ai_observability import ai_phase_span, observe_ai_stream
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
@@ -568,6 +570,19 @@ INVALID_TOOL_RESULT_REASON = (
 APP_FOCUS_MODES_NAMESPACE = "app_focus_modes"
 
 ASYNC_SKILL_INLINE_WAIT_SECONDS = 10.0
+MAX_PARALLEL_APP_SKILL_EXECUTIONS = 3
+# These apps own persistent, connected-account, payment, or workspace state.
+# They remain serial even if metadata is incorrectly marked parallel_safe.
+_PARALLEL_SAFE_EXCLUDED_APP_IDS = frozenset({
+    "calendar",
+    "finance",
+    "mail",
+    "projects",
+    "reminder",
+    "tasks",
+    "workflows",
+})
+_ParallelResult = TypeVar("_ParallelResult")
 ASYNC_SKILL_INLINE_WAIT_SKILLS = {
     ("social_media", "search"),
     ("social_media", "get-posts"),
@@ -593,6 +608,90 @@ def _is_async_skill_blocked_in_orchestration(
     skill_id: str,
 ) -> bool:
     return bool(request_data.orchestration_id and (app_id, skill_id) in ASYNC_SKILLS)
+
+
+def _is_parallel_safe_app_skill_batch(
+    tool_calls: List[Any],
+    tool_resolver_map: Dict[str, tuple[str, str]],
+    discovered_apps_metadata: Dict[str, AppYAML],
+) -> bool:
+    """Return whether every call in a model batch is an explicitly safe app skill.
+
+    System, task, unknown, and excluded stateful app calls cannot enter the
+    concurrent path. The full-batch requirement prevents a dependent call from
+    observing another call's partially completed state.
+    """
+    if len(tool_calls) < 2:
+        return False
+
+    for tool_call in tool_calls:
+        resolved_tool = tool_resolver_map.get(_canonicalize_tool_name(tool_call.function_name))
+        if not resolved_tool:
+            return False
+        app_id, skill_id = resolved_tool
+        # web.search is the only provider operation audited as read-only and
+        # independent of connected-account, workspace, or payment state.
+        if (app_id, skill_id) != ("web", "search"):
+            return False
+        if app_id in _PARALLEL_SAFE_EXCLUDED_APP_IDS:
+            return False
+        app_metadata = discovered_apps_metadata.get(app_id)
+        if not app_metadata:
+            return False
+        skill_definition = next(
+            (skill for skill in app_metadata.skills or [] if skill.id == skill_id),
+            None,
+        )
+        if not skill_definition or skill_definition.parallel_safe is not True:
+            return False
+    return True
+
+
+async def _execute_parallel_app_skill_operations(
+    operations: List[Callable[[], Awaitable[_ParallelResult]]],
+) -> List[_ParallelResult]:
+    """Run already-isolated app-skill operations with bounded, input-ordered results.
+
+    Each operation must own its per-call reservation, deduplication, error, and
+    billing handling before it reaches this helper. ``gather`` preserves input
+    order even when individual operations complete in a different order.
+    """
+    semaphore = asyncio.Semaphore(MAX_PARALLEL_APP_SKILL_EXECUTIONS)
+
+    async def run_operation(operation: Callable[[], Awaitable[_ParallelResult]]) -> _ParallelResult:
+        async with semaphore:
+            return await operation()
+
+    return list(await asyncio.gather(*(run_operation(operation) for operation in operations)))
+
+
+async def _cancel_parallel_app_skill_tasks(
+    parallel_executions: Dict[str, Dict[str, Any]],
+) -> None:
+    """Cancel and drain provider tasks when their parent inference is cancelled."""
+    tasks = [
+        execution["task"]
+        for execution in parallel_executions.values()
+        if isinstance(execution.get("task"), asyncio.Task)
+    ]
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def _create_parallel_app_skill_tasks(
+    operations: List[Callable[[], Awaitable[_ParallelResult]]],
+) -> List[asyncio.Task[_ParallelResult]]:
+    """Start bounded app-skill operations for ordered outcome collection."""
+    semaphore = asyncio.Semaphore(MAX_PARALLEL_APP_SKILL_EXECUTIONS)
+
+    async def run_operation(operation: Callable[[], Awaitable[_ParallelResult]]) -> _ParallelResult:
+        async with semaphore:
+            return await operation()
+
+    return [asyncio.create_task(run_operation(operation)) for operation in operations]
 
 
 def _get_skill_execution_args(
@@ -3885,7 +3984,12 @@ async def handle_main_processing(
         _stream_all_servers_failed = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         try:
-          async for chunk in aggregate_paragraphs(llm_stream):
+          with ai_phase_span("main.iteration"):
+           async for chunk in observe_ai_stream(
+               aggregate_paragraphs(llm_stream),
+               "provider",
+               provider_purpose="main",
+           ):
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 # Accumulate token counts from every LLM call in this turn.
@@ -4680,6 +4784,224 @@ async def handle_main_processing(
                 logger.info(
                     f"{log_prefix} [FOCUS_EXCLUSIVITY] Proceeding with {len(tool_calls_for_this_turn)} "
                     f"system tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
+                )
+
+        # Preflight the only audited read-only skill batch before dispatching it.
+        # Reservations remain sequential; provider work starts only after every
+        # descriptor is fixed from this turn's immutable tool-call snapshot.
+        parallel_executions: Dict[str, Dict[str, Any]] = {}
+        if _is_parallel_safe_app_skill_batch(
+            tool_calls_for_this_turn,
+            tool_resolver_map,
+            discovered_apps_metadata,
+        ):
+            parallel_candidates: List[Dict[str, Any]] = []
+            parallel_hashes: set[str] = set()
+            parallel_request_count = 0
+            parallel_preflight_failed = False
+
+            for parallel_tool_call in tool_calls_for_this_turn:
+                parallel_tool_name = explicit_task_app_skill_tool_name(
+                    parallel_tool_call.function_name,
+                    task_app_skill_mentions,
+                )
+                parallel_resolved_tool = tool_resolver_map.get(parallel_tool_name)
+                if parallel_tool_name not in allowed_tool_names:
+                    parallel_preflight_failed = True
+                    break
+                try:
+                    parallel_parsed_args = json.loads(parallel_tool_call.function_arguments_raw)
+                except (TypeError, json.JSONDecodeError):
+                    parallel_preflight_failed = True
+                    break
+                if not isinstance(parallel_parsed_args, dict) or not parallel_resolved_tool:
+                    parallel_preflight_failed = True
+                    break
+
+                parallel_app_id, parallel_skill_id = parallel_resolved_tool
+                if learning_mode_active and is_learning_mode_blocked_skill(
+                    parallel_app_id,
+                    parallel_skill_id,
+                ):
+                    parallel_preflight_failed = True
+                    break
+                parallel_placeholder = inline_placeholder_embeds.get(
+                    parallel_tool_call.tool_call_id
+                )
+                if not isinstance(parallel_placeholder, dict):
+                    parallel_preflight_failed = True
+                    break
+                parallel_requests = parallel_parsed_args.get("requests", [])
+                parallel_requests_in_call = (
+                    len(parallel_requests)
+                    if isinstance(parallel_requests, list) and parallel_requests
+                    else 1
+                )
+                parallel_call_hash = _hash_skill_arguments(
+                    parallel_app_id,
+                    parallel_skill_id,
+                    parallel_parsed_args,
+                )
+                if (
+                    (parallel_app_id, parallel_skill_id) in ASYNC_SKILLS
+                    or is_legacy_task_runtime_tool_name(parallel_tool_name)
+                    or parallel_call_hash in completed_skill_calls
+                    or parallel_call_hash in parallel_hashes
+                ):
+                    parallel_preflight_failed = True
+                    break
+                parallel_hashes.add(parallel_call_hash)
+                parallel_request_count += parallel_requests_in_call
+                parallel_candidates.append({
+                    "tool_call": parallel_tool_call,
+                    "tool_name": parallel_tool_name,
+                    "app_id": parallel_app_id,
+                    "skill_id": parallel_skill_id,
+                    "parsed_args": parallel_parsed_args,
+                    "placeholder": parallel_placeholder,
+                    "call_hash": parallel_call_hash,
+                    "requests_in_call": parallel_requests_in_call,
+                })
+
+            if (
+                total_skill_calls + parallel_request_count > HARD_LIMIT_SKILL_CALLS
+                or request_data.orchestration_id
+            ):
+                parallel_preflight_failed = True
+
+            if not parallel_preflight_failed:
+                for candidate in parallel_candidates:
+                    parallel_placeholder = candidate["placeholder"]
+                    parallel_skill_task_id = None
+                    parallel_skill_task_id = parallel_placeholder.get("skill_task_id")
+                    parallel_placeholders = parallel_placeholder.get("placeholders")
+                    if (
+                        not parallel_skill_task_id
+                        and isinstance(parallel_placeholders, list)
+                        and parallel_placeholders
+                        and isinstance(parallel_placeholders[0], dict)
+                    ):
+                        parallel_skill_task_id = parallel_placeholders[0].get("skill_task_id")
+                    if not parallel_skill_task_id:
+                        parallel_skill_task_id = generate_skill_task_id()
+
+                    try:
+                        parallel_arguments = _normalize_skill_arguments(
+                            arguments=_get_skill_execution_args(
+                                candidate["parsed_args"], parallel_placeholder
+                            ),
+                            app_id=candidate["app_id"],
+                            skill_id=candidate["skill_id"],
+                            discovered_apps_metadata=discovered_apps_metadata,
+                            task_id=task_id,
+                            message_history=current_message_history,
+                        )
+                        parallel_placeholder_ids = []
+                        if parallel_placeholder.get("multiple"):
+                            parallel_placeholder_ids = [
+                                placeholder.get("embed_id")
+                                for placeholder in parallel_placeholder.get("placeholders", [])
+                                if isinstance(placeholder, dict) and placeholder.get("embed_id")
+                            ]
+                        elif parallel_placeholder.get("embed_id"):
+                            parallel_placeholder_ids = [parallel_placeholder["embed_id"]]
+                        if parallel_placeholder_ids:
+                            parallel_arguments = parallel_arguments.copy()
+                            parallel_arguments["_placeholder_embed_ids"] = parallel_placeholder_ids
+                        if user_vault_key_id:
+                            parallel_arguments = parallel_arguments.copy()
+                            parallel_arguments["_user_vault_key_id"] = user_vault_key_id
+                        embed_file_path_index = getattr(
+                            request_data,
+                            "embed_file_path_index",
+                            None,
+                        )
+                        if embed_file_path_index:
+                            parallel_arguments = parallel_arguments.copy()
+                            parallel_arguments["_file_path_index"] = embed_file_path_index
+                        parallel_model_override = _resolve_app_skill_model_override(
+                            getattr(request_data, "user_preferences", None),
+                            candidate["app_id"],
+                            candidate["skill_id"],
+                            log_prefix,
+                        )
+                        if parallel_model_override:
+                            parallel_arguments = parallel_arguments.copy()
+                            parallel_arguments["_full_model_reference_override"] = parallel_model_override
+
+                        parallel_reservation_ids: list[str] = []
+                        if directus_service:
+                            parallel_reservation_ids = await _reserve_skill_credits(
+                                task_id=task_id,
+                                execution_id=candidate["tool_call"].tool_call_id,
+                                request_data=request_data,
+                                app_id=candidate["app_id"],
+                                skill_id=candidate["skill_id"],
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                parsed_args=parallel_arguments,
+                                directus_service=directus_service,
+                                log_prefix=log_prefix,
+                            )
+                        candidate.update({
+                            "arguments": parallel_arguments,
+                            "skill_task_id": parallel_skill_task_id,
+                            "reservation_ids": parallel_reservation_ids,
+                        })
+                    except Exception as preparation_error:
+                        # Preserve the serial loop's per-call failure handling and
+                        # result ordering even when preflight preparation fails.
+                        candidate.update({
+                            "preparation_error": preparation_error,
+                            "skill_task_id": parallel_skill_task_id,
+                            "reservation_ids": [],
+                        })
+
+                def parallel_operation(candidate: Dict[str, Any]) -> Callable[[], Awaitable[List[Dict[str, Any]]]]:
+                    async def execute() -> List[Dict[str, Any]]:
+                        if preparation_error := candidate.get("preparation_error"):
+                            raise preparation_error
+                        with ai_phase_span("tool"):
+                            return await execute_skill_with_multiple_requests(
+                                app_id=candidate["app_id"],
+                                skill_id=candidate["skill_id"],
+                                arguments=candidate["arguments"],
+                                timeout=DEFAULT_SKILL_TIMEOUT,
+                                chat_id=request_data.chat_id,
+                                message_id=request_data.message_id,
+                                user_id=request_data.user_id,
+                                skill_task_id=candidate["skill_task_id"],
+                                cache_service=cache_service,
+                                encryption_service=encryption_service,
+                                secrets_manager=secrets_manager,
+                            )
+
+                    return execute
+
+                parallel_tasks = _create_parallel_app_skill_tasks(
+                    [parallel_operation(candidate) for candidate in parallel_candidates]
+                )
+                try:
+                    parallel_outcomes = await asyncio.gather(
+                        *parallel_tasks,
+                        return_exceptions=True,
+                    )
+                except asyncio.CancelledError:
+                    task_executions = {
+                        str(index): {"task": task}
+                        for index, task in enumerate(parallel_tasks)
+                    }
+                    await _cancel_parallel_app_skill_tasks(task_executions)
+                    raise
+                for candidate, parallel_outcome in zip(parallel_candidates, parallel_outcomes):
+                    parallel_executions[candidate["tool_call"].tool_call_id] = {
+                        **candidate,
+                        "outcome": parallel_outcome,
+                    }
+                logger.info(
+                    "%s Dispatching %d preflight-reserved web.search calls concurrently (cap=%d)",
+                    log_prefix,
+                    len(parallel_executions),
+                    MAX_PARALLEL_APP_SKILL_EXECUTIONS,
                 )
 
         # Execute all tool calls (skills) in this turn
@@ -5723,10 +6045,12 @@ async def handle_main_processing(
                 # Pass chat_id and message_id so skills can use them when recording usage
                 # Pass skill_task_id for individual skill cancellation (allows user to cancel just this skill)
                 
+                parallel_execution = parallel_executions.get(tool_call_id)
+
                 # Get skill_task_id from placeholder (generated during create_processing_embed_placeholder)
                 # This ID is stored in embed content and allows frontend to cancel this specific skill
                 # without cancelling the entire AI response
-                skill_task_id = None
+                skill_task_id = parallel_execution.get("skill_task_id") if parallel_execution else None
                 if placeholder_embed_data:
                     skill_task_id = placeholder_embed_data.get("skill_task_id")
                     if not skill_task_id:
@@ -5752,7 +6076,7 @@ async def handle_main_processing(
                     # required {"requests": [...]} array format for skills that expect it.
                     # Detect this mismatch using the skill's tool_schema and normalize the arguments.
                     # See: https://github.com/anomalyco/OpenMates/issues/XXX (image generation 422 bug)
-                    skill_arguments = _normalize_skill_arguments(
+                    skill_arguments = parallel_execution["arguments"] if parallel_execution else _normalize_skill_arguments(
                         arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
                         app_id=app_id,
                         skill_id=skill_id,
@@ -5764,7 +6088,7 @@ async def handle_main_processing(
                     # For async skills (e.g., images.generate), thread placeholder embed_ids
                     # so the Celery task can update the existing placeholder instead of creating new embeds.
                     # This enables the in-place "processing" -> "finished" transition.
-                    if placeholder_embed_data:
+                    if placeholder_embed_data and not parallel_execution:
                         # Extract placeholder embed_ids to pass to the skill
                         _placeholder_ids = []
                         if isinstance(placeholder_embed_data, dict) and placeholder_embed_data.get("multiple"):
@@ -5785,7 +6109,7 @@ async def handle_main_processing(
                     # Vault Transit access (e.g. images-view needs it to look up embed
                     # crypto details from the Redis cache). Underscore prefix ensures it is
                     # stripped before Pydantic validation in base_app.py.
-                    if user_vault_key_id:
+                    if user_vault_key_id and not parallel_execution:
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_user_vault_key_id"] = user_vault_key_id
 
@@ -5794,7 +6118,7 @@ async def handle_main_processing(
                     # back to the internal UUID embed_id for Redis/Vault/S3 lookup.
                     # Underscore prefix causes base_app.py to strip it before Pydantic validation.
                     embed_file_path_index = getattr(request_data, "embed_file_path_index", None)
-                    if embed_file_path_index:
+                    if embed_file_path_index and not parallel_execution:
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_file_path_index"] = embed_file_path_index
 
@@ -5804,7 +6128,7 @@ async def handle_main_processing(
                         skill_id,
                         log_prefix,
                     )
-                    if model_override:
+                    if model_override and not parallel_execution:
                         skill_arguments = skill_arguments.copy()
                         skill_arguments["_full_model_reference_override"] = model_override
                         logger.info(
@@ -5917,7 +6241,9 @@ async def handle_main_processing(
                         )
                         continue
 
-                    if (app_id, skill_id) not in ASYNC_SKILLS:
+                    if parallel_execution:
+                        reserved_skill_operation_ids = parallel_execution["reservation_ids"]
+                    elif (app_id, skill_id) not in ASYNC_SKILLS:
                         if not directus_service and request_data.orchestration_id:
                             raise RuntimeError("Orchestrated skill reservation requires Directus")
                         if directus_service:
@@ -5937,20 +6263,27 @@ async def handle_main_processing(
                     # On timeout, the request is cancelled and retried with a fresh connection,
                     # which helps when external APIs are slow or proxy IPs need rotation
                     try:
-                        results = await execute_skill_with_multiple_requests(
-                            app_id=app_id,
-                            skill_id=skill_id,
-                            arguments=skill_arguments,
-                            timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
-                            chat_id=request_data.chat_id,
-                            message_id=request_data.message_id,
-                            user_id=request_data.user_id,
-                            skill_task_id=skill_task_id,
-                            cache_service=cache_service,
-                            encryption_service=encryption_service,
-                            secrets_manager=secrets_manager,
-                            # max_retries uses default (1 retry = 2 total attempts)
-                        )
+                        if parallel_execution:
+                            parallel_outcome = parallel_execution["outcome"]
+                            if isinstance(parallel_outcome, BaseException):
+                                raise parallel_outcome
+                            results = parallel_outcome
+                        else:
+                            with ai_phase_span("tool"):
+                                results = await execute_skill_with_multiple_requests(
+                                    app_id=app_id,
+                                    skill_id=skill_id,
+                                    arguments=skill_arguments,
+                                    timeout=DEFAULT_SKILL_TIMEOUT,  # 20s timeout with retry logic
+                                    chat_id=request_data.chat_id,
+                                    message_id=request_data.message_id,
+                                    user_id=request_data.user_id,
+                                    skill_task_id=skill_task_id,
+                                    cache_service=cache_service,
+                                    encryption_service=encryption_service,
+                                    secrets_manager=secrets_manager,
+                                    # max_retries uses default (1 retry = 2 total attempts)
+                                )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,
                             log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",

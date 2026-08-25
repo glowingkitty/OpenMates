@@ -253,6 +253,65 @@ class TestFormatTraceTimeline:
         assert "Missing AI phases:" in output
         assert "provider" in output
 
+    # contract-test: direct surface=cli assertions=ai-request-observability.operator-debug.waterfall
+    def test_ai_waterfall_aggregates_repeated_spans_without_overwrite(self):
+        spans = [{
+            "trace_id": "trace-repeat",
+            "span_id": "turn",
+            "parent_span_id": "",
+            "start_time": 1_000_000,
+            "duration": 5_000_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.turn",
+            "span_status": "OK",
+            "ai.terminal_class": "completed",
+        }]
+        for index, duration in enumerate((1_000_000, 2_000_000), start=1):
+            spans.append({
+                "trace_id": "trace-repeat",
+                "span_id": f"provider-{index}",
+                "parent_span_id": "turn",
+                "start_time": 1_000_000 + index,
+                "duration": duration,
+                "service_name": "worker-app-ai",
+                "operation_name": "ai.provider",
+                "span_status": "OK",
+            })
+        spans.append({
+            "trace_id": "trace-repeat",
+            "span_id": "tool-1",
+            "parent_span_id": "turn",
+            "start_time": 1_000_010,
+            "duration": 500_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.tool",
+            "span_status": "OK",
+        })
+
+        output = format_trace_timeline(spans)
+
+        assert "provider: count=2 total=3000ms max=2000ms" in output
+        assert "tool: 500ms OK" in output
+
+    # contract-test: direct surface=cli assertions=ai-request-observability.operator-debug.waterfall
+    def test_ai_waterfall_uses_terminal_aware_missing_phases(self):
+        spans = [{
+            "trace_id": "trace-early-failure",
+            "span_id": "turn",
+            "parent_span_id": "",
+            "start_time": 1_000_000,
+            "duration": 100_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.turn",
+            "span_status": "ERROR",
+            "ai.terminal_class": "failed_before_main",
+        }]
+
+        output = format_trace_timeline(spans)
+
+        assert "Terminal class: failed_before_main" in output
+        assert "provider" not in output.split("Missing AI phases:", 1)[1].split("\n", 1)[0]
+
     def test_multiple_traces(self):
         spans = [
             {

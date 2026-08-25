@@ -4,14 +4,14 @@ contracts:
     version: 1
     status: draft
     path: architecture/ai-request-observability
-    fingerprint: 9d02a0beb68b1f4ffd28d5af3ad1658700b8c41ef1635a57fe1b681410f86d06
+    fingerprint: ac095368bd6e8207f20b95e9104ea50bf43b064ebeb8271897400879f100317c
     required_surfaces:
     - cli
   architecture.app-skill-execution:
     version: 1
-    status: approved
+    status: draft
     path: architecture/app-skill-execution
-    fingerprint: 00e13febad12f64c6e5f6fbef1ac992d0a199e547e7799116cd964fdad9b1465
+    fingerprint: 8dbeaf9d0a02dfa78421db9a8cf77d2222bb1278b0e1b5040e95f9732fcbc739
     required_surfaces:
     - rest_api
     - cli
@@ -162,9 +162,9 @@ contracts:
     - gui.web
   feature.chats:
     version: 2
-    status: approved
+    status: draft
     path: features/chats
-    fingerprint: 1781cf9cedac41a38e6a735dd5cdc539917258e2fbb7209a49a49d666328f4e6
+    fingerprint: bb0d29f5f38ee69991fa503113c237723cad31b71340d86e8370670bbf9a6c3c
     required_surfaces:
     - cli
     - gui.web
@@ -330,14 +330,14 @@ assertions:
     contract: architecture.ai-request-observability@1
     contract_id: architecture.ai-request-observability
     type: invariant
-    fingerprint: 24a94f31ce2167f6e9e040eaad121d2183d1e99d7cf2395d64b090cd02eaaab7
+    fingerprint: ceed00e000ab98596beaf10b53ea9ad9d85a5b21d68f857c1e5cdec00f38d5b3
     required_surfaces:
     - cli
   ai-request-observability.waterfall.complete:
     contract: architecture.ai-request-observability@1
     contract_id: architecture.ai-request-observability
     type: behavior
-    fingerprint: 7c479f2bf0fbc701a14dfc010d3d45dcea9897df238a27de887226a21bf9c241
+    fingerprint: 29baaecbaa4acc0e813d1cabdb9f650af47a08693bdcbde87d63df630805a765
     required_surfaces:
     - cli
   ai-request-observability.default-metrics.identity-free:
@@ -351,14 +351,14 @@ assertions:
     contract: architecture.ai-request-observability@1
     contract_id: architecture.ai-request-observability
     type: privacy
-    fingerprint: b6d249a19b3a69f83e84104b2cd0ab073f063776aa613734eaec79cf16ed16e5
+    fingerprint: 3fbc944ba29a64084a1c2d4bdfeb099f25ab793bc9170af8dd01181c2d56d5c5
     required_surfaces:
     - cli
   ai-request-observability.diagnostic-mode.bounded:
     contract: architecture.ai-request-observability@1
     contract_id: architecture.ai-request-observability
     type: security
-    fingerprint: 79f0166d9561be021403b7254b1141ac77767597e662d6e6344a067d2a75c368
+    fingerprint: d990485ddd1eb71c213f73f7c0a48675c7c20b422b02949f35fe1ee9a8c75f3b
     required_surfaces:
     - cli
   ai-request-observability.exporter.allowlist:
@@ -372,7 +372,7 @@ assertions:
     contract: architecture.ai-request-observability@1
     contract_id: architecture.ai-request-observability
     type: behavior
-    fingerprint: 6ddb0f9ca471dd6bf62b78c8dc56cb921cee5b6807ff491e39da2e6616dc866d
+    fingerprint: 3b7149812d4d0f327545634f6c2ef0266fbb48044cae9af1cdb3ec8d8b749b57
     required_surfaces:
     - cli
   ai-request-observability.retention.verified:
@@ -448,7 +448,19 @@ assertions:
     contract: architecture.app-skill-execution@1
     contract_id: architecture.app-skill-execution
     type: parity
-    fingerprint: b032c6e075f207875c7f92c3946b86690e0476612772943afbc033f3e4bfe103
+    fingerprint: 9824f501c1864558d641b5646928b2af4963a813d26117796a92bb3daec2c1ae
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.execution.parallel-safe:
+    contract: architecture.app-skill-execution@1
+    contract_id: architecture.app-skill-execution
+    type: security
+    fingerprint: a8e8e8aa10cfbb2fbcc206596c260fb451a016803e737383432c6dd4be804abd
     required_surfaces:
     - rest_api
     - cli
@@ -1826,11 +1838,20 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.streaming.ordered-final:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: cb699bb24f094e95e07be2f430afbda949bf0d0f8692b8075220330f724ebfad
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
   chats.surface.semantic-parity:
     contract: feature.chats@2
     contract_id: feature.chats
     type: parity
-    fingerprint: 4059cd87cddfdfef114489b879ca462a79b130237b4c7ac2431585adf378095f
+    fingerprint: 18588f820d095d0b4f7f4487a5c3228f3c8c616683969690ccf9b6fe810a380d
     required_surfaces:
     - cli
     - gui.web

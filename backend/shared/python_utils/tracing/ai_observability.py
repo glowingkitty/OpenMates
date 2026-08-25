@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import contextmanager
+from dataclasses import dataclass
 from time import monotonic, time_ns
 from typing import AsyncIterator, Iterator, TypeVar
 
@@ -48,9 +49,13 @@ AI_PHASES = frozenset({
     "turn",
     "queue",
     "prepare",
+    "setup",
+    "compression",
     "preprocess",
+    "pre_main",
     "main",
     "main.iteration",
+    "main.response_finalize",
     "provider",
     "tool",
     "finalize.billing",
@@ -58,7 +63,54 @@ AI_PHASES = frozenset({
     "finalize.validation",
     "finalize.marker",
     "postprocess",
+    "postprocess.delivery",
+    "queue_handoff",
 })
+AI_PROVIDER_PURPOSES = frozenset({
+    "preprocess",
+    "main",
+    "postprocess",
+    "translation",
+    "compression",
+    "safety",
+    "inspiration",
+})
+AI_TERMINAL_CLASSES = frozenset({
+    "completed",
+    "failed_before_main",
+    "failed_during_main",
+    "billing_failed",
+    "soft_limited",
+    "revoked",
+    "worker_interrupted",
+})
+
+
+@dataclass
+class AICompletionTiming:
+    """Monotonic request-local completion milestones with no request data."""
+
+    started_at: float
+    first_token_ms: float | None = None
+    final_marker_ms: float | None = None
+    billing_failed: bool = False
+
+    @classmethod
+    def start(cls) -> "AICompletionTiming":
+        return cls(started_at=monotonic())
+
+    def mark_first_visible_content(self) -> None:
+        if self.first_token_ms is None:
+            self.first_token_ms = (monotonic() - self.started_at) * 1000
+
+    def mark_final_marker(self) -> None:
+        if self.final_marker_ms is None:
+            self.final_marker_ms = (monotonic() - self.started_at) * 1000
+
+    def worker_tail_ms(self) -> float | None:
+        if self.final_marker_ms is None:
+            return None
+        return max(0.0, (monotonic() - self.started_at) * 1000 - self.final_marker_ms)
 
 
 def record_ai_queue_span(enqueued_at_ns: object) -> bool:
@@ -135,11 +187,55 @@ def ai_phase_span(phase: str) -> Iterator[Span]:
                 ).observe(duration_ms / 1000)
 
 
-async def observe_ai_stream(stream: AsyncIterator[T], phase: str) -> AsyncIterator[T]:
+@contextmanager
+def ai_provider_span(purpose: str) -> Iterator[Span]:
+    """Create a provider span with one reviewed low-cardinality purpose."""
+    if purpose not in AI_PROVIDER_PURPOSES:
+        raise ValueError(f"Unreviewed AI provider purpose: {purpose}")
+    with ai_phase_span("provider") as span:
+        span.set_attribute("ai.provider_purpose", purpose)
+        yield span
+
+
+def record_ai_completion_timing(
+    span: Span,
+    *,
+    first_token_ms: float | None = None,
+    final_marker_ms: float | None = None,
+    worker_tail_ms: float | None = None,
+    terminal_class: str,
+) -> None:
+    """Attach reviewed completion milestones to the request-scoped turn span."""
+    if terminal_class not in AI_TERMINAL_CLASSES:
+        raise ValueError(f"Unreviewed AI terminal class: {terminal_class}")
+    span.set_attribute("ai.terminal_class", terminal_class)
+    for name, value in (
+        ("ai.first_token_ms", first_token_ms),
+        ("ai.final_marker_ms", final_marker_ms),
+        ("ai.worker_tail_ms", worker_tail_ms),
+    ):
+        if value is None:
+            continue
+        normalized = float(value)
+        if normalized < 0:
+            raise ValueError(f"AI completion timing must be non-negative: {name}")
+        span.set_attribute(name, normalized)
+
+
+async def observe_ai_stream(
+    stream: AsyncIterator[T],
+    phase: str,
+    *,
+    provider_purpose: str | None = None,
+) -> AsyncIterator[T]:
     """Trace one provider stream, including time to its first yielded chunk."""
     started_at = monotonic()
     first_chunk = True
     with ai_phase_span(phase) as span:
+        if provider_purpose is not None:
+            if phase != "provider" or provider_purpose not in AI_PROVIDER_PURPOSES:
+                raise ValueError(f"Unreviewed AI provider purpose: {provider_purpose}")
+            span.set_attribute("ai.provider_purpose", provider_purpose)
         try:
             async for item in stream:
                 if first_chunk:
