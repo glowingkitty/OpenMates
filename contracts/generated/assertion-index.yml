@@ -290,12 +290,12 @@ assertions:
       surface: cli
     - &id032
       path: backend/tests/test_tracing/test_debug_trace.py
-      line: 257
+      line: 281
       name: test_ai_waterfall_aggregates_repeated_spans_without_overwrite
       surface: cli
     - &id033
       path: backend/tests/test_tracing/test_debug_trace.py
-      line: 297
+      line: 321
       name: test_ai_waterfall_uses_terminal_aware_missing_phases
       surface: cli
     supporting_tests: []

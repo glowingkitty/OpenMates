@@ -220,6 +220,30 @@ class TestFormatTraceTimeline:
         assert "private prompt" not in output
         assert "private provider response" not in output
 
+    def test_openobserve_flattened_ai_fields_are_restored(self):
+        spans = [{
+            "trace_id": "trace-flattened",
+            "span_id": "turn",
+            "parent_span_id": "",
+            "start_time": 1_000_000,
+            "duration": 5_000_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.turn",
+            "span_status": "OK",
+            "ai_terminal_class": "completed",
+            "ai_first_token_ms": "1200.4",
+            "ai_final_marker_ms": "4300.2",
+            "ai_worker_tail_ms": "699.8",
+        }]
+
+        timeline = format_trace_timeline(spans)
+        json_output = format_json(spans)
+
+        assert "Terminal class: completed" in timeline
+        assert "Completion timing: first-token=1200ms, final-marker=4300ms, worker-tail=700ms" in timeline
+        assert '"ai.first_token_ms": "1200.4"' in json_output
+        assert '"ai_first_token_ms"' not in json_output
+
     def test_ai_waterfall_reports_missing_required_phases(self):
         spans = [
             {

@@ -1018,14 +1018,20 @@ attempts:
     approach: Deploy the approved performance and expanded-observability changes, run exact-commit Playwright streaming verification, and preserve the old real trace only as invalidated historical evidence.
     outcome: succeeded
     recorded_at: "2026-08-25T02:25:30Z"
-    evidence: Commit f63986d744e3d1b92f72785bad460059275207b8 passed run 32801193509; a post-change real AI trace and proof-video review remain required.
+    evidence: Commit f63986d744e3d1b92f72785bad460059275207b8 passed run 32801193509; the post-change real AI trace was subsequently captured in ATTEMPT-7, while proof-video completion remains paused by user direction.
+  - id: ATTEMPT-7
+    task_id: TASK-12
+    approach: Run one bounded no-tool turn and one explicit three-call web-search turn through the real dev CLI, inspect their privacy-safe OpenObserve traces, and compare only the observed samples with the pre-change aggregate baseline.
+    outcome: succeeded
+    recorded_at: "2026-08-25T11:24:00Z"
+    evidence: Trace 9001e7a32d5018657c8d502f85b0c048 completed in 5109ms with first-token 3462ms, final-marker 4613ms, worker-tail 497ms, and no missing required phases. Trace 9c267dd237090aedd07aa8e68510239f completed in 23599ms with three web.search spans starting within 1ms; their 11902ms summed duration occupied a 4882ms wall window, directly demonstrating bounded concurrent dispatch while preserving three ordered result embeds. The real trace also exposed OpenObserve's flattened AI attribute names being hidden by debug_trace.py; focused normalization coverage passed 39 tests and restored completion timing in the live CLI output.
 
 handoff:
   current_task_id: TASK-12
-  next_action: Capture one consented real AI turn on deployed commit f63986d, inspect its privacy-safe waterfall, and complete the approved proof-video workflow for run 32801193509.
-  command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>
-  expected_outcome: The post-change trace contains reviewed provider purposes, expanded lifecycle phases, completion milestones, and no missing required completed-turn phases.
+  next_action: Preserve the bounded real-request findings, collect the separately required seven complete privacy-valid dev days, and resume proof-video completion only if the user redirects the task back to visual proof.
+  command: python3 scripts/verify_ai_observability.py baseline --target dev --days 7 --json
+  expected_outcome: The baseline gate remains pending until seven prior complete UTC days exist; the two post-change traces remain bounded diagnostic samples rather than a statistically significant before/after population.
   blocker:
-    type: user_input
-    summary: Real paid AI traffic requires explicit spend consent; the legacy proof workflow also requires user approval of the tutorial transcript and visible assertions.
+    type: external_wait
+    summary: Dashboard thresholds and alerts require seven complete privacy-valid dev days. Proof-video work is separately paused by user direction in favor of real backend latency evidence.
   last_verified_commit: f63986d744e3d1b92f72785bad460059275207b8

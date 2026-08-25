@@ -84,6 +84,11 @@ SAFE_JSON_FIELDS = frozenset({
     "ai.final_marker_ms",
     "ai.worker_tail_ms",
 })
+OPENOBSERVE_FIELD_ALIASES = {
+    field.replace(".", "_"): field
+    for field in SAFE_JSON_FIELDS
+    if "." in field
+}
 
 AI_REQUIRED_PHASES = (
     "queue",
@@ -569,6 +574,15 @@ def _collect_full_spans(
 # ── Timeline formatter ──────────────────────────────────────────────────────
 
 
+def _normalize_openobserve_fields(span: Dict[str, Any]) -> Dict[str, Any]:
+    """Restore reviewed dotted attribute names flattened by OpenObserve."""
+    normalized = dict(span)
+    for flattened, canonical in OPENOBSERVE_FIELD_ALIASES.items():
+        if canonical not in normalized and flattened in normalized:
+            normalized[canonical] = normalized[flattened]
+    return normalized
+
+
 def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
     """Format spans into a Unicode tree timeline grouped by trace.
 
@@ -591,6 +605,8 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
     """
     if not spans:
         return "No trace data found."
+
+    spans = [_normalize_openobserve_fields(span) for span in spans]
 
     # Group spans by trace_id
     traces: Dict[str, List[Dict[str, Any]]] = {}
@@ -747,7 +763,11 @@ def format_json(spans: List[Dict[str, Any]]) -> str:
         JSON string.
     """
     redacted = [
-        {key: value for key, value in span.items() if key in SAFE_JSON_FIELDS}
+        {
+            key: value
+            for key, value in _normalize_openobserve_fields(span).items()
+            if key in SAFE_JSON_FIELDS
+        }
         for span in spans
     ]
     return json.dumps(redacted, indent=2, default=str)
