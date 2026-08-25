@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class ChatFlowRealAccountUITests: XCTestCase {
-    private let markerPrompt = "Reply with exactly: Kyoto and Osaka are neighboring cities."
+    private let markerPrompt = "Say: Kyoto neighbors Osaka."
     private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
     private let assistantResponseTimeout: TimeInterval = 90
 
