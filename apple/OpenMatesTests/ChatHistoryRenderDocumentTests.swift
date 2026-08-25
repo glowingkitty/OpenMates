@@ -150,6 +150,28 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertFalse(document.blocks.contains { $0.kind == .codeBlock })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testInlineEmbedGroupsBoundAccessibilityCardCount() {
+        let embeds = (1...12).map { index in
+            EmbedRecord(
+                id: "result-\(index)",
+                type: "maps-place",
+                status: .finished,
+                data: nil,
+                parentEmbedId: nil,
+                appId: "maps",
+                skillId: "search",
+                embedIds: nil,
+                createdAt: nil
+            )
+        }
+
+        let groups = EmbedGrouper.groupForInlineDisplay(embeds)
+
+        XCTAssertEqual(groups.flatMap(\.embeds).map(\.id), Array(embeds.prefix(6)).map(\.id))
+        XCTAssertEqual(embeds.count, 12)
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testSystemMessageRetainsRoleWithoutAssistantOwnership() throws {
         let message = Message(
