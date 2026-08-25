@@ -31,6 +31,7 @@ const execution = (id: string, app: string) => [
 ].join("\n");
 
 describe("assistant app-skill top group", () => {
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it("extracts scattered executions to the top in newest-first order", () => {
     const markdown = [
       execution("skill-old", "web"),
@@ -58,6 +59,7 @@ describe("assistant app-skill top group", () => {
     expect(JSON.stringify(plan.authoredDocument)).toContain("authored-inline");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("keeps group and item identity when a newer execution is added", () => {
     const first = createAssistantRenderPlan(execution("skill-old", "web"), { phase: "streaming" });
     const later = createAssistantRenderPlan(
@@ -75,6 +77,7 @@ describe("assistant app-skill top group", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("keeps the streamed execution group when canonical content completes", () => {
     const markdown = [
       execution("skill-old", "events"),

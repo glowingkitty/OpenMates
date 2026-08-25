@@ -164,7 +164,7 @@ contracts:
     version: 2
     status: draft
     path: features/chats
-    fingerprint: bb0d29f5f38ee69991fa503113c237723cad31b71340d86e8370670bbf9a6c3c
+    fingerprint: 9506a0081e73730f034f96ad1503034db1e3712bca987c6aa17729f2b6642ca3
     required_surfaces:
     - cli
     - gui.web
@@ -187,9 +187,9 @@ contracts:
     - gui.apple
   feature.message-input:
     version: 1
-    status: approved
+    status: draft
     path: features/message-input
-    fingerprint: 8f923e80c19adce5f38bc93552ff0760036e3215205e1695fb9469441f6d65a5
+    fingerprint: 4a669a41781e0f29c97b1e7b9cd5b5380de0debbde0ca01090bf6f9f4726b911
     required_surfaces:
     - gui.web
     - gui.apple
@@ -1842,7 +1842,52 @@ assertions:
     contract: feature.chats@2
     contract_id: feature.chats
     type: behavior
-    fingerprint: cb699bb24f094e95e07be2f430afbda949bf0d0f8692b8075220330f724ebfad
+    fingerprint: 9ce798e60320c2bf76811bec7aa4101636a94504227311642ac2a6f8d6f511d7
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.streaming.progressive-presentation:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: d889add78376f27df9d80e291ffb5bb6004f49e4f25b639f9683827ed9f7b5a1
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.followups.non-destructive-reconciliation:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: b2a2ececcad6fae7e1c76262df58f3bd78183e0f354bbec9e73321cc4fc0ec74
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.rendering.assistant-document-convergence:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: ca93ed66776933dafc61b6fda568e727bbae434f2e079a97f90e600445472235
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.rendering.inline-entity-interaction:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: behavior
+    fingerprint: 38bb67252b7ef8d739b1fd20b71336baad61a0b7c88f4c5f737513d6b4dedf3d
+    required_surfaces:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.layout.responsive-history:
+    contract: feature.chats@2
+    contract_id: feature.chats
+    type: parity
+    fingerprint: 670727c12d41cd8bea035fdf59f4781eed062a2a9db486becd207c5be82ff475
     required_surfaces:
     - cli
     - gui.web
@@ -1851,7 +1896,7 @@ assertions:
     contract: feature.chats@2
     contract_id: feature.chats
     type: parity
-    fingerprint: 18588f820d095d0b4f7f4487a5c3228f3c8c616683969690ccf9b6fe810a380d
+    fingerprint: 5fafbe2e9967c549043bb5287324dbca21844b9c360174b2382af051f1b6fcfd
     required_surfaces:
     - cli
     - gui.web
@@ -2053,6 +2098,14 @@ assertions:
     contract_id: feature.message-input
     type: privacy
     fingerprint: a6363726e6972b6b724d69949955b29fa8102aee8078564594afad46372502f1
+    required_surfaces:
+    - gui.web
+    - gui.apple
+  message-input.layout.responsive-parity:
+    contract: feature.message-input@1
+    contract_id: feature.message-input
+    type: parity
+    fingerprint: bae32270a98cac0613bea034f2a8948737f4e31d6f629b1dc1b681d79d9dbc48
     required_surfaces:
     - gui.web
     - gui.apple

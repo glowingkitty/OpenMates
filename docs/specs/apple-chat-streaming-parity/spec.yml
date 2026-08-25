@@ -49,6 +49,9 @@ context_discovery:
     - docs/architecture/messaging/message-processing.md
     - docs/specs/apple-durable-chat-persistence-parity/spec.yml
     - docs/specs/anonymous-streaming-ui/spec.yml
+    - docs/specs/streaming-message-render-convergence/spec.yml
+    - contracts/features/chats/contract.yml
+    - contracts/features/message-input/contract.yml
     - apple/AGENTS.md
     - apple/CLAUDE.md
   code_patterns:
@@ -174,6 +177,16 @@ decisions:
     decision: Add a shared Reduce Motion contract for the processing rainbow instead of copying the web animation's current accessibility gap.
     reason: Current ActiveChat rainbow CSS has no reduced-motion override; web and Apple must converge on a static informative treatment.
     decided_at: "2026-07-11T01:25:15Z"
+  - id: D-7
+    status: active
+    decision: The approved feature.chats@2 assistant-document, inline-entity, responsive-history, ordered-stream, progressive-presentation, and follow-up-retention assertions are durable Apple parity requirements.
+    reason: The deployed web renderer is already the source of truth, but those stable outcomes were not previously linked to durable cross-client assertions.
+    decided_at: "2026-08-25T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Final parity requires bounded frame review of current deployed web chat-flow and Apple E2E recordings at phone and wide responsive profiles.
+    reason: Passing automation alone cannot establish that streaming progression, rich embeds, inline links, chat history, and the composer look and behave equivalently.
+    decided_at: "2026-08-25T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -348,6 +361,15 @@ scenarios:
     then:
       - Message hierarchy, widths, avatar/name positions, thinking card, rainbow ring, composer-adjacent statuses, and final actions match the captured browser contract within approved tolerances.
       - Dynamic Type, keyboard, VoiceOver, pointer, and selection behavior do not hide or obstruct required state.
+  - id: S-13
+    title: Follow-up suggestions survive empty reconciliation
+    given:
+      - Apple has accepted and displayed a non-empty follow-up suggestion set for the current chat.
+    when:
+      - Ordinary chat or message sync, a later turn, or post-processing supplies empty or missing suggestions.
+    then:
+      - The accepted suggestions remain visible and usable.
+      - Only a newer non-empty suggestion set replaces them.
 
 acceptance_criteria:
   - id: AC-1
@@ -462,6 +484,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: user_confirmation
     verification_ids: [V-BACKEND-GATE]
+  - id: AC-15
+    scenario: S-13
+    text: Accepted non-empty follow-up suggestions remain visible through sync and empty later payloads and are replaced only by a newer non-empty set.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-SWIFT-LIFECYCLE, T-APPLE-UI-IPHONE, T-APPLE-UI-IPAD]
 
 assumptions:
   - id: A-1
@@ -500,6 +530,9 @@ assumptions:
         summary: The DEBUG chat-opening preview renders real ChatView/ChatViewModel state and can dispatch staged synthetic events through the buffered shared stream broker.
 
 contracts:
+  durable:
+    - feature.chats@2 owns ordered streaming, progressive assistant presentation, non-destructive follow-ups, converged rich assistant documents, inline embed/wiki interactions, and responsive chat history.
+    - feature.message-input@1 owns responsive composer hierarchy, state preservation, control reachability, and transcript clearance.
   websocket:
     - Every event is scoped to chat ID and assistant message ID before mutation.
     - Sequence-aware chunk reduction is monotonic and idempotent; stale events cannot overwrite newer content or final state.
@@ -651,6 +684,9 @@ tests:
       - thinking deltas accumulate and remain owned by one message
       - chunk sequence handling is monotonic and idempotent
       - every terminal ordering clears active state without discarding newer final content
+      - inbound typing, chunk, ready, and terminal events enter one ordered dispatcher
+      - typing without thinking, answer content, or embeds does not create an empty assistant row
+      - empty follow-up payloads preserve the last accepted non-empty suggestion set
     red_phase:
       required: true
       expected: fail
@@ -740,6 +776,7 @@ tests:
       - incomplete fences, links, lists, tables, and embed references remain renderable across chunks
       - parsed render data is cached by stable message identity and revision
       - final content matches the canonical payload
+      - streamed and completed assistant content preserve rich previews, source quotes, result views, wiki links, inline embed links, readable unresolved fallbacks, and authored order
     red_phase:
       required: true
       expected: fail
@@ -773,6 +810,9 @@ tests:
       - deterministic lifecycle stages preserve one assistant row and correct hierarchy
       - rainbow, thinking, progressive answer, scrolling, cleanup, reduced motion, light, and dark states match web artifacts
       - screenshots are captured for processing, thinking, first chunk, rich streaming, error/cancel, final, and post-processing
+      - typing state contains no empty assistant avatar, bubble, or three-dot transcript row
+      - accepted follow-up suggestions remain after empty sync or post-processing payloads
+      - responsive history and composer remain unclipped, reachable, and unobstructed
     red_phase:
       required: true
       expected: fail
@@ -912,6 +952,16 @@ verifications:
       status: ""
       summary: ""
       timestamp: ""
+  - id: V-CROSS-CLIENT-VIDEO-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-4, AC-5, AC-12, AC-15]
+    status: pending
+    evidence:
+      status: ""
+      summary: Bounded frame bundles from deployed web chat-flow and Apple E2E recordings are reviewed by a visual agent for streaming progression, rich embeds, wiki and inline links, responsive chat history, and responsive composer parity.
+      timestamp: ""
 
 implementation_plan:
   spec_path: docs/specs/apple-chat-streaming-parity/spec.yml
@@ -950,6 +1000,10 @@ implementation_plan:
       reason: Rendered web source contract and screenshot evidence
     - path: apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
       reason: Safe subscription replacement and resend behavior
+    - path: apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+      reason: Serial inbound stream-event dispatch in WebSocket receive order
+    - path: apple/OpenMates/Sources/Shared/Components/ChatHistoryRenderDocument.swift
+      reason: Web-equivalent rich assistant document and inline entity ordering
     - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
       reason: Sequence-aware message-owned lifecycle and finalization
     - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
@@ -1070,6 +1124,7 @@ tasks:
       acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-8, AC-14]
     expected_files:
       - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
       - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
       - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
     verification: [T-SWIFT-LIFECYCLE]
@@ -1078,6 +1133,7 @@ tasks:
     ownership:
       files:
         - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+        - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
         - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
         - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
       shared_files: []
@@ -1185,7 +1241,7 @@ tasks:
     phase: running_checks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12]
-      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15]
     expected_files:
       - docs/specs/apple-chat-streaming-parity/spec.yml
     verification: [T-WEB-RENDER-CONTRACT, T-WEB-SCROLL, T-SWIFT-LIFECYCLE, T-SWIFT-STREAM-BROKER, T-SWIFT-PERSISTENCE, T-SWIFT-MARKDOWN, T-SWIFT-ANONYMOUS, T-APPLE-UI-IPHONE, T-APPLE-UI-IPAD, T-APPLE-UI-MAC, T-APPLE-COLD-BOOT, T-CLI-CROSS, T-NPM-CROSS, T-PIP-CROSS, T-PRIVACY-GUARD]

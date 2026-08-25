@@ -59,12 +59,12 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
     }
 
-    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,chats.surface.semantic-parity
     func testStableMessageBuildsOrderedWebSemanticBlocksOnce() throws {
         let content = """
         # Synthetic result
 
-        Intro with [OpenMates](wiki:OpenMates) and @researcher.
+        Intro with [OpenMates](wiki:OpenMates), [the source](embed:source-inline), and @researcher.
 
         ```json
         {"type":"app_skill_use","embed_id":"embed-search","app_id":"web","skill_id":"search"}
@@ -85,7 +85,10 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
             updatedAt: nil,
             appId: "web",
             isStreaming: false,
-            embedRefs: [EmbedRef(id: "embed-search", type: "app_skill_use", status: "finished", data: nil)],
+            embedRefs: [
+                EmbedRef(id: "embed-search", type: "app_skill_use", status: "finished", data: nil),
+                EmbedRef(id: "source-inline", type: "web-website", status: "finished", data: nil),
+            ],
             modelName: "Synthetic Model",
             senderName: "Synthetic Mate",
             category: "research",
@@ -110,8 +113,27 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         ])
         XCTAssertEqual(document.blocks[2].embedReferences.map(\.id), ["embed-search"])
         XCTAssertEqual(document.blocks[3].embedReferences.map(\.id), ["source-result"])
-        XCTAssertEqual(document.blocks[1].inlineEntities.map(\.kind), [.wiki, .mention])
+        XCTAssertEqual(document.blocks[1].inlineEntities.map(\.kind), [.wiki, .embed, .mention])
         XCTAssertEqual(message.renderDocumentForDisplay, document)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testUnresolvedInlineEntitiesRetainReadableFallbackText() {
+        let entities = ChatHistoryInlineEntity.parse(
+            "Compare [Kyoto](wiki:Kyoto) with [the source](embed:missing-ref)."
+        )
+
+        XCTAssertEqual(entities.map(\.kind), [.wiki, .embed])
+        XCTAssertEqual(entities.map(\.displayText), ["Kyoto", "the source"])
+        XCTAssertEqual(entities.map(\.target), ["Kyoto", "missing-ref"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
+    func testResponsiveChatLayoutMatchesWebBreakpoints() {
+        XCTAssertEqual(ChatResponsiveLayoutPolicy.contentMaximumWidth, 1_000)
+        XCTAssertTrue(ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: 500))
+        XCTAssertFalse(ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: 501))
+        XCTAssertEqual(ChatResponsiveLayoutPolicy.inlineCompactComposerHeight, 48)
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity

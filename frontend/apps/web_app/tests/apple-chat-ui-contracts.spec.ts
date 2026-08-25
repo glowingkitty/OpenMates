@@ -86,6 +86,7 @@ async function openExampleTranscript(page: any): Promise<void> {
 
 test.describe('Apple broad chat UI web contracts', () => {
 	for (const dimension of DIMENSIONS) {
+		// contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
 		test(`captures ${dimension.id} chat UI umbrella contract`, async ({ page }) => {
 			test.setTimeout(180_000);
 			skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);

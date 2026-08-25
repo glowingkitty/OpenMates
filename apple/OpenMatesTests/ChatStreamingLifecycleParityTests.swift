@@ -274,4 +274,81 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertFalse(state.isActive)
         XCTAssertFalse(state.completeFromAuthoritativeSync(messageId: "assistant-2"))
     }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation
+    func testTypingWithoutRenderableContentDoesNotMaterializeAssistantTurn() {
+        XCTAssertFalse(ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: "",
+            thinkingContent: "",
+            embedCount: 0
+        ))
+        XCTAssertTrue(ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: "First visible chunk",
+            thinkingContent: "",
+            embedCount: 0
+        ))
+        XCTAssertTrue(ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: "",
+            thinkingContent: "Provider-supplied thinking",
+            embedCount: 0
+        ))
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.followups.non-destructive-reconciliation
+    func testEmptyFollowUpPayloadNeverClearsAcceptedSuggestions() {
+        let accepted = ["Question one", "Question two"]
+
+        XCTAssertEqual(
+            ChatFollowUpSuggestionPolicy.reconcile(current: accepted, incoming: []),
+            accepted
+        )
+        XCTAssertEqual(
+            ChatFollowUpSuggestionPolicy.reconcile(current: accepted, incoming: ["Question three"]),
+            ["Question three"]
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.ordered-final,chats.streaming.progressive-presentation
+    func testInboundStreamingEventsDispatchInEnqueueOrder() async {
+        let recorder = StreamEventOrderRecorder()
+        let dispatcher = OrderedStreamEventDispatcher { event, _ in
+            let label: String
+            switch event {
+            case .typingStarted:
+                label = "typing"
+            case .chunk(_, _, let sequence, _, _, _, _, _, _):
+                label = "chunk-\(sequence)"
+            case .messageReady:
+                label = "ready"
+            default:
+                label = "other"
+            }
+            await recorder.append(label)
+        }
+
+        dispatcher.enqueue(.typingStarted(chatId: "chat-1", messageId: "assistant-1", metadata: nil), for: "chat-1")
+        dispatcher.enqueue(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 1,
+            content: "First", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        ), for: "chat-1")
+        dispatcher.enqueue(.chunk(
+            chatId: "chat-1", messageId: "assistant-1", sequence: 2,
+            content: "First second", isFinal: false, userMessageId: "user-1",
+            category: nil, modelName: nil, rejectionReason: nil
+        ), for: "chat-1")
+        dispatcher.enqueue(.messageReady(chatId: "chat-1", messageId: "assistant-1"), for: "chat-1")
+
+        await dispatcher.waitUntilIdle()
+        let events = await recorder.events
+        XCTAssertEqual(events, ["typing", "chunk-1", "chunk-2", "ready"])
+    }
+}
+
+private actor StreamEventOrderRecorder {
+    private(set) var events: [String] = []
+
+    func append(_ event: String) {
+        events.append(event)
+    }
 }

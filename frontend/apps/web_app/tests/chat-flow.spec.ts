@@ -508,6 +508,7 @@ async function performLogin(
 
 // ─── Test ────────────────────────────────────────────────────────────────────
 
+// contract-test: direct surface=gui.web assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
 test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// ── Console log listeners ────────────────────────────────────────────────
 	// Capture ALL console messages for failure diagnostics.

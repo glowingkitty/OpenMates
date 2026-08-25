@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.message-input
 version: 1
-status: approved
+status: draft
 title: Message Input
 summary: >
   The OpenMates chat composer owns user text, embeds, draft state, focus-driven
@@ -16,6 +16,7 @@ scope:
     - Logged-out welcome composer behavior, including suppression of guest welcome cards/prompts while the composer or recording overlay is active.
     - Text, mention, paste, file, camera, sketch, map, audio-recording, draft-preview, and send handoff behavior owned by the composer.
     - Focus-mode, incognito, IdeaBucket, PII warning, anonymous terms, and credit/signup UI context rendered inside or next to the composer.
+    - Responsive composer hierarchy, chat-container bounds, transcript clearance, and control reachability across compact and regular first-party GUI layouts.
   excludes:
     - Backend AI inference, WebSocket delivery, chat encryption, and durable message-sync semantics after a send leaves the composer.
     - Exact pixel dimensions, animation easing, and browser-owned permission dialogs or native file/camera/microphone pickers.
@@ -143,6 +144,20 @@ models:
       required: false
       constraints: {shows_detected_categories: true, supports_undo_all: true, respects_user_pii_settings: true}
 
+  ResponsiveComposerLayout:
+    container_bounds:
+      type: layout_invariant
+      required: true
+      constraints: {contained_by_active_chat: true, horizontal_overflow_forbidden: true}
+    transcript_clearance:
+      type: layout_invariant
+      required: true
+      constraints: {latest_visible_message_unobstructed: true}
+    state_preservation:
+      type: responsive_state
+      required: true
+      constraints: {preserves_text_embeds_actions_focus_and_stop_control: true}
+
 assertions:
   - id: message-input.focus.parent-state
     type: behavior
@@ -180,6 +195,10 @@ assertions:
     type: privacy
     must: Focus-mode, incognito, IdeaBucket, PII warning, anonymous free-text terms, credits, and signup-required states are visible at the composer boundary without leaking durable plaintext private content or bypassing the user's privacy settings.
     depends_on: [models.ComposerContextPills, models.EmbedInputState.anonymous_signup_required, examples.privacy_context]
+  - id: message-input.layout.responsive-parity
+    type: parity
+    must: The rendered web composer is the visual source of truth across compact and regular widths; the input remains within the active-chat container, preserves text, embeds, focus, action buttons, recording, expansion, and stop controls through responsive transitions, avoids horizontal clipping, and reserves enough transcript clearance that the latest visible message is not covered. Apple preserves the same hierarchy, relative geometry, state, control reachability, and clearance at corresponding iPhone, iPad, and macOS sizes.
+    depends_on: [models.ResponsiveComposerLayout, models.ComposerState, models.ActionControlState, examples.responsive_layout, surfaces.gui]
 
 surfaces:
   rest_api:
@@ -208,4 +227,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [parent_state, focus_visibility, action_controls, drafts, attachments, recording, suggestions, send_ownership, privacy_context]
+  required_groups: [parent_state, focus_visibility, action_controls, drafts, attachments, recording, suggestions, send_ownership, privacy_context, responsive_layout]

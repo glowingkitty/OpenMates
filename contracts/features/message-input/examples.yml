@@ -135,3 +135,14 @@ privacy_context:
       focus_pill_deep_link_available: true
       focus_pill_deactivate_has_undo_window: true
       incognito_toggle_deactivates_incognito: true
+
+responsive_layout:
+  - id: compact-phone-composer
+    given: {surface: gui.web, viewport: [390, 844], composer_state: focused_with_text}
+    expect: {inside_active_chat_bounds: true, horizontal_clipping: false, actions_reachable: true, latest_message_obscured: false}
+  - id: regular-wide-composer
+    given: {surface: gui.web, viewport: [1440, 900], composer_state: streaming_with_stop_control}
+    expect: {inside_active_chat_bounds: true, horizontal_clipping: false, stop_control_reachable: true, latest_message_obscured: false}
+  - id: apple-corresponding-layouts
+    given: {surface: gui.apple, profiles: [iphone_portrait, ipad_landscape, macos_regular]}
+    expect: {web_hierarchy_preserved: true, relative_geometry_preserved: true, controls_reachable: true, latest_message_obscured: false}

@@ -11,6 +11,7 @@ describe("StreamingRenderScheduler lifecycle", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  // contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final,chats.rendering.assistant-document-convergence
   it("ignores stale revisions and cancels pending callbacks", () => {
     const onFlush = vi.fn();
     const scheduler = new StreamingRenderScheduler<string>({ intervalMs: 80, onFlush });
@@ -29,6 +30,7 @@ describe("StreamingRenderScheduler lifecycle", () => {
     expect(onFlush).toHaveBeenCalledTimes(1);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("destroy prevents a pending callback and a fresh scheduler can recover", () => {
     const staleFlush = vi.fn();
     const staleScheduler = new StreamingRenderScheduler<string>({ intervalMs: 80, onFlush: staleFlush });
