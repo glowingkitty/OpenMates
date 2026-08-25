@@ -24,6 +24,7 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
+from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
@@ -542,6 +543,85 @@ class TeamCreditChargePayload(BaseModel):
     app_id: str
     idempotency_key: str = Field(..., min_length=1, max_length=255)
     usage_details: Optional[Dict[str, Any]] = None
+
+
+class AnonymousOperationReservePayload(BaseModel):
+    parent_request_id: str = Field(..., min_length=1, max_length=255)
+    operation_id: str = Field(..., min_length=1, max_length=255)
+    charge_id: str = Field(..., min_length=1, max_length=256)
+    quoted_credits: int = Field(..., ge=1)
+
+
+class AnonymousChargeFinalizePayload(BaseModel):
+    charge_id: str = Field(..., min_length=1, max_length=256)
+    actual_credits: int = Field(..., ge=0)
+
+
+class AnonymousOperationReleasePayload(BaseModel):
+    operation_id: str = Field(..., min_length=1, max_length=255)
+    reason: str = Field(default="provider_failed", min_length=1, max_length=128)
+
+
+def _anonymous_usage_service(
+    directus_service: DirectusService,
+    cache_service: CacheService,
+) -> AnonymousFreeUsageService:
+    return AnonymousFreeUsageService(
+        directus_service=directus_service,
+        cache_service=cache_service,
+        require_distributed_lock=True,
+    )
+
+
+@router.post("/anonymous-usage/reserve-operation")
+async def reserve_anonymous_operation(
+    payload: AnonymousOperationReservePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    result = await _anonymous_usage_service(directus_service, cache_service).reserve_operation(
+        parent_request_id=payload.parent_request_id,
+        operation_id=payload.operation_id,
+        charge_id=payload.charge_id,
+        quoted_credits=payload.quoted_credits,
+    )
+    if not result.accepted:
+        raise HTTPException(status_code=429, detail={"code": result.reason or "budget_exhausted"})
+    return {
+        "status": "reserved",
+        "operation_id": result.request_id,
+        "reserved_credits": result.reserved_credits,
+        "idempotent": result.reason in {"reserved", "finalized"},
+    }
+
+
+@router.post("/anonymous-usage/finalize-charge")
+async def finalize_anonymous_charge(
+    payload: AnonymousChargeFinalizePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    try:
+        await _anonymous_usage_service(directus_service, cache_service).finalize_charge(
+            payload.charge_id,
+            actual_credits=payload.actual_credits,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={"code": "anonymous_quote_exceeded", "message": str(exc)}) from exc
+    return {"status": "finalized", "charge_id": payload.charge_id, "actual_credits": payload.actual_credits}
+
+
+@router.post("/anonymous-usage/release-operation")
+async def release_anonymous_operation(
+    payload: AnonymousOperationReleasePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    await _anonymous_usage_service(directus_service, cache_service).release_reservation(
+        payload.operation_id,
+        reason=payload.reason,
+    )
+    return {"status": "released", "operation_id": payload.operation_id}
 
 @router.get("/billing/balance")
 async def get_user_credit_balance(

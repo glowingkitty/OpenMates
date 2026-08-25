@@ -2620,10 +2620,12 @@ async def get_server_status(
                 free_testing_credits = await free_testing_service.get_public_promotion()
             except Exception as promo_err:
                 logger.error("Failed to load free testing promotion metadata: %s", promo_err, exc_info=True)
-        if not is_self_hosted and directus_service:
+        if not is_self_hosted and directus_service and cache_service:
             try:
                 anonymous_free_usage_service = AnonymousFreeUsageService(
                     directus_service=directus_service,
+                    cache_service=cache_service,
+                    require_distributed_lock=True,
                 )
                 anonymous_free_usage = await anonymous_free_usage_service.get_public_status()
             except Exception as anonymous_err:

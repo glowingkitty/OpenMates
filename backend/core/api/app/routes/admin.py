@@ -17,7 +17,11 @@ from backend.core.api.app.models.user import User
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
-from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
+from backend.core.api.app.services.anonymous_free_usage_service import (
+    ANONYMOUS_HARD_MAX_MONTHLY_CREDITS,
+    ANONYMOUS_HARD_MAX_PER_IDENTITY_DAILY_CREDITS,
+    AnonymousFreeUsageService,
+)
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.tasks.celery_config import app as celery_app
 from backend.core.api.app.utils.server_mode import validate_request_domain
@@ -138,10 +142,10 @@ class AnonymousFreeUsageBudgetRequest(BaseModel):
     """Admin request for configuring anonymous free usage."""
 
     enabled: bool = Field(default=False)
-    monthly_budget_credits: int = Field(default=0, ge=0, le=100_000_000)
+    monthly_budget_credits: int = Field(default=0, ge=0, le=ANONYMOUS_HARD_MAX_MONTHLY_CREDITS)
     daily_hard_cap_percent: int = Field(default=5, ge=0, le=100)
     weekly_cap_percent: int = Field(default=25, ge=0, le=100)
-    per_identity_daily_cap_credits: int = Field(default=400, ge=0, le=1_000_000)
+    per_identity_daily_cap_credits: int = Field(default=400, ge=0, le=ANONYMOUS_HARD_MAX_PER_IDENTITY_DAILY_CREDITS)
 
 
 class AnonymousFreeUsageBudgetResponse(BaseModel):
@@ -218,8 +222,13 @@ def _build_free_testing_service(
 
 def _build_anonymous_free_usage_service(
     directus_service: DirectusService,
+    cache_service: CacheService,
 ) -> AnonymousFreeUsageService:
-    return AnonymousFreeUsageService(directus_service=directus_service)
+    return AnonymousFreeUsageService(
+        directus_service=directus_service,
+        cache_service=cache_service,
+        require_distributed_lock=True,
+    )
 
 
 def _require_official_cloud(request: Request) -> None:
@@ -405,9 +414,10 @@ async def get_anonymous_free_usage_budget(
     _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> AnonymousFreeUsageBudgetResponse:
     """Return admin-visible anonymous free usage budget state."""
-    service = _build_anonymous_free_usage_service(directus_service)
+    service = _build_anonymous_free_usage_service(directus_service, cache_service)
     return _anonymous_free_usage_budget_response(await service.get_budget_status())
 
 
@@ -419,9 +429,10 @@ async def update_anonymous_free_usage_budget(
     _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ) -> AnonymousFreeUsageBudgetResponse:
     """Create or update the anonymous free usage budget."""
-    service = _build_anonymous_free_usage_service(directus_service)
+    service = _build_anonymous_free_usage_service(directus_service, cache_service)
     try:
         status = await service.save_budget(
             enabled=payload.enabled,

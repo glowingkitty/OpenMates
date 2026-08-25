@@ -11,9 +11,21 @@ anonymous_free_usage_reservations:
 
     request_id:
       type: string
-      length: 128
+      length: 255
       unique: true
       note: "Idempotency key for one anonymous request."
+
+    parent_request_id:
+      type: string
+      length: 255
+      nullable: true
+      note: "Zero-cost public request ledger that owns this billable operation."
+
+    charge_id:
+      type: string
+      length: 256
+      nullable: true
+      note: "Idempotent charge group used to settle one or more conservatively quoted operations."
 
     local_id_hash:
       type: string
@@ -40,13 +52,31 @@ anonymous_free_usage_reservations:
     status:
       type: string
       length: 32
-      note: "reserved, finalized, released, or expired."
+      note: "request_open, reserved, finalized, released, or expired."
 
     release_reason:
       type: string
       length: 128
       nullable: true
       note: "Reason unused credits were released."
+
+    daily_window_date:
+      type: string
+      length: 16
+      nullable: true
+      note: "UTC day key that owned this reservation when it was created."
+
+    weekly_window_start:
+      type: string
+      length: 16
+      nullable: true
+      note: "UTC Monday key that owned this reservation when it was created."
+
+    monthly_window_month:
+      type: string
+      length: 16
+      nullable: true
+      note: "UTC month key that owned this reservation when it was created."
 
     created_at:
       type: datetime

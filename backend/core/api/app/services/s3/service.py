@@ -11,7 +11,14 @@ from fastapi import HTTPException
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
 # Import ClientError and timeout exceptions for exception handling
-from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    HTTPClientError,
+    ReadTimeoutError,
+)
 from urllib.parse import urlparse
 from typing import Any, Optional, Dict
 
@@ -27,6 +34,99 @@ from .cors import apply_cors_settings
 from .lifecycle import apply_lifecycle_policy_to_bucket 
 
 logger = logging.getLogger(__name__)
+
+HETZNER_OBJECT_STORAGE_PROVIDER = "Hetzner Object Storage"
+EXTERNAL_PROVIDER_DEGRADED = "external_provider_degraded"
+INTERNAL_STORAGE_CONFIGURATION = "internal_storage_configuration"
+_TRANSIENT_CLIENT_ERROR_CODES = {
+    "InternalError",
+    "RequestTimeout",
+    "RequestTimeoutException",
+    "ServiceUnavailable",
+    "SlowDown",
+    "Throttling",
+    "ThrottlingException",
+}
+_AUTHORIZATION_ERROR_CODES = {
+    "AccessDenied",
+    "AuthorizationHeaderMalformed",
+    "InvalidAccessKeyId",
+    "InvalidSecurity",
+    "SignatureDoesNotMatch",
+}
+_BUCKET_CONFIGURATION_ERROR_CODES = {
+    "InvalidBucketName",
+    "NoSuchBucket",
+    "PermanentRedirect",
+}
+_TRANSIENT_NETWORK_ERRORS = (
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    HTTPClientError,
+    ReadTimeoutError,
+)
+
+
+class HetznerObjectStorageError(HTTPException):
+    """Sanitized terminal upload failure with retry semantics for billing workers."""
+
+    def __init__(self, *, classification: str, retryable: bool, reason: str):
+        self.provider = HETZNER_OBJECT_STORAGE_PROVIDER
+        self.classification = classification
+        self.retryable = retryable
+        self.reason = reason
+        super().__init__(
+            status_code=503 if retryable else 500,
+            detail=f"{self.provider}: {reason}",
+        )
+
+
+def classify_hetzner_upload_error(error: BaseException) -> HetznerObjectStorageError:
+    """Map observed upload failures without exposing provider response details."""
+    if isinstance(error, _TRANSIENT_NETWORK_ERRORS):
+        return HetznerObjectStorageError(
+            classification=EXTERNAL_PROVIDER_DEGRADED,
+            retryable=True,
+            reason="connection or timeout failure",
+        )
+
+    if isinstance(error, ClientError):
+        response = error.response if isinstance(error.response, dict) else {}
+        error_details = response.get("Error") or {}
+        response_metadata = response.get("ResponseMetadata") or {}
+        error_code = str(error_details.get("Code") or "Unknown")
+        status_code = response_metadata.get("HTTPStatusCode")
+
+        if error_code in _TRANSIENT_CLIENT_ERROR_CODES or status_code == 429 or (
+            isinstance(status_code, int) and status_code >= 500
+        ):
+            is_throttled = (
+                status_code == 429
+                or "Throttl" in error_code
+                or error_code == "SlowDown"
+            )
+            reason = "request throttled" if is_throttled else "service returned a server error"
+            return HetznerObjectStorageError(
+                classification=EXTERNAL_PROVIDER_DEGRADED,
+                retryable=True,
+                reason=reason,
+            )
+
+        if error_code in _AUTHORIZATION_ERROR_CODES or status_code in {401, 403}:
+            reason = "authentication or permission failure"
+        elif error_code in _BUCKET_CONFIGURATION_ERROR_CODES or status_code == 404:
+            reason = "bucket configuration failure"
+        else:
+            reason = "malformed or unsupported storage request"
+        return HetznerObjectStorageError(
+            classification=INTERNAL_STORAGE_CONFIGURATION,
+            retryable=False,
+            reason=reason,
+        )
+
+    raise TypeError(f"Unsupported Hetzner upload error type: {type(error).__name__}")
+
 
 class S3UploadService:
     """
@@ -153,13 +253,8 @@ class S3UploadService:
         """Reconcile remote bucket policy without making service startup depend on it."""
         if not self.configured or self.client is None:
             return
-        try:
-            await self._initialize_buckets()
-            await asyncio.to_thread(apply_cors_settings, self.client)
-        except Exception:
-            self.last_availability_status = "unavailable"
-            raise
-        self.last_availability_status = STORAGE_AVAILABLE
+        await self._initialize_buckets()
+        await asyncio.to_thread(apply_cors_settings, self.client)
 
     async def check_availability(self) -> str:
         """Run one bounded, non-mutating provider probe and return a sanitized state."""
@@ -190,7 +285,6 @@ class S3UploadService:
              logger.error("S3 client not initialized. Cannot initialize buckets.")
              return
         logger.info("Initializing S3 buckets...")
-        reconciliation_failed = False
         for bucket_key, bucket_config in BUCKETS.items():
             bucket_name = get_bucket_name(bucket_key, self.environment)
             lifecycle_days = bucket_config.get('lifecycle_policy')
@@ -217,13 +311,11 @@ class S3UploadService:
                     except ClientError as create_e:
                         logger.error(f"Failed to create bucket '{bucket_name}': {create_e}")
                         bucket_exists = False  # Creation failed
-                        reconciliation_failed = True
                         continue  # Skip lifecycle for this bucket
                 else:
                     # Handle other errors during head_bucket (e.g., permissions)
                     logger.error(f"Error checking bucket '{bucket_name}': {e}. Skipping lifecycle policy application.")
                     bucket_exists = False  # Unsure about state, assume no for safety
-                    reconciliation_failed = True
                     continue  # Skip lifecycle for this bucket
 
             # Reconcile bucket ACL with the current config on every startup.
@@ -247,7 +339,6 @@ class S3UploadService:
                     )
                     # Continue even if ACL reconciliation fails — object-level ACLs
                     # applied during put_object are the enforced boundary.
-                    reconciliation_failed = True
 
             # Apply lifecycle policy if the bucket exists (or was just created) and has a policy defined
             if bucket_exists and isinstance(lifecycle_days, int) and lifecycle_days > 0:
@@ -262,12 +353,8 @@ class S3UploadService:
                     logger.info(f"Successfully applied lifecycle policy to '{bucket_name}'.")
                 else:
                     logger.warning(f"Failed to apply lifecycle policy to '{bucket_name}'.")
-                    reconciliation_failed = True
             elif bucket_exists:
                  logger.info(f"No lifecycle policy defined or needed for bucket '{bucket_name}'.")
-
-        if reconciliation_failed:
-            raise RuntimeError("object_storage_reconciliation_failed")
 
 
     def get_s3_url(self, bucket_name: str, file_key: str) -> str:
@@ -474,7 +561,7 @@ class S3UploadService:
                     
                     # Reset the file position to the beginning for the next attempt
                     file_obj.seek(0)
-                except (ReadTimeoutError, ConnectTimeoutError, EndpointConnectionError) as e:
+                except _TRANSIENT_NETWORK_ERRORS as e:
                     # Transient network errors (timeouts, connection drops) are retryable.
                     # Previously these were NOT caught here and fell through to the outer
                     # except block, causing immediate failure without any retries.
@@ -527,11 +614,16 @@ class S3UploadService:
             
             return result
         
+        except HetznerObjectStorageError:
+            raise
+        except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as exc:
+            logger.error("Failed to upload to S3: %s", type(exc).__name__)
+            raise classify_hetzner_upload_error(exc) from exc
         except HTTPException:
             raise
-        except Exception as e:
-            logger.error("Failed to upload to S3: %s", type(e).__name__)
-            raise storage_unavailable_error() from e
+        except Exception as exc:
+            logger.error("Failed to upload to S3: %s", type(exc).__name__)
+            raise storage_unavailable_error() from exc
 
     async def upload_file_stream(
         self,

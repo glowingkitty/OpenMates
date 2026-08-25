@@ -1,5 +1,5 @@
 schema_version: 1
-contract: feature.billing@2
+contract: feature.billing@4
 
 credit_charges:
   - id: personal-ai-charge
@@ -89,6 +89,28 @@ billing_documents:
     visible_in_billing_history: true
     download_ready: true
     expect: {email_pdf_attachment: true}
+
+storage_failures:
+  - id: hetzner-transient-degradation
+    payment_status: completed
+    credits_granted: true
+    storage_provider: hetzner_object_storage
+    failure: timeout_or_429_or_5xx
+    expect:
+      payment_settlement_repeated: false
+      retry_interval_minutes: 10
+      retry_window_hours: 24
+      admin_alert_classification: external_provider_degraded
+      final_alert_after_exhaustion: true
+  - id: storage-configuration-failure
+    payment_status: completed
+    credits_granted: true
+    storage_provider: hetzner_object_storage
+    failure: authentication_or_permission_or_bucket_or_malformed_request
+    expect:
+      payment_settlement_repeated: false
+      degradation_retry_scheduled: false
+      admin_alert_classification: internal_storage_configuration
 
 bank_transfers:
   - id: pending-credit-transfer

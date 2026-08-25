@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.billing
-version: 2
-status: draft
+version: 4
+status: approved
 title: Billing And Payments
 summary: >
   Authenticated OpenMates Cloud users can buy and spend credits, inspect usage,
@@ -16,6 +16,7 @@ scope:
     - Invoice, payment-confirmation, credit-note, and refund document visibility.
     - Billing usage overview, detail, export, and receipt-style token breakdowns.
     - First-party REST, CLI, SDK, web, and Apple semantic parity for billing usage surfaces.
+    - Official-cloud anonymous virtual-budget admission and provider-operation settlement.
   excludes:
     - Provider-specific accounting outside persisted OpenMates usage rows.
     - External processor dashboard workflows not exposed through OpenMates.
@@ -133,6 +134,10 @@ assertions:
     type: invariant
     must: A normal personal settlement uses cached plaintext balance state and one distributed subject lock, performs no pre-commit Directus balance read when the cache projection is valid, and commits encrypted balance, charge identity, and raw usage in one durable transaction; cache misses and conflict recovery may perform bounded durable reads.
     depends_on: [models.CreditBalance, models.CreditSettlement, examples.settlement_concurrency]
+  - id: billing.anonymous.hard-capped-provider-metering
+    type: security
+    must: Unauthenticated official-cloud text chat and eligible non-connected-account app skills reserve a conservative per-operation quote before provider work, atomically enforce absolute per-identity and shared UTC daily, weekly, and monthly caps, settle actual usage without exceeding the quote, retain ambiguous provider attempts, use only server-HMAC identity counters, and reject file, connected-account, or unpriced work before provider dispatch.
+    depends_on: [examples.credit_charges, surfaces]
   - id: billing.purchase.provider-routing
     type: behavior
     must: Credit purchases route to the configured Stripe card, Stripe managed payment, bank transfer, gift-card, or free-testing-credit path and only completed payment evidence grants credits.
@@ -141,6 +146,10 @@ assertions:
     type: behavior
     must: Completed purchases and supported refunds create visible billing history rows, and generated PDF documents become downloadable only after encrypted document storage is ready.
     depends_on: [models.BillingDocument, examples.billing_documents]
+  - id: billing.documents.storage-degradation-resilient
+    type: behavior
+    must: A completed purchase and its granted credits remain final when Hetzner Object Storage is transiently degraded; invoice storage retries every 10 minutes for up to 24 hours without repeating payment settlement, identifies Hetzner and the retry state in sanitized admin alerts, and sends a final actionable alert when retries are exhausted. Authentication, permission, bucket-configuration, and malformed-request failures remain classified as internal storage configuration errors and do not enter the degradation retry loop.
+    depends_on: [models.CreditPurchase, models.BillingDocument, examples.storage_failures]
   - id: billing.bank-transfer.pending-visible
     type: behavior
     must: Pending bank-transfer references remain visible in billing history without requiring invoice-vault keys and settle only when processor evidence matches an active order reference.
@@ -181,4 +190,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, bank_transfers, usage_receipts, self_host_guards]
+  required_groups: [credit_charges, settlement_concurrency, settlement_recovery, credit_purchases, billing_documents, storage_failures, bank_transfers, usage_receipts, self_host_guards]

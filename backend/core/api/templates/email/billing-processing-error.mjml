@@ -19,10 +19,10 @@
         <mj-column>
           <mj-image width="50px" height="50px" src="icons/warning.png" align="center" css-class="email-icon-50" />
           <mj-text font-size="30px" padding-bottom="24px">
-            <mark>Billing processing error</mark>
+            <mark>{{ alert_title }}</mark>
           </mj-text>
           <mj-text font-size="16px" padding-bottom="16px">
-            A billing invoice-processing task reported an error. Review the worker logs and accounting state before running any backfill.
+            {{ alert_summary }}
           </mj-text>
           <mj-text font-size="16px" padding-bottom="10px">
             <strong>Environment:</strong><br/>
@@ -44,6 +44,32 @@
             <strong>Provider Order ID:</strong><br/>
             {{ provider_order_id }}
           </mj-text>
+          {% if failure_provider %}
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Failing dependency:</strong><br/>
+            {{ failure_provider }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Failure classification:</strong><br/>
+            {{ failure_classification }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Retryable external failure:</strong><br/>
+            {{ retryable }}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Invoice processing attempt:</strong><br/>
+            {{ retry_attempt }} of {{ max_attempts }} (maximum retries: {{ max_retries }})
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Next retry delay:</strong><br/>
+            {% if retry_delay_seconds != "unknown" %}{{ retry_delay_seconds }} seconds{% else %}none{% endif %}
+          </mj-text>
+          <mj-text font-size="16px" padding-bottom="10px">
+            <strong>Retries exhausted:</strong><br/>
+            {{ retries_exhausted }}
+          </mj-text>
+          {% endif %}
           <mj-text font-size="16px" padding-bottom="10px">
             <strong>User ID hash:</strong><br/>
             {{ user_id_hash }}

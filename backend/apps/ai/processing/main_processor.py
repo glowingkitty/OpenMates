@@ -143,6 +143,8 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 logger = logging.getLogger(__name__)
 ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
+ANONYMOUS_AI_MAX_OUTPUT_TOKENS = 4_096
+ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS = 4_096
 DELEGATED_DEEP_RESEARCH_INSTRUCTION = (
     "\n\nDelegated child rule: You are already executing one research angle for a parent report. "
     "Do not call start_sub_chats or activate Deep research again. Research the assigned angle "
@@ -1052,7 +1054,7 @@ async def _record_connected_account_operation_journal_entries(
     user_vault_key_id: str | None,
     chat_id: str,
     message_id: str,
-    directus_service: DirectusService,
+    directus_service: Optional[DirectusService],
     encryption_service: EncryptionService,
     cache_service: CacheService,
     log_prefix: str,
@@ -1480,6 +1482,44 @@ def _skill_operation_id(app_id: str, skill_id: str, task_id: str, execution_id: 
     return f"{app_id}.{skill_id}:{task_id}:{execution_id}:{index}"
 
 
+async def _reserve_anonymous_operation(
+    *,
+    request_data: AskSkillRequest,
+    operation_id: str,
+    charge_id: str,
+    quoted_credits: int,
+) -> None:
+    parent_request_id = request_data.anonymous_reservation_id
+    if not parent_request_id:
+        raise RuntimeError("Anonymous operation is missing its request reservation")
+    await _make_internal_api_request(
+        "POST",
+        "internal/anonymous-usage/reserve-operation",
+        {
+            "parent_request_id": parent_request_id,
+            "operation_id": operation_id,
+            "charge_id": charge_id,
+            "quoted_credits": quoted_credits,
+        },
+    )
+
+
+async def _finalize_anonymous_charge(*, charge_id: str, actual_credits: int) -> None:
+    await _make_internal_api_request(
+        "POST",
+        "internal/anonymous-usage/finalize-charge",
+        {"charge_id": charge_id, "actual_credits": actual_credits},
+    )
+
+
+async def _release_anonymous_operation(*, operation_id: str, reason: str) -> None:
+    await _make_internal_api_request(
+        "POST",
+        "internal/anonymous-usage/release-operation",
+        {"operation_id": operation_id, "reason": reason},
+    )
+
+
 async def _resolve_skill_billing_config(
     *,
     app_id: str,
@@ -1569,7 +1609,36 @@ def _get_variable_preflight_reserved_credits(
                 model = DEFAULT_SPEECH_MODEL
             quotes.append(calculate_speech_credits(model=model, duration_seconds=estimate_speech_duration_seconds(text)))
         return quotes
+    if app_id == "code" and skill_id == "image_to_html":
+        from backend.apps.code.skills.image_to_html_skill import reserved_credits_for_correction_passes
+
+        return [
+            reserved_credits_for_correction_passes(
+                int((item if isinstance(item, dict) else {}).get("max_correction_passes") or 0)
+            )
+            for item in items
+        ]
     return None
+
+
+def _skill_preflight_quotes(
+    app_id: str,
+    skill_id: str,
+    parsed_args: Dict[str, Any],
+    pricing_config: Optional[Dict[str, Any]],
+) -> list[int]:
+    units = len(parsed_args.get("requests", [])) if isinstance(parsed_args.get("requests"), list) else 1
+    variable_quotes = _get_variable_preflight_reserved_credits(app_id, skill_id, parsed_args)
+    if variable_quotes is not None:
+        return variable_quotes
+    quoted_credits = (
+        calculate_total_credits(pricing_config=pricing_config, units_processed=units)
+        if pricing_config
+        else MINIMUM_CREDITS_CHARGED
+    )
+    per_unit = quoted_credits // units
+    remainder = quoted_credits - (per_unit * units)
+    return [per_unit + (remainder if index == units - 1 else 0) for index in range(units)]
 
 
 async def _reserve_skill_credits(
@@ -1581,66 +1650,95 @@ async def _reserve_skill_credits(
     skill_id: str,
     discovered_apps_metadata: Dict[str, AppYAML],
     parsed_args: Dict[str, Any],
-    directus_service: DirectusService,
+    directus_service: Optional[DirectusService],
     log_prefix: str,
 ) -> list[str]:
-    if not request_data.orchestration_id or getattr(request_data, "is_anonymous", False):
+    is_anonymous = bool(getattr(request_data, "is_anonymous", False))
+    if not request_data.orchestration_id and not is_anonymous:
         return []
-    _, pricing_config = await _resolve_skill_billing_config(
+    skill_definition, pricing_config = await _resolve_skill_billing_config(
         app_id=app_id,
         skill_id=skill_id,
         discovered_apps_metadata=discovered_apps_metadata,
         log_prefix=log_prefix,
     )
-    units = len(parsed_args.get("requests", [])) if isinstance(parsed_args.get("requests"), list) else 1
     variable_quotes = _get_variable_preflight_reserved_credits(app_id, skill_id, parsed_args)
-    if variable_quotes is not None:
-        quotes = variable_quotes
-        quoted_credits = sum(quotes)
-    else:
-        quoted_credits = (
-            calculate_total_credits(pricing_config=pricing_config, units_processed=units)
-            if pricing_config
-            else MINIMUM_CREDITS_CHARGED
-        )
-        per_unit = quoted_credits // units
-        remainder = quoted_credits - (per_unit * units)
-        quotes = [per_unit + (remainder if index == units - 1 else 0) for index in range(units)]
+    if is_anonymous and (not skill_definition or (not pricing_config and variable_quotes is None)):
+        raise RuntimeError(f"Anonymous skill pricing is unavailable for {app_id}.{skill_id}")
+    quotes = _skill_preflight_quotes(app_id, skill_id, parsed_args, pricing_config)
+    quoted_credits = sum(quotes)
     if quoted_credits <= 0:
         return []
 
-    service = SubChatOrchestrationService(directus_service)
+    service = None if is_anonymous else SubChatOrchestrationService(directus_service)
     reserved: list[str] = []
     try:
         for index, quote in enumerate(quotes):
             if quote <= 0:
                 continue
             operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, index)
-            await service.execute("reserve_operation", {
-                "protocol_version": 1,
-                "operation_id": operation_id,
-                "charge_id": operation_id,
-                "orchestration_id": request_data.orchestration_id,
-                "hashed_user_id": request_data.user_id_hash,
-                "root_chat_id": request_data.root_chat_id,
-                "actual_chat_id": request_data.chat_id,
-                "depth": request_data.sub_chat_depth,
-                "app_id": app_id,
-                "skill_id": skill_id,
-                "phase": "provider_request",
-                "quoted_credits": quote,
-            })
+            if is_anonymous:
+                await _reserve_anonymous_operation(
+                    request_data=request_data,
+                    operation_id=operation_id,
+                    charge_id=operation_id,
+                    quoted_credits=quote,
+                )
+            else:
+                await service.execute("reserve_operation", {  # type: ignore[union-attr]
+                    "protocol_version": 1,
+                    "operation_id": operation_id,
+                    "charge_id": operation_id,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "root_chat_id": request_data.root_chat_id,
+                    "actual_chat_id": request_data.chat_id,
+                    "depth": request_data.sub_chat_depth,
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "phase": "provider_request",
+                    "quoted_credits": quote,
+                })
             reserved.append(operation_id)
     except Exception:
         for operation_id in reserved:
-            await service.execute("fail_operation", {
-                "protocol_version": 1,
-                "operation_id": operation_id,
-                "orchestration_id": request_data.orchestration_id,
-                "hashed_user_id": request_data.user_id_hash,
-            })
+            if is_anonymous:
+                await _release_anonymous_operation(operation_id=operation_id, reason="reservation_batch_failed")
+            else:
+                await service.execute("fail_operation", {  # type: ignore[union-attr]
+                    "protocol_version": 1,
+                    "operation_id": operation_id,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                })
         raise
     return reserved
+
+
+async def _settle_anonymous_skill_quote(
+    *,
+    app_id: str,
+    skill_id: str,
+    parsed_args: Dict[str, Any],
+    discovered_apps_metadata: Dict[str, AppYAML],
+    reserved_operation_ids: list[str],
+    log_prefix: str,
+) -> int:
+    skill_definition, pricing_config = await _resolve_skill_billing_config(
+        app_id=app_id,
+        skill_id=skill_id,
+        discovered_apps_metadata=discovered_apps_metadata,
+        log_prefix=log_prefix,
+    )
+    variable_quotes = _get_variable_preflight_reserved_credits(app_id, skill_id, parsed_args)
+    if not skill_definition or (not pricing_config and variable_quotes is None):
+        raise RuntimeError(f"Anonymous skill pricing is unavailable for {app_id}.{skill_id}")
+    quotes = _skill_preflight_quotes(app_id, skill_id, parsed_args, pricing_config)
+    if len(reserved_operation_ids) != len(quotes):
+        raise RuntimeError("Anonymous skill reservation count does not match its provider quote count")
+    for operation_id, quote in zip(reserved_operation_ids, quotes):
+        await _finalize_anonymous_charge(charge_id=operation_id, actual_credits=quote)
+    return sum(quotes)
 
 
 def _quote_ai_iteration_credits(
@@ -1650,6 +1748,7 @@ def _quote_ai_iteration_credits(
     message_history: List[Dict[str, Any]],
     tools: Optional[List[Dict[str, Any]]],
     output_token_limit: Optional[int] = None,
+    input_envelope_tokens: int = 0,
 ) -> int:
     if "/" not in model_id:
         raise RuntimeError("AI reservation requires a provider-qualified model id")
@@ -1673,7 +1772,10 @@ def _quote_ai_iteration_credits(
         default=str,
         separators=(",", ":"),
     )
-    estimated_input_tokens = max(1, (len(serialized_input) + 2) // 3)
+    estimated_input_tokens = max(
+        1,
+        len(serialized_input.encode("utf-8")) + max(0, input_envelope_tokens),
+    )
     return calculate_total_credits(
         pricing_config=model_config,
         input_tokens=estimated_input_tokens,
@@ -1773,17 +1875,19 @@ async def _fit_parent_continuation_output_token_limit(
 def _orchestrated_ai_output_token_limit(
     model_id: str,
     orchestration_id: Optional[str],
+    is_anonymous: bool = False,
 ) -> Optional[int]:
-    if not orchestration_id:
+    if not orchestration_id and not is_anonymous:
         return None
+    hard_limit = ANONYMOUS_AI_MAX_OUTPUT_TOKENS if is_anonymous else ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
     if "/" not in model_id:
-        return ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+        return hard_limit
     provider_id, model_suffix = model_id.split("/", 1)
     model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
     configured_limit = (model_config.get("features") or {}).get("max_output_tokens")
     if isinstance(configured_limit, int) and configured_limit > 0:
-        return min(configured_limit, ORCHESTRATED_AI_MAX_OUTPUT_TOKENS)
-    return ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+        return min(configured_limit, hard_limit)
+    return hard_limit
 
 
 async def _reserve_ai_iteration(
@@ -1798,15 +1902,16 @@ async def _reserve_ai_iteration(
     request_data: AskSkillRequest,
     directus_service: Optional[DirectusService],
 ) -> Optional[str]:
-    if not request_data.orchestration_id or getattr(request_data, "is_anonymous", False):
+    is_anonymous = bool(getattr(request_data, "is_anonymous", False))
+    if not request_data.orchestration_id and not is_anonymous:
         return None
-    if is_sub_chat_continuation(request_data):
+    if is_sub_chat_continuation(request_data) and not is_anonymous:
         logger.info(
             "Skipping AI iteration reservation for sub-chat parent continuation; "
             "the continuation output limit was already fitted to orchestration credits."
         )
         return None
-    if not directus_service:
+    if not directus_service and not is_anonymous:
         raise RuntimeError("Orchestrated AI reservation requires Directus")
     quote = _quote_ai_iteration_credits(
         model_id=model_id,
@@ -1814,25 +1919,34 @@ async def _reserve_ai_iteration(
         message_history=message_history,
         tools=tools,
         output_token_limit=output_token_limit,
+        input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS if is_anonymous else 0,
     )
     if quote <= 0:
         return None
     charge_id = f"ai-ask:{task_id}:main"
     operation_id = f"{charge_id}:iteration:{iteration}:model:{model_id}"
-    await SubChatOrchestrationService(directus_service).execute("reserve_operation", {
-        "protocol_version": 1,
-        "operation_id": operation_id,
-        "charge_id": charge_id,
-        "orchestration_id": request_data.orchestration_id,
-        "hashed_user_id": request_data.user_id_hash,
-        "root_chat_id": request_data.root_chat_id,
-        "actual_chat_id": request_data.chat_id,
-        "depth": request_data.sub_chat_depth,
-        "app_id": "ai",
-        "skill_id": "ask",
-        "phase": f"inference_{iteration}",
-        "quoted_credits": quote,
-    })
+    if is_anonymous:
+        await _reserve_anonymous_operation(
+            request_data=request_data,
+            operation_id=operation_id,
+            charge_id=charge_id,
+            quoted_credits=quote,
+        )
+    else:
+        await SubChatOrchestrationService(directus_service).execute("reserve_operation", {  # type: ignore[arg-type]
+            "protocol_version": 1,
+            "operation_id": operation_id,
+            "charge_id": charge_id,
+            "orchestration_id": request_data.orchestration_id,
+            "hashed_user_id": request_data.user_id_hash,
+            "root_chat_id": request_data.root_chat_id,
+            "actual_chat_id": request_data.chat_id,
+            "depth": request_data.sub_chat_depth,
+            "app_id": "ai",
+            "skill_id": "ask",
+            "phase": f"inference_{iteration}",
+            "quoted_credits": quote,
+        })
     return operation_id
 
 
@@ -1841,8 +1955,20 @@ async def _fail_reserved_operation(
     operation_id: Optional[str],
     request_data: AskSkillRequest,
     directus_service: Optional[DirectusService],
+    preserve_anonymous_reservation: bool = False,
 ) -> None:
-    if not operation_id or not request_data.orchestration_id or not directus_service:
+    if not operation_id:
+        return
+    if getattr(request_data, "is_anonymous", False):
+        if preserve_anonymous_reservation:
+            logger.warning(
+                "Retaining anonymous AI reservation %s after an ambiguous provider failure",
+                operation_id,
+            )
+            return
+        await _release_anonymous_operation(operation_id=operation_id, reason="provider_failed")
+        return
+    if not request_data.orchestration_id or not directus_service:
         return
     await SubChatOrchestrationService(directus_service).execute("fail_operation", {
         "protocol_version": 1,
@@ -1959,14 +2085,8 @@ async def _charge_skill_credits(
             Used to count only successful requests for billing (failed requests are not charged).
     """
     charged_operation_ids: set[str] = set()
+    anonymous_settlement_failed = False
     try:
-        if getattr(request_data, "is_anonymous", False):
-            logger.info(
-                f"{log_prefix} Anonymous free-usage request used skill '{app_id}.{skill_id}'. "
-                "Skipping user-balance skill billing; shared budget is reconciled by the anonymous API route."
-            )
-            return
-
         skill_def, pricing_config = await _resolve_skill_billing_config(
             app_id=app_id,
             skill_id=skill_id,
@@ -1994,6 +2114,26 @@ async def _charge_skill_credits(
             for r in results
         ):
             logger.info(f"{log_prefix} Skill '{app_id}.{skill_id}' failed — all {len(results)} result(s) have error/cancelled status, skipping billing.")
+            return
+
+        if getattr(request_data, "is_anonymous", False) and (app_id, skill_id) in ASYNC_SKILLS:
+            operation_ids = list(reserved_operation_ids or [])
+            quoted_credits = await _settle_anonymous_skill_quote(
+                app_id=app_id,
+                skill_id=skill_id,
+                parsed_args=parsed_args,
+                discovered_apps_metadata=discovered_apps_metadata,
+                reserved_operation_ids=operation_ids,
+                log_prefix=log_prefix,
+            )
+            charged_operation_ids.update(operation_ids)
+            logger.info(
+                "%s Settled %s conservatively quoted anonymous credits for async skill '%s.%s'.",
+                log_prefix,
+                quoted_credits,
+                app_id,
+                skill_id,
+            )
             return
         
         # Calculate credits based on skill execution
@@ -2141,6 +2281,23 @@ async def _charge_skill_credits(
                 }
                 operation_id = _skill_operation_id(app_id, skill_id, task_id, execution_id, operation_index)
                 request_usage_details["operation_id"] = operation_id
+
+                if getattr(request_data, "is_anonymous", False):
+                    await _finalize_anonymous_charge(
+                        charge_id=operation_id,
+                        actual_credits=request_credits,
+                    )
+                    charged_operation_ids.add(operation_id)
+                    logger.info(
+                        "%s Settled %s anonymous credits for skill '%s.%s' (request %s/%s).",
+                        log_prefix,
+                        request_credits,
+                        app_id,
+                        skill_id,
+                        charge_position + 1,
+                        charge_count,
+                    )
+                    continue
                 
                 team_id = getattr(request_data, "team_id", None)
                 if team_id:
@@ -2179,15 +2336,24 @@ async def _charge_skill_credits(
             logger.info(f"{log_prefix} Successfully charged {credits_charged} total credits for skill '{app_id}.{skill_id}' across {units_processed} request(s).")
             
     except httpx.HTTPStatusError as e:
+        anonymous_settlement_failed = bool(getattr(request_data, "is_anonymous", False))
         logger.error(f"{log_prefix} HTTP error charging credits for skill '{app_id}.{skill_id}': {e.response.status_code} - {e.response.text}", exc_info=True)
         # Don't raise - billing failure shouldn't break skill execution
     except Exception as e:
+        anonymous_settlement_failed = bool(getattr(request_data, "is_anonymous", False))
         logger.error(f"{log_prefix} Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
         # Don't raise - billing failure shouldn't break skill execution
     finally:
-        if request_data.orchestration_id and directus_service:
+        uncharged_operation_ids = set(reserved_operation_ids or []) - charged_operation_ids
+        if getattr(request_data, "is_anonymous", False) and not anonymous_settlement_failed:
+            for operation_id in uncharged_operation_ids:
+                try:
+                    await _release_anonymous_operation(operation_id=operation_id, reason="provider_not_charged")
+                except Exception:
+                    logger.error("%s Failed to release anonymous operation reservation %s", log_prefix, operation_id, exc_info=True)
+        elif request_data.orchestration_id and directus_service:
             service = SubChatOrchestrationService(directus_service)
-            for operation_id in set(reserved_operation_ids or []) - charged_operation_ids:
+            for operation_id in uncharged_operation_ids:
                 try:
                     await service.execute("fail_operation", {
                         "protocol_version": 1,
@@ -3887,6 +4053,7 @@ async def handle_main_processing(
                 current_output_token_limit = _orchestrated_ai_output_token_limit(
                     current_model_id,
                     request_data.orchestration_id,
+                    bool(getattr(request_data, "is_anonymous", False)),
                 )
                 current_output_token_limit = await _fit_parent_continuation_output_token_limit(
                     model_id=current_model_id,
@@ -4527,6 +4694,7 @@ async def handle_main_processing(
                 operation_id=current_ai_operation_id,
                 request_data=request_data,
                 directus_service=directus_service,
+                preserve_anonymous_reservation=True,
             )
             current_ai_operation_id = None
             current_model_index += 1
@@ -4930,7 +5098,7 @@ async def handle_main_processing(
                             parallel_arguments["_full_model_reference_override"] = parallel_model_override
 
                         parallel_reservation_ids: list[str] = []
-                        if directus_service:
+                        if directus_service or getattr(request_data, "is_anonymous", False):
                             parallel_reservation_ids = await _reserve_skill_credits(
                                 task_id=task_id,
                                 execution_id=candidate["tool_call"].tool_call_id,
@@ -4973,6 +5141,7 @@ async def handle_main_processing(
                                 cache_service=cache_service,
                                 encryption_service=encryption_service,
                                 secrets_manager=secrets_manager,
+                                max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
                             )
 
                     return execute
@@ -5623,6 +5792,7 @@ async def handle_main_processing(
                                     output_token_limit=_orchestrated_ai_output_token_limit(
                                         current_model_id,
                                         request_data.orchestration_id,
+                                        bool(getattr(request_data, "is_anonymous", False)),
                                     ),
                                     request_data=request_data,
                                     directus_service=directus_service,
@@ -5693,6 +5863,7 @@ async def handle_main_processing(
                                     output_token_limit=_orchestrated_ai_output_token_limit(
                                         current_model_id,
                                         request_data.orchestration_id,
+                                        bool(getattr(request_data, "is_anonymous", False)),
                                     ),
                                     request_data=request_data,
                                     directus_service=directus_service,
@@ -5785,6 +5956,7 @@ async def handle_main_processing(
                                 output_token_limit=_orchestrated_ai_output_token_limit(
                                     current_model_id,
                                     request_data.orchestration_id,
+                                    bool(getattr(request_data, "is_anonymous", False)),
                                 ),
                                 request_data=request_data,
                                 directus_service=directus_service,
@@ -6069,6 +6241,7 @@ async def handle_main_processing(
                 # Track if skill was cancelled
                 skill_was_cancelled = False
                 reserved_skill_operation_ids: list[str] = []
+                provider_dispatch_attempted = bool(parallel_execution)
                 
                 try:
                     # ARGUMENT NORMALIZATION:
@@ -6243,10 +6416,10 @@ async def handle_main_processing(
 
                     if parallel_execution:
                         reserved_skill_operation_ids = parallel_execution["reservation_ids"]
-                    elif (app_id, skill_id) not in ASYNC_SKILLS:
+                    elif (app_id, skill_id) not in ASYNC_SKILLS or getattr(request_data, "is_anonymous", False):
                         if not directus_service and request_data.orchestration_id:
                             raise RuntimeError("Orchestrated skill reservation requires Directus")
-                        if directus_service:
+                        if directus_service or getattr(request_data, "is_anonymous", False):
                             reserved_skill_operation_ids = await _reserve_skill_credits(
                                 task_id=task_id,
                                 execution_id=tool_call_id,
@@ -6255,7 +6428,7 @@ async def handle_main_processing(
                                 skill_id=skill_id,
                                 discovered_apps_metadata=discovered_apps_metadata,
                                 parsed_args=skill_arguments,
-                                directus_service=directus_service,
+                                directus_service=directus_service,  # type: ignore[arg-type]
                                 log_prefix=log_prefix,
                             )
 
@@ -6270,6 +6443,7 @@ async def handle_main_processing(
                             results = parallel_outcome
                         else:
                             with ai_phase_span("tool"):
+                                provider_dispatch_attempted = True
                                 results = await execute_skill_with_multiple_requests(
                                     app_id=app_id,
                                     skill_id=skill_id,
@@ -6282,7 +6456,7 @@ async def handle_main_processing(
                                     cache_service=cache_service,
                                     encryption_service=encryption_service,
                                     secrets_manager=secrets_manager,
-                                    # max_retries uses default (1 retry = 2 total attempts)
+                                    max_retries=0 if getattr(request_data, "is_anonymous", False) else 1,
                                 )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
                             results,
@@ -6343,6 +6517,18 @@ async def handle_main_processing(
                         f"(skill_task_id={skill_task_id}). Main processing will continue."
                     )
                     skill_was_cancelled = True
+                    if getattr(request_data, "is_anonymous", False) and provider_dispatch_attempted:
+                        try:
+                            await _settle_anonymous_skill_quote(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                parsed_args=skill_arguments,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                reserved_operation_ids=reserved_skill_operation_ids,
+                                log_prefix=log_prefix,
+                            )
+                        finally:
+                            reserved_skill_operation_ids = []
                     # Create cancelled result that tells the LLM the skill was cancelled
                     results = [{
                         "status": "cancelled",
@@ -6376,6 +6562,18 @@ async def handle_main_processing(
                     # This allows the LLM to interpret results from successful skills
                     # and provide a meaningful response even when some skills fail.
                     error_message = str(skill_error)
+                    if getattr(request_data, "is_anonymous", False) and provider_dispatch_attempted:
+                        try:
+                            await _settle_anonymous_skill_quote(
+                                app_id=app_id,
+                                skill_id=skill_id,
+                                parsed_args=skill_arguments,
+                                discovered_apps_metadata=discovered_apps_metadata,
+                                reserved_operation_ids=reserved_skill_operation_ids,
+                                log_prefix=log_prefix,
+                            )
+                        finally:
+                            reserved_skill_operation_ids = []
                     logger.warning(
                         f"{log_prefix} Skill '{app_id}.{skill_id}' failed with error: {error_message}. "
                         f"Main processing will continue with error result for LLM."
@@ -6924,10 +7122,9 @@ async def handle_main_processing(
                         else:
                             tool_result_content_str = json.dumps({"results": filtered_results_with_refs, "count": len(filtered_results_with_refs)})
                 
-                # Calculate and charge credits for skill execution
-                # NOTE: Skip for async skills - credits are charged by the Celery task
-                # Pass grouped_results so _charge_skill_credits can count only successful requests
-                if not is_async_skill:
+                # Async skills retain their authenticated Celery billing path. Anonymous
+                # requests settle the conservative quote when provider work is dispatched.
+                if not is_async_skill or getattr(request_data, "is_anonymous", False):
                     await _charge_skill_credits(
                         task_id=task_id,
                         execution_id=tool_call_id,

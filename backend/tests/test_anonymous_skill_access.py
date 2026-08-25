@@ -25,9 +25,23 @@ from backend.core.api.app.routes.anonymous import (
     validate_anonymous_skill_allowed,
 )
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService, AnonymousReservationResult
-from backend.tests.test_anonymous_free_usage_budget import FakeDirectus
+from backend.tests.test_anonymous_free_usage_budget import FakeCache, FakeDirectus
 
 
+@pytest.fixture(autouse=True)
+def use_in_process_anonymous_meter(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        anonymous_routes,
+        "_anonymous_usage_service",
+        lambda directus_service, cache_service: AnonymousFreeUsageService(
+            directus_service=directus_service,
+            cache_service=cache_service,
+            hmac_secret="test-secret",
+        ),
+    )
+
+
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 def test_skill_without_connected_account_requirement_is_allowed() -> None:
     skill = {
         "id": "search",
@@ -37,6 +51,7 @@ def test_skill_without_connected_account_requirement_is_allowed() -> None:
     validate_anonymous_skill_allowed("web", skill)
 
 
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 def test_connected_account_skill_is_rejected_for_anonymous_callers() -> None:
     skill = {
         "id": "get-events",
@@ -50,6 +65,7 @@ def test_connected_account_skill_is_rejected_for_anonymous_callers() -> None:
     assert exc_info.value.detail["code"] == "signup_required"
 
 
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 def test_missing_connected_account_classification_fails_closed() -> None:
     skill = {"id": "unknown"}
 
@@ -60,6 +76,7 @@ def test_missing_connected_account_classification_fails_closed() -> None:
     assert exc_info.value.detail["code"] == "skill_metadata_missing"
 
 
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 def test_anonymous_chat_rejects_file_upload_payloads_before_inference() -> None:
     request = AnonymousChatStreamRequest(
         anonymous_id="anon-1",
@@ -77,6 +94,7 @@ def test_anonymous_chat_rejects_file_upload_payloads_before_inference() -> None:
     assert exc_info.value.detail["code"] == "signup_required"
 
 
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 def test_anonymous_chat_rejects_embed_upload_references_before_inference() -> None:
     request = AnonymousChatStreamRequest(
         anonymous_id="anon-1",
@@ -100,7 +118,8 @@ def test_anonymous_chat_rejects_embed_upload_references_before_inference() -> No
 
 
 @pytest.mark.asyncio
-async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeypatch: pytest.MonkeyPatch) -> None:
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(monkeypatch: pytest.MonkeyPatch) -> None:
     directus = FakeDirectus()
     service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
     await service.save_budget(
@@ -148,7 +167,7 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
         plaintext_message="Reply with exactly: anonymous inference ok",
     )
 
-    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus, cache_service=FakeCache())
     body = ""
     async for chunk in response.body_iterator:
         body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
@@ -175,11 +194,13 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
     assert post_processing["chat_summary"] == "anonymous inference ok"
     assert len(post_processing["follow_up_request_suggestions"]) == 6
     status = await service.get_budget_status()
-    assert status.daily_used_credits == 7
+    assert status.daily_used_credits == 0
+    assert any(row.get("status") == "request_open" for row in directus.reservations.values())
 
 
 @pytest.mark.asyncio
-async def test_anonymous_sse_keeps_successful_answer_when_finalization_fails(
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_sse_does_not_double_finalize_worker_usage(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -229,7 +250,7 @@ async def test_anonymous_sse_keeps_successful_answer_when_finalization_fails(
     )
 
     with caplog.at_level("ERROR"):
-        response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+        response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus, cache_service=FakeCache())
         body = ""
         async for chunk in response.body_iterator:
             body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
@@ -245,25 +266,70 @@ async def test_anonymous_sse_keeps_successful_answer_when_finalization_fails(
     assert events[2]["full_content_so_far"] == "anonymous inference ok"
     assert events[3]["status"] == "completed"
     assert "reservation not found" not in body
-    assert "Anonymous free usage reservation finalization failed" in caplog.text
+    assert "Anonymous free usage reservation finalization failed" not in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
-    reserve_started = asyncio.Event()
-    release_reservation = asyncio.Event()
-
-    async def delayed_reserve_budget(
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_sse_sanitizes_internal_inference_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def accepted_open_request(
         self: AnonymousFreeUsageService,
         *,
         request_id: str,
         anonymous_id: str,
         ip_address: str,
-        estimated_credits: int,
+    ) -> AnonymousReservationResult:
+        return AnonymousReservationResult(accepted=True, request_id=request_id)
+
+    class FailingRegistry:
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
+            raise RuntimeError("private provider diagnostic")
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FailingRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(AnonymousFreeUsageService, "open_request", accepted_open_request)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/v1/anonymous/chat/stream",
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+        "client": ("198.51.100.7", 443),
+    })
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1",
+        client_chat_id="chat-1",
+        client_message_id="message-1",
+        plaintext_message="hello",
+    )
+
+    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
+    body = ""
+    async for chunk in response.body_iterator:
+        body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
+
+    assert "private provider diagnostic" not in body
+    assert "Anonymous inference failed. Please try again." in body
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
+    reserve_started = asyncio.Event()
+    release_reservation = asyncio.Event()
+
+    async def delayed_open_request(
+        self: AnonymousFreeUsageService,
+        *,
+        request_id: str,
+        anonymous_id: str,
+        ip_address: str,
     ) -> AnonymousReservationResult:
         reserve_started.set()
         await release_reservation.wait()
-        return AnonymousReservationResult(accepted=True, request_id=request_id, reserved_credits=estimated_credits)
+        return AnonymousReservationResult(accepted=True, request_id=request_id)
 
     async def noop_finalize(self: AnonymousFreeUsageService, request_id: str, *, actual_credits: int) -> None:
         return None
@@ -280,7 +346,7 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
     fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
     fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
     monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
-    monkeypatch.setattr(AnonymousFreeUsageService, "reserve_budget", delayed_reserve_budget)
+    monkeypatch.setattr(AnonymousFreeUsageService, "open_request", delayed_open_request)
     monkeypatch.setattr(AnonymousFreeUsageService, "finalize_reservation", noop_finalize)
     monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
 
@@ -300,7 +366,7 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
         plaintext_message="Reply after delayed reservation",
     )
 
-    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus())
+    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
     iterator = response.body_iterator
     first = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
     second = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
@@ -321,6 +387,7 @@ async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(m
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
 async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch: pytest.MonkeyPatch) -> None:
     directus = FakeDirectus()
     service = AnonymousFreeUsageService(directus_service=directus, hmac_secret="test-secret")
@@ -368,7 +435,7 @@ async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch
         plaintext_message="Reply with exactly: anonymous json ok",
     )
 
-    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus, cache_service=FakeCache())
 
     assert response.status == "completed"
     assert response.assistant == "anonymous json ok"
@@ -376,7 +443,8 @@ async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_anonymous_json_keeps_successful_answer_when_finalization_fails(
+# contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
+async def test_anonymous_json_does_not_double_finalize_worker_usage(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -427,9 +495,9 @@ async def test_anonymous_json_keeps_successful_answer_when_finalization_fails(
     )
 
     with caplog.at_level("ERROR"):
-        response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+        response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus, cache_service=FakeCache())
 
     assert response.status == "completed"
     assert response.assistant == "anonymous json ok"
     assert response.creditsCharged == 5
-    assert "Anonymous free usage reservation finalization failed" in caplog.text
+    assert "Anonymous free usage reservation finalization failed" not in caplog.text

@@ -1343,6 +1343,27 @@ def verify_sub_chat_orchestration_endpoint():
         raise RuntimeError('Sub-chat orchestration endpoint returned an invalid health response')
     print('Verified sub-chat orchestration Directus endpoint')
 
+
+def verify_anonymous_usage_endpoint():
+    """Require the atomic anonymous usage endpoint to pass its internal health check."""
+    if not INTERNAL_API_SHARED_TOKEN:
+        raise RuntimeError('INTERNAL_API_SHARED_TOKEN is required for Directus setup')
+    response = requests.post(
+        f"{CMS_URL}/anonymous-usage-transaction/",
+        headers={"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        json={"operation": "health_check", "data": {"protocol_version": 1}},
+        timeout=10,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            "Anonymous usage endpoint health check failed: "
+            f"HTTP {response.status_code}"
+        )
+    data = response.json().get('data', {})
+    if data.get('status') != 'ok' or data.get('protocol_version') != 1:
+        raise RuntimeError('Anonymous usage endpoint returned an invalid health response')
+    print('Verified anonymous usage Directus endpoint')
+
 def setup_schemas():
     """Main function to set up schemas."""
     wait_for_directus()
@@ -1439,6 +1460,9 @@ def setup_schemas():
 
         print("\n--- Verifying sub-chat orchestration Directus endpoint ---")
         verify_sub_chat_orchestration_endpoint()
+
+        print("\n--- Verifying anonymous usage Directus endpoint ---")
+        verify_anonymous_usage_endpoint()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

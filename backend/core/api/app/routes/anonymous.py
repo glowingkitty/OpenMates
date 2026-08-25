@@ -38,6 +38,11 @@ except ModuleNotFoundError:  # pragma: no cover - unit env without slowapi
 
 router = APIRouter(prefix="/v1/anonymous", tags=["Anonymous"])
 logger = logging.getLogger(__name__)
+MAX_ANONYMOUS_MESSAGE_CHARS = 20_000
+MAX_ANONYMOUS_HISTORY_MESSAGES = 50
+ANONYMOUS_INFERENCE_ERROR_MESSAGE = "Anonymous inference failed. Please try again."
+ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE = 60
+ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE = 20
 
 EMBED_REFERENCE_PATTERN = re.compile(
     r'```(?:json|json_embed)\s*\n\s*\{[^`]*("embed_id"|"type"\s*:\s*"(?:image|audio|pdf|document|file)")',
@@ -47,7 +52,7 @@ EMBED_REFERENCE_PATTERN = re.compile(
 
 class AnonymousHistoryMessage(BaseModel):
     role: str
-    content: str
+    content: str = Field(..., max_length=MAX_ANONYMOUS_MESSAGE_CHARS)
     created_at: int
     sender_name: Optional[str] = None
 
@@ -56,8 +61,11 @@ class AnonymousChatStreamRequest(BaseModel):
     anonymous_id: str = Field(..., min_length=1, max_length=128)
     client_chat_id: str = Field(..., min_length=1, max_length=128)
     client_message_id: str = Field(..., min_length=1, max_length=128)
-    plaintext_message: str = Field(..., min_length=1)
-    message_history: list[AnonymousHistoryMessage | dict[str, Any]] = Field(default_factory=list)
+    plaintext_message: str = Field(..., min_length=1, max_length=MAX_ANONYMOUS_MESSAGE_CHARS)
+    message_history: list[AnonymousHistoryMessage] = Field(
+        default_factory=list,
+        max_length=MAX_ANONYMOUS_HISTORY_MESSAGES,
+    )
     requested_skill_ids: Optional[list[str]] = None
     learning_mode: Optional[dict[str, Any]] = None
     encrypted_context_metadata: Optional[dict[str, Any]] = None
@@ -122,17 +130,58 @@ def _get_directus_service(request: Request) -> Any:
     return directus_service
 
 
+def _get_cache_service(request: Request) -> Any:
+    cache_service = getattr(request.app.state, "cache_service", None)
+    if cache_service is None:
+        raise HTTPException(status_code=503, detail="Anonymous usage meter unavailable")
+    return cache_service
+
+
+def _anonymous_usage_service(directus_service: Any, cache_service: Any) -> AnonymousFreeUsageService:
+    return AnonymousFreeUsageService(
+        directus_service=directus_service,
+        cache_service=cache_service,
+        require_distributed_lock=True,
+    )
+
+
+async def _enforce_local_rate_limit(
+    service: AnonymousFreeUsageService,
+    *,
+    anonymous_id: str,
+    max_requests: int,
+) -> None:
+    try:
+        allowed = await service.consume_local_rate_limit(anonymous_id, max_requests=max_requests)
+    except Exception as exc:
+        logger.exception("Anonymous local-ID rate limiter failed")
+        raise HTTPException(status_code=503, detail="Anonymous usage meter unavailable") from exc
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "rate_limited", "message": "Create an account to keep using OpenMates."},
+        )
+
+
 @router.get("/free-usage/status", response_model=AnonymousStatusResponse)
 @limiter.limit("60/minute")
 async def get_anonymous_free_usage_status(
     request: Request,
     anonymous_id: Optional[str] = Query(default=None),
     directus_service: Any = Depends(_get_directus_service),
+    cache_service: Any = Depends(_get_cache_service),
 ) -> AnonymousStatusResponse:
     _require_official_cloud(request)
-    service = AnonymousFreeUsageService(directus_service=directus_service)
+    service = _anonymous_usage_service(directus_service, cache_service)
+    local_id = anonymous_id or request.headers.get("X-OpenMates-Anonymous-ID")
+    if local_id:
+        await _enforce_local_rate_limit(
+            service,
+            anonymous_id=local_id,
+            max_requests=ANONYMOUS_STATUS_LOCAL_RATE_LIMIT_PER_MINUTE,
+        )
     return AnonymousStatusResponse(**(await service.get_public_status(
-        anonymous_id=anonymous_id or request.headers.get("X-OpenMates-Anonymous-ID"),
+        anonymous_id=local_id,
         ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
     )))
 
@@ -179,12 +228,18 @@ async def anonymous_chat_stream(
     request: Request,
     payload: AnonymousChatStreamRequest,
     directus_service: Any = Depends(_get_directus_service),
+    cache_service: Any = Depends(_get_cache_service),
 ) -> StreamingResponse | AnonymousChatResponse:
     """Run a text-only anonymous chat turn against the shared free-usage budget."""
     _require_official_cloud(request)
     reject_anonymous_file_payloads(payload)
     request_id = str(uuid.uuid4())
-    service = AnonymousFreeUsageService(directus_service=directus_service)
+    service = _anonymous_usage_service(directus_service, cache_service)
+    await _enforce_local_rate_limit(
+        service,
+        anonymous_id=payload.anonymous_id,
+        max_requests=ANONYMOUS_CHAT_LOCAL_RATE_LIMIT_PER_MINUTE,
+    )
 
     messages = [
         {
@@ -201,11 +256,10 @@ async def anonymous_chat_stream(
         raise HTTPException(status_code=422, detail={"code": "invalid_learning_mode", "message": str(exc)}) from exc
 
     if not _wants_event_stream(request):
-        reservation = await service.reserve_budget(
+        reservation = await service.open_request(
             request_id=request_id,
             anonymous_id=payload.anonymous_id,
             ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
-            estimated_credits=10,
         )
         if not reservation.accepted:
             raise HTTPException(
@@ -229,19 +283,15 @@ async def anonymous_chat_stream(
                 },
             )
             usage = result.get("usage") if isinstance(result, dict) else None
-            actual_credits = _safe_positive_int((usage or {}).get("total_credits"), fallback=reservation.reserved_credits)
-            await _finalize_anonymous_reservation(
-                service,
-                reservation.request_id,
-                actual_credits=actual_credits,
-                path="json",
-            )
+            actual_credits = _safe_positive_int((usage or {}).get("total_credits"), fallback=0)
         except HTTPException:
-            await service.release_reservation(reservation.request_id, reason="ai_http_error")
             raise
         except Exception as exc:
-            await service.release_reservation(reservation.request_id, reason="ai_error")
-            raise HTTPException(status_code=500, detail={"code": "anonymous_inference_failed", "message": str(exc)}) from exc
+            logger.exception("Anonymous non-streaming inference failed")
+            raise HTTPException(
+                status_code=500,
+                detail={"code": "anonymous_inference_failed", "message": ANONYMOUS_INFERENCE_ERROR_MESSAGE},
+            ) from exc
 
         choice = (result.get("choices") or [{}])[0] if isinstance(result, dict) else {}
         message = choice.get("message") or {}
@@ -265,9 +315,7 @@ async def anonymous_chat_stream(
         model_name: str | None = None
         full_content = ""
         sequence = 0
-        finalized = False
         reservation = None
-        actual_credits = 10
 
         yield _anonymous_sse_event({
             "type": "ai_task_initiated",
@@ -291,11 +339,10 @@ async def anonymous_chat_stream(
         })
 
         try:
-            reservation = await service.reserve_budget(
+            reservation = await service.open_request(
                 request_id=request_id,
                 anonymous_id=payload.anonymous_id,
                 ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
-                estimated_credits=10,
             )
             if not reservation.accepted:
                 yield _anonymous_sse_event({
@@ -318,7 +365,6 @@ async def anonymous_chat_stream(
                 })
                 return
 
-            actual_credits = reservation.reserved_credits
             result = await get_global_registry().dispatch_skill(
                 "ai",
                 "ask",
@@ -337,8 +383,6 @@ async def anonymous_chat_stream(
                 message = choice.get("message") or {}
                 full_content = str(message.get("content") or "")
                 model_name = result.get("model")
-                usage = result.get("usage") if isinstance(result, dict) else None
-                actual_credits = _safe_positive_int((usage or {}).get("total_credits"), fallback=reservation.reserved_credits)
                 sequence = 1
                 yield _anonymous_sse_event({
                     "type": "ai_message_chunk",
@@ -372,9 +416,6 @@ async def anonymous_chat_stream(
                                 "is_final_chunk": False,
                                 "model_name": model_name,
                             })
-                    usage = openai_payload.get("usage") or {}
-                    if usage:
-                        actual_credits = _safe_positive_int(usage.get("total_credits"), fallback=reservation.reserved_credits)
                 sequence += 1
                 yield _anonymous_sse_event({
                     "type": "ai_message_chunk",
@@ -387,13 +428,6 @@ async def anonymous_chat_stream(
                     "is_final_chunk": True,
                     "model_name": model_name,
                 })
-            await _finalize_anonymous_reservation(
-                service,
-                reservation.request_id,
-                actual_credits=actual_credits,
-                path="sse",
-            )
-            finalized = True
             yield _anonymous_sse_event({
                 "type": "ai_task_ended",
                 "chatId": payload.client_chat_id,
@@ -406,16 +440,15 @@ async def anonymous_chat_stream(
                 user_message=payload.plaintext_message,
                 assistant=full_content,
             ))
-        except Exception as exc:
-            if reservation is not None and not finalized:
-                await service.release_reservation(reservation.request_id, reason="ai_error")
+        except Exception:
+            logger.exception("Anonymous streaming inference failed")
             yield _anonymous_sse_event({
                 "type": "ai_message_chunk",
                 "task_id": task_id,
                 "chat_id": payload.client_chat_id,
                 "message_id": assistant_message_id,
                 "user_message_id": payload.client_message_id,
-                "full_content_so_far": f"Error: {exc}",
+                "full_content_so_far": ANONYMOUS_INFERENCE_ERROR_MESSAGE,
                 "sequence": sequence + 1,
                 "is_final_chunk": True,
                 "model_name": model_name,
@@ -456,27 +489,6 @@ def _anonymous_post_processing_event(
         "harmful_response": 0,
         "quick_tip_slugs": [],
     }
-
-
-async def _finalize_anonymous_reservation(
-    service: AnonymousFreeUsageService,
-    reservation_id: str,
-    *,
-    actual_credits: int,
-    path: str,
-) -> None:
-    try:
-        await service.finalize_reservation(reservation_id, actual_credits=actual_credits)
-    except Exception:
-        logger.error(
-            "Anonymous free usage reservation finalization failed",
-            extra={
-                "anonymous_reservation_id": reservation_id,
-                "anonymous_actual_credits": actual_credits,
-                "anonymous_response_path": path,
-            },
-            exc_info=True,
-        )
 
 
 def _anonymous_summary_from_turn(*, user_message: str, assistant: str) -> str:

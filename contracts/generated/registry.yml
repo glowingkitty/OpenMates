@@ -160,10 +160,10 @@ contracts:
     - gui.web
     - gui.apple
   feature.billing:
-    version: 2
-    status: draft
+    version: 4
+    status: approved
     path: features/billing
-    fingerprint: 72c6f4b61eb2b3f39b9e1d78b4c238aea3aecf3437c58355e68c4f93f7424de3
+    fingerprint: af92c46be898ed16918df1c73536deb76452a238a2bf091fd184c3a4c55eff56
     required_surfaces:
     - rest_api
     - cli
@@ -1785,7 +1785,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.access.authenticated-first-party:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: security
     fingerprint: d67b4c386c13b9852fc9533d9024e812aab2624b3f0ccd2b3c71536282ef9ffe
@@ -1797,7 +1797,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.idempotent-charge:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: invariant
     fingerprint: 9f5cb264083e51dfae195b321a5d8d83e2e53b052b8dc105d2dbf6614ee4aaeb
@@ -1809,7 +1809,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.encrypted-authority-cache-projection:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: invariant
     fingerprint: f2be2d961a502c6e8527ba1dd6fc38e1f1bb86b98f1f5f179a74c95351fa9ed9
@@ -1821,7 +1821,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.retryable-completion-safe:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: failure
     fingerprint: fe44b5648a14e02a8ca0300e49c165c737299d41098f167f4750f02bf931191b
@@ -1833,7 +1833,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.credits.minimal-durable-io:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: invariant
     fingerprint: 04817469059265eabd76462434005d9e763fa0dcff21164b0607f0ff3eef5172
@@ -1844,8 +1844,20 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  billing.anonymous.hard-capped-provider-metering:
+    contract: feature.billing@4
+    contract_id: feature.billing
+    type: security
+    fingerprint: 48682671cd5f235888317144803f78679f7eb6640ad755de742fc6e61c33bef0
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   billing.purchase.provider-routing:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: behavior
     fingerprint: 56ec0aa527a77dfb773342710b892f41ad20410be767e3efc5d80f75d79eed74
@@ -1857,7 +1869,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.documents.visible-downloadable:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: behavior
     fingerprint: 87fa9e3b2eec4f4c87961f75f790213fa574a87aa3c1eadf7a5809036dbcac7d
@@ -1868,8 +1880,20 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  billing.documents.storage-degradation-resilient:
+    contract: feature.billing@4
+    contract_id: feature.billing
+    type: behavior
+    fingerprint: f4e5cc0e6447e49d7374d4c1a24b3cd2137fe2db8d1fad0ffea30cbbb5509fe6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   billing.bank-transfer.pending-visible:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: behavior
     fingerprint: 86add96bf1e4368121702728d49213af83732e1f61c30db7eaee157490b78865
@@ -1881,7 +1905,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.usage.receipt-token-breakdown:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: behavior
     fingerprint: d1eb6faaea84c8fe0ff4833fc12fda758d440eacd1b9d1953bc6837723bcdc44
@@ -1893,7 +1917,7 @@ assertions:
     - gui.web
     - gui.apple
   billing.self-host.cloud-guard:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: invariant
     fingerprint: 83caa7779c71255787cb29622c407eaa74bb8173e96f9257cba1e66dfbbe109b
@@ -1905,10 +1929,10 @@ assertions:
     - gui.web
     - gui.apple
   billing.surface.semantic-parity:
-    contract: feature.billing@2
+    contract: feature.billing@4
     contract_id: feature.billing
     type: parity
-    fingerprint: c6e34ddf6111f56b73089bb216b37237674bd54011945e623c0cd5cd9a662d07
+    fingerprint: 1fb09ae8750bf1e4cddf7b53fcd4f31cb438b67bb536988eb8ac44a6963c4f62
     required_surfaces:
     - rest_api
     - cli

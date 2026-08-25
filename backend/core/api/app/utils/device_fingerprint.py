@@ -26,7 +26,12 @@ def _is_valid_ip_format(ip: str) -> bool:
         return False
 
 def _extract_client_ip(headers: Mapping[str, str], client_host: Optional[str]) -> str:
-    """Internal helper to extract client IP from headers and host."""
+    """Extract client IP while trusting forwarding headers only from local proxies."""
+    if client_host and _is_valid_ip_format(client_host):
+        peer = ipaddress.ip_address(client_host)
+        if not (peer.is_private or peer.is_loopback):
+            return client_host
+
     ip_candidates = [
         headers.get("x-real-ip", ""),
         headers.get("x-forwarded-for", "").split(",")[0].strip(),
@@ -143,16 +148,26 @@ def parse_user_agent(user_agent: str) -> Tuple[str, str, str, str, str]:
         logger.error("The 'user-agents' library is not installed. Please install it: pip install user-agents")
         browser_name, browser_version, os_name, os_version, device_type = "Unknown", "Unknown", "Unknown", "Unknown", "desktop"
         ua_lower = user_agent.lower()
-        if "mobile" in ua_lower or "iphone" in ua_lower or "android" in ua_lower: device_type = "mobile"
-        elif "tablet" in ua_lower or "ipad" in ua_lower: device_type = "tablet"
-        if "firefox" in ua_lower: browser_name = "Firefox"
-        elif "chrome" in ua_lower: browser_name = "Chrome"
-        elif "safari" in ua_lower: browser_name = "Safari"
-        if "windows" in ua_lower: os_name = "Windows"
-        elif "mac os" in ua_lower: os_name = "MacOS"
-        elif "linux" in ua_lower: os_name = "Linux"
-        elif "android" in ua_lower: os_name = "Android"
-        elif "iphone" in ua_lower or "ipad" in ua_lower: os_name = "iOS"
+        if "mobile" in ua_lower or "iphone" in ua_lower or "android" in ua_lower:
+            device_type = "mobile"
+        elif "tablet" in ua_lower or "ipad" in ua_lower:
+            device_type = "tablet"
+        if "firefox" in ua_lower:
+            browser_name = "Firefox"
+        elif "chrome" in ua_lower:
+            browser_name = "Chrome"
+        elif "safari" in ua_lower:
+            browser_name = "Safari"
+        if "windows" in ua_lower:
+            os_name = "Windows"
+        elif "mac os" in ua_lower:
+            os_name = "MacOS"
+        elif "linux" in ua_lower:
+            os_name = "Linux"
+        elif "android" in ua_lower:
+            os_name = "Android"
+        elif "iphone" in ua_lower or "ipad" in ua_lower:
+            os_name = "iOS"
         return browser_name, browser_version, os_name, os_version, device_type
     except Exception as e:
         logger.error(f"Error parsing user agent '{user_agent}': {e}", exc_info=True)

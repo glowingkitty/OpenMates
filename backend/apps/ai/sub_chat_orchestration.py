@@ -348,6 +348,8 @@ async def dispatch_sub_chat_task(
             "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
             "orchestration_credit_limit": request_data.orchestration_credit_limit,
             "orchestration_approved": request_data.orchestration_approved,
+            "is_anonymous": bool(getattr(request_data, "is_anonymous", False)),
+            "anonymous_reservation_id": getattr(request_data, "anonymous_reservation_id", None),
             "is_incognito": request_data.is_incognito,
             "is_external": request_data.is_external,
             "mate_id": "george",

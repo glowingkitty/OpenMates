@@ -2557,6 +2557,23 @@ async def _charge_credits(
         raise
 
 
+async def _settle_anonymous_ai_credits(task_id: str, request_data: AskSkillRequest, credits: int) -> None:
+    """Settle main-model usage against quotes reserved before each iteration."""
+    if not request_data.anonymous_reservation_id:
+        raise RuntimeError("Anonymous AI settlement is missing its request reservation")
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+    charge_id = f"ai-ask:{task_id}:main"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{INTERNAL_API_BASE_URL}/internal/anonymous-usage/finalize-charge",
+            json={"charge_id": charge_id, "actual_credits": credits},
+            headers=headers,
+        )
+        response.raise_for_status()
+
+
 async def _update_chat_metadata(
     request_data: AskSkillRequest,
     category: str,
@@ -3086,8 +3103,9 @@ async def _handle_normal_billing(
     if getattr(request_data, "is_anonymous", False):
         logger.info(
             f"{log_prefix} Anonymous free-usage request calculated {credits_charged} credits. "
-            "Skipping user-balance charge; caller will finalize the shared anonymous budget."
+            "Settling against the shared anonymous operation budget."
         )
+        await _settle_anonymous_ai_credits(task_id, request_data, credits_charged)
     else:
         await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
     
