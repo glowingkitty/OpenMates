@@ -64,16 +64,16 @@ enum RealAccountUITestSupport {
 
         let emailInput = app.textFields["email-input"]
         XCTAssertTrue(emailInput.waitForExistence(timeout: 10))
-        emailInput.tap()
-        emailInput.typeText(credentials.email)
+        guard focusForTextEntry(emailInput, in: app, identifier: "email-input") else { return }
+        app.typeText(credentials.email)
 
         let continueButton = app.buttons["continue-button"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
         continueButton.tap()
 
         let passwordInput = waitForPasswordInput(app: app)
-        passwordInput.tap()
-        passwordInput.typeText(credentials.password)
+        guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+        app.typeText(credentials.password)
 
         submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
 
@@ -228,9 +228,9 @@ enum RealAccountUITestSupport {
         let offsets = [0, -1, 1, 0, -1]
         for (index, offset) in offsets.enumerated() {
             waitPastTotpBoundaryIfNeeded()
-            tfaInput.tap()
-            clearOtpCode(in: tfaInput)
-            tfaInput.typeText(TOTP.generate(secret: credentials.otpKey, windowOffset: offset))
+            guard focusForTextEntry(tfaInput, in: app, identifier: "tfa-code-input") else { return }
+            clearOtpCode(in: tfaInput, app: app)
+            app.typeText(TOTP.generate(secret: credentials.otpKey, windowOffset: offset))
             loginButton.tap()
 
             if waitForMessageEditor(in: app, timeout: 12) != nil {
@@ -301,11 +301,29 @@ enum RealAccountUITestSupport {
         sleep(UInt32(30 - secondsIntoWindow + 2))
     }
 
-    private static func clearOtpCode(in element: XCUIElement) {
+    private static func focusForTextEntry(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        identifier: String
+    ) -> Bool {
+        let focusedElement = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ AND hasKeyboardFocus == true", identifier))
+            .firstMatch
+        for _ in 0..<3 {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            if focusedElement.waitForExistence(timeout: 1) {
+                return true
+            }
+        }
+        XCTFail("Expected \(identifier) to receive keyboard focus")
+        return false
+    }
+
+    private static func clearOtpCode(in element: XCUIElement, app: XCUIApplication) {
         guard let value = element.value as? String else { return }
         let digitCount = value.filter(\.isNumber).count
         guard digitCount > 0 else { return }
-        element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: min(max(digitCount, 6), 12)))
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: min(max(digitCount, 6), 12)))
     }
 }
 
