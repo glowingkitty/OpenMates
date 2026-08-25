@@ -245,6 +245,33 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertTrue(state.isActive)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.streaming.ordered-final,chats.message.identity-idempotent
+    func testMessageReadyBeforeCurrentAssistantIdentityIsRejected() {
+        var state = ChatStreamingLifecycleState()
+        state.apply(.taskInitiated(chatId: "chat-1", taskId: "task-new", userMessageId: "user-new"))
+
+        XCTAssertFalse(state.apply(.messageReady(chatId: "chat-1", messageId: "assistant-old")))
+        XCTAssertEqual(state.phase, .sending)
+        XCTAssertNil(state.messageId)
+        XCTAssertTrue(state.isActive)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.ordered-final
+    func testReplacedSocketCallbacksCannotActOnCurrentConnection() {
+        XCTAssertTrue(WebSocketManager.isCurrentSocket(
+            callbackTaskIdentifier: 12,
+            currentTaskIdentifier: 12
+        ))
+        XCTAssertFalse(WebSocketManager.isCurrentSocket(
+            callbackTaskIdentifier: 11,
+            currentTaskIdentifier: 12
+        ))
+        XCTAssertFalse(WebSocketManager.isCurrentSocket(
+            callbackTaskIdentifier: 12,
+            currentTaskIdentifier: nil
+        ))
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation
     func testTerminalEventClearsStreamingMessageSelectionBeforeNextSend() {
         let viewModel = ChatViewModel()
