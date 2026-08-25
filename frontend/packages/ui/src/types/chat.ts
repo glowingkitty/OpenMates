@@ -1017,6 +1017,7 @@ export interface SyncEmbed {
   embed_type?: string; // Alternative field name for type
   status?: string;
   hashed_chat_id?: string;
+  hashed_message_id?: string;
   hashed_user_id?: string;
   // Additional optional properties for full embed sync support
   embed_ids?: string[]; // For composite embeds (app_skill_use)
