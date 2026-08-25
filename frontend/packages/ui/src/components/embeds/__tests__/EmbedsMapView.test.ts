@@ -16,8 +16,13 @@ const embedResolverMocks = vi.hoisted(() => ({
 
 const embedStoreMocks = vi.hoisted(() => ({
   resolveByRefDeep: vi.fn(),
-  subscribe: vi.fn((run: (value: number) => void) => {
+  subscribeRefIndex: vi.fn((run: (value: number) => void) => {
     (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex = run;
+    run(0);
+    return () => undefined;
+  }),
+  subscribeAvailability: vi.fn((run: (value: number) => void) => {
+    (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability = run;
     run(0);
     return () => undefined;
   }),
@@ -33,7 +38,10 @@ vi.mock("../../../services/embedStore", () => ({
     resolveByRefDeep: embedStoreMocks.resolveByRefDeep,
   },
   embedRefIndexVersion: {
-    subscribe: embedStoreMocks.subscribe,
+    subscribe: embedStoreMocks.subscribeRefIndex,
+  },
+  embedAvailabilityVersion: {
+    subscribe: embedStoreMocks.subscribeAvailability,
   },
 }));
 vi.mock("../../../services/embedFullscreenController", () => fullscreenMocks);
@@ -51,6 +59,7 @@ describe("EmbedsMapView", () => {
     embedStoreMocks.resolveByRefDeep.mockReset();
     fullscreenMocks.dispatchEmbedFullscreen.mockReset();
     delete (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex;
+    delete (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;
 
     embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => {
       const map: Record<string, string> = {
@@ -639,6 +648,45 @@ describe("EmbedsMapView", () => {
     expect(target.querySelector('[data-testid="embeds-map-view-count"]')?.textContent).toContain("2 shown");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
     expect(target.textContent).not.toContain("Loading referenced embeds...");
+
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.credits.retryable-completion-safe
+  it("retries unresolved source refs when synced embeds become available", async () => {
+    const defaultResolveEmbed = embedResolverMocks.resolveEmbed.getMockImplementation();
+    let sourceAvailable = false;
+    embedResolverMocks.resolveEmbed.mockImplementation(async (embedId: string) => {
+      if (embedId === "source-embed-id" && !sourceAvailable) return null;
+      return defaultResolveEmbed?.(embedId) ?? null;
+    });
+
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, {
+      target,
+      props: {
+        id: "map-view-embed-availability",
+        title: "Berlin AI events",
+        embedRefs: [],
+        sourceRefs: ["events-search-abcdef"],
+        highlightRefs: [],
+      },
+    });
+
+    await flush();
+    expect(target.textContent).toContain("Waiting for source results");
+
+    sourceAvailable = true;
+    const emitAvailability = (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;
+    expect(emitAvailability).toBeTypeOf("function");
+    emitAvailability?.(1);
+    await flush();
+
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"][data-entry-status="ready"]')).toHaveLength(2);
+    expect(target.textContent).not.toContain("Waiting for source results");
+    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-marker-count")).not.toBe("0");
 
     unmount(component);
     target.remove();

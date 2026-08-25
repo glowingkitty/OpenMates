@@ -11,7 +11,7 @@
   import { onDestroy, onMount } from 'svelte';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
-  import { embedRefIndexVersion, embedStore } from '../../services/embedStore';
+  import { embedAvailabilityVersion, embedRefIndexVersion, embedStore } from '../../services/embedStore';
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
   import { incrementStreamingRenderMetric } from '../../message_parsing/streamingRenderMetrics';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
@@ -130,11 +130,13 @@
   let shouldHydrateMap = $state(false);
   let mapShellElement = $state<HTMLDivElement | null>(null);
   let unsubscribeRefIndex: (() => void) | null = null;
+  let unsubscribeEmbedAvailability: (() => void) | null = null;
   let mapHydrationObserver: IntersectionObserver | null = null;
   let mapHydrationTimer: ReturnType<typeof setTimeout> | null = null;
   let mapHydrationIdleCallback: number | null = null;
   let selectedRef = $state<string | null>(null);
   let lastRefIndexVersion = -1;
+  let lastEmbedAvailabilityVersion = -1;
   let loadGeneration = 0;
 
   const entryCache = new Map<string, { signature: string; entry: MapViewEntry }>();
@@ -1070,7 +1072,6 @@
   }
 
   onMount(() => {
-    void loadEntries();
     unsubscribeRefIndex = embedRefIndexVersion.subscribe((version) => {
       if (lastRefIndexVersion === -1) {
         lastRefIndexVersion = version;
@@ -1081,11 +1082,24 @@
         if (isLoading || entries.some((entry) => entry.status !== 'ready')) void loadEntries();
       }
     });
+    unsubscribeEmbedAvailability = embedAvailabilityVersion.subscribe((version) => {
+      if (lastEmbedAvailabilityVersion === -1) {
+        lastEmbedAvailabilityVersion = version;
+        return;
+      }
+      if (version !== lastEmbedAvailabilityVersion) {
+        lastEmbedAvailabilityVersion = version;
+        if (isLoading || entries.some((entry) => entry.status !== 'ready')) void loadEntries();
+      }
+    });
+    void loadEntries();
   });
 
   onDestroy(() => {
     unsubscribeRefIndex?.();
     unsubscribeRefIndex = null;
+    unsubscribeEmbedAvailability?.();
+    unsubscribeEmbedAvailability = null;
     mapHydrationObserver?.disconnect();
     mapHydrationObserver = null;
     if (mapHydrationTimer) clearTimeout(mapHydrationTimer);

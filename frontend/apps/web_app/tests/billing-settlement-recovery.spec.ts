@@ -137,6 +137,9 @@ test.describe('Billing settlement recovery', () => {
 		await expect(reloadedMapView).toBeVisible({ timeout: 60_000 });
 		await expect(reloadedMapView.getByTestId('embeds-map-view-count')).not.toHaveText('0 shown', { timeout: 60_000 });
 		await expect(reloadedMapView.getByText('Loading referenced embeds...')).toHaveCount(0);
+		await expect(reloadedMapView.locator('[data-testid="embeds-map-view-card"][data-entry-status="loading"]')).toHaveCount(0, { timeout: 60_000 });
+		await expect(reloadedMapView.getByText('Waiting for source results')).toHaveCount(0);
+		await expect(reloadedMapView.getByTestId('embeds-map-view-map')).not.toHaveAttribute('data-marker-count', '0');
 		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
 		if (proof) {
 			await reloadedAssistant.evaluate((element: HTMLElement) => {
