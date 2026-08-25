@@ -125,7 +125,13 @@ test.describe('Billing settlement recovery', () => {
 			await proof.checkpoint('response-completed');
 		}
 
-		await page.reload({ waitUntil: 'domcontentloaded' });
+		if (proof) {
+			await proof.action('reload-completed-chat', async () => {
+				await page.reload({ waitUntil: 'domcontentloaded' });
+			});
+		} else {
+			await page.reload({ waitUntil: 'domcontentloaded' });
+		}
 		await expect(page.getByTestId('message-user').last()).toContainText(REQUEST_ANCHOR, { timeout: 60_000 });
 		const reloadedAssistant = page.getByTestId('message-content').last();
 		await expect(reloadedAssistant).toHaveAttribute('data-streaming', 'false', { timeout: 60_000 });
