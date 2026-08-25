@@ -475,6 +475,7 @@ def test_weekly_rollup_groups_daily_items_and_preserves_dates(tmp_path: Path) ->
     unreleased = weekly["unreleased_progress"]["dev_only"][0]
     assert unreleased["date"] == "2026-07-07"
     assert unreleased["title"] == "feat: link package listings from settings footer"
+    assert weekly["sources"]["daily_files"] == ["docs/releases/daily/2026-07-06.yml", "docs/releases/daily/2026-07-07.yml"]
 
 
 def test_weekly_yaml_output_round_trips(tmp_path: Path) -> None:
@@ -595,16 +596,73 @@ def test_release_summary_markdown_prioritizes_llm_interpretation() -> None:
     assert "changed_paths" not in rendered
 
 
+def test_deterministic_summary_keeps_release_status_boundaries() -> None:
+    artifact = build_daily_artifact(
+        commits=[
+            CommitChange(
+                sha="1111111111111111111111111111111111111111",
+                short_sha="1111111",
+                authored_at="2026-08-21T08:00:00+00:00",
+                subject="fix: restore chat reconnects",
+                body="",
+                changed_paths=["frontend/packages/ui/src/components/ChatHistory.svelte"],
+                in_main=True,
+                in_dev=True,
+            ),
+            CommitChange(
+                sha="2222222222222222222222222222222222222222",
+                short_sha="2222222",
+                authored_at="2026-08-21T09:00:00+00:00",
+                subject="feat: prepare native chat parity",
+                body="",
+                changed_paths=["apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"],
+                in_main=False,
+                in_dev=True,
+            ),
+        ],
+        report_date=date(2026, 8, 21),
+        since="2026-08-21T00:00:00+00:00",
+        from_ref=None,
+        to_ref="origin/dev",
+        assume_released=False,
+    )
+
+    summary = _release_intelligence.build_deterministic_summary(build_daily_llm_source(artifact))
+
+    assert summary["bug_fixes"][0]["evidence"]["commits"] == ["1111111"]
+    assert summary["unreleased_progress"][0]["evidence"]["commits"] == ["2222222"]
+    assert summary["newsletter_recommendation"]["include"]
+
+
 def test_release_intelligence_cron_wrapper_documents_all_modes() -> None:
     wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
 
-    env_source = wrapper.index('. "$PROJECT_ROOT/.env"')
+    env_source = wrapper.index('. "$SOURCE_ROOT/.env"')
     assert wrapper.rfind("set +u", 0, env_source) != -1
     assert wrapper.find("set -u", env_source) != -1
     assert "run_daily" in wrapper
     assert "run_weekly" in wrapper
-    assert "--discord" in wrapper
+    assert "notify-weekly" in wrapper
     assert "run_monthly" in wrapper
+
+
+def test_release_intelligence_cron_publishes_from_isolated_checkout() -> None:
+    wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
+
+    assert "mktemp -d" in wrapper
+    assert "flock" in wrapper
+    assert "git clone" in wrapper
+    assert "refresh_daily_range" in wrapper
+    assert "sessions.py\" lock" in wrapper
+    assert 'SHARED_LOCK_OWNER="release-intelligence-cron-$(hostname)-$$"' in wrapper
+    assert "dev changed during generation" in wrapper
+    assert "git push --quiet origin HEAD:dev" in wrapper
+    assert "remote dev did not reach generated commit" in wrapper
+    assert "gh pr create" not in wrapper
+    assert 'WEEKLY_ARTIFACT="docs/releases/weekly/' in wrapper
+    assert wrapper.index("sessions.py\" lock") < wrapper.index('if [[ -z "$changes" ]]')
+    assert "dev changed before weekly notification; refusing stale Discord post" in wrapper
+    assert wrapper.index("publish_artifacts") < wrapper.rindex("notify-weekly")
 
 
 def test_create_pr_skill_requires_feature_readiness_gate() -> None:

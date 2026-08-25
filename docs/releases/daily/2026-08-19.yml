@@ -1,12 +1,12 @@
 schema_version: 1
 cadence: daily
 date: '2026-08-19'
-generated_at: '2026-08-20T00:20:02+00:00'
+generated_at: '2026-08-25T12:43:50+00:00'
 range:
   since: '2026-08-19T00:00:00+00:00'
   until: '2026-08-20T00:00:00+00:00'
   from_ref: null
-  to_ref: HEAD
+  to_ref: origin/dev
   assume_released: false
 summary:
   total_commits: 0
@@ -184,7 +184,8 @@ risks:
 sources:
   commits: []
 llm_summary:
-  overview: No development activity or commits were recorded for OpenMates on August 19, 2026.
+  status: deterministic
+  overview: Deterministic release summary generated from 0 structured change items.
   released_changes: []
   bug_fixes: []
   unreleased_progress: []
@@ -192,8 +193,8 @@ llm_summary:
   newsletter_recommendation:
     include: []
     exclude: []
-    rationale: No changes were recorded during this period to recommend for communication.
+    rationale: Only deterministically released and communication-ready items are included.
   social_video_recommendations: []
   quality_notes:
-  - No changes were submitted to the repository during this 24-hour window.
+  - Generated without LLM interpretation; review grouped commit titles before publication.
   validation_warnings: []

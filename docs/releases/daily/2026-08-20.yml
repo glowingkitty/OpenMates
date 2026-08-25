@@ -1,27 +1,27 @@
 schema_version: 1
 cadence: daily
 date: '2026-08-20'
-generated_at: '2026-08-21T00:20:03+00:00'
+generated_at: '2026-08-25T12:43:54+00:00'
 range:
   since: '2026-08-20T00:00:00+00:00'
   until: '2026-08-21T00:00:00+00:00'
   from_ref: null
-  to_ref: HEAD
+  to_ref: origin/dev
   assume_released: false
 summary:
-  total_commits: 18
+  total_commits: 75
   section_counts:
-    features: 0
-    bug_fixes: 10
+    features: 4
+    bug_fixes: 30
     improvements: 0
-    docs: 0
-    tests: 8
+    docs: 2
+    tests: 31
     infrastructure: 0
-    internal: 0
+    internal: 8
     other: 0
-  newsletter_ready_items: 0
-  user_facing_items: 8
-  dev_only_items: 18
+  newsletter_ready_items: 20
+  user_facing_items: 20
+  dev_only_items: 0
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -161,8 +161,574 @@ feature_availability:
   communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
     recommendations.
 sections:
-  features: []
+  features:
+  - title: 'feat: add events newsletter preview'
+    section: features
+    commits:
+    - 1bb874f83
+    authored_at: '2026-08-20T18:10:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/newsletter.py
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    - backend/core/api/app/utils/newsletter_utils.py
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/scripts/send_newsletter.py
+    - backend/shared/python_utils/events_newsletter_generator.py
+    - backend/shared/python_utils/openmates_event_registry.py
+    - backend/tests/test_events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_render.py
+    - backend/tests/test_newsletter_categories.py
+    - backend/tests/test_openmates_event_registry.py
+    - backend/tests/test_openmates_events_web_generation.py
+    - contracts/features/newsletter-campaigns/contract.yml
+    - contracts/features/newsletter-campaigns/examples.yml
+    - contracts/features/newsletter/contract.yml
+    - contracts/features/newsletter/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/automated-events-newsletter/spec.yml
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/static/event-assets/openmates/ai-everyday-tasks-webinar-2026-08-27.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-09-10.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-08-25.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-teams-webinar-2026-09-03.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/self-hosting-webinar-2026-09-15.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/spec-driven-development-webinar-2026-09-08.jpg
+    - frontend/packages/ui/src/data/__tests__/openmatesEvents.test.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - scripts/generate_openmates_events.py
+    - scripts/verify_newsletter_categories.py
+    - shared/events/assets/newsletter/events-newsletter-card_ai_for_everyday_tasks.png
+    - shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png
+    - shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png
+    - shared/events/assets/newsletter/events-newsletter-card_community_hour.png
+    - shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png
+    - shared/events/assets/newsletter/events-newsletter-card_intro_to_self_hosting_your_ai_agents.png
+    - shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png
+    - shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.svg
+    - shared/events/assets/newsletter/events-newsletter-header_en.png
+    - shared/events/assets/newsletter/events-newsletter-header_en.svg
+    - shared/events/assets/newsletter/generate_header_assets.py
+    - shared/events/assets/newsletter/header_design.json
+    - shared/events/openmates_events.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add deterministic proof video architecture'
+    section: features
+    commits:
+    - 19cda5d28
+    authored_at: '2026-08-20T15:29:31+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - contracts/generated/assertion-index.yml
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    - pnpm-lock.yaml
+    - pnpm-workspace.yaml
+    - scripts/audit_cli_e2e_recording.py
+    - scripts/cli_video_capture.py
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_cli_e2e_recording_audit.py
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    - tooling/proof-video-remotion/package.json
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/index.ts
+    - tooling/proof-video-remotion/src/render.mjs
+    - tooling/proof-video-remotion/src/types.ts
+    - tooling/proof-video-remotion/tsconfig.json
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: scope web chats to Team context'
+    section: features
+    commits:
+    - bf1bbd22e
+    authored_at: '2026-08-20T13:36:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/stores/__tests__/teamStore.test.ts
+    - frontend/packages/ui/src/stores/teamStore.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/verify_teams_cli_common.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: add post-update quick server tests'
+    section: features
+    commits:
+    - c95e98dcb
+    authored_at: '2026-08-20T13:26:48+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/__init__.py
+    - backend/apps/ai/tasks/runtime_health_probe_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/post-update-quick-server-tests/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverQuickTest.ts
+    - frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
+    - scripts/verify_post_update_quick_server_test.mjs
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
   bug_fixes:
+  - title: 'fix: retain Team keys when reading chats'
+    section: bug_fixes
+    commits:
+    - 01a7a0334
+    authored_at: '2026-08-20T20:39:58+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve Team chat key wrapping'
+    section: bug_fixes
+    commits:
+    - e7f3c8265
+    authored_at: '2026-08-20T20:07:49+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: validate Team chat key wrappers'
+    section: bug_fixes
+    commits:
+    - b4d299b20
+    authored_at: '2026-08-20T19:45:06+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: scan rendered web proof geometry'
+    section: bug_fixes
+    commits:
+    - b16fb5e55
+    authored_at: '2026-08-20T19:07:26+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: supersede stale phased sync work'
+    section: bug_fixes
+    commits:
+    - e444de4ba
+    authored_at: '2026-08-20T18:22:00+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prerender OpenMates event pages'
+    section: bug_fixes
+    commits:
+    - d4a6ea2b1
+    authored_at: '2026-08-20T18:21:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: attest proof checkpoint frames'
+    section: bug_fixes
+    commits:
+    - 0df9ab922
+    authored_at: '2026-08-20T18:05:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.ts
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/render.mjs
+    - tooling/proof-video-remotion/src/types.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align proof tutorial timing'
+    section: bug_fixes
+    commits:
+    - 08ae7b16d
+    authored_at: '2026-08-20T17:21:35+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: compare proof provenance blobs'
+    section: bug_fixes
+    commits:
+    - cddb48524
+    authored_at: '2026-08-20T17:02:14+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: scope proof provenance to session files'
+    section: bug_fixes
+    commits:
+    - edd0f08da
+    authored_at: '2026-08-20T16:59:25+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: verify reusable proof worktrees'
+    section: bug_fixes
+    commits:
+    - e006d9e69
+    authored_at: '2026-08-20T16:57:52+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve descendant proof evidence'
+    section: bug_fixes
+    commits:
+    - 10019329f
+    authored_at: '2026-08-20T16:54:03+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: Fix runtime health verification stalls
+    section: bug_fixes
+    commits:
+    - 4cae2a9ff
+    authored_at: '2026-08-20T16:52:28+00:00'
+    changed_paths:
+    - backend/core/directus/Dockerfile
+    - backend/core/docker-compose.yml
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: notify on skipped daily tests'
+    section: bug_fixes
+    commits:
+    - f2f59c574
+    authored_at: '2026-08-20T16:18:33+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: canonicalize WebSocket session identity'
+    section: bug_fixes
+    commits:
+    - e8df33c2b
+    authored_at: '2026-08-20T16:06:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/auth_ws.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/tests/test_cache_session_identity.py
+    - contracts/generated/assertion-index.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: persist inline proof timelines'
+    section: bug_fixes
+    commits:
+    - 3fb656527
+    authored_at: '2026-08-20T16:00:32+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve Team scope through chat preflight'
+    section: bug_fixes
+    commits:
+    - 561b0dae8
+    authored_at: '2026-08-20T14:40:24+00:00'
+    changed_paths:
+    - backend/tests/test_chat_turn_preflight.py
+    - backend/tests/test_team_chat_pagination.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: isolate Team chat pagination'
+    section: bug_fixes
+    commits:
+    - ed977ac5c
+    authored_at: '2026-08-20T14:27:05+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_metadata_chats_handler.py
+    - backend/tests/test_team_chat_pagination.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep settings content above footer'
+    section: bug_fixes
+    commits:
+    - 8e025b0d1
+    authored_at: '2026-08-20T14:00:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/styles/settings.css
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prevent settings content from collapsing'
+    section: bug_fixes
+    commits:
+    - a6a7f6838
+    authored_at: '2026-08-20T13:39:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
   - title: 'fix: clean up failed passkey sessions'
     section: bug_fixes
     commits:
@@ -170,16 +736,16 @@ sections:
     authored_at: '2026-08-20T13:18:48+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/Login.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep chat loading state below header'
     section: bug_fixes
     commits:
@@ -187,16 +753,16 @@ sections:
     authored_at: '2026-08-20T13:11:22+00:00'
     changed_paths:
     - frontend/packages/ui/src/components/ActiveChat.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: clear late passkey sessions on cancellation'
     section: bug_fixes
     commits:
@@ -206,16 +772,16 @@ sections:
     - frontend/packages/ui/src/components/EmailLookup.svelte
     - frontend/packages/ui/src/components/Login.svelte
     - frontend/packages/ui/src/i18n/sources/login/main.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: abort full passkey login before switching'
     section: bug_fixes
     commits:
@@ -226,16 +792,16 @@ sections:
     - frontend/packages/ui/src/components/EmailLookup.svelte
     - frontend/packages/ui/src/components/Login.svelte
     - frontend/packages/ui/src/i18n/sources/login/main.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep active settings controls clickable'
     section: bug_fixes
     commits:
@@ -244,16 +810,16 @@ sections:
     changed_paths:
     - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
     - frontend/packages/ui/src/components/Settings.svelte
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: persist encrypted Team CLI attachments'
     section: bug_fixes
     commits:
@@ -264,16 +830,16 @@ sections:
     - backend/tests/test_teams_chat_ai.py
     - contracts/generated/assertion-index.yml
     - frontend/packages/openmates-cli/src/client.ts
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: keep login alternatives available during passkey'
     section: bug_fixes
     commits:
@@ -282,16 +848,16 @@ sections:
     changed_paths:
     - frontend/packages/ui/src/components/Login.svelte
     - frontend/packages/ui/src/i18n/sources/login/main.yml
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: Fix persistence queue backlog regression
     section: bug_fixes
     commits:
@@ -305,7 +871,7 @@ sections:
     - backend/tests/test_pending_embed_cache.py
     - backend/tests/test_persistence_tasks.py
     - contracts/generated/assertion-index.yml
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -313,7 +879,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: send encrypted Team CLI turns'
     section: bug_fixes
     commits:
@@ -325,16 +891,16 @@ sections:
     - contracts/generated/assertion-index.yml
     - frontend/packages/openmates-cli/src/client.ts
     - scripts/verify_teams_sdk_billing.py
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
     user_facing: true
     related_features: []
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'fix: restore half-bound OpenCode sessions'
     section: bug_fixes
     commits:
@@ -343,7 +909,7 @@ sections:
     changed_paths:
     - scripts/sessions.py
     - scripts/tests/test_sessions_native_worktree_lifecycle.py
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -351,10 +917,423 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as bug fixes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   improvements: []
-  docs: []
+  docs:
+  - title: Record focused proof-video evidence
+    section: docs
+    commits:
+    - 662eb3591
+    authored_at: '2026-08-20T22:31:05+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: Record quick server test evidence
+    section: docs
+    commits:
+    - 7ccdb0746
+    authored_at: '2026-08-20T14:22:59+00:00'
+    changed_paths:
+    - docs/specs/post-update-quick-server-tests/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
   tests:
+  - title: 'test: avoid PII-shaped Team nonce'
+    section: tests
+    commits:
+    - 8a0532b2d
+    authored_at: '2026-08-20T20:53:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: identify Team key guard rejection'
+    section: tests
+    commits:
+    - 090e55d58
+    authored_at: '2026-08-20T20:21:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align event CTA assertion'
+    section: tests
+    commits:
+    - d23befc48
+    authored_at: '2026-08-20T19:24:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose Team transport failure stage'
+    section: tests
+    commits:
+    - f95d515ce
+    authored_at: '2026-08-20T19:23:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: align event embed locator'
+    section: tests
+    commits:
+    - b00aac8cf
+    authored_at: '2026-08-20T19:10:19+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize Team new chat transport proof'
+    section: tests
+    commits:
+    - 684db9dc8
+    authored_at: '2026-08-20T18:56:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: relax event SEO canonical assertion'
+    section: tests
+    commits:
+    - 2a5ec547e
+    authored_at: '2026-08-20T18:55:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: capture settled actionable proof'
+    section: tests
+    commits:
+    - cf0a77c50
+    authored_at: '2026-08-20T18:53:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover OpenMates event pages'
+    section: tests
+    commits:
+    - 15a2e4316
+    authored_at: '2026-08-20T18:41:17+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: capture settled privacy proof'
+    section: tests
+    commits:
+    - ec70d2eb4
+    authored_at: '2026-08-20T18:30:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for visible privacy proof'
+    section: tests
+    commits:
+    - 169b8172d
+    authored_at: '2026-08-20T18:19:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for Personal sync before Team switch'
+    section: tests
+    commits:
+    - 1c6558407
+    authored_at: '2026-08-20T17:52:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: correlate Team phased sync completion'
+    section: tests
+    commits:
+    - e6d4a4138
+    authored_at: '2026-08-20T17:26:44+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: wait for Team settings to close'
+    section: tests
+    commits:
+    - 94517c8a5
+    authored_at: '2026-08-20T17:01:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: remove non-portable proof chat scan'
+    section: tests
+    commits:
+    - '375235149'
+    authored_at: '2026-08-20T15:30:53+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: select proof chats from rendered content'
+    section: tests
+    commits:
+    - 8d9bcf755
+    authored_at: '2026-08-20T15:12:15+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: cover encrypted Team context switching'
+    section: tests
+    commits:
+    - 55456419d
+    authored_at: '2026-08-20T15:04:48+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: expose settings footer proof state'
+    section: tests
+    commits:
+    - 1a619969e
+    authored_at: '2026-08-20T15:03:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: capture clean progressive chat proof states'
+    section: tests
+    commits:
+    - '469638735'
+    authored_at: '2026-08-20T14:56:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: backfill settings UI contract'
+    section: tests
+    commits:
+    - c1284c887
+    authored_at: '2026-08-20T14:49:07+00:00'
+    changed_paths:
+    - contracts/features/settings-ui/contract.yml
+    - contracts/features/settings-ui/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: collapse editor after cold retry'
+    section: tests
+    commits:
+    - 6b9ce9781
+    authored_at: '2026-08-20T14:22:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: collapse editor after loading layout proof'
+    section: tests
+    commits:
+    - 26affc12e
+    authored_at: '2026-08-20T14:10:14+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: allow recorded sync proof to complete'
+    section: tests
+    commits:
+    - cefe11256
+    authored_at: '2026-08-20T13:45:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
   - title: 'test: guard progressive loading layout'
     section: tests
     commits:
@@ -363,7 +1342,7 @@ sections:
     changed_paths:
     - contracts/generated/assertion-index.yml
     - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -371,7 +1350,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: capture passkey alternatives responsively'
     section: tests
     commits:
@@ -379,7 +1358,7 @@ sections:
     authored_at: '2026-08-20T11:54:32+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -387,7 +1366,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: combine progressive chat proof flow'
     section: tests
     commits:
@@ -396,7 +1375,7 @@ sections:
     changed_paths:
     - contracts/generated/assertion-index.yml
     - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -404,7 +1383,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: enter login before passkey assertion'
     section: tests
     commits:
@@ -412,7 +1391,7 @@ sections:
     authored_at: '2026-08-20T11:11:29+00:00'
     changed_paths:
     - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -420,7 +1399,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: stabilize chat settings campaign group'
     section: tests
     commits:
@@ -431,7 +1410,7 @@ sections:
     - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
     - frontend/apps/web_app/tests/fork-conversation.spec.ts
     - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -439,7 +1418,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: isolate passkey login alternatives'
     section: tests
     commits:
@@ -449,7 +1428,7 @@ sections:
     - contracts/generated/assertion-index.yml
     - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
     - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -457,7 +1436,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: cover passkey login alternatives'
     section: tests
     commits:
@@ -469,7 +1448,7 @@ sections:
     - contracts/generated/coverage.yml
     - contracts/generated/registry.yml
     - frontend/apps/web_app/tests/signup-flow-passkey.spec.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -477,7 +1456,7 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   - title: 'test: stabilize fork notification flow'
     section: tests
     commits:
@@ -491,7 +1470,7 @@ sections:
     - contracts/generated/registry.yml
     - frontend/apps/web_app/tests/fork-conversation.spec.ts
     - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
-    release_status: dev_only
+    release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -499,207 +1478,492 @@ sections:
     feature_metadata_changed: false
     rationale:
     - classified as tests from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
+    - commit is reachable from main
   infrastructure: []
-  internal: []
+  internal:
+  - title: Use public CLI proof command
+    section: internal
+    commits:
+    - 35a04d3b2
+    authored_at: '2026-08-20T22:14:15+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Finalize focused proof-video evidence
+    section: internal
+    commits:
+    - 25b7bf195
+    authored_at: '2026-08-20T22:03:00+00:00'
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Fit CLI proof catalog in terminal capture
+    section: internal
+    commits:
+    - ef7169a9c
+    authored_at: '2026-08-20T20:27:08+00:00'
+    changed_paths:
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Use frame-accurate trim for CLI proof videos
+    section: internal
+    commits:
+    - db13ebe67
+    authored_at: '2026-08-20T20:15:35+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Trim CLI proof videos to visible terminal evidence
+    section: internal
+    commits:
+    - cee8d498e
+    authored_at: '2026-08-20T20:03:24+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Use real terminal capture for CLI proof videos
+    section: internal
+    commits:
+    - 12fb3d138
+    authored_at: '2026-08-20T19:49:29+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Harden runtime health probes
+    section: internal
+    commits:
+    - d53fb4e61
+    authored_at: '2026-08-20T17:37:50+00:00'
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Add authenticated post-update quick server tests
+    section: internal
+    commits:
+    - 0e7fd3639
+    authored_at: '2026-08-20T13:58:22+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverQuickTest.ts
+    - frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
+    - scripts/verify_post_update_quick_server_test.mjs
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
   other: []
 unreleased_progress:
-  dev_only:
-  - title: 'fix: clean up failed passkey sessions'
-    commits:
-    - 6250a6877
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep chat loading state below header'
-    commits:
-    - a4d9d9cbc
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: clear late passkey sessions on cancellation'
-    commits:
-    - 9d860aa73
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: guard progressive loading layout'
-    commits:
-    - fb4acba7f
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: abort full passkey login before switching'
-    commits:
-    - 56fbec429
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep active settings controls clickable'
-    commits:
-    - 8491cea48
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: capture passkey alternatives responsively'
-    commits:
-    - 3a8becf98
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: persist encrypted Team CLI attachments'
-    commits:
-    - 21337021d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'fix: keep login alternatives available during passkey'
-    commits:
-    - a0c6999b5
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: combine progressive chat proof flow'
-    commits:
-    - 036a9dc3d
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: enter login before passkey assertion'
-    commits:
-    - 07c7fe2f3
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Fix persistence queue backlog regression
-    commits:
-    - 54b315176
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: send encrypted Team CLI turns'
-    commits:
-    - 1e256a694
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    related_features: []
-  - title: 'test: stabilize chat settings campaign group'
-    commits:
-    - 1f4deb275
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: isolate passkey login alternatives'
-    commits:
-    - e955494e4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'fix: restore half-bound OpenCode sessions'
-    commits:
-    - 43526df12
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: cover passkey login alternatives'
-    commits:
-    - 4f9e260c4
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: 'test: stabilize fork notification flow'
-    commits:
-    - 0ebc4c8be
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
+  dev_only: []
   unknown_release_status: []
-  feature_metadata_changed: []
+  feature_metadata_changed:
+  - title: 'fix: supersede stale phased sync work'
+    commits:
+    - e444de4ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: isolate Team chat pagination'
+    commits:
+    - ed977ac5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
 marketing_candidates:
-  newsletter: []
-  social_or_video:
+  newsletter:
+  - title: 'fix: supersede stale phased sync work'
+    commits:
+    - e444de4ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prerender OpenMates event pages'
+    commits:
+    - d4a6ea2b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add events newsletter preview'
+    commits:
+    - 1bb874f83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: attest proof checkpoint frames'
+    commits:
+    - 0df9ab922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: canonicalize WebSocket session identity'
+    commits:
+    - e8df33c2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add deterministic proof video architecture'
+    commits:
+    - 19cda5d28
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve Team scope through chat preflight'
+    commits:
+    - 561b0dae8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: isolate Team chat pagination'
+    commits:
+    - ed977ac5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep settings content above footer'
+    commits:
+    - 8e025b0d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prevent settings content from collapsing'
+    commits:
+    - a6a7f6838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: scope web chats to Team context'
+    commits:
+    - bf1bbd22e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add post-update quick server tests'
+    commits:
+    - c95e98dcb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
   - title: 'fix: clean up failed passkey sessions'
     commits:
     - 6250a6877
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: keep chat loading state below header'
     commits:
     - a4d9d9cbc
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: clear late passkey sessions on cancellation'
     commits:
     - 9d860aa73
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: abort full passkey login before switching'
     commits:
     - 56fbec429
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: keep active settings controls clickable'
     commits:
     - 8491cea48
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: persist encrypted Team CLI attachments'
     commits:
     - 21337021d
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: keep login alternatives available during passkey'
     commits:
     - a0c6999b5
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
   - title: 'fix: send encrypted Team CLI turns'
     commits:
     - 1e256a694
     section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
+    release_status: released_main
+    communication_status: ready_for_public_communication
     related_features: []
-    newsletter_ready: false
+  social_or_video:
+  - title: 'fix: supersede stale phased sync work'
+    commits:
+    - e444de4ba
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prerender OpenMates event pages'
+    commits:
+    - d4a6ea2b1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add events newsletter preview'
+    commits:
+    - 1bb874f83
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: attest proof checkpoint frames'
+    commits:
+    - 0df9ab922
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: canonicalize WebSocket session identity'
+    commits:
+    - e8df33c2b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add deterministic proof video architecture'
+    commits:
+    - 19cda5d28
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve Team scope through chat preflight'
+    commits:
+    - 561b0dae8
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: isolate Team chat pagination'
+    commits:
+    - ed977ac5c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep settings content above footer'
+    commits:
+    - 8e025b0d1
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prevent settings content from collapsing'
+    commits:
+    - a6a7f6838
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: scope web chats to Team context'
+    commits:
+    - bf1bbd22e
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add post-update quick server tests'
+    commits:
+    - c95e98dcb
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: clean up failed passkey sessions'
+    commits:
+    - 6250a6877
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep chat loading state below header'
+    commits:
+    - a4d9d9cbc
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clear late passkey sessions on cancellation'
+    commits:
+    - 9d860aa73
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: abort full passkey login before switching'
+    commits:
+    - 56fbec429
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep active settings controls clickable'
+    commits:
+    - 8491cea48
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: persist encrypted Team CLI attachments'
+    commits:
+    - 21337021d
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep login alternatives available during passkey'
+    commits:
+    - a0c6999b5
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: send encrypted Team CLI turns'
+    commits:
+    - 1e256a694
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
 risks:
   communication:
   - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
@@ -707,11 +1971,719 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
+  - sha: 662eb3591b3b75fadc184792602dbadfc22646f6
+    short_sha: 662eb3591
+    authored_at: '2026-08-20T22:31:05+00:00'
+    subject: Record focused proof-video evidence
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: 35a04d3b25a7f0141eebe53e4661f9f529357ba9
+    short_sha: 35a04d3b2
+    authored_at: '2026-08-20T22:14:15+00:00'
+    subject: Use public CLI proof command
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    related_feature_ids: []
+  - sha: 25b7bf1953db14b5ab7c39d31168f693055a9916
+    short_sha: 25b7bf195
+    authored_at: '2026-08-20T22:03:00+00:00'
+    subject: Finalize focused proof-video evidence
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: 8a0532b2d11ce4f0ee9c18a644fb4d070b79231c
+    short_sha: 8a0532b2d
+    authored_at: '2026-08-20T20:53:22+00:00'
+    subject: 'test: avoid PII-shaped Team nonce'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 01a7a033420aac3d14098ef917b000115c480025
+    short_sha: 01a7a0334
+    authored_at: '2026-08-20T20:39:58+00:00'
+    subject: 'fix: retain Team keys when reading chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    related_feature_ids: []
+  - sha: ef7169a9c3d6abb8edba320c5f478526af5e209b
+    short_sha: ef7169a9c
+    authored_at: '2026-08-20T20:27:08+00:00'
+    subject: Fit CLI proof catalog in terminal capture
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    related_feature_ids: []
+  - sha: 090e55d58dc12049bc63df7a555803fcde5090b8
+    short_sha: 090e55d58
+    authored_at: '2026-08-20T20:21:24+00:00'
+    subject: 'test: identify Team key guard rejection'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    related_feature_ids: []
+  - sha: db13ebe67671713e0525839d1337257642423f7a
+    short_sha: db13ebe67
+    authored_at: '2026-08-20T20:15:35+00:00'
+    subject: Use frame-accurate trim for CLI proof videos
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    related_feature_ids: []
+  - sha: e7f3c82659db52749a276040025b0dd30cb1a26a
+    short_sha: e7f3c8265
+    authored_at: '2026-08-20T20:07:49+00:00'
+    subject: 'fix: preserve Team chat key wrapping'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/db/chatCrudOperations.ts
+    related_feature_ids: []
+  - sha: cee8d498ea8ff589f27af50a8573c0426a30e4e5
+    short_sha: cee8d498e
+    authored_at: '2026-08-20T20:03:24+00:00'
+    subject: Trim CLI proof videos to visible terminal evidence
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 12fb3d138df95d9a1ceaa2a2c179db0de1f7d498
+    short_sha: 12fb3d138
+    authored_at: '2026-08-20T19:49:29+00:00'
+    subject: Use real terminal capture for CLI proof videos
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: b4d299b205380b7b0bed41d6e03d316d565882ae
+    short_sha: b4d299b20
+    authored_at: '2026-08-20T19:45:06+00:00'
+    subject: 'fix: validate Team chat key wrappers'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/chatKeyWriteGuard.ts
+    related_feature_ids: []
+  - sha: d23befc48137a684b5a5b3f30bd1c3161a5cec07
+    short_sha: d23befc48
+    authored_at: '2026-08-20T19:24:31+00:00'
+    subject: 'test: align event CTA assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    related_feature_ids: []
+  - sha: f95d515ce88ede04523826800b3b8e6b5c89c14e
+    short_sha: f95d515ce
+    authored_at: '2026-08-20T19:23:11+00:00'
+    subject: 'test: expose Team transport failure stage'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: b00aac8cf574ee9881a3ddedb5b3b3842e594fb4
+    short_sha: b00aac8cf
+    authored_at: '2026-08-20T19:10:19+00:00'
+    subject: 'test: align event embed locator'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    related_feature_ids: []
+  - sha: b16fb5e55596785188fb89e8b28b1f6384c4e88d
+    short_sha: b16fb5e55
+    authored_at: '2026-08-20T19:07:26+00:00'
+    subject: 'fix: scan rendered web proof geometry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    related_feature_ids: []
+  - sha: 684db9dc86bc3e4daf0aed3db5d2bc4c6f2356ec
+    short_sha: 684db9dc8
+    authored_at: '2026-08-20T18:56:53+00:00'
+    subject: 'test: stabilize Team new chat transport proof'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 2a5ec547e358b62f8025d7de7e4114346429a295
+    short_sha: 2a5ec547e
+    authored_at: '2026-08-20T18:55:37+00:00'
+    subject: 'test: relax event SEO canonical assertion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    related_feature_ids: []
+  - sha: cf0a77c500e01149f199e59395c232e32eb466ea
+    short_sha: cf0a77c50
+    authored_at: '2026-08-20T18:53:00+00:00'
+    subject: 'test: capture settled actionable proof'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    related_feature_ids: []
+  - sha: 15a2e4316740c4dd5b8a6fb59055c9145a570ce8
+    short_sha: 15a2e4316
+    authored_at: '2026-08-20T18:41:17+00:00'
+    subject: 'test: cover OpenMates event pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/openmates-events.spec.ts
+    related_feature_ids: []
+  - sha: ec70d2eb406f00bb75b2cfc78f0e4c981bb36a3c
+    short_sha: ec70d2eb4
+    authored_at: '2026-08-20T18:30:29+00:00'
+    subject: 'test: capture settled privacy proof'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    related_feature_ids: []
+  - sha: e444de4baca287b50e539b3d152c70785d14a5e3
+    short_sha: e444de4ba
+    authored_at: '2026-08-20T18:22:00+00:00'
+    subject: 'fix: supersede stale phased sync work'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: d4a6ea2b1eed89b2b0acad6bdc08055bed2a3226
+    short_sha: d4a6ea2b1
+    authored_at: '2026-08-20T18:21:02+00:00'
+    subject: 'fix: prerender OpenMates event pages'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    related_feature_ids: []
+  - sha: 169b8172d64244951c1237fd4b4b742d1b5fdb6f
+    short_sha: 169b8172d
+    authored_at: '2026-08-20T18:19:03+00:00'
+    subject: 'test: wait for visible privacy proof'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    related_feature_ids: []
+  - sha: 1bb874f830458fb6796506f4be9b5354f43bb7dd
+    short_sha: 1bb874f83
+    authored_at: '2026-08-20T18:10:43+00:00'
+    subject: 'feat: add events newsletter preview'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/newsletter.py
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    - backend/core/api/app/utils/newsletter_utils.py
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/scripts/send_newsletter.py
+    - backend/shared/python_utils/events_newsletter_generator.py
+    - backend/shared/python_utils/openmates_event_registry.py
+    - backend/tests/test_events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_render.py
+    - backend/tests/test_newsletter_categories.py
+    - backend/tests/test_openmates_event_registry.py
+    - backend/tests/test_openmates_events_web_generation.py
+    - contracts/features/newsletter-campaigns/contract.yml
+    - contracts/features/newsletter-campaigns/examples.yml
+    - contracts/features/newsletter/contract.yml
+    - contracts/features/newsletter/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/specs/automated-events-newsletter/spec.yml
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/static/event-assets/openmates/ai-everyday-tasks-webinar-2026-08-27.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-09-10.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/everyday-workflows-webinar-2026-09-01.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-berlin-meetup-2026-08-29.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-08-25.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-teams-webinar-2026-09-03.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/self-hosting-webinar-2026-09-15.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/spec-driven-development-webinar-2026-09-08.jpg
+    - frontend/packages/ui/src/data/__tests__/openmatesEvents.test.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - scripts/generate_openmates_events.py
+    - scripts/verify_newsletter_categories.py
+    - shared/events/assets/newsletter/events-newsletter-card_ai_for_everyday_tasks.png
+    - shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png
+    - shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png
+    - shared/events/assets/newsletter/events-newsletter-card_community_hour.png
+    - shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png
+    - shared/events/assets/newsletter/events-newsletter-card_intro_to_self_hosting_your_ai_agents.png
+    - shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png
+    - shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.svg
+    - shared/events/assets/newsletter/events-newsletter-header_en.png
+    - shared/events/assets/newsletter/events-newsletter-header_en.svg
+    - shared/events/assets/newsletter/generate_header_assets.py
+    - shared/events/assets/newsletter/header_design.json
+    - shared/events/openmates_events.yml
+    related_feature_ids: []
+  - sha: 0df9ab922b019a6493604ea61a8e38fbdbb0846c
+    short_sha: 0df9ab922
+    authored_at: '2026-08-20T18:05:43+00:00'
+    subject: 'fix: attest proof checkpoint frames'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.ts
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/render.mjs
+    - tooling/proof-video-remotion/src/types.ts
+    related_feature_ids: []
+  - sha: 1c6558407c7408d44eef5970212765de940ebedd
+    short_sha: 1c6558407
+    authored_at: '2026-08-20T17:52:28+00:00'
+    subject: 'test: wait for Personal sync before Team switch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: d53fb4e61f894aed3c46bcfcd9964cc5986ce221
+    short_sha: d53fb4e61
+    authored_at: '2026-08-20T17:37:50+00:00'
+    subject: Harden runtime health probes
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: e6d4a41386e35fa4d9fa1ee3ff9c7b339bc75019
+    short_sha: e6d4a4138
+    authored_at: '2026-08-20T17:26:44+00:00'
+    subject: 'test: correlate Team phased sync completion'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 08ae7b16d74c0eee110fc7566fad250cf8fd1db0
+    short_sha: 08ae7b16d
+    authored_at: '2026-08-20T17:21:35+00:00'
+    subject: 'fix: align proof tutorial timing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: cddb4852497a582915ae03fb01ce87af61c73f26
+    short_sha: cddb48524
+    authored_at: '2026-08-20T17:02:14+00:00'
+    subject: 'fix: compare proof provenance blobs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 94517c8a5632ec5421bceef2fdcc20babaf9ebcc
+    short_sha: 94517c8a5
+    authored_at: '2026-08-20T17:01:48+00:00'
+    subject: 'test: wait for Team settings to close'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: edd0f08da489c7002bfb02b467d2eb2e64765769
+    short_sha: edd0f08da
+    authored_at: '2026-08-20T16:59:25+00:00'
+    subject: 'fix: scope proof provenance to session files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    related_feature_ids: []
+  - sha: e006d9e690f65f5355fa71c1ca9b9b2f8fb213f9
+    short_sha: e006d9e69
+    authored_at: '2026-08-20T16:57:52+00:00'
+    subject: 'fix: verify reusable proof worktrees'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: 10019329ffbcf2161f8e6653d3549aa362a64f01
+    short_sha: 10019329f
+    authored_at: '2026-08-20T16:54:03+00:00'
+    subject: 'fix: resolve descendant proof evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 4cae2a9ff98087360cacd35fd4104e8809c125d0
+    short_sha: 4cae2a9ff
+    authored_at: '2026-08-20T16:52:28+00:00'
+    subject: Fix runtime health verification stalls
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/Dockerfile
+    - backend/core/docker-compose.yml
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    related_feature_ids: []
+  - sha: f2f59c5745b30e5dd80dd7d92b0c5b641a346e61
+    short_sha: f2f59c574
+    authored_at: '2026-08-20T16:18:33+00:00'
+    subject: 'fix: notify on skipped daily tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    related_feature_ids: []
+  - sha: e8df33c2bbc6e055bda75e9c39f658f57c310209
+    short_sha: e8df33c2b
+    authored_at: '2026-08-20T16:06:10+00:00'
+    subject: 'fix: canonicalize WebSocket session identity'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/auth_ws.py
+    - backend/core/api/app/services/cache_user_mixin.py
+    - backend/tests/test_cache_session_identity.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 3fb656527a4b123cbdf242332d92a5fc21a9cce7
+    short_sha: 3fb656527
+    authored_at: '2026-08-20T16:00:32+00:00'
+    subject: 'fix: persist inline proof timelines'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 375235149eb1e2e55c54cbc9a51cf1895821280d
+    short_sha: '375235149'
+    authored_at: '2026-08-20T15:30:53+00:00'
+    subject: 'test: remove non-portable proof chat scan'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 19cda5d2856f3af7124a053c7d742012924fadc1
+    short_sha: 19cda5d28
+    authored_at: '2026-08-20T15:29:31+00:00'
+    subject: 'feat: add deterministic proof video architecture'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - contracts/generated/assertion-index.yml
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.test.ts
+    - frontend/apps/web_app/tests/helpers/video-proof.ts
+    - frontend/apps/web_app/tests/helpers/workflow-cli-e2e-helpers.ts
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    - pnpm-lock.yaml
+    - pnpm-workspace.yaml
+    - scripts/audit_cli_e2e_recording.py
+    - scripts/cli_video_capture.py
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_cli_e2e_recording_audit.py
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    - tooling/proof-video-remotion/package.json
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/index.ts
+    - tooling/proof-video-remotion/src/render.mjs
+    - tooling/proof-video-remotion/src/types.ts
+    - tooling/proof-video-remotion/tsconfig.json
+    related_feature_ids: []
+  - sha: 8d9bcf755cc4087c78066204875715f1983f8785
+    short_sha: 8d9bcf755
+    authored_at: '2026-08-20T15:12:15+00:00'
+    subject: 'test: select proof chats from rendered content'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 55456419d9dde292de45ce5964ece1549f2a68ec
+    short_sha: 55456419d
+    authored_at: '2026-08-20T15:04:48+00:00'
+    subject: 'test: cover encrypted Team context switching'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 1a619969e0682f0ede2a2f6bce435f09a9006954
+    short_sha: 1a619969e
+    authored_at: '2026-08-20T15:03:43+00:00'
+    subject: 'test: expose settings footer proof state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: 46963873576e36b87bd7c36f9224d4e4ff35e0fe
+    short_sha: '469638735'
+    authored_at: '2026-08-20T14:56:50+00:00'
+    subject: 'test: capture clean progressive chat proof states'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: c1284c8876d2fe175da9c3222f2d29a6f2ade839
+    short_sha: c1284c887
+    authored_at: '2026-08-20T14:49:07+00:00'
+    subject: 'test: backfill settings UI contract'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/features/settings-ui/contract.yml
+    - contracts/features/settings-ui/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/settings-translation-coverage.spec.ts
+    related_feature_ids: []
+  - sha: 561b0dae8f951cfc54d2b6eaa2ddd6c0fd19df59
+    short_sha: 561b0dae8
+    authored_at: '2026-08-20T14:40:24+00:00'
+    subject: 'fix: preserve Team scope through chat preflight'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_chat_turn_preflight.py
+    - backend/tests/test_team_chat_pagination.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: ed977ac5cc383c736a75ea22e5fa2c5028600bb7
+    short_sha: ed977ac5c
+    authored_at: '2026-08-20T14:27:05+00:00'
+    subject: 'fix: isolate Team chat pagination'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/sync_metadata_chats_handler.py
+    - backend/tests/test_team_chat_pagination.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/sendersSyncTeamContext.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 7ccdb0746a14bc8b8cbc71a0f5fa970a7d497cae
+    short_sha: 7ccdb0746
+    authored_at: '2026-08-20T14:22:59+00:00'
+    subject: Record quick server test evidence
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/post-update-quick-server-tests/spec.yml
+    related_feature_ids: []
+  - sha: 6b9ce97811911baa1f244d7cb3c7974575ec003d
+    short_sha: 6b9ce9781
+    authored_at: '2026-08-20T14:22:07+00:00'
+    subject: 'test: collapse editor after cold retry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 26affc12ee23091c3d3e4ee5e3c0c94460d71246
+    short_sha: 26affc12e
+    authored_at: '2026-08-20T14:10:14+00:00'
+    subject: 'test: collapse editor after loading layout proof'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 8e025b0d1145a8afe42e180dba908aac0941691c
+    short_sha: 8e025b0d1
+    authored_at: '2026-08-20T14:00:54+00:00'
+    subject: 'fix: keep settings content above footer'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
+    - frontend/packages/ui/src/styles/settings.css
+    related_feature_ids: []
+  - sha: 0e7fd3639b3286cf689dc5b15a2ca54cd30eb63d
+    short_sha: 0e7fd3639
+    authored_at: '2026-08-20T13:58:22+00:00'
+    subject: Add authenticated post-update quick server tests
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverQuickTest.ts
+    - frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
+    - scripts/verify_post_update_quick_server_test.mjs
+    related_feature_ids: []
+  - sha: cefe11256399f96008902dc07083dc8b59469b15
+    short_sha: cefe11256
+    authored_at: '2026-08-20T13:45:40+00:00'
+    subject: 'test: allow recorded sync proof to complete'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: a6a7f6838a2a17b1d786f9b6424f48a7763629db
+    short_sha: a6a7f6838
+    authored_at: '2026-08-20T13:39:15+00:00'
+    subject: 'fix: prevent settings content from collapsing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    related_feature_ids: []
+  - sha: bf1bbd22eaa53fc10bfdb59a094530fbca920c12
+    short_sha: bf1bbd22e
+    authored_at: '2026-08-20T13:36:37+00:00'
+    subject: 'feat: scope web chats to Team context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/__tests__/teamService.test.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    - frontend/packages/ui/src/stores/__tests__/teamStore.test.ts
+    - frontend/packages/ui/src/stores/teamStore.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/verify_teams_cli_common.py
+    related_feature_ids: []
+  - sha: c95e98dcbedb7476b37cca37c2a5459696730cea
+    short_sha: c95e98dcb
+    authored_at: '2026-08-20T13:26:48+00:00'
+    subject: 'feat: add post-update quick server tests'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/__init__.py
+    - backend/apps/ai/tasks/runtime_health_probe_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/scripts/runtime_health_verifier.py
+    - backend/tests/test_runtime_health_verifier.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/post-update-quick-server-tests/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverQuickTest.ts
+    - frontend/packages/openmates-cli/tests/serverQuickTest.test.ts
+    - scripts/verify_post_update_quick_server_test.mjs
+    related_feature_ids:
+    - app:ai
   - sha: 6250a6877e10787f4ca59e110430e7d4b1c88563
     short_sha: 6250a6877
     authored_at: '2026-08-20T13:18:48+00:00'
     subject: 'fix: clean up failed passkey sessions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/Login.svelte
@@ -720,7 +2692,7 @@ sources:
     short_sha: a4d9d9cbc
     authored_at: '2026-08-20T13:11:22+00:00'
     subject: 'fix: keep chat loading state below header'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/ActiveChat.svelte
@@ -729,7 +2701,7 @@ sources:
     short_sha: 9d860aa73
     authored_at: '2026-08-20T13:01:30+00:00'
     subject: 'fix: clear late passkey sessions on cancellation'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/EmailLookup.svelte
@@ -740,7 +2712,7 @@ sources:
     short_sha: fb4acba7f
     authored_at: '2026-08-20T12:51:40+00:00'
     subject: 'test: guard progressive loading layout'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - contracts/generated/assertion-index.yml
@@ -750,7 +2722,7 @@ sources:
     short_sha: 56fbec429
     authored_at: '2026-08-20T12:32:23+00:00'
     subject: 'fix: abort full passkey login before switching'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
@@ -762,7 +2734,7 @@ sources:
     short_sha: 8491cea48
     authored_at: '2026-08-20T12:11:45+00:00'
     subject: 'fix: keep active settings controls clickable'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/chat-settings-flow.spec.ts
@@ -772,7 +2744,7 @@ sources:
     short_sha: 3a8becf98
     authored_at: '2026-08-20T11:54:32+00:00'
     subject: 'test: capture passkey alternatives responsively'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
@@ -781,7 +2753,7 @@ sources:
     short_sha: 21337021d
     authored_at: '2026-08-20T11:43:34+00:00'
     subject: 'fix: persist encrypted Team CLI attachments'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
@@ -793,7 +2765,7 @@ sources:
     short_sha: a0c6999b5
     authored_at: '2026-08-20T11:30:50+00:00'
     subject: 'fix: keep login alternatives available during passkey'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/packages/ui/src/components/Login.svelte
@@ -803,7 +2775,7 @@ sources:
     short_sha: 036a9dc3d
     authored_at: '2026-08-20T11:27:41+00:00'
     subject: 'test: combine progressive chat proof flow'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - contracts/generated/assertion-index.yml
@@ -813,7 +2785,7 @@ sources:
     short_sha: 07c7fe2f3
     authored_at: '2026-08-20T11:11:29+00:00'
     subject: 'test: enter login before passkey assertion'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - frontend/apps/web_app/tests/passkey-login-alternatives.spec.ts
@@ -822,7 +2794,7 @@ sources:
     short_sha: 54b315176
     authored_at: '2026-08-20T11:08:22+00:00'
     subject: Fix persistence queue backlog regression
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/services/cache_reminder_mixin.py
@@ -837,7 +2809,7 @@ sources:
     short_sha: 1e256a694
     authored_at: '2026-08-20T10:54:43+00:00'
     subject: 'fix: send encrypted Team CLI turns'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
@@ -850,7 +2822,7 @@ sources:
     short_sha: 1f4deb275
     authored_at: '2026-08-20T10:43:07+00:00'
     subject: 'test: stabilize chat settings campaign group'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - contracts/generated/assertion-index.yml
@@ -862,7 +2834,7 @@ sources:
     short_sha: e955494e4
     authored_at: '2026-08-20T10:35:40+00:00'
     subject: 'test: isolate passkey login alternatives'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - contracts/generated/assertion-index.yml
@@ -873,7 +2845,7 @@ sources:
     short_sha: 43526df12
     authored_at: '2026-08-20T09:58:06+00:00'
     subject: 'fix: restore half-bound OpenCode sessions'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - scripts/sessions.py
@@ -883,7 +2855,7 @@ sources:
     short_sha: 4f9e260c4
     authored_at: '2026-08-20T09:55:06+00:00'
     subject: 'test: cover passkey login alternatives'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - contracts/features/auth/contract.yml
@@ -896,7 +2868,7 @@ sources:
     short_sha: 0ebc4c8be
     authored_at: '2026-08-20T09:33:56+00:00'
     subject: 'test: stabilize fork notification flow'
-    in_main: false
+    in_main: true
     in_dev: true
     changed_paths:
     - contracts/features/chats/contract.yml
@@ -908,76 +2880,217 @@ sources:
     - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
     related_feature_ids: []
 llm_summary:
-  overview: OpenMates focused on refining the authentication experience and improving the Team CLI interface. Key updates
-    include several fixes for passkey login sessions and UI adjustments to the chat interface, alongside backend persistence
-    improvements. All changes are currently in development.
-  released_changes: []
-  bug_fixes: []
-  unreleased_progress:
-  - text: The passkey login flow is being refined to better handle session cleanup, cancellations, and the availability of
-      alternative login methods.
+  status: deterministic
+  overview: Deterministic release summary generated from 75 structured change items.
+  released_changes:
+  - text: 'feat: add events newsletter preview'
+    evidence:
+      commits:
+      - 1bb874f83
+    release_status: released_main
+  - text: 'feat: add deterministic proof video architecture'
+    evidence:
+      commits:
+      - 19cda5d28
+    release_status: released_main
+  - text: 'feat: scope web chats to Team context'
+    evidence:
+      commits:
+      - bf1bbd22e
+    release_status: released_main
+  - text: 'feat: add post-update quick server tests'
+    evidence:
+      commits:
+      - c95e98dcb
+    release_status: released_main
+  bug_fixes:
+  - text: 'fix: supersede stale phased sync work'
+    evidence:
+      commits:
+      - e444de4ba
+    release_status: released_main
+  - text: 'fix: prerender OpenMates event pages'
+    evidence:
+      commits:
+      - d4a6ea2b1
+    release_status: released_main
+  - text: 'fix: attest proof checkpoint frames'
+    evidence:
+      commits:
+      - 0df9ab922
+    release_status: released_main
+  - text: 'fix: canonicalize WebSocket session identity'
+    evidence:
+      commits:
+      - e8df33c2b
+    release_status: released_main
+  - text: 'fix: preserve Team scope through chat preflight'
+    evidence:
+      commits:
+      - 561b0dae8
+    release_status: released_main
+  - text: 'fix: isolate Team chat pagination'
+    evidence:
+      commits:
+      - ed977ac5c
+    release_status: released_main
+  - text: 'fix: keep settings content above footer'
+    evidence:
+      commits:
+      - 8e025b0d1
+    release_status: released_main
+  - text: 'fix: prevent settings content from collapsing'
+    evidence:
+      commits:
+      - a6a7f6838
+    release_status: released_main
+  - text: 'fix: clean up failed passkey sessions'
     evidence:
       commits:
       - 6250a6877
-      - 9d860aa73
-      - 56fbec429
-      - a0c6999b5
-    release_status: dev_only
-  - text: The chat interface is receiving updates to ensure loading states remain correctly positioned and settings controls
-      remain clickable during active sessions.
+    release_status: released_main
+  - text: 'fix: keep chat loading state below header'
     evidence:
       commits:
       - a4d9d9cbc
-      - 8491cea48
-    release_status: dev_only
-  - text: Work is progressing on the Team CLI to support encrypted message turns and persistent attachments.
+    release_status: released_main
+  - text: 'fix: clear late passkey sessions on cancellation'
     evidence:
       commits:
-      - 21337021d
-      - 1e256a694
-    release_status: dev_only
+      - 9d860aa73
+    release_status: released_main
+  - text: 'fix: abort full passkey login before switching'
+    evidence:
+      commits:
+      - 56fbec429
+    release_status: released_main
+  unreleased_progress: []
   internal_progress:
-  - text: Internal backend work addressed a persistence queue backlog regression and restored half-bound OpenCode sessions.
+  - text: 'fix: retain Team keys when reading chats'
     evidence:
       commits:
-      - 54b315176
-      - 43526df12
-    release_status: dev_only
-  - text: Testing coverage was expanded for passkey login alternatives, chat settings stability, and conversation fork notification
-      flows.
+      - 01a7a0334
+    release_status: released_main
+  - text: 'fix: preserve Team chat key wrapping'
     evidence:
       commits:
-      - fb4acba7f
-      - 3a8becf98
-      - 036a9dc3d
-      - 07c7fe2f3
-      - 1f4deb275
-      - e955494e4
-      - 4f9e260c4
-      - 0ebc4c8be
-    release_status: dev_only
+      - e7f3c8265
+    release_status: released_main
+  - text: 'fix: validate Team chat key wrappers'
+    evidence:
+      commits:
+      - b4d299b20
+    release_status: released_main
+  - text: 'fix: scan rendered web proof geometry'
+    evidence:
+      commits:
+      - b16fb5e55
+    release_status: released_main
+  - text: 'fix: align proof tutorial timing'
+    evidence:
+      commits:
+      - 08ae7b16d
+    release_status: released_main
+  - text: 'fix: compare proof provenance blobs'
+    evidence:
+      commits:
+      - cddb48524
+    release_status: released_main
+  - text: 'fix: scope proof provenance to session files'
+    evidence:
+      commits:
+      - edd0f08da
+    release_status: released_main
+  - text: 'fix: verify reusable proof worktrees'
+    evidence:
+      commits:
+      - e006d9e69
+    release_status: released_main
+  - text: 'fix: resolve descendant proof evidence'
+    evidence:
+      commits:
+      - 10019329f
+    release_status: released_main
+  - text: Fix runtime health verification stalls
+    evidence:
+      commits:
+      - 4cae2a9ff
+    release_status: released_main
+  - text: 'fix: notify on skipped daily tests'
+    evidence:
+      commits:
+      - f2f59c574
+    release_status: released_main
+  - text: 'fix: persist inline proof timelines'
+    evidence:
+      commits:
+      - 3fb656527
+    release_status: released_main
   newsletter_recommendation:
-    include: []
-    exclude:
-    - text: Passkey login flow refinements.
+    include:
+    - text: 'fix: supersede stale phased sync work'
       evidence:
         commits:
-        - 6250a6877
-        - 9d860aa73
-        - 56fbec429
-        - a0c6999b5
-      reason: Authentication improvements are currently in development and not yet released to the main branch.
-    - text: Team CLI encryption and persistence updates.
+        - e444de4ba
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: prerender OpenMates event pages'
       evidence:
         commits:
-        - 21337021d
-        - 1e256a694
-      reason: Teams functionality is currently a disabled feature and these updates are dev-only.
-    rationale: All updates from this period are currently in development (dev_only) and have not been merged into the main
-      release branch. Additionally, work related to Teams is currently disabled.
+        - d4a6ea2b1
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'feat: add events newsletter preview'
+      evidence:
+        commits:
+        - 1bb874f83
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: attest proof checkpoint frames'
+      evidence:
+        commits:
+        - 0df9ab922
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: canonicalize WebSocket session identity'
+      evidence:
+        commits:
+        - e8df33c2b
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'feat: add deterministic proof video architecture'
+      evidence:
+        commits:
+        - 19cda5d28
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: preserve Team scope through chat preflight'
+      evidence:
+        commits:
+        - 561b0dae8
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: isolate Team chat pagination'
+      evidence:
+        commits:
+        - ed977ac5c
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: keep settings content above footer'
+      evidence:
+        commits:
+        - 8e025b0d1
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: prevent settings content from collapsing'
+      evidence:
+        commits:
+        - a6a7f6838
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'feat: scope web chats to Team context'
+      evidence:
+        commits:
+        - bf1bbd22e
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'feat: add post-update quick server tests'
+      evidence:
+        commits:
+        - c95e98dcb
+      reason: Deterministically classified as released and ready for public communication.
+    exclude: []
+    rationale: Only deterministically released and communication-ready items are included.
   social_video_recommendations: []
   quality_notes:
-  - Significant focus on the reliability of the passkey authentication flow, specifically handling session cancellations and
-    transitions.
-  - Security-focused updates for the Team CLI ensure encrypted turns and attachments are correctly persisted.
+  - Generated without LLM interpretation; review grouped commit titles before publication.
   validation_warnings: []
