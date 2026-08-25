@@ -38,6 +38,7 @@ from backend.shared.python_utils.generated_assets import (
     index_generated_asset,
 )
 from backend.shared.python_utils.billing_utils import ensure_credit_headroom
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,16 @@ async def _async_generate_model(
     if arguments.get("input_mode") == "text":
         raise ValueError("Text-to-3D reference generation is not available until reference artifact retention is implemented")
 
-    await task.initialize_services()
+    ordered_inputs = arguments.get("ordered_views") or [
+        {"view": "front", "embed_id": embed_id}
+        for embed_id in arguments.get("reference_embed_ids") or []
+    ]
+    if not ordered_inputs:
+        raise ValueError("models3d generation requires one or more image references")
+
+    await task.initialize_core_services()
+    s3_service = await initialize_task_storage(task)
+    await require_storage_available(s3_service)
     await ensure_credit_headroom(
         user_id=user_id,
         estimated_credits=estimated_credits,
@@ -92,13 +102,7 @@ async def _async_generate_model(
         operation_name="3D model generation",
     )
     cache_client = await task._cache_service.client
-    bucket_name = get_bucket_name("chatfiles", task._s3_service.environment)
-    ordered_inputs = arguments.get("ordered_views") or [
-        {"view": "front", "embed_id": embed_id}
-        for embed_id in arguments.get("reference_embed_ids") or []
-    ]
-    if not ordered_inputs:
-        raise ValueError("models3d generation requires one or more image references")
+    bucket_name = get_bucket_name("chatfiles", s3_service.environment)
 
     hi3d_images: list[tuple[Hi3DView, str, bytes, str]] = []
     input_embed_records = arguments.get("input_embed_records") or {}
@@ -113,7 +117,7 @@ async def _async_generate_model(
             cache_client=cache_client,
             directus_service=task._directus_service,
             encryption_service=task._encryption_service,
-            s3_service=task._s3_service,
+            s3_service=s3_service,
             bucket_name=bucket_name,
             preloaded_records=input_embed_records,
         )

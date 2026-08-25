@@ -114,6 +114,7 @@ from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, upd
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
+S3_RECONCILIATION_RETRY_SECONDS = 300
 
 OPENMATESCLOUD_BILLING_OVERLAY_MODULE = "openmatescloud.api.billing_overlay"
 
@@ -715,9 +716,25 @@ async def lifespan(app: FastAPI):
         logger.warning("CacheService not available in app.state. Cannot preload leaderboard data.")
 
     # --- Perform other async initializations ---
-    # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
+    # Configure clients locally; remote reconciliation must never block API startup.
     logger.info("Initializing S3 service...")
-    await app.state.s3_service.initialize()
+    await app.state.s3_service.initialize(configure_buckets=False)
+
+    async def reconcile_s3_configuration() -> None:
+        while True:
+            try:
+                await app.state.s3_service.reconcile_configuration()
+                return
+            except Exception as exc:
+                logger.warning(
+                    "Object storage reconciliation unavailable; storage features are degraded: %s",
+                    type(exc).__name__,
+                )
+                await asyncio.sleep(S3_RECONCILIATION_RETRY_SECONDS)
+
+    app.state.s3_reconciliation_task = asyncio.create_task(
+        reconcile_s3_configuration()
+    )
 
     # --- Start compliance log S3 backup task ---
     # Uploads rotated compliance log files to S3 Hetzner nightly.
@@ -1099,6 +1116,13 @@ async def lifespan(app: FastAPI):
             await app.state.compliance_backup_task
         except asyncio.CancelledError:
             logger.info("Compliance log S3 backup task cancelled")
+
+    if hasattr(app.state, 's3_reconciliation_task'):
+        app.state.s3_reconciliation_task.cancel()
+        try:
+            await app.state.s3_reconciliation_task
+        except asyncio.CancelledError:
+            logger.info("Object storage reconciliation task cancelled")
 
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):

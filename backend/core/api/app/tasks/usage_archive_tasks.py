@@ -8,14 +8,27 @@ older than 3 months to S3, keeping the Directus database lean and performant.
 import logging
 from datetime import datetime, timedelta
 
+from fastapi import HTTPException
+
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.services.usage_archive_service import UsageArchiveService
+from backend.shared.python_utils.storage_availability import (
+    initialize_task_storage,
+    is_storage_unavailable_error,
+    require_storage_available,
+)
 
 logger = logging.getLogger(__name__)
 
 
-@app.task(name="usage.archive_old_entries", base=BaseServiceTask, bind=True)
+@app.task(
+    name="usage.archive_old_entries",
+    base=BaseServiceTask,
+    bind=True,
+    max_retries=3,
+    default_retry_delay=300,
+)
 async def archive_old_usage_entries(self):
     """
     Monthly Celery task to archive usage entries older than 3 months.
@@ -34,11 +47,13 @@ async def archive_old_usage_entries(self):
     
     try:
         # Initialize services via BaseServiceTask
-        await self.initialize_services()
+        await self.initialize_core_services()
+        s3_service = await initialize_task_storage(self)
+        await require_storage_available(s3_service)
         
         # Initialize archive service
         archive_service = UsageArchiveService(
-            s3_service=self._s3_service,
+            s3_service=s3_service,
             encryption_service=self._encryption_service,
             directus_service=self._directus_service
         )
@@ -138,6 +153,8 @@ async def archive_old_usage_entries(self):
                     errors.append(f"User {user_id_hash}: Archive failed")
                     logger.error(f"{log_prefix} Failed to archive usage for user {user_id_hash}, month {cutoff_year_month}")
                     
+            except HTTPException:
+                raise
             except Exception as e:
                 failed_count += 1
                 error_msg = f"User {user_id_hash}: {str(e)}"
@@ -155,6 +172,12 @@ async def archive_old_usage_entries(self):
         logger.info(f"{log_prefix} Archive task completed: {archived_count} users archived, {failed_count} failed")
         return result
         
+    except HTTPException as e:
+        if is_storage_unavailable_error(e):
+            logger.warning("%s Object storage unavailable; retrying archive task", log_prefix)
+            raise self.retry(exc=e)
+        logger.error("%s Archive task failed with an HTTP error", log_prefix)
+        return {"success": False, "error": "Archive request failed"}
     except Exception as e:
         logger.error(f"{log_prefix} Archive task failed: {e}", exc_info=True)
         return {

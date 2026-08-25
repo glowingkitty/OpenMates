@@ -239,6 +239,8 @@ def test_known_async_methods_are_covered():
     """
     KNOWN_ASYNC_METHODS: Set[str] = {
         "initialize",
+        "reconcile_configuration",
+        "check_availability",
         "_initialize_buckets",
         "upload_file",
         "upload_file_stream",

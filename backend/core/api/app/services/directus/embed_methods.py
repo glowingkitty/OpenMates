@@ -13,6 +13,8 @@ import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import hashlib
 
+from backend.shared.python_utils.storage_availability import storage_unavailable_error
+
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
 
@@ -1398,14 +1400,17 @@ class EmbedMethods:
                     except Exception as s3_err:
                         s3_failed += 1
                         logger.warning(
-                            f"[StorageBilling] Failed to delete S3 object chatfiles/{s3_key} "
-                            f"for user {user_id}: {s3_err}"
+                            "[StorageBilling] Failed to delete an object: %s",
+                            type(s3_err).__name__,
                         )
 
             logger.info(
                 f"[StorageBilling] S3 deletion for user {user_id}: "
                 f"{s3_deleted} objects deleted, {s3_failed} failures."
             )
+
+            if s3_failed:
+                raise storage_unavailable_error()
 
             # ──────────────────────────────────────────────────────────────────
             # Step 3: Compute bytes freed and bulk-delete Directus records.

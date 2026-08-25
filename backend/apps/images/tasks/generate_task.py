@@ -25,6 +25,7 @@ from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -711,7 +712,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
     
     try:
         # 1. Initialize services (S3, Secrets, Encryption, Directus)
-        await task.initialize_services()
+        await task.initialize_core_services()
         
         # 2. Extract arguments
         prompt = arguments.get("prompt")
@@ -762,6 +763,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 log_prefix=log_prefix,
             )
             return {"embed_id": embed_id, "status": "rejected", **tool_response}
+
+        s3_service = await initialize_task_storage(task)
+        await require_storage_available(s3_service)
 
         # 3b. Decrypt reference images (for image-to-image generation).
         # Reference image embed IDs were resolved by the skill layer (embed_ref → embed_id).
@@ -1486,7 +1490,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
                 
                 # Ensure services are initialized (they may already be from the try block)
                 try:
-                    await task.initialize_services()
+                    await task.initialize_core_services()
                 except Exception:
                     pass  # Services may already be initialized
                 

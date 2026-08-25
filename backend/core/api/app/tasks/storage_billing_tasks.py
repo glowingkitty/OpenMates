@@ -42,6 +42,7 @@ import time
 from typing import Any, Dict, List, Literal
 
 from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -50,6 +51,7 @@ from backend.core.api.app.services.server_stats_service import ServerStatsServic
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
 
@@ -225,24 +227,18 @@ async def _handle_billing_failure(
             f"[StorageBilling] 4th consecutive billing failure for user {user_id}. "
             f"Deleting all upload files."
         )
-        try:
-            from backend.core.api.app.services.directus.embed_methods import EmbedMethods
-            embed_methods = EmbedMethods(directus_service)
-            bytes_freed = await embed_methods.delete_all_upload_files_for_user(
-                user_id=user_id,
-                s3_service=s3_service,
-            )
-            logger.info(
-                f"[StorageBilling] Deleted all files for user {user_id}: "
-                f"{bytes_freed:,} bytes freed."
-            )
-        except Exception as del_err:
-            logger.error(
-                f"[StorageBilling] File deletion failed for user {user_id}: {del_err}",
-                exc_info=True,
-            )
-            # Still reset counter and send email even if deletion failed —
-            # caller will see the error in logs.
+        await require_storage_available(s3_service)
+        from backend.core.api.app.services.directus.embed_methods import EmbedMethods
+
+        embed_methods = EmbedMethods(directus_service)
+        bytes_freed = await embed_methods.delete_all_upload_files_for_user(
+            user_id=user_id,
+            s3_service=s3_service,
+        )
+        logger.info(
+            f"[StorageBilling] Deleted all files for user {user_id}: "
+            f"{bytes_freed:,} bytes freed."
+        )
 
         # Reset counter to 0 and reconcile storage bytes to 0
         await directus_service.update_user(
@@ -289,6 +285,38 @@ async def _handle_billing_failure(
             encryption_service=encryption_service,
             email_template_service=email_template_service,
         )
+
+
+@app.task(
+    name="app.tasks.storage_billing_tasks.retry_storage_deletion",
+    bind=True,
+    base=BaseServiceTask,
+    max_retries=3,
+    default_retry_delay=300,
+    queue="persistence",
+)
+async def retry_storage_deletion(self, user_id: str, total_bytes: int) -> Dict[str, Any]:
+    """Retry one fourth-strike deletion without replaying other users' billing state."""
+    try:
+        await self.initialize_core_services()
+        s3_service = await initialize_task_storage(self)
+        email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager)
+        await _handle_billing_failure(
+            user_id=user_id,
+            total_bytes=total_bytes,
+            current_failure_count=3,
+            directus_service=self._directus_service,
+            encryption_service=self._encryption_service,
+            email_template_service=email_template_service,
+            s3_service=s3_service,
+        )
+        return {"success": True}
+    except Exception as exc:
+        logger.warning(
+            "[StorageBilling] Storage deletion remains pending: %s",
+            type(exc).__name__,
+        )
+        raise self.retry(exc=exc)
 
 
 async def _charge_single_user(
@@ -474,7 +502,7 @@ async def _async_charge_storage_fees() -> Dict[str, Any]:
 
         # Initialise S3 service for the deletion path
         s3_service = S3UploadService(secrets_manager=secrets_manager)
-        await s3_service.initialize()
+        await s3_service.initialize(configure_buckets=False)
 
         # ──────────────────────────────────────────────────────────────────
         # Step 1: Aggregate upload_files by user_id.
@@ -597,19 +625,31 @@ async def _async_charge_storage_fees() -> Dict[str, Any]:
                             s3_service=s3_service,
                         )
                     )
-                    failure_task_users.append((uid, fc))
+                    failure_task_users.append((uid, tbytes, fc))
                 else:  # "error"
                     summary['users_failed'] += 1
 
             # Run all failure handlers concurrently (within this batch)
             if failure_tasks:
                 failure_results = await asyncio.gather(*failure_tasks, return_exceptions=True)
-                for (uid, fc), fresult in zip(failure_task_users, failure_results):
+                for (uid, tbytes, fc), fresult in zip(failure_task_users, failure_results):
                     if isinstance(fresult, Exception):
                         logger.error(
                             f"[StorageBilling] Error in billing failure handler for user {uid}: {fresult}",
                             exc_info=False,
                         )
+                        if fc >= 3:
+                            try:
+                                app.send_task(
+                                    "app.tasks.storage_billing_tasks.retry_storage_deletion",
+                                    kwargs={"user_id": uid, "total_bytes": tbytes},
+                                    queue="persistence",
+                                )
+                            except Exception as dispatch_error:
+                                logger.error(
+                                    "[StorageBilling] Failed to schedule pending storage deletion: %s",
+                                    type(dispatch_error).__name__,
+                                )
                     elif fc >= 3:
                         # fc was 3 before this run → this was the 4th failure → deletion occurred
                         summary['users_deleted'] += 1

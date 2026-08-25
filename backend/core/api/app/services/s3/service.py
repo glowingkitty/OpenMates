@@ -15,6 +15,11 @@ from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutErr
 from urllib.parse import urlparse
 from typing import Any, Optional, Dict
 
+from backend.shared.python_utils.storage_availability import (
+    STORAGE_AVAILABLE,
+    storage_unavailable_error,
+)
+
 # Import necessary config functions and the single-bucket lifecycle function
 from .config import BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name 
 from .cors import apply_cors_settings
@@ -35,9 +40,12 @@ class S3UploadService:
         self.secrets_manager = secrets_manager
         self.client = None
         self.upload_client = None
+        self.availability_client = None
         self.base_domain = None
         self.region_name = None
         self.endpoint_url = None
+        self.configured = False
+        self.last_availability_status = "not_configured"
         
         # Get current environment - needed before initialization
         self.environment = os.getenv('SERVER_ENVIRONMENT', 'development')
@@ -59,6 +67,8 @@ class S3UploadService:
             logger.critical("S3 credentials not found in Secrets Manager. S3 service will be unavailable.")
             # Keep clients as None
             return # Stop initialization
+
+        self.configured = True
 
         # Fetch region name from Secrets Manager with fallback to 'nbg1'
         region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name")
@@ -107,6 +117,22 @@ class S3UploadService:
             aws_secret_access_key=secret_key,
             config=upload_config
         )
+
+        availability_config = Config(
+            signature_version='s3v4',
+            s3={'addressing_style': 'path'},
+            connect_timeout=2,
+            read_timeout=2,
+            retries={'max_attempts': 0},
+        )
+        self.availability_client = boto3.client(
+            's3',
+            region_name=self.region_name,
+            endpoint_url=self.endpoint_url,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            config=availability_config,
+        )
         
         # Store credentials so we can create retry clients with longer timeouts
         self._upload_access_key = access_key
@@ -122,6 +148,33 @@ class S3UploadService:
             apply_cors_settings(self.client)
         
         logger.info("S3 service initialization complete.")
+
+    async def reconcile_configuration(self) -> None:
+        """Reconcile remote bucket policy without making service startup depend on it."""
+        if not self.configured or self.client is None:
+            return
+        await self._initialize_buckets()
+        await asyncio.to_thread(apply_cors_settings, self.client)
+
+    async def check_availability(self) -> str:
+        """Run one bounded, non-mutating provider probe and return a sanitized state."""
+        if not self.configured or self.availability_client is None:
+            self.last_availability_status = "not_configured"
+            return self.last_availability_status
+
+        bucket_name = get_bucket_name("chatfiles", self.environment)
+        try:
+            await asyncio.to_thread(
+                self.availability_client.head_bucket,
+                Bucket=bucket_name,
+            )
+        except Exception as exc:
+            self.last_availability_status = "unavailable"
+            logger.warning("Object storage availability probe failed: %s", type(exc).__name__)
+            return self.last_availability_status
+
+        self.last_availability_status = STORAGE_AVAILABLE
+        return self.last_availability_status
 
     async def _initialize_buckets(self): # Make this method async
         """
@@ -139,7 +192,7 @@ class S3UploadService:
 
             try:
                 # Check if bucket exists
-                self.client.head_bucket(Bucket=bucket_name)
+                await asyncio.to_thread(self.client.head_bucket, Bucket=bucket_name)
                 logger.info(f"Bucket '{bucket_name}' already exists.")
                 bucket_exists = True
             except ClientError as e:
@@ -149,7 +202,7 @@ class S3UploadService:
                     logger.info(f"Bucket '{bucket_name}' not found. Creating...")
                     try:
                         # Attempt to create the bucket (Hetzner implies region from endpoint)
-                        self.client.create_bucket(Bucket=bucket_name)
+                        await asyncio.to_thread(self.client.create_bucket, Bucket=bucket_name)
                         logger.info(f"Successfully created bucket '{bucket_name}'.")
                         # Hetzner Object Storage can be briefly eventually consistent after bucket creation.
                         # Wait before applying ACL/lifecycle so first-start initialization does not fail noisily.
@@ -173,7 +226,11 @@ class S3UploadService:
             if bucket_exists:
                 desired_acl = 'public-read' if access_type == 'public-read' else 'private'
                 try:
-                    self.client.put_bucket_acl(Bucket=bucket_name, ACL=desired_acl)
+                    await asyncio.to_thread(
+                        self.client.put_bucket_acl,
+                        Bucket=bucket_name,
+                        ACL=desired_acl,
+                    )
                     logger.info(f"Reconciled ACL for bucket '{bucket_name}' to '{desired_acl}'.")
                 except ClientError as acl_e:
                     logger.warning(
@@ -186,7 +243,12 @@ class S3UploadService:
             # Apply lifecycle policy if the bucket exists (or was just created) and has a policy defined
             if bucket_exists and isinstance(lifecycle_days, int) and lifecycle_days > 0:
                 logger.info(f"Applying lifecycle policy to bucket '{bucket_name}' ({lifecycle_days} days)...")
-                success = apply_lifecycle_policy_to_bucket(self.client, bucket_name, lifecycle_days)
+                success = await asyncio.to_thread(
+                    apply_lifecycle_policy_to_bucket,
+                    self.client,
+                    bucket_name,
+                    lifecycle_days,
+                )
                 if success:
                     logger.info(f"Successfully applied lifecycle policy to '{bucket_name}'.")
                 else:
@@ -298,7 +360,7 @@ class S3UploadService:
         # Ensure client is initialized before proceeding
         if not self.client or not self.upload_client:
             logger.error("S3 service not initialized. Cannot upload file.")
-            raise HTTPException(status_code=503, detail="S3 service unavailable")
+            raise storage_unavailable_error()
 
         # Get bucket configuration
         try:
@@ -452,9 +514,11 @@ class S3UploadService:
             
             return result
         
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Failed to upload to S3: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to upload file")
+            logger.error("Failed to upload to S3: %s", type(e).__name__)
+            raise storage_unavailable_error() from e
 
     async def upload_file_stream(
         self,
@@ -469,7 +533,7 @@ class S3UploadService:
         """Upload an async byte stream using bounded S3 multipart buffers."""
         minimum_part_size = 5 * 1024 * 1024
         if not self.client or not self.upload_client:
-            raise HTTPException(status_code=503, detail="S3 service unavailable")
+            raise storage_unavailable_error()
         if part_size < minimum_part_size:
             raise ValueError(f"part_size must be at least {minimum_part_size} bytes")
 
@@ -581,7 +645,7 @@ class S3UploadService:
         # Ensure client is initialized before proceeding
         if not self.client:
             logger.error("S3 service not initialized. Cannot delete file.")
-            raise HTTPException(status_code=503, detail="S3 service unavailable")
+            raise storage_unavailable_error()
             
         try:
             # Get the appropriate bucket name based on environment
@@ -601,8 +665,8 @@ class S3UploadService:
             # Re-raise HTTP exceptions
             raise
         except Exception as e:
-            logger.error(f"Failed to delete from S3: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to delete file")
+            logger.error("Failed to delete from object storage: %s", type(e).__name__)
+            raise storage_unavailable_error() from e
 
     async def get_file(self, bucket_name: str, object_key: str) -> Optional[bytes]:
         """
@@ -621,10 +685,10 @@ class S3UploadService:
         # Ensure client is initialized before proceeding
         if not self.client:
             logger.error("S3 service not initialized. Cannot download file.")
-            raise HTTPException(status_code=503, detail="S3 service unavailable")
+            raise storage_unavailable_error()
         
         try:
-            logger.info(f"Downloading file from S3: bucket={bucket_name}, key={object_key}")
+            logger.info("Downloading object from storage")
 
             # boto3 get_object + Body.read() are both synchronous network calls.
             # Run them on the default executor so the event loop is not blocked
@@ -637,39 +701,20 @@ class S3UploadService:
 
             file_content = await asyncio.to_thread(_download)
 
-            logger.info(f"Successfully downloaded file from S3: bucket={bucket_name}, key={object_key}, size={len(file_content)} bytes")
+            logger.info("Successfully downloaded object from storage: size=%s bytes", len(file_content))
             return file_content
             
         except ClientError as e:
             error_code = e.response.get('Error', {}).get('Code')
-            error_message = e.response.get('Error', {}).get('Message', 'Unknown error')
             if error_code == 'NoSuchKey' or error_code == '404':
-                logger.warning(f"File not found in S3: bucket={bucket_name}, key={object_key}")
+                logger.warning("Object not found in storage")
                 return None
             else:
-                # Log detailed error information for debugging
-                logger.error(
-                    f"Failed to download file from S3: bucket={bucket_name}, key={object_key}, "
-                    f"error_code={error_code}, error_message={error_message}, full_error={str(e)}"
-                )
-                # Raise exception instead of returning None to prevent silent failures
-                # This follows the project rule: "Never implement fallbacks that would make errors fall silently"
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to download file from S3: {error_code} - {error_message}"
-                )
+                logger.error("Failed to download from object storage: %s", error_code)
+                raise storage_unavailable_error() from e
         except Exception as e:
-            # Log full exception details for debugging
-            logger.error(
-                f"Unexpected error downloading file from S3: bucket={bucket_name}, key={object_key}, "
-                f"error={str(e)}",
-                exc_info=True
-            )
-            # Raise exception instead of returning None to prevent silent failures
-            raise HTTPException(
-                status_code=500,
-                detail=f"Unexpected error downloading file from S3: {str(e)}"
-            )
+            logger.error("Unexpected object-storage download failure: %s", type(e).__name__)
+            raise storage_unavailable_error() from e
 
     async def get_file_stream(
         self,
@@ -680,7 +725,7 @@ class S3UploadService:
     ) -> AsyncIterator[bytes]:
         """Read an S3 object incrementally without materializing it in memory."""
         if not self.client:
-            raise HTTPException(status_code=503, detail="S3 service unavailable")
+            raise storage_unavailable_error()
         if chunk_size <= 0:
             raise ValueError("chunk_size must be positive")
 
@@ -698,7 +743,7 @@ class S3UploadService:
             error_code = exc.response.get("Error", {}).get("Code")
             if error_code in {"NoSuchKey", "404"}:
                 raise HTTPException(status_code=404, detail="Generated asset file missing") from exc
-            raise HTTPException(status_code=500, detail="Failed to stream generated asset") from exc
+            raise storage_unavailable_error() from exc
         except HTTPException:
             raise
         except Exception as exc:
@@ -709,7 +754,7 @@ class S3UploadService:
                 type(exc).__name__,
                 exc_info=True,
             )
-            raise HTTPException(status_code=500, detail="Failed to stream generated asset") from exc
+            raise storage_unavailable_error() from exc
         finally:
             if body is not None:
                 await asyncio.to_thread(body.close)

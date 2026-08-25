@@ -1123,6 +1123,97 @@ describe("post-update runtime health", () => {
     assert.equal(recovered.events[0]?.type, "recovered");
   });
 
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts,storage-resilience.content.privacy-boundary
+  it("warns once, escalates storage after one hour, and resolves once", () => {
+    const failure = [{ id: "core.object_storage", status: "failed" as const, failureClass: "storage_unavailable" }];
+    const first = applyRuntimeCheckResults(undefined, failure, "2026-08-25T10:00:00Z");
+    const warning = applyRuntimeCheckResults(first.state, failure, "2026-08-25T10:05:00Z");
+    const beforeCritical = applyRuntimeCheckResults(warning.state, failure, "2026-08-25T11:04:59Z");
+    const critical = applyRuntimeCheckResults(beforeCritical.state, failure, "2026-08-25T11:05:00Z");
+    const repeated = applyRuntimeCheckResults(critical.state, failure, "2026-08-25T12:05:00Z");
+    const recovered = applyRuntimeCheckResults(
+      repeated.state,
+      [{ id: "core.object_storage", status: "passed" }],
+      "2026-08-25T12:10:00Z",
+    );
+    const healthy = applyRuntimeCheckResults(
+      recovered.state,
+      [{ id: "core.object_storage", status: "passed" }],
+      "2026-08-25T12:15:00Z",
+    );
+
+    assert.deepEqual(first.events, []);
+    assert.equal(warning.events[0]?.type, "service_unhealthy");
+    assert.deepEqual(beforeCritical.events, []);
+    assert.equal(critical.events[0]?.type, "service_critical");
+    assert.deepEqual(repeated.events, []);
+    assert.equal(recovered.events[0]?.type, "recovered");
+    assert.deepEqual(healthy.events, []);
+  });
+
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.not-configured
+  it("does not open a storage incident when storage is intentionally unconfigured", () => {
+    const skipped = [{ id: "core.object_storage", status: "skipped" as const, failureClass: "not_configured" }];
+    const first = applyRuntimeCheckResults(undefined, skipped, "2026-08-25T10:00:00Z");
+    const second = applyRuntimeCheckResults(first.state, skipped, "2026-08-25T10:05:00Z");
+
+    assert.deepEqual(first.events, []);
+    assert.deepEqual(second.events, []);
+    assert.equal(second.state.checks?.["core.object_storage"]?.incidentOpen, false);
+  });
+
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts
+  it("preserves every simultaneous warning critical and recovery event", () => {
+    const state = {
+      consecutiveFailures: 2,
+      incidentOpen: true,
+      checks: {
+        "core.object_storage": {
+          consecutiveFailures: 2,
+          incidentOpen: true,
+          incidentOpenedAt: "2026-08-25T10:00:00Z",
+        },
+        "core.cache": {
+          consecutiveFailures: 1,
+          incidentOpen: false,
+        },
+      },
+    };
+    const failed = applyRuntimeCheckResults(state, [
+      { id: "core.object_storage", status: "failed", failureClass: "storage_unavailable", required: false },
+      { id: "core.cache", status: "failed", failureClass: "connection", required: true },
+    ], "2026-08-25T11:00:00Z");
+    const recovered = applyRuntimeCheckResults(failed.state, [
+      { id: "core.object_storage", status: "passed", required: false },
+      { id: "core.cache", status: "passed", required: true },
+    ], "2026-08-25T11:05:00Z");
+
+    assert.deepEqual(failed.events.map((event) => event.type), ["service_critical", "service_unhealthy"]);
+    assert.deepEqual(recovered.events.map((event) => event.type), ["recovered", "recovered"]);
+    const serverSource = readFileSync(new URL("../src/server.ts", import.meta.url), "utf8");
+    assert.doesNotMatch(serverSource, /applied\.events\[0\]/);
+  });
+
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts
+  it("does not infer a storage outage when a required baseline prevents the optional probe", () => {
+    const first = applyRuntimeCheckResults(undefined, [{
+      id: "core.object_storage",
+      status: "skipped",
+      failureClass: "dependency_failed",
+      required: false,
+    }], "2026-08-25T10:00:00Z");
+    const second = applyRuntimeCheckResults(first.state, [{
+      id: "core.object_storage",
+      status: "skipped",
+      failureClass: "dependency_failed",
+      required: false,
+    }], "2026-08-25T10:05:00Z");
+
+    assert.deepEqual(first.events, []);
+    assert.deepEqual(second.events, []);
+    assert.equal(second.state.incidentOpen, false);
+  });
+
   it("alerts immediately when the runtime verifier container is unavailable", () => {
     const result = applyRuntimeCheckResults(
       undefined,

@@ -15,6 +15,7 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.directus.directus import DirectusService
+from backend.shared.python_utils.storage_availability import is_storage_unavailable_error
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,9 @@ class UsageArchiveService:
             return s3_key
             
         except Exception as e:
+            if is_storage_unavailable_error(e):
+                logger.warning("%s Object storage unavailable; archive remains pending", log_prefix)
+                raise
             logger.error(f"{log_prefix} Error archiving usage entries for user '{user_id_hash}', month '{year_month}': {e}", exc_info=True)
             return None
     

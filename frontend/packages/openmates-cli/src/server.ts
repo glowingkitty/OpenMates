@@ -2469,18 +2469,16 @@ async function dispatchRuntimeEvent(
 
 async function persistRuntimeResult(installPath: string, role: ServerRole, output: RuntimeVerifierOutput): Promise<RuntimeNotificationDelivery[]> {
   const previous = await readRuntimeIncidentState(installPath, role);
-  const requiredResults = output.checks.filter((check) => check.required);
-  const applied = applyRuntimeCheckResults(previous, requiredResults, new Date(output.completed_at * 1000).toISOString());
+  const applied = applyRuntimeCheckResults(previous, output.checks, new Date(output.completed_at * 1000).toISOString());
   await writeRuntimeIncidentState(installPath, role, applied.state);
-  const event = applied.events[0];
-  if (!event) return [];
-  return dispatchRuntimeEvent(
+  const deliveries = await Promise.all(applied.events.map((event) => dispatchRuntimeEvent(
     installPath,
     role,
-    event.type === "recovered" ? "recovery" : "incident",
-    output.checks,
+    event.type === "recovered" ? "recovery" : event.type === "service_critical" ? "critical" : "incident",
+    output.checks.filter((check) => check.id === event.checkId),
     new Date(output.completed_at * 1000).toISOString(),
-  );
+  )));
+  return deliveries.flat();
 }
 
 async function installRuntimeMonitoringServices(installPath: string, role: ServerRole): Promise<void> {

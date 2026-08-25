@@ -16,6 +16,7 @@ import path from "node:path";
 import type { ServerRole } from "./serverPlanning.js";
 
 const INCIDENT_FAILURE_THRESHOLD = 2;
+const STORAGE_CRITICAL_AFTER_MS = 60 * 60 * 1000;
 const STALE_AFTER_MS = 15 * 60 * 1000;
 const HEARTBEAT_AFTER_MS = 24 * 60 * 60 * 1000;
 const OPERATIONAL_REPORT_STALE_AFTER_MS = 26 * 60 * 60 * 1000;
@@ -37,6 +38,7 @@ export type RuntimeIncidentState = {
   lastNotificationAt?: string;
   lastHeartbeatAt?: string;
   lastFailureClass?: string;
+  criticalEscalatedAt?: string;
   checks?: Record<string, {
     consecutiveFailures: number;
     incidentOpen: boolean;
@@ -44,6 +46,7 @@ export type RuntimeIncidentState = {
     lastCheckAt?: string;
     lastSuccessAt?: string;
     lastFailureClass?: string;
+    criticalEscalatedAt?: string;
   }>;
 };
 
@@ -60,7 +63,7 @@ export type RuntimeCheckOutcome = {
 
 export type RuntimeNotificationPayload = {
   role: ServerRole;
-  kind: RuntimeNotificationDecision["kind"] | "post_update_failed" | "service_unhealthy" | "monitor_stale" | "recovered" | "daily_heartbeat" | "delivery_test";
+  kind: RuntimeNotificationDecision["kind"] | "post_update_failed" | "service_unhealthy" | "critical" | "monitor_stale" | "recovered" | "daily_heartbeat" | "delivery_test";
   occurredAt: string;
   checkIds: string[];
   sanitizedReason: string;
@@ -495,7 +498,15 @@ export function evaluateRuntimeIncident(
   const timestamp = now.toISOString();
   if (outcome.status === "passed") {
     const wasOpen = state.incidentOpen;
-    const next = { ...state, consecutiveFailures: 0, incidentOpen: false, lastCheckAt: timestamp, lastSuccessAt: timestamp };
+    const next = {
+      ...state,
+      consecutiveFailures: 0,
+      incidentOpen: false,
+      incidentOpenedAt: undefined,
+      criticalEscalatedAt: undefined,
+      lastCheckAt: timestamp,
+      lastSuccessAt: timestamp,
+    };
     if (wasOpen) {
       next.lastNotificationAt = timestamp;
       return { state: next, notification: { kind: "recovery", send: true, reason: "required_checks_recovered" } };
@@ -757,8 +768,8 @@ export async function deliverRuntimeNotification(
   return Promise.all(deliveries);
 }
 
-export type RuntimeCheckResult = { id: string; status: "passed" | "failed" | "skipped"; failureClass?: string };
-export type RuntimeHealthEvent = { type: "service_unhealthy" | "recovered"; checkId: string };
+export type RuntimeCheckResult = { id: string; status: "passed" | "failed" | "skipped"; failureClass?: string; required?: boolean };
+export type RuntimeHealthEvent = { type: "service_unhealthy" | "service_critical" | "recovered"; checkId: string };
 
 export function applyRuntimeCheckResults(
   state: RuntimeIncidentState | undefined,
@@ -770,19 +781,44 @@ export function applyRuntimeCheckResults(
   const events: RuntimeHealthEvent[] = [];
   for (const result of results) {
     const checkState = checks[result.id] ?? { consecutiveFailures: 0, incidentOpen: false };
+    if (result.status === "skipped" && result.failureClass === "not_configured") {
+      checks[result.id] = {
+        consecutiveFailures: 0,
+        incidentOpen: false,
+        lastCheckAt: timestamp,
+        lastFailureClass: "not_configured",
+      };
+      continue;
+    }
+    if (result.status === "skipped" && result.failureClass === "dependency_failed" && result.required === false) {
+      continue;
+    }
     const evaluated = evaluateRuntimeIncident(
       checkState,
       { status: result.status === "passed" ? "passed" : "failed", failureClass: result.failureClass },
       new Date(timestamp),
     );
-    checks[result.id] = {
+    const nextCheckState = {
       consecutiveFailures: evaluated.state.consecutiveFailures,
       incidentOpen: evaluated.state.incidentOpen,
       incidentOpenedAt: evaluated.state.incidentOpenedAt,
       lastCheckAt: evaluated.state.lastCheckAt,
       lastSuccessAt: evaluated.state.lastSuccessAt,
       lastFailureClass: evaluated.state.lastFailureClass,
+      criticalEscalatedAt: evaluated.state.criticalEscalatedAt,
     };
+    if (
+      result.id === "core.object_storage"
+      && result.status === "failed"
+      && nextCheckState.incidentOpen
+      && nextCheckState.incidentOpenedAt
+      && !nextCheckState.criticalEscalatedAt
+      && Date.parse(timestamp) - Date.parse(nextCheckState.incidentOpenedAt) >= STORAGE_CRITICAL_AFTER_MS
+    ) {
+      nextCheckState.criticalEscalatedAt = timestamp;
+      events.push({ type: "service_critical", checkId: result.id });
+    }
+    checks[result.id] = nextCheckState;
     if (evaluated.notification?.kind === "incident") events.push({ type: "service_unhealthy", checkId: result.id });
     if (evaluated.notification?.kind === "recovery") events.push({ type: "recovered", checkId: result.id });
   }

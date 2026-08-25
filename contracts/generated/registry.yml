@@ -41,6 +41,14 @@ contracts:
     fingerprint: d52b3667314c96d4ad3ebd85287613ec966d9c9e1dee34d1aba7bf1c61324426
     required_surfaces:
     - cli
+  architecture.storage-resilience:
+    version: 1
+    status: draft
+    path: architecture/storage-resilience
+    fingerprint: ea241c299958673f921ef157aec4d96c4661ed1bafa6b64a7630b6fee78ca9fd
+    required_surfaces:
+    - rest_api
+    - cli
   architecture.sync:
     version: 1
     status: approved
@@ -703,6 +711,54 @@ assertions:
     type: privacy
     fingerprint: b6b12a31c596be6b9c78157f07b62923bd19937e3088b84a34a159091af2078b
     required_surfaces:
+    - cli
+  storage-resilience.core.s3-is-noncritical:
+    contract: architecture.storage-resilience@1
+    contract_id: architecture.storage-resilience
+    type: failure
+    fingerprint: 843b5f0d28f6a9c91dc99af7a78f9d0ed0c760ccb8f7dccb9e10732b0b033cf6
+    required_surfaces:
+    - rest_api
+    - cli
+  storage-resilience.operations.fail-before-cost:
+    contract: architecture.storage-resilience@1
+    contract_id: architecture.storage-resilience
+    type: invariant
+    fingerprint: 45f517adc6acadc9647a5bb45c6cb3d204aedcaf21e68bb85cf16119d200c052
+    required_surfaces:
+    - rest_api
+    - cli
+  storage-resilience.jobs.preserve-and-retry:
+    contract: architecture.storage-resilience@1
+    contract_id: architecture.storage-resilience
+    type: invariant
+    fingerprint: ec9176a562686505d240c2996ee9e6eceae6e665e7bbf69ac77970e7a1d9dec2
+    required_surfaces:
+    - rest_api
+    - cli
+  storage-resilience.monitoring.transition-alerts:
+    contract: architecture.storage-resilience@1
+    contract_id: architecture.storage-resilience
+    type: behavior
+    fingerprint: b799927d89b345d52ff9f695e72d761587cf68a5fa07e7df01b8878c32b8828e
+    required_surfaces:
+    - rest_api
+    - cli
+  storage-resilience.monitoring.not-configured:
+    contract: architecture.storage-resilience@1
+    contract_id: architecture.storage-resilience
+    type: behavior
+    fingerprint: 41f7ec18f5300a5d0fa18b049bba40bd846913c91ca7f40dd7d22481ea3e9572
+    required_surfaces:
+    - rest_api
+    - cli
+  storage-resilience.content.privacy-boundary:
+    contract: architecture.storage-resilience@1
+    contract_id: architecture.storage-resilience
+    type: privacy
+    fingerprint: 26456e066561146fb7a3e729488d5954f3818038ef6e8901fc68561b6d766408
+    required_surfaces:
+    - rest_api
     - cli
   sync.access.first-party-authenticated:
     contract: architecture.sync@1

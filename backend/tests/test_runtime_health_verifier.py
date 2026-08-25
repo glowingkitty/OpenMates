@@ -32,6 +32,7 @@ from backend.scripts.runtime_health_verifier import (
     HTTP_PROBE_TIMEOUT_SECONDS,
     STRIPE_REQUEST_TIMEOUT_SECONDS,
     CheckDefinition,
+    _check_object_storage,
     _check_billing_routes,
     _check_billing_workers,
     _check_billing_webhook,
@@ -40,6 +41,7 @@ from backend.scripts.runtime_health_verifier import (
     _check_stripe_account_read,
     build_check_inventory,
     execute_checks,
+    run_verifier,
 )
 
 
@@ -52,6 +54,90 @@ def test_directus_upload_storage_preserves_bind_mount_and_drops_root_privileges(
     assert "chown node:node /directus/uploads" in dockerfile_source
     assert "apk add --no-cache curl postgresql-client su-exec" in dockerfile_source
     assert "exec su-exec node:node /usr/local/bin/openmates-directus-start" in dockerfile_source
+
+
+# contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts,storage-resilience.monitoring.not-configured
+def test_core_inventory_includes_optional_bounded_object_storage() -> None:
+    mode = SimpleNamespace(billing_enabled=False)
+
+    storage_check = next(
+        check for check in build_check_inventory("core", mode)
+        if check.id == "core.object_storage"
+    )
+
+    assert storage_check.required is False
+    assert storage_check.timeout_seconds <= 10
+
+
+# contract-test: direct surface=cli assertions=storage-resilience.monitoring.not-configured,storage-resilience.content.privacy-boundary
+@pytest.mark.asyncio
+async def test_object_storage_reports_not_configured_without_outage(monkeypatch: pytest.MonkeyPatch) -> None:
+    import backend.scripts.runtime_health_verifier as verifier
+
+    class FakeStorage:
+        def __init__(self, *, secrets_manager: object):
+            assert secrets_manager is not None
+
+        async def initialize(self, *, configure_buckets: bool) -> None:
+            assert configure_buckets is False
+
+        async def check_availability(self) -> str:
+            return "not_configured"
+
+    async def fake_secrets_manager() -> object:
+        return object()
+
+    monkeypatch.setattr(verifier, "_storage_service_type", lambda: FakeStorage)
+    monkeypatch.setattr(verifier, "_initialized_secrets_manager", fake_secrets_manager)
+
+    result = await execute_checks([
+        CheckDefinition("core.object_storage", 1, _check_object_storage, required=False)
+    ])
+
+    assert result[0].status == "skipped"
+    assert result[0].failure_class == "not_configured"
+    assert result[0].sanitized_reason == "not_configured"
+
+
+# contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts,storage-resilience.content.privacy-boundary
+@pytest.mark.asyncio
+async def test_object_storage_failure_is_sanitized_and_does_not_fail_core(monkeypatch: pytest.MonkeyPatch) -> None:
+    import backend.scripts.runtime_health_verifier as verifier
+
+    class FakeStorage:
+        def __init__(self, *, secrets_manager: object):
+            assert secrets_manager is not None
+
+        async def initialize(self, *, configure_buckets: bool) -> None:
+            assert configure_buckets is False
+
+        async def check_availability(self) -> str:
+            return "unavailable"
+
+    async def fake_secrets_manager() -> object:
+        return object()
+
+    monkeypatch.setattr(verifier, "_storage_service_type", lambda: FakeStorage)
+    monkeypatch.setattr(verifier, "_initialized_secrets_manager", fake_secrets_manager)
+    async def passing_baseline() -> None:
+        return None
+
+    monkeypatch.setattr(verifier, "build_check_inventory", lambda _role, _mode: [
+        CheckDefinition("compose.required_services", 1),
+        CheckDefinition("core.object_storage", 1, required=False)
+    ])
+    monkeypatch.setattr(verifier, "_runtime_runners", lambda _role: {
+        "compose.required_services": passing_baseline,
+        "core.object_storage": _check_object_storage,
+    })
+
+    result = await run_verifier("core")
+
+    assert result["status"] == "passed"
+    storage_result = next(check for check in result["checks"] if check["id"] == "core.object_storage")
+    assert storage_result["status"] == "failed"
+    assert storage_result["failure_class"] == "storage_unavailable"
+    assert storage_result["sanitized_reason"] == "check_failed"
 
 
 @pytest.mark.asyncio
