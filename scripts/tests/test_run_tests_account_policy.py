@@ -323,6 +323,35 @@ def test_seeded_gift_card_code_is_not_passed_to_unrelated_dispatch(monkeypatch):
     assert dispatches == [("regular.spec.ts", None)]
 
 
+def test_accepted_dispatch_without_visible_run_id_is_not_dispatched_twice():
+    run_tests = load_run_tests_module()
+
+    class FakeClient:
+        last_dispatch_error = run_tests.DISPATCH_ACCEPTED_RUN_ID_PENDING
+
+        def __init__(self):
+            self.dispatches = 0
+
+        def dispatch_spec(self, *_args, **_kwargs):
+            self.dispatches += 1
+            self.last_dispatch_error = run_tests.DISPATCH_ACCEPTED_RUN_ID_PENDING
+            return None
+
+    client = FakeClient()
+    runner = run_tests.BatchRunner(
+        client=client,
+        specs=["regular.spec.ts"],
+        batch_size=1,
+        fail_fast=False,
+    )
+
+    result = runner.run_all_batches()
+
+    assert client.dispatches == 1
+    assert result.tests[0]["status"] == "dispatch_error"
+    assert result.tests[0]["error"] == run_tests.DISPATCH_ACCEPTED_RUN_ID_PENDING
+
+
 def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
     run_tests = load_run_tests_module()
 

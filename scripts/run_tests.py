@@ -122,6 +122,7 @@ RENOTIFY_AFTER_TICKS = 3
 ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
 ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
+DISPATCH_ACCEPTED_RUN_ID_PENDING = "Workflow dispatched, but GitHub did not expose a new run ID in time"
 PROOF_VIDEO_PROFILES = {"web-laptop", "web-phone"}
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
@@ -1663,7 +1664,7 @@ class GitHubActionsClient:
                 return run_id
 
         _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
-        self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
+        self.last_dispatch_error = DISPATCH_ACCEPTED_RUN_ID_PENDING
         return None
 
     def _recent_runs(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[dict]:
@@ -1988,6 +1989,8 @@ class BatchRunner:
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
         self.progress_callback = progress_callback
+        self._active_batch_run_ids: list[int] = []
+        self._batch_runs_terminal = False
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
@@ -2024,11 +2027,49 @@ class BatchRunner:
             print()
             _log(f"Batch {batch_idx + 1}/{total_batches}: {len(batch_specs)} specs")
 
-            batch_results = self._run_batch(batch_specs, batch_idx)
+            self._active_batch_run_ids = []
+            self._batch_runs_terminal = False
+            batch_recovery_error: Optional[str] = None
+            try:
+                batch_results = self._run_batch(batch_specs, batch_idx)
+            except Exception as exc:
+                if not self._batch_runs_terminal and self._active_batch_run_ids:
+                    _log(
+                        f"Batch {batch_idx + 1} crashed with active workflows — "
+                        f"waiting for {len(self._active_batch_run_ids)} run(s) before continuing",
+                        "WARN",
+                    )
+                    try:
+                        self.client.wait_for_runs(self._active_batch_run_ids, False)
+                    except Exception as drain_exc:
+                        batch_recovery_error = f"Could not drain active workflows: {drain_exc}"
+                        _log(batch_recovery_error, "ERROR")
+                self._active_batch_run_ids = []
+                self._batch_runs_terminal = batch_recovery_error is None
+                error = f"Batch {batch_idx + 1} collection failed: {exc}"
+                if batch_recovery_error:
+                    error = f"{error}; {batch_recovery_error}"
+                _log(f"{error} — accounting for this batch and continuing", "ERROR")
+                batch_results = [
+                    SpecResult(name=spec, file=spec, status="result_unknown", error=error)
+                    for spec in batch_specs
+                ]
             all_results.extend(batch_results)
 
+            if batch_recovery_error:
+                remaining_specs = self.specs[end:]
+                for spec in remaining_specs:
+                    all_results.append(SpecResult(
+                        name=spec,
+                        file=spec,
+                        status="not_started",
+                        error=f"Skipped: {batch_recovery_error}",
+                    ))
+                self._emit_progress(all_results, suite_start)
+                break
+
             # Check for failures (batch-level fail-fast)
-            batch_failures = [r for r in batch_results if r.status == "failed"]
+            batch_failures = [r for r in batch_results if _is_problem_status(r.status)]
             if batch_failures and self.fail_fast and batch_idx < total_batches - 1:
                 remaining_specs = self.specs[end:]
                 _log(
@@ -2083,7 +2124,8 @@ class BatchRunner:
                 seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                 proof_video_profile=self.proof_video_profile,
             )
-            if run_id is None:
+            dispatch_was_accepted = self.client.last_dispatch_error == DISPATCH_ACCEPTED_RUN_ID_PENDING
+            if run_id is None and not dispatch_was_accepted:
                 # Retry once
                 time.sleep(5)
                 run_id = self.client.dispatch_spec(
@@ -2104,18 +2146,22 @@ class BatchRunner:
                 ))
             else:
                 dispatched.append((spec, account, run_id))
+                self._active_batch_run_ids.append(run_id)
 
             # Small delay between dispatches to avoid rate limiting
             if (i + 1) % 5 == 0:
                 time.sleep(1)
 
         if not dispatched:
+            self._batch_runs_terminal = True
             return dispatch_errors
 
         # Wait for all dispatched runs
         run_ids = [rid for _, _, rid in dispatched]
         _log(f"  Waiting for {len(run_ids)} runs...")
         statuses = self.client.wait_for_runs(run_ids, self.fail_fast)
+        self._active_batch_run_ids = []
+        self._batch_runs_terminal = True
         print()  # Clear the polling line
 
         # Collect results

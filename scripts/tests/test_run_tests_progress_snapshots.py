@@ -120,6 +120,110 @@ def test_batch_runner_progress_callback_receives_cumulative_fail_fast_results():
     assert statuses == {"a.spec.ts": "failed", "b.spec.ts": "passed", "c.spec.ts": "not_started"}
 
 
+def test_batch_runner_accounts_for_crashed_batch_and_continues_without_fail_fast():
+    run_tests = load_run_tests_module()
+    callbacks = []
+    runner = run_tests.BatchRunner(
+        client=object(),
+        specs=["a.spec.ts", "b.spec.ts", "c.spec.ts"],
+        batch_size=2,
+        fail_fast=False,
+        normal_account_slots=(1, 2),
+        progress_callback=callbacks.append,
+    )
+    batches = []
+
+    def fake_run_batch(specs, batch_idx):
+        batches.append((batch_idx, list(specs)))
+        if batch_idx == 0:
+            runner._batch_runs_terminal = True
+            raise RuntimeError("artifact collection exploded")
+        return [run_tests.SpecResult(name=specs[0], file=specs[0], status="passed")]
+
+    runner._run_batch = fake_run_batch
+
+    result = runner.run_all_batches()
+
+    assert batches == [(0, ["a.spec.ts", "b.spec.ts"]), (1, ["c.spec.ts"])]
+    assert len(callbacks) == 2
+    assert {test["file"]: test["status"] for test in result.tests} == {
+        "a.spec.ts": "result_unknown",
+        "b.spec.ts": "result_unknown",
+        "c.spec.ts": "passed",
+    }
+    assert all(
+        test.get("error") == "Batch 1 collection failed: artifact collection exploded"
+        for test in result.tests[:2]
+    )
+
+
+def test_batch_runner_drains_active_runs_before_reusing_accounts():
+    run_tests = load_run_tests_module()
+    drained = []
+
+    class FakeClient:
+        def wait_for_runs(self, run_ids, fail_fast):
+            drained.append((list(run_ids), fail_fast))
+            return {run_id: {"status": "completed", "conclusion": "success"} for run_id in run_ids}
+
+    runner = run_tests.BatchRunner(
+        client=FakeClient(),
+        specs=["a.spec.ts", "b.spec.ts", "c.spec.ts"],
+        batch_size=2,
+        fail_fast=False,
+        normal_account_slots=(1, 2),
+    )
+    batches = []
+
+    def fake_run_batch(specs, batch_idx):
+        batches.append((batch_idx, list(specs)))
+        if batch_idx == 0:
+            runner._active_batch_run_ids = [101]
+            raise RuntimeError("dispatch connection reset")
+        return [run_tests.SpecResult(name=specs[0], file=specs[0], status="passed")]
+
+    runner._run_batch = fake_run_batch
+
+    result = runner.run_all_batches()
+
+    assert drained == [([101], False)]
+    assert batches == [(0, ["a.spec.ts", "b.spec.ts"]), (1, ["c.spec.ts"])]
+    assert [test["status"] for test in result.tests] == ["result_unknown", "result_unknown", "passed"]
+
+
+def test_batch_runner_accounts_for_remaining_specs_when_active_run_drain_fails():
+    run_tests = load_run_tests_module()
+    callbacks = []
+
+    class FakeClient:
+        def wait_for_runs(self, _run_ids, _fail_fast):
+            raise RuntimeError("GitHub unavailable")
+
+    runner = run_tests.BatchRunner(
+        client=FakeClient(),
+        specs=["a.spec.ts", "b.spec.ts", "c.spec.ts"],
+        batch_size=2,
+        fail_fast=False,
+        normal_account_slots=(1, 2),
+        progress_callback=callbacks.append,
+    )
+    batches = []
+
+    def fake_run_batch(specs, batch_idx):
+        batches.append((batch_idx, list(specs)))
+        runner._active_batch_run_ids = [101]
+        raise RuntimeError("polling failed")
+
+    runner._run_batch = fake_run_batch
+
+    result = runner.run_all_batches()
+
+    assert batches == [(0, ["a.spec.ts", "b.spec.ts"])]
+    assert [test["status"] for test in result.tests] == ["result_unknown", "result_unknown", "not_started"]
+    assert len(callbacks) == 1
+    assert "Could not drain active workflows: GitHub unavailable" in result.tests[0]["error"]
+
+
 def test_daily_runner_exception_persists_and_notifies_terminal_failure(monkeypatch, tmp_path):
     run_tests = load_run_tests_module()
     monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
