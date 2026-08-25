@@ -635,7 +635,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         currentTaskIdentifier: Int?
     ) -> Bool {
         guard let currentTaskIdentifier else { return false }
-        callbackTaskIdentifier == currentTaskIdentifier
+        return callbackTaskIdentifier == currentTaskIdentifier
     }
 
     nonisolated func urlSession(
