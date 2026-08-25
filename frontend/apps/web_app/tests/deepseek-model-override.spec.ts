@@ -23,6 +23,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const DEMONSTRATION_REVIEW_HOLD_MS = 3_500;
 
 const proofContract = defineVideoProof({
 	id: 'deepseek-v4-pro-live-chat',
@@ -117,6 +118,7 @@ test('DeepSeek V4 Pro completes and the chat remains available after reload', as
 			await expect(generatedBy).toContainText('DeepSeek V4 Pro');
 		});
 		await proof.checkpoint('deepseek-response-complete');
+		await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
 	}
 
 	await page.reload({ waitUntil: 'domcontentloaded' });
@@ -131,6 +133,7 @@ test('DeepSeek V4 Pro completes and the chat remains available after reload', as
 			await expect(reloadedAssistant.getByTestId('generated-by')).toContainText('DeepSeek V4 Pro');
 		});
 		await proof.checkpoint('deepseek-reload-complete');
+		await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
 	}
 
 	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'deepseek-cleanup');

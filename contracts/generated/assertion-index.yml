@@ -9441,7 +9441,7 @@ assertions:
       surface: gui.apple
     - &id1047
       path: frontend/apps/web_app/tests/deepseek-model-override.spec.ts
-      line: 77
+      line: 78
       name: DeepSeek V4 Pro completes and the chat remains available after reload
       surface: gui.web
     - &id1048
@@ -10386,7 +10386,7 @@ assertions:
       surface: gui.web
     - &id1184
       path: frontend/apps/web_app/tests/deepseek-model-override.spec.ts
-      line: 77
+      line: 78
       name: DeepSeek V4 Pro completes and the chat remains available after reload
       surface: gui.web
     - &id1185
