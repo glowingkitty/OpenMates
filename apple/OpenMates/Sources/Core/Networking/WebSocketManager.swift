@@ -15,6 +15,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var activeConnectionKey: ConnectionKey?
     private var didOpenCurrentSocket = false
     private var messageWaiters: [UUID: MessageWaiter] = [:]
+    private let streamEventDispatcher = OrderedStreamEventDispatcher()
     private(set) var recoveryCoordinator: ChatCompletionRecoveryCoordinator?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -312,12 +313,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             let chatId = msg.stringField("chat_id") ?? ""
             let taskId = msg.stringField("ai_task_id") ?? msg.stringField("task_id") ?? ""
             let userMsgId = msg.stringField("user_message_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .taskInitiated(chatId: chatId, taskId: taskId, userMessageId: userMsgId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .taskInitiated(chatId: chatId, taskId: taskId, userMessageId: userMsgId),
+                for: chatId
+            )
 
         case "ai_typing_started":
             let chatId = msg.stringField("chat_id") ?? ""
@@ -332,12 +331,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 userMessageId: msg.stringField("user_message_id"),
                 encryptedChatKey: msg.stringField("encrypted_chat_key")
             )
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .typingStarted(chatId: chatId, messageId: messageId, metadata: metadata),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .typingStarted(chatId: chatId, messageId: messageId, metadata: metadata),
+                for: chatId
+            )
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
@@ -354,136 +351,116 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             let modelName = msg.stringField("model_name")
             let rejectionReason = msg.stringField("rejection_reason")
             recoveryCoordinator?.handleTerminalStream(msg.fields)
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .chunk(
-                        chatId: chatId,
-                        messageId: messageId,
-                        sequence: sequence,
-                        content: content,
-                        isFinal: isFinal,
-                        userMessageId: userMessageId,
-                        category: category,
-                        modelName: modelName,
-                        rejectionReason: rejectionReason
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .chunk(
+                    chatId: chatId,
+                    messageId: messageId,
+                    sequence: sequence,
+                    content: content,
+                    isFinal: isFinal,
+                    userMessageId: userMessageId,
+                    category: category,
+                    modelName: modelName,
+                    rejectionReason: rejectionReason
+                ),
+                for: chatId
+            )
 
         case "thinking_chunk":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
             let content = msg.stringField("content") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .thinkingChunk(chatId: chatId, messageId: messageId, content: content),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .thinkingChunk(chatId: chatId, messageId: messageId, content: content),
+                for: chatId
+            )
 
         case "thinking_complete":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .thinkingComplete(chatId: chatId, messageId: messageId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .thinkingComplete(chatId: chatId, messageId: messageId),
+                for: chatId
+            )
 
         case "ai_message_ready":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .messageReady(chatId: chatId, messageId: messageId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .messageReady(chatId: chatId, messageId: messageId),
+                for: chatId
+            )
 
         case "awaiting_user_input":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? msg.stringField("task_id") ?? ""
             let question = msg.stringField("question") ?? ""
             guard !chatId.isEmpty, !messageId.isEmpty, !question.isEmpty else { break }
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .chunk(
-                        chatId: chatId,
-                        messageId: messageId,
-                        sequence: 0,
-                        content: question,
-                        isFinal: true,
-                        userMessageId: msg.stringField("user_message_id"),
-                        category: nil,
-                        modelName: nil,
-                        rejectionReason: nil
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .chunk(
+                    chatId: chatId,
+                    messageId: messageId,
+                    sequence: 0,
+                    content: question,
+                    isFinal: true,
+                    userMessageId: msg.stringField("user_message_id"),
+                    category: nil,
+                    modelName: nil,
+                    rejectionReason: nil
+                ),
+                for: chatId
+            )
 
         case "preprocessing_step":
             let chatId = msg.stringField("chat_id") ?? ""
             let step = msg.stringField("step") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .preprocessingStep(chatId: chatId, step: step, data: nil),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .preprocessingStep(chatId: chatId, step: step, data: nil),
+                for: chatId
+            )
 
         case "ai_typing_ended":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id")
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .typingEnded(chatId: chatId, messageId: messageId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .typingEnded(chatId: chatId, messageId: messageId),
+                for: chatId
+            )
 
         case "message_queued":
             let chatId = msg.stringField("chat_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .messageQueued(
-                        chatId: chatId,
-                        taskId: msg.stringField("task_id"),
-                        userMessageId: msg.stringField("user_message_id"),
-                        message: msg.stringField("message")
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .messageQueued(
+                    chatId: chatId,
+                    taskId: msg.stringField("task_id"),
+                    userMessageId: msg.stringField("user_message_id"),
+                    message: msg.stringField("message")
+                ),
+                for: chatId
+            )
 
         case "ai_task_cancel_requested":
             let chatId = msg.stringField("chat_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .cancelRequested(chatId: chatId, taskId: msg.stringField("task_id")),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .cancelRequested(chatId: chatId, taskId: msg.stringField("task_id")),
+                for: chatId
+            )
 
         case "post_processing_completed":
             let chatId = msg.stringField("chat_id") ?? ""
             let taskId = msg.stringField("task_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .postProcessingCompleted(
-                        chatId: chatId,
-                        taskId: taskId,
-                        followUpSuggestions: msg.stringArrayField("follow_up_request_suggestions") ?? [],
-                        newChatSuggestions: msg.stringArrayField("new_chat_request_suggestions") ?? [],
-                        chatSummary: msg.stringField("chat_summary"),
-                        chatTags: msg.stringArrayField("chat_tags") ?? [],
-                        updatedTitle: msg.stringField("updated_chat_title")
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .postProcessingCompleted(
+                    chatId: chatId,
+                    taskId: taskId,
+                    followUpSuggestions: msg.stringArrayField("follow_up_request_suggestions") ?? [],
+                    newChatSuggestions: msg.stringArrayField("new_chat_request_suggestions") ?? [],
+                    chatSummary: msg.stringField("chat_summary"),
+                    chatTags: msg.stringArrayField("chat_tags") ?? [],
+                    updatedTitle: msg.stringField("updated_chat_title")
+                ),
+                for: chatId
+            )
 
         case "request_chat_history":
             NotificationCenter.default.post(

@@ -181,6 +181,24 @@ struct ChatStreamingLifecycleState: Equatable {
     }
 }
 
+enum ChatStreamingPresentationPolicy {
+    static func shouldMaterializeAssistant(
+        content: String,
+        thinkingContent: String,
+        embedCount: Int
+    ) -> Bool {
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || embedCount > 0
+    }
+}
+
+enum ChatFollowUpSuggestionPolicy {
+    static func reconcile(current: [String], incoming: [String]) -> [String] {
+        incoming.isEmpty ? current : incoming
+    }
+}
+
 enum ChatOpeningFallbackPolicy {
     static func shouldFetchMissingSyncedMessages(messagesV: Int?, lastMessageAt: String?) -> Bool {
         if let messagesV, messagesV > 0 {
@@ -434,7 +452,10 @@ final class ChatViewModel: ObservableObject {
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
         let renderedMessages = mergeVisibleMessagesWithActiveStream(embedded.messages, chatId: loadedChat.id)
-        followUpSuggestions = extractFollowUpSuggestions(from: renderedMessages)
+        followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+            current: followUpSuggestions,
+            incoming: extractFollowUpSuggestions(from: renderedMessages)
+        )
 
         messages = renderedMessages
         hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
@@ -971,7 +992,10 @@ final class ChatViewModel: ObservableObject {
             chat = updatedChat
             chatStore?.upsertChat(updatedChat)
             appendOrReplaceLocalMessage(assistant)
-            followUpSuggestions = response.followUpSuggestions
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+                current: followUpSuggestions,
+                incoming: response.followUpSuggestions
+            )
             isStreaming = false
             streamingContent = ""
             streamingMessageId = nil
@@ -1117,8 +1141,6 @@ final class ChatViewModel: ObservableObject {
             if let modelName = metadata?.modelName {
                 assistantModelNameByMessageId[messageId] = modelName
             }
-            ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: metadata)
-
         case .chunk(let chatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
             streamingMessageId = messageId
             if let userMessageId {
@@ -1155,7 +1177,10 @@ final class ChatViewModel: ObservableObject {
                 } else {
                     appendOrReplaceLocalMessage(assistantMessage)
                 }
-                followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
+                followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+                    current: followUpSuggestions,
+                    incoming: extractFollowUpSuggestions(from: allMessages)
+                )
                 isStreaming = false
                 streamingContent = ""
                 streamingMessageId = nil
@@ -1173,6 +1198,14 @@ final class ChatViewModel: ObservableObject {
                     }
                 }
             } else {
+                guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+                    content: displayContent,
+                    thinkingContent: streamingLifecycle.thinkingContent,
+                    embedCount: 0
+                ) else {
+                    isStreaming = true
+                    return
+                }
                 let partialAssistantMessage = Message(
                     id: messageId, chatId: chatId, role: rejectionReason == nil ? .assistant : .system,
                     content: displayContent, encryptedContent: nil,
@@ -1218,7 +1251,10 @@ final class ChatViewModel: ObservableObject {
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
             guard chat?.id == chatId else { return }
-            followUpSuggestions = Array(followUps.prefix(18))
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+                current: followUpSuggestions,
+                incoming: Array(followUps.prefix(18))
+            )
             Task { @MainActor in
                 await sendPipeline.sendPostProcessingMetadata(
                     chatId: chatId,
@@ -1257,6 +1293,11 @@ final class ChatViewModel: ObservableObject {
         messageId: String,
         metadata: StreamingClient.ChatMetadata?
     ) {
+        guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: streamingContent,
+            thinkingContent: streamingLifecycle.thinkingContent,
+            embedCount: 0
+        ) else { return }
         guard !messages.contains(where: { $0.id == messageId }) else { return }
         appendOrReplaceTransientMessage(Message(
             id: messageId,

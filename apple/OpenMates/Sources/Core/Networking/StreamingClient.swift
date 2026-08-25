@@ -98,3 +98,40 @@ actor StreamingClient {
         }
     }
 }
+
+@MainActor
+final class OrderedStreamEventDispatcher {
+    typealias Dispatch = @Sendable (StreamingClient.StreamEvent, String) async -> Void
+
+    private let dispatch: Dispatch
+    private var pendingEvents: [(event: StreamingClient.StreamEvent, chatId: String)] = []
+    private var drainTask: Task<Void, Never>?
+
+    init(_ dispatch: @escaping Dispatch = { event, chatId in
+        await StreamingClient.shared.dispatch(event, for: chatId)
+    }) {
+        self.dispatch = dispatch
+    }
+
+    func enqueue(_ event: StreamingClient.StreamEvent, for chatId: String) {
+        pendingEvents.append((event, chatId))
+        guard drainTask == nil else { return }
+        drainTask = Task { [weak self] in
+            await self?.drain()
+        }
+    }
+
+    func waitUntilIdle() async {
+        while let drainTask {
+            await drainTask.value
+        }
+    }
+
+    private func drain() async {
+        while !pendingEvents.isEmpty {
+            let next = pendingEvents.removeFirst()
+            await dispatch(next.event, next.chatId)
+        }
+        drainTask = nil
+    }
+}

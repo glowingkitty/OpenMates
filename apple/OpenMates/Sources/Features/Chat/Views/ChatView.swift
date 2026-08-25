@@ -28,7 +28,7 @@
 //              height:40px; font-weight:500 }
 //            .action-buttons { position:absolute; bottom:1rem; left:1rem; right:1rem }
 //
-// messageList / StreamingIndicator:
+// messageList:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
 //   CSS:     frontend/packages/ui/src/styles/chat.css
 //            .chat-history-container { padding:10px; overflow-y:auto }
@@ -86,17 +86,22 @@ private struct ChatMessageFramePreferenceKey: PreferenceKey {
     }
 }
 
-private enum ChatResponsiveBreakpoint {
+enum ChatResponsiveLayoutPolicy {
     /// Web `ChatMessage.svelte`: assistant messages use `.mobile-stacked`
     /// when the measured chat container width is <= 500 px.
-    static let assistantStacked: CGFloat = 500
+    private static let assistantStackedBreakpoint: CGFloat = 500
     /// Web `ActiveChat.svelte`: input-adjacent New chat label hides at
     /// `@container chat-side (max-width: 550px)`.
     static let inlineNewChatCompact: CGFloat = 550
+    static let contentMaximumWidth: CGFloat = 1_000
+    static let inlineCompactComposerHeight: CGFloat = 48
+
+    static func stacksAssistantIdentity(containerWidth: CGFloat) -> Bool {
+        containerWidth <= assistantStackedBreakpoint
+    }
 }
 
 private enum ChatHistoryLayoutMetric {
-    static let contentMaximumWidth: CGFloat = 1_000
     static let wideWindowMinimumWidth: CGFloat = 900
     static let streamingUpdateDebounceMilliseconds = 50
     static let streamingFinalizationDelayMilliseconds = 250
@@ -930,14 +935,9 @@ struct ChatView: View {
 
                                 if !activeProcessingSteps.isEmpty {
                                     ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
-                                        .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
-                                        .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
+                                        .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 86)
+                                        .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 12)
                                         .id("processing-details")
-                                }
-
-                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty && !viewModel.streamingLifecycle.shouldShowThinkingDetails {
-                                    StreamingIndicator()
-                                        .id("streaming")
                                 }
 
                                 if showAssistantFeedback {
@@ -949,8 +949,8 @@ struct ChatView: View {
                                             onReportIssue?(.featureRequest())
                                         }
                                     )
-                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 75 : 0)
-                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 20 : 0)
+                                    .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 75)
+                                    .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 20)
                                     .id("assistant-response-feedback")
                                 }
 
@@ -962,15 +962,15 @@ struct ChatView: View {
                                     ) { suggestion in
                                         messageText = suggestion
                                     }
-                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 75 : 0)
-                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 20 : 0)
+                                    .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 75)
+                                    .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 20)
                                     .id("follow-up-suggestions")
                                 }
                             }
                             .padding(.horizontal, .spacing4)
                             .padding(.vertical, .spacing4)
                             // Cap message area width on iPad/Mac, centered
-                            .frame(maxWidth: ChatHistoryLayoutMetric.contentMaximumWidth)
+                            .frame(maxWidth: ChatResponsiveLayoutPolicy.contentMaximumWidth)
                             .frame(maxWidth: .infinity)
                             .accessibilityIdentifier("chat-history-content")
 
@@ -1073,7 +1073,7 @@ struct ChatView: View {
     }
 
     private func chatHistoryLayoutMetricsProbe(containerSize: CGSize) -> some View {
-        let transcriptWidth = min(containerSize.width, ChatHistoryLayoutMetric.contentMaximumWidth)
+        let transcriptWidth = min(containerSize.width, ChatResponsiveLayoutPolicy.contentMaximumWidth)
         let mobileBanner = containerSize.width <= 730
         let minimumBannerHeight: CGFloat = mobileBanner ? 230 : 240
         let bannerHeight = max(minimumBannerHeight, chatViewportHeight * 0.35)
@@ -1617,7 +1617,10 @@ struct ChatView: View {
         return VStack(spacing: composerOpen ? .spacing3 : 0) {
             HStack(alignment: .bottom, spacing: .spacing3) {
                 newChatInlineButton
-                    .frame(width: composerOpen ? 0 : (useCompactInlineNewChat ? 48 : nil), height: 48)
+                    .frame(
+                        width: composerOpen ? 0 : (useCompactInlineNewChat ? ChatResponsiveLayoutPolicy.inlineCompactComposerHeight : nil),
+                        height: ChatResponsiveLayoutPolicy.inlineCompactComposerHeight
+                    )
                     .opacity(composerOpen ? 0 : 1)
                     .clipped()
                     .allowsHitTesting(!composerOpen)
@@ -1634,7 +1637,7 @@ struct ChatView: View {
                     .transition(.opacity)
             }
         }
-        .frame(maxWidth: ChatHistoryLayoutMetric.contentMaximumWidth)
+        .frame(maxWidth: ChatResponsiveLayoutPolicy.contentMaximumWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -2503,7 +2506,7 @@ struct ChatView: View {
 
     private var useCompactInlineNewChat: Bool {
         if chatContainerWidth > 0 {
-            return chatContainerWidth <= ChatResponsiveBreakpoint.inlineNewChatCompact
+            return chatContainerWidth <= ChatResponsiveLayoutPolicy.inlineNewChatCompact
         }
         return sizeClass == .compact
     }
@@ -3276,7 +3279,7 @@ struct MessageBubble: View {
     /// Web: ≤500px uses stacked layout (avatar above message).
     private var useStackedLayout: Bool {
         if containerWidth > 0 {
-            return containerWidth <= ChatResponsiveBreakpoint.assistantStacked
+            return ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: containerWidth)
         }
         return sizeClass == .compact
     }
@@ -3614,7 +3617,7 @@ struct MessageBubble: View {
 
     private var assistantContent: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if !displayContent.isEmpty {
+            if !displayContent.isEmpty || thinkingContent?.isEmpty == false || !topLevelAppSkillEmbeds.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(assistantDisplayName)
@@ -3654,7 +3657,9 @@ struct MessageBubble: View {
                             .padding(.bottom, .spacing2)
                         }
 
-                        assistantMarkdownContent
+                        if !displayContent.isEmpty {
+                            assistantMarkdownContent
+                        }
                     }
                     .foregroundStyle(Color.grey100)
                     .padding(.spacing6)
@@ -3859,34 +3864,3 @@ private struct SpeechTailView: View {
 
 // MarkdownText and IsUserMessage environment removed — replaced by
 // RichMarkdownView / InlineMarkdownText in RichMarkdownRenderer.swift
-
-// MARK: - Streaming indicator
-
-struct StreamingIndicator: View {
-    @State private var dotCount = 0
-    let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
-
-    var body: some View {
-        HStack {
-            HStack(spacing: .spacing1) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(Color.fontTertiary)
-                        .frame(width: 6, height: 6)
-                        .opacity(index <= dotCount ? 1 : 0.3)
-                }
-            }
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing4)
-            .background(Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: 13))
-            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-
-            Spacer()
-        }
-        .onReceive(timer) { _ in
-            dotCount = (dotCount + 1) % 3
-        }
-        .accessibilityIdentifier("streaming-indicator")
-    }
-}
