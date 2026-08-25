@@ -4078,13 +4078,9 @@ Command Options:
     --image-tag <tag>   Prebuilt image tag (default: CLI version tag)
     --from-source       Clone/build from source instead of using prebuilt GHCR images
     --source-path <dir> Clone from a local checkout instead of GitHub (implies --from-source)
-    --official-cloud    Enable sibling/configured OpenMatesCloud overlay for official servers
-    --deployment-mode <mode>  self-host or official-cloud
-    --openmatescloud-path <dir>  Overlay checkout path (default: sibling OpenMatesCloud)
 
   register:
     --path <dir>        Existing OpenMates checkout (default: current directory)
-    --official-cloud   Use the sibling/configured OpenMatesCloud backend overlay
     --with-overrides   Persist local admin/Directus port overrides
     --profile <name>   Core profile: minimal, standard, or production
     --with-alerts      Include alertmanager in the persisted service set
@@ -4186,8 +4182,7 @@ Command Options:
 
 Examples:
   openmates server install
-  openmates server register --path . --official-cloud --with-overrides --exclude webapp
-  openmates server install --from-source --official-cloud --openmatescloud-path ../OpenMatesCloud
+  openmates server register --path . --with-overrides
   openmates server start --with-overrides
   openmates server logs --container api --follow
   openmates server make-admin user@example.com

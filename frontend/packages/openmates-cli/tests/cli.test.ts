@@ -4506,6 +4506,18 @@ describe("documented CLI command reference", () => {
     });
   });
 
+  it("public server help excludes private official-cloud operator options", () => {
+    const help = runCli(["server", "--help"]);
+    for (const privateTerm of [
+      "--official-cloud",
+      "--deployment-mode",
+      "--openmatescloud-path",
+      "OpenMatesCloud",
+    ]) {
+      assert.ok(!help.includes(privateTerm), `expected server help to omit ${privateTerm}`);
+    }
+  });
+
   it("benchmark docs cover benchmark help options", () => {
     const doc = readRepoText("docs/user-guide/cli/benchmarks.md");
     const help = runCli(["benchmark", "--help"]);

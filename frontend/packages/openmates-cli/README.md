@@ -195,22 +195,20 @@ openmates server install --path /opt/openmates
 openmates server start --path /opt/openmates
 ```
 
-Contributors and backend-only official servers can adopt an existing checkout
-without cloning or changing its Git state:
+Contributors can adopt an existing checkout without cloning or changing its Git
+state:
 
 ```bash
 openmates server register --path /path/to/OpenMates
-openmates server register --path /path/to/OpenMates --official-cloud --with-overrides --exclude webapp
 ```
 
 Registered working-tree servers build the current checkout and persist their
-service selection. Official-cloud registrations omit the bundled web app;
-regular self-host installs continue to include it.
+service selection. Regular self-host installs include the bundled web app.
 
-Default installs use prebuilt GHCR images and do not require Git, a source
-checkout, or cloud-only deployment flags. The installer writes a runtime
-directory, creates `.env`, generates local secrets, saves the self-host API
-target in `~/.openmates/server.json`, and prints the first invite code.
+Default installs use prebuilt GHCR images and do not require Git or a source
+checkout. The installer writes a runtime directory, creates `.env`, generates
+local secrets, saves the self-host API target in `~/.openmates/server.json`, and
+prints the first invite code.
 
 After startup, open:
 
