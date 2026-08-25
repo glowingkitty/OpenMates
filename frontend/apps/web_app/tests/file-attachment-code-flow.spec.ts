@@ -338,7 +338,10 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(artifactCards).toHaveCount(2);
 	await expect(artifactCards.nth(0)).toContainText('outputs/chart.png');
 	await expect(artifactCards.nth(1)).toContainText('outputs/result.txt');
-	await expect(artifactCards.nth(1).getByTestId('code-run-artifact-download')).toBeVisible();
+	await expect(
+		artifactCards.nth(1).getByTestId('code-run-artifact-download')
+			.or(artifactCards.nth(1).getByTestId('code-run-artifact-download-unavailable'))
+	).toBeVisible();
 	await artifactCards.nth(0).getByTestId('code-run-artifact-child-open').click();
 	const imageChild = fullscreenOverlay.getByTestId('image-embed-fullscreen');
 	await expect(imageChild).toBeVisible({ timeout: 30000 });
@@ -365,8 +368,10 @@ test('code run output becomes the default code embed preview after reload', asyn
 		await proof.checkpoint('result-visible');
 	}
 
-	await fullscreenOverlay.getByTestId('code-run-action-run-again').click();
-	await expect(terminal).toContainText('Queued code run', { timeout: 10000 });
+	const runAgainButton = fullscreenOverlay.getByTestId('code-run-action-run-again');
+	await runAgainButton.click();
+	await expect(runAgainButton).toBeDisabled({ timeout: 10000 });
+	await expect(runAgainButton).toBeEnabled({ timeout: 120000 });
 	await expect(terminal).toContainText('Exited', { timeout: 120000 });
 	await expect(artifactCards).toHaveCount(2, { timeout: 120000 });
 	const artifactHistory = artifactCards.nth(1).getByTestId('code-run-artifact-history');

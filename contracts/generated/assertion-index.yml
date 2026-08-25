@@ -10817,7 +10817,7 @@ assertions:
       surface: gui.web
     - &id1224
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 425
+      line: 430
       name: uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds
       surface: gui.web
     supporting_tests:
@@ -11623,7 +11623,7 @@ assertions:
     direct_tests:
     - &id1298
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 425
+      line: 430
       name: uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds
       surface: gui.web
     supporting_tests:
@@ -11718,7 +11718,7 @@ assertions:
     direct_tests:
     - &id1305
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 425
+      line: 430
       name: uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds
       surface: gui.web
     supporting_tests: []
