@@ -10719,6 +10719,30 @@ report_issue.submit_button:
   sv: Skicka problem
   he: שליחת הדיווח
   verified_by_human: []
+report_issue.email_fallback:
+  context: Text link below the report issue submit button that opens a prefilled email draft
+  en: Send an email instead
+  de: Stattdessen eine E-Mail senden
+  zh: 改为发送电子邮件
+  es: Enviar un correo electrónico en su lugar
+  fr: Envoyer plutôt un e-mail
+  pt: Enviar um e-mail em vez disso
+  ru: Вместо этого отправить письмо
+  ja: 代わりにメールを送信
+  ko: 대신 이메일 보내기
+  it: Invia invece un'e-mail
+  tr: Bunun yerine e-posta gönder
+  vi: Thay vào đó, hãy gửi email
+  id: Kirim email sebagai gantinya
+  pl: Zamiast tego wyślij e-mail
+  nl: In plaats daarvan een e-mail sturen
+  ar: إرسال بريد إلكتروني بدلاً من ذلك
+  hi: इसके बजाय ईमेल भेजें
+  th: ส่งอีเมลแทน
+  cs: Místo toho poslat e-mail
+  sv: Skicka ett e-postmeddelande i stället
+  he: שליחת אימייל במקום זאת
+  verified_by_human: []
 report_issue.submitting:
   context: Submit button text while submitting issue report
   en: Submitting...

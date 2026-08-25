@@ -16,12 +16,14 @@
         external = false,
         onClick = undefined,
         ariaLabel = '',
+        dataTestid = '',
         children,
     }: {
         href?: string;
         external?: boolean;
         onClick?: (() => void) | undefined;
         ariaLabel?: string;
+        dataTestid?: string;
         children: Snippet;
     } = $props();
 
@@ -40,6 +42,7 @@
             target={external ? '_blank' : undefined}
             rel={external ? 'noopener noreferrer' : undefined}
             aria-label={ariaLabel || undefined}
+            data-testid={dataTestid || undefined}
             onclick={onClick ? handleClick : undefined}
         >
             {@render children()}
@@ -48,6 +51,7 @@
         <button
             class="settings-gradient-link settings-gradient-link-button"
             aria-label={ariaLabel || undefined}
+            data-testid={dataTestid || undefined}
             onclick={handleClick}
         >
             {@render children()}

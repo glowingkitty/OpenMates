@@ -14,7 +14,7 @@
     import { externalLinks } from '../../config/links';
     import InputWarning from '../common/InputWarning.svelte';
     import Toggle from '../Toggle.svelte';
-    import { SettingsInput, SettingsTextarea, SettingsInfoBox, SettingsSectionHeading } from './elements';
+    import { SettingsGradientLink, SettingsInput, SettingsTextarea, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import { onMount, createEventDispatcher } from 'svelte';
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
@@ -88,6 +88,14 @@
     let showEmailWarning = $state(false);
     const RAW_CHAT_ERROR_KEYS = new Set(['chat.an_error_occured', 'chat.an_error_occurred']);
     const CHAT_INSPECTION_TIMEOUT_MS = 3500;
+    const ISSUE_REPORT_EMAIL = 'support@openmates.org';
+    const SCREENSHOT_RECOMMENDATION = '[ RECOMMENDATION: Add screenshots to this email, to show what is broken ]';
+    const SCREENSHOT_TRANSFER_NOTICE = '[ NOTE: Screenshots selected in OpenMates are not attached automatically. ]';
+    let issueEmailContext = $state({
+        reportedAt: '',
+        page: '',
+        language: 'en'
+    });
 
     function normalizeIssueReportText(value: string): string {
         let normalized = value;
@@ -267,6 +275,48 @@
             deviceMemoryGiB: nav.deviceMemory ?? null
         };
     }
+
+    function buildIssueEmailHref(): string {
+        const title = issueTitle.trim() || 'Issue report';
+        const sharedUrl = shareChatEnabled && chatOrEmbedUrl.trim()
+            ? chatOrEmbedUrl.trim()
+            : 'Not shared';
+        const body = [
+            SCREENSHOT_RECOMMENDATION,
+            SCREENSHOT_TRANSFER_NOTICE,
+            '',
+            'Hello OpenMates team,',
+            '',
+            issueType === 'feature_request'
+                ? 'I would like to suggest an improvement.'
+                : 'I would like to report an issue.',
+            '',
+            `Report type:\n${issueType === 'feature_request' ? 'Feature request' : 'Bug report'}`,
+            '',
+            `Short description:\n${issueTitle.trim() || 'Not provided'}`,
+            '',
+            `What I did:\n${userFlow.trim() || 'Not provided'}`,
+            '',
+            `Expected behavior:\n${expectedBehaviour.trim() || 'Not provided'}`,
+            '',
+            `Actual behavior:\n${actualBehaviour.trim() || 'Not provided'}`,
+            '',
+            `Shared chat or embed:\n${sharedUrl}`,
+            '',
+            'Technical context:',
+            `- Reported at: ${issueEmailContext.reportedAt || 'Not available'}`,
+            `- Page: ${issueEmailContext.page || 'Not available'}`,
+            `- Browser and OS: ${deviceInfo.userAgent || 'Not available'}`,
+            `- Viewport: ${deviceInfo.viewportWidth} x ${deviceInfo.viewportHeight}`,
+            `- Interface language: ${issueEmailContext.language}`,
+            '',
+            'Thank you.'
+        ].join('\n');
+
+        return `mailto:${ISSUE_REPORT_EMAIL}?subject=${encodeURIComponent(`[OpenMates issue] ${title}`)}&body=${encodeURIComponent(body)}`;
+    }
+
+    let issueEmailHref = $derived(buildIssueEmailHref());
     
     /**
      * Collect IndexedDB inspection report for the active chat
@@ -1477,6 +1527,13 @@
     
     // Auto-generate share URL and collect initial device info when component mounts
     onMount(() => {
+        issueEmailContext = {
+            reportedAt: new Date().toISOString(),
+            page: `${window.location.origin}${window.location.pathname}`,
+            language: localStorage.getItem('preferredLanguage')
+                || navigator.language.split('-')[0]
+                || 'en'
+        };
         // ── Priority order for pre-filling the form ──────────────────────────────
         // 1. reportIssueStore  — set by deep links / ChatMessage "Report" button.
         //    Applied first as the baseline.
@@ -1568,6 +1625,13 @@
                 {/if}
             </button>
         </div>
+        <SettingsGradientLink
+            href={issueEmailHref}
+            ariaLabel={$text('settings.report_issue.email_fallback')}
+            dataTestid="report-issue-email-fallback"
+        >
+            {$text('settings.report_issue.email_fallback')}
+        </SettingsGradientLink>
 
         <!-- Short Description (required, multi-line) -->
         <div class="input-group">
@@ -1593,6 +1657,7 @@
             <SettingsSectionHeading title={$text('settings.report_issue.user_flow_label')} icon="document" />
             <SettingsTextarea
                 bind:value={userFlow}
+                dataTestid="report-issue-user-flow"
                 placeholder={$text('settings.report_issue.user_flow_placeholder')}
                 disabled={isSubmitting}
                 ariaLabel={$text('settings.report_issue.user_flow_label')}
@@ -1606,6 +1671,7 @@
             <SettingsSectionHeading title={$text('settings.report_issue.expected_behaviour_label')} icon="search" />
             <SettingsTextarea
                 bind:value={expectedBehaviour}
+                dataTestid="report-issue-expected-behaviour"
                 placeholder={$text('settings.report_issue.expected_behaviour_placeholder')}
                 disabled={isSubmitting}
                 ariaLabel={$text('settings.report_issue.expected_behaviour_label')}
@@ -1619,6 +1685,7 @@
             <SettingsSectionHeading title={$text('settings.report_issue.actual_behaviour_label')} icon="announcement" />
             <SettingsTextarea
                 bind:value={actualBehaviour}
+                dataTestid="report-issue-actual-behaviour"
                 placeholder={$text('settings.report_issue.actual_behaviour_placeholder')}
                 disabled={isSubmitting}
                 ariaLabel={$text('settings.report_issue.actual_behaviour_label')}
