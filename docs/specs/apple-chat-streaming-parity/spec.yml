@@ -136,7 +136,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 72b4e1868
+  subject_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
 
 approvals:
   product_contract:
@@ -231,15 +231,25 @@ attempts:
     outcome: blocked
     recorded_at: "2026-07-11T21:22:56Z"
     evidence: The remote UI test target built and launched, but XCTest skipped the flow because the required real-account credentials were not configured on the remote runner.
+  - id: ATTEMPT-8
+    task_id: TASK-9
+    approach: Capture current-dev iPhone proof with the exact-commit credential broker and approved apple-iphone-portrait simulator profile.
+    outcome: blocked
+    recorded_at: "2026-08-25T11:42:49Z"
+    evidence: Run apple-0d754eb7999b44bd reached the native login flow at commit 20f812e52183c8e408050074483de93b3340e385, but the password step returned backend HTTP 502 before chat assertions. The dev API remained unhealthy because startup failed while external S3 bucket CORS calls returned 503.
 
 handoff:
   current_task_id: TASK-9
-  next_action: Reconcile the remote lifecycle test-discovery gap and record remaining spec evidence without changing the VALID TestFlight subject build.
-  command: python3 scripts/spec_verify.py docs/specs/apple-chat-streaming-parity/spec.yml
-  expected_outcome: Verification identifies the still-unrecorded exhaustive matrix while preserving build 50 as the shipped implementation evidence.
+  next_action: After https://api.dev.openmates.org/health returns success, recapture iPhone and iPad proof, compare bounded frames with the deployed web contract, then complete the remaining cross-client, persistence, cold-boot, macOS, and privacy gates.
+  command: python3 scripts/spec_verify.py docs/specs/apple-chat-streaming-parity/spec.yml --phase complete --json
+  expected_outcome: Verification retains the current native lifecycle and render-document evidence while reporting only the still-unrecorded broader parity matrix.
   blocker:
-    reason: The remote lifecycle class executed seven legacy tests instead of discovering the newly committed reducer tests; one unrelated ChatFlowParityUITests workspace-navigation assertion also failed while seeded chat rendering checks passed.
-  last_verified_commit: 31a381a94
+    task_id: TASK-9
+    requires_user_input: false
+    reason: Current-commit lifecycle and render-document unit suites pass, but iPhone proof run apple-0d754eb7999b44bd was blocked by dev API HTTP 502 while API startup failed on external S3 503 responses. Required iPhone, iPad, macOS, persistence, cold-boot, CLI, npm SDK, pip SDK, privacy, and bounded visual-review evidence remains incomplete.
+    next_action: Retry the approved iPhone proof command only after the dev API health endpoint succeeds, then run the equivalent iPad profile and bounded cross-client review.
+    recheck_condition: https://api.dev.openmates.org/health returns a successful response and the API container reports healthy.
+  last_verified_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
 
 scenarios:
   - id: S-1
@@ -655,6 +665,8 @@ tests:
         command: python3 scripts/tests.py run -- --spec chat-response-processing-ui.spec.ts
         run_id: "29149261643"
         subject_commit: 210d6f4ca
+        target: app.dev.openmates.org
+        deployment_reference: 210d6f4ca
         timestamp: "2026-07-11T10:25:09Z"
   - id: T-WEB-SCROLL
     type: playwright
@@ -690,16 +702,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", run_id: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
+        run_id: remote:connection-generation-red-20260825T1116Z
+        subject_commit: 925239614b44fd5489caf1828698e995cd00a25a
+        reason: The newly added superseded-connection test failed at compile time because the connection-generation guard seam did not exist yet.
+        timestamp: "2026-08-25T11:16:55Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
         command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
-        run_id: remote:stream-replacement-green-20260711T1044Z
-        subject_commit: 0755ba9
-        timestamp: "2026-07-11T10:44:47Z"
+        run_id: remote:apple-lifecycle-green-20260825T1321Z
+        subject_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
+        reason: ChatStreamingLifecycleParityTests executed 21 tests with zero failures, covering ordered dispatch, socket identity, connection generations, stale terminal and task events, subscription replacement, presentation, and follow-up retention.
+        timestamp: "2026-08-25T11:21:08Z"
   - id: T-SWIFT-STREAM-BROKER
     type: unit
     file: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
@@ -722,7 +741,13 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatStreamingLifecycleParityTests
+        run_id: remote:apple-lifecycle-green-20260825T1321Z
+        subject_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
+        reason: The 21-test lifecycle suite includes the passing replacement-subscriber regression and same-chat stream handoff coverage.
+        timestamp: "2026-08-25T11:21:08Z"
   - id: T-SWIFT-PERSISTENCE
     type: unit
     file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
@@ -769,8 +794,8 @@ tests:
         timestamp: "2026-07-11T21:20:05Z"
   - id: T-SWIFT-MARKDOWN
     type: unit
-    file: apple/OpenMatesTests/RichMarkdownStreamingParityTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/RichMarkdownStreamingParityTests
+    file: apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatHistoryRenderDocumentTests
     covers: [AC-4]
     assertions:
       - incomplete fences, links, lists, tables, and embed references remain renderable across chunks
@@ -780,11 +805,23 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", run_id: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatHistoryRenderDocumentTests/testResultsViewProtocolBuildsEmbedGroupWithoutExposingMetadata
+        run_id: remote:results-view-red-20260824T2206Z
+        subject_commit: 4f899fd0c
+        reason: The results-view protocol rendered as a code block, exposed raw metadata, and returned no ordered embed references; the focused test failed three assertions.
+        timestamp: "2026-08-24T20:06:08Z"
     green_phase:
       required: true
       expected: pass
-      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+      evidence:
+        status: passed
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatHistoryRenderDocumentTests
+        run_id: remote:apple-render-document-green-20260825T1322Z
+        subject_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
+        reason: ChatHistoryRenderDocumentTests executed 13 tests with zero failures, covering ordered semantic blocks, results-view protocol hiding, inline entities, bounded embed cards, streaming markdown visibility, cold-boot render restoration, accessibility, and responsive breakpoints.
+        timestamp: "2026-08-25T11:22:08Z"
   - id: T-SWIFT-ANONYMOUS
     type: unit
     file: apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
@@ -937,11 +974,15 @@ verifications:
     phase: red
     required_for_done: true
     covers: [AC-14]
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: No backend source may be edited unless an implementation blocker is documented and the user explicitly approves expanding file ownership first.
-      timestamp: ""
+      status: not_applicable
+      command: git diff --name-only 72b4e1868..3cbc4791420de05f89788f9837dd98680ebd1bd2 -- backend
+      run_id: source-scope:backend-gate-20260825T1123Z
+      subject_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
+      summary: The Apple streaming, rendering, follow-up, and responsive implementation retained the existing WebSocket/backend contract and made no backend source changes for this parity slice.
+      reason: The approved gate required explicit expansion before backend edits; the scoped implementation needed no expansion and the backend diff is empty.
+      timestamp: "2026-08-25T11:23:03Z"
   - id: V-VISUAL-ARTIFACTS
     kind: artifact_review
     phase: final
@@ -1117,7 +1158,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Make lifecycle reduction sequence-aware and message-owned
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3, S-4, S-6, S-8]
