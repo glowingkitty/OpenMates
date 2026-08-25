@@ -215,7 +215,7 @@ attempts:
 handoff:
   current_task_id: TASK-17
   next_action: Retry the exact-commit proof spec after the managed dev API is healthy, then require a passed frame review and delivered response-media manifest before marking the spec verified.
-  command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 41d27119b380bf64621283b80d8e5628907c0e2c
+  command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit "$(git rev-parse origin/dev)"
   expected_outcome: The deployed spec passes, auto-finalization trims from the explicit welcome-visible checkpoint, generalized frame review passes, and publication returns snippet_html.
   blocker:
     task_id: TASK-17
