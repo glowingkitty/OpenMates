@@ -142,6 +142,11 @@ decisions:
     decision: Expand proof-blocking scope to repair the encrypted embed key-ready reload race.
     reason: User approved fixing the real post-reload loading defect exposed by required phone proof rather than hiding or excepting it.
     decided_at: "2026-08-24T19:10:00Z"
+  - id: D-5
+    status: active
+    decision: Allow one additional instrumented product correction round for the persistent referenced-embed loader.
+    reason: User explicitly authorized deeper deployed instrumentation, test-first repair, and replacement proof after the automatic correction budget was exhausted.
+    decided_at: "2026-08-24T22:50:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -173,18 +178,19 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-24T22:47:00Z"
     evidence: Focused red run 32784981681 and green run 32785422472 proved candidate ordering, but phone proof run 32786071438 retained the same product-defect fingerprint and exhausted the automatic correction budget.
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Add a deployed post-reload assertion that requires the referenced map view to leave its zero-item loading state before proof capture.
+    outcome: planned
+    recorded_at: "2026-08-24T22:50:00Z"
+    evidence: User authorized one additional instrumented correction round after reviewing the repeated phone proof defect.
 
 handoff:
   current_task_id: TASK-6
-  next_action: If the user authorizes another correction round, instrument the exact map source refs and candidate outcomes in a focused deployed reproduction before changing product code again.
+  next_action: Deploy and run the strengthened post-reload assertion red, then instrument the exact source-ref resolution stage identified by that failure.
   command: python3 scripts/tests.py run --spec billing-settlement-recovery.spec.ts --proof-video-profile web-phone --gate-deploy --expected-commit <SHA>
   expected_outcome: The post-reload phone checkpoint resolves referenced event embeds and no longer shows the zero-item loading state.
-  blocker:
-    task_id: TASK-6
-    requires_user_input: true
-    reason: Phone proof run 32786071438 repeated the same product-defect fingerprint after the allowed automatic product correction round.
-    question: Authorize one additional product correction round for deeper deployed instrumentation and repair of the persistent referenced-embed loader.
-    next_action: Continue with an instrumented failing reproduction and a replacement phone proof if approved.
+  blocker: null
   last_verified_commit: 25792667f8633528a38685ea64418dd2e9b09260
 
 scenarios:

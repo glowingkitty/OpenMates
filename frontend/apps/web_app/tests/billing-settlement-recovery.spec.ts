@@ -132,6 +132,10 @@ test.describe('Billing settlement recovery', () => {
 			'[data-testid="embed-preview"][data-app-id="events"][data-skill-id="search"][data-status="finished"]'
 		);
 		await expect(reloadedCards.first()).toBeVisible({ timeout: 60_000 });
+		const reloadedMapView = page.getByTestId('embeds-map-view').last();
+		await expect(reloadedMapView).toBeVisible({ timeout: 60_000 });
+		await expect(reloadedMapView.getByTestId('embeds-map-view-count')).not.toHaveText('0 shown', { timeout: 60_000 });
+		await expect(reloadedMapView.getByText('Loading referenced embeds...')).toHaveCount(0);
 		await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
 		if (proof) {
 			await reloadedAssistant.evaluate((element: HTMLElement) =>
