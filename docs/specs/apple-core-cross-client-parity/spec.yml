@@ -186,7 +186,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 59f9fae71
+  subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3
 
 approvals:
   product_contract:
@@ -365,7 +365,7 @@ acceptance_criteria:
     scenario: S-6
     text: Proof-enabled Apple UI tests automatically retain raw video, xcresult, timeline, attachments, exact-profile media, captions, manifest, bounded frames, and review receipt under one run id.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-RECORDING-TOOLING, T-APPLE-PROOF-IPHONE, T-APPLE-PROOF-IPAD]
@@ -374,7 +374,7 @@ acceptance_criteria:
     scenario: S-6
     text: Passing iPhone portrait and iPad landscape recordings automatically complete caption generation, bounded review, and response-media publication without burning captions into or cropping the clean frame.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-APPLE-PROOF-IPHONE, T-APPLE-PROOF-IPAD, V-APPLE-PROOF-REVIEW]
@@ -394,7 +394,7 @@ assumptions:
     text: Existing backend and web behavior already implements the referenced contracts and can serve as the parity oracle without semantic changes.
     category: contracts
     required_before: implementation
-    status: checking
+    status: confirmed
     evidence:
       - source: contracts/generated/registry.yml
         summary: Referenced contract fingerprints and required Apple surfaces are registered.
@@ -403,10 +403,12 @@ assumptions:
     text: The reserved dev E2E account can safely carry run-scoped encrypted producer chats from web, CLI, and Apple without exposing secrets in manifests.
     category: testing
     required_before: task_execution
-    status: checking
+    status: confirmed
     evidence:
       - source: apple/OpenMatesUITests/RealAccountUITestSupport.swift
         summary: Existing Apple tests consume reserved test-account credentials through environment-only configuration.
+      - source: test-results/apple-recordings/apple-39da1db4ecca4a91/manifest.json
+        summary: The GitHub ciphertext broker supplied reserved slot 14 without exposing credentials, and exact-commit iPhone and iPad proof runs completed with opaque run IDs.
     blocker: Add an opaque test-control-plane manifest and cleanup path before cross-client E2E if no safe shared run state exists.
   - id: A-3
     text: Remote iPhone and iPad simulators can record their full app frame while xcodebuild executes and can export sanitized artifacts back to the Linux control plane.
@@ -494,7 +496,7 @@ tests:
       - Metadata-only chat open returns bounded encrypted content.
       - Unauthorized and unsupported developer access is rejected.
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py contract sync --slot 14 --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-contract-sync-30f2fac8e, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:13:00Z", notes: Unauthorized and developer WebSockets were rejected; first-party rich state, bounded Phase 1/2 metadata, and ciphertext hydration passed.}}
   - id: T-CLI-CHAT-PRODUCER
     type: manual
     file: frontend/packages/openmates-cli/tests/apple-cross-client-chat.e2e.ts
@@ -531,7 +533,7 @@ tests:
       - Native client headers are accepted while unauthorized origins and missing native identity are rejected.
       - Password plus OTP and passkey challenge/session paths preserve wrapped-key and raw-token boundaries.
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: failed, command: 'python3 scripts/apple_remote.py contract auth --slot 14 --expected-commit 287efcccf89668443a0b7a380b052d65cb2d76f3', run_id: apple-contract-auth-287efcccf, subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3, timestamp: "2026-08-25T02:08:00Z", notes: The live dev API emitted nullable tfa_app_name in lookup despite checked-in response_model_exclude_none; the active Docker runtime was rebuilt from another session checkout and does not match current source.}}
   - id: T-APPLE-AUTH-IPHONE
     type: manual
     file: apple/OpenMatesUITests/AuthSecurityParityUITests.swift
@@ -540,7 +542,7 @@ tests:
     contract_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
     assertions: [fresh install login, password plus OTP, passkey system boundary, local key readiness, relaunch restoration, explicit expired session, logout cleanup]
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/AuthSecurityParityUITests"', run_id: remote-20260824-auth-current, subject_commit: 59f9fae71, timestamp: "2026-08-24T00:28:04Z", notes: auth-login-tab never appeared}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 16 Pro" --only-testing "OpenMatesUITests/AuthSecurityParityUITests" --record-profile apple-iphone-portrait --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-ba7abcbe41004f0e, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:19:39Z", notes: The credential-free auth-entry smoke passed with all custom login identifiers and no default table chrome.}}
   - id: T-APPLE-AUTH-IPAD
     type: manual
     file: apple/OpenMatesUITests/AuthSecurityParityUITests.swift
@@ -549,7 +551,7 @@ tests:
     contract_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
     assertions: [same semantic auth and passkey boundary as iPhone, regular-layout product controls visible and actionable]
     red_phase: {required: true, expected: fail, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/AuthSecurityParityUITests" --record-profile apple-ipad-landscape --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-be886326b66e4889, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:21:49Z", notes: The same credential-free auth-entry smoke passed under regular iPad landscape layout.}}
   - id: T-APPLE-SYNC-UNIT
     type: unit
     file: apple/OpenMatesTests/ChatSyncParityTests.swift
@@ -646,7 +648,7 @@ tests:
       - Rotation replaces the same device and environment target without exposing token or preview plaintext.
       - Logout or explicit unregister makes the target ineligible for later delivery.
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: failed, command: 'python3 scripts/apple_remote.py contract notification --slot 14 --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-contract-notification-30f2fac8e, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:14:00Z", notes: The live dev API accepted registration without native identity and returned 404 for token cleanup, indicating the active Docker runtime predates the checked-in notification lifecycle routes.}}
   - id: T-PUSH-BACKEND
     type: pytest
     file: backend/tests/test_unified_notifications.py
@@ -691,7 +693,7 @@ tests:
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [record command lifecycle, timeout cleanup, result bundle, artifact transfer, timeline validation, hashes, failed-run retention, pass-only finalization]
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "", notes: Previous green evidence was invalidated by fail-closed proof-log retention changes.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: python3 -m pytest scripts/tests/test_apple_remote_recording.py scripts/tests/test_apple_proof_finalization.py, run_id: pytest-apple-recording-20260825, subject_commit: e57d4471c77573984e8fc0c5c6cd93091a93ee0d, timestamp: "2026-08-25T02:04:00Z", notes: All 27 recording lifecycle, transfer, timeline, hash, retention, and pass-only finalization tests passed.}}
   - id: T-APPLE-PROOF-IPHONE
     type: manual
     file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
@@ -699,8 +701,8 @@ tests:
     covers: [AC-8, AC-9]
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [fresh login, web and CLI chat continuation, 393x852 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
-    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "", notes: Historical run apple-36dafa99c41e4516 passed, but current product and proof tooling require an exact-commit recapture.}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 16 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --expected-commit bf3a8efc95e325816fc03038388f65f0c44029db --test-account-slot 14 --github-secret-broker', run_id: apple-348272a5fac84159, subject_commit: bf3a8efc95e325816fc03038388f65f0c44029db, timestamp: "2026-08-25T01:28:31Z", notes: The long proof prompt exposed unreliable XCUI keystroke injection and failed the exact sent-message assertion before publication.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 16 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --expected-commit a099a0df195e401b947c892790b7d07b3ef3eea0 --test-account-slot 14 --github-secret-broker', run_id: apple-39da1db4ecca4a91, subject_commit: a099a0df195e401b947c892790b7d07b3ef3eea0, timestamp: "2026-08-25T01:38:05Z", notes: XCTest passed; exact 393x852 media, hash-bound captions, 11-frame bounded review, and response-media publication all passed with no incidental findings.}}
   - id: T-APPLE-PROOF-IPAD
     type: manual
     file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
@@ -708,8 +710,8 @@ tests:
     covers: [AC-8, AC-9]
     contract_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
     assertions: [fresh login, web and CLI chat continuation, 1366x1024 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
-    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "", notes: Historical run apple-4be0bbf6a35c4c46 passed, but current product and proof tooling require an exact-commit recapture.}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --expected-commit 00745631a2899f4458630c924bfc464bf4fda05c --test-account-slot 14 --github-secret-broker', run_id: apple-ec0fcce88da54fef, subject_commit: 00745631a2899f4458630c924bfc464bf4fda05c, timestamp: "2026-08-25T01:44:12Z", notes: Landscape login failed because the email field did not retain keyboard focus after a single tap.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --expected-commit 287efcccf89668443a0b7a380b052d65cb2d76f3 --test-account-slot 14 --github-secret-broker', run_id: apple-134e4393b2bd4df7, subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3, timestamp: "2026-08-25T01:59:52Z", notes: XCTest passed; exact 1366x1024 media, hash-bound captions, 12-frame bounded review, and response-media publication all passed with no incidental findings.}}
 
 verifications:
   - id: V-APPLE-PUSH-DEVICE
@@ -731,8 +733,8 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-9]
-    status: pending
-    evidence: {status: pending, summary: Historical iPhone and iPad reviews passed, but final exact-commit recaptures are required after current product and recording changes., timestamp: "2026-08-24T14:53:28Z", actor: proof-video-reviewer, next_action: Review and publish final-commit iPhone and iPad proof.}
+    status: passed
+    evidence: {status: passed, summary: Exact-commit iPhone run apple-39da1db4ecca4a91 and iPad run apple-134e4393b2bd4df7 passed bounded frame review with both auth.ready and chat.response supported, no incidental findings, exact profile dimensions, hash-bound captions, and delivered response media., timestamp: "2026-08-25T01:59:52Z", actor: proof-video-reviewer, next_action: Preserve both delivered snippet_html values in the task-closing response.}
   - id: V-MACOS-SOURCE-PARITY
     kind: automated_test
     phase: final
@@ -984,18 +986,18 @@ demonstration:
       scenario_ids: [S-6]
       acceptance_criteria: [AC-8, AC-9]
   evidence:
-    status: pending
-    privacy_status: pending
+    status: passed
+    privacy_status: not_applicable
     audio_status: not_required
-    review_status: pending
-    publication_status: pending
-    review_attempts: 0
-    subject_commit: ""
-    manifest_path: ""
-    manifest_hash: ""
-    review_run_id: ""
-    timestamp: ""
-    source: Passing remote Apple UI evidence captured automatically by scripts/apple_remote.py.
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 1
+    subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3
+    manifest_path: test-results/proof-videos/2172/apple-core-parity-apple-134e4393b2bd4df7/manifest.json
+    manifest_hash: sha256:81f8d2e6b921c77c2e51c04f9a6a67227ea8f58787985fdd0324cfd96ac7d79c
+    review_run_id: review-apple-core-parity-apple-134e4393b2bd4df7
+    timestamp: "2026-08-25T01:59:52Z"
+    source: Passing remote Apple UI evidence from iPhone run apple-39da1db4ecca4a91 and iPad run apple-134e4393b2bd4df7, captured, reviewed, and published automatically by scripts/apple_remote.py.
     device_profiles: [apple_iphone_portrait_393x852, apple_ipad_landscape_1366x1024]
     captions: Exact hash-bound device-scoped WebVTT written after normal green gates.
     full_video_in_model_context: forbidden
@@ -1027,7 +1029,7 @@ handoff:
     reason: Simulator evidence cannot prove physical APNs token registration, provider acceptance, notification-service-extension keychain access, sandbox background delivery, or TestFlight production delivery.
     question: Can an authorized operator run the physical iPhone sandbox and TestFlight APNs matrices after the automated gates are complete?
     next_action: Record sanitized physical-device and TestFlight results under V-APPLE-PUSH-DEVICE and V-APPLE-PUSH-TESTFLIGHT without exposing tokens, keys, or account data.
-  last_verified_commit: 5329d6d6b17501ac058d3eb2f8076477cc5bb274
+  last_verified_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3
 
 risks:
   - A broad parity program can hide ordering dependencies; task dependencies and contract-linked acceptance criteria keep slices explicit.
