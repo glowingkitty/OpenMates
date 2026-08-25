@@ -10,6 +10,7 @@ import XCTest
 @MainActor
 enum RealAccountUITestSupport {
     private static let streamingAccessibilitySettleInterval: TimeInterval = 20
+    private static let proofResponseSettleInterval: TimeInterval = 35
 
     static func launchApp(
         preferPasswordLogin: Bool = true,
@@ -125,6 +126,15 @@ enum RealAccountUITestSupport {
         let completedLabel = assistantMessage.label
         XCTAssertGreaterThan(completedLabel.count, 8)
         XCTAssertFalse(completedLabel.contains("app_skill_use"), "Assistant response exposed protocol metadata")
+    }
+
+    static func awaitAssistantResponseForProof(app: XCUIApplication, timeout: TimeInterval = 90) {
+        let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(
+            assistantMessage.waitForExistence(timeout: timeout),
+            "Expected an assistant response to appear"
+        )
+        RunLoop.current.run(until: Date().addingTimeInterval(proofResponseSettleInterval))
     }
 
     static func revealLatestAssistantResponse(app: XCUIApplication) {
