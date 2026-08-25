@@ -4,7 +4,7 @@ status: implementing
 
 goal: >
   Let new, unauthenticated users try OpenMates on official cloud clients with a
-  shared daily and weekly free-usage budget, while keeping anonymous chat content
+  shared hard-capped daily, weekly, and monthly free-usage budget, while keeping anonymous chat content
   client-side encrypted, local-only, and automatically removable unless the user
   signs up and promotes the chats into their encrypted account sync.
 
@@ -97,6 +97,10 @@ clarification:
       answer: All app skills that do not require connected accounts should be accessible, gated by explicit metadata.
     - question: Should the server retain weekly/monthly per-user usage metadata?
       answer: No. The system only needs shared daily/weekly budget counters and short-lived per-identity daily cap records to make simple circumvention harder.
+    - question: Should anonymous app skills be removed when their costs are not covered by the outer AI charge?
+      answer: No. Preserve anonymous app skills and meter every main-model iteration and billable app-skill provider request through the same anonymous operation reservation ledger.
+    - question: Which absolute anonymous limits must remain enforceable even if an admin enters higher values?
+      answer: Hard maxima are 400 credits per identity per UTC day, 3000 credits server-wide per UTC day, 15000 credits server-wide per UTC week, and 60000 credits server-wide per UTC month. Admin configuration may lower but never exceed them.
   vision_summary: >
     New users can try real OpenMates chat and non-connected-account skills for free on official cloud clients while global daily/weekly budget remains available.
     The user sees a normal Send input. When they send the first anonymous message, the client inserts a local system message immediately before it explaining free daily credits and local-only storage.
@@ -260,6 +264,19 @@ scenarios:
       - Admin settings hides anonymous free usage budget management.
       - Direct anonymous free usage endpoints return not found.
       - CLI and Apple hide anonymous free chat for self-hosted servers.
+  - id: S-15
+    title: Every anonymous AI and app operation is metered under resetting hard caps
+    given:
+      - Bob has an anonymous request with remaining identity and shared budget.
+      - The AI may perform multiple model iterations and billable app-skill provider requests.
+    when:
+      - Each operation is quoted before its provider executes and settled after its actual charge is known.
+    then:
+      - The provider is not called unless its conservative quote is durably reserved.
+      - Main-model and app-skill charges are settled against the same anonymous request identity.
+      - Settled usage cannot exceed the operation quote or the 400 identity, 3000 daily, 15000 weekly, or 60000 monthly hard maximum.
+      - UTC day, week, and month counters reset exactly once at their respective boundaries.
+      - Missing pricing, distributed lock, or durable ledger writes reject the operation without calling its provider.
 
 acceptance_criteria:
   - id: AC-1
@@ -313,6 +330,15 @@ acceptance_criteria:
   - id: AC-17
     scenario: S-14
     text: Anonymous follow-up requests are text-only before signup, send required full chat history from local encrypted storage, and never read from or write to an anonymous server inference cache.
+  - id: AC-18
+    scenario: S-15
+    text: Every anonymous main-model iteration and billable app-skill provider request reserves a conservative quote before execution and settles actual credits against one HMAC-scoped request ledger without exceeding the operation quote.
+  - id: AC-19
+    scenario: S-15
+    text: Effective anonymous limits cannot exceed 400 credits per identity per UTC day, 3000 server-wide per UTC day, 15000 server-wide per UTC week, or 60000 server-wide per UTC month, even when persisted or submitted configuration is higher.
+  - id: AC-20
+    scenario: S-15
+    text: Anonymous daily, weekly, and monthly counters roll over exactly once at UTC boundaries under the distributed budget lock, while expired reservations release unused capacity exactly once.
 
 contracts:
   api:
@@ -388,6 +414,9 @@ tests:
       - AC-10
       - AC-11
       - AC-16
+      - AC-18
+      - AC-19
+      - AC-20
     assertions:
       - admin budget save derives daily and weekly caps from monthly budget percentages
       - public status exposes active/reset/can_send_text metadata only
@@ -399,6 +428,10 @@ tests:
       - per-identity cap rejects local ID hash or IP hash after 400 daily credits
       - concurrent reservations cannot overspend available budget
       - failed or expired reservations release unused budget
+      - independent API processes share a fail-closed distributed lock for reservation and rollover mutations
+      - hard maxima reject or clamp oversized admin and persisted configuration
+      - UTC daily, weekly, and monthly counters reset exactly once at their boundaries
+      - actual operation charges above their conservative quote are rejected without increasing capped usage
     red_phase:
       required: true
       expected: fail
@@ -420,6 +453,7 @@ tests:
     covers:
       - AC-12
       - AC-13
+      - AC-18
     assertions:
       - skill without connected-account requirement can execute through anonymous meter without an explicit anonymous allowlist flag
       - connected-account skill is rejected for anonymous callers
@@ -427,6 +461,9 @@ tests:
       - anonymous skill execution rejects file or upload payloads with signup_required
       - anonymous chat stream rejects message or history payloads containing file/embed upload references before inference starts
       - direct anonymous upload attempts are not accepted before account creation
+      - anonymous request initialization stores only HMAC identity hashes and no usage credits
+      - internal anonymous operation reservation fails closed before provider execution
+      - anonymous AI and app-skill operations settle against their pre-execution reservation
     red_phase:
       required: true
       expected: fail
@@ -659,7 +696,7 @@ implementation_plan:
     - Reuse authenticated sync only after signup conversion wraps chat keys with the account master key.
   architecture: >
     Add an AnonymousFreeUsageService that owns budget config, public availability, HMAC identity checks,
-    reservation/finalization accounting, and short-lived anonymous usage metadata. Add a platform-neutral
+    distributed operation reservation/finalization accounting, UTC counter rollover, and short-lived anonymous usage metadata. Add a platform-neutral
     anonymous chat/app execution API that routes through a shared usage meter instead of BillingService.
     Client platforms store anonymous encrypted chats locally in a marked anonymous scope guarded by an
     anonymous session marker. Same-session reload can recover the chat for UX, while a new unauthenticated
@@ -673,7 +710,10 @@ implementation_plan:
     - Client sends plaintext message for transient AI/app processing plus anonymous ID.
     - Client includes full decrypted anonymous text history on every anonymous AI/app turn.
     - Client blocks file attachments before upload, replaces suggestions above the input with account-required copy, and replaces Send with Signup while the pending file remains attached.
-    - Backend HMACs local ID and request IP, reserves budget, executes allowed model/skills, finalizes actual credits, and streams response.
+    - Backend HMACs local ID and request IP and opens a zero-cost anonymous request ledger.
+    - Before every main-model iteration or billable app-skill provider request, the AI worker sends a conservative quote to an internal-only anonymous operation reservation endpoint.
+    - The API acquires the shared distributed lock, rolls UTC windows, releases expired reservations, checks identity/day/week/month capacity, and durably reserves the quote before provider execution.
+    - The worker settles actual credits no greater than the quote; unused reserved credits are released and all operations remain attributed to the same anonymous request.
     - Client encrypts user and assistant messages locally with the chat key and stores them in anonymous local scope.
     - On signup, client wraps anonymous chat keys with master key and syncs encrypted records as normal authenticated chats.
   affected_files:
@@ -685,6 +725,12 @@ implementation_plan:
       reason: Public safe status metadata.
     - path: backend/core/api/app/routes/anonymous.py
       reason: Anonymous status/chat/skill endpoints, full-history payload validation, and signup_required rejection for file/upload payloads.
+    - path: backend/core/api/app/routes/internal_api.py
+      reason: Internal-only operation reservation, settlement, and release endpoints used by AI workers.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Pre-execution anonymous quotes for every main-model iteration and billable app-skill provider request.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Anonymous main-model actual-credit settlement through the shared operation ledger.
     - path: backend/core/directus/schemas/anonymous_free_usage_budget.yml
       reason: Budget config schema.
     - path: backend/core/directus/schemas/anonymous_free_usage_counters.yml
@@ -837,6 +883,37 @@ tasks:
       - T-CLI-001
       - T-MANUAL-APPLE-001
     independently_deployable: false
+  - id: TASK-6
+    title: Harden anonymous operation metering and UTC cap rollover
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+        - S-9
+        - S-15
+      acceptance_criteria:
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-18
+        - AC-19
+        - AC-20
+    expected_files:
+      - backend/core/api/app/services/anonymous_free_usage_service.py
+      - backend/core/api/app/routes/anonymous.py
+      - backend/core/api/app/routes/internal_api.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+      - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+      - backend/tests/test_anonymous_free_usage_budget.py
+      - backend/tests/test_anonymous_skill_access.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+      - T-CLI-001
+      - T-PLAYWRIGHT-001
+    independently_deployable: false
 
 risks:
   - IndexedDB reuse can leak stale anonymous records if session-marker purge gating is incomplete; tests must cover same-session reload, new unauthenticated session, and auth-state transitions.
@@ -853,3 +930,5 @@ decisions:
   - Anonymous file uploads require signup. Before account creation, attaching a file only changes the composer UI: suggestions above the input are replaced by account-required copy and Send is replaced by Signup; no file bytes, upload metadata, or embed payloads are sent to the backend. If the user starts signup from this state, preserve the typed message as a draft but discard the pending file so it must be reattached after account creation.
   - Per-identity abuse prevention is daily-only for v1; weekly protection is enforced through the shared weekly budget, not weekly per-identity metadata.
   - Public status exposes active/inactive and reset timing only; exact global remaining budget is admin-only.
+  - Anonymous app skills remain available. Their provider requests and every main-model iteration must reserve and settle credits through the same HMAC-scoped anonymous request ledger.
+  - Absolute hard maxima are 400 credits per identity per UTC day, 3000 server-wide per UTC day, 15000 server-wide per UTC week, and 60000 server-wide per UTC month. Admin settings may only lower these limits.
