@@ -153,8 +153,13 @@ class S3UploadService:
         """Reconcile remote bucket policy without making service startup depend on it."""
         if not self.configured or self.client is None:
             return
-        await self._initialize_buckets()
-        await asyncio.to_thread(apply_cors_settings, self.client)
+        try:
+            await self._initialize_buckets()
+            await asyncio.to_thread(apply_cors_settings, self.client)
+        except Exception:
+            self.last_availability_status = "unavailable"
+            raise
+        self.last_availability_status = STORAGE_AVAILABLE
 
     async def check_availability(self) -> str:
         """Run one bounded, non-mutating provider probe and return a sanitized state."""
@@ -185,6 +190,7 @@ class S3UploadService:
              logger.error("S3 client not initialized. Cannot initialize buckets.")
              return
         logger.info("Initializing S3 buckets...")
+        reconciliation_failed = False
         for bucket_key, bucket_config in BUCKETS.items():
             bucket_name = get_bucket_name(bucket_key, self.environment)
             lifecycle_days = bucket_config.get('lifecycle_policy')
@@ -211,11 +217,13 @@ class S3UploadService:
                     except ClientError as create_e:
                         logger.error(f"Failed to create bucket '{bucket_name}': {create_e}")
                         bucket_exists = False  # Creation failed
+                        reconciliation_failed = True
                         continue  # Skip lifecycle for this bucket
                 else:
                     # Handle other errors during head_bucket (e.g., permissions)
                     logger.error(f"Error checking bucket '{bucket_name}': {e}. Skipping lifecycle policy application.")
                     bucket_exists = False  # Unsure about state, assume no for safety
+                    reconciliation_failed = True
                     continue  # Skip lifecycle for this bucket
 
             # Reconcile bucket ACL with the current config on every startup.
@@ -239,6 +247,7 @@ class S3UploadService:
                     )
                     # Continue even if ACL reconciliation fails — object-level ACLs
                     # applied during put_object are the enforced boundary.
+                    reconciliation_failed = True
 
             # Apply lifecycle policy if the bucket exists (or was just created) and has a policy defined
             if bucket_exists and isinstance(lifecycle_days, int) and lifecycle_days > 0:
@@ -253,8 +262,12 @@ class S3UploadService:
                     logger.info(f"Successfully applied lifecycle policy to '{bucket_name}'.")
                 else:
                     logger.warning(f"Failed to apply lifecycle policy to '{bucket_name}'.")
+                    reconciliation_failed = True
             elif bucket_exists:
                  logger.info(f"No lifecycle policy defined or needed for bucket '{bucket_name}'.")
+
+        if reconciliation_failed:
+            raise RuntimeError("object_storage_reconciliation_failed")
 
 
     def get_s3_url(self, bucket_name: str, file_key: str) -> str:

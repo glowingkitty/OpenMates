@@ -21,6 +21,7 @@ MEDIA_TASKS = (
     ("backend/apps/audio/tasks/generate_task.py", "_async_generate_audio", "ensure_audio_credit_headroom("),
     ("backend/apps/audio/tasks/speak_task.py", "_async_speak_audio", "classify_audio_speech_safety("),
     ("backend/apps/videos/tasks/generate_task.py", "_async_generate_video", "ensure_credit_headroom("),
+    ("backend/apps/videos/tasks/render_remotion_task.py", "_async_render_remotion", "render_remotion_in_e2b("),
 )
 PRESERVATION_TASKS = (
     "backend/core/api/app/tasks/usage_archive_tasks.py",
@@ -47,6 +48,13 @@ def audit() -> list[str]:
     api_source = (ROOT / "backend/core/api/main.py").read_text()
     if "await app.state.s3_service.initialize()" in api_source:
         failures.append("API lifespan synchronously requires remote S3 initialization")
+
+    s3_source = (ROOT / "backend/core/api/app/services/s3/service.py").read_text()
+    reconciliation_source = s3_source[
+        s3_source.index("async def _initialize_buckets("):s3_source.index("def get_s3_url(")
+    ]
+    if 'raise RuntimeError("object_storage_reconciliation_failed")' not in reconciliation_source:
+        failures.append("S3 bucket reconciliation failures do not reach the background retry loop")
 
     cli_server_source = (ROOT / "frontend/packages/openmates-cli/src/server.ts").read_text()
     if "output.checks.filter((check) => check.required)" in cli_server_source:

@@ -169,7 +169,7 @@ acceptance_criteria:
     contract_assertions: [storage-resilience.core.s3-is-noncritical]
     text: S3 timeout, 5xx, bucket, ACL, lifecycle, or CORS failures cannot prevent API startup, a 200 liveness response, text AI dispatch, or non-storage skill dispatch.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND-S3-RESILIENCE, V-DEV-S3-OUTAGE]
@@ -178,7 +178,7 @@ acceptance_criteria:
     contract_assertions: [storage-resilience.operations.fail-before-cost]
     text: Shared storage-required gates return retryable storage_temporarily_unavailable before paid provider execution or charging and retain existing metadata.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-BACKEND-S3-RESILIENCE, T-STORAGE-GATE-AUDIT, V-DEV-S3-OUTAGE]
@@ -446,9 +446,14 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-2]
-    status: pending
+    status: passed
     command: python3 scripts/verify_s3_outage_resilience.py --api-url https://api.dev.openmates.org
-    evidence: {status: pending}
+    evidence:
+      status: passed
+      run_id: live-cli-quick-test-20260825T1820Z
+      timestamp: "2026-08-25T18:20:00Z"
+      subject_commit: 67f6af9616a7be5de314cd584fbdac7b8d5dc3fc
+      summary: Public health returned 200 degraded; every required runtime check and chat plumbing passed while core.object_storage reported optional storage_unavailable. The isolated real CLI quick test authenticated with a temporary test-account session, received the exact expected assistant response, passed math.calculate, web.search, and cleanup, and reported only the auxiliary chat.reload check as failed.
   - id: V-DEV-S3-ALERT-DRILL
     kind: automated_test
     phase: green
@@ -458,20 +463,36 @@ verifications:
     command: python3 scripts/verify_s3_outage_alerts.py --environment development
     evidence:
       status: passed
-      run_id: test-results/s3-outage-alerts/development-20260825T154131Z.json
-      timestamp: "2026-08-25T15:41:31Z"
-      subject_commit: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f
-      summary: Compiled policy emitted exactly one warning, one one-hour critical escalation, and one recovery; configured development email, Discord, and signed webhook delivery each succeeded in one attempt with sanitized receipts.
+      run_id: test-results/s3-outage-alerts/development-20260825T183545Z.json
+      timestamp: "2026-08-25T18:35:32Z"
+      subject_commit: 67f6af9616a7be5de314cd584fbdac7b8d5dc3fc
+      summary: Compiled policy emitted exactly one warning, one one-hour critical escalation, and one recovery; the matching incident, critical, and recovery payloads each reached configured development email, Discord, and signed webhook delivery with sanitized receipts.
 demonstration:
   eligibility:
-    status: not_applicable
-    surface: non_visual
-    reason: No user-facing browser, native, or interactive CLI flow changes; evidence is machine-readable health, task, and alert state.
+    status: required
+    surface: cli
+    reason: The changed host monitoring behavior is visible through existing openmates server notification commands and requires terminal proof of configured independent delivery.
     classified_at: "2026-08-25T00:00:00Z"
     verification_ids: [V-DEV-S3-OUTAGE, V-DEV-S3-ALERT-DRILL]
-  status: not_applicable
-  narration_outline: []
-  evidence: {status: not_applicable, review_status: not_applicable, publication_status: not_applicable}
+  status: passed
+  narration_outline:
+    - id: NARR-1
+      purpose: Show that storage degradation uses every notification channel configured on the dev host without exposing destination or credential values.
+      expected_proof: Terminal visibly runs openmates server notifications test and reports configured delivered results for email and Discord with redacted output.
+      scenario_ids: [S-4]
+      acceptance_criteria: [AC-4, AC-6]
+  evidence:
+    status: passed
+    privacy_status: not_applicable
+    audio_status: not_required
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 1
+    subject_commit: 52f2dd6132b0693754d3a0626b3aec91b1abbd0d
+    manifest_path: test-results/proof-videos/cb27/20260825T184703Z/manifest.json
+    manifest_hash: sha256:e36f775d23be4d35a88f7855300673d6d6e90eae2d26143c6824cf78de97127f
+    review_run_id: review-20260825T184703Z
+    timestamp: "2026-08-25T18:47:03Z"
 
 risks:
   - id: R-1
@@ -492,7 +513,7 @@ risks:
 
 open_questions: []
 
-implementation_state: {subject_commit: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f}
+implementation_state: {subject_commit: 52f2dd6132b0693754d3a0626b3aec91b1abbd0d}
 approvals:
   product_contract:
     status: approved
@@ -539,6 +560,12 @@ attempts:
     approach: Run controlled warning, one-hour escalation, and recovery transitions and verify every configured development notification channel independently.
     outcome: succeeded
     recorded_at: "2026-08-25T15:41:31Z"
+  - id: ATTEMPT-7
+    task_id: TASK-7
+    approach: Use a temporary isolated OpenMates CLI test-account session to run the real quick server test while object storage remains unavailable.
+    outcome: succeeded
+    recorded_at: "2026-08-25T18:20:00Z"
+    summary: Real inference, math, web search, and cleanup passed; chat reload remained an explicit auxiliary failure outside the outage-continuity gate.
 
 implementation_plan:
   spec_path: docs/specs/s3-outage-resilience/spec.yml
@@ -751,7 +778,7 @@ tasks:
     independently_deployable: false
   - id: TASK-7
     title: Deploy and prove dev API continuity during storage outage
-    status: pending
+    status: done
     phase: running_checks
     contract_assertions: [storage-resilience.core.s3-is-noncritical, storage-resilience.operations.fail-before-cost]
     surfaces: [rest_api]
@@ -767,7 +794,7 @@ tasks:
     independently_deployable: true
   - id: TASK-8
     title: Prove alert delivery recovery and documentation
-    status: pending
+    status: done
     phase: running_checks
     contract_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.monitoring.not-configured, storage-resilience.content.privacy-boundary]
     surfaces: [cli]
@@ -792,15 +819,11 @@ tasks:
     independently_deployable: false
 
 handoff:
-  current_task_id: TASK-7
-  last_verified_commit: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f
-  status: running_checks
-  summary: Backend isolation, destructive-job preservation, public degraded liveness, optional runtime probing, and live development alert delivery are green; authenticated text generation remains unproven in this worktree.
-  next_action: Complete one credential-backed text-generation check against the dev API, then record V-DEV-S3-OUTAGE and finish the spec.
-  command: python3 scripts/verify_s3_outage_resilience.py --api-url https://api.dev.openmates.org
-  expected_outcome: API liveness and authenticated text AI remain available while object storage reports optional degraded state.
-  blocker:
-    task_id: TASK-7
-    requires_user_input: false
-    reason: The current worktree has no CLI login or test-account credentials; the restored credential-backed campaign may provide equivalent evidence.
-    next_action: Use credential-backed dev evidence to prove one text generation while object storage remains unavailable.
+  current_task_id: TASK-8
+  last_verified_commit: 52f2dd6132b0693754d3a0626b3aec91b1abbd0d
+  status: complete
+  summary: API continuity, real CLI inference, fail-before-cost guards, destructive-job preservation, alert transitions, all configured host-channel delivery, and reviewed terminal proof are complete.
+  next_action: Run final spec verification and deploy the completed evidence ledger.
+  command: python3 scripts/spec_verify.py docs/specs/s3-outage-resilience/spec.yml --phase complete --json
+  expected_outcome: complete true
+  blocker: null
