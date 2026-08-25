@@ -69,7 +69,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
         attachScreenshot(name: "Apple core parity response ready")
         try attachProofTimeline(
-            app: app,
+            profile: proofDeviceProfile,
             loginReadyMs: loginReadyMs,
             messageSentMs: messageSentMs,
             responseReadyMs: responseReadyMs
@@ -127,14 +127,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func attachProofTimeline(
-        app: XCUIApplication,
+        profile: String,
         loginReadyMs: Int,
         messageSentMs: Int,
         responseReadyMs: Int
     ) throws {
-        let profile = app.windows.firstMatch.frame.width > 800
-            ? "apple-ipad-landscape"
-            : "apple-iphone-portrait"
         let timeline: [String: Any] = [
             "schema_version": 1,
             "device": profile,
