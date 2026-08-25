@@ -45,7 +45,7 @@ const BILLING_RECOVERY_PROOF = defineVideoProof({
 		},
 		{
 			id: 'completion-survives-reload',
-			text: 'After reload, the end of the assistant response remains visible.',
+			text: 'After reload, the completed event results remain visible without an error.',
 			checkpoint: 'completion-survives-reload',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -66,7 +66,7 @@ const BILLING_RECOVERY_PROOF = defineVideoProof({
 		{
 			id: 'completion-survives-reload',
 			checkpoint: 'completion-survives-reload',
-			visual: 'Reload preserves the visible end of the assistant response with no processing error.',
+			visual: 'Reload preserves visible completed event results with no processing error.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
