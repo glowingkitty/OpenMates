@@ -181,17 +181,28 @@ attempts:
   - id: ATTEMPT-6
     task_id: TASK-6
     approach: Add a deployed post-reload assertion that requires the referenced map view to leave its zero-item loading state before proof capture.
-    outcome: planned
+    outcome: succeeded
     recorded_at: "2026-08-24T22:50:00Z"
-    evidence: User authorized one additional instrumented correction round after reviewing the repeated phone proof defect.
+    evidence: Deployed runs 32794309117, 32794768877, and 32795563409 passed the nonzero map hydration assertion; the latest phone checkpoint shows 23 event results and a hydrated map.
+  - id: ATTEMPT-7
+    task_id: TASK-4
+    approach: Reframe the phone reload checkpoint to the last rendered response child and add readability holds.
+    outcome: blocked
+    recorded_at: "2026-08-25T00:59:00Z"
+    evidence: Proof run 32795563409 retained the hydrated event map as the final mobile response surface, so the approved wording requiring the prose response ending remained unsupported despite healthy product state.
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Deploy and run the strengthened post-reload assertion red, then instrument the exact source-ref resolution stage identified by that failure.
+  current_task_id: TASK-4
+  next_action: If approved, update the canonical reload proof assertion to require visible completed event results after reload, then recapture phone and laptop proof.
   command: python3 scripts/tests.py run --spec billing-settlement-recovery.spec.ts --proof-video-profile web-phone --gate-deploy --expected-commit <SHA>
-  expected_outcome: The post-reload phone checkpoint resolves referenced event embeds and no longer shows the zero-item loading state.
-  blocker: null
-  last_verified_commit: 25792667f8633528a38685ea64418dd2e9b09260
+  expected_outcome: The reviewed phone checkpoint visibly proves completed event results survive reload without requiring off-screen prose.
+  blocker:
+    task_id: TASK-4
+    requires_user_input: true
+    reason: Proof run 32795563409 exhausted capture correction attempts because the mobile response ends on the hydrated event map while the canonical assertion requires the prose response ending to be visible.
+    question: Approve revising the reload proof assertion to require visible completed event results after reload instead of the off-screen prose ending.
+    next_action: Update the checked-in proof transcript/assertion, recapture both required profiles, and complete proof review.
+  last_verified_commit: d2ae20a036f1a58da80eac124ab2bb80c4dbb51b
 
 scenarios:
   - id: S-1
