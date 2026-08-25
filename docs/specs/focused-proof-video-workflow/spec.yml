@@ -96,7 +96,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: b5c2afeceb26d5e287c49329e65a58193dc09c21
+  subject_commit: 41d27119b380bf64621283b80d8e5628907c0e2c
 
 approvals:
   product_contract:
@@ -205,18 +205,24 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-25T11:53:00Z"
     reason: The exact-commit gate could not dispatch because api.dev.openmates.org returned 502 while the managed API restarted after S3 returned 503 for dev-openmates-chatfiles and dev-openmates-invoices.
+  - id: ATTEMPT-7
+    task_id: TASK-17
+    approach: Harden device-applicable checkpoint selection and representative blocker-frame propagation after independent code review.
+    outcome: succeeded
+    recorded_at: "2026-08-25T12:03:00Z"
+    reason: 148 focused tests passed; f2d210eb239b84b47ccf36349cbc4d193a520ded is an ancestor of the integrated subject commit, and the remaining reviewer findings were fixed in 41d27119b380bf64621283b80d8e5628907c0e2c.
 
 handoff:
   current_task_id: TASK-17
   next_action: Retry the exact-commit proof spec after the managed dev API is healthy, then require a passed frame review and delivered response-media manifest before marking the spec verified.
-  command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit b5c2afeceb26d5e287c49329e65a58193dc09c21
+  command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 41d27119b380bf64621283b80d8e5628907c0e2c
   expected_outcome: The deployed spec passes, auto-finalization trims from the explicit welcome-visible checkpoint, generalized frame review passes, and publication returns snippet_html.
   blocker:
     task_id: TASK-17
     reason: External dev runtime health failure; API startup is fail-closed while S3 CORS initialization receives 503 responses.
     requires_user_input: false
     next_action: Retry the exact-commit deployed proof when api.dev.openmates.org is healthy.
-  last_verified_commit: b5c2afeceb26d5e287c49329e65a58193dc09c21
+  last_verified_commit: 41d27119b380bf64621283b80d8e5628907c0e2c
 
 scenarios:
   - id: S-1
