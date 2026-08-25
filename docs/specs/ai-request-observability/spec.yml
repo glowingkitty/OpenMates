@@ -439,8 +439,11 @@ assumptions:
     text: Seven days of dev telemetry will contain enough representative AI traffic to set initial sustained thresholds.
     category: operations
     required_before: task_execution
-    status: unchecked
+    status: blocked
     blocker: Extend the baseline window or run approved representative dev traffic if sample coverage is insufficient.
+    evidence:
+      - source: V-DEV-BASELINE
+        summary: The deterministic aggregate gate currently reports fewer than seven complete prior UTC days; D-6 permits only the separately approved performance work while dashboards and alerts remain blocked.
 
 contracts:
   api:
@@ -611,8 +614,8 @@ tests:
       - Concurrent reads coalesce and each unchanged version loads/decrypts once.
       - Mutation invalidates the affected node and a later read sees the new version.
       - Separate requests never share decrypted graph nodes.
-    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_ai_finalization_embed_graph.py -q", run_id: "local-embed-graph-red-20260825", subject_commit: "b0daef15ddfd712814906ea25568c5f1cee5e704", summary: "Collection failed because the request-scoped finalization embed graph module did not exist.", timestamp: "2026-08-25T00:00:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_finalization_embed_graph.py backend/tests/test_quote_verification.py backend/tests/test_embed_link_fixes.py -q", run_id: "api-host-split-embed-green-20260825", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", summary: "All 115 assertions passed across the dependency-complete API image and host async-plugin run; the environments were split because the runtime image omits pytest-asyncio.", timestamp: "2026-08-25T02:12:00Z"}}
   - id: T-STREAM-COALESCING
     type: pytest
     file: backend/tests/test_stream_consumer_publish_coalescing.py
@@ -623,8 +626,8 @@ tests:
       - Ordinary cumulative snapshots coalesce for at most 50 milliseconds.
       - Structural, error, cancellation, embed, and final events flush pending text first.
       - Final content, sequence order, recovery metadata, and interruption flags remain exact.
-    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail_before_implementation, status: missing_test, evidence: {status: missing_test, reason: "The bounded coalescing regression test did not exist on the pre-implementation subject commit.", command: "git cat-file -e b0daef15ddfd712814906ea25568c5f1cee5e704:backend/tests/test_stream_consumer_publish_coalescing.py", run_id: "missing-stream-coalescing-test-20260825", subject_commit: "b0daef15ddfd712814906ea25568c5f1cee5e704", summary: "The pre-implementation commit had no deterministic coverage for a 50ms content-only coalescing window or forced structural flushes.", timestamp: "2026-08-25T02:00:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_stream_consumer_publish_coalescing.py backend/tests/test_stream_paragraph_contract.py backend/tests/test_stream_consumer_recovery.py -q", run_id: "api-stream-coalescing-green-20260825", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", summary: "24 tests passed in the dependency-complete API image, including repeated windows, in-flight forced flush, recovery metadata, and paragraph contracts.", timestamp: "2026-08-25T02:12:00Z"}}
   - id: T-PARALLEL-SAFE-TOOLS
     type: pytest
     file: backend/tests/test_app_skill_parallel_execution.py
@@ -635,8 +638,8 @@ tests:
       - Skill metadata defaults parallel_safe to false and mixed batches stay serial.
       - Eligible calls overlap with peak concurrency three and results retain model order.
       - Per-call billing, normalized failures, and cancellation remain visible and deterministic.
-    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail_before_implementation, status: missing_test, evidence: {status: missing_test, reason: "The static-opt-in same-batch concurrency test did not exist on the pre-implementation subject commit.", command: "git cat-file -e b0daef15ddfd712814906ea25568c5f1cee5e704:backend/tests/test_app_skill_parallel_execution.py", run_id: "missing-parallel-tools-test-20260825", subject_commit: "b0daef15ddfd712814906ea25568c5f1cee5e704", summary: "The pre-implementation commit had no explicit parallel_safe metadata gate, cap, order, or cancellation coverage.", timestamp: "2026-08-25T02:00:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_app_skill_parallel_execution.py backend/tests/test_task_main_processor_tools.py -q", run_id: "host-parallel-tools-green-20260825", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", summary: "33 tests passed with pytest-asyncio, covering default deny, all-call safety, audited web.search opt-in, cap three, ordered outcomes, cancellation draining, and unchanged task-tool behavior.", timestamp: "2026-08-25T02:13:00Z"}}
   - id: T-EXPANDED-WATERFALL
     type: pytest
     file: backend/tests/test_ai_request_observability.py
@@ -648,8 +651,8 @@ tests:
       - Lifecycle spans and first-token/final-marker/worker-tail metrics contain no identity or content.
       - Repeated providers, iterations, and tools render count, total, and maximum without overwrite.
       - Missing phases depend on terminal class rather than treating expected early termination as telemetry loss.
-    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_debug_trace.py backend/tests/test_tracing/test_privacy_filter.py -q", run_id: "local-expanded-waterfall-red-20260825", subject_commit: "b0daef15ddfd712814906ea25568c5f1cee5e704", summary: "Collection failed because ai_provider_span and expanded completion/lifecycle helpers were absent.", timestamp: "2026-08-25T00:00:00Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_debug_trace.py backend/tests/test_tracing/test_privacy_filter.py -q", run_id: "api-expanded-waterfall-green-20260825", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", summary: "67 tests passed in the API image for lifecycle/provider timing, repeated-span aggregation, terminal-aware diagnostics, strict span/resource privacy filtering, and completion milestones.", timestamp: "2026-08-25T02:12:00Z"}}
 
 verifications:
   - id: V-DEV-AI-TRACE
@@ -657,9 +660,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-3, AC-4, AC-9, AC-12, AC-13]
-    status: passed
+    status: pending
     command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>
-    evidence: {status: passed, command: "docker exec api python /app/backend/scripts/debug.py trace request --id 51da18a56b10e63468023da4c89447cc", run_id: "51da18a56b10e63468023da4c89447cc", subject_commit: "7a635511b6212cf0b39070f717ea79ede2d7a15a", target: api.dev.openmates.org, summary: "Real browser trace linked web-app, API, and AI worker in 12.918 seconds; queue, prepare, preprocess, main, iteration, provider, billing, persistence, validation, final marker, and postprocess were present with no missing phases.", timestamp: "2026-08-24T18:51:02Z"}
+    evidence: {status: pending, command: "docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>", run_id: "", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", target: api.dev.openmates.org, summary: "The earlier complete trace predates the expanded lifecycle, completion milestones, coalescing, and parallel-safe dispatch changes; a new real AI turn is required.", timestamp: "2026-08-25T02:25:30Z"}
   - id: V-OPENOBSERVE-RETENTION
     kind: deterministic_check
     phase: green
@@ -673,9 +676,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-11]
-    status: pending
+    status: passed
     command: python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit <COMMIT>
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", target: app.dev.openmates.org, summary: "", timestamp: ""}
+    evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit f63986d744e3d1b92f72785bad460059275207b8", run_id: "32801193509", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", target: app.dev.openmates.org, summary: "The exact-commit deployed harness passed bounded flush/render work, no render-triggered requests or IndexedDB writes, and a non-streaming final assistant state.", timestamp: "2026-08-25T02:25:30Z"}
   - id: V-DEV-BASELINE
     kind: artifact_review
     phase: green
@@ -921,7 +924,7 @@ tasks:
   - id: TASK-8
     title: Expand privacy-safe waterfall and debug aggregation
     phase: working_tasks
-    status: in_progress
+    status: done
     covers: {scenarios: [S-3, S-10], acceptance_criteria: [AC-3, AC-4, AC-13]}
     contract_assertions: [ai-request-observability.waterfall.complete, ai-request-observability.operator-debug.waterfall, ai-request-observability.exporter.allowlist]
     expected_files: [backend/shared/python_utils/tracing/ai_observability.py, backend/shared/python_utils/tracing/privacy_filter.py, backend/apps/ai/tasks/ask_skill_task.py, backend/apps/ai/processing/preprocessor.py, backend/apps/ai/processing/postprocessor.py, backend/apps/ai/tasks/stream_consumer.py, backend/scripts/debug_trace.py, backend/tests/test_ai_request_observability.py, backend/tests/test_tracing/test_debug_trace.py]
@@ -933,7 +936,7 @@ tasks:
   - id: TASK-9
     title: Reuse request-scoped embed graph during finalization
     phase: working_tasks
-    status: pending
+    status: done
     covers: {scenarios: [S-7], acceptance_criteria: [AC-10]}
     contract_assertions: [ai-request-observability.no-behavior-change]
     expected_files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/services/embed_service.py, backend/tests/test_ai_finalization_embed_graph.py, backend/tests/test_quote_verification.py, backend/tests/test_embed_link_fixes.py]
@@ -945,7 +948,7 @@ tasks:
   - id: TASK-10
     title: Coalesce ordinary stream content with forced structural flushes
     phase: working_tasks
-    status: pending
+    status: done
     covers: {scenarios: [S-8], acceptance_criteria: [AC-11]}
     contract_assertions: [chats.streaming.ordered-final]
     expected_files: [backend/apps/ai/tasks/stream_consumer.py, backend/tests/test_stream_consumer_publish_coalescing.py]
@@ -957,7 +960,7 @@ tasks:
   - id: TASK-11
     title: Execute explicitly parallel-safe tool batches with deterministic results
     phase: working_tasks
-    status: pending
+    status: done
     covers: {scenarios: [S-9], acceptance_criteria: [AC-12]}
     contract_assertions: [app-skills.execution.parallel-safe]
     expected_files: [backend/shared/python_schemas/app_metadata_schemas.py, backend/apps/ai/processing/main_processor.py, backend/apps/web/app.yml, backend/apps/news/app.yml, backend/apps/events/app.yml, backend/apps/weather/app.yml, backend/tests/test_app_skill_parallel_execution.py]
@@ -969,7 +972,7 @@ tasks:
   - id: TASK-12
     title: Deploy and verify real trace, streaming, performance, and parity evidence
     phase: running_checks
-    status: pending
+    status: in_progress
     covers: {scenarios: [S-7, S-8, S-9, S-10], acceptance_criteria: [AC-10, AC-11, AC-12, AC-13]}
     contract_assertions: [ai-request-observability.waterfall.complete, app-skills.execution.parallel-safe, chats.streaming.ordered-final]
     expected_files: [docs/specs/ai-request-observability/spec.yml]
@@ -1010,11 +1013,19 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-24T19:04:27Z"
     evidence: Commit 4627373114de056e79e0a6d30b3fbb0af70233e0 passed three focused tests and the live gate returned an expected privacy-safe 0-of-7 pending result.
+  - id: ATTEMPT-6
+    task_id: TASK-12
+    approach: Deploy the approved performance and expanded-observability changes, run exact-commit Playwright streaming verification, and preserve the old real trace only as invalidated historical evidence.
+    outcome: succeeded
+    recorded_at: "2026-08-25T02:25:30Z"
+    evidence: Commit f63986d744e3d1b92f72785bad460059275207b8 passed run 32801193509; a post-change real AI trace and proof-video review remain required.
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Write and run the expanded waterfall red tests before editing product source.
-  command: python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_tracing/test_debug_trace.py backend/tests/test_tracing/test_privacy_filter.py -q
-  expected_outcome: New tests fail for repeated-span overwrite, missing provider purposes/lifecycle timing, and terminal-unaware phase diagnostics.
-  blocker: null
-  last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  current_task_id: TASK-12
+  next_action: Capture one consented real AI turn on deployed commit f63986d, inspect its privacy-safe waterfall, and complete the approved proof-video workflow for run 32801193509.
+  command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>
+  expected_outcome: The post-change trace contains reviewed provider purposes, expanded lifecycle phases, completion milestones, and no missing required completed-turn phases.
+  blocker:
+    type: user_input
+    summary: Real paid AI traffic requires explicit spend consent; the legacy proof workflow also requires user approval of the tutorial transcript and visible assertions.
+  last_verified_commit: f63986d744e3d1b92f72785bad460059275207b8
