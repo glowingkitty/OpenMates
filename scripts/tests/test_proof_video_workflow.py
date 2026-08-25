@@ -1263,6 +1263,39 @@ def test_blocker_media_uses_assertion_frame_when_failed_review_has_no_finding(tm
     assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
 
 
+def test_cached_failed_review_preserves_representative_frame(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import spec_demo
+
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "cached-blocker")
+    receipt = {
+        "status": "capture_defect",
+        "reviewed_frames": ["frames/frame.png"],
+        "frame_reviews": [frame_quality_review("frames/frame.png", proof_alignment="fail")],
+        "assertions": [
+            {"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Not visible."}
+        ],
+        "incidental_findings": [],
+        "workflow": {},
+    }
+    monkeypatch.setattr(
+        workflow,
+        "load_cached_review",
+        lambda *_args, **_kwargs: {"status": "capture_defect", "receipt": receipt, "budget": {}, "cached": True},
+    )
+    monkeypatch.setattr(spec_demo, "record_review_receipt", lambda _run_dir, _receipt: {"review": {"status": "failed"}})
+
+    result = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must use cache")),
+    )
+
+    assert result["blocker_media"]["image_path"] == str(run_dir / "frames" / "frame.png")
+    assert result["blocker_media"]["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+
+
 def test_review_publication_integrity_rejects_empty_self_consistent_quality_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

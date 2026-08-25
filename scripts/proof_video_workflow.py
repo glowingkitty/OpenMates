@@ -1078,7 +1078,11 @@ def review_run(
             for key, value in cached["receipt"].items()
             if key != "attempt_number"
         }
-        blocker_media = proof_blocker_media(run_dir, existing_manifest, str(cached_receipt.get("status") or ""))
+        blocker_manifest = {
+            **existing_manifest,
+            "review": {"attempts": [cached_receipt]},
+        }
+        blocker_media = proof_blocker_media(run_dir, blocker_manifest, str(cached_receipt.get("status") or ""))
         if blocker_media:
             workflow_record = cached_receipt.get("workflow") if isinstance(cached_receipt.get("workflow"), dict) else {}
             workflow_record["blocker_media"] = blocker_media
