@@ -113,6 +113,9 @@ struct ChatStreamingLifecycleState: Equatable {
             }
 
         case .messageReady(let chatId, let messageId):
+            if let activeMessageId = self.messageId, messageId != activeMessageId {
+                return false
+            }
             self.chatId = chatId
             self.messageId = messageId
             completedMessageIds.insert(messageId)
@@ -146,6 +149,9 @@ struct ChatStreamingLifecycleState: Equatable {
             phase = .queued
 
         case .cancelRequested(let chatId, let taskId):
+            if let taskId, let activeTaskId = self.taskId, taskId != activeTaskId {
+                return false
+            }
             self.chatId = chatId
             self.taskId = taskId ?? self.taskId
             phase = .cancelling
@@ -153,6 +159,9 @@ struct ChatStreamingLifecycleState: Equatable {
             queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _):
+            if let activeTaskId = self.taskId, taskId != activeTaskId {
+                return false
+            }
             self.chatId = chatId
             self.taskId = taskId
             phase = .completed
@@ -1113,22 +1122,26 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Streaming subscription
 
     private func subscribeToStream(chatId: String) {
-        streamTask?.cancel()
-        streamTask = Task {
+        var previousStreamTask = streamTask
+        streamTask = Task { [weak self] in
             let stream = await StreamingClient.shared.streamForChat(chatId)
+            previousStreamTask?.cancel()
+            previousStreamTask = nil
             for await event in stream {
                 guard !Task.isCancelled else { break }
-                handleStreamEvent(event)
+                guard let self else { break }
+                self.handleStreamEvent(event)
             }
         }
     }
 
-    private func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
+    func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
         guard streamingLifecycle.apply(event) else { return }
         switch event {
         case .taskInitiated(_, _, _):
             isStreaming = true
             streamingContent = ""
+            streamingMessageId = nil
 
         case .typingStarted(let chatId, let messageId, let metadata):
             streamingMessageId = messageId
@@ -1229,6 +1242,8 @@ final class ChatViewModel: ObservableObject {
         case .messageReady(let chatId, let messageId):
             completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .preprocessingStep(_, _, _):
@@ -1239,6 +1254,8 @@ final class ChatViewModel: ObservableObject {
                 completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
             }
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .messageQueued(_, _, _, let message):
@@ -1247,6 +1264,8 @@ final class ChatViewModel: ObservableObject {
 
         case .cancelRequested(_, _):
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
@@ -1267,11 +1286,15 @@ final class ChatViewModel: ObservableObject {
                     chatStore: chatStore
                 )
             }
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .error(let msg):
             error = msg
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
         }
     }
