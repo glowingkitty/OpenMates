@@ -678,7 +678,7 @@ verifications:
     covers: [AC-11]
     status: passed
     command: python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit <COMMIT>
-    evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit f63986d744e3d1b92f72785bad460059275207b8", run_id: "32801193509", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", target: app.dev.openmates.org, summary: "The exact-commit deployed harness passed bounded flush/render work, no render-triggered requests or IndexedDB writes, and a non-streaming final assistant state.", timestamp: "2026-08-25T02:25:30Z"}
+    evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit 358f04c46490de6fcdc6e725a9e190343cf3590f", run_id: "32833989648", subject_commit: "358f04c46490de6fcdc6e725a9e190343cf3590f", target: app.dev.openmates.org, summary: "The deployed harness passed bounded flush/render work, no render-triggered requests or IndexedDB writes, and a non-streaming final assistant state after dev advanced through descendant commits.", timestamp: "2026-08-25T09:51:38Z"}
   - id: V-DEV-BASELINE
     kind: artifact_review
     phase: green
