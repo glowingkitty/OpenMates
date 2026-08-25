@@ -660,9 +660,9 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-3, AC-4, AC-9, AC-12, AC-13]
-    status: pending
+    status: passed
     command: docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>
-    evidence: {status: pending, command: "docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>", run_id: "", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", target: api.dev.openmates.org, summary: "The earlier complete trace predates the expanded lifecycle, completion milestones, coalescing, and parallel-safe dispatch changes; a new real AI turn is required.", timestamp: "2026-08-25T02:25:30Z"}
+    evidence: {status: passed_after_deploy, command: "docker exec api python /app/backend/scripts/debug.py trace request --id <TRACE_ID>", run_id: "9001e7a32d5018657c8d502f85b0c048,9c267dd237090aedd07aa8e68510239f", subject_commit: "f63986d744e3d1b92f72785bad460059275207b8", target: api.dev.openmates.org, summary: "A bounded no-tool turn and explicit three-call web.search turn both completed with no missing required phases and content-free completion milestones. The three 2875ms, 4145ms, and 4881ms tool spans began within 1ms, proving live bounded overlap and ordered three-embed output; this is diagnostic evidence, not a statistically significant population comparison.", timestamp: "2026-08-25T11:24:00Z"}
   - id: V-OPENOBSERVE-RETENTION
     kind: deterministic_check
     phase: green
