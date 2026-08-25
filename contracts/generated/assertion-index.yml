@@ -3842,6 +3842,54 @@ assertions:
         supporting_tests:
         - *id393
     current_direct_proof: false
+  images-view.request.exact-embed-ref:
+    contract: feature.app-skill.images-view@1
+    fingerprint: 978a96f95f7f6de25f8bed32d1086c4f5d7c63d598a5eecbc74aee783d81fa90
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  images-view.security.server-resolved-decryption:
+    contract: feature.app-skill.images-view@1
+    fingerprint: 692d66d23bd7a646f4698eea05f3c3c55c0ac1fd88bba738423549bd0cc84322
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  images-view.output.valid-multimodal-result:
+    contract: feature.app-skill.images-view@1
+    fingerprint: 76840004d1770c055573e82719283a1bb6c1e00d405e96d8e852b3d3efd3ff85
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  images-view.errors.explicit-failed-result:
+    contract: feature.app-skill.images-view@1
+    fingerprint: 36939aff37915f56d424cac529f5c7067d5cffb3c733c7f432c8e5eb38536dc2
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  images-view.response.post-tool-inference:
+    contract: feature.app-skill.images-view@1
+    fingerprint: a0eea3f2423f8c630ea30078f7311197c641eb52c87ffbdba3a3439029e90596
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  images-view.surface.semantic-parity:
+    contract: feature.app-skill.images-view@1
+    fingerprint: da5838f614da07fd1f9f07d2a710bdb2e0fafc6583877c62e9a6ee5f9484094d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   travel-search.departure-window.upstream:
     contract: feature.app-skill.travel-search@1
     fingerprint: e7165716d4618a72b41aadb9eb38f1fd8b42ad3f496cfc18196d3fe7735ce00a
