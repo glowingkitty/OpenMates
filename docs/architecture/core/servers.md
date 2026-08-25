@@ -57,7 +57,7 @@ claims:
 - Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `user-init-worker`, `user-tasks-worker`, `core-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
-- Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification.
+- Server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped image or source updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification. Final update success requires the host-owned email adapter to deliver one versioned completion message to the configured admin; unavailable or exhausted delivery degrades without rollback.
 
 ## CLI-Managed Roles
 

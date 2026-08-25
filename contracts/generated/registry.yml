@@ -34,6 +34,13 @@ contracts:
     fingerprint: f8abb767ea0aebed4b457335fbcafac1018e3a5aa4d4bee7f92bba00f892aa8d
     required_surfaces:
     - cli
+  architecture.server-management:
+    version: 1
+    status: approved
+    path: architecture/server-management
+    fingerprint: d52b3667314c96d4ad3ebd85287613ec966d9c9e1dee34d1aba7bf1c61324426
+    required_surfaces:
+    - cli
   architecture.sync:
     version: 1
     status: approved
@@ -625,6 +632,76 @@ assertions:
     contract_id: architecture.operational-monitoring
     type: behavior
     fingerprint: e2a962383ea321b9394c87c6b2365835bce5e49949c3143fa0da6f5d4942e6cf
+    required_surfaces:
+    - cli
+  server-management.cli.host-control-plane:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: invariant
+    fingerprint: 38e4c3e53c35c7828474c78c9bb3549380beaa540e66b369640d0d842a554e14
+    required_surfaces:
+    - cli
+  server-management.roles.services-profiles:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: behavior
+    fingerprint: 34b3f584cf5d53786f4218c5352aa8ac9cd2dd471f64fee9971b818454cb62ef
+    required_surfaces:
+    - cli
+  server-management.installation.image-default-source-explicit:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: behavior
+    fingerprint: 8dd9c02801f7a7f8e6a425a5d0141196dc3e9c433cd3851bf855ba980cf961e5
+    required_surfaces:
+    - cli
+  server-management.update.safety-sequence:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: invariant
+    fingerprint: 666ffde1f793c402c9f6cef2d8a68ddae2012d37826d77ff8e2ff82c0e9cd0f7
+    required_surfaces:
+    - cli
+  server-management.update.completion-email-required:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: invariant
+    fingerprint: 7ab48813bb22f204f15a83f33fae726525077b414f9bcc85fb2fb28667061f67
+    required_surfaces:
+    - cli
+  server-management.update.durable-idempotency:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: failure
+    fingerprint: e36866780546347a34b24dcb89baf0ae254082f2640b8e7ca080983b19007ac0
+    required_surfaces:
+    - cli
+  server-management.update.installation-lock:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: invariant
+    fingerprint: a0f693db1117bf21d5209f6f86235d5a5e870764326fd3df1eab70215f9dca5d
+    required_surfaces:
+    - cli
+  server-management.backup.restore-verifiable:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: behavior
+    fingerprint: 317e650fb267528ce949aa5d15268fe434ec0ba6a4270e89e7a1d4034a45d159
+    required_surfaces:
+    - cli
+  server-management.host.preflight-caddy-continuous:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: behavior
+    fingerprint: cb12ecb6fc78f619369e75a826ef080a0f22684073ee9aad79fa487d33142e41
+    required_surfaces:
+    - cli
+  server-management.status.privacy-boundary:
+    contract: architecture.server-management@1
+    contract_id: architecture.server-management
+    type: privacy
+    fingerprint: b6b12a31c596be6b9c78157f07b62923bd19937e3088b84a34a159091af2078b
     required_surfaces:
     - cli
   sync.access.first-party-authenticated:

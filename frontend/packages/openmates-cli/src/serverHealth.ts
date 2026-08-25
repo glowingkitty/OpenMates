@@ -24,6 +24,9 @@ const IMMEDIATE_FAILURE_CLASSES = new Set(["credential", "configuration", "confi
 const WEBHOOK_EGRESS_POLICY = { followRedirects: false, denyAddressClasses: ["private", "linkLocal"] } as const;
 const BREVO_API_HOST = "api.brevo.com";
 const BREVO_REQUEST_TIMEOUT_MS = 10_000;
+const BREVO_IDEMPOTENCY_TTL_MS = 30 * 60 * 1000;
+const DELIVERY_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const OPENMATES_REPOSITORY_PATH = "/glowingkitty/OpenMates/";
 
 export type RuntimeIncidentState = {
   consecutiveFailures: number;
@@ -75,6 +78,37 @@ export type RuntimeNotificationConfig = {
   discordWebhookUrl?: string;
   genericWebhook?: { url: string; secret: string; allowLocalDevelopmentFixture?: boolean };
 };
+
+export type UpdateSourceLink = {
+  kind: "release" | "pull_request" | "commit" | "source";
+  url: string;
+};
+
+export type UpdateCompletionPayload = {
+  deliveryId: string;
+  updateMode: "image" | "source";
+  installedVersion: string;
+  role: ServerRole;
+  completedAt: string;
+  source: UpdateSourceLink;
+};
+
+export type UpdateCompletionEmailDelivery = {
+  status: "accepted" | "failed" | "unavailable";
+  attempts: number;
+  sanitizedReason?: string;
+};
+
+export type UpdateCompletionOutcome = {
+  updateStatus: "success" | "degraded";
+  exitCode: 0 | 1;
+  delivery: UpdateCompletionEmailDelivery;
+};
+
+export type UpdateCompletionDeliveryPlan =
+  | { action: "send"; deliveryId?: string; pendingAt?: string; previousAttempts?: number }
+  | { action: "reuse_accepted"; deliveryId: string; attempts: number }
+  | { action: "blocked"; deliveryId?: string; pendingAt?: string; reason: "update_status_unreadable" | "delivery_identity_invalid" | "idempotency_window_expired" | "retry_budget_exhausted" };
 
 export type OperationalEnvironment = "development" | "production" | "self_host";
 
@@ -232,6 +266,124 @@ export function buildOperationalDeliveryReceipt(input: OperationalDeliveryReceip
   };
 }
 
+function safePublicUpdateSourceLink(kind: UpdateSourceLink["kind"], rawUrl?: string | null): UpdateSourceLink | null {
+  if (!rawUrl) return null;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:" || url.hostname !== "github.com" || !url.pathname.startsWith(OPENMATES_REPOSITORY_PATH)) {
+      return null;
+    }
+    return { kind, url: url.toString() };
+  } catch {
+    return null;
+  }
+}
+
+export function selectUpdateSourceLink(links: {
+  releaseUrl?: string | null;
+  pullRequestUrl?: string | null;
+  commitUrl?: string | null;
+  sourceUrl?: string | null;
+}): UpdateSourceLink | null {
+  return safePublicUpdateSourceLink("release", links.releaseUrl)
+    ?? safePublicUpdateSourceLink("pull_request", links.pullRequestUrl)
+    ?? safePublicUpdateSourceLink("commit", links.commitUrl)
+    ?? safePublicUpdateSourceLink("source", links.sourceUrl);
+}
+
+export function buildUpdateCompletionEmail(payload: UpdateCompletionPayload): { subject: string; textContent: string; headers: { idempotencyKey: string } } {
+  return {
+    subject: "Server update complete",
+    headers: { idempotencyKey: payload.deliveryId },
+    textContent: [
+      "OpenMates server update completed successfully.",
+      `Mode: ${payload.updateMode}`,
+      `Version: ${payload.installedVersion}`,
+      `Role: ${payload.role}`,
+      `Completed: ${payload.completedAt}`,
+      `Source (${payload.source.kind}): ${payload.source.url}`,
+    ].join("\n"),
+  };
+}
+
+export function buildUpdateCompletionOutcome(delivery: UpdateCompletionEmailDelivery): UpdateCompletionOutcome {
+  return {
+    updateStatus: delivery.status === "accepted" ? "success" : "degraded",
+    exitCode: delivery.status === "accepted" ? 0 : 1,
+    delivery,
+  };
+}
+
+export function isBrevoIdempotencyDuplicate(status: number, responseBody: string, payload?: Record<string, unknown>): boolean {
+  if (status !== 400 || !payload?.headers || typeof payload.headers !== "object" || !("idempotencyKey" in payload.headers)) {
+    return false;
+  }
+  try {
+    return (JSON.parse(responseBody) as { code?: unknown }).code === "duplicate_parameter";
+  } catch {
+    return false;
+  }
+}
+
+export function planUpdateCompletionDelivery(input: {
+  previousStatus: Record<string, unknown>;
+  updateMode: UpdateCompletionPayload["updateMode"];
+  installedVersion: string;
+  continuousUpdate: boolean;
+  now: Date;
+}): UpdateCompletionDeliveryPlan {
+  if (input.previousStatus.statusReadError === "invalid_update_status") {
+    return { action: "blocked", reason: "update_status_unreadable" };
+  }
+  const rawPreviousDelivery = input.previousStatus.completionEmailDelivery;
+  const previousDelivery = rawPreviousDelivery && typeof rawPreviousDelivery === "object" && !Array.isArray(rawPreviousDelivery)
+    ? rawPreviousDelivery as Record<string, unknown>
+    : undefined;
+  const sameInstalledArtifact = input.previousStatus.updateMode === input.updateMode
+    && input.previousStatus.installedVersion === input.installedVersion;
+  const deliveryId = typeof input.previousStatus.completionEmailDeliveryId === "string"
+    && DELIVERY_ID_PATTERN.test(input.previousStatus.completionEmailDeliveryId)
+    ? input.previousStatus.completionEmailDeliveryId
+    : undefined;
+  if (input.continuousUpdate && sameInstalledArtifact && previousDelivery?.status === "accepted") {
+    const attempts = previousDelivery.attempts;
+    const completedAt = typeof input.previousStatus.completedAt === "string"
+      ? Date.parse(input.previousStatus.completedAt)
+      : Number.NaN;
+    const sourceLink = typeof input.previousStatus.sourceLink === "string"
+      ? safePublicUpdateSourceLink("source", input.previousStatus.sourceLink)
+      : null;
+    if (!deliveryId || !Number.isInteger(attempts) || Number(attempts) < 1 || Number(attempts) > 3
+      || !Number.isFinite(completedAt) || !sourceLink) {
+      return { action: "blocked", reason: "delivery_identity_invalid" };
+    }
+    return { action: "reuse_accepted", deliveryId, attempts: Number(attempts) };
+  }
+  const hasAttemptedUnavailableDelivery = previousDelivery?.status === "unavailable"
+    && Number.isInteger(previousDelivery.attempts)
+    && Number(previousDelivery.attempts) > 0;
+  if (sameInstalledArtifact && (previousDelivery?.status === "pending" || previousDelivery?.status === "failed" || hasAttemptedUnavailableDelivery)) {
+    const previousAttempts = previousDelivery.attempts;
+    const pendingAtValue = typeof input.previousStatus.completionEmailPendingAt === "string"
+      ? input.previousStatus.completionEmailPendingAt
+      : undefined;
+    const pendingAt = pendingAtValue
+      ? Date.parse(pendingAtValue)
+      : Number.NaN;
+    if (!deliveryId || !Number.isInteger(previousAttempts) || Number(previousAttempts) < 0 || Number(previousAttempts) > 3) {
+      return { action: "blocked", reason: "delivery_identity_invalid" };
+    }
+    if (!Number.isFinite(pendingAt) || input.now.getTime() - pendingAt >= BREVO_IDEMPOTENCY_TTL_MS) {
+      return { action: "blocked", deliveryId, pendingAt: pendingAtValue, reason: "idempotency_window_expired" };
+    }
+    if (Number(previousAttempts) >= 3) {
+      return { action: "blocked", deliveryId, pendingAt: pendingAtValue, reason: "retry_budget_exhausted" };
+    }
+    return { action: "send", deliveryId, pendingAt: pendingAtValue, previousAttempts: Number(previousAttempts) };
+  }
+  return { action: "send" };
+}
+
 export async function probeRuntimeEmailService(
   config: NonNullable<RuntimeNotificationConfig["email"]>,
 ): Promise<boolean> {
@@ -266,6 +418,17 @@ export function buildBrevoRequestOptions(
   };
 }
 
+export function isBrevoAcceptedResponse(pathName: string, method: "GET" | "POST", status: number, responseBody: string): boolean {
+  if (status < 200 || status >= 300) return false;
+  if (method !== "POST" || pathName !== "/v3/smtp/email") return true;
+  try {
+    const messageId = (JSON.parse(responseBody) as { messageId?: unknown }).messageId;
+    return typeof messageId === "string" && messageId.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function requestBrevo(
   pathName: string,
   method: "GET" | "POST",
@@ -276,13 +439,17 @@ async function requestBrevo(
   await new Promise<void>((resolve, reject) => {
     const request = httpsRequest(buildBrevoRequestOptions(pathName, method, apiKey, body), (response) => {
       let responseBytes = 0;
+      const chunks: Buffer[] = [];
       response.on("data", (chunk: Buffer) => {
         responseBytes += chunk.length;
         if (responseBytes > 64 * 1024) request.destroy(new Error("brevo_response_too_large"));
+        else chunks.push(chunk);
       });
       response.on("end", () => {
         const status = response.statusCode ?? 0;
-        if (status >= 200 && status < 300) resolve();
+        const responseBody = Buffer.concat(chunks).toString("utf8");
+        if (isBrevoAcceptedResponse(pathName, method, status, responseBody)) resolve();
+        else if (isBrevoIdempotencyDuplicate(status, responseBody, payload)) resolve();
         else reject(new Error(`brevo_delivery_failed:${status}`));
       });
     });
@@ -526,6 +693,20 @@ export async function sendRuntimeEmail(
   });
 }
 
+export async function sendUpdateCompletionEmail(
+  config: NonNullable<RuntimeNotificationConfig["email"]>,
+  payload: UpdateCompletionPayload,
+): Promise<void> {
+  const email = buildUpdateCompletionEmail(payload);
+  await requestBrevo("/v3/smtp/email", "POST", config.apiKey, {
+    sender: { email: config.from },
+    to: [{ email: config.to }],
+    subject: email.subject,
+    textContent: email.textContent,
+    headers: email.headers,
+  });
+}
+
 async function deliverWithRetries(channel: RuntimeNotificationDelivery["channel"], send: () => Promise<void>): Promise<RuntimeNotificationDelivery> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
@@ -536,6 +717,26 @@ async function deliverWithRetries(channel: RuntimeNotificationDelivery["channel"
     }
   }
   return { channel, status: "exhausted", attempts: 3, sanitizedReason: "delivery_failed" };
+}
+
+export async function deliverUpdateCompletionEmail(
+  config: RuntimeNotificationConfig["email"],
+  payload: UpdateCompletionPayload,
+  send: (config: NonNullable<RuntimeNotificationConfig["email"]>, payload: UpdateCompletionPayload) => Promise<void> = sendUpdateCompletionEmail,
+  previousAttempts = 0,
+  onAttempt?: (attempts: number) => void,
+): Promise<UpdateCompletionEmailDelivery> {
+  if (!config) return { status: "unavailable", attempts: previousAttempts, sanitizedReason: "email_not_configured" };
+  for (let attempts = previousAttempts + 1; attempts <= 3; attempts += 1) {
+    onAttempt?.(attempts);
+    try {
+      await send(config, payload);
+      return { status: "accepted", attempts };
+    } catch {
+      if (attempts < 3) await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempts - 1)));
+    }
+  }
+  return { status: "failed", attempts: Math.max(previousAttempts, 3), sanitizedReason: "delivery_failed" };
 }
 
 export async function deliverRuntimeNotification(

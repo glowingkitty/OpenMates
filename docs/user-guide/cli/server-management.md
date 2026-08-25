@@ -227,6 +227,8 @@ For backend-only production servers where the official web app is hosted separat
 
 Managed-clone source installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. Registered working-tree servers never pull or alter Git state: `update` builds the current checkout exactly as it exists. Automated `git stash` is not supported.
 
+Only one update may mutate an installation at a time, including updates requested for different roles. If a crashed process leaves `.openmates/server-update.lock`, verify that no update process is running before removing that lock explicitly; the CLI never takes over a stale lock automatically.
+
 After the provider-free runtime checklist passes on an interactive core-server update, the CLI offers `Continue with quick server test?`. The optional test uses the CLI account logged into that self-hosted instance to create, reload, and remove one temporary encrypted AI chat, run `math.calculate`, and run a one-result `web.search`. These checks may consume account credits, so declining does not affect the successful deterministic update and `--yes` never authorizes them.
 
 If the CLI has no session for the updated instance, it prints the instance-scoped login command. Log in and rerun the same suite without updating:
@@ -237,6 +239,12 @@ openmates --api-url https://api.example.org server test --quick
 ```
 
 JSON, redirected-input, and continuous updates never prompt or spend by default. Automation must pass both `--quick-test` and `--confirm-spend-credits`; `--skip-quick-test` suppresses the interactive offer. An accepted quick-test failure marks update status degraded, leaves the updated containers running for diagnosis, and never triggers automatic rollback.
+
+After the required checks, monitoring setup, and any accepted quick test pass, every image-mode or source-mode update sends one `Server update complete` email to the configured admin. The message identifies the installed image tag or source revision, server role, completion time, and the best available public GitHub release, pull-request, commit, or source link. The update records `success` only after the email provider accepts the message; provider acceptance does not guarantee inbox placement.
+
+Admin email and Brevo configuration are therefore required for updates. Missing configuration or delivery failure after three bounded attempts leaves the updated containers running, records `degraded` with a redacted delivery result, and exits non-zero. It never triggers automatic rollback. Correct the host notification configuration or provider issue, then rerun the update within 30 minutes so an ambiguous delivery reuses the same provider idempotency key.
+
+Delivery retries reuse one persisted Brevo idempotency key. After Brevo's 30-minute idempotency window expires, an unresolved pending or failed receipt blocks automatic resend to avoid duplicate mail. Check the Brevo activity log and admin inbox first; only when the operator accepts the duplicate-delivery risk should they remove the role's `.openmates/<role>-update-status.json` receipt and rerun the update. Continuous polling does not resend a completion email when the installed artifact is unchanged and that artifact already has a valid accepted completion receipt.
 
 The checklist has a 60-second global deadline. It verifies the required role services and HTTP health first, then runs dependency-safe checks for the role:
 
@@ -321,6 +329,8 @@ OPENMATES_RUNTIME_HEALTH_WEBHOOK_SECRET="<RANDOM_SIGNING_SECRET>"
 ```
 
 Do not commit these values or pass them on the command line. Use `openmates server env set <KEY>` so secret values are prompted for and CLI output remains redacted.
+
+The email recipient, sender, and Brevo key form the mandatory final completion check for `openmates server update`. Discord and generic webhook configuration remain optional and are not substitutes for the admin completion email.
 
 Test delivery after configuration:
 

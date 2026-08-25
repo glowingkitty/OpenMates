@@ -10,7 +10,7 @@
  */
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
@@ -63,21 +63,32 @@ import {
 import {
   applyRuntimeCheckResults,
   buildOperationalDeliveryReceipt,
+  buildUpdateCompletionOutcome,
+  deliverUpdateCompletionEmail,
   deliverRuntimeNotification,
   evaluateOperationalReportFreshness,
   evaluateRuntimeHeartbeat,
   evaluateRuntimeWatchdog,
   planOperationalMonitoring,
+  planUpdateCompletionDelivery,
   probeRuntimeEmailService,
   readOperationalReportState,
   readRuntimeIncidentState,
+  selectUpdateSourceLink,
   writeOperationalReportState,
   writeRuntimeIncidentState,
   type RuntimeCheckResult,
   type RuntimeNotificationDelivery,
   type RuntimeNotificationPayload,
+  type UpdateCompletionOutcome,
 } from "./serverHealth.js";
 import type { OpenMatesClient } from "./client.js";
+import {
+  acquireServerUpdateLock,
+  readServerUpdateStatus as readUpdateStatus,
+  serverUpdateStatusFile as updateStatusFile,
+  writeServerUpdateStatus as writeUpdateStatus,
+} from "./serverUpdateState.js";
 import {
   assessQuickServerTestEligibility,
   decideQuickServerTestAction,
@@ -107,6 +118,11 @@ const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtai
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
+const ROLE_PROVENANCE_SERVICE: Record<ServerRole, string> = {
+  core: "api",
+  upload: "app-uploads",
+  preview: "preview",
+};
 const DEV_BRANCH = "dev";
 const MAIN_BRANCH = "main";
 const DEFAULT_IMAGE_REGISTRY = "ghcr.io/glowingkitty";
@@ -1021,30 +1037,12 @@ function roleBackupDir(installPath: string, role: ServerRole): string {
   return join(backupRoot(installPath), role);
 }
 
-function updateStatusFile(installPath: string, role: ServerRole): string {
-  return join(installPath, ".openmates", `${role}-update-status.json`);
-}
-
-function writeUpdateStatus(installPath: string, role: ServerRole, status: Record<string, unknown>): void {
-  const filePath = updateStatusFile(installPath, role);
-  mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
-  writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
-}
-
 function persistQuickServerTestOutcome(
   installPath: string,
   role: ServerRole,
   outcome: QuickServerTestOutcome,
 ): void {
-  const filePath = updateStatusFile(installPath, role);
-  let current: Record<string, unknown> = {};
-  if (existsSync(filePath)) {
-    try {
-      current = JSON.parse(readFileSync(filePath, "utf-8")) as Record<string, unknown>;
-    } catch {
-      current = {};
-    }
-  }
+  const current = readUpdateStatus(installPath, role);
   writeUpdateStatus(installPath, role, mergeQuickServerTestUpdateStatus(current, outcome));
 }
 
@@ -1141,20 +1139,88 @@ async function maybeRunQuickServerTest(
   return result;
 }
 
-function targetSourceLinks(imageTag: string, templateRef: string): Record<string, string | null> {
+type UpdateSourceLinks = {
+  releaseUrl: string | null;
+  sourceUrl: string | null;
+  commitUrl: string | null;
+  pullRequestUrl: string | null;
+};
+
+function targetSourceLinks(imageTag: string, templateRef: string): UpdateSourceLinks {
+  const repositoryUrl = REPO_URL.replace(/\.git$/, "");
   if (imageTag.startsWith("v")) {
     return {
-      releaseUrl: `${REPO_URL.replace(/\.git$/, "")}/releases/tag/${imageTag}`,
-      sourceUrl: `${REPO_URL.replace(/\.git$/, "")}/tree/${imageTag}`,
+      releaseUrl: `${repositoryUrl}/releases/tag/${imageTag}`,
+      sourceUrl: `${repositoryUrl}/tree/${imageTag}`,
       commitUrl: null,
       pullRequestUrl: null,
     };
   }
+  const pullRequest = /^pr-(\d+)(?:-|$)/.exec(imageTag)?.[1];
+  const revision = /^sha-([a-f0-9]{7,40})$/i.exec(imageTag)?.[1];
   return {
     releaseUrl: null,
-    sourceUrl: `${REPO_URL.replace(/\.git$/, "")}/tree/${templateRef}`,
-    commitUrl: null,
-    pullRequestUrl: null,
+    sourceUrl: `${repositoryUrl}/tree/${templateRef}`,
+    commitUrl: revision ? `${repositoryUrl}/commit/${revision}` : null,
+    pullRequestUrl: pullRequest ? `${repositoryUrl}/pull/${pullRequest}` : null,
+  };
+}
+
+function installedImageMetadata(input: {
+  installPath: string;
+  role: ServerRole;
+  withOverrides: boolean;
+  templateRef: string;
+  requestedTag: string;
+}): { installedVersion: string; sourceLinks: UpdateSourceLinks } {
+  const containerId = execFileSync(
+    "docker",
+    [...composeArgs(input.installPath, input.withOverrides, "image", input.role), "ps", "-q", ROLE_PROVENANCE_SERVICE[input.role]],
+    { cwd: input.installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  ).trim();
+  if (!containerId) throw new Error("updated_container_unavailable");
+  const labels = JSON.parse(execFileSync(
+    "docker",
+    ["inspect", "--format", "{{json .Config.Labels}}", containerId],
+    { cwd: input.installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+  )) as Record<string, string> | null;
+  const installedVersion = labels?.["org.opencontainers.image.version"]?.trim();
+  if (!installedVersion) throw new Error("installed_image_version_unavailable");
+  const imageSource = labels?.["org.opencontainers.image.source"]?.trim().replace(/\.git$/, "");
+  if (imageSource !== REPO_URL.replace(/\.git$/, "")) throw new Error("installed_image_source_unverified");
+  const sourceLinks = targetSourceLinks(installedVersion, input.templateRef);
+  const revision = labels?.["org.opencontainers.image.revision"]?.trim();
+  if (revision && /^[a-f0-9]{40}$/i.test(revision)) {
+    sourceLinks.commitUrl = `${REPO_URL.replace(/\.git$/, "")}/commit/${revision}`;
+  }
+  sourceLinks.sourceUrl = imageSource;
+  const requestedLinks = targetSourceLinks(input.requestedTag, input.templateRef);
+  sourceLinks.pullRequestUrl = requestedLinks.pullRequestUrl;
+  return { installedVersion, sourceLinks };
+}
+
+function sourceUpdateMetadata(installPath: string): { installedVersion: string; sourceLinks: UpdateSourceLinks } {
+  const revision = exec("git rev-parse HEAD", installPath).trim();
+  if (!/^[a-f0-9]{40}$/i.test(revision)) throw new Error("Unable to resolve the installed source revision for the completion email.");
+  const remote = exec("git remote get-url origin", installPath).trim();
+  if (!/^(?:https:\/\/github\.com\/glowingkitty\/OpenMates(?:\.git)?|git@github\.com:glowingkitty\/OpenMates(?:\.git)?)$/i.test(remote)) {
+    throw new Error("Unable to verify canonical public source provenance for the completion email.");
+  }
+  const remoteRefs = exec(`git branch -r --contains ${revision}`, installPath)
+    .split("\n")
+    .map((value) => value.trim());
+  if (!remoteRefs.some((value) => value.startsWith("origin/"))) {
+    throw new Error("The installed source revision is not present on a canonical public remote branch.");
+  }
+  const repositoryUrl = REPO_URL.replace(/\.git$/, "");
+  return {
+    installedVersion: revision,
+    sourceLinks: {
+      releaseUrl: null,
+      pullRequestUrl: null,
+      commitUrl: `${repositoryUrl}/commit/${revision}`,
+      sourceUrl: repositoryUrl,
+    },
   };
 }
 
@@ -2302,6 +2368,88 @@ function runtimeNotificationConfig(installPath: string) {
   };
 }
 
+async function runUpdateCompletionEmailGate(input: {
+  installPath: string;
+  role: ServerRole;
+  updateMode: "image" | "source";
+  installedVersion: string;
+  sourceLinks: UpdateSourceLinks;
+  previousStatus: Record<string, unknown>;
+  deduplicateAcceptedVersion: boolean;
+}): Promise<UpdateCompletionOutcome & { completedAt: string; deliveryId?: string; deliveryPendingAt?: string }> {
+  const completedAt = new Date().toISOString();
+  const source = selectUpdateSourceLink(input.sourceLinks);
+  if (!source) {
+    return {
+      ...buildUpdateCompletionOutcome({ status: "unavailable", attempts: 0, sanitizedReason: "public_source_link_unavailable" }),
+      completedAt,
+    };
+  }
+  const deliveryPlan = planUpdateCompletionDelivery({
+    previousStatus: input.previousStatus,
+    updateMode: input.updateMode,
+    installedVersion: input.installedVersion,
+    continuousUpdate: input.deduplicateAcceptedVersion,
+    now: new Date(completedAt),
+  });
+  if (deliveryPlan.action === "blocked") {
+    return {
+      ...buildUpdateCompletionOutcome({ status: "unavailable", attempts: 0, sanitizedReason: deliveryPlan.reason }),
+      completedAt,
+      deliveryId: deliveryPlan.deliveryId,
+      deliveryPendingAt: deliveryPlan.pendingAt,
+    };
+  }
+  if (deliveryPlan.action === "reuse_accepted") {
+    return {
+      ...buildUpdateCompletionOutcome({ status: "accepted", attempts: deliveryPlan.attempts, sanitizedReason: "unchanged_version_already_notified" }),
+      completedAt,
+      deliveryId: deliveryPlan.deliveryId,
+    };
+  }
+  const deliveryId = deliveryPlan.deliveryId ?? randomUUID();
+  const deliveryPendingAt = deliveryPlan.pendingAt ?? completedAt;
+  const previousAttempts = deliveryPlan.previousAttempts ?? 0;
+  const { role: _role, updated_at: _updatedAt, ...currentStatus } = readUpdateStatus(input.installPath, input.role);
+  writeUpdateStatus(input.installPath, input.role, {
+    ...currentStatus,
+    status: "in_progress",
+    step: "completion-email",
+    updateMode: input.updateMode,
+    installedVersion: input.installedVersion,
+    sourceLink: source.url,
+    completionEmailDeliveryId: deliveryId,
+    completionEmailPendingAt: deliveryPendingAt,
+    completionEmailDelivery: { status: "pending", attempts: previousAttempts },
+  });
+  const payload = {
+    deliveryId,
+    updateMode: input.updateMode,
+    installedVersion: input.installedVersion,
+    role: input.role,
+    completedAt,
+    source,
+  };
+  const delivery = await deliverUpdateCompletionEmail(
+    runtimeNotificationConfig(input.installPath).email,
+    payload,
+    undefined,
+    previousAttempts,
+    (attempts) => {
+      const { role: _role, updated_at: _updatedAt, ...latestStatus } = readUpdateStatus(input.installPath, input.role);
+      writeUpdateStatus(input.installPath, input.role, {
+        ...latestStatus,
+        status: "in_progress",
+        step: "completion-email",
+        completionEmailDeliveryId: deliveryId,
+        completionEmailPendingAt: deliveryPendingAt,
+        completionEmailDelivery: { status: "pending", attempts },
+      });
+    },
+  );
+  return { ...buildUpdateCompletionOutcome(delivery), completedAt, deliveryId, deliveryPendingAt };
+}
+
 async function dispatchRuntimeEvent(
   installPath: string,
   role: ServerRole,
@@ -2429,15 +2577,16 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     const config = loadConfigForInstallPath(installPath);
     const role = getServerRole(flags, config);
     const filePath = updateStatusFile(installPath, role);
+    const status = readUpdateStatus(installPath, role);
     if (flags.json === true) {
-      printJson(existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf-8")) : { role, status: "unknown" });
+      printJson(existsSync(filePath) ? status : { role, status: "unknown" });
       return;
     }
     if (!existsSync(filePath)) {
       console.log(`No update status recorded for ${role}.`);
       return;
     }
-    console.log(readFileSync(filePath, "utf-8").trim());
+    console.log(JSON.stringify(status, null, 2));
     return;
   }
 
@@ -2452,7 +2601,11 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     if (!Number.isFinite(intervalMinutes) || intervalMinutes < 5) throw new Error("--interval must be at least 5 minutes.");
     console.error(`Running continuous updater every ${intervalMinutes} minutes. Use Ctrl+C to stop.`);
     while (true) {
-      await serverUpdate(client, [], { ...flags, continuous: false, "continuous-update": true });
+      try {
+        await serverUpdate(client, [], { ...flags, continuous: false, "continuous-update": true });
+      } catch (error) {
+        console.error(`Continuous update iteration degraded: ${error instanceof Error ? error.message : String(error)}`);
+      }
       await sleep(intervalMinutes * 60_000);
     }
   }
@@ -2466,6 +2619,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
   const deploymentMode = getInstallDeploymentMode(installPath, config);
+  const releaseUpdateLock = dryRun ? () => undefined : acquireServerUpdateLock(installPath);
+  try {
+  const previousUpdateStatus = readUpdateStatus(installPath, role);
   const selection = lifecycleServiceSelection(role, flags, config);
   const filterRequested = selection.requested;
   const selectedServices = selection.services;
@@ -2572,7 +2728,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "pull" });
       console.error("Pulling prebuilt images...");
       code = await runInteractive("docker", pullArgs, installPath);
-      if (code !== 0) process.exit(code);
+      if (code !== 0) throw new Error(`Docker image pull failed with exit code ${code}.`);
     } else {
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
@@ -2584,7 +2740,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       filterRequested,
     );
     code = await runInteractive("docker", upArgs, installPath);
-    if (code !== 0) process.exit(code);
+    if (code !== 0) throw new Error(`Docker image restart failed with exit code ${code}.`);
 
     console.error("Waiting for role health checks...");
     let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
@@ -2640,31 +2796,78 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       });
       throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
     }
-    writeUpdateStatus(installPath, role, {
-      status: "success",
-      targetImageTag: target.tag,
-      sourceLinks,
-      providerKeyReminders: secretPreflight.emptySecretEnvKeys,
-      step: "complete",
-      checks: successfulRuntimeOutput?.checks ?? [],
-      runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
-    });
-    if (flags.json !== true) {
-      console.log("Server images updated, containers restarted, and health checks passed.");
-    }
     const quickTest = await maybeRunQuickServerTest(client, installPath, role, config, flags);
     persistQuickServerTestOutcome(installPath, role, quickTest);
+    if (quickTest.status === "failed") {
+      if (flags.json === true) {
+        printJson({ ...plan, status: "degraded", dryRun: false, runtimeVerification: successfulRuntimeOutput, quickTest });
+      }
+      throw new Error("Authenticated quick server test failed; updated containers remain running.");
+    }
+    let imageMetadata: ReturnType<typeof installedImageMetadata>;
+    try {
+      imageMetadata = installedImageMetadata({ installPath, role, withOverrides, templateRef, requestedTag: target.tag });
+    } catch {
+      const completion = buildUpdateCompletionOutcome({ status: "unavailable", attempts: 0, sanitizedReason: "image_provenance_unavailable" });
+      writeUpdateStatus(installPath, role, {
+        status: completion.updateStatus,
+        targetImageTag: target.tag,
+        updateMode: "image",
+        step: "completion-email",
+        checks: successfulRuntimeOutput?.checks ?? [],
+        runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+        quickTest,
+        completionEmailDelivery: completion.delivery,
+      });
+      if (flags.json === true) {
+        printJson({ ...plan, status: completion.updateStatus, dryRun: false, runtimeVerification: successfulRuntimeOutput, quickTest, completionEmailDelivery: completion.delivery });
+      }
+      throw new Error("Server update completed but installed image provenance could not be resolved for the admin completion email; updated containers remain running.");
+    }
+    const completion = await runUpdateCompletionEmailGate({
+      installPath,
+      role,
+      updateMode: "image",
+      installedVersion: imageMetadata.installedVersion,
+      sourceLinks: imageMetadata.sourceLinks,
+      previousStatus: previousUpdateStatus,
+      deduplicateAcceptedVersion: flags["continuous-update"] === true,
+    });
+    writeUpdateStatus(installPath, role, {
+      status: completion.updateStatus,
+      targetImageTag: target.tag,
+      installedVersion: imageMetadata.installedVersion,
+      updateMode: "image",
+      sourceLinks: imageMetadata.sourceLinks,
+      sourceLink: selectUpdateSourceLink(imageMetadata.sourceLinks)?.url,
+      providerKeyReminders: secretPreflight.emptySecretEnvKeys,
+      step: completion.updateStatus === "success" ? "complete" : "completion-email",
+      checks: successfulRuntimeOutput?.checks ?? [],
+      runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+      quickTest,
+      completionEmailDelivery: completion.delivery,
+      completionEmailDeliveryId: completion.deliveryId,
+      completionEmailPendingAt: completion.deliveryPendingAt,
+      completedAt: completion.completedAt,
+    });
     if (flags.json === true) {
       printJson({
         ...plan,
-        status: quickTest.status === "failed" ? "degraded" : "success",
+        status: completion.updateStatus,
         dryRun: false,
+        installedVersion: imageMetadata.installedVersion,
+        sourceLinks: imageMetadata.sourceLinks,
         runtimeVerification: successfulRuntimeOutput,
         quickTest,
+        completionEmailDelivery: completion.delivery,
+        completedAt: completion.completedAt,
       });
     }
-    if (quickTest.status === "failed") {
-      throw new Error("Authenticated quick server test failed; updated containers remain running.");
+    if (completion.updateStatus === "degraded") {
+      throw new Error("Server update completed but the admin completion email was not accepted; updated containers remain running.");
+    }
+    if (flags.json !== true) {
+      console.log("Server images updated, containers restarted, health checks passed, and the admin completion email was accepted.");
     }
     return;
   }
@@ -2720,7 +2923,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   );
   console.error("Rebuilding containers...");
   let code = await runInteractive("docker", buildArgs, installPath);
-  if (code !== 0) process.exit(code);
+  if (code !== 0) throw new Error(`Docker source build failed with exit code ${code}.`);
 
   const upArgs = appendSelectedServices(
     [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
@@ -2728,7 +2931,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     filterRequested,
   );
   code = await runInteractive("docker", upArgs, installPath);
-  if (code !== 0) process.exit(code);
+  if (code !== 0) throw new Error(`Docker source restart failed with exit code ${code}.`);
 
   const checkWebApp = shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
@@ -2769,29 +2972,79 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     writeUpdateStatus(installPath, role, { status: "degraded", step: "monitoring-service", restoreStatus: "restore_unavailable", restoreCommand: null });
     throw new Error(`Runtime checks passed but monitoring service installation failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-  writeUpdateStatus(installPath, role, {
-    status: "success",
-    step: "complete",
-    checks: successfulRuntimeOutput?.checks ?? [],
-    runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
-  });
-  if (flags.json !== true) {
-    console.log("Server updated, restarted, and health checks passed.");
-  }
   const quickTest = await maybeRunQuickServerTest(client, installPath, role, config, flags);
   persistQuickServerTestOutcome(installPath, role, quickTest);
+  if (quickTest.status === "failed") {
+    if (flags.json === true) {
+      printJson({ command: "update", status: "degraded", path: installPath, mode: "source", runtimeVerification: successfulRuntimeOutput, quickTest });
+    }
+    throw new Error("Authenticated quick server test failed; updated containers remain running.");
+  }
+  let sourceMetadata: ReturnType<typeof sourceUpdateMetadata>;
+  try {
+    sourceMetadata = sourceUpdateMetadata(installPath);
+  } catch {
+    const completion = buildUpdateCompletionOutcome({ status: "unavailable", attempts: 0, sanitizedReason: "source_revision_unavailable" });
+    writeUpdateStatus(installPath, role, {
+      status: completion.updateStatus,
+      updateMode: "source",
+      step: "completion-email",
+      checks: successfulRuntimeOutput?.checks ?? [],
+      runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+      quickTest,
+      completionEmailDelivery: completion.delivery,
+    });
+    if (flags.json === true) {
+      printJson({ command: "update", status: completion.updateStatus, path: installPath, mode: "source", runtimeVerification: successfulRuntimeOutput, quickTest, completionEmailDelivery: completion.delivery });
+    }
+    throw new Error("Server update completed but its source revision could not be resolved for the admin completion email; updated containers remain running.");
+  }
+  const completion = await runUpdateCompletionEmailGate({
+    installPath,
+    role,
+    updateMode: "source",
+    installedVersion: sourceMetadata.installedVersion,
+    sourceLinks: sourceMetadata.sourceLinks,
+    previousStatus: previousUpdateStatus,
+    deduplicateAcceptedVersion: flags["continuous-update"] === true,
+  });
+  writeUpdateStatus(installPath, role, {
+    status: completion.updateStatus,
+    installedVersion: sourceMetadata.installedVersion,
+    updateMode: "source",
+    sourceLinks: sourceMetadata.sourceLinks,
+    sourceLink: selectUpdateSourceLink(sourceMetadata.sourceLinks)?.url,
+    step: completion.updateStatus === "success" ? "complete" : "completion-email",
+    checks: successfulRuntimeOutput?.checks ?? [],
+    runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
+    quickTest,
+    completionEmailDelivery: completion.delivery,
+    completionEmailDeliveryId: completion.deliveryId,
+    completionEmailPendingAt: completion.deliveryPendingAt,
+    completedAt: completion.completedAt,
+  });
   if (flags.json === true) {
     printJson({
       command: "update",
-      status: quickTest.status === "failed" ? "degraded" : "success",
+      status: completion.updateStatus,
       path: installPath,
       mode: "source",
+      installedVersion: sourceMetadata.installedVersion,
+      sourceLinks: sourceMetadata.sourceLinks,
       runtimeVerification: successfulRuntimeOutput,
       quickTest,
+      completionEmailDelivery: completion.delivery,
+      completedAt: completion.completedAt,
     });
   }
-  if (quickTest.status === "failed") {
-    throw new Error("Authenticated quick server test failed; updated containers remain running.");
+  if (completion.updateStatus === "degraded") {
+    throw new Error("Server update completed but the admin completion email was not accepted; updated containers remain running.");
+  }
+  if (flags.json !== true) {
+    console.log("Server updated, restarted, health checks passed, and the admin completion email was accepted.");
+  }
+  } finally {
+    releaseUpdateLock();
   }
 }
 
