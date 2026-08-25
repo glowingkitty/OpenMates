@@ -2872,7 +2872,7 @@ assertions:
       surface: rest_api
     - &id297
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id298
@@ -2951,7 +2951,7 @@ assertions:
       surface: rest_api
     - &id302
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id303
@@ -3087,7 +3087,7 @@ assertions:
       surface: rest_api
     - &id315
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     supporting_tests: []
@@ -3110,7 +3110,7 @@ assertions:
     direct_tests:
     - &id316
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id317
@@ -3189,7 +3189,7 @@ assertions:
       surface: rest_api
     - &id326
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     supporting_tests:
@@ -3233,7 +3233,7 @@ assertions:
     direct_tests:
     - &id330
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id331
@@ -3265,7 +3265,7 @@ assertions:
     direct_tests:
     - &id333
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     supporting_tests: []
@@ -3353,7 +3353,7 @@ assertions:
       surface: rest_api
     - &id345
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id346
@@ -10782,7 +10782,7 @@ assertions:
     direct_tests:
     - &id1219
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id1220
@@ -10812,18 +10812,18 @@ assertions:
       surface: gui.apple
     - &id1223
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 224
+      line: 234
       name: code run output becomes the default code embed preview after reload
       surface: gui.web
     - &id1224
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 415
+      line: 425
       name: uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds
       surface: gui.web
     supporting_tests:
     - &id1222
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 162
+      line: 172
       name: uploaded Python file renders as code embed without JSON leakage
       surface: gui.web
     - &id1225
@@ -11623,7 +11623,7 @@ assertions:
     direct_tests:
     - &id1298
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 415
+      line: 425
       name: uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds
       surface: gui.web
     supporting_tests:
@@ -11718,7 +11718,7 @@ assertions:
     direct_tests:
     - &id1305
       path: frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
-      line: 415
+      line: 425
       name: uploaded code, CSV, EML, DOCX, and XLSX files render as redacted embeds
       surface: gui.web
     supporting_tests: []

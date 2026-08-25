@@ -20,6 +20,7 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { closeFullscreen } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -119,7 +120,16 @@ async function stopActiveResponseIfNeeded(
 ): Promise<void> {
 	const stopButton = page.getByTestId('stop-processing-button');
 	if (await stopButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-		await stopButton.click();
+		const stopped = await stopButton.click({ timeout: 3000 })
+			.then(() => true)
+			.catch(async () => {
+				const stillVisible = await stopButton.isVisible({ timeout: 250 }).catch(() => false);
+				logCheckpoint(stillVisible
+					? 'Stop button was unstable during cleanup; continuing best-effort cleanup.'
+					: 'Assistant response completed before the cleanup click settled.');
+				return false;
+			});
+		if (!stopped) return;
 		await expect(stopButton)
 			.not.toBeVisible({ timeout: 15000 })
 			.catch(() => logCheckpoint('Stop button remained visible after cleanup click; continuing best-effort cleanup.'));
@@ -332,7 +342,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await artifactCards.nth(0).getByTestId('code-run-artifact-child-open').click();
 	const imageChild = fullscreenOverlay.getByTestId('image-embed-fullscreen');
 	await expect(imageChild).toBeVisible({ timeout: 30000 });
-	await imageChild.getByTestId('embed-minimize').click();
+	await closeFullscreen(page, imageChild);
 	await expect(terminal).toBeVisible({ timeout: 10000 });
 	await expect(terminal).toContainText('Hello, World!');
 	await artifactCards.nth(1).getByTestId('code-run-artifact-child-open').click();
@@ -340,7 +350,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(fileChild).toBeVisible({ timeout: 10000 });
 	await expect(fileChild).toContainText('outputs/result.txt');
 	await expect(fileChild.getByTestId('file-embed-executable-preview')).toHaveCount(0);
-	await fileChild.getByTestId('embed-minimize').click();
+	await closeFullscreen(page, fileChild);
 	await expect(terminal).toBeVisible({ timeout: 10000 });
 	if (proof) {
 		await terminalActions.scrollIntoViewIfNeeded();
