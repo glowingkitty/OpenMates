@@ -12,6 +12,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var pingTimer: Timer?
     private let decoder = JSONDecoder()
     private var connectTask: Task<Void, Never>?
+    private var connectionGeneration = 0
     private var activeConnectionKey: ConnectionKey?
     private var didOpenCurrentSocket = false
     private var messageWaiters: [UUID: MessageWaiter] = [:]
@@ -65,6 +66,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
 
+        connectionGeneration += 1
+        let generation = connectionGeneration
         connectTask?.cancel()
         pingTimer?.invalidate()
         pingTimer = nil
@@ -83,6 +86,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             guard let self else { return }
             let baseURL = await APIClient.shared.baseURL
             let origin = await APIClient.shared.webAppURL.absoluteString
+            guard Self.shouldContinueConnectionAttempt(
+                expectedGeneration: generation,
+                currentGeneration: connectionGeneration,
+                isCancelled: Task.isCancelled
+            ) else { return }
             guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
             components.scheme = components.scheme == "https" ? "wss" : "ws"
             components.path = "/v1/ws"
@@ -101,10 +109,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 request.setValue(value, forHTTPHeaderField: key)
             }
 
-            webSocketTask = session.webSocketTask(with: request)
-            webSocketTask?.resume()
+            let connectingTask = session.webSocketTask(with: request)
+            webSocketTask = connectingTask
+            connectingTask.resume()
 
-            guard await waitForOpenSocket(), !Task.isCancelled else {
+            guard await waitForOpenSocket(connectingTask, generation: generation),
+                  Self.shouldContinueConnectionAttempt(
+                      expectedGeneration: generation,
+                      currentGeneration: connectionGeneration,
+                      isCancelled: Task.isCancelled
+                  ) else {
+                guard generation == connectionGeneration else { return }
                 print("[WS] Connection probe failed before sync request")
                 handleDisconnect()
                 return
@@ -113,7 +128,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             connectionState = .connected
             reconnectDelay = 1.0
             startPingTimer()
-            receiveMessages(from: webSocketTask)
+            receiveMessages(from: connectingTask)
             await recoveryCoordinator?.handleTransportConnected()
             let currentSyncState = syncStateProvider?() ?? activeSyncState
             activeSyncState = currentSyncState
@@ -122,6 +137,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     }
 
     func disconnect() {
+        connectionGeneration += 1
         shouldReconnect = false
         connectTask?.cancel()
         connectTask = nil
@@ -243,15 +259,21 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         }
     }
 
-    private func waitForOpenSocket() async -> Bool {
+    private func waitForOpenSocket(
+        _ connectingTask: URLSessionWebSocketTask,
+        generation: Int
+    ) async -> Bool {
         for _ in 0..<30 {
-            if Task.isCancelled { return false }
+            guard Self.shouldContinueConnectionAttempt(
+                expectedGeneration: generation,
+                currentGeneration: connectionGeneration,
+                isCancelled: Task.isCancelled
+            ) else { return false }
             if didOpenCurrentSocket { return true }
             try? await Task.sleep(for: .milliseconds(100))
         }
-        guard let task = webSocketTask else { return false }
         return await withCheckedContinuation { continuation in
-            task.sendPing { error in
+            connectingTask.sendPing { error in
                 if let error {
                     print("[WS] Open probe ping failed: \(error.localizedDescription)")
                     continuation.resume(returning: false)
@@ -601,6 +623,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Reconnect
 
     private func handleDisconnect() {
+        connectionGeneration += 1
+        let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask = nil
@@ -621,8 +645,15 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         connectionState = .reconnecting(attempt: currentAttempt)
 
-        Task {
-            try? await Task.sleep(for: .seconds(reconnectDelay))
+        let delay = reconnectDelay
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self,
+                  Self.shouldContinueConnectionAttempt(
+                      expectedGeneration: reconnectGeneration,
+                      currentGeneration: connectionGeneration,
+                      isCancelled: Task.isCancelled
+                  ), shouldReconnect else { return }
             reconnectDelay = min(reconnectDelay * 2, 30)
             if let sessionId {
                 connect(sessionId: sessionId, token: authToken, syncState: activeSyncState)
@@ -636,6 +667,14 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     ) -> Bool {
         guard let currentTaskIdentifier else { return false }
         return callbackTaskIdentifier == currentTaskIdentifier
+    }
+
+    static func shouldContinueConnectionAttempt(
+        expectedGeneration: Int,
+        currentGeneration: Int,
+        isCancelled: Bool
+    ) -> Bool {
+        !isCancelled && expectedGeneration == currentGeneration
     }
 
     nonisolated func urlSession(

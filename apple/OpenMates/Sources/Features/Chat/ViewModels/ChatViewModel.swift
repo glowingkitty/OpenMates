@@ -142,6 +142,9 @@ struct ChatStreamingLifecycleState: Equatable {
             queuedMessageText = nil
 
         case .messageQueued(let chatId, let taskId, let userMessageId, let message):
+            if let activeTaskId = self.taskId, taskId != activeTaskId {
+                return false
+            }
             self.chatId = chatId
             self.taskId = taskId ?? self.taskId
             self.userMessageId = userMessageId ?? self.userMessageId
@@ -149,7 +152,7 @@ struct ChatStreamingLifecycleState: Equatable {
             phase = .queued
 
         case .cancelRequested(let chatId, let taskId):
-            if let taskId, let activeTaskId = self.taskId, taskId != activeTaskId {
+            if let activeTaskId = self.taskId, taskId != activeTaskId {
                 return false
             }
             self.chatId = chatId
@@ -1644,6 +1647,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     deinit {
+        streamTask?.cancel()
         if let observer = embedRefreshObserver {
             NotificationCenter.default.removeObserver(observer)
         }
