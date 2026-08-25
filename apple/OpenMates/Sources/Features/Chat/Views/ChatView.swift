@@ -3591,7 +3591,7 @@ struct MessageBubble: View {
                     }
             } else if !embeds.isEmpty {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    ForEach(EmbedGrouper.group(embeds)) { group in
+                    ForEach(EmbedGrouper.groupForInlineDisplay(embeds)) { group in
                         GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                             onEmbedTap(embed)
                         }

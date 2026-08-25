@@ -35,6 +35,7 @@ struct EmbedGroup: Identifiable {
 
 enum EmbedGrouper {
     private static let appSkillUseGroupKey = "app-skill-use"
+    private static let inlineDisplayLimit = 6
 
     static func group(_ embeds: [EmbedRecord]) -> [EmbedGroup] {
         guard !embeds.isEmpty else { return [] }
@@ -68,6 +69,10 @@ enum EmbedGrouper {
         appendCurrentBatch()
 
         return groups
+    }
+
+    static func groupForInlineDisplay(_ embeds: [EmbedRecord]) -> [EmbedGroup] {
+        group(Array(embeds.prefix(inlineDisplayLimit)))
     }
 
     private static func groupKey(for embed: EmbedRecord) -> String {

@@ -763,7 +763,7 @@ struct RichMarkdownView: View {
                     onEmbedTap?(embed)
                 }
             } else {
-                ForEach(EmbedGrouper.group(visibleEmbeds)) { group in
+                ForEach(EmbedGrouper.groupForInlineDisplay(visibleEmbeds)) { group in
                     GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                         onEmbedTap?(embed)
                     }
@@ -839,7 +839,7 @@ struct RichMarkdownView: View {
                         onEmbedTap?(embed)
                     }
                 } else {
-                    let groups = EmbedGrouper.group(embeds)
+                    let groups = EmbedGrouper.groupForInlineDisplay(embeds)
                     ForEach(groups) { group in
                         GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                             onEmbedTap?(embed)
