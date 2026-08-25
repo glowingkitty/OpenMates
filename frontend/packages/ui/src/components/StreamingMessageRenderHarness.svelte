@@ -20,13 +20,6 @@
   const PREFIX = [
     'Streaming render benchmark with a complete preview:',
     '',
-    '[!](embed:benchmark-preview-ref)',
-    '',
-    '```embeds_results_view',
-    'title: Benchmark results',
-    'embeds: benchmark-preview-ref',
-    '```',
-    '',
   ].join('\n');
   const TARGET_CONTENT = `${PREFIX}${'Bounded canonical rendering remains responsive. '.repeat(240)}`.slice(0, TARGET_CHARACTER_COUNT);
 

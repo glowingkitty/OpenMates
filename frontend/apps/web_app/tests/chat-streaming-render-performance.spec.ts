@@ -176,6 +176,7 @@ test.describe('Streaming render performance metrics', () => {
 		});
 		await proof.assert('clean-final-state', async () => {
 			await expect(page.getByText(/implementation error/i)).toHaveCount(0);
+			await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
 		});
 		await proof.checkpoint('final-state');
 		await proof.attach();
