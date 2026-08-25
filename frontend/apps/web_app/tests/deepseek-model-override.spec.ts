@@ -136,5 +136,7 @@ test('DeepSeek V4 Pro completes and the chat remains available after reload', as
 		await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
 	}
 
-	await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'deepseek-cleanup');
+	if (!proof) {
+		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'deepseek-cleanup');
+	}
 });
