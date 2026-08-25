@@ -416,7 +416,7 @@ test('code run output becomes the default code embed preview after reload', asyn
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toBeVisible({ timeout: 10000 });
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-terminal')).toContainText('Hello, World!', { timeout: 10000 });
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact')).toHaveCount(2);
-	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact-history')).toBeVisible();
+	await expect(reloadedFullscreenOverlay.getByTestId('code-run-artifact-history')).toHaveCount(2);
 	await reloadedFullscreenOverlay.getByTestId('code-run-view-code').click();
 	await expect(reloadedFullscreenOverlay.getByTestId('code-run-overlay')).not.toBeVisible({ timeout: 10000 });
 	await screenshot(page, 'code-run-output-visible-after-reload');
