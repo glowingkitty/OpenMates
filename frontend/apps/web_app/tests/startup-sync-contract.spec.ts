@@ -292,46 +292,49 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
 		await holdProofVideoState(page);
 
-		const sidebar = page.getByTestId('activity-history-wrapper');
-		if (!(await sidebar.isVisible().catch(() => false))) {
-			await page.getByTestId('sidebar-toggle').click();
-			await expect(sidebar).toBeVisible({ timeout: 10_000 });
-		}
-		const firstChatRow = page.locator(
-			`[data-testid="chat-item-wrapper"][data-chat-id="${firstLocalChat.chatId}"]`
-		);
-		const secondChatRow = page.locator(
-			`[data-testid="chat-item-wrapper"][data-chat-id="${secondLocalChat.chatId}"]`
-		);
-		await expect(firstChatRow).toBeVisible({ timeout: 10_000 });
-		await expect(secondChatRow).toBeVisible({ timeout: 10_000 });
+	} finally {
+		if (!repairReleased) releaseRepair();
+		if (repairRequested) await repairFinished;
+		await page.unroute(windowRoute, delayRepairResponse);
+	}
+}
+
+async function verifyLatestChatSelectionWins(page: any): Promise<void> {
+	const sidebar = page.getByTestId('activity-history-wrapper');
+	if (!(await sidebar.isVisible().catch(() => false))) {
+		await page.getByTestId('sidebar-toggle').click();
+		await expect(sidebar).toBeVisible({ timeout: 10_000 });
+	}
+
+	const mountedChatIds = await page.getByTestId('chat-item-wrapper').evaluateAll((rows) => rows
+		.map((row) => row.getAttribute('data-chat-id') || '')
+		.filter((chatId) => chatId && !chatId.startsWith('demo-') && !chatId.startsWith('legal-') && !chatId.startsWith('example-'))
+	);
+	expect(mountedChatIds.length, 'The mounted sidebar must contain two saved chats for stale-selection coverage').toBeGreaterThanOrEqual(2);
+	const [staleChatId, latestChatId] = mountedChatIds;
+	const staleChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${staleChatId}"]`);
+	const latestChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${latestChatId}"]`);
+
+	try {
 		await page.evaluate(({ chatId, delayMs }: { chatId: string; delayMs: number }) => {
 			(window as typeof window & {
 				__openmatesE2EChatSelectionDelays?: Record<string, number>;
 			}).__openmatesE2EChatSelectionDelays = { [chatId]: delayMs };
-		}, { chatId: firstLocalChat.chatId, delayMs: STALE_SELECTION_DELAY_MS });
+		}, { chatId: staleChatId, delayMs: STALE_SELECTION_DELAY_MS });
 
-		await firstChatRow.click();
-		await secondChatRow.click();
-		await expect(secondChatRow).toHaveAttribute('data-active', 'true');
+		await staleChatRow.click();
+		await latestChatRow.click();
+		await expect(latestChatRow).toHaveAttribute('data-active', 'true');
 		await page.waitForTimeout(STALE_SELECTION_DELAY_MS + 250);
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute(
-			'data-current-chat-id',
-			secondLocalChat.chatId
-		);
-		await expect.poll(() => new URL(page.url()).hash).toContain(
-			`chat-id=${encodeURIComponent(secondLocalChat.chatId)}`
-		);
-		await expect(secondChatRow).toHaveAttribute('data-active', 'true');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', latestChatId);
+		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(latestChatId)}`);
+		await expect(latestChatRow).toHaveAttribute('data-active', 'true');
 	} finally {
 		await page.evaluate(() => {
 			delete (window as typeof window & {
 				__openmatesE2EChatSelectionDelays?: Record<string, number>;
 			}).__openmatesE2EChatSelectionDelays;
 		}).catch(() => undefined);
-		if (!repairReleased) releaseRepair();
-		if (repairRequested) await repairFinished;
-		await page.unroute(windowRoute, delayRepairResponse);
 	}
 }
 
@@ -594,4 +597,5 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
 	await verifyCachedShortChatOpening(page);
+	await verifyLatestChatSelectionWins(page);
 });
