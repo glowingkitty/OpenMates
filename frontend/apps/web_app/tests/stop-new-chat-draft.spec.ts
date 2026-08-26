@@ -253,6 +253,24 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		const messageEditor = page.getByTestId('message-editor');
 		await insertComposerText(page, messageEditor, visibleDraft, visibleDraft);
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		if (IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-phone') {
+			const composerGeometry = await page.evaluate(() => {
+				const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
+				const messageEditor = document.querySelector<HTMLElement>('[data-testid="message-editor"]');
+				if (!messageField || !messageEditor) throw new Error('Composer geometry targets are unavailable');
+				const fieldRect = messageField.getBoundingClientRect();
+				const editorRect = messageEditor.getBoundingClientRect();
+				return {
+					documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+					fieldRight: fieldRect.right,
+					editorRight: editorRect.right,
+					viewportWidth: window.innerWidth
+				};
+			});
+			expect(composerGeometry.documentOverflow, 'Phone composer must not create horizontal page overflow').toBeLessThanOrEqual(1);
+			expect(composerGeometry.fieldRight, 'Phone message field must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
+			expect(composerGeometry.editorRight, 'Phone message editor must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
+		}
 		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
 		await proof?.checkpoint('draft-saved');
