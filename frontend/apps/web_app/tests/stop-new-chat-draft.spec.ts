@@ -17,7 +17,12 @@ const {
 	getTestAccount,
 	withMockMarker
 } = require('./signup-flow-helpers');
-const { deleteActiveChat, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const {
+	deleteActiveChat,
+	dismissSecurityReminderIfPresent,
+	loginToTestAccount,
+	startNewChat
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -389,6 +394,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		if (draftChatId) {
 			if (proof) {
 				await proof.action('reopen-draft', async () => {
+					await dismissSecurityReminderIfPresent(page, logCheckpoint);
 					const sidebarToggle = page.getByTestId('sidebar-toggle');
 					if (await sidebarToggle.getAttribute('aria-expanded') !== 'true') {
 						await sidebarToggle.click();
