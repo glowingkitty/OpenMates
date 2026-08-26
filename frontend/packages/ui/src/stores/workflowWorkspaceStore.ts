@@ -34,7 +34,7 @@ export type WorkflowNode = {
 
 export type WorkflowGraph = {
   version: number;
-  trigger_node_id: string;
+  trigger_node_id: string | null;
   nodes: WorkflowNode[];
   edges: Array<{ from: string; to: string; branch?: string }>;
   limits?: Record<string, unknown>;
@@ -491,6 +491,21 @@ export const workflowWorkspaceStore = {
     const data = await workflowApiRequest<{ run: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
     );
+    store.update((state) => {
+      const existingRuns = state.runsByWorkflowId[workflowId] ?? [];
+      const hasRun = existingRuns.some((run) => run.id === runId);
+      const workflowRuns = hasRun
+        ? existingRuns.map((run) => run.id === runId ? data.run : run)
+        : [data.run, ...existingRuns];
+      return {
+        ...state,
+        workflows: state.workflows.map((workflow) => (
+          workflow.id === workflowId ? { ...workflow, last_run_status: data.run.status } : workflow
+        )),
+        runs: state.selectedWorkflowId === workflowId ? workflowRuns : state.runs,
+        runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: workflowRuns },
+      };
+    });
     return data.run;
   },
 

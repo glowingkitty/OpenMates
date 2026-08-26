@@ -18,6 +18,8 @@
     createdAt,
     nextRunAt,
     enabled,
+    canEnable,
+    lastStartedRunId = null,
     activeTab,
     dirty,
     saving,
@@ -39,6 +41,8 @@
     createdAt?: number | null;
     nextRunAt?: number | null;
     enabled: boolean;
+    canEnable: boolean;
+    lastStartedRunId?: string | null;
     activeTab: 'template' | 'runs';
     dirty: boolean;
     saving: boolean;
@@ -116,9 +120,11 @@
     <span class="workflow-kicker">Workflow</span>
     <div class="identity-icon" data-testid="workflow-identity-icon" aria-hidden="true"><WorkflowIcon size={42} /></div>
     <h1 data-testid="workspace-detail-title">{title}</h1>
-    <button type="button" class="toggle-pill" data-testid="toggle-workflow" disabled={saving} onclick={() => void onToggleEnabled()}>
+    <button type="button" class="toggle-pill" data-testid="toggle-workflow" disabled={saving || (!enabled && !canEnable)} onclick={() => void onToggleEnabled()}>
       <span>{enabled ? 'Workflow on' : 'Workflow off'}</span><i class:enabled aria-hidden="true"></i>
     </button>
+    <span class="state-marker" data-testid="workflow-enabled-state" data-enabled={enabled ? 'true' : 'false'}>{enabled ? 'Enabled' : canEnable ? 'Ready to enable' : 'Definition incomplete'}</span>
+    {#if lastStartedRunId}<span class="state-marker" data-testid="workflow-run-started" data-run-id={lastStartedRunId}>Run started</span>{/if}
     <p class="description" data-testid="workspace-detail-description">{description}</p>
     <span class="metadata" data-testid="workflow-detail-metadata">{metadataLabel}</span>
   </div>
@@ -161,6 +167,7 @@
   h1 { max-width: 780px; overflow-wrap: anywhere; font-size: clamp(1.8rem, 3.5vw, 3rem); line-height: 1.05; }
   .description { max-width: 660px; font-size: clamp(0.95rem, 1.8vw, 1.2rem); opacity: 0.88; }
   .metadata { font-size: var(--font-size-small); font-weight: 700; opacity: 0.8; }
+  .state-marker { font-size: var(--font-size-xs); font-weight: 800; opacity: 0.85; }
   .toggle-pill { display: inline-flex; align-items: center; gap: var(--spacing-4); border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; font-weight: 800; cursor: pointer; }
   .toggle-pill i { position: relative; width: 34px; height: 20px; border-radius: var(--radius-full); background: var(--color-grey-30); }
   .toggle-pill i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--color-grey-0); transition: transform 0.2s ease; }

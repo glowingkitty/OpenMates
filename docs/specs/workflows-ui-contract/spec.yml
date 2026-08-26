@@ -747,22 +747,37 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-9, AC-10]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: python3 scripts/workflow_readiness_real_test.py
+      run_id: workflow-readiness-rest-real-dev-20260826T1913Z
+      timestamp: '2026-08-26T19:13:09Z'
+      subject_commit: 2f53f05a6e7fd3adc21407f30fa8dae6348ec4e7
+      result: Blank disabled draft persisted with zero nodes; invalid activation created no run; ready graph enabled; one idempotent run and one read-only Task projection were asserted.
   - id: V-CLI-DEV-READINESS
     kind: automated_test
     phase: green
     required_for_done: true
     covers: [AC-9]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: node frontend/packages/openmates-cli/dist/cli.js --api-url https://api.dev.openmates.org workflows create/enable/run/delete --json
+      run_id: d85d7110-6037-487b-89fb-33fa80bd5568
+      timestamp: '2026-08-26T19:13:09Z'
+      subject_commit: 2f53f05a6e7fd3adc21407f30fa8dae6348ec4e7
+      result: Local built CLI created a blank disabled draft, received HTTP 400 on premature enable, created an enabled reachable-effect graph, accepted a manual run, and deleted both probes.
   - id: V-SDK-DEV-READINESS
     kind: automated_test
     phase: green
     required_for_done: true
     covers: [AC-9]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: python3 scripts/verify_workflow_identity_sdk_live.py --api-url https://api.dev.openmates.org
+      run_id: workflow-readiness-sdk-live-20260826T1913Z
+      timestamp: '2026-08-26T19:13:09Z'
+      subject_commit: bf85c47c2a459af5ab98ac3e16c0ad59c253b563
+      result: Real npm and pip SDKs each created a blank draft, rejected premature activation, enabled a reachable-effect graph, accepted a run, and cleaned up with an ephemeral revoked API key.
   - id: V-CLI-DEV
     kind: automated_test
     phase: green
@@ -1509,7 +1524,7 @@ tasks:
     surfaces: [rest_api]
   - id: TASK-18
     title: Prove readiness through real dev REST, CLI, and SDK surfaces
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios: [S-8]
@@ -1721,14 +1736,14 @@ attempts:
     recorded_at: '2026-08-26T17:27:59Z'
 
 handoff:
-  current_task_id: TASK-18
-  next_action: Deploy the green backend readiness boundary, restart the dev API, and prove real REST behavior before CLI and SDK parity.
-  command: python3 scripts/workflow_readiness_real_test.py
-  expected_outcome: Real dev REST accepts a blank disabled draft, rejects invalid activation, accepts one reachable-effect graph, and leaves no run/effect on rejection.
+  current_task_id: TASK-19
+  next_action: Implement blank time-trigger authoring, readiness feedback, and bounded exact-run refresh in the Workflow web surface.
+  command: python3 scripts/spec_validate.py docs/specs/workflows-ui-contract/spec.yml
+  expected_outcome: The executable ledger remains valid before the web implementation begins.
   blocker:
-    task_id: TASK-18
+    task_id: TASK-19
     requires_user_input: false
-    reason: No product blocker; verification follows the required REST before CLI and SDK phase order.
+    reason: No product blocker; REST, CLI, npm SDK, and pip SDK readiness gates are green.
     question: ''
-    next_action: Deploy and run the authenticated real-dev REST probe.
+    next_action: Implement TASK-19 against the deployed red Playwright contracts.
   last_verified_commit: pending

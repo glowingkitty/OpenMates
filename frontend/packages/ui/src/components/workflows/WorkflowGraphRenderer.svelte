@@ -30,8 +30,14 @@
   } = $props();
 
   let expandedNodeId = $state<string | null>(null);
+  let stepMenuOpen = $state(false);
   const ChevronIcon = getLucideIcon('chevron-down');
   const PlusIcon = getLucideIcon('plus');
+  const TRIGGER_NODE_TYPES = new Set<WorkflowNodeType>(['schedule_trigger', 'manual_trigger', 'webhook_trigger', 'event_trigger']);
+  const QUALIFYING_EFFECT_TYPES = new Set<WorkflowNodeType>(['create_chat_report', 'start_new_chat', 'send_notification', 'send_email_notification']);
+  const triggerCount = $derived(graph.nodes.filter((node) => TRIGGER_NODE_TYPES.has(node.type)).length);
+  const stepCount = $derived(graph.nodes.filter((node) => !TRIGGER_NODE_TYPES.has(node.type) && node.type !== 'end').length);
+  const qualifyingEffectReachable = $derived(hasReachableQualifyingEffect());
 
   function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -153,15 +159,19 @@
     updateNode(node.id, (current) => ({ ...current, config: { ...configRecord(current), ...config } }));
   }
 
-  function defaultNode(type: 'app_skill_action' | 'decision'): WorkflowNode {
+  function defaultNode(type: 'app_skill_action' | 'decision' | 'create_chat_report'): WorkflowNode {
     const id = `${type}-${Date.now().toString(36)}`;
+    if (type === 'create_chat_report') {
+      return { id, type, title: 'Create chat report', config: { summary: 'Workflow report' } };
+    }
     return type === 'decision'
       ? { id, type, title: 'Decision', config: { predicate: { left: '$nodes.weather.output.rain_probability', op: 'gte', right: 60 } } }
       : { id, type, title: 'Check weather', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin', days: 1 } } };
   }
 
-  function appendNode(type: 'app_skill_action' | 'decision'): void {
+  function appendNode(type: 'app_skill_action' | 'decision' | 'create_chat_report'): void {
     if (readOnly) return;
+    stepMenuOpen = false;
     const node = defaultNode(type);
     const endIndex = graph.nodes.findIndex((item) => item.type === 'end');
     const nodes = endIndex >= 0 ? [...graph.nodes.slice(0, endIndex), node, ...graph.nodes.slice(endIndex)] : [...graph.nodes, node];
@@ -180,6 +190,40 @@
         ]
       : [...graph.edges, { from: node.id, to: endNode.id }];
     onChange({ ...graph, nodes, edges });
+  }
+
+  function addTimeTrigger(): void {
+    if (readOnly || triggerCount > 0) return;
+    const trigger: WorkflowNode = {
+      id: 'trigger',
+      type: 'schedule_trigger',
+      title: 'Every day',
+      config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } },
+    };
+    const firstNode = graph.nodes[0];
+    onChange({
+      ...graph,
+      trigger_node_id: trigger.id,
+      nodes: [trigger, ...graph.nodes],
+      edges: firstNode ? [{ from: trigger.id, to: firstNode.id }, ...graph.edges] : graph.edges,
+    });
+    expandedNodeId = trigger.id;
+  }
+
+  function hasReachableQualifyingEffect(): boolean {
+    if (!graph.trigger_node_id) return false;
+    const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+    const pending = [graph.trigger_node_id];
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const nodeId = pending.shift();
+      if (!nodeId || visited.has(nodeId)) continue;
+      visited.add(nodeId);
+      const node = nodesById.get(nodeId);
+      if (node && QUALIFYING_EFFECT_TYPES.has(node.type)) return true;
+      for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
+    }
+    return false;
   }
 
   function removeNode(nodeId: string): void {
@@ -212,6 +256,18 @@
 
 <section class="graph-panel" data-testid={testId} data-read-only={readOnly ? 'true' : 'false'}>
   <div class="graph-canvas">
+    {#if !readOnly}
+      <div class="readiness-panel" data-testid="workflow-readiness">
+        <div><span>Triggers</span><strong data-testid="workflow-readiness-trigger-count">{triggerCount}</strong></div>
+        <div><span>Steps</span><strong data-testid="workflow-readiness-step-count">{stepCount}</strong></div>
+        <div data-testid="workflow-reachable-qualifying-side-effect" data-reachable={qualifyingEffectReachable ? 'true' : 'false'}>
+          <span>Reachable result</span><strong>{qualifyingEffectReachable ? 'Ready' : 'Needed'}</strong>
+        </div>
+      </div>
+      {#if triggerCount === 0 && stepCount === 0}
+        <p class="blank-draft" data-testid="workflow-blank-draft">Add one time trigger and at least one result-producing step to activate this Workflow.</p>
+      {/if}
+    {/if}
     <div class="node-stack" data-testid="workflow-node-stack">
       {#each flowItems() as item (item.id)}
         {#if item.kind === 'connector'}
@@ -262,7 +318,7 @@
                   <label class="node-field"><span>Action title</span><input data-testid="workflow-node-title-input" value={item.node.title ?? item.node.type} oninput={(event) => updateNode(item.node.id, (node) => ({ ...node, title: event.currentTarget.value }))} /></label>
                   {#if item.node.type === 'schedule_trigger'}
                     <div class="node-grid">
-                      <label class="node-field"><span>Repeat</span><select value={stringValue(scheduleRecord(item.node).type, 'daily')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), type: event.currentTarget.value } })}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+                      <label class="node-field"><span>Repeat</span><select data-testid="workflow-time-trigger-schedule" value={stringValue(scheduleRecord(item.node).type, 'daily')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), type: event.currentTarget.value } })}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
                       <label class="node-field"><span>Time</span><input value={stringValue(scheduleRecord(item.node).time, '09:00')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), time: event.currentTarget.value } })} /></label>
                       <label class="node-field"><span>Timezone</span><input value={stringValue(scheduleRecord(item.node).timezone, 'Europe/Berlin')} oninput={(event) => updateNodeConfig(item.node, { schedule: { ...scheduleRecord(item.node), timezone: event.currentTarget.value } })} /></label>
                     </div>
@@ -291,8 +347,17 @@
 
     {#if !readOnly}
       <div class="editor-toolbar" data-testid="workflow-action-palette">
-        <button type="button" data-testid="add-weather-node" onclick={() => appendNode('app_skill_action')}><PlusIcon size={24} />Add action</button>
-        <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}><PlusIcon size={24} />Add decision</button>
+        {#if triggerCount === 0}
+          <button type="button" data-testid="workflow-add-time-trigger" onclick={addTimeTrigger}><PlusIcon size={24} />Add time trigger</button>
+        {/if}
+        <button type="button" data-testid="workflow-add-step" onclick={() => (stepMenuOpen = !stepMenuOpen)}><PlusIcon size={24} />Add step</button>
+        {#if stepMenuOpen}
+          <div class="step-menu" data-testid="workflow-step-menu">
+            <button type="button" data-testid="workflow-step-app-skill-action" onclick={() => appendNode('app_skill_action')}>Use App skill</button>
+            <button type="button" data-testid="workflow-step-create-chat-report" onclick={() => appendNode('create_chat_report')}>Create chat report</button>
+            <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}>Add decision</button>
+          </div>
+        {/if}
       </div>
     {/if}
   </div>
@@ -301,7 +366,12 @@
 <style>
   .graph-panel { margin: var(--spacing-8); padding: var(--spacing-6); border-radius: var(--radius-12); background: var(--color-grey-10); }
   .graph-canvas { display: grid; justify-items: center; gap: var(--spacing-10); padding: var(--spacing-8); border-radius: var(--radius-10); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
-  .node-stack, .editor-toolbar { width: min(680px, 100%); }
+  .node-stack, .editor-toolbar, .readiness-panel, .blank-draft { width: min(680px, 100%); }
+  .readiness-panel { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-3); }
+  .readiness-panel div { display: grid; gap: var(--spacing-2); padding: var(--spacing-4); border-radius: var(--radius-6); background: var(--color-grey-10); text-align: center; }
+  .readiness-panel span { color: var(--color-font-secondary); font-size: var(--font-size-xs); }
+  .readiness-panel strong { font-size: var(--font-size-h4); }
+  .blank-draft { margin: 0; color: var(--color-font-secondary); text-align: center; }
   .node-stack, .flow-node { display: grid; justify-items: center; }
   .flow-node { width: 100%; }
   .flow-node.branch-node, .placeholder-card, .branch-label, .branch-connector { width: 82%; justify-self: end; }
@@ -332,9 +402,12 @@
   .detail-group { padding: var(--spacing-5); border-radius: var(--radius-6); background: var(--color-grey-10); }
   .detail-group pre { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; color: var(--color-font-primary); }
   .detail-group.error { color: var(--color-danger); }
-  .editor-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block-start: 2px solid var(--color-grey-20); }
+  .editor-toolbar { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block-start: 2px solid var(--color-grey-20); }
   .editor-toolbar button { display: flex; min-height: 84px; align-items: center; justify-content: center; gap: var(--spacing-3); border: 0; color: var(--color-font-secondary); background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
   .editor-toolbar button + button { border-inline-start: 2px solid var(--color-grey-20); }
-  @media (max-width: 600px) { .graph-panel { margin: var(--spacing-4); padding: var(--spacing-3); } .graph-canvas { padding: var(--spacing-5); } .node-editor-panel { width: 100%; } .node-grid { grid-template-columns: 1fr; } .node-field.wide { grid-column: auto; } }
+  .step-menu { position: absolute; z-index: 5; inset: calc(100% - var(--spacing-2)) 0 auto; display: grid; padding: var(--spacing-3); border-radius: var(--radius-6); background: var(--color-grey-0); box-shadow: var(--shadow-lg); }
+  .step-menu button { min-height: 48px; justify-content: flex-start; padding-inline: var(--spacing-5); }
+  .step-menu button + button { border-inline-start: 0; border-block-start: 1px solid var(--color-grey-20); }
+  @media (max-width: 600px) { .graph-panel { margin: var(--spacing-4); padding: var(--spacing-3); } .graph-canvas { padding: var(--spacing-5); } .readiness-panel { grid-template-columns: 1fr; } .node-editor-panel { width: 100%; } .node-grid { grid-template-columns: 1fr; } .node-field.wide { grid-column: auto; } }
   @media (prefers-reduced-motion: reduce) { .workflow-card { transition: none; } }
 </style>

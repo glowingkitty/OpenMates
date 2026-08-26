@@ -41,6 +41,10 @@
   let cancelling = $state(false);
   let statusOverrides = $state<Record<string, string>>({});
 
+  const RUN_POLL_INTERVAL_MS = 2_000;
+  const MAX_RUN_POLL_ATTEMPTS = 60;
+  const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled', 'skipped']);
+
   const selectedRun = $derived(runs.find((run) => run.id === selectedRunId) ?? runs[0] ?? null);
   const selectedStatus = $derived(selectedRunDetail?.status ?? (selectedRun ? statusOverrides[selectedRun.id] ?? selectedRun.status : ''));
   const canCancel = $derived(['queued', 'running', 'waiting'].includes(selectedStatus));
@@ -54,33 +58,52 @@
       selectedGraph = null;
       return;
     }
-    void loadRun(workflowId, runId);
+    let disposed = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    async function refreshRun(): Promise<void> {
+      const detail = await loadRun(workflowId, runId, attempts > 0);
+      attempts += 1;
+      if (disposed || !detail || TERMINAL_RUN_STATUSES.has(detail.status) || attempts >= MAX_RUN_POLL_ATTEMPTS) return;
+      timeoutId = setTimeout(() => void refreshRun(), RUN_POLL_INTERVAL_MS);
+    }
+
+    void refreshRun();
+    return () => {
+      disposed = true;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   });
 
-  async function loadRun(workflowId: string, runId: string): Promise<void> {
-    loading = true;
+  async function loadRun(workflowId: string, runId: string, preserveExisting = false): Promise<WorkflowRunDetail | null> {
+    if (!preserveExisting) loading = true;
     errorMessage = null;
     cancelConfirmationOpen = false;
-    selectedRunDetail = null;
-    selectedGraph = null;
+    if (!preserveExisting) {
+      selectedRunDetail = null;
+      selectedGraph = null;
+    }
     try {
       const detail = await workflowWorkspaceStore.getWorkflowRun(workflowId, runId);
-      if (workflow.id !== workflowId || selectedRun?.id !== runId) return;
+      if (workflow.id !== workflowId || selectedRun?.id !== runId) return null;
       selectedRunDetail = detail;
       statusOverrides = { ...statusOverrides, [runId]: detail.status };
-      if (detail.version_id === workflow.current_version_id) {
+      if (!selectedGraph && detail.version_id === workflow.current_version_id) {
         selectedGraph = workflow.graph;
-      } else {
+      } else if (!selectedGraph) {
         const version = await workflowWorkspaceStore.getWorkflowVersion(workflowId, detail.version_id);
-        if (workflow.id !== workflowId || selectedRun?.id !== runId) return;
+        if (workflow.id !== workflowId || selectedRun?.id !== runId) return null;
         selectedGraph = version.graph;
       }
+      return detail;
     } catch (error) {
       if (workflow.id === workflowId && selectedRun?.id === runId) {
         errorMessage = error instanceof Error ? error.message : 'Failed to load this Workflow run.';
       }
+      return null;
     } finally {
-      if (workflow.id === workflowId && selectedRun?.id === runId) loading = false;
+      if (!preserveExisting && workflow.id === workflowId && selectedRun?.id === runId) loading = false;
     }
   }
 

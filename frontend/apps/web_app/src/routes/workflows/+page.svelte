@@ -60,6 +60,9 @@
   let workflowInputText = $state('');
   let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
   let workflowHashState = $state<WorkflowHashState>({ workflowId: null, tab: 'details', runId: null });
+  let blankCreatorOpen = $state(false);
+  let blankWorkflowTitle = $state('');
+  let lastStartedRunId = $state<string | null>(null);
 
   let recentWorkflows = $derived([...workflows].sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0)).slice(0, 6));
   let workflowStarterItems: WorkflowContinueItem[] = [
@@ -116,6 +119,7 @@
   let showManageView = $derived(canRenderWorkflowData && isManageView);
   let visibleWorkflowGreetingName = $derived(canRenderWorkflowData ? workflowGreetingName : 'there');
   let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
+  let editorActivationReady = $derived(editorGraph ? workflowActivationReady(editorGraph) : false);
 
   onMount(() => {
     syncWorkflowHashFromLocation();
@@ -321,8 +325,16 @@
     await createWorkflow('Twice-weekly AI news brief', newsBriefGraph(), true);
   }
 
-  async function createBlankWorkflow() {
-    await createWorkflow('Untitled workflow', blankWorkflowGraph(), false);
+  function openBlankWorkflowCreator(): void {
+    blankWorkflowTitle = '';
+    blankCreatorOpen = true;
+  }
+
+  async function submitBlankWorkflow(): Promise<void> {
+    const title = blankWorkflowTitle.trim();
+    if (!title || saving) return;
+    await createWorkflow(title, blankWorkflowGraph(), false);
+    if (!routeError) blankCreatorOpen = false;
   }
 
   function startWorkflowFromInspiration(inspiration: DailyInspiration) {
@@ -342,7 +354,7 @@
     } else if (item.id === 'starter-news') {
       await createNewsWorkflow();
     } else if (item.id === 'starter-blank') {
-      await createBlankWorkflow();
+      openBlankWorkflowCreator();
     } else {
       await continueWorkflowFromCard(item);
     }
@@ -425,6 +437,7 @@
     routeError = null;
     try {
       const run = await workflowWorkspaceStore.runWorkflow(workflowId);
+      lastStartedRunId = run.id;
       openWorkflowRuns(workflowId, run.id);
     } catch (runError) {
       routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
@@ -519,12 +532,27 @@
   function blankWorkflowGraph(): WorkflowGraph {
     return {
       version: 1,
-      trigger_node_id: 'manual',
-      nodes: [
-        { id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} }
-      ],
+      trigger_node_id: null,
+      nodes: [],
       edges: []
     };
+  }
+
+  function workflowActivationReady(graph: WorkflowGraph): boolean {
+    if (!graph.trigger_node_id) return false;
+    const qualifyingTypes = new Set(['create_chat_report', 'start_new_chat', 'send_notification', 'send_email_notification']);
+    const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+    const pending = [graph.trigger_node_id];
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const nodeId = pending.shift();
+      if (!nodeId || visited.has(nodeId)) continue;
+      visited.add(nodeId);
+      const node = nodesById.get(nodeId);
+      if (node && qualifyingTypes.has(node.type)) return true;
+      for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
+    }
+    return false;
   }
 
   function newsBriefGraph(): WorkflowGraph {
@@ -603,6 +631,7 @@
         {/if}
 
         {#if !showManageView}
+          <button type="button" class="blank-workflow-action" data-testid="create-blank-workflow" disabled={saving || !canRenderWorkflowData} onclick={openBlankWorkflowCreator}>New blank Workflow</button>
           <WorkspaceHomeShell
             surface="workflows"
             testId="workflows-start-screen"
@@ -664,6 +693,8 @@
               createdAt={selectedWorkflow.created_at}
               nextRunAt={selectedWorkflow.next_run_at}
               enabled={selectedWorkflow.enabled}
+              canEnable={editorActivationReady && !editorDirty}
+              {lastStartedRunId}
               activeTab={isRunsView ? 'runs' : 'template'}
               dirty={editorDirty}
               {saving}
@@ -671,7 +702,7 @@
               onToggleEnabled={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)}
               onSaveWorkflow={saveSelectedWorkflow}
               onUndoWorkflow={undoEditorChanges}
-              onCreateWorkflow={() => requestNavigation(createBlankWorkflow)}
+              onCreateWorkflow={() => requestNavigation(openBlankWorkflowCreator)}
               onRunWorkflow={runSelectedWorkflow}
               onDeleteWorkflow={deleteSelectedWorkflow}
               onOpenHome={requestWorkflowHome}
@@ -732,6 +763,22 @@
                 <button type="button" data-testid="workflow-guard-discard" onclick={() => void discardAndContinueNavigation()}>Discard</button>
                 <button type="button" class="primary" data-testid="workflow-guard-save" disabled={saving} onclick={() => void saveAndContinueNavigation()}>Save</button>
               </div>
+            </div>
+          </div>
+        {/if}
+
+        {#if blankCreatorOpen}
+          <div class="blank-creator-backdrop" data-testid="workflow-blank-creator" role="presentation">
+            <div class="blank-creator" role="dialog" aria-modal="true" aria-labelledby="blank-workflow-title" use:focusTrap={{ onEscape: () => (blankCreatorOpen = false) }}>
+              <form onsubmit={(event) => { event.preventDefault(); void submitBlankWorkflow(); }}>
+                <h2 id="blank-workflow-title">Start a blank Workflow</h2>
+                <p>Name it now, then add a time trigger and the steps it should perform.</p>
+                <label><span>Workflow name</span><input data-testid="workflow-blank-title-input" bind:value={blankWorkflowTitle} /></label>
+                <div>
+                  <button type="button" onclick={() => (blankCreatorOpen = false)}>Cancel</button>
+                  <button type="submit" class="primary" data-testid="workflow-blank-create" disabled={saving || !blankWorkflowTitle.trim()}>{saving ? 'Creating...' : 'Create'}</button>
+                </div>
+              </form>
             </div>
           </div>
         {/if}
@@ -813,6 +860,15 @@
     overflow: hidden;
   }
 
+  .blank-workflow-action {
+    position: absolute;
+    z-index: 5;
+    inset: var(--spacing-5) var(--spacing-5) auto auto;
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+    font-weight: 800;
+  }
+
   .workflow-management {
     display: grid;
     gap: 16px;
@@ -882,6 +938,37 @@
   .unsaved-guard div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-3); }
   .unsaved-guard button { background: var(--color-grey-20); }
   .unsaved-guard .primary { color: var(--color-font-button); background: var(--color-button-primary); }
+
+  .blank-creator-backdrop {
+    position: fixed;
+    z-index: var(--z-index-modal, 1000);
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--spacing-6);
+    background: color-mix(in srgb, var(--color-grey-100) 48%, transparent);
+  }
+
+  .blank-creator {
+    width: min(460px, 100%);
+    padding: var(--spacing-8);
+    border-radius: var(--radius-10);
+    color: var(--color-font-primary);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .blank-creator form { display: grid; gap: var(--spacing-5); }
+
+  .blank-creator h2,
+  .blank-creator p { margin: 0; }
+  .blank-creator p,
+  .blank-creator label span { color: var(--color-font-secondary); }
+  .blank-creator label { display: grid; gap: var(--spacing-3); }
+  .blank-creator input { box-sizing: border-box; width: 100%; padding: var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-6); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; }
+  .blank-creator form > div { display: flex; justify-content: flex-end; gap: var(--spacing-3); }
+  .blank-creator button { background: var(--color-grey-20); }
+  .blank-creator .primary { color: var(--color-font-button); background: var(--color-button-primary); }
 
   .error-banner {
     margin-block-end: 14px;
