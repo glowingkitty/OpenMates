@@ -17,7 +17,9 @@ REGION_MANAGED_MEDIA_BUCKETS = {"buffer_media"}
 REGION_EXCLUDED_BUCKETS = {"product_media"}
 NON_REPLICATED_BUCKETS = REGION_MANAGED_MEDIA_BUCKETS | REGION_EXCLUDED_BUCKETS
 REGIONAL_BUCKET_NAME_OVERRIDES = {
-    # The default dev HEL1 workspace-history name is already taken in the provider namespace.
+    # These default dev HEL1 names are already taken in the provider namespace.
+    ("dev-openmates-chatfiles", "hel1"): "dev-openmates-chatfiles-hel1-om",
+    ("dev-openmates-usage-archives", "hel1"): "dev-openmates-usage-archives-hel1-om",
     ("dev-openmates-workspace-history-archives", "hel1"): "dev-openmates-workspace-history-archives-hel1-om",
 }
 
