@@ -33,7 +33,7 @@ from typing import Dict, Optional  # noqa: E402 # For type hinting
 from importlib import import_module  # noqa: E402
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -429,7 +429,6 @@ async def lifespan(app: FastAPI):
     # --- Initialize all services and store in app.state ---
     logger.info("Initializing services...")
     app.state.cache_service = CacheService()
-    await app.state.cache_service.purge_removed_app_memory_cache()
     app.state.metrics_service = MetricsService()
     app.state.compliance_service = ComplianceService()
     
@@ -474,11 +473,6 @@ async def lifespan(app: FastAPI):
         await asyncio.sleep(min(2 ** (_cms_attempt + 1), 16))
     else:
         logger.error("CMS did not become reachable after 10 attempts. Startup data may be incomplete.")
-
-    from backend.core.api.app.services.app_memory_removal import (
-        purge_removed_app_memory_rows,
-    )
-    await purge_removed_app_memory_rows(app.state.directus_service)
 
     # Initialize server stats service
     from backend.core.api.app.services.server_stats_service import ServerStatsService
@@ -1357,6 +1351,7 @@ def create_app() -> FastAPI:
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
+    app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only

@@ -1760,7 +1760,12 @@ async def _async_delete_user_account(
 
         # Durable deletion authority must outlive the content and owner rows.
         from backend.core.api.app.services.storage_reference_service import (
+            fence_account_chats_for_deletion,
             persist_account_storage_tombstones,
+        )
+        await fence_account_chats_for_deletion(
+            directus_service=directus_service,
+            user_id_hash=user_id_hash,
         )
         account_storage_tombstones = await persist_account_storage_tombstones(
             directus_service=directus_service,

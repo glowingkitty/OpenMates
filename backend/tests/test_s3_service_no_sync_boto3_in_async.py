@@ -248,8 +248,10 @@ def test_known_async_methods_are_covered():
         "upload_temporary_file",
         "upload_file_stream",
         "delete_file",
+        "verify_regional_object",
         "get_file",
         "get_file_stream",
+        "get_replicated_file_stream",
     }
 
     tree = ast.parse(SERVICE_FILE.read_text(), filename=str(SERVICE_FILE))

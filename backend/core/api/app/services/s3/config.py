@@ -178,6 +178,15 @@ BUCKETS = {
         # longer than hot Directus history but still bounded for privacy.
         'lifecycle_policy': 1095,
     },
+    'cold_archives': {
+        'name': 'openmates-cold-archives',
+        'dev_name': 'dev-openmates-cold-archives',
+        'allowed_types': ['application/gzip'],
+        'max_size': 500 * 1024 * 1024,
+        'access': 'private',
+        'lifecycle_policy': None,
+        'cache_control': 'private, max-age=31536000, immutable',
+    },
     # Temporary images bucket for reverse image search (Google Lens via SerpAPI).
     # Plaintext (decrypted) user images are uploaded here for a very short time so
     # SerpAPI's Google Lens fetcher can retrieve them. The bucket is PRIVATE; each

@@ -22,11 +22,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class FakeDirectus:
     def __init__(self) -> None:
         self.created: list[dict] = []
+        self.chats = [{"id": "chat-1", "storage_state": "hot", "archive_version": 1}]
 
     async def get_user_fields_direct(self, _user_id: str, _fields: list[str]) -> dict:
         return {"id": "user-1", "profile_image_s3_key": "profiles/user-1.enc"}
 
     async def get_items(self, collection: str, **_kwargs: object) -> list[dict]:
+        if collection == "chats":
+            return self.chats
         rows = {
             "embeds": [
                 {
@@ -59,11 +62,36 @@ class FakeDirectus:
                     "s3_object_key": "workspace/archive-1.json",
                 }
             ],
+            "cold_archive_manifests": [
+                {
+                    "id": "cold-manifest-1",
+                    "archive_id": "cold-archive-1",
+                    "file_references": [
+                        {"logical_bucket": "chatfiles", "object_key": "files/embed.enc"}
+                    ],
+                }
+            ],
+            "cold_archive_parts": [
+                {
+                    "id": "cold-part-1",
+                    "archive_id": "cold-archive-1",
+                    "logical_bucket": "cold_archives",
+                    "object_key": "cold/chat-1/part-1.json.gz",
+                }
+            ],
             "directus_users": [
                 {"id": "user-1", "profile_image_s3_key": "profiles/user-1.enc"}
             ],
         }
         return rows[collection]
+
+    async def update_item_if_version(self, collection, item_id, data, expected_version, **_kwargs):
+        assert collection == "chats"
+        chat = next(row for row in self.chats if row["id"] == item_id)
+        if chat["archive_version"] != expected_version:
+            return None
+        chat.update(data)
+        return dict(chat)
 
     async def create_item(self, collection: str, payload: dict, **_kwargs: object):
         assert collection == "storage_deletion_tombstones"
@@ -94,8 +122,24 @@ async def test_account_inventory_persists_every_non_regulated_object_before_owne
         ("usage_archives", "usage/archive-1.gz"),
         ("task_archives", "tasks/archive-1.gz"),
         ("workspace_history_archives", "workspace/archive-1.json"),
+        ("cold_archives", "cold/chat-1/part-1.json.gz"),
     }
     assert all("user_id" not in row for row in directus.created)
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_account_deletion_fences_chats_before_inventory() -> None:
+    directus = FakeDirectus()
+
+    count = await storage_reference_service.fence_account_chats_for_deletion(
+        directus_service=directus,
+        user_id_hash="hashed-user-1",
+    )
+
+    assert count == 1
+    assert directus.chats[0]["storage_state"] == "deleting"
+    assert directus.chats[0]["archive_version"] == 2
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.privacy.ciphertext-boundary
@@ -137,6 +181,7 @@ def test_account_task_persists_storage_authority_before_bulk_content_deletion() 
         REPO_ROOT / "backend/core/api/app/tasks/user_cache_tasks.py"
     ).read_text(encoding="utf-8")
 
+    fence_call = source.index("await fence_account_chats_for_deletion(")
     inventory_call = source.index("await persist_account_storage_tombstones(")
     message_delete = source.index('bulk_delete_items("messages"', inventory_call)
     storage_row_delete = source.index(
@@ -145,7 +190,7 @@ def test_account_task_persists_storage_authority_before_bulk_content_deletion() 
     activation_call = source.index("await activate_storage_tombstones(", inventory_call)
     user_delete = source.index("await directus_service.delete_user(", inventory_call)
 
-    assert inventory_call < message_delete < user_delete
+    assert fence_call < inventory_call < message_delete < user_delete
     assert inventory_call < storage_row_delete < activation_call < user_delete
 
 

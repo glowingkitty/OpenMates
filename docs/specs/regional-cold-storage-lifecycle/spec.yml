@@ -800,7 +800,7 @@ tests:
       - Complete graph, manifest, and checksums verify in every enabled region before hot child deletion; degraded replication leaves the hot graph intact.
       - Read returns bounded archive parts without restoring rows.
       - Concurrent mutation performs one generation-fenced promotion.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-COLD-PAGINATION
     type: pytest
@@ -812,7 +812,7 @@ tests:
       - Hot and cold metadata merge stably without duplicates.
       - Cursors are owner/Team scoped, bounded, stable, and eventually complete.
       - Partial pages emit no deletion authority.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-COLD-AUTH
     type: pytest
@@ -823,7 +823,7 @@ tests:
     assertions:
       - Owner, active Team role, viewer read-only, removed member, wrong Team, and revoked share cases fail or succeed correctly.
       - Responses and logs contain ciphertext and safe routing metadata only.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-COLD-PROMOTION
     type: pytest
@@ -835,7 +835,7 @@ tests:
       - Share/edit/message mutations promote before commit.
       - Stale generations and unauthorized mutations fail visibly.
       - Concurrent promotion is idempotent and duplicate-free.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-COLD-WORKSPACE
     type: pytest

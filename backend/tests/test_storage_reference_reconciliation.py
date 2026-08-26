@@ -66,6 +66,25 @@ def test_malformed_legacy_reference_is_reported_without_destructive_inference() 
     ]
 
 
+# contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy
+def test_cold_manifest_file_references_remain_authoritative() -> None:
+    module = _reference_module()
+    inventory = module.collect_storage_references(
+        embeds=[],
+        uploads=[],
+        cold_manifests=[
+            {
+                "id": "archive-1",
+                "file_references": [
+                    {"logical_bucket": "chatfiles", "object_key": "files/shared.enc"}
+                ],
+            }
+        ],
+    )
+
+    assert inventory.references == {("chatfiles", "files/shared.enc")}
+
+
 # contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.deletion.global-authoritative
 def test_deletion_plan_excludes_surviving_references_and_rejects_ambiguity() -> None:
     module = _reference_module()

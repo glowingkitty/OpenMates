@@ -140,10 +140,6 @@ SUB_CHAT_ORCHESTRATION_MIGRATION_PATH = os.getenv(
     'SUB_CHAT_ORCHESTRATION_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql',
 )
-AI_MEMORY_REMOVAL_MIGRATION_PATH = os.getenv(
-    'AI_MEMORY_REMOVAL_MIGRATION_PATH',
-    '/usr/src/app/migrations/migrate_remove_ai_memories.sql',
-)
 SUB_CHAT_ORCHESTRATION_INDEXES = (
     'sub_chat_orchestrations_owner_root_turn_uq',
     'sub_chat_orchestrations_owner_status_idx',
@@ -1344,36 +1340,6 @@ def apply_and_verify_sub_chat_orchestration_indexes():
     print(f"Verified {len(SUB_CHAT_ORCHESTRATION_INDEXES)} sub-chat orchestration indexes")
 
 
-def apply_and_verify_ai_memory_removal():
-    """Delete only obsolete AI-owned memory rows and verify none remain."""
-    if not os.path.isfile(AI_MEMORY_REMOVAL_MIGRATION_PATH):
-        raise RuntimeError(
-            "Required AI-memory removal migration is missing: "
-            f"{AI_MEMORY_REMOVAL_MIGRATION_PATH}"
-        )
-
-    with open(AI_MEMORY_REMOVAL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
-        migration_sql = migration_file.read()
-
-    with connect_database() as connection:
-        connection.autocommit = True
-        with connection.cursor() as cursor:
-            cursor.execute(migration_sql)
-            deleted_count = cursor.rowcount
-            cursor.execute(
-                "SELECT COUNT(*) FROM public.user_app_settings_and_memories WHERE app_id = %s",
-                ('ai',),
-            )
-            remaining_count = cursor.fetchone()[0]
-
-    if remaining_count:
-        raise RuntimeError(
-            f"AI-memory removal verification failed: {remaining_count} row(s) remain"
-        )
-    print(f"Verified AI-memory removal; deleted {deleted_count} active row(s)")
-    return deleted_count
-
-
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -1538,9 +1504,6 @@ def setup_schemas():
 
         print("\n--- Applying sub-chat orchestration database indexes ---")
         apply_and_verify_sub_chat_orchestration_indexes()
-
-        print("\n--- Removing obsolete AI-owned memories ---")
-        apply_and_verify_ai_memory_removal()
 
         print("\n--- Verifying sub-chat orchestration Directus endpoint ---")
         verify_sub_chat_orchestration_endpoint()

@@ -1192,6 +1192,8 @@ class DirectusService:
         data: Dict[str, Any],
         expected_version: int,
         *,
+        version_field: str = "version",
+        extra_filters: Dict[str, Any] | None = None,
         owner_hash_field: str | None = None,
         owner_hash: str | None = None,
         admin_required: bool = False,
@@ -1201,11 +1203,13 @@ class DirectusService:
         url = f"{self.base_url}/items/{collection}"
         params: Dict[str, Any] = {
             "filter[id][_eq]": item_id,
-            "filter[version][_eq]": expected_version,
+            f"filter[{version_field}][_eq]": expected_version,
             "limit": 1,
         }
         if owner_hash_field and owner_hash:
             params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
+        for field, value in (extra_filters or {}).items():
+            params[f"filter[{field}][_eq]"] = value
 
         headers = {}
         if admin_required:

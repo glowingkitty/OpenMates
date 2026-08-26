@@ -1099,6 +1099,28 @@ class S3UploadService:
             logger.error("Failed to delete from object storage: %s", type(e).__name__)
             raise storage_unavailable_error() from e
 
+    async def verify_regional_object(
+        self,
+        *,
+        bucket_key: str,
+        object_key: str,
+        region: str,
+        checksum: str,
+    ) -> bool:
+        """Verify one immutable regional object using its persisted SHA-256 metadata."""
+        client = self.region_clients.get(region)
+        if client is None:
+            return False
+        bucket_name = resolve_regional_bucket_name(get_bucket_name(bucket_key, self.environment), region)
+        try:
+            response = await asyncio.to_thread(client.head_object, Bucket=bucket_name, Key=object_key)
+        except ClientError as exc:
+            error_code = exc.response.get('Error', {}).get('Code')
+            if error_code in {'NoSuchKey', '404'}:
+                return False
+            raise storage_unavailable_error() from exc
+        return (response.get('Metadata') or {}).get('openmates-sha256') == checksum
+
     async def get_file(self, bucket_name: str, object_key: str) -> Optional[bytes]:
         """
         Download a file from S3 and return its content as bytes.
@@ -1193,3 +1215,53 @@ class S3UploadService:
         finally:
             if body is not None:
                 await asyncio.to_thread(body.close)
+
+    async def get_replicated_file_stream(
+        self,
+        *,
+        bucket_key: str,
+        object_key: str,
+        regions: tuple[str, ...],
+        chunk_size: int = 1024 * 1024,
+    ) -> AsyncIterator[bytes]:
+        """Stream one replica, failing over across explicitly verified regions."""
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        if not regions:
+            raise storage_unavailable_error()
+
+        legacy_bucket = get_bucket_name(bucket_key, self.environment)
+        last_error: Exception | None = None
+        for region in regions:
+            client = self.region_clients.get(region)
+            if client is None:
+                continue
+            bucket_name = resolve_regional_bucket_name(legacy_bucket, region)
+            body = None
+            yielded = False
+            try:
+                response = await asyncio.to_thread(
+                    client.get_object,
+                    Bucket=bucket_name,
+                    Key=object_key,
+                )
+                body = response["Body"]
+                while chunk := await asyncio.to_thread(body.read, chunk_size):
+                    yielded = True
+                    yield chunk
+                return
+            except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as exc:
+                last_error = exc
+                if yielded:
+                    raise storage_unavailable_error() from exc
+                logger.warning(
+                    "Regional object read failed over: region=%s logical_bucket=%s error=%s",
+                    region,
+                    bucket_key,
+                    type(exc).__name__,
+                )
+            finally:
+                if body is not None:
+                    await asyncio.to_thread(body.close)
+
+        raise storage_unavailable_error() from last_error

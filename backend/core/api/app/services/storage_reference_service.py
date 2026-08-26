@@ -29,6 +29,7 @@ def collect_storage_references(
     *,
     embeds: Iterable[dict[str, Any]],
     uploads: Iterable[dict[str, Any]],
+    cold_manifests: Iterable[dict[str, Any]] = (),
 ) -> StorageReferenceInventory:
     """Merge valid object references and retain malformed records as ambiguity."""
     references: set[tuple[str, str]] = set()
@@ -62,6 +63,20 @@ def collect_storage_references(
                 ambiguous.append(_ambiguity("upload", record_id, "missing_object_key"))
                 continue
             references.add((DEFAULT_UPLOAD_BUCKET, key))
+
+    for manifest in cold_manifests:
+        record_id = str(manifest.get("id") or "unknown")
+        entries = manifest.get("file_references")
+        if not isinstance(entries, list):
+            ambiguous.append(_ambiguity("cold_archive_manifest", record_id, "invalid_reference_list"))
+            continue
+        for entry in entries:
+            bucket = entry.get("logical_bucket") if isinstance(entry, dict) else None
+            key = entry.get("object_key") if isinstance(entry, dict) else None
+            if not _non_empty(bucket) or not _non_empty(key):
+                ambiguous.append(_ambiguity("cold_archive_manifest", record_id, "missing_object_key"))
+                continue
+            references.add((bucket, key))
 
     return StorageReferenceInventory(references=references, ambiguous=ambiguous)
 
@@ -169,6 +184,7 @@ async def find_surviving_storage_references(
         ("usage_monthly_api_key_summaries", "id,archive_s3_key"),
         ("user_task_archives", "id,archive_s3_key"),
         ("workspace_change_archives", "id,s3_bucket_key,s3_object_key"),
+        ("cold_archive_manifests", "id,file_references"),
     )
     for collection, fields in collection_fields:
         rows = await _get_items_bounded(
@@ -241,13 +257,44 @@ async def persist_account_storage_tombstones(
         fields="id,files_metadata",
         item_filter={"user_id": {"_eq": user_id}},
     )
+    cold_manifests = await _get_items_bounded(
+        directus_service=directus_service,
+        collection="cold_archive_manifests",
+        fields="id,archive_id,file_references",
+        item_filter={"hashed_user_id": {"_eq": user_id_hash}},
+    )
 
-    inventory = collect_storage_references(embeds=embeds, uploads=uploads)
+    inventory = collect_storage_references(
+        embeds=embeds,
+        uploads=uploads,
+        cold_manifests=cold_manifests,
+    )
     excluded_ids = {
         "embeds": {str(row["id"]) for row in embeds if row.get("id")},
         "upload_files": {str(row["id"]) for row in uploads if row.get("id")},
         "directus_users": {user_id},
+        "cold_archive_manifests": {
+            str(row["id"]) for row in cold_manifests if row.get("id")
+        },
     }
+    archive_ids = [str(row["archive_id"]) for row in cold_manifests if row.get("archive_id")]
+    cold_parts = await _get_items_bounded(
+        directus_service=directus_service,
+        collection="cold_archive_parts",
+        fields="id,archive_id,logical_bucket,object_key",
+        item_filter={"archive_id": {"_in": archive_ids}},
+    ) if archive_ids else []
+    excluded_ids["cold_archive_parts"] = {
+        str(row["id"]) for row in cold_parts if row.get("id")
+    }
+    for row in cold_parts:
+        _add_direct_reference(
+            inventory,
+            source="cold_archive_parts",
+            record_id=str(row.get("id") or "unknown"),
+            logical_bucket=row.get("logical_bucket"),
+            object_key=row.get("object_key"),
+        )
     profile_key = (user or {}).get("profile_image_s3_key")
     if _non_empty(profile_key):
         inventory.references.add(("profile_images_private", profile_key))
@@ -324,6 +371,41 @@ async def persist_account_storage_tombstones(
     )
 
 
+async def fence_account_chats_for_deletion(
+    *,
+    directus_service: Any,
+    user_id_hash: str,
+) -> int:
+    """Conditionally fence every account chat before storage inventory starts."""
+    chats = await _get_items_bounded(
+        directus_service=directus_service,
+        collection="chats",
+        fields="id,storage_state,archive_version",
+        item_filter={"hashed_user_id": {"_eq": user_id_hash}},
+    )
+    if any(chat.get("storage_state") in {"archiving", "promoting"} for chat in chats):
+        raise RuntimeError("Account chat storage transition is in progress; retry deletion")
+    fenced = 0
+    for chat in chats:
+        state = str(chat.get("storage_state") or "hot")
+        if state == "deleting":
+            continue
+        version = int(chat.get("archive_version") or 1)
+        updated = await directus_service.update_item_if_version(
+            "chats",
+            str(chat["id"]),
+            {"storage_state": "deleting", "archive_version": version + 1},
+            version,
+            version_field="archive_version",
+            extra_filters={"storage_state": state},
+            admin_required=True,
+        )
+        if not updated:
+            raise RuntimeError("Account chat changed while deletion was being fenced")
+        fenced += 1
+    return fenced
+
+
 async def delete_account_storage_reference_rows(
     *,
     directus_service: Any,
@@ -335,6 +417,8 @@ async def delete_account_storage_reference_rows(
         ("upload_files", {"user_id": {"_eq": user_id}}),
         ("user_task_archives", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("workspace_change_archives", {"hashed_user_id": {"_eq": user_id_hash}}),
+        ("cold_archive_parts", {"archive_id": {"_in": await _account_archive_ids(directus_service, user_id_hash)}}),
+        ("cold_archive_manifests", {"hashed_user_id": {"_eq": user_id_hash}}),
     )
     deleted: dict[str, int] = {}
     for collection, item_filter in specifications:
@@ -352,6 +436,16 @@ async def delete_account_storage_reference_rows(
                 raise RuntimeError(f"Failed to delete account {collection} rows")
             deleted[collection] += len(item_ids)
     return deleted
+
+
+async def _account_archive_ids(directus_service: Any, user_id_hash: str) -> list[str]:
+    rows = await _get_items_bounded(
+        directus_service=directus_service,
+        collection="cold_archive_manifests",
+        fields="archive_id",
+        item_filter={"hashed_user_id": {"_eq": user_id_hash}},
+    )
+    return [str(row["archive_id"]) for row in rows if row.get("archive_id")]
 
 
 def _non_empty(value: Any) -> bool:
@@ -384,6 +478,8 @@ def _inventory_for_reference_row(
         return collect_storage_references(embeds=[row], uploads=[])
     if collection == "upload_files":
         return collect_storage_references(embeds=[], uploads=[row])
+    if collection == "cold_archive_manifests":
+        return collect_storage_references(embeds=[], uploads=[], cold_manifests=[row])
 
     inventory = StorageReferenceInventory(references=set(), ambiguous=[])
     if collection == "directus_users":
