@@ -759,8 +759,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	await expect(messageEditor).toBeVisible();
 	await messageEditor.click();
 	const firstMessage = `First write the exact phrase "${QUICK_TIP_CHAT_RESPONSE_MARKER}", then write exactly this sentence: A weekend trip plan should balance meals, transit, and rest.`;
-	const testMockMarker = withMockMarker(firstMessage, 'chat_flow_quick_tip');
-	await page.keyboard.type(firstMessage);
+	const markedFirstMessage = withMockMarker(firstMessage, 'chat_flow_quick_tip');
+	const testMockMarker = markedFirstMessage.match(/<<<TEST_MOCK:[^>]+>>>$/)?.[0] ?? null;
+	await page.keyboard.type(testMockMarker ? firstMessage : markedFirstMessage);
 	await takeStepScreenshot(page, '02-message-filled');
 
 	// The send button only appears when the editor has content (hasContent reactive state).
@@ -769,12 +770,16 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	await expect(sendButton).toBeVisible({ timeout: 15000 });
 	await expect(sendButton).toBeEnabled({ timeout: 5000 });
 	const messageSendStartedAt = Date.now();
-	await messageEditor.evaluate((editor: HTMLElement, marker: string) => {
-		editor.dispatchEvent(new CustomEvent('custom-send-message', {
-			bubbles: true,
-			detail: { testMockMarker: marker }
-		}));
-	}, testMockMarker);
+	if (testMockMarker) {
+		await messageEditor.evaluate((editor: HTMLElement, marker: string) => {
+			editor.dispatchEvent(new CustomEvent('custom-send-message', {
+				bubbles: true,
+				detail: { testMockMarker: marker }
+			}));
+		}, testMockMarker);
+	} else {
+		await sendButton.click();
+	}
 	logChatCheckpoint(`Sent message: "${firstMessage}"`);
 	await takeStepScreenshot(page, '03-message-sent');
 	const sentUserMessage = page.getByTestId('message-user').last();
