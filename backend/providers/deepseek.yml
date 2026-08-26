@@ -28,7 +28,7 @@ models:
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      together: "deepseek-ai/DeepSeek-V4-Pro"
+      together: "deepseek-ai/DeepSeek-V4-Pro-0813"
       openrouter: "deepseek/deepseek-v4-pro"
     input_types:
       - text
@@ -38,7 +38,7 @@ models:
     servers:
       - id: "together"
         name: "Together AI"
-        model_id: "deepseek-ai/DeepSeek-V4-Pro"
+        model_id: "deepseek-ai/DeepSeek-V4-Pro-0813"
         region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"

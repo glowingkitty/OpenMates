@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # backend/scripts/test_deepseek_v4_models.py
+# contract-test-file: tooling
 #
 # Live verification and practical speed comparison for DeepSeek V4 models.
 # Tests V4 Pro through Together AI direct API and OpenRouter fallback, then
@@ -86,7 +87,7 @@ def verify_config() -> None:
     assert flash is not None, "missing deepseek-v4-flash config"
     assert pro["default_server"] == "together"
     assert [server["id"] for server in pro["servers"]] == ["together", "openrouter"]
-    assert pro["servers"][0]["model_id"] == "deepseek-ai/DeepSeek-V4-Pro"
+    assert pro["servers"][0]["model_id"] == "deepseek-ai/DeepSeek-V4-Pro-0813"
     assert pro["servers"][1]["model_id"] == "deepseek/deepseek-v4-pro"
     assert flash["default_server"] == "openrouter"
 
@@ -102,7 +103,7 @@ async def main() -> int:
             "DeepSeek V4 Pro - Together direct",
             lambda: invoke_together_chat_completions(
                 task_id="bench_deepseek_v4_pro_together",
-                model_id="deepseek-ai/DeepSeek-V4-Pro",
+                model_id="deepseek-ai/DeepSeek-V4-Pro-0813",
                 messages=BENCHMARK_MESSAGES,
                 secrets_manager=secrets_manager,
                 temperature=0,
