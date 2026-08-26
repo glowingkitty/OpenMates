@@ -7178,6 +7178,37 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
 
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
+    initial = _mutate_sessions(lambda data: data)
+    initial_session_id = _resolve_session_id(initial, opencode_session_id=opencode_session_id)
+    initial_session = initial["sessions"][initial_session_id]
+    initial_worktree = initial_session.get("worktree") or {}
+    initial_path = Path(str(initial_worktree.get("path") or ""))
+    integration = initial_worktree.get("integration") if isinstance(initial_worktree.get("integration"), dict) else {}
+    if initial_path and not _existing_direct_managed_worktree(initial_path) and integration.get("status") == "merged":
+        rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"])
+        if rc != 0:
+            raise RuntimeError(f"Could not resolve origin/dev while repairing {initial_session_id}: {stderr}")
+        recovery_path = initial_path.with_name(
+            f"{initial_path.name}.recovery-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        )
+        if initial_path.exists():
+            initial_path.rename(recovery_path)
+        _run_cmd(["git", "worktree", "prune"])
+        rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(initial_path), target_commit])
+        if rc != 0:
+            if recovery_path.exists() and not initial_path.exists():
+                recovery_path.rename(initial_path)
+            raise RuntimeError(f"Failed to recreate merged session worktree {initial_session_id}: {stderr}")
+
+        def record_recovery(data: dict) -> None:
+            recovered = data["sessions"][initial_session_id]["worktree"]
+            recovered["base_commit"] = target_commit
+            recovered["status"] = "active"
+            recovered["recovered_from"] = str(recovery_path) if recovery_path.exists() else ""
+            recovered["recovered_at"] = _now_iso()
+
+        _mutate_sessions(record_recovery)
+
     def update(data: dict) -> dict:
         session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
         session = data["sessions"][session_id]

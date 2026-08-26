@@ -174,6 +174,48 @@ def test_routing_repair_reactivates_merged_worktree_after_deploy(monkeypatch) ->
     assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
 
 
+def test_routing_repair_recovers_invalid_already_merged_worktree(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    worktree_path = tmp_path / "agent-abcd"
+    worktree_path.mkdir()
+    (worktree_path / "preserved.txt").write_text("preserve me", encoding="utf-8")
+    data = {
+        "sessions": {
+            "abcd": {
+                "opencode_session_id": "ses_parent",
+                "worktree": {
+                    "path": str(worktree_path),
+                    "status": "merged",
+                    "base_commit": "old",
+                    "integration": {"status": "merged", "commit": "merged"},
+                },
+            }
+        }
+    }
+    commands = []
+
+    def run_command(command, **_kwargs):
+        commands.append(command)
+        if command[1] == "rev-parse":
+            return 0, "current", ""
+        if command[1:3] == ["status", "--porcelain"]:
+            return 0, "", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda path: Path(path) == worktree_path and any(command[1:3] == ["worktree", "add"] for command in commands))
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+    monkeypatch.setattr(sessions, "refresh_worktree_base_after_fast_forward", lambda _worktree: "")
+
+    result = sessions.repair_worktree_routing("ses_parent")
+
+    archive = Path(data["sessions"]["abcd"]["worktree"]["recovered_from"])
+    assert result["worktree_path"] == str(worktree_path)
+    assert (archive / "preserved.txt").read_text(encoding="utf-8") == "preserve me"
+    assert ["git", "worktree", "add", str(worktree_path), "current"] in commands
+
+
 def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = {"sessions": {"abcd": {"opencode_session_id": "ses_parent", "binding_mode": "pending"}}}
