@@ -50,6 +50,15 @@ function minimalGraph(): WorkflowGraph {
   };
 }
 
+function blankGraph(): WorkflowGraph {
+  return {
+    version: 1,
+    trigger_node_id: null,
+    nodes: [],
+    edges: [],
+  };
+}
+
 function templateImportPayload() {
   return {
     template_version: 1,
@@ -98,6 +107,23 @@ async function withServer(
 }
 
 describe("OpenMatesClient workflows", () => {
+  // contract-test: direct surface=cli assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,cli.surface.semantic-parity
+  it("creates a disabled blank workflow draft", async () => {
+    const graph = blankGraph();
+    await withServer(
+      () => ({ workflow: { id: "wf-blank", title: "Blank", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1, graph } }),
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        const created = await client.createWorkflow({ title: "Blank", graph, enabled: false });
+
+        assert.equal(created.graph.trigger_node_id, null);
+        assert.deepEqual(created.graph.nodes, []);
+        assert.deepEqual((seen[0]?.body as Record<string, unknown>).graph, graph);
+        assert.equal((seen[0]?.body as Record<string, unknown>).enabled, false);
+      },
+    );
+  });
+
   // contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity,cli.output.actionable-readable,cli.surface.semantic-parity
   it("formats workflow child embeds for CLI output", () => {
     const lines = formatEmbedPreviewLines({

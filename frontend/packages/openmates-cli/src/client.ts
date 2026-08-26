@@ -633,7 +633,7 @@ export interface WorkflowEdge {
 
 export interface WorkflowGraph {
   version: number;
-  trigger_node_id: string;
+  trigger_node_id: string | null;
   nodes: WorkflowNode[];
   edges?: WorkflowEdge[];
   variables?: Record<string, unknown>;
