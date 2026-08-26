@@ -1045,7 +1045,7 @@ def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path)
     assert session["proof_video_pending"] == [{"status": "pending", "subject_commit": "other"}]
 
 
-def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: Path) -> None:
+def test_proof_video_record_requires_blocker_image_for_failed_review(tmp_path: Path) -> None:
     manifest_path = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["review"]["status"] = "render_defect"
@@ -1055,9 +1055,10 @@ def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: P
     record = sessions._proof_video_manifest_record(tmp_path, manifest)
 
     blocker_media = record["blocker_media"]
-    assert blocker_media["media_status"] == "available"
+    assert blocker_media["media_status"] == "missing"
     assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
     assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert "image_upload_command" not in blocker_media
 
 
 def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
@@ -1084,7 +1085,7 @@ def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
 
     blocker_media = sessions._proof_video_blocker_media_record(run_dir, manifest)
 
-    assert blocker_media["media_status"] == "available"
+    assert blocker_media["media_status"] == "missing"
     assert blocker_media["video_path"] == str(video)
     assert blocker_media["captions_path"] == str(captions)
 

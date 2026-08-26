@@ -159,6 +159,11 @@ controls, visual assets, application state, consistency, and proof alignment.
 When review fails, the workflow emits a representative blocker frame image and
 `image_upload_command`; upload and embed that image in the blocker response before
 asking for user input or pausing.
+Do not ask a visual-intent question until the exact cited image is visibly embedded
+in the same response with concise context explaining what to inspect and why a
+decision is needed. If upload or rendering fails, repair or retry media delivery
+first; a text-only question, local path, or uncited description is not an acceptable
+fallback.
 This is the OpenCode response-media proof path: embed the returned image Markdown
 or `<video>` HTML directly in the final OpenCode response. Do not send proof media
 to Discord unless the user explicitly asks for a separate Discord mirror. If any reviewed frame shows an objective product

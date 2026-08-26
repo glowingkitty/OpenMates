@@ -67,6 +67,8 @@ SKILL_TERMS = {
         "mandatory\nper-frame critical UI scan",
         "intent as `obvious`",
         "ask the user for consent",
+        "Do not ask that visual-intent question",
+        "proof_video_workflow.py approve-intent",
     },
     ".claude/skills/specify/SKILL.md": {
         "Risk tier",

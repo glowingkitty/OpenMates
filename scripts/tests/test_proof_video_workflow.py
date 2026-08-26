@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import subprocess
 
@@ -778,6 +779,108 @@ def test_review_budget_caps_calls_frames_and_correction_rounds() -> None:
         )
 
 
+def test_review_budget_retries_incomplete_reservation_within_global_limits() -> None:
+    reservation = {
+        "device": "web-laptop",
+        "correction_round": 0,
+        "frame_index_hash": "sha256:frames",
+        "source_artifact_hash": "sha256:video",
+        "caption_artifact_hash": "sha256:captions",
+        "budget_epoch": 0,
+    }
+    budget = {
+        "ai_review_calls": 1,
+        "submitted_frames": 12,
+        "reservations": [reservation],
+    }
+
+    first_retry_at = datetime(2026, 8, 26, tzinfo=timezone.utc)
+    retried = workflow.reserve_review_budget(
+        budget,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+        caption_artifact_hash="sha256:captions",
+        now=first_retry_at,
+    )
+
+    assert retried["ai_review_calls"] == 2
+    assert retried["submitted_frames"] == 24
+    assert retried["reservations"][0]["retry_count"] == 1
+    retried_again = workflow.reserve_review_budget(
+        retried,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+        caption_artifact_hash="sha256:captions",
+        now=first_retry_at + timedelta(seconds=workflow.REVIEW_RESERVATION_LEASE_SECONDS + 1),
+    )
+
+    assert retried_again["ai_review_calls"] == 3
+    assert retried_again["submitted_frames"] == 36
+    assert retried_again["reservations"][0]["retry_count"] == 2
+
+
+def test_persisted_review_budget_blocks_active_reservation_without_spending_budget(tmp_path: Path) -> None:
+    budget_path = tmp_path / "review-budget.json"
+    values = {
+        "proof_identity": "sha256:proof",
+        "device": "web-laptop",
+        "frame_count": 12,
+        "correction_round": 0,
+        "correction_kind": "none",
+        "frame_index_hash": "sha256:frames",
+        "source_artifact_hash": "sha256:video",
+        "caption_artifact_hash": "sha256:captions",
+    }
+    first = workflow.reserve_persisted_review_budget(budget_path, **values)
+
+    with pytest.raises(workflow.WorkflowError, match="already in progress"):
+        workflow.reserve_persisted_review_budget(budget_path, **values)
+
+    persisted = json.loads(budget_path.read_text(encoding="utf-8"))
+    assert first["ai_review_calls"] == 1
+    assert persisted["ai_review_calls"] == 1
+    assert persisted["submitted_frames"] == 12
+    assert len(persisted["reservations"]) == 1
+
+
+def test_review_budget_rejects_naive_reservation_lease() -> None:
+    budget = {
+        "ai_review_calls": 1,
+        "submitted_frames": 12,
+        "reservations": [
+            {
+                "device": "web-laptop",
+                "correction_round": 0,
+                "frame_index_hash": "sha256:frames",
+                "source_artifact_hash": "sha256:video",
+                "caption_artifact_hash": "sha256:captions",
+                "budget_epoch": 0,
+                "lease_expires_at": "2026-08-26T00:00:00",
+            }
+        ],
+    }
+
+    with pytest.raises(workflow.WorkflowError, match="invalid lease timestamp"):
+        workflow.reserve_review_budget(
+            budget,
+            device="web-laptop",
+            frame_count=12,
+            correction_round=0,
+            correction_kind="none",
+            frame_index_hash="sha256:frames",
+            source_artifact_hash="sha256:video",
+            caption_artifact_hash="sha256:captions",
+        )
+
+
 def test_review_budget_rolls_over_nonpassing_prior_sources_for_new_initial_source() -> None:
     budget = {
         "ai_review_calls": 4,
@@ -1182,6 +1285,109 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
     spec_demo.require_review_receipt_integrity(second_dir, cached["manifest"])
 
 
+def test_review_run_recovers_receipt_written_before_cache_attachment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "recover-written-receipt")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
+                "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    budget_path = next((tmp_path / "budgets").glob("*.json"))
+    budget = json.loads(budget_path.read_text(encoding="utf-8"))
+    for key in ("receipt_path", "receipt_sha256", "manifest_path", "status"):
+        budget["reservations"][0].pop(key, None)
+    budget_path.write_text(json.dumps(budget, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    recovered = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must recover persisted receipt")),
+    )
+
+    assert recovered["cached"] is True
+    assert recovered["status"] == "passed"
+    assert recovered["budget"]["ai_review_calls"] == 1
+
+
+@pytest.mark.parametrize("status", ["uncertain", "capture_defect", "render_defect", "product_defect"])
+def test_review_run_recovers_nonpassing_receipt_without_new_inference(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    status: str,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / status)
+    intent = "unclear" if status == "uncertain" else "obvious"
+    quality_result = "uncertain" if status == "uncertain" else "fail"
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": status,
+                "confidence": 0.95,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", proof_alignment=quality_result)],
+                "assertions": [{"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Not visible."}],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "loading",
+                        "severity": "blocking" if status == "product_defect" else "warning",
+                        "confidence": 0.95,
+                        "intent": intent,
+                        "quality_categories": ["proof_alignment"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The expected state is not visible.",
+                    }
+                ],
+                "return_stage": "review" if status == "uncertain" else "capture",
+                "next_action": "Resolve the blocker.",
+            },
+            "ses_reviewer",
+        )
+
+    first = workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    budget_path = next((tmp_path / "budgets").glob("*.json"))
+    budget = json.loads(budget_path.read_text(encoding="utf-8"))
+    for key in ("receipt_path", "receipt_sha256", "manifest_path", "status"):
+        budget["reservations"][0].pop(key, None)
+    budget_path.write_text(json.dumps(budget, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    recovered = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must recover blocker receipt")),
+    )
+
+    assert first["status"] == status
+    assert recovered["cached"] is True
+    assert recovered["status"] == status
+    assert recovered["budget"]["ai_review_calls"] == 1
+    assert recovered["manifest"]["review"]["attempt_count"] == 1
+
+
 def test_review_run_includes_blocker_media_for_failed_review(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1226,6 +1432,8 @@ def test_review_run_includes_blocker_media_for_failed_review(
 
     blocker_media = result["blocker_media"]
     assert blocker_media["media_status"] == "available"
+    assert blocker_media["image_status"] == "available"
+    assert blocker_media["video_status"] == "available"
     assert blocker_media["video_path"] == str(run_dir / "demo.mp4")
     assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
     assert blocker_media["image_path"] == str(run_dir / "frames" / "frame.png")
@@ -1263,6 +1471,68 @@ def test_blocker_media_uses_assertion_frame_when_failed_review_has_no_finding(tm
     assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
 
 
+def test_blocker_media_keeps_cited_image_when_video_is_missing(tmp_path: Path) -> None:
+    run_dir = tmp_path / "proof"
+    frame = run_dir / "frames" / "frame.png"
+    frame.parent.mkdir(parents=True)
+    frame.write_bytes(b"frame")
+    manifest = {
+        "video_path": str(run_dir / "missing.mp4"),
+        "review": {
+            "attempts": [
+                {
+                    "incidental_findings": [
+                        {"id": "UI-1", "intent": "unclear", "frames": ["frames/frame.png"]}
+                    ],
+                    "assertions": [],
+                    "frame_reviews": [],
+                    "reviewed_frames": ["frames/frame.png"],
+                }
+            ]
+        },
+    }
+
+    blocker_media = workflow.proof_blocker_media(run_dir, manifest, "uncertain")
+
+    assert blocker_media["media_status"] == "missing"
+    assert blocker_media["image_status"] == "available"
+    assert blocker_media["video_status"] == "missing"
+    assert blocker_media["finding_id"] == "UI-1"
+    assert blocker_media["image_path"] == str(frame)
+    assert blocker_media["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert "upload_command" not in blocker_media
+
+
+def test_blocker_media_selects_unclear_consent_finding_frame(tmp_path: Path) -> None:
+    run_dir = tmp_path / "proof"
+    frames_dir = run_dir / "frames"
+    frames_dir.mkdir(parents=True)
+    obvious_frame = frames_dir / "obvious.png"
+    unclear_frame = frames_dir / "unclear.png"
+    obvious_frame.write_bytes(b"obvious")
+    unclear_frame.write_bytes(b"unclear")
+    manifest = {
+        "review": {
+            "attempts": [
+                {
+                    "incidental_findings": [
+                        {"id": "UI-1", "intent": "obvious", "frames": ["frames/obvious.png"]},
+                        {"id": "UI-2", "intent": "unclear", "frames": ["frames/unclear.png"]},
+                    ],
+                    "assertions": [],
+                    "frame_reviews": [],
+                    "reviewed_frames": ["frames/obvious.png", "frames/unclear.png"],
+                }
+            ]
+        }
+    }
+
+    blocker_media = workflow.proof_blocker_media(run_dir, manifest, "uncertain")
+
+    assert blocker_media["finding_id"] == "UI-2"
+    assert blocker_media["image_path"] == str(unclear_frame)
+
+
 def test_cached_failed_review_preserves_representative_frame(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts import spec_demo
 
@@ -1294,6 +1564,82 @@ def test_cached_failed_review_preserves_representative_frame(tmp_path: Path, mon
 
     assert result["blocker_media"]["image_path"] == str(run_dir / "frames" / "frame.png")
     assert result["blocker_media"]["image_upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+
+
+def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "approved-intent")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "uncertain",
+                "confidence": 0.9,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", layout="uncertain", geometry="uncertain")],
+                "assertions": [
+                    {"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "geometry",
+                        "severity": "warning",
+                        "confidence": 0.9,
+                        "intent": "unclear",
+                        "quality_categories": ["layout", "geometry"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "Partial adjacent item may be intentional.",
+                    }
+                ],
+                "return_stage": "review",
+                "next_action": "Ask the user.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=reviewer,
+    )
+    original_hash = workflow._file_sha256(run_dir / "review-receipt.json")
+    budget_path = next((tmp_path / "budgets").glob("*.json"))
+    stale_budget = budget_path.read_text(encoding="utf-8")
+
+    result = workflow.approve_visual_intent(
+        run_dir=run_dir,
+        finding_id="UI-1",
+        reason="User confirmed the partial item is an intentional carousel affordance.",
+        approved_at="2026-08-25T23:43:00Z",
+    )
+
+    assert result["status"] == "passed"
+    assert result["approval"]["original_receipt_sha256"] == original_hash
+    receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["status"] == "passed"
+    assert receipt["frame_reviews"][0]["checks"]["layout"] == "pass"
+    assert receipt["frame_reviews"][0]["checks"]["geometry"] == "pass"
+    assert receipt["incidental_findings"] == []
+    assert receipt["approved_visual_intents"][0]["finding_id"] == "UI-1"
+    assert result["manifest"]["review"]["attempt_count"] == 2
+
+    budget_path.write_text(stale_budget, encoding="utf-8")
+
+    cached = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must reuse approved receipt")),
+    )
+    assert cached["cached"] is True
+    assert cached["status"] == "passed"
 
 
 def test_review_publication_integrity_rejects_empty_self_consistent_quality_receipt(

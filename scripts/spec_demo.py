@@ -1653,6 +1653,43 @@ def review_request_hash(request: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def validate_visual_intent_approval_provenance(
+    approvals: list[dict[str, Any]],
+    prior_attempts: list[dict[str, Any]],
+) -> None:
+    """Bind each user approval to the exact earlier unclear reviewer receipt."""
+    for approval in approvals:
+        original_hash = str(approval.get("original_receipt_sha256") or "")
+        original = next(
+            (
+                attempt
+                for attempt in prior_attempts
+                if isinstance(attempt, dict)
+                and f"sha256:{hashlib.sha256((json.dumps(attempt, indent=2, sort_keys=True) + chr(10)).encode('utf-8')).hexdigest()}"
+                == original_hash
+            ),
+            None,
+        )
+        if not isinstance(original, dict) or original.get("status") != "uncertain":
+            raise DemonstrationError("Visual-intent approval does not match a prior uncertain review receipt")
+        finding = next(
+            (
+                item
+                for item in original.get("incidental_findings", [])
+                if isinstance(item, dict) and item.get("id") == approval.get("finding_id")
+            ),
+            None,
+        )
+        if (
+            not isinstance(finding, dict)
+            or finding.get("intent") != "unclear"
+            or list(map(str, finding.get("frames", []))) != list(map(str, approval.get("frames", [])))
+            or list(map(str, finding.get("quality_categories", [])))
+            != list(map(str, approval.get("quality_categories", [])))
+        ):
+            raise DemonstrationError("Visual-intent approval does not match the prior unclear finding")
+
+
 def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> None:
     """Recompute the index and verify every reviewed frame is contained and unchanged."""
     assert_frame_only_review_request(request)
@@ -1707,7 +1744,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         "correction_kind",
         "workflow",
     }
-    optional_receipt_fields = {"caption_artifact_hash"}
+    optional_receipt_fields = {"caption_artifact_hash", "approved_visual_intents"}
     unknown_receipt_fields = set(receipt) - required_receipt_fields - optional_receipt_fields
     if unknown_receipt_fields:
         raise DemonstrationError(f"Review receipt contains unsupported field: {sorted(unknown_receipt_fields)[0]}")
@@ -1729,6 +1766,33 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         or not isinstance(receipt.get("workflow"), dict)
     ):
         raise DemonstrationError("Review receipt is missing canonical runner provenance")
+    approved_visual_intents = receipt.get("approved_visual_intents", [])
+    if not isinstance(approved_visual_intents, list):
+        raise DemonstrationError("Review receipt approved_visual_intents must be a list")
+    approval_fields = {
+        "finding_id",
+        "approved_by",
+        "approved_at",
+        "reason",
+        "frames",
+        "quality_categories",
+        "original_receipt_sha256",
+    }
+    for approval in approved_visual_intents:
+        if not isinstance(approval, dict) or set(approval) != approval_fields:
+            raise DemonstrationError("Review receipt visual-intent approval fields do not match the canonical schema")
+        if (
+            not all(isinstance(approval.get(field), str) and approval[field].strip() for field in ("finding_id", "approved_by", "approved_at", "reason"))
+            or not isinstance(approval.get("frames"), list)
+            or not approval["frames"]
+            or not isinstance(approval.get("quality_categories"), list)
+            or not approval["quality_categories"]
+            or not set(map(str, approval["quality_categories"])).issubset(REVIEW_QUALITY_CATEGORIES)
+            or not isinstance(approval.get("original_receipt_sha256"), str)
+            or not SHA256_RE.fullmatch(approval["original_receipt_sha256"])
+        ):
+            raise DemonstrationError("Review receipt contains an invalid visual-intent approval")
+    validate_visual_intent_approval_provenance(approved_visual_intents, attempts)
 
     known_frames = {str(frame["path"]) for frame in request.get("frames", []) if isinstance(frame, dict)}
     frame_reviews = receipt.get("frame_reviews")
@@ -2318,6 +2382,11 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
     if sha256_file(receipt_path) != expected_hash:
         raise DemonstrationError("AI review receipt hash no longer matches the reviewed manifest")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    approvals = receipt.get("approved_visual_intents", [])
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    if not isinstance(approvals, list):
+        raise DemonstrationError("AI review receipt visual-intent approvals must be a list")
+    validate_visual_intent_approval_provenance(approvals, attempts)
     request_path = run_dir / "review-request.json"
     if not request_path.is_file():
         raise DemonstrationError("Publication requires the canonical review request")
