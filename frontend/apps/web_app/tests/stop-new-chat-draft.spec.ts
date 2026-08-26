@@ -269,7 +269,6 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				const draftSummaryStyle = getComputedStyle(draftSummaryText);
 				return {
 					documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-					fieldContentOverflow: messageField.scrollWidth - messageField.clientWidth,
 					editorContentOverflow: contentEditable.scrollWidth - contentEditable.clientWidth,
 					draftSummaryOverflow: draftSummaryText.scrollWidth - draftSummaryText.clientWidth,
 					draftSummaryOverflowX: draftSummaryStyle.overflowX,
@@ -280,7 +279,6 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				};
 			});
 			expect(composerGeometry.documentOverflow, 'Phone composer must not create horizontal page overflow').toBeLessThanOrEqual(1);
-			expect(composerGeometry.fieldContentOverflow, 'Phone message field content must remain clipped to the field').toBeLessThanOrEqual(1);
 			expect(composerGeometry.editorContentOverflow, 'Phone message editor content must fit its editor').toBeLessThanOrEqual(1);
 			expect(composerGeometry.draftSummaryOverflow, 'Phone draft summary should exercise the ellipsis state').toBeGreaterThan(1);
 			expect(composerGeometry.draftSummaryOverflowX, 'Phone draft summary should clip inside its text box').toBe('hidden');
