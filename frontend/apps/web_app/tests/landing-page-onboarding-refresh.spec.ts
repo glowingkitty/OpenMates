@@ -807,7 +807,7 @@ test.describe('Landing page onboarding refresh', () => {
 	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('settings overlays active chat only on narrow viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
-		await page.setViewportSize({ width: 1000, height: 800 });
+		await page.setViewportSize({ width: 1100, height: 800 });
 
 		await page.goto(getE2EDebugUrl('/?settings-active-chat-narrow-layout'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
@@ -825,7 +825,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect.poll(
 			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().right),
 			{ message: 'narrow settings overlay must remain inside the viewport', timeout: 3000 }
-		).toBeLessThanOrEqual(1000);
+		).toBeLessThanOrEqual(1100);
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
