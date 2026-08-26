@@ -202,7 +202,8 @@ test.describe('Workflows web UI contract', () => {
 			createdWorkflowIds.add(runnerWorkflow.id);
 
 			const runResponse = await page.request.post(`${apiUrl}/v1/workflows/${encodeURIComponent(runnerWorkflow.id)}/run`, {
-				data: { mode: 'test', input: {} }
+				data: { mode: 'test', input: {} },
+				headers: { 'Idempotency-Key': `${runnerWorkflow.id}-ui-contract` }
 			});
 			expect(runResponse.ok(), await runResponse.text()).toBe(true);
 			const run = (await runResponse.json()).run;
