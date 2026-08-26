@@ -11832,13 +11832,13 @@ assertions:
       surface: gui.web
     - &id1330
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1183
+      line: 1186
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
     - &id1331
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1461
+      line: 1464
       name: guest example chat follow-up input matches the adjacent new-chat CTA height
       surface: gui.web
     - &id1332
@@ -11898,13 +11898,13 @@ assertions:
       surface: gui.web
     - &id1337
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1355
+      line: 1358
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
     - &id1336
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1183
+      line: 1186
       name: regular guest landing exposes workspace prompt, CTA input links, compact
         cards, and all examples
       surface: gui.web
@@ -12007,13 +12007,13 @@ assertions:
       surface: gui.web
     - &id1352
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 812
+      line: 815
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id1354
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1019
+      line: 1022
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
@@ -12042,7 +12042,7 @@ assertions:
       surface: gui.web
     - &id1353
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 955
+      line: 958
       name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     - &id1355
@@ -12115,18 +12115,18 @@ assertions:
       surface: gui.web
     - &id1362
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 812
+      line: 815
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id1363
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1019
+      line: 1022
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     - &id1364
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1355
+      line: 1358
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests:
@@ -12179,13 +12179,13 @@ assertions:
       surface: gui.apple
     - &id1367
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 812
+      line: 815
       name: actionable slide plays one localized pointer-driven sequence and advances
         once
       surface: gui.web
     - &id1368
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1019
+      line: 1022
       name: mobile actionable slide moves large copy out before showing readable animation
       surface: gui.web
     supporting_tests:
@@ -12252,7 +12252,7 @@ assertions:
       surface: gui.web
     - &id1375
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 955
+      line: 958
       name: collapsed guest inspirations show a moving heading before a centered animation
       surface: gui.web
     tests:
@@ -12294,7 +12294,7 @@ assertions:
       surface: gui.web
     - &id1378
       path: frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
-      line: 1355
+      line: 1358
       name: final signup CTA opens the shared signup interface without a signup hash
       surface: gui.web
     supporting_tests: []
