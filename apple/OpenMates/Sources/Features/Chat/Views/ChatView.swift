@@ -1054,6 +1054,15 @@ struct ChatView: View {
                     guard wasStreaming, !isStreaming, followsStreamingResponse else { return }
                     finalizeStreamingResponseScroll(proxy: proxy)
                 }
+                .onChange(of: viewModel.followUpSuggestions) { _, suggestions in
+                    guard !suggestions.isEmpty, followsStreamingResponse || isAtBottom else { return }
+                    Task { @MainActor in
+                        await Task.yield()
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+                        }
+                    }
+                }
                 .onChange(of: searchTarget) { _, _ in
                     scrollToSearchTargetIfNeeded(proxy: proxy)
                 }

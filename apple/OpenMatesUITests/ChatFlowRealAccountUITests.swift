@@ -70,6 +70,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         )
         let responseVisibleMs = Int(responseVisibleAt.timeIntervalSince(started) * 1000)
         assertAssistantContentFitsHorizontally(in: app)
+        assertFollowUpSuggestionsClearComposer(in: app)
         let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
 
         attachScreenshot(name: "Apple core parity response ready")
@@ -93,6 +94,21 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         XCTAssertTrue(
             overflowing.isEmpty,
             "Assistant content extended beyond its horizontal bounds: \(overflowing.map { $0.frame })"
+        )
+    }
+
+    private func assertFollowUpSuggestionsClearComposer(in app: XCUIApplication) {
+        let suggestions = app.descendants(matching: .any)["follow-up-suggestions"]
+        guard suggestions.exists else { return }
+        let composer = app.descendants(matching: .any)["message-editor"]
+        let deadline = Date().addingTimeInterval(10)
+        while suggestions.frame.maxY > composer.frame.minY + 1, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            composer.frame.minY + 1,
+            "Follow-up suggestions were covered by the fixed composer"
         )
     }
 
