@@ -3768,6 +3768,8 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
+		container-name: chat-settings-layout;
+		container-type: inline-size;
 		box-sizing: border-box;
 		/* Fallback for browsers that don't support dvh */
 		height: calc(100vh - 55px - var(--dev-console-height, 0px));
@@ -3779,13 +3781,13 @@
 		/* Logical property: extra breathing room on the inline-end side (right in LTR, left in RTL) */
 		padding-inline-end: 20px;
 		/* Only apply gap transition on larger screens */
-		@media (min-width: 1101px) {
+		@media (min-width: 1100px) {
 			transition: gap 0.3s ease;
 		}
 	}
 
 	/* Only apply gap on larger screens */
-	@media (min-width: 1101px) {
+	@media (min-width: 1100px) {
 		.chat-container.menu-open {
 			gap: 20px;
 		}

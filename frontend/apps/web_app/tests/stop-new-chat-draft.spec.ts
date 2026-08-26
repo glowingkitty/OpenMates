@@ -25,6 +25,8 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const PROOF_ASSERTION_DWELL_MS = 1200;
+const PROOF_CLEAN_END_HOLD_MS = 4500;
 const DRAFT_SELECTION_PROOF = defineVideoProof({
 	id: 'late-draft-activation-navigation-authority',
 	title: 'Late draft activation preserves newer chat navigation',
@@ -377,9 +379,11 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			await proof.assert('target-identity-remains-visible', async () => {
 				await expect(targetMessage).toBeVisible();
 			});
+			await page.waitForTimeout(PROOF_ASSERTION_DWELL_MS);
 			await proof.assert('draft-does-not-reopen', async () => {
 				expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
 			});
+			await page.waitForTimeout(PROOF_ASSERTION_DWELL_MS);
 			await proof.checkpoint('target-preserved');
 		}
 		if (draftChatId) {
@@ -394,6 +398,8 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				await proof.assert('draft-remains-navigable', assertDraftRemainsNavigable);
 				await proof.checkpoint('draft-reopened');
 				await proof.attach();
+				// Keep cleanup outside the proof pipeline's fixed post-checkpoint capture buffer.
+				await page.waitForTimeout(PROOF_CLEAN_END_HOLD_MS);
 			} else {
 				await assertDraftRemainsNavigable();
 			}
