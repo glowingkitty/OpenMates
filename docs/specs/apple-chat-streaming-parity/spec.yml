@@ -254,19 +254,26 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-26T02:12:00Z"
     evidence: ChatHistoryFullParityUITests/testBannerTranscriptAndComposerMatchResponsiveWebContract passed on exact commit d47d7aa2d8a9ca419217ed1da8d907c672afbef8 on iPhone 15 Pro; current-commit real-account video review remains required for color, rainbow, and progressive response evidence.
+  - id: ATTEMPT-11
+    task_id: TASK-9
+    approach: Capture deployed web-phone progression after dismissing blocking notifications, moving first-chunk capture ahead of diagnostics, and extending the deterministic fixture's chunk interval to ten seconds.
+    outcome: blocked
+    recorded_at: "2026-08-26T04:59:00Z"
+    evidence: The standard current-head chat-flow run 32927457346 passed and proof runs reached the progressive assertions, but the running app-ai-worker still has no chunk_delay_ms field. The registered root checkout cannot fast-forward because of unrelated dirty files, and the session-aware worker restart timed out without replacing the container. Proof run 32931330115 therefore still observed identical 104-character first and completed text snapshots.
 
 handoff:
   current_task_id: TASK-9
-  next_action: After https://api.dev.openmates.org/health returns success, recapture iPhone and iPad proof, compare bounded frames with the deployed web contract, then complete the remaining cross-client, persistence, cold-boot, macOS, and privacy gates.
+  next_action: Synchronize the registered dev runtime to a checkout containing cda821eaf4cc729a9e8cf5864d3e7aaab16726e4, rebuild app-ai-worker, verify its chat_flow_quick_tip fixture reports chunk_delay_ms 10000, then rerun pinned web-phone proof before Apple capture.
   command: python3 scripts/spec_verify.py docs/specs/apple-chat-streaming-parity/spec.yml --phase complete --json
   expected_outcome: Verification retains the current native lifecycle and render-document evidence while reporting only the still-unrecorded broader parity matrix.
   blocker:
     task_id: TASK-9
-    requires_user_input: false
-    reason: Current-commit lifecycle and render-document unit suites pass, but iPhone proof run apple-0d754eb7999b44bd was blocked by dev API HTTP 502 while API startup failed on external S3 503 responses. Required iPhone, iPad, macOS, persistence, cold-boot, CLI, npm SDK, pip SDK, privacy, and bounded visual-review evidence remains incomplete.
-    next_action: Retry the approved iPhone proof command only after the dev API health endpoint succeeds, then run the equivalent iPad profile and bounded cross-client review.
-    recheck_condition: https://api.dev.openmates.org/health returns a successful response and the API container reports healthy.
-  last_verified_commit: 3cbc4791420de05f89788f9837dd98680ebd1bd2
+    requires_user_input: true
+    reason: The shared dev runtime remains registered to the dirty root checkout, which cannot fast-forward without overwriting unrelated scripts/sessions.py and release-note work. Its app-ai-worker therefore lacks the committed ten-second proof fixture interval, while the session-aware restart timed out without replacing the worker. Re-registering the shared runtime or modifying those unrelated files is unsafe without user direction.
+    question: Should the root checkout's unrelated dirty files be preserved and reconciled so it can fast-forward, or may the shared dev runtime be temporarily re-registered to session worktree 2172 for the proof run?
+    next_action: After the chosen runtime checkout is synchronized, rebuild app-ai-worker and verify chunk_delay_ms is 10000 inside the running container before redispatching chat-flow.spec.ts with account 2 and web-phone proof.
+    recheck_condition: The running app-ai-worker fixture contains chunk_delay_ms 10000 and https://api.dev.openmates.org/health succeeds.
+  last_verified_commit: a1cedc74863310aa6f8c8f4fa168f47d841714ee
 
 scenarios:
   - id: S-1
