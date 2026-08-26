@@ -40,6 +40,11 @@ from backend.core.api.app.services.s3.replication import (
     build_replication_job,
     persist_replication_job,
 )
+from backend.core.api.app.services.s3.reconciliation import (
+    build_deletion_tombstone,
+    find_deletion_tombstone,
+    persist_deletion_tombstone,
+)
 
 # Import necessary config functions and the single-bucket lifecycle function
 from .config import BUCKETS, CORS_ENABLED_BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name
@@ -79,6 +84,31 @@ _TRANSIENT_NETWORK_ERRORS = (
     HTTPClientError,
     ReadTimeoutError,
 )
+
+
+async def _storage_object_is_tombstoned(
+    service: "S3UploadService",
+    bucket_name: str,
+    object_key: str,
+) -> bool:
+    if service.directus_service is None:
+        return False
+    base_bucket = bucket_name
+    for region in ("fsn1", "hel1"):
+        suffix = f"-{region}"
+        if base_bucket.endswith(suffix):
+            base_bucket = base_bucket.removesuffix(suffix)
+            break
+    try:
+        logical_bucket, _config = get_bucket_by_name(base_bucket)
+    except ValueError:
+        return False
+    tombstone = await find_deletion_tombstone(
+        directus_service=service.directus_service,
+        logical_bucket=logical_bucket,
+        object_key=object_key,
+    )
+    return tombstone is not None
 
 
 class HetznerObjectStorageError(HTTPException):
@@ -176,10 +206,24 @@ class S3UploadService:
     ) -> None:
         """Require durable replica intent before acknowledging a replicated write."""
         configured_regions = tuple(self.region_clients)
-        if not should_replicate_bucket(logical_bucket) or len(configured_regions) <= 1:
+        if not should_replicate_bucket(logical_bucket):
             return
         if self.directus_service is None:
             raise RuntimeError("Durable replication outbox is unavailable")
+        tombstone = await find_deletion_tombstone(
+            directus_service=self.directus_service,
+            logical_bucket=logical_bucket,
+            object_key=object_key,
+        )
+        if tombstone:
+            legacy_bucket = get_bucket_name(logical_bucket, self.environment)
+            bucket_name = resolve_regional_bucket_name(legacy_bucket, active_region)
+            await asyncio.to_thread(
+                self.region_clients[active_region].delete_object,
+                Bucket=bucket_name,
+                Key=object_key,
+            )
+            raise RuntimeError("Storage object is authoritatively deleted")
         now = datetime.now(timezone.utc)
         job = build_replication_job(
             logical_bucket=logical_bucket,
@@ -337,6 +381,8 @@ class S3UploadService:
         logger.info("Initializing S3 buckets...")
         reconciliation_failed = False
         for bucket_key, bucket_config in BUCKETS.items():
+            if not bucket_config.get('managed', True):
+                continue
             bucket_name = get_bucket_name(bucket_key, self.environment)
             access_type = bucket_config.get('access', 'private') # Default to private
 
@@ -412,6 +458,8 @@ class S3UploadService:
             regional_configs = {}
             cors_buckets = []
             for bucket_key, bucket_config in BUCKETS.items():
+                if not bucket_config.get('managed', True):
+                    continue
                 legacy_name = bucket_config[environment_name]
                 bucket_name = resolve_regional_bucket_name(legacy_name, region)
                 try:
@@ -1009,19 +1057,41 @@ class S3UploadService:
             raise storage_unavailable_error()
             
         try:
-            # Get the appropriate bucket name based on environment
-            bucket_name = get_bucket_name(bucket_key, self.environment)
+            if should_replicate_bucket(bucket_key) and self.directus_service is not None:
+                now = datetime.now(timezone.utc)
+                regions = tuple(self.region_clients)
+                tombstone = build_deletion_tombstone(
+                    logical_bucket=bucket_key,
+                    object_key=file_key,
+                    generations=(1,),
+                    generation_keys={1: file_key},
+                    regions=regions,
+                    surviving_reference_count=0,
+                    now=now,
+                )
+                await persist_deletion_tombstone(
+                    directus_service=self.directus_service,
+                    tombstone=tombstone,
+                )
+                logger.info(
+                    "Persisted regional storage deletion: logical_bucket=%s",
+                    bucket_key,
+                )
+                return
 
-            # Delete the file.
-            # boto3's delete_object is synchronous; calling it directly from an
-            # async context blocks the event loop (which stalled the API during
-            # the auto_delete_old_usage storm — see commit d64b91773). Run it on
-            # the default executor so the event loop stays responsive even when
-            # S3 throttles (SlowDown) and boto3 internally retries with backoff.
-            await asyncio.to_thread(
-                self.client.delete_object, Bucket=bucket_name, Key=file_key
-            )
-            logger.info("Deleted storage object: logical_bucket=%s", bucket_key)
+            legacy_bucket = get_bucket_name(bucket_key, self.environment)
+            regions = tuple(self.region_clients) or (self.region_name,)
+            for region in regions:
+                if not region:
+                    continue
+                bucket_name = resolve_regional_bucket_name(legacy_bucket, region)
+                client = self.region_clients.get(region, self.client)
+                await asyncio.to_thread(
+                    client.delete_object,
+                    Bucket=bucket_name,
+                    Key=file_key,
+                )
+            logger.info("Deleted storage object in configured regions: logical_bucket=%s", bucket_key)
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
@@ -1050,6 +1120,8 @@ class S3UploadService:
         
         try:
             logger.info("Downloading object from storage")
+            if await _storage_object_is_tombstoned(self, bucket_name, object_key):
+                return None
 
             # boto3 get_object + Body.read() are both synchronous network calls.
             # Run them on the default executor so the event loop is not blocked
@@ -1092,6 +1164,8 @@ class S3UploadService:
 
         body = None
         try:
+            if await _storage_object_is_tombstoned(self, bucket_name, object_key):
+                raise HTTPException(status_code=404, detail="Generated asset file missing")
             response = await asyncio.to_thread(
                 self.client.get_object,
                 Bucket=bucket_name,
@@ -1099,6 +1173,8 @@ class S3UploadService:
             )
             body = response["Body"]
             while chunk := await asyncio.to_thread(body.read, chunk_size):
+                if await _storage_object_is_tombstoned(self, bucket_name, object_key):
+                    raise HTTPException(status_code=404, detail="Generated asset file missing")
                 yield chunk
         except ClientError as exc:
             error_code = exc.response.get("Error", {}).get("Code")

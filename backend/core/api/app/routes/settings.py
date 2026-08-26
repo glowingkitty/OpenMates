@@ -6014,34 +6014,8 @@ async def delete_storage_files(
 
         logger.info(f"{log_prefix} Deleting {len(records)} record(s)")
 
-        # ── 4. Delete S3 variant objects ──────────────────────────────────────
-        s3_deleted = 0
-        s3_failed = 0
-        for record in records:
-            files_metadata = record.get("files_metadata")
-            if not files_metadata or not isinstance(files_metadata, dict):
-                continue
-            for variant_name, variant_data in files_metadata.items():
-                if not isinstance(variant_data, dict):
-                    continue
-                s3_key = variant_data.get("s3_key")
-                if not s3_key:
-                    continue
-                try:
-                    await s3_service.delete_file(bucket_key="chatfiles", file_key=s3_key)
-                    s3_deleted += 1
-                    logger.debug(
-                        f"{log_prefix} Deleted S3 chatfiles/{s3_key} (variant: {variant_name})"
-                    )
-                except Exception as s3_err:
-                    s3_failed += 1
-                    logger.warning(
-                        f"{log_prefix} Failed to delete S3 chatfiles/{s3_key}: {s3_err}"
-                    )
-
-        logger.info(
-            f"{log_prefix} S3: {s3_deleted} deleted, {s3_failed} failed"
-        )
+        # ── 4. Prepare durable regional deletion authority ───────────────────
+        tombstones = await directus_service.embed._persist_upload_tombstones(records)
 
         # ── 5. Bulk-delete Directus records ───────────────────────────────────
         directus_ids = [r.get("id") for r in records if r.get("id")]
@@ -6056,6 +6030,8 @@ async def delete_storage_files(
                 "S3 objects may already be deleted."
             )
             raise HTTPException(status_code=500, detail="Failed to delete file records")
+
+        await directus_service.embed._activate_s3_tombstones(tombstones)
 
         # ── 6. Decrement storage_used_bytes on directus_users ─────────────────
         if total_bytes_freed > 0:

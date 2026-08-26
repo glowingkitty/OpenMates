@@ -176,8 +176,22 @@ class RegionalStorageJobProcessor:
         for region, state in tuple(dict(job["region_states"]).items()):
             if state == "verified":
                 continue
+            if await self._find_deletion_tombstone(job):
+                job["state"] = "cancelled"
+                job["next_attempt_at"] = None
+                break
             try:
                 await asyncio.to_thread(self._copy_immutable_object, job, region)
+                if await self._find_deletion_tombstone(job):
+                    await asyncio.to_thread(
+                        self._delete_immutable_object,
+                        str(job["logical_bucket"]),
+                        str(job["object_key"]),
+                        region,
+                    )
+                    job["state"] = "cancelled"
+                    job["next_attempt_at"] = None
+                    break
                 job["region_states"][region] = "verified"
                 processed += 1
             except ReplicaChecksumMismatchError as error:
@@ -201,7 +215,7 @@ class RegionalStorageJobProcessor:
         if all_verified:
             job["state"] = "verified"
             job["next_attempt_at"] = None
-        elif job.get("state") != "failed":
+        elif job.get("state") not in {"failed", "cancelled"}:
             job["state"] = "retry_scheduled"
 
         await self._update(
@@ -220,6 +234,15 @@ class RegionalStorageJobProcessor:
         )
         return {"job_id": job_id, "state": str(job["state"]), "processed": processed}
 
+    async def _find_deletion_tombstone(self, job: dict[str, Any]) -> dict[str, Any] | None:
+        from backend.core.api.app.services.s3.reconciliation import find_deletion_tombstone
+
+        return await find_deletion_tombstone(
+            directus_service=self.directus_service,
+            logical_bucket=str(job["logical_bucket"]),
+            object_key=str(job["object_key"]),
+        )
+
     def _delete_immutable_object(self, logical_bucket: str, object_key: str, region: str) -> None:
         legacy_bucket = get_bucket_name(logical_bucket, self.s3_service.environment)
         bucket = resolve_regional_bucket_name(legacy_bucket, region)
@@ -235,6 +258,8 @@ class RegionalStorageJobProcessor:
             return {"tombstone_id": tombstone_id, "state": str(tombstone["state"]), "processed": 0}
         if tombstone.get("state") == "completed":
             return {"tombstone_id": tombstone_id, "state": "completed", "processed": 0}
+        if tombstone.get("state") not in {"pending", "retry_scheduled"}:
+            return {"tombstone_id": tombstone_id, "state": str(tombstone["state"]), "processed": 0}
 
         now = datetime.now(timezone.utc)
         processed = 0

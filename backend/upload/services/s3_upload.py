@@ -17,6 +17,7 @@
 #   e.g. user-uuid-123/sha256abc.../original.bin
 #        user-uuid-123/sha256abc.../preview.bin
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -209,9 +210,8 @@ class UploadsS3Service:
         object_key: str,
         content: bytes,
         target_env: str,
+        cleanup_on_failure: bool,
     ) -> None:
-        if len(self.configured_regions) <= 1:
-            return
         if target_env == "dev":
             core_api_url = os.environ.get("DEV_CORE_API_URL", "")
             internal_token = os.environ.get("DEV_INTERNAL_API_SHARED_TOKEN", "")
@@ -232,7 +232,20 @@ class UploadsS3Service:
                     "active_region": self.region_name,
                 },
             )
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except Exception:
+                if cleanup_on_failure and self.client is not None:
+                    if logical_bucket == "profile_images_private":
+                        bucket = self.get_profile_private_bucket_for_env(target_env)
+                    else:
+                        bucket = self.get_bucket_for_env(target_env)
+                    await asyncio.to_thread(
+                        self.client.delete_object,
+                        Bucket=bucket,
+                        Key=object_key,
+                    )
+                raise
 
     async def upload_file(
         self,
@@ -262,8 +275,6 @@ class UploadsS3Service:
 
         bucket = self.get_bucket_for_env(target_env)
         content_checksum = hashlib.sha256(content).hexdigest()
-        import asyncio
-
         def _put() -> None:
             self.client.put_object(
                 Bucket=bucket,
@@ -282,6 +293,7 @@ class UploadsS3Service:
                 object_key=s3_key,
                 content=content,
                 target_env=target_env,
+                cleanup_on_failure=True,
             )
             logger.info(
                 f"[S3Upload] Uploaded {len(content)} bytes → s3://{bucket}/{s3_key}"
@@ -301,6 +313,7 @@ class UploadsS3Service:
                         object_key=s3_key,
                         content=content,
                         target_env=target_env,
+                        cleanup_on_failure=False,
                     )
                     return s3_key
                 raise RuntimeError("Immutable storage key already exists with different content") from e
@@ -452,8 +465,6 @@ class UploadsS3Service:
 
         bucket = self.get_profile_private_bucket_for_env(target_env)
         content_checksum = hashlib.sha256(content).hexdigest()
-        import asyncio
-
         def _put() -> None:
             self.client.put_object(  # type: ignore[union-attr]
                 Bucket=bucket,
@@ -473,6 +484,7 @@ class UploadsS3Service:
                 object_key=s3_key,
                 content=content,
                 target_env=target_env,
+                cleanup_on_failure=True,
             )
             logger.info(
                 f"[S3Upload] Private profile image uploaded "
@@ -493,6 +505,7 @@ class UploadsS3Service:
                         object_key=s3_key,
                         content=content,
                         target_env=target_env,
+                        cleanup_on_failure=False,
                     )
                     return s3_key
                 raise RuntimeError("Immutable storage key already exists with different content") from e

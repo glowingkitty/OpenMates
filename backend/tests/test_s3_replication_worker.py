@@ -208,6 +208,7 @@ async def test_core_active_write_persists_outbox_before_returning() -> None:
     class FakeClient:
         def __init__(self) -> None:
             self.puts: list[dict] = []
+            self.deletes: list[dict] = []
 
         def put_object(self, **kwargs: object) -> None:
             if self.puts:
@@ -223,6 +224,9 @@ async def test_core_active_write_persists_outbox_before_returning() -> None:
         def generate_presigned_url(self, *_args: object, **_kwargs: object) -> str:
             return "https://example.invalid/ciphertext"
 
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
     class FakeDirectus:
         def __init__(self) -> None:
             self.created: dict | None = None
@@ -234,7 +238,9 @@ async def test_core_active_write_persists_outbox_before_returning() -> None:
             self.created = payload
             return True, {"id": "job-1", **payload}
 
-        async def get_items(self, *_args: object, **_kwargs: object) -> list[dict]:
+        async def get_items(self, collection: str, *_args: object, **_kwargs: object) -> list[dict]:
+            if collection == "storage_deletion_tombstones":
+                return []
             return [{"id": "job-1", **dict(self.created or {})}]
 
     client = FakeClient()
@@ -272,6 +278,51 @@ async def test_core_active_write_persists_outbox_before_returning() -> None:
     assert collision.value.status_code == 503
 
 
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_core_active_write_removes_object_when_tombstone_wins_race() -> None:
+    service_module = load_s3_service_module()
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.puts: list[dict] = []
+            self.deletes: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class TombstonedDirectus:
+        async def get_items(self, collection: str, **_kwargs: object) -> list[dict]:
+            assert collection == "storage_deletion_tombstones"
+            return [{"id": "tombstone-1", "state": "completed", "version": 2}]
+
+    client = FakeClient()
+    service = service_module.S3UploadService(
+        secrets_manager=None,
+        directus_service=TombstonedDirectus(),
+    )
+    service.environment = "development"
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": client}
+    service.upload_region_clients = {"nbg1": client}
+
+    with pytest.raises(HTTPException):
+        await service.upload_file(
+            bucket_key="chatfiles",
+            file_key="owner/deleted.bin",
+            content=b"late-ciphertext",
+            content_type="application/octet-stream",
+        )
+
+    assert client.puts
+    assert client.deletes == [
+        {"Bucket": "dev-openmates-chatfiles", "Key": "owner/deleted.bin"}
+    ]
+
+
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.regions.configurable-redundancy
 @pytest.mark.anyio
 async def test_upload_microservice_uses_active_bucket_and_internal_outbox(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -282,9 +333,13 @@ async def test_upload_microservice_uses_active_bucket_and_internal_outbox(monkey
     class FakeClient:
         def __init__(self) -> None:
             self.puts: list[dict] = []
+            self.deletes: list[dict] = []
 
         def put_object(self, **kwargs: object) -> None:
             self.puts.append(dict(kwargs))
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
 
     requests: list[tuple[str, dict]] = []
 
@@ -329,6 +384,197 @@ async def test_upload_microservice_uses_active_bucket_and_internal_outbox(monkey
     assert requests[0][1]["json"]["active_region"] == "fsn1"
 
 
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_removes_late_write_when_core_rejects_outbox(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def put_object(self, **_kwargs: object) -> None:
+            return None
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class RejectedResponse:
+        def raise_for_status(self) -> None:
+            raise RuntimeError("409 tombstoned")
+
+    class FakeHttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> RejectedResponse:
+            return RejectedResponse()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", FakeHttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    client = FakeClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1",)
+    service.region_clients = {"nbg1": client}
+    service.client = client
+
+    with pytest.raises(RuntimeError, match="409 tombstoned"):
+        await service.upload_file(
+            "owner/deleted.bin",
+            b"late-ciphertext",
+            target_env="dev",
+        )
+
+    assert client.deletes == [
+        {"Bucket": "dev-openmates-chatfiles", "Key": "owner/deleted.bin"}
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_outbox_failure_never_deletes_preexisting_dedup_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+    content = b"existing-ciphertext"
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def put_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "PreconditionFailed"}},
+                "PutObject",
+            )
+
+        def head_object(self, **_kwargs: object) -> dict:
+            return {"Metadata": {"openmates-sha256": hashlib.sha256(content).hexdigest()}}
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class RejectedResponse:
+        def raise_for_status(self) -> None:
+            raise RuntimeError("outbox unavailable")
+
+    class FakeHttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> RejectedResponse:
+            return RejectedResponse()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", FakeHttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    client = FakeClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1",)
+    service.region_clients = {"nbg1": client}
+    service.client = client
+
+    with pytest.raises(RuntimeError, match="outbox unavailable"):
+        await service.upload_file("owner/existing.bin", content, target_env="dev")
+
+    assert client.deletes == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_replicated_delete_file_persists_regional_tombstone() -> None:
+    service_module = load_s3_service_module()
+
+    class FakeDirectus:
+        def __init__(self) -> None:
+            self.created: dict | None = None
+
+        async def create_item(self, collection: str, payload: dict, **_kwargs: object):
+            assert collection == "storage_deletion_tombstones"
+            self.created = payload
+            return True, {"id": "tombstone-1", **payload}
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    directus = FakeDirectus()
+    clients = {"nbg1": FakeClient(), "fsn1": FakeClient()}
+    service = service_module.S3UploadService(
+        secrets_manager=None,
+        directus_service=directus,
+    )
+    service.environment = "development"
+    service.region_name = "nbg1"
+    service.client = clients["nbg1"]
+    service.region_clients = clients
+
+    await service.delete_file("chatfiles", "owner/deleted.bin")
+
+    assert directus.created is not None
+    assert directus.created["purge_states"] == {
+        1: {"nbg1": "pending", "fsn1": "pending"}
+    }
+    assert all(client.deletes == [] for client in clients.values())
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_tombstone_blocks_buffered_and_streaming_reads_immediately() -> None:
+    service_module = load_s3_service_module()
+
+    class FakeDirectus:
+        async def get_items(self, collection: str, **_kwargs: object) -> list[dict]:
+            assert collection == "storage_deletion_tombstones"
+            return [{"id": "tombstone-1", "state": "prepared", "version": 1}]
+
+    class FakeClient:
+        def get_object(self, **_kwargs: object) -> dict:
+            raise AssertionError("Tombstoned object must not reach S3")
+
+    service = service_module.S3UploadService(
+        secrets_manager=None,
+        directus_service=FakeDirectus(),
+    )
+    service.client = FakeClient()
+
+    buffered = await service.get_file(
+        "dev-openmates-chatfiles",
+        "owner/deleted.bin",
+    )
+    assert buffered is None
+
+    with pytest.raises(HTTPException) as missing:
+        async for _chunk in service.get_file_stream(
+            "dev-openmates-chatfiles",
+            "owner/deleted.bin",
+        ):
+            pass
+    assert missing.value.status_code == 404
+
+
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.deletion.global-authoritative
 @pytest.mark.anyio
 async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key() -> None:
@@ -366,6 +612,8 @@ async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key(
 
     class FakeDirectus:
         def __init__(self) -> None:
+            self.tombstone_query_count = 0
+            self.tombstone_visible_after = 10_000
             self.rows = {
                 "storage_replication_jobs": {
                     "job-1": {
@@ -397,8 +645,14 @@ async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key(
             }
 
         async def get_items(self, collection: str, *, params: dict, **_kwargs: object) -> list[dict]:
-            item_id = params["filter"]["id"]["_eq"]
-            return [dict(self.rows[collection][item_id])]
+            item_filter = params["filter"]
+            if "id" in item_filter:
+                item_id = item_filter["id"]["_eq"]
+                return [dict(self.rows[collection][item_id])]
+            self.tombstone_query_count += 1
+            if self.tombstone_query_count >= self.tombstone_visible_after:
+                return [dict(self.rows["storage_deletion_tombstones"]["tombstone-1"])]
+            return []
 
         async def update_item_if_version(
             self,
@@ -423,6 +677,28 @@ async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key(
     assert directus.rows["storage_replication_jobs"]["job-1"]["version"] == 2
     assert all(objects[(bucket, object_key)] == content for bucket in buckets.values())
 
+    # A tombstone that appears after the pre-copy check must win the race and
+    # remove the just-created replica before the job can report verification.
+    objects.pop((buckets["fsn1"], object_key))
+    replication_job = directus.rows["storage_replication_jobs"]["job-1"]
+    replication_job.update({
+        "region_states": {"nbg1": "verified", "fsn1": "pending", "hel1": "verified"},
+        "state": "pending",
+    })
+    directus.rows["storage_deletion_tombstones"]["tombstone-1"]["state"] = "prepared"
+    directus.tombstone_query_count = 0
+    directus.tombstone_visible_after = 2
+
+    fenced = await processor.process_replication_job("job-1", 2)
+    assert fenced == {"job_id": "job-1", "state": "cancelled", "processed": 0}
+    assert (buckets["fsn1"], object_key) not in objects
+
+    directus.rows["storage_deletion_tombstones"]["tombstone-1"]["state"] = "prepared"
+    prepared = await processor.process_deletion_tombstone("tombstone-1", 1)
+    assert prepared == {"tombstone_id": "tombstone-1", "state": "prepared", "processed": 0}
+    assert objects
+
+    directus.rows["storage_deletion_tombstones"]["tombstone-1"]["state"] = "pending"
     purged = await processor.process_deletion_tombstone("tombstone-1", 1)
     assert purged == {"tombstone_id": "tombstone-1", "state": "completed", "processed": 3}
     assert objects == {}

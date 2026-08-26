@@ -751,7 +751,7 @@ tests:
       - Replica failure does not fail the acknowledged active write and retries with bounded backoff.
       - Duplicate delivery cannot create a competing generation.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Replication module is absent; deterministic job and bounded retry assertions fail as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py; openmates server logs --container cms-setup", run_id: deploy-d6583239-task3-20260826, subject_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a, timestamp: "2026-08-26T13:10:00Z", summary: Focused storage gate passed 63 tests; rebuilt API and persistence workers are healthy; cms-setup confirmed storage_replication_jobs, storage_deletion_tombstones, storage_region_health, all five storage indexes, and complete schema setup.}}
   - id: T-S3-FAILOVER
     type: pytest
     file: backend/tests/test_s3_region_failover.py
@@ -763,7 +763,7 @@ tests:
       - Missing object never changes regional health.
       - Failback remains blocked through reconciliation and stabilization.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Regional circuit and failback state are absent as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py; openmates server logs --container cms-setup", run_id: deploy-d6583239-task3-20260826, subject_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a, timestamp: "2026-08-26T13:10:00Z", summary: Persisted regional health, missing-object neutrality, reconciliation fencing, stabilization, and failback tests passed; runtime persistence services are healthy.}}
   - id: T-S3-RECONCILE
     type: pytest
     file: backend/tests/test_s3_replica_reconciliation.py
@@ -774,7 +774,7 @@ tests:
       - Reconciliation classifies missing, stale, mismatched, pending-delete, and ambiguous objects.
       - It repairs verified drift but never deletes ambiguity without authority.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Replica classification and repair planning module is absent as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py; openmates server logs --container cms-setup", run_id: deploy-d6583239-task3-20260826, subject_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a, timestamp: "2026-08-26T13:10:00Z", summary: Replica drift classification, checksum verification, bounded repair planning, and ambiguity-preserving behavior passed in the focused storage gate.}}
   - id: T-STORAGE-DELETION
     type: pytest
     file: backend/tests/test_storage_deletion_tombstones.py
@@ -788,7 +788,7 @@ tests:
       - Explicit deletion removes every generation without seven-day rollback.
       - User-deletable reads expose no reusable regional URL; a tombstone rejects new reads and stops an in-flight proxy stream at the next bounded chunk.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Authoritative regional deletion tombstones are absent as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py; openmates server logs --container cms-setup", run_id: deploy-d6583239-task3-20260826, subject_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a, timestamp: "2026-08-26T13:10:00Z", summary: Durable authoritative tombstones, retryable regional purge, generation fencing, and no-resurrection behavior passed; Directus collection and due-work indexes are installed.}}
   - id: T-COLD-CHAT
     type: pytest
     file: backend/tests/test_cold_chat_archive_service.py
@@ -1258,7 +1258,7 @@ tasks:
   - id: TASK-3
     title: Add durable replication failover and tombstones
     phase: working_tasks
-    status: in_progress
+    status: done
     covers: {scenarios: [S-1, S-2, S-3, S-10], acceptance_criteria: [AC-1, AC-2, AC-3, AC-12, AC-15]}
     contract_assertions: [storage.replication.active-write-durable-outbox, storage.failover.health-reconciled, storage.deletion.global-authoritative, storage.integrity.observable-reconcilable]
     surface: backend
@@ -1273,7 +1273,7 @@ tasks:
   - id: TASK-4
     title: Make file and account deletion reference-safe
     phase: working_tasks
-    status: pending
+    status: in_progress
     covers: {scenarios: [S-3, S-9, S-10], acceptance_criteria: [AC-3, AC-8, AC-11, AC-12, AC-15]}
     contract_assertions: [storage.files.reference-safe-single-copy, storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
     surface: backend
@@ -1514,13 +1514,13 @@ demonstration:
     publication: Upload approved videos and captions through scripts/opencode_response_media.py.
 
 handoff:
-  current_task_id: TASK-3
-  next_action: Complete the TASK-3 deployment gate, rebuild API/persistence workers and cms-setup, then record commit-bound green evidence.
+  current_task_id: TASK-4
+  next_action: Add failing reference-safe file and account deletion tests, then adopt authoritative tombstones in the existing deletion paths without deleting objects that retain surviving references.
   command: >-
     python3 -m pytest backend/tests/test_s3_replication_worker.py
     backend/tests/test_s3_region_failover.py
     backend/tests/test_s3_replica_reconciliation.py
     backend/tests/test_storage_deletion_tombstones.py
-  expected_outcome: Focused tests, schema setup, API startup, persistence-worker task registration, and core object-storage verification pass for the deployed TASK-3 commit.
+  expected_outcome: Shared file references prevent physical deletion; final file and account deletion persist authoritative generation tombstones before regional purge dispatch.
   blocker: null
-  last_verified_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b
+  last_verified_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a

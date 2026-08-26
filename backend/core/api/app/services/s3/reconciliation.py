@@ -134,6 +134,31 @@ async def persist_deletion_tombstone(
     raise RuntimeError("Failed to persist regional deletion tombstone")
 
 
+async def find_deletion_tombstone(
+    *,
+    directus_service: Any,
+    logical_bucket: str,
+    object_key: str,
+) -> dict[str, Any] | None:
+    """Return durable deletion authority for one logical object, if present."""
+    rows = await directus_service.get_items(
+        "storage_deletion_tombstones",
+        params={
+            "filter": {
+                "logical_bucket": {"_eq": logical_bucket},
+                "object_key": {"_eq": object_key},
+                "state": {"_neq": "cancelled"},
+            },
+            "fields": "id,state,version",
+            "limit": 1,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    )
+    return dict(rows[0]) if rows else None
+
+
 def can_read_generation(tombstone: dict, generation: int) -> bool:
     return generation not in tombstone["generations"]
 

@@ -58,6 +58,18 @@ CORS_ENABLED_BUCKETS = [
 
 # S3 bucket configurations
 BUCKETS = {
+    # Legacy public profile images are deletion-only. Existing encrypted URLs
+    # still need an account-deletion route, but startup must not recreate or
+    # reconcile this retired bucket.
+    'profile_images_legacy': {
+        'name': 'openmates-profile-images',
+        'dev_name': 'dev-openmates-profile-images',
+        'allowed_types': ['image/jpeg', 'image/png', 'image/webp'],
+        'max_size': 300 * 1024,
+        'access': 'public-read',
+        'lifecycle_policy': None,
+        'managed': False,
+    },
     # Private encrypted profile images bucket.
     # All profile image uploads go here: bytes are AES-256-GCM encrypted before storage.
     # Served via GET /v1/users/{user_id}/profile-image (authenticated API proxy).

@@ -33,6 +33,7 @@ from backend.core.api.app.services.s3.replication import (
     build_replication_job,
     persist_replication_job,
 )
+from backend.core.api.app.services.s3.reconciliation import find_deletion_tombstone
 from backend.shared.python_utils.object_storage_regions import parse_storage_regions
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
@@ -141,6 +142,13 @@ async def persist_storage_replication_job_route(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> dict[str, str]:
     """Persist internal-only replica intent before an upload service acknowledges."""
+    tombstone = await find_deletion_tombstone(
+        directus_service=directus_service,
+        logical_bucket=payload.logical_bucket,
+        object_key=payload.object_key,
+    )
+    if tombstone:
+        raise HTTPException(status_code=409, detail="Storage object is authoritatively deleted")
     configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
     now = datetime.now(timezone.utc)
     job = build_replication_job(

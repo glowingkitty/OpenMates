@@ -77,5 +77,5 @@ def test_storage_billing_does_not_reset_state_after_failed_deletion() -> None:
         "backend/core/api/app/services/directus/embed_methods.py",
         "delete_all_upload_files_for_user",
     )
-    assert "if s3_failed" in deletion_source
-    assert deletion_source.index("if s3_failed") < deletion_source.index("bulk_delete_items")
+    assert "_persist_upload_tombstones" in deletion_source
+    assert deletion_source.index("_persist_upload_tombstones") < deletion_source.index("bulk_delete_items")
