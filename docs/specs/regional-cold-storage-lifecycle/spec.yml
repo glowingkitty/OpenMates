@@ -860,7 +860,7 @@ tests:
       - Account/chat deletion cannot drop references before confirmed object/tombstone handling.
       - Legacy orphan and missing-object states are reported without unsafe deletion.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_multi_region_service.py backend/tests/test_storage_reference_reconciliation.py backend/tests/test_s3_compliance_lifecycle.py", run_id: local-task1-red-20260826, subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704, timestamp: "2026-08-26T00:00:00Z", summary: Reference reconciliation service is missing as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_storage_reference_reconciliation.py backend/tests/test_storage_deletion_tombstones.py backend/tests/test_account_deletion_storage_lifecycle.py; python3 scripts/sessions.py docker restart --session 8db7 --build --service api --service task-scheduler --service task-worker --service user-init-worker --service core-worker; openmates server verify --json", run_id: deploy-5f508c686-task4-20260826, subject_commit: 5f508c686c993f5a7d079f63f437205d267eec67, timestamp: "2026-08-26T15:37:00Z", summary: Reference-safe prepared tombstones, bounded cross-resource survivor scans, required reference deletion, and activation passed; deployed API and affected workers rebuilt healthy, persistence worker registered all three storage tasks, and core storage/queue/scheduler/chat runtime checks passed. The unrelated billing.health_freshness runtime check remained failed.}}
   - id: T-ACCOUNT-DELETION
     type: pytest
     file: backend/tests/test_account_deletion_storage_lifecycle.py
@@ -871,8 +871,8 @@ tests:
       - User deletion inventories hot/cold/profile/upload/archive objects before removing authority rows.
       - Durable tombstones outlive the user row and finish every regional purge.
       - Statutory records remain separately classified and no convenience copy is silently retained.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_storage_reference_reconciliation.py backend/tests/test_account_deletion_storage_lifecycle.py", run_id: local-task4-red-20260826, subject_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a, timestamp: "2026-08-26T13:21:00Z", summary: New account inventory, durable tombstone ordering, and surviving-reference assertions failed because the TASK-4 deletion integration was absent.}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_storage_reference_reconciliation.py backend/tests/test_storage_deletion_tombstones.py backend/tests/test_account_deletion_storage_lifecycle.py; python3 scripts/sessions.py docker restart --session 8db7 --build --service api --service task-scheduler --service task-worker --service user-init-worker --service core-worker; openmates server verify --json", run_id: deploy-5f508c686-task4-20260826, subject_commit: 5f508c686c993f5a7d079f63f437205d267eec67, timestamp: "2026-08-26T15:37:00Z", summary: Account deletion inventories profile, upload, archive, invoice, credit-note, and legacy-profile objects before authority removal; failed reference deletion blocks finalization, and durable tombstones outlive owner rows. Deployed runtime and worker registration passed all relevant checks; the unrelated billing.health_freshness check remained failed.}}
   - id: T-EXPORT-STREAMING
     type: pytest
     file: backend/tests/test_account_export_streaming_storage.py
@@ -1273,7 +1273,7 @@ tasks:
   - id: TASK-4
     title: Make file and account deletion reference-safe
     phase: working_tasks
-    status: in_progress
+    status: done
     covers: {scenarios: [S-3, S-9, S-10], acceptance_criteria: [AC-3, AC-8, AC-11, AC-12, AC-15]}
     contract_assertions: [storage.files.reference-safe-single-copy, storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
     surface: backend
@@ -1288,7 +1288,7 @@ tasks:
   - id: TASK-5
     title: Add cold chat archive read and promotion API
     phase: working_tasks
-    status: pending
+    status: in_progress
     covers: {scenarios: [S-4, S-5, S-6], acceptance_criteria: [AC-4, AC-5, AC-6, AC-8, AC-15]}
     contract_assertions: [storage.cold.atomic-eligible-graphs, storage.cold.discoverable-bounded, storage.cold.shared-team-authorized, storage.cold.rehydrate-on-mutation]
     surface: rest_api
@@ -1514,13 +1514,13 @@ demonstration:
     publication: Upload approved videos and captions through scripts/opencode_response_media.py.
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Add failing reference-safe file and account deletion tests, then adopt authoritative tombstones in the existing deletion paths without deleting objects that retain surviving references.
+  current_task_id: TASK-5
+  next_action: Add failing cold-chat archive, bounded pagination, current-authorization, and generation-fenced promotion tests before implementing the first-party archive read and promotion API.
   command: >-
-    python3 -m pytest backend/tests/test_s3_replication_worker.py
-    backend/tests/test_s3_region_failover.py
-    backend/tests/test_s3_replica_reconciliation.py
-    backend/tests/test_storage_deletion_tombstones.py
-  expected_outcome: Shared file references prevent physical deletion; final file and account deletion persist authoritative generation tombstones before regional purge dispatch.
+    python3 -m pytest backend/tests/test_cold_chat_archive_service.py
+    backend/tests/test_cold_archive_pagination.py
+    backend/tests/test_cold_archive_authorization.py
+    backend/tests/test_cold_archive_promotion.py
+  expected_outcome: Complete eligible encrypted chat graphs archive atomically, remain discoverable and readable through bounded authorized parts, and promote exactly once before mutation.
   blocker: null
-  last_verified_commit: d6583239ded0ca193fbdae880eefcbe1d06cf88a
+  last_verified_commit: 5f508c686c993f5a7d079f63f437205d267eec67
