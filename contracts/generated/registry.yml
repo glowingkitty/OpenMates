@@ -321,12 +321,13 @@ contracts:
     version: 2
     status: draft
     path: features/tasks
-    fingerprint: c64e1eb6f71c6f4b2648609738d84c102cfb51d1987dbe24a486080a72b61fe9
+    fingerprint: 4f4ac8b662f9286d8f55f1e24435fab8c2fb9747b64cdc17cdd543d9d6964e2d
     required_surfaces:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   feature.teams:
     version: 1
     status: approved
@@ -339,10 +340,10 @@ contracts:
     - sdks.pip
     - gui.web
   feature.workflows:
-    version: 1
-    status: approved
+    version: 2
+    status: draft
     path: features/workflows
-    fingerprint: 4c63c9b4ff32cd28615f14034c83adce313f3533718773fc57adf01dae27db23
+    fingerprint: 83a2c5f2289b7fda563c3815a3a287d85226cbbd78deef01625739f9e34600c1
     required_surfaces:
     - rest_api
     - cli
@@ -3150,6 +3151,7 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   tasks.lifecycle.visible:
     contract: feature.tasks@2
     contract_id: feature.tasks
@@ -3160,6 +3162,7 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   tasks.project-links.encrypted:
     contract: feature.tasks@2
     contract_id: feature.tasks
@@ -3170,6 +3173,7 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   tasks.key-wrappers.context-scoped:
     contract: feature.tasks@2
     contract_id: feature.tasks
@@ -3180,26 +3184,40 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   tasks.workflow-projections.read-only:
     contract: feature.tasks@2
     contract_id: feature.tasks
     type: invariant
-    fingerprint: 8294dc751574a7ef32a7480e4dad0d111cddc6c2e9f14e3dd6cd5145db4ece92
+    fingerprint: d0eff9453cf4e57e9d2d51270a9573516b1d8f9e223a996812610c0faf93006c
     required_surfaces:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+  tasks.detail.embed-responsive:
+    contract: feature.tasks@2
+    contract_id: feature.tasks
+    type: behavior
+    fingerprint: e0165dcc8f0241f64669c9e28c39452fa09934ea4a2412c4ea1448b6590f94a7
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   tasks.surface.semantic-parity:
     contract: feature.tasks@2
     contract_id: feature.tasks
     type: parity
-    fingerprint: 428bfaa952f7e745cea3a3ca9f701a01c2050f7996968ad8bf2ed4dd5d7e9933
+    fingerprint: 44441be587ea8631c9af1ce35610070cd9ce4fdbb3cb09aa9d61fdcb8f994fbe
     required_surfaces:
     - rest_api
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   tasks.execution.capacity-scoped:
     contract: feature.tasks@2
     contract_id: feature.tasks
@@ -3210,6 +3228,7 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   tasks.execution.order-preserved:
     contract: feature.tasks@2
     contract_id: feature.tasks
@@ -3220,6 +3239,7 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
   teams.lifecycle.encrypted-profiled:
     contract: feature.teams@1
     contract_id: feature.teams
@@ -3352,8 +3372,17 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  workflows.activation.reachable-side-effect:
+    contract: feature.workflows@2
+    contract_id: feature.workflows
+    type: invariant
+    fingerprint: 869df38723ac3a533feb8777c930e4c71bb42e84eb56206f338c390536f6a76a
+    required_surfaces:
+    - rest_api
+    - cli
+    - gui.web
   workflows.execution.lifecycle-visible:
-    contract: feature.workflows@1
+    contract: feature.workflows@2
     contract_id: feature.workflows
     type: behavior
     fingerprint: d25a8f209228a00137c102ecab3a2e00907ba7827d4be0ee46284169c39d1c84
@@ -3362,7 +3391,7 @@ assertions:
     - cli
     - gui.web
   workflows.content.encrypted-retained:
-    contract: feature.workflows@1
+    contract: feature.workflows@2
     contract_id: feature.workflows
     type: privacy
     fingerprint: 99cd4a5703e0e6e6645e017decec9547f4a195ba8c65eb4bbaf18466c19aa1df
@@ -3371,7 +3400,7 @@ assertions:
     - cli
     - gui.web
   workflows.chat-delivery.pending-private:
-    contract: feature.workflows@1
+    contract: feature.workflows@2
     contract_id: feature.workflows
     type: privacy
     fingerprint: e5896a0ffa0a12fd0cc8641f4692bcdad889e5d7f6401b95b1385b13e17fcba6
@@ -3380,7 +3409,7 @@ assertions:
     - cli
     - gui.web
   workflows.chat-delivery.claim-fenced:
-    contract: feature.workflows@1
+    contract: feature.workflows@2
     contract_id: feature.workflows
     type: invariant
     fingerprint: 55079195ef72f3e27d53eab96e1145353733441b79aed4bfa1a26f3deecddfb2
@@ -3389,7 +3418,7 @@ assertions:
     - cli
     - gui.web
   workflows.chat-delivery.client-encrypted:
-    contract: feature.workflows@1
+    contract: feature.workflows@2
     contract_id: feature.workflows
     type: behavior
     fingerprint: 29100bc3f11e838cd08469b69e82dab8d37dd23bf875aa301fec9fe68d3b347a
@@ -3398,10 +3427,10 @@ assertions:
     - cli
     - gui.web
   workflows.surface.semantic-parity:
-    contract: feature.workflows@1
+    contract: feature.workflows@2
     contract_id: feature.workflows
     type: parity
-    fingerprint: 771fdad5361a08f36636996970e9eb67b48281573595902ace90327581fd160c
+    fingerprint: 17e82f07dbe4f3a74f6262ae85deea5f5052ea1bea83fabdf63b50abe5ab969a
     required_surfaces:
     - rest_api
     - cli

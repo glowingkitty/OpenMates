@@ -9,17 +9,25 @@ contract_refs:
     role: primary
     fingerprint: f1dfb7472bf07f46b05c179805b376cac5fffa27115824938f733514c68630a7
   - id: feature.workflows
-    version: 1
+    version: 2
     role: inherited
-    fingerprint: 4c63c9b4ff32cd28615f14034c83adce313f3533718773fc57adf01dae27db23
+    fingerprint: 83a2c5f2289b7fda563c3815a3a287d85226cbbd78deef01625739f9e34600c1
+  - id: feature.tasks
+    version: 2
+    role: inherited
+    fingerprint: 4f4ac8b662f9286d8f55f1e24435fab8c2fb9747b64cdc17cdd543d9d6964e2d
   - id: feature.workspace-shell
     version: 2
     role: inherited
 
 contract_impact:
-  classification: implementation_only
-  contract_update_required: false
+  classification: semantic_change
+  contract_update_required: true
   affected_assertions:
+    - workflows.activation.reachable-side-effect
+    - workflows.execution.lifecycle-visible
+    - tasks.workflow-projections.read-only
+    - tasks.detail.embed-responsive
     - workflows-ui.visual-language.coherent
     - workflows-ui.identity.automatic-category-icon
     - workflows-ui.workspace.recommendation-led-composition
@@ -32,9 +40,10 @@ contract_impact:
     - workflows-ui.runs.timeline-execution-detail
     - workflows-ui.responsive-accessible-reachable
   reason: >
-    Implement the newly approved self-contained Workflows UI contract and add
-    the encrypted category/icon metadata required for its category-derived
-    visual identity.
+    Amend the approved Workflow and Tasks semantics for blank persisted drafts,
+    exactly-one time trigger readiness, reachable qualifying effects, lifecycle
+    visibility, and read-only responsive Workflow-run Task projections while
+    retaining the established Workflows UI visual assertions.
 
 documentation_impact:
   generated_reference:
@@ -51,9 +60,10 @@ documentation_impact:
     reason: Users need a guide for creating, editing, versioning, and inspecting Workflow runs.
     documents:
       - docs/user-guide/workflows.md
+      - docs/architecture/platforms/tasks-v1.md
   semantic_layer:
     status: unchanged
-    reason: The approved permanent contracts already define the intended UI and Workflow execution semantics.
+    reason: Approved feature.workflows@2 and feature.tasks@2 govern the amended execution and projection semantics.
     documents:
       - contracts/features/workflows-ui/contract.yml
       - contracts/features/workflows/contract.yml
@@ -63,7 +73,9 @@ goal: >
   contract: category-derived Workflow identity, recommendation-led creation,
   a stable detail header with shared Template/Runs tabs, compact in-place graph
   editing, guarded explicit saves, immutable version inspection, and a detailed
-  run timeline on laptop and mobile.
+  run timeline on laptop and mobile, while making a blank persisted draft
+  activation-ready only after exactly one time trigger reaches a qualifying
+  side effect and presenting each Workflow run as a read-only live Tasks detail.
 
 scope:
   in:
@@ -76,12 +88,19 @@ scope:
     - Implement contextual Save/Undo and Save/Discard/Stay navigation protection.
     - Replace the version list with a timestamp selector, horizontal timeline, full read-only graph, and restore-as-new confirmation.
     - Replace run summary cards with a next/past run timeline and selected execution graph containing available statuses, inputs, outputs, sources, branches, and errors.
+    - Persist newly created disabled drafts with zero triggers and zero steps; author exactly one time trigger before enablement.
+    - Reject readiness when no qualifying reachable side effect exists and create no run or effect on failed readiness.
+    - Project each displayed Workflow run into one read-only Task keyed by workflow_run_id without creating Tasks items from nodes.
+    - Open selected Workflow-run projections in a responsive Tasks-owned detail shell that preserves the board state and bounded-polls exact existing run endpoints.
     - Verify deployed behavior and visual quality at 1440x900 and 390x844 and publish separate laptop and phone proof videos.
   out:
     - Natural-language Workflow planning or modification.
     - Voice Workflow authoring.
     - Public Workflow marketplace changes.
     - New Workflow execution node types or changes to existing execution semantics.
+    - Additional trigger kinds beyond time/schedule.
+    - New Workflow run, Tasks, or WebSocket endpoints.
+    - Disabled-manual-run behavior distinct from the existing enabled/manual-run flow.
     - Apple-native Workflow workspace implementation.
     - Pixel-copying raw Figma values or introducing raw reusable colors.
 
@@ -94,6 +113,7 @@ context_discovery:
     - DESIGN.md
     - contracts/features/workflows-ui/contract.yml
     - contracts/features/workflows/contract.yml
+    - contracts/features/tasks/contract.yml
     - contracts/features/workspace-shell/contract.yml
   code_patterns:
     - frontend/apps/web_app/src/routes/workflows/+page.svelte owns current hash state, creation, editing, and view orchestration.
@@ -103,6 +123,9 @@ context_discovery:
     - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte owns immutable history and restore behavior.
     - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte currently renders summary cards only.
     - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts caches Workflow detail and run lists but not selected run detail.
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte owns the Task board surface and must retain mounted board state during detail selection.
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte and TaskCard.svelte provide Task selection seams.
+    - frontend/packages/ui/src/components/ActiveChat.svelte demonstrates the responsive split/overlay layout principle without a reusable global embed controller.
     - backend/core/directus/schemas/workflows.yml stores encrypted Workflow metadata but has no category/icon fields.
     - backend/core/api/app/services/workflow_service.py encrypts, hydrates, versions, and scopes Workflow records.
     - backend/core/api/app/services/workflow_models.py exposes Workflow summary, version, and run detail models.
@@ -116,15 +139,18 @@ context_discovery:
     - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
     - frontend/packages/openmates-cli/tests/workflows.test.ts
     - packages/openmates-python/tests/test_workflows.py
+    - backend/tests/test_workflow_readiness.py
+    - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+    - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
 
 apple_impact:
   affected_files:
     - none
   parity_expectations:
     - An existing Apple-native Workflow workspace consumes the shared additive API, but the approved workflows-ui contract explicitly defers Apple UI parity for this web-first implementation.
-    - Additive category/icon response fields must not break existing Apple decoding; native visual identity, version-history, and Runs redesign remain deferred.
+    - This amendment is web-only: Workflow activation readiness and Tasks responsive detail use existing backend contracts and do not require Apple UI parity.
   verification:
-    - Static source audit of WorkflowModels.swift confirms additive JSON fields do not break existing Codable models.
+    - No Apple verification is required because no Apple surface or shared client contract changes in this slice.
   intentional_native_differences:
     - Existing Apple Workflow UI remains unchanged and visually behind the approved web contract until a separately approved native parity implementation.
 
@@ -140,15 +166,22 @@ clarification:
       answer: Show the full run lifecycle including next, active, historical detail, unavailable content, and contextual cancellation.
     - question: How should Workflow category and icon be assigned automatically?
       answer: Resolve graph/app metadata first, use a bounded chat-style metadata fallback only for ambiguous graphs, and use general_knowledge/help-circle if assignment cannot produce valid metadata.
+    - question: What is the initial persisted Workflow definition and activation threshold?
+      answer: A disabled draft starts blank with zero triggers and zero steps; activation requires exactly one time/schedule trigger with a reachable qualifying side effect.
+    - question: How should Workflow run items appear in Tasks?
+      answer: Each run has one read-only projection keyed by workflow_run_id; selecting it keeps the board mounted and opens exact live run detail in the responsive Tasks surface.
   vision_summary: >
     The Workflows UI must stand on its own as a durable visual product contract.
     Workflow identity comes from encrypted category/icon metadata and existing
     category gradients; the editor and run views share one stable header, tabs,
-    and graph language, with explicit persistence and detailed history.
+    and graph language, with explicit persistence and detailed history. A blank
+    draft never invents a trigger; only a time-triggered, effectful graph can
+    enable and manually run. Runs are observable as read-only Tasks projections
+    whose detail live-updates without losing the board context.
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 03b69078713b524271436c3f8724fbd5bc14f65c
+  subject_commit: pending
 
 approvals:
   product_contract:
@@ -190,6 +223,21 @@ decisions:
     status: active
     decision: Reuse only call_preprocessing_llm through a bounded Workflow identity adapter after redacting category/icon arguments; never call the full chat preprocessing pipeline.
     reason: The low-level seam has no credit debit or chat side effects, while the full pipeline is unsafe and unnecessary for Workflow metadata assignment.
+    decided_at: '2026-08-26'
+  - id: D-7
+    status: active
+    decision: "Readiness is a pure traversal over the persisted graph: exactly one time/schedule trigger must reach at least one qualifying side-effect node."
+    reason: This prevents fabricated draft defaults and guarantees failed readiness creates no run or external effect.
+    decided_at: '2026-08-26'
+  - id: D-8
+    status: active
+    decision: Workflow runs are projected once into read-only Tasks items keyed by workflow_run_id; node execution remains run detail only.
+    reason: A run is the user-observable unit, while nodes are not independent Tasks work items.
+    decided_at: '2026-08-26'
+  - id: D-9
+    status: active
+    decision: TasksPage owns projection selection and retains the mounted board; exact run details use bounded polling of existing endpoints.
+    reason: Responsive detail must preserve board state without a new endpoint, WebSocket, or global embed controller.
     decided_at: '2026-08-26'
 
 scenarios:
@@ -266,6 +314,37 @@ scenarios:
     then:
       - Every surface resolves the same decrypted category and icon for its authorized owner context.
       - No API, log, notification, or Directus cleartext field exposes private category/icon values.
+  - id: S-8
+    title: Alice makes a blank Workflow activation-ready and manually runs it
+    given:
+      - Alice has a newly persisted disabled Workflow draft with zero triggers and zero steps.
+    when:
+      - Alice adds exactly one time/schedule trigger and multiple steps including a reachable create_chat_report, start_new_chat, send_notification, or send_email_notification node.
+      - Alice saves, enables the Workflow, and requests the existing manual run.
+    then:
+      - No hidden or default trigger is introduced at creation or save.
+      - The Workflow is not activatable with zero or multiple triggers, or with only app_skill_action/fetch, decision, repeat, ask_user, wait, or end reachable from the trigger.
+      - Failed readiness creates no Workflow run and no side effect.
+      - The enabled, activation-ready Workflow accepts the existing manual run behavior.
+  - id: S-9
+    title: Alice follows an exact Workflow run from Tasks without losing board context
+    given:
+      - Alice's activation-ready Workflow has a manually requested run projected as one Tasks item keyed by workflow_run_id.
+      - Alice has an existing Tasks board scroll position, filters, and selected column.
+    when:
+      - Alice selects the Workflow-run Task card at 1440x900 or 390x844.
+    then:
+      - The Tasks detail surface opens that exact read-only run side-by-side on larger viewports and as a full-screen overlay on smaller viewports.
+      - The retained board does not remount, and closing detail restores its scroll, filter, and column state.
+      - Bounded polling of existing exact run endpoints updates run and node statuses through completion without creating a new endpoint, WebSocket, or Task item per node.
+  - id: S-10
+    title: Alice inspects scrollable Workflow definition history
+    given:
+      - Alice has saved multiple Workflow definition versions.
+    when:
+      - Alice edits the Workflow and opens definition history.
+    then:
+      - The history timeline is scrollable and follows the approved Figma direction while each definition remains read-only.
 
 acceptance_criteria:
   - id: AC-1
@@ -340,6 +419,33 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids: [T-PY-WORKFLOW-IDENTITY, T-NODE-WORKFLOW-CLI, T-NODE-WORKFLOW-SDK, T-PY-WORKFLOW-SDK, V-REST-DEV, V-CLI-DEV, V-SDK-DEV]
     contract_assertions: [workflows-ui.identity.automatic-category-icon]
+  - id: AC-9
+    scenario: S-8
+    text: A newly persisted disabled Workflow is blank with zero triggers and zero steps; only exactly one time/schedule trigger with a reachable qualifying side effect can enable, and failed readiness creates neither a run nor an effect.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PY-WORKFLOW-READINESS, V-REST-DEV-READINESS, V-CLI-DEV-READINESS, V-SDK-DEV-READINESS]
+    contract_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible]
+  - id: AC-10
+    scenario: S-9
+    text: Each displayed Workflow run has one read-only Tasks projection keyed by workflow_run_id; Task selection opens exact live run detail responsively, preserves mounted board state on close, and bounded-polls existing exact run endpoints through completion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PW-WORKFLOWS-READY-RUN, V-UI-VISUAL-SMOKE-READY-RUN, V-PROOF-VIDEO-READY-RUN, V-USER-CONFIRMATION-READY-RUN]
+    contract_assertions: [workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only, tasks.detail.embed-responsive]
+  - id: AC-11
+    scenario: S-10
+    text: The Workflow definition-history timeline is scrollable, read-only, and visually follows the approved Figma direction at laptop and phone proof viewports.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PW-WORKFLOW-DEFINITION-HISTORY, V-UI-VISUAL-SMOKE-DEFINITION-HISTORY, V-PROOF-VIDEO-DEFINITION-HISTORY]
+    contract_assertions: [workflows-ui.versions.timeline-readonly-restore-new, workflows-ui.responsive-accessible-reachable]
 
 assumptions:
   - id: A-1
@@ -402,20 +508,33 @@ contracts:
       rate_limits: unchanged
       credit_budget_limits: cancellation/read do not spend credits
       encryption_boundary: retained run content remains encrypted and owner scoped; unavailable content is never fabricated
+    - routes: ['POST /v1/workflows', 'PATCH /v1/workflows/{workflow_id}', 'POST /v1/workflows/{workflow_id}/run', 'GET /v1/workflows/{workflow_id}/runs/{run_id}', 'GET /v1/tasks/{task_id}']
+      access_model: existing first-party client surface plus approved developer API-key Workflow access; Tasks projection detail remains authorized owner/team access
+      auth: existing authenticated owner/team session or approved API key scope; no new public route
+      rate_limits: existing Workflow and Tasks route limits; polling is client-bounded and stops at terminal run status
+      credit_budget_limits: readiness validation and projection reads spend no credits; enabled manual runs retain existing budget behavior
+      encryption_boundary: run detail is returned only through existing authorized decrypted Workflow/Tasks boundaries; no plaintext node data is added to Tasks summary cards
+      request_changes: create persists an empty disabled graph; update/enable validates readiness; manual run uses the existing enabled Workflow route
+      response_changes: no new endpoint; existing run and Task projection payloads expose lifecycle status needed by the responsive detail
   data:
     - Add encrypted_category and encrypted_icon nullable text fields to workflows; existing records remain valid and resolve general_knowledge/help-circle until backfilled on write or bounded migration.
     - Store only encrypted metadata and encrypted refs in Directus and record_json; never add plaintext category/icon indexes.
     - Keep category/icon stable at Workflow level across immutable graph versions and runs.
     - Normal deletion remains the existing restorable soft-delete and retains encrypted metadata under Workflow history retention; temporary-expiry cleanup removes category/icon blobs with the other Workflow blobs.
+    - A new persisted disabled Workflow stores an empty graph with zero triggers and zero steps; no server default trigger is created.
+    - Readiness derives from graph traversal and is not persisted as an independent mutable flag; exactly one time/schedule trigger must reach a qualifying effect node.
+    - One Tasks projection is keyed by workflow_run_id for each displayed Workflow run; node rows are run-detail data and never Tasks items.
   ui_states:
     - Workspace loading, empty, recent cards, show all, and creation error.
     - New disabled draft, current Template, dirty Template, expanded node, historical read-only version, restore confirmation.
     - Runs empty, next-only, selected completed, selected failed, selected active, expired content, cancellation confirmation.
     - Desktop/mobile, light/dark, reduced motion, API error, and metadata fallback identity.
+    - Blank draft, invalid readiness, enabled/manual-running, Task projection selected, polling active, terminal run, responsive split detail, and mobile full-screen overlay.
   privacy_security:
     - Category/icon can reveal Workflow purpose and therefore use the same encrypted owner/team Vault boundary as title and description.
     - Metadata fallback receives only title, description, node types, and app/skill identifiers; node input values, credentials, run content, and outputs are forbidden.
     - Logs and notifications contain no decrypted title, category, icon, graph, input, output, or error payload.
+    - Polling requests use existing owner/team-scoped exact run detail and stop on terminal lifecycle status or component disposal.
 
 tests:
   - id: T-PY-WORKFLOW-IDENTITY
@@ -481,6 +600,29 @@ tests:
     covers: [AC-1, AC-8]
     red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
     green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-PY-WORKFLOW-READINESS
+    type: pytest
+    file: backend/tests/test_workflow_readiness.py
+    command: python3 -m pytest backend/tests/test_workflow_readiness.py backend/tests/test_workflow_runner.py -q
+    assertions:
+      - New disabled persisted drafts contain exactly zero triggers and zero steps.
+      - Pure readiness traversal accepts exactly one time/schedule trigger only when it reaches create_chat_report, start_new_chat, send_notification, or send_email_notification.
+      - Traversal rejects zero/multiple triggers and paths containing only app_skill_action/fetch, decision, repeat, ask_user, wait, or end.
+      - Rejected readiness cannot create a run or qualifying side effect; enabled valid graphs retain existing manual-run lifecycle behavior.
+      - Run projection identity is one-to-one by workflow_run_id and nodes are not Tasks items.
+    contract_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only]
+    covers: [AC-9, AC-10]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: PYTHONPATH=. python3 -m pytest backend/tests/test_workflow_readiness.py -q
+        run_id: local-workflow-readiness-red-20260826
+        timestamp: '2026-08-26T17:27:59Z'
+        subject_commit: pending
+        summary: Eleven assertions failed as expected because blank drafts require an existing trigger and non-effect or unreachable-effect graphs currently enable without readiness rejection; four reachable qualifying-effect cases passed.
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
   - id: T-UI-WORKFLOWS
     type: build
     file: frontend/packages/ui/src/components/workflows
@@ -532,7 +674,32 @@ tests:
         run_id: '32983054617'
         timestamp: '2026-08-26T14:56:39Z'
         subject_commit: 03b69078713b524271436c3f8724fbd5bc14f65c
-        summary: The authenticated deployed Workflows contract passed all functional assertions; bounded review passed workspace, guard, version, and Runs, with only a proof-frame timing gap for the otherwise passing Template state.
+        summary: Historical pre-amendment Workflows UI evidence. It is superseded for AC-9 through AC-11 and cannot be used as green evidence for blank-draft readiness, Tasks projections, or definition-history proof.
+        superseded_by: [T-PY-WORKFLOW-READINESS, T-PW-WORKFLOWS-READY-RUN, T-PW-WORKFLOW-DEFINITION-HISTORY]
+  - id: T-PW-WORKFLOWS-READY-RUN
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec workflows-ready-run-tasks.spec.ts --gate-deploy --expected-commit <SHA>
+    assertions:
+      - At 1440x900 and 390x844, authenticated users create a blank disabled Workflow, add one time trigger and multiple steps with a reachable qualifying effect, save, enable, and manually run it.
+      - Tasks shows exactly one In progress read-only Workflow-run projection; selecting it presents the exact live run in split detail or a full-screen overlay as appropriate.
+      - Existing board scroll, filters, and column state survive detail close, while bounded polling updates run and node status to completion without remounting the board.
+    contract_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only, tasks.detail.embed-responsive]
+    covers: [AC-9, AC-10]
+    red_phase: {required: true, expected: fail_before_implementation_on_deployed_dev, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+  - id: T-PW-WORKFLOW-DEFINITION-HISTORY
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec workflows-definition-history.spec.ts --gate-deploy --expected-commit <SHA>
+    assertions:
+      - Editing a Workflow with multiple saved definitions opens a scrollable read-only definition-history timeline matching the approved Figma direction at 1440x900 and 390x844.
+    contract_assertions: [workflows-ui.versions.timeline-readonly-restore-new, workflows-ui.responsive-accessible-reachable]
+    covers: [AC-11]
+    red_phase: {required: true, expected: fail_before_implementation_on_deployed_dev, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -556,7 +723,28 @@ verifications:
       run_id: workflow-identity-real-dev-20260826T0210Z
       timestamp: '2026-08-26T02:10:32Z'
       subject_commit: 7b257e2ce518fa01dc85df35efd65034aec59ce4
-      result: Unauthenticated list returned 401; authenticated create, list, detail, update, and delete preserved category and icon metadata.
+      result: Historical identity-only result; superseded for the new blank-draft/readiness/run-projection claims by V-REST-DEV-READINESS.
+  - id: V-REST-DEV-READINESS
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-9, AC-10]
+    status: pending
+    evidence: {}
+  - id: V-CLI-DEV-READINESS
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-9]
+    status: pending
+    evidence: {}
+  - id: V-SDK-DEV-READINESS
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-9]
+    status: pending
+    evidence: {}
   - id: V-CLI-DEV
     kind: automated_test
     phase: green
@@ -568,7 +756,7 @@ verifications:
       run_id: '32925372786'
       timestamp: '2026-08-26T03:15:03Z'
       subject_commit: 6200ff20cfbb346934c912308ca9798f40c78b2b
-      result: Real CLI create, list, and show preserved science/cloud-rain identity in JSON and readable output; cleanup passed.
+      result: Historical identity-only result; superseded for readiness claims by V-CLI-DEV-READINESS.
   - id: V-SDK-DEV
     kind: automated_test
     phase: green
@@ -580,7 +768,7 @@ verifications:
       run_id: workflow-identity-sdk-live-20260826T0320Z
       timestamp: '2026-08-26T03:20:00Z'
       subject_commit: 44432ba6fb04b66ded2a8655b65540ae32e507a4
-      result: Ephemeral-key npm and pip SDK create/list/detail calls returned stable science/cloud-rain identity; npm/pip devices were approved and the key was revoked.
+      result: Historical identity-only result; superseded for readiness claims by V-SDK-DEV-READINESS.
   - id: V-CI-PARITY
     kind: deterministic_check
     phase: green
@@ -602,11 +790,43 @@ verifications:
     target: https://app.dev.openmates.org/workflows
     viewports: [laptop, mobile]
     evidence: {}
+  - id: V-UI-VISUAL-SMOKE-READY-RUN
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-10]
+    status: pending
+    target: https://app.dev.openmates.org/tasks
+    viewports: [laptop, mobile]
+    evidence: {}
+  - id: V-UI-VISUAL-SMOKE-DEFINITION-HISTORY
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-11]
+    status: pending
+    target: https://app.dev.openmates.org/workflows
+    viewports: [laptop, mobile]
+    evidence: {}
   - id: V-PROOF-VIDEO
     kind: artifact_review
     phase: final
     required_for_done: true
     covers: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    status: pending
+    evidence: {}
+  - id: V-PROOF-VIDEO-READY-RUN
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-9, AC-10]
+    status: pending
+    evidence: {}
+  - id: V-PROOF-VIDEO-DEFINITION-HISTORY
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-11]
     status: pending
     evidence: {}
   - id: V-USER-CONFIRMATION
@@ -616,11 +836,18 @@ verifications:
     covers: [AC-7]
     status: pending
     evidence: {}
+  - id: V-USER-CONFIRMATION-READY-RUN
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-10]
+    status: pending
+    evidence: {}
   - id: V-SPEC-VERIFY
     kind: deterministic_check
     phase: final
     required_for_done: true
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]
     status: pending
     evidence: {}
 
@@ -664,7 +891,8 @@ implementation_plan:
   spec_path: docs/specs/workflows-ui-contract/spec.yml
   contract_refs:
     - feature.workflows-ui@1
-    - feature.workflows@1
+    - feature.workflows@2
+    - feature.tasks@2
     - feature.workspace-shell@2
   affected_assertions:
     - workflows-ui.visual-language.coherent
@@ -678,15 +906,18 @@ implementation_plan:
     - workflows-ui.versions.timeline-readonly-restore-new
     - workflows-ui.runs.timeline-execution-detail
     - workflows-ui.responsive-accessible-reachable
-  contract_change: implementation_only
+  contract_change: semantic_change
   exact_surface_proof:
     - Real REST, CLI, npm SDK, and pip SDK calls against https://api.dev.openmates.org prove encrypted category/icon parity.
     - Deployed Playwright proves the authenticated /workflows creation, Template, versions, Runs, cancellation, and dirty-navigation behavior.
     - Reviewed 1440x900 laptop and 390x844 phone captures prove light/dark responsive visual quality.
     - Separate approved laptop and phone videos with toggleable device-scoped WebVTT captions prove the complete visual flow.
+    - Real REST, existing CLI, and npm/pip SDK calls prove blank-draft and readiness behavior before deployed web proof.
+    - Deployed 1440x900 and 390x844 proof covers blank creation, valid enable/manual run, exact live Tasks projection detail, and definition history.
   documentation_impact:
     - Regenerate contract and SDK references after metadata model changes.
     - Update docs/user-guide/workflows.md for creation, editing, versions, and Runs.
+    - Update docs/architecture/platforms/tasks-v1.md for read-only Workflow-run projections and Tasks-owned responsive detail.
   architecture: >
     Extend the existing Workflow vertical slice. A small async WorkflowIdentityService
     resolves deterministic graph/app mappings first and calls only
@@ -694,7 +925,12 @@ implementation_plan:
     encryption and persistence boundary. Existing REST routes, CLI/SDK clients,
     workspace store, and reusable Svelte components carry the additive metadata.
     One shared WorkflowGraphRenderer renders editable Template graphs, read-only
-    historical graphs, and read-only run execution graphs.
+    historical graphs, and read-only run execution graphs. A pure readiness
+    traversal in workflow_models/service validates the persisted graph through
+    existing routes. WorkflowRunHistory uses store force-refresh methods and
+    bounded exact-run polling. TasksPage owns responsive projection selection,
+    keeping TaskBoard mounted while a reusable workspace detail shell applies
+    the ActiveChat split/overlay principle without its global embed event/controller.
   existing_patterns:
     - Reuse WorkflowService encrypted blob storage, immutable versions, owner/team scoping, and run-retention behavior.
     - Reuse call_preprocessing_llm as a low-level structured-output seam, not handle_preprocessing or chat routing.
@@ -707,6 +943,8 @@ implementation_plan:
     - WorkflowService encrypts category and icon as owner/team Vault blobs and persists only encrypted refs in Directus record_json and nullable encrypted metadata columns.
     - Authorized list/detail responses decrypt category/icon into WorkflowSummary and WorkflowDetail; CLI, SDKs, web, and existing additive Apple decoding receive the same response without ciphertext.
     - The web store caches selected run detail separately, while graph/version/run rendering receives one normalized graph plus read-only/editable execution state.
+    - Create persists an empty disabled graph; readiness traversal gates enable and existing manual run before the runner creates a run or effect.
+    - Each displayed run resolves one Task projection by workflow_run_id; selecting it force-refreshes only that exact run until terminal status.
   api_data_privacy:
     - Existing Workflow routes retain their first-party plus approved developer API-key access, owner/team checks, and 60/minute reads and 30/minute creates.
     - Graph-first assignment has no provider cost; ambiguous inference has bounded fallback-model attempts but no credit debit or Workflow budget charge.
@@ -718,6 +956,8 @@ implementation_plan:
     - Keep graph geometry and node expansion in WorkflowGraphRenderer.svelte.
     - Keep header and shared Template/Runs pill in WorkflowDetailPage.svelte using category gradient values passed by the route.
     - Keep version and run data loading in their focused components/store methods and render their graphs through WorkflowGraphRenderer.
+    - Keep trigger authoring in WorkflowGraphRenderer and readiness rules in workflow_models/service, not in the route or renderer.
+    - Keep selected Task projection state in TasksPage; TaskBoard and TaskCard expose callbacks, and direct /tasks/<id> remains compatible.
     - Use color-grey design tokens for reusable surfaces and horizontal overflow only for timelines on mobile.
   affected_files:
     - path: backend/shared/config/workflow_identity.json
@@ -766,6 +1006,30 @@ implementation_plan:
       reason: Next/past timeline, selected execution detail, unavailable state, and cancellation confirmation.
     - path: frontend/apps/web_app/src/routes/workflows/+page.svelte
       reason: Workspace composition, shared renderer orchestration, tabs, save/undo, and navigation guard.
+    - path: backend/core/api/app/services/workflow_models.py
+      reason: Pure graph readiness traversal and qualifying-side-effect definitions.
+    - path: backend/core/api/app/services/workflow_service.py
+      reason: Blank draft persistence and readiness gate before enable/manual-run lifecycle operations.
+    - path: backend/tests/test_workflow_readiness.py
+      reason: Red/green blank draft, traversal, no-run/no-effect, and projection identity coverage.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+      reason: Time trigger authoring and multiple-step graph editing without hidden defaults.
+    - path: frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      reason: Exact-run force-refresh methods consumed by bounded polling.
+    - path: frontend/packages/ui/src/components/tasks/WorkspaceDetailShell.svelte
+      reason: Reusable responsive split-screen/full-screen detail shell modeled on the ActiveChat layout principle.
+    - path: frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+      reason: Board-owned card selection callback while retaining mounted board state.
+    - path: frontend/packages/ui/src/components/tasks/TaskCard.svelte
+      reason: Projection card selection callback and read-only run presentation.
+    - path: frontend/apps/web_app/src/routes/tasks/+page.svelte
+      reason: Tasks-owned selection, direct /tasks/<id> compatibility, responsive detail, and exact-run polling lifecycle.
+    - path: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+      reason: Deployed laptop/phone end-to-end proof for blank/create/enable/manual-run/Tasks live detail.
+    - path: frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+      reason: Deployed laptop/phone definition-history timeline proof.
+    - path: docs/architecture/platforms/tasks-v1.md
+      reason: Document read-only Workflow-run projection behavior and responsive Tasks detail ownership.
     - path: frontend/packages/ui/src/i18n/sources/workflows.yml
       reason: User-facing Workflow labels and states.
     - path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
@@ -785,11 +1049,14 @@ implementation_plan:
   acceptance_coverage:
     - AC-1 and AC-8 use backend identity tests plus real REST, CLI, npm SDK, and pip SDK evidence.
     - AC-2 through AC-6 use the UI build and deployed Workflows Playwright spec.
+    - AC-9 uses red/green readiness tests, real dev REST, CLI, and npm/pip SDK checks.
+    - AC-10 and AC-11 use deployed proof flows, reviewed visual smoke, separate laptop/phone videos, and user confirmation where applicable.
     - AC-7 uses Playwright checkpoints, reviewed laptop/mobile visual smoke, separate proof videos, and user confirmation.
   risks:
     - Provider fallback attempts can add latency to ambiguous creation; deterministic mappings and a hard timeout keep creation bounded.
     - Shared graph extraction can regress existing editing; component-level build checks and deployed edit/version/run flows gate rollout.
     - Existing Apple Workflow UI is intentionally behind the new web contract; additive decoding compatibility is preserved and visual parity remains deferred by the approved permanent contract.
+    - Bounded polling must stop for terminal status and teardown to avoid background reads after Tasks detail closes.
   open_questions:
     - none
   separate_technical_approval: not_required
@@ -797,8 +1064,10 @@ implementation_plan:
     - Run python3 -m pytest backend/tests/test_workflow_ui_identity.py backend/tests/test_workflow_core_ui_contract.py backend/tests/test_workflow_runner.py -q for backend red/green evidence.
     - Restart the API and run a real authenticated REST create/list/detail/update probe including unauthorized behavior against https://api.dev.openmates.org.
     - Run real OpenMates CLI Workflow create/show/list/update commands against the dev API before SDK gates.
+    - Run readiness create/update/enable/manual-run checks through REST, existing CLI, and npm/pip SDKs against https://api.dev.openmates.org before web implementation.
     - Run npm and pip SDK real-dev Workflow tests and python3 scripts/audit_sdk_cli_parity.py before web work.
     - Write and deploy workflows-ui-contract.spec.ts red before UI implementation, then deploy and rerun it green with an expected commit.
+    - Write/deploy red then green workflows-ready-run-tasks.spec.ts and workflows-definition-history.spec.ts against the exact deployed commit.
     - Build the UI package and review laptop/mobile deployed visual-smoke screenshots before proof capture.
     - Run python3 scripts/spec_verify.py docs/specs/workflows-ui-contract/spec.yml --phase complete --json before completion.
   verification_order:
@@ -1170,6 +1439,186 @@ tasks:
     independently_deployable: false
     permanent_assertions: [workflows-ui.visual-language.coherent, workflows-ui.identity.automatic-category-icon, workflows-ui.responsive-accessible-reachable]
     surfaces: [documentation, product_spec]
+  - id: TASK-16
+    title: Add red readiness and Workflow-run projection contract tests
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-9]
+      acceptance_criteria: [AC-9, AC-10]
+    expected_files:
+      - backend/tests/test_workflow_readiness.py
+      - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+      - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    verification_ids: [T-PY-WORKFLOW-READINESS, T-PW-WORKFLOWS-READY-RUN, T-PW-WORKFLOW-DEFINITION-HISTORY]
+    dependencies: [TASK-11]
+    blockers: []
+    follow_up_tasks: [TASK-17]
+    ownership:
+      files:
+        - backend/tests/test_workflow_readiness.py
+        - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+        - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only, tasks.detail.embed-responsive]
+    surfaces: [rest_api, gui.web]
+  - id: TASK-17
+    title: Implement blank-draft readiness and existing-route lifecycle gate
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-9]
+    expected_files:
+      - backend/core/api/app/services/workflow_models.py
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/tests/test_workflow_readiness.py
+    verification_ids: [T-PY-WORKFLOW-READINESS]
+    dependencies: [TASK-16]
+    blockers: []
+    follow_up_tasks: [TASK-18]
+    ownership:
+      files:
+        - backend/core/api/app/services/workflow_models.py
+        - backend/core/api/app/services/workflow_service.py
+        - backend/core/api/app/routes/workflows.py
+        - backend/tests/test_workflow_readiness.py
+      shared_files: []
+    independently_deployable: true
+    permanent_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible]
+    surfaces: [rest_api]
+  - id: TASK-18
+    title: Prove readiness through real dev REST, CLI, and SDK surfaces
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-9]
+    expected_files:
+      - scripts/workflow_readiness_real_test.py
+      - frontend/packages/openmates-cli/tests/workflows.test.ts
+      - frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+      - packages/openmates-python/tests/test_workflows.py
+      - packages/openmates-python/tests/test_workflows_real_dev.py
+    verification_ids: [V-REST-DEV-READINESS, V-CLI-DEV-READINESS, V-SDK-DEV-READINESS]
+    dependencies: [TASK-17]
+    blockers: []
+    follow_up_tasks: [TASK-19]
+    ownership:
+      files:
+        - scripts/workflow_readiness_real_test.py
+        - frontend/packages/openmates-cli/tests/workflows.test.ts
+        - frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+        - packages/openmates-python/tests/test_workflows.py
+        - packages/openmates-python/tests/test_workflows_real_dev.py
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible]
+    surfaces: [rest_api, cli, sdks.npm, sdks.pip]
+  - id: TASK-19
+    title: Implement Workflow trigger authoring and exact run refresh support
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-8, S-9, S-10]
+      acceptance_criteria: [AC-9, AC-10, AC-11]
+    expected_files:
+      - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+      - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+    verification_ids: [T-UI-WORKFLOWS, T-PW-WORKFLOW-DEFINITION-HISTORY]
+    dependencies: [TASK-18]
+    blockers: []
+    follow_up_tasks: [TASK-20]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+        - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      shared_files: []
+    independently_deployable: true
+    permanent_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible, workflows-ui.versions.timeline-readonly-restore-new]
+    surfaces: [gui.web]
+  - id: TASK-20
+    title: Implement Tasks-owned responsive live Workflow-run detail
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-9]
+      acceptance_criteria: [AC-10]
+    expected_files:
+      - frontend/packages/ui/src/components/workspace/WorkspaceResponsiveDetailPane.svelte
+      - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+      - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+      - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+      - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowRunDetailPanel.svelte
+    verification_ids: [T-PW-WORKFLOWS-READY-RUN]
+    dependencies: [TASK-19]
+    blockers: []
+    follow_up_tasks: [TASK-21]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/workspace/WorkspaceResponsiveDetailPane.svelte
+        - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+        - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+        - frontend/packages/ui/src/components/tasks/TaskDetailPage.svelte
+        - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowRunDetailPanel.svelte
+      shared_files: []
+    independently_deployable: true
+    permanent_assertions: [tasks.workflow-projections.read-only, tasks.detail.embed-responsive]
+    surfaces: [gui.web]
+  - id: TASK-21
+    title: Deploy and pass new Workflow readiness and Tasks proof flows
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-8, S-9, S-10]
+      acceptance_criteria: [AC-9, AC-10, AC-11]
+    expected_files:
+      - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+      - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+    verification_ids: [T-PW-WORKFLOWS-READY-RUN, T-PW-WORKFLOW-DEFINITION-HISTORY]
+    dependencies: [TASK-20]
+    blockers: []
+    follow_up_tasks: [TASK-22]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
+        - frontend/apps/web_app/tests/workflows-definition-history.spec.ts
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only, tasks.detail.embed-responsive]
+    surfaces: [gui.web]
+  - id: TASK-22
+    title: Review responsive proof, publish videos, confirm behavior, and update docs
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-8, S-9, S-10]
+      acceptance_criteria: [AC-9, AC-10, AC-11]
+    expected_files:
+      - docs/user-guide/workflows.md
+      - docs/architecture/platforms/tasks-v1.md
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-UI-VISUAL-SMOKE-READY-RUN, V-UI-VISUAL-SMOKE-DEFINITION-HISTORY, V-PROOF-VIDEO-READY-RUN, V-PROOF-VIDEO-DEFINITION-HISTORY, V-USER-CONFIRMATION-READY-RUN, V-SPEC-VERIFY]
+    dependencies: [TASK-21]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/user-guide/workflows.md
+        - docs/architecture/platforms/tasks-v1.md
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only, tasks.detail.embed-responsive, workflows-ui.responsive-accessible-reachable]
+    surfaces: [documentation, gui.web, product_spec]
 
 attempts:
   - id: ATTEMPT-1
@@ -1247,16 +1696,21 @@ attempts:
     approach: After explicit user authorization, reset the exhausted proof-review epoch and dispatch a replacement laptop capture with a longer clean Template hold.
     outcome: blocked
     recorded_at: '2026-08-26T15:37:10Z'
+  - id: ATTEMPT-16
+    task_id: TASK-16
+    approach: Add focused readiness plus deployed Workflow/Tasks and definition-history red contracts, then run the pure backend readiness suite before implementation.
+    outcome: failed_as_expected
+    recorded_at: '2026-08-26T17:27:59Z'
 
 handoff:
-  current_task_id: TASK-12
-  next_action: Retry the pinned laptop proof after GitHub exposes dispatched Actions run IDs, then capture and review web-phone before recording visual smoke and proof evidence.
-  command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --account 1 --proof-video-profile web-laptop --no-mocks --gate-deploy --require-exact-commit --expected-commit <CURRENT_DEV_SHA>
-  expected_outcome: The deployed spec passes, automatic bounded review approves all five laptop claims, and the same command with web-phone produces the required phone proof.
+  current_task_id: TASK-16
+  next_action: Add the red pure-readiness and deployed proof-flow tests before changing Workflow or Tasks implementation.
+  command: python3 -m pytest backend/tests/test_workflow_readiness.py backend/tests/test_workflow_runner.py -q
+  expected_outcome: The new readiness assertions fail against the current implementation, proving blank-draft, reachability, and projection behavior is not yet implemented.
   blocker:
-    task_id: TASK-12
+    task_id: TASK-16
     requires_user_input: false
-    reason: GitHub Actions accepted workflow dispatches but did not expose new run IDs, so the test orchestrator could not start account preflight or proof capture.
+    reason: No product blocker; implementation starts with the required red test slice.
     question: ''
-    next_action: Recheck GitHub Actions dispatch visibility and rerun against the then-current exact dev commit.
-  last_verified_commit: 03b69078713b524271436c3f8724fbd5bc14f65c
+    next_action: Record red evidence, then proceed to TASK-17.
+  last_verified_commit: pending

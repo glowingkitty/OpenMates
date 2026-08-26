@@ -70,6 +70,9 @@ task_workflow_projections:
   - id: list-merges-owner-workflow-projection
     input: {operation: list_user_tasks, filters: none, workflow_run_status: running}
     expect: {contains_user_task_rows: true, contains_workflow_run_projection: true, projection_status: in_progress, projection_read_only: true}
+  - id: multi-step-run-projects-one-task
+    input: {operation: list_user_tasks, workflow_run_id: run-1, workflow_node_ids: [trigger-1, fetch-1, decision-1, notify-1]}
+    expect: {workflow_run_projection_count: 1, projection_task_id: 'workflow-run:run-1', workflow_node_task_count: 0, node_statuses_location: workflow_run_detail}
   - id: contextual-list-excludes-workflow-projections
     input: {operation: list_user_tasks, chat_id: chat-1}
     expect: {contains_workflow_run_projection: false}
@@ -80,6 +83,18 @@ task_workflow_projections:
     durable_state:
       contains: [workflow_id, workflow_run_id, projection_kind, run_status, can_cancel, read_only]
       forbidden: [encrypted_workflow_content, private_workflow_plaintext, copied_user_task_row]
+
+task_detail_presentation:
+  - id: regular-task-opens-responsive-detail
+    given: {workspace: tasks, selected_task: task-1, board_scroll_position: 640, filters: [in_progress]}
+    expect:
+      larger_viewport: {presentation: split_screen, board_visible: true}
+      smaller_viewport: {presentation: full_screen_overlay, board_visible: false}
+      after_close: {board_scroll_position: 640, filters: [in_progress]}
+  - id: workflow-run-task-opens-live-run-detail
+    given: {workspace: tasks, selected_task_id: 'workflow-run:run-1', workflow_run_id: run-1, run_status: running}
+    when: {select_task: true, node_status_changes: completed}
+    expect: {detail_target: workflow_run, selected_workflow_run_id: run-1, task_route_replacement: false, run_status_updates_live: true, node_status_updates_inside_detail: true}
 
 task_surface_parity:
   - id: cli-rest-namespace

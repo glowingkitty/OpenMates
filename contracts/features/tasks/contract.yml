@@ -17,6 +17,7 @@ scope:
     - Client-encrypted titles, descriptions, labels/tags, activity summaries, latest instructions, linked Project id lists, and per-task key material.
     - Server-visible safe routing and filter metadata, including primary_chat_id, hashed_primary_chat_id, linked_project_hashes, plan_id, task_type, verification_id, label_hashes, priority, assignee_type, assignee_hash, and team routing metadata.
     - Workflow run projection items returned by the Tasks view as read-only task-shaped cards without creating user_tasks rows.
+    - Default Task selection behavior in the web Tasks workspace: embed-style split-screen detail on larger viewports and full-screen detail overlay on smaller viewports while preserving board state.
     - Capacity-scoped AI task admission with separate personal and Team pools, reserved urgent capacity, restart-safe waiting, and automatic admission when capacity is released.
     - Ordered execution lanes where chat ordering, Plan dependency readiness, and explicit user reordering determine eligibility before priority or capacity is applied.
     - Task-to-Project link mutations that keep safe Project hashes, encrypted raw Project ids, and authorized Task key wrappers in sync.
@@ -26,7 +27,7 @@ scope:
     - /v1/tasks Celery/background task polling.
     - Plan subresource behavior except Plan-created task references, plan_id, task_type=verification, verification_id, and Plan key-wrapper contexts for connected tasks.
     - Workflow run execution semantics beyond read-only task projections and scheduled-run skip/delete behavior exposed through Tasks.
-    - GUI layout, Figma visual parity, drag/drop mechanics, and Apple-native task UI.
+    - GUI layout beyond the contracted responsive Task detail presentation, Figma visual parity, drag/drop mechanics, and Apple-native task UI.
     - Public task sharing, Team collaboration semantics beyond Team-owned task admission capacity, or durable share-specific task wrappers.
     - Workflow run concurrency limits; Workflow execution is independent from user Task admission capacity.
     - Server-side full-text search or decryption over private task title, description, labels, activity, latest instruction, or encrypted linked Project ids.
@@ -143,6 +144,7 @@ models:
     task_id:
       type: stable_projection_id
       required: true
+      constraints: {one_projection_per_displayed_run: true, workflow_nodes_create_task_items: false}
     source:
       type: enum
       values: [workflow_run]
@@ -166,6 +168,20 @@ models:
       type: boolean
       required: true
 
+  TaskDetailPresentation:
+    responsive_surface:
+      type: embed_style_detail_surface
+      required: true
+      constraints: {opens_by_default_on_task_selection: true, larger_viewports: split_screen, smaller_viewports: full_screen_overlay, breakpoint_behavior_reuses_embed_logic: true}
+    workspace_continuity:
+      type: preserved_workspace_state
+      required: true
+      constraints: {board_position_preserved: true, filters_preserved: true, column_state_preserved: true, close_returns_to_same_board_state: true}
+    workflow_run_detail:
+      type: selected_run_detail
+      required: true
+      constraints: {exact_workflow_run_selected: true, live_status_updates: true, node_statuses_remain_inside_run_detail: true}
+
 assertions:
   - id: tasks.content.client-encrypted
     type: privacy
@@ -185,8 +201,18 @@ assertions:
     depends_on: [models.TaskKeyWrapper, examples.task_private_content, examples.task_project_links]
   - id: tasks.workflow-projections.read-only
     type: invariant
-    must: Workflow run items in the Tasks view are owner-scoped, metadata-only, read-only projections derived from Workflow state; they do not create user_tasks rows, do not expose encrypted Workflow content, and only expose Workflow-owned open, cancel, or scheduled-skip actions.
+    must: Workflow run items in the Tasks view are owner-scoped, metadata-only, read-only projections derived from Workflow state; each displayed run maps to one task-view item keyed by workflow_run_id, Workflow nodes never create separate Task items and remain visible through run detail, projections do not create user_tasks rows or expose encrypted Workflow content, and they only expose Workflow-owned open, cancel, or scheduled-skip actions.
     depends_on: [models.WorkflowTaskProjection, examples.task_workflow_projections]
+  - id: tasks.detail.embed-responsive
+    type: behavior
+    must: >
+      Selecting any Task in the web Tasks workspace opens its detail with the
+      same responsive presentation policy as chat embeds: a side-by-side split
+      screen on larger viewports and a full-screen overlay on smaller viewports;
+      closing detail restores the unchanged board position, filters, and column
+      state, and selecting a Workflow-run projection shows that exact run with
+      live run and node status updates inside the detail surface.
+    depends_on: [models.TaskDetailPresentation, examples.task_detail_presentation]
   - id: tasks.surface.semantic-parity
     type: parity
     must: REST, CLI, npm SDK, and pip SDK surfaces preserve the same encrypted-content, label/priority metadata, lifecycle, Project-link, workflow-projection, version-conflict, and local-decryption semantics for every Task operation that surface implements; unsupported contexts must fail visibly or remain explicitly out of scope.
@@ -214,13 +240,13 @@ surfaces:
       npm: {required: true}
       pip: {required: true}
   gui:
-    required: false
-    role: Web task UI consumes the same encrypted task service, but GUI layout and visual parity are outside this contract bundle.
+    required: true
+    role: Web task UI consumes the same encrypted task service and owns the contracted embed-responsive Task detail presentation; other GUI layout and visual parity remain outside this contract bundle.
     implementations:
-      web: {required: false}
+      web: {required: true}
       apple: {required: false}
     exceptions: []
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_project_links, task_workflow_projections, task_surface_parity, task_execution_capacity, task_execution_order]
+  required_groups: [task_private_content, task_lifecycle, task_project_links, task_workflow_projections, task_detail_presentation, task_surface_parity, task_execution_capacity, task_execution_order]
