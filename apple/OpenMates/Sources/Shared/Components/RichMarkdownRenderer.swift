@@ -1485,7 +1485,7 @@ struct InlineMarkdownText: View {
             Text(highlightedText(text, isBold: isBold, highlightRanges: highlightRanges))
                 .font(.omP)
                 .fontWeight(isBold ? .semibold : .medium)
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
         case .inlineCode(let text):
             Text(highlightedText(text, isBold: false, highlightRanges: highlightRanges))
                 .font(.system(size: 14, design: .monospaced))
@@ -1800,7 +1800,7 @@ private struct WikiInlineChip: View {
             chipContent
         }
         .buttonStyle(.plain)
-        .fixedSize()
+        .fixedSize(horizontal: false, vertical: true)
         .opacity(isHovering ? 0.82 : 1)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -1889,7 +1889,7 @@ private struct EmbedInlineChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
-            .fixedSize()
+            .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
             .onHover { hovering in
@@ -1900,7 +1900,7 @@ private struct EmbedInlineChip: View {
             .accessibilityLabel(displayText)
         } else {
             chipContent
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
                 .opacity(isHovering ? 0.82 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(displayText)
@@ -1956,7 +1956,7 @@ private struct MarkdownLinkChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
-            .fixedSize()
+            .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
             .onHover(perform: updateHover)
@@ -1965,7 +1965,7 @@ private struct MarkdownLinkChip: View {
             .accessibilityLabel(displayText)
         } else {
             chipContent
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
                 .opacity(isHovering ? 0.82 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(displayText)
@@ -2023,35 +2023,48 @@ private struct InlineMarkdownFlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let arrangement = arrangeSubviews(proposal: ProposedViewSize(width: bounds.width, height: proposal.height), subviews: subviews)
         for (index, origin) in arrangement.origins.enumerated() {
+            let size = arrangement.sizes[index]
             subviews[index].place(
                 at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
-                proposal: .unspecified
+                proposal: ProposedViewSize(width: size.width, height: size.height)
             )
         }
     }
 
-    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (origins: [CGPoint], size: CGSize) {
+    private func arrangeSubviews(
+        proposal: ProposedViewSize,
+        subviews: Subviews
+    ) -> (origins: [CGPoint], sizes: [CGSize], size: CGSize) {
         let maxWidth = proposal.width ?? .infinity
         var origins: [CGPoint] = []
+        var sizes: [CGSize] = []
         var cursor = CGPoint.zero
         var lineHeight: CGFloat = 0
         var measuredWidth: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if cursor.x > 0, cursor.x + size.width > maxWidth {
+            let idealSize = subview.sizeThatFits(.unspecified)
+            if cursor.x > 0, cursor.x + idealSize.width > maxWidth {
                 cursor.x = 0
                 cursor.y += lineHeight + lineSpacing
                 lineHeight = 0
             }
+            let availableWidth = maxWidth.isFinite ? max(0, maxWidth - cursor.x) : idealSize.width
+            let proposedWidth = min(idealSize.width, availableWidth)
+            let size = subview.sizeThatFits(ProposedViewSize(width: proposedWidth, height: nil))
 
             origins.append(cursor)
+            sizes.append(size)
             cursor.x += size.width + spacing
             lineHeight = max(lineHeight, size.height)
             measuredWidth = max(measuredWidth, cursor.x)
         }
 
-        return (origins, CGSize(width: min(measuredWidth, maxWidth), height: cursor.y + lineHeight))
+        return (
+            origins,
+            sizes,
+            CGSize(width: min(measuredWidth, maxWidth), height: cursor.y + lineHeight)
+        )
     }
 }
 
@@ -2432,6 +2445,8 @@ struct ListBlockView: View {
                         onEmbedTap: onEmbedTap,
                         searchHighlightQuery: searchHighlightQuery
                     )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(1)
                 }
             }
         }

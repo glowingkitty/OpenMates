@@ -65,6 +65,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
         let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
         RealAccountUITestSupport.awaitAssistantResponseForProof(app: app, timeout: assistantResponseTimeout)
+        assertAssistantContentFitsHorizontally(in: app)
         let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
 
         attachScreenshot(name: "Apple core parity response ready")
@@ -73,6 +74,20 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             loginReadyMs: loginReadyMs,
             messageSentMs: messageSentMs,
             responseReadyMs: responseReadyMs
+        )
+    }
+
+    private func assertAssistantContentFitsHorizontally(in app: XCUIApplication) {
+        let assistant = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(assistant.exists, "Expected an assistant message before checking its layout")
+        let maximumX = assistant.frame.maxX + 1
+        let overflowing = assistant.descendants(matching: .any).allElementsBoundByIndex.filter { element in
+            let frame = element.frame
+            return element.exists && !frame.isEmpty && frame.maxX > maximumX
+        }
+        XCTAssertTrue(
+            overflowing.isEmpty,
+            "Assistant content extended beyond its horizontal bounds: \(overflowing.map { $0.frame })"
         )
     }
 
