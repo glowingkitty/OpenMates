@@ -340,6 +340,7 @@ struct InspirationCard: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let channel = inspiration.video?.channelName {
                         Text(channel)
                             .font(.omXs)
@@ -348,6 +349,8 @@ struct InspirationCard: View {
                             .lineLimit(1)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
             }
             .padding(.spacing4)
         }
