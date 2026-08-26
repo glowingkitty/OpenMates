@@ -33,9 +33,9 @@ contract_refs:
     role: inherited
     fingerprint: d01173bb197c10785ab4a38ad2e7ed8d5e007f9574b63194abd6abeafd3edb5e
   - id: feature.workflows
-    version: 1
+    version: 2
     role: inherited
-    fingerprint: 4c63c9b4ff32cd28615f14034c83adce313f3533718773fc57adf01dae27db23
+    fingerprint: 83a2c5f2289b7fda563c3815a3a287d85226cbbd78deef01625739f9e34600c1
 
 contract_impact:
   classification: implementation_only
@@ -223,7 +223,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  subject_commit: 6720319cef595602548d9b060613c9e49004ccd7
 
 approvals:
   product_contract:
@@ -271,6 +271,11 @@ decisions:
     decision: Leave product media unchanged and make buffer/review media region-fallback-only.
     reason: Product-media temporary unavailability is accepted for this scope; temporary review objects do not justify replicated reconciliation.
     decided_at: "2026-08-25"
+  - id: D-8
+    status: active
+    decision: Defer Apple parity, proof-video publication, visual-proof publication, and user-confirmation gates for this iteration; separate nonessential CI wiring as follow-up.
+    reason: User explicitly approved these deferrals on 2026-08-26 while requiring functional, authorization, privacy, deletion, replication, concurrency, export, CLI, SDK, and web correctness to remain fully tested.
+    decided_at: "2026-08-26"
 
 attempts:
   - id: ATTEMPT-1
@@ -332,7 +337,9 @@ scenarios:
     then:
       - Reads and writes use a healthy region without treating a 404 as outage evidence.
       - New generations and deletions are journaled for nbg1.
-      - Nbg1 reconciles fully before any failback.
+      - If fsn1 and hel1 are provisioned while nbg1 is offline, historical NBG1 backfill waits for nbg1 recovery rather than treating empty new buckets as authoritative.
+      - Nbg1 historical objects backfill to fsn1 and hel1 after recovery, while incident-era writes and deletions reconcile back to nbg1.
+      - All three regions reconcile generations, checksums, writes, and deletions before nbg1 can become preferred again.
   - id: S-3
     title: Explicit deletion remains final while one region is unavailable
     given:
@@ -416,7 +423,9 @@ scenarios:
     then:
       - Referenced, unreferenced, missing, and ambiguous objects are reported separately.
       - No ambiguous object is deleted automatically.
-      - Verified in-scope objects copy to fsn1 and hel1 with checksums and manifests.
+      - If nbg1 is offline, fsn1 and hel1 provisioning may proceed but historical backfill remains pending until nbg1 is readable again.
+      - After nbg1 recovers, verified in-scope NBG1 objects copy to fsn1 and hel1 with matching checksums and manifests.
+      - Objects written to a healthy secondary during the outage reconcile to nbg1 without overwriting newer generations or authoritative tombstones.
   - id: S-11
     title: Media exceptions remain explicit
     given:
@@ -447,6 +456,17 @@ scenarios:
       - Alice receives bounded client-decryptable Team parts with the same completeness rules as a personal export.
       - Current Team authorization is rechecked for every resume and part request.
       - Bob receives no Team metadata or ciphertext, and his job cannot report complete.
+  - id: S-14
+    title: Real CLI image chat proves regional file replication
+    given:
+      - Nbg1, fsn1, and hel1 are provisioned, healthy, and configured for the dev environment.
+      - A dedicated private test image and authenticated OpenMates CLI test account are available.
+    when:
+      - The real OpenMates CLI starts a chat, uploads the image, and asks a question whose answer requires inspecting the image.
+    then:
+      - The chat completes successfully and the answer demonstrates that the image was processed.
+      - The uploaded encrypted file generation is present with the exact expected checksum in every configured physical regional bucket.
+      - The test cleans up through the authoritative deletion path and emits no credentials, private object keys, or decrypted private content.
 
 acceptance_criteria:
   - id: AC-1
@@ -460,7 +480,7 @@ acceptance_criteria:
     contract_assertions: [storage.regions.configurable-redundancy, storage.replication.active-write-durable-outbox]
   - id: AC-2
     scenario: S-2
-    text: Retryable regional failures trigger bounded read/write failover, ordinary missing objects do not, and recovered regions cannot become preferred until generations, checksums, writes, and deletions reconcile.
+    text: Retryable regional failures trigger bounded read/write failover, ordinary missing objects do not, historical primary data backfills to newly provisioned secondary regions after primary recovery, incident-era writes and deletions reconcile back to the primary, and no recovered region becomes preferred until generations, checksums, writes, and deletions reconcile.
     required: true
     status: pending
     coverage_status: covered
@@ -550,13 +570,22 @@ acceptance_criteria:
     contract_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
   - id: AC-12
     scenario: S-10
-    text: Initial migration reports references without objects, objects without references, ambiguous ownership, and per-bucket counts/bytes; only verified in-scope objects backfill with matching checksums.
+    text: Initial migration reports references without objects, objects without references, ambiguous ownership, and per-bucket counts/bytes; only verified in-scope objects backfill with matching checksums, and an offline primary leaves historical backfill pending until recovery while preserving newer secondary generations and tombstones.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-STORAGE-INVENTORY, T-S3-RECONCILE, V-DEV-REGIONAL-BACKFILL]
     contract_assertions: [storage.integrity.observable-reconcilable]
+  - id: AC-18
+    scenario: S-14
+    text: A real authenticated OpenMates CLI chat uploads a private test image, receives a successful image-grounded answer, verifies the encrypted file generation and checksum in every configured regional bucket, and cleans up through authoritative deletion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-DEV-CLI-IMAGE-REPLICATION]
+    contract_assertions: [storage.replication.active-write-durable-outbox, storage.integrity.observable-reconcilable, storage.privacy.ciphertext-boundary]
   - id: AC-13
     scenario: S-11
     text: Product media remains outside this rollout while private temporary buffer/review media uploads to a healthy configured region, expires by lifecycle, and is not replicated.
@@ -801,7 +830,7 @@ tests:
       - Read returns bounded archive parts without restoring rows.
       - Concurrent mutation performs one generation-fenced promotion.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py; curl http://127.0.0.1:8000/v1/storage/archive-index/chat; PostgreSQL trigger inventory; live Celery registered inventory", run_id: deploy-6720319-task5-20260826, subject_commit: 6720319cef595602548d9b060613c9e49004ccd7, timestamp: "2026-08-26T17:33:00Z", summary: 21 focused TASK-5 tests passed; the session-only route returns 401 without authentication; all ten chat-graph mutation guards are installed; core-worker consumes persistence and registers archive, replication, tombstone, and sweep tasks; task-worker remains email-only.}}
   - id: T-COLD-PAGINATION
     type: pytest
     file: backend/tests/test_cold_archive_pagination.py
@@ -813,7 +842,7 @@ tests:
       - Cursors are owner/Team scoped, bounded, stable, and eventually complete.
       - Partial pages emit no deletion authority.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: deploy-6720319-task5-20260826, subject_commit: 6720319cef595602548d9b060613c9e49004ccd7, timestamp: "2026-08-26T17:33:00Z", summary: Bounded owner/Team-scoped cursor pagination and duplicate-free hot/cold metadata merge passed.}}
   - id: T-COLD-AUTH
     type: pytest
     file: backend/tests/test_cold_archive_authorization.py
@@ -824,7 +853,7 @@ tests:
       - Owner, active Team role, viewer read-only, removed member, wrong Team, and revoked share cases fail or succeed correctly.
       - Responses and logs contain ciphertext and safe routing metadata only.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_cold_archive_authorization.py; curl http://127.0.0.1:8000/v1/storage/archive-index/chat", run_id: deploy-6720319-task5-20260826, subject_commit: 6720319cef595602548d9b060613c9e49004ccd7, timestamp: "2026-08-26T17:33:00Z", summary: Personal and Team authorization, viewer read-only behavior, revoked membership denial, ciphertext-only projection, session-only dependency, and unauthenticated 401 passed.}}
   - id: T-COLD-PROMOTION
     type: pytest
     file: backend/tests/test_cold_archive_promotion.py
@@ -836,7 +865,7 @@ tests:
       - Stale generations and unauthorized mutations fail visibly.
       - Concurrent promotion is idempotent and duplicate-free.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py", run_id: local-task5-red-20260826, subject_commit: 15d16769c4927ab7e23c0f6ba4d5f84e3980c0cf, timestamp: "2026-08-26T15:53:09Z", summary: All four TASK-5 suites failed collection because the cold archive service was absent.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_cold_archive_promotion.py backend/tests/test_cold_chat_archive_service.py; PostgreSQL trigger inventory", run_id: deploy-6720319-task5-20260826, subject_commit: 6720319cef595602548d9b060613c9e49004ccd7, timestamp: "2026-08-26T17:33:00Z", summary: Generation-fenced idempotent promotion, expired-lease recovery, account-deletion fencing, transaction-serialized graph writes, per-part journaling, and activated orphan cleanup passed.}}
   - id: T-COLD-WORKSPACE
     type: pytest
     file: backend/tests/test_cold_workspace_archive_service.py
@@ -1040,7 +1069,7 @@ verifications:
     kind: user_confirmation
     phase: final
     required_for_done: false
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17, AC-18]
     status: passed
     evidence: {status: passed, actor: user, summary: User explicitly approved the validated executable product contract., timestamp: "2026-08-26T00:00:00Z", next_action: Generate the technical implementation plan and task graph.}
   - id: V-STORAGE-ASSUMPTIONS
@@ -1066,6 +1095,19 @@ verifications:
     covers: [AC-12, AC-14]
     status: pending
     command: python3 scripts/audit_object_storage_inventory.py --env dev --verify-replicas --json
+    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+  - id: V-DEV-CLI-IMAGE-REPLICATION
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-12, AC-15, AC-18]
+    status: pending
+    command: python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup
+    target: api.dev.openmates.org
+    assertions:
+      - The real OpenMates CLI uploads the dedicated private test image and receives a successful answer that requires image inspection.
+      - The encrypted upload generation and exact checksum verify in the nbg1, fsn1, and hel1 physical buckets without printing private object identifiers.
+      - Authoritative cleanup tombstones and removes the test chat and file from every configured region.
     evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
@@ -1145,6 +1187,8 @@ implementation_plan:
   data_flow:
     - An encrypted `chatfiles/<owner-hash>/<content-hash>/original.bin` write commits in active `nbg1`, records SHA-256 plus generation 7, persists desired states for `fsn1` and `hel1`, then acknowledges.
     - Replication and reconciliation workers verify generation 7 in every enabled region while a generation 8 tombstone always wins over stale copy or repair work.
+    - If nbg1 is unavailable while fsn1 and hel1 are provisioned, historical NBG1 inventory stays pending; after recovery it backfills to both new regions while newer incident generations reconcile back to nbg1 before preferred-region failback.
+    - A real CLI image-question chat verifies inference success and then confirms the encrypted upload generation and checksum in nbg1, fsn1, and hel1 before authoritative cleanup.
     - A 28-day eligible chat commits its complete encrypted graph, manifest, and checksums in all enabled regions, keeps bounded list metadata hot, then removes hot content rows.
     - An authorized Team viewer pages 100 cold metadata items, streams one selected ciphertext part through the API proxy, and a later mutation performs one generation-fenced promotion.
     - A persistent export job merges bounded hot and cold chunks for CLI disk streaming or browser streaming/multipart download and rechecks Team authorization on every resume and part.
@@ -1163,14 +1207,12 @@ implementation_plan:
       gate: TASK-14
       check: Apple remote status and exact native surface mapping are confirmed before Apple implementation.
   phase_order:
-    - Inventory, deletion-gap tests, compliance lifecycle correction, and dev region capability probes.
-    - Regional client, durable outbox/tombstones, replication worker, health, fallback, and reconciliation.
-    - Dev bucket creation, verified NBG-to-FSN/HEL backfill, and failover drills.
-    - Chat graph archive/read/promote APIs and Team authorization.
-    - Task, Plan, Workflow, Workflow-run, and Project archive adapters.
-    - Real REST/API proof, then CLI, npm SDK, and pip SDK parity against dev.
-    - Web Show more/cold-open and bounded Account Export implementation after earlier gates pass.
-    - Deployed Playwright, reviewed visual smoke, proof videos, user confirmation, and Apple parity last.
+    - Completed foundation: regional clients, durable jobs/tombstones, reference-safe deletion, and atomic cold chat APIs.
+    - Milestone 1: complete dev regional API, recovery-aware NBG-to-FSN/HEL backfill, failover proof, and a real CLI image-question chat with exact object verification in all configured regions; record an external provisioning blocker if current authority remains insufficient.
+    - Milestone 2: implement minimum workspace archive adapters and scalable personal/Team export API.
+    - Milestone 3: implement and prove the real OpenMates CLI against dev.
+    - Milestone 4: implement and prove npm and Python SDK parity against dev.
+    - Milestone 5: implement and verify web cold pagination/export, then update minimum user and architecture documentation.
   affected_files:
     - path: backend/core/api/app/services/s3/
       reason: Shared region policy, clients, lifecycle, health, failover, and reconciliation.
@@ -1205,10 +1247,11 @@ implementation_plan:
   verification_strategy:
     - Write focused failing unit/contract tests before each backend slice.
     - Prove real dev API storage behavior with temporary encrypted test-prefix objects and cleanup.
+    - Prove one real authenticated OpenMates CLI image-question chat and inspect all configured regional buckets for the exact encrypted generation and checksum before cleanup.
     - Prove actual OpenMates CLI and npm/pip SDK cold-list/export behavior against api.dev.openmates.org.
     - Deploy web changes before Playwright and inspect laptop/mobile screenshots before user confirmation.
     - Run Apple parity only after web confirmation.
-  verification_order: [T-S3-REGIONS, T-S3-REPLICATION, T-S3-FAILOVER, T-S3-RECONCILE, T-STORAGE-DELETION, T-COLD-CHAT, T-COLD-PAGINATION, T-COLD-AUTH, T-COLD-PROMOTION, T-COLD-WORKSPACE, T-STORAGE-REFERENCES, T-ACCOUNT-DELETION, T-EXPORT-STREAMING, T-STORAGE-INVENTORY, T-COMPLIANCE-LIFECYCLE, T-STORAGE-PRIVACY, T-MEDIA-EXCEPTIONS, V-DEV-STORAGE-API, V-DEV-REGIONAL-BACKFILL, T-CLI-COLD-LIST, T-CLI-EXPORT-DEV, T-NPM-SDK-COLD, T-PIP-SDK-COLD, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-COLD-LIST, T-WEB-EXPORT, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE-PARITY]
+  verification_order: [T-S3-REGIONS, T-S3-REPLICATION, T-S3-FAILOVER, T-S3-RECONCILE, T-STORAGE-DELETION, T-COLD-CHAT, T-COLD-PAGINATION, T-COLD-AUTH, T-COLD-PROMOTION, V-DEV-STORAGE-API, V-DEV-REGIONAL-BACKFILL, V-DEV-CLI-IMAGE-REPLICATION, T-COLD-WORKSPACE, T-EXPORT-STREAMING, T-STORAGE-REFERENCES, T-ACCOUNT-DELETION, T-CLI-COLD-LIST, T-CLI-EXPORT-DEV, T-NPM-SDK-COLD, T-PIP-SDK-COLD, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT, T-WEB-COLD-LIST, T-WEB-EXPORT]
   documentation: Update user and architecture docs listed in documentation_impact after behavior is verified.
   risks:
     - Two-copy or three-copy divergence can resurrect deleted data unless tombstones fence every reconciliation path.
@@ -1288,7 +1331,7 @@ tasks:
   - id: TASK-5
     title: Add cold chat archive read and promotion API
     phase: working_tasks
-    status: in_progress
+    status: done
     covers: {scenarios: [S-4, S-5, S-6], acceptance_criteria: [AC-4, AC-5, AC-6, AC-8, AC-15]}
     contract_assertions: [storage.cold.atomic-eligible-graphs, storage.cold.discoverable-bounded, storage.cold.shared-team-authorized, storage.cold.rehydrate-on-mutation]
     surface: rest_api
@@ -1296,58 +1339,42 @@ tasks:
     verification_ids: [T-COLD-CHAT, T-COLD-PAGINATION, T-COLD-AUTH, T-COLD-PROMOTION]
     command: python3 -m pytest backend/tests/test_cold_chat_archive_service.py backend/tests/test_cold_archive_pagination.py backend/tests/test_cold_archive_authorization.py backend/tests/test_cold_archive_promotion.py
     dependencies: [TASK-4]
-    follow_up_tasks: [TASK-6]
-    ownership: {session: 8db7, files: [backend/core/directus/schemas/cold_archive_manifests.yml, backend/core/directus/schemas/cold_archive_parts.yml, backend/core/api/app/services/cold_archive_service.py, backend/core/api/app/routes/storage_routes.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_cold_chat_archive_service.py, backend/tests/test_cold_archive_pagination.py, backend/tests/test_cold_archive_authorization.py, backend/tests/test_cold_archive_promotion.py], shared_files: []}
+    follow_up_tasks: [TASK-6, TASK-7]
+    ownership: {session: 2e36, files: [backend/core/directus/schemas/cold_archive_manifests.yml, backend/core/directus/schemas/cold_archive_parts.yml, backend/core/api/app/services/cold_archive_service.py, backend/core/api/app/routes/storage_routes.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_cold_chat_archive_service.py, backend/tests/test_cold_archive_pagination.py, backend/tests/test_cold_archive_authorization.py, backend/tests/test_cold_archive_promotion.py], shared_files: []}
     independently_deployable: false
     blockers: []
   - id: TASK-6
-    title: Add workspace resource archive adapters
-    phase: working_tasks
-    status: pending
-    covers: {scenarios: [S-6, S-7], acceptance_criteria: [AC-6, AC-7, AC-8, AC-15]}
-    contract_assertions: [storage.cold.atomic-eligible-graphs, storage.cold.shared-team-authorized, storage.files.reference-safe-single-copy]
+    title: Complete regional replication failover and dev backfill
+    phase: running_checks
+    status: in_progress
+    covers: {scenarios: [S-1, S-2, S-3, S-10, S-12, S-14], acceptance_criteria: [AC-1, AC-2, AC-3, AC-12, AC-14, AC-15, AC-18]}
+    contract_assertions: [storage.regions.configurable-redundancy, storage.replication.active-write-durable-outbox, storage.failover.health-reconciled, storage.deletion.global-authoritative, storage.integrity.observable-reconcilable]
     surface: rest_api
-    expected_files: [backend/core/api/app/services/cold_workspace_archive_service.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_cold_workspace_archive_service.py]
-    verification_ids: [T-COLD-WORKSPACE, T-COLD-AUTH, T-STORAGE-REFERENCES]
-    command: python3 -m pytest backend/tests/test_cold_workspace_archive_service.py backend/tests/test_cold_archive_authorization.py backend/tests/test_storage_reference_reconciliation.py
+    expected_files: [backend/core/api/app/services/s3, backend/core/api/app/tasks/storage_tasks.py, scripts/verify_storage_lifecycle_api.py, scripts/audit_object_storage_inventory.py, scripts/verify_storage_replication_cli_chat.py, docs/architecture/storage/regional-cold-storage.md]
+    verification_ids: [T-S3-REGIONS, T-S3-REPLICATION, T-S3-FAILOVER, T-S3-RECONCILE, T-STORAGE-DELETION, V-DEV-STORAGE-API, V-DEV-REGIONAL-BACKFILL, V-DEV-CLI-IMAGE-REPLICATION]
+    command: python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
     dependencies: [TASK-5]
-    follow_up_tasks: [TASK-7]
-    ownership: {session: 8db7, files: [backend/core/api/app/services/cold_workspace_archive_service.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_cold_workspace_archive_service.py], shared_files: []}
-    independently_deployable: false
-    blockers: []
+    follow_up_tasks: [TASK-8]
+    ownership: {session: 2e36, files: [backend/core/api/app/services/s3, backend/core/api/app/tasks/storage_tasks.py, scripts/verify_storage_lifecycle_api.py, scripts/audit_object_storage_inventory.py, scripts/verify_storage_replication_cli_chat.py, docs/architecture/storage/regional-cold-storage.md], shared_files: []}
+    independently_deployable: true
+    blockers: [FSN1 and HEL1 live provisioning/backfill remains externally blocked if the existing provider 403 cannot be resolved with current authority.]
   - id: TASK-7
-    title: Persist bounded personal and Team export jobs
+    title: Complete scalable personal and Team export with minimum workspace adapters
     phase: working_tasks
     status: pending
-    covers: {scenarios: [S-8, S-9, S-13], acceptance_criteria: [AC-9, AC-10, AC-11, AC-15, AC-17]}
-    contract_assertions: [storage.export.persisted-bounded-complete, storage.cold.shared-team-authorized, storage.privacy.ciphertext-boundary]
+    covers: {scenarios: [S-6, S-7, S-8, S-9, S-13], acceptance_criteria: [AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-15, AC-17]}
+    contract_assertions: [storage.cold.atomic-eligible-graphs, storage.cold.shared-team-authorized, storage.files.reference-safe-single-copy, storage.export.persisted-bounded-complete, storage.privacy.ciphertext-boundary]
     surface: rest_api
-    expected_files: [backend/core/directus/schemas/account_export_jobs.yml, backend/core/directus/schemas/account_export_parts.yml, backend/core/api/app/services/account_export_service.py, backend/core/api/app/routes/account_export_routes.py, backend/tests/test_account_export_streaming_storage.py]
-    verification_ids: [T-EXPORT-STREAMING, T-ACCOUNT-DELETION]
-    command: python3 -m pytest backend/tests/test_account_export_streaming_storage.py backend/tests/test_account_deletion_storage_lifecycle.py
-    dependencies: [TASK-6]
+    expected_files: [backend/core/api/app/services/cold_workspace_archive_service.py, backend/core/api/app/services/account_export_service.py, backend/core/api/app/routes/account_export_routes.py, backend/core/directus/schemas/account_export_jobs.yml, backend/core/directus/schemas/account_export_parts.yml, backend/tests/test_cold_workspace_archive_service.py, backend/tests/test_account_export_streaming_storage.py, docs/user-guide/export-account.md]
+    verification_ids: [T-COLD-WORKSPACE, T-EXPORT-STREAMING, T-COLD-AUTH, T-STORAGE-REFERENCES, T-ACCOUNT-DELETION]
+    command: python3 -m pytest backend/tests/test_cold_workspace_archive_service.py backend/tests/test_account_export_streaming_storage.py backend/tests/test_account_deletion_storage_lifecycle.py
+    dependencies: [TASK-5]
     follow_up_tasks: [TASK-8]
-    ownership: {session: 8db7, files: [backend/core/directus/schemas/account_export_jobs.yml, backend/core/directus/schemas/account_export_parts.yml, backend/core/api/app/services/account_export_service.py, backend/core/api/app/routes/account_export_routes.py, backend/tests/test_account_export_streaming_storage.py], shared_files: []}
-    independently_deployable: false
+    ownership: {session: 2e36, files: [backend/core/api/app/services/cold_workspace_archive_service.py, backend/core/api/app/services/account_export_service.py, backend/core/api/app/routes/account_export_routes.py, backend/core/directus/schemas/account_export_jobs.yml, backend/core/directus/schemas/account_export_parts.yml, backend/tests/test_cold_workspace_archive_service.py, backend/tests/test_account_export_streaming_storage.py, docs/user-guide/export-account.md], shared_files: []}
+    independently_deployable: true
     blockers: []
   - id: TASK-8
-    title: Prove regional storage APIs and backfill on dev
-    phase: running_checks
-    status: pending
-    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-9, S-10, S-12, S-13], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-11, AC-12, AC-14, AC-15, AC-16, AC-17]}
-    contract_assertions: [storage.regions.configurable-redundancy, storage.replication.active-write-durable-outbox, storage.failover.health-reconciled, storage.deletion.global-authoritative, storage.integrity.observable-reconcilable, storage.surface.semantic-parity]
-    surface: rest_api
-    expected_files: [scripts/verify_storage_lifecycle_api.py, scripts/audit_object_storage_inventory.py]
-    verification_ids: [V-DEV-STORAGE-API, V-DEV-REGIONAL-BACKFILL]
-    command: python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
-    dependencies: [TASK-7]
-    follow_up_tasks: [TASK-9]
-    ownership: {session: 8db7, files: [scripts/verify_storage_lifecycle_api.py, scripts/audit_object_storage_inventory.py], shared_files: []}
-    independently_deployable: true
-    blockers:
-      - Regional dev bucket/service provisioning must resolve corrected assumption A-1 before replica creation or backfill.
-  - id: TASK-9
-    title: Add and prove real CLI storage lifecycle flows
+    title: Implement and prove real CLI archive and export flows
     phase: working_tasks
     status: pending
     covers: {scenarios: [S-5, S-6, S-8, S-13], acceptance_criteria: [AC-5, AC-6, AC-9, AC-10, AC-16, AC-17]}
@@ -1356,13 +1383,13 @@ tasks:
     expected_files: [frontend/packages/openmates-cli/src, scripts/verify_storage_lifecycle_cli.py, scripts/verify_account_export_cli.py]
     verification_ids: [T-CLI-COLD-LIST, T-CLI-EXPORT-DEV]
     command: python3 scripts/verify_storage_lifecycle_cli.py --env dev --scenario lifecycle-parity
-    dependencies: [TASK-8]
-    follow_up_tasks: [TASK-10]
-    ownership: {session: 8db7, files: [frontend/packages/openmates-cli/src, scripts/verify_storage_lifecycle_cli.py, scripts/verify_account_export_cli.py], shared_files: []}
+    dependencies: [TASK-6, TASK-7]
+    follow_up_tasks: [TASK-9]
+    ownership: {session: 2e36, files: [frontend/packages/openmates-cli/src, scripts/verify_storage_lifecycle_cli.py, scripts/verify_account_export_cli.py], shared_files: []}
     independently_deployable: true
     blockers: []
-  - id: TASK-10
-    title: Add npm and pip SDK storage parity
+  - id: TASK-9
+    title: Implement and prove npm and Python SDK archive and export parity
     phase: working_tasks
     status: pending
     covers: {scenarios: [S-5, S-6, S-8, S-13], acceptance_criteria: [AC-5, AC-6, AC-9, AC-10, AC-16, AC-17]}
@@ -1371,156 +1398,61 @@ tasks:
     expected_files: [frontend/packages/openmates-sdk, packages/openmates-python, scripts/verify_storage_lifecycle_sdks.py]
     verification_ids: [T-NPM-SDK-COLD, T-PIP-SDK-COLD, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT]
     command: python3 scripts/verify_storage_lifecycle_sdks.py --env dev --sdk all --scenario storage-parity
-    dependencies: [TASK-9]
-    follow_up_tasks: [TASK-11]
-    ownership: {session: 8db7, files: [frontend/packages/openmates-sdk, packages/openmates-python, scripts/verify_storage_lifecycle_sdks.py], shared_files: []}
+    dependencies: [TASK-8]
+    follow_up_tasks: [TASK-10]
+    ownership: {session: 2e36, files: [frontend/packages/openmates-sdk, packages/openmates-python, scripts/verify_storage_lifecycle_sdks.py], shared_files: []}
     independently_deployable: true
     blockers: []
-  - id: TASK-11
-    title: Wire verified CLI and SDK coverage into daily CI
-    phase: running_checks
-    status: pending
-    covers: {scenarios: [S-5, S-8, S-13], acceptance_criteria: [AC-5, AC-9, AC-10, AC-16, AC-17]}
-    contract_assertions: [storage.export.persisted-bounded-complete, storage.surface.semantic-parity]
-    surface: full_ci
-    expected_files: [.github/workflows, scripts/audit_sdk_cli_parity.py]
-    verification_ids: [T-CLI-COLD-LIST, T-CLI-EXPORT-DEV, T-NPM-SDK-COLD, T-PIP-SDK-COLD, T-NPM-SDK-EXPORT, T-PIP-SDK-EXPORT]
-    command: python3 scripts/audit_sdk_cli_parity.py
-    dependencies: [TASK-10]
-    follow_up_tasks: [TASK-12]
-    ownership: {session: 8db7, files: [.github/workflows, scripts/audit_sdk_cli_parity.py], shared_files: []}
-    independently_deployable: true
-    blockers: []
-  - id: TASK-12
-    title: Add web cold pagination and streaming export UI
+  - id: TASK-10
+    title: Implement and verify web archive pagination and scalable export
     phase: working_tasks
     status: pending
     covers: {scenarios: [S-5, S-6, S-8, S-13], acceptance_criteria: [AC-5, AC-6, AC-9, AC-10, AC-16, AC-17]}
-    contract_assertions: [storage.cold.discoverable-bounded, storage.cold.rehydrate-on-mutation, storage.export.persisted-bounded-complete, storage.surface.semantic-parity]
+    contract_assertions: [storage.cold.discoverable-bounded, storage.export.persisted-bounded-complete, storage.surface.semantic-parity]
     surface: gui.web
-    expected_files: [frontend/packages/ui/src/services, frontend/packages/ui/src/components, frontend/apps/web_app/tests/cold-storage-pagination.spec.ts, frontend/apps/web_app/tests/export-account-flow.spec.ts]
+    expected_files: [frontend/packages/ui/src/services, frontend/packages/ui/src/components, frontend/apps/web_app/tests/cold-storage-pagination.spec.ts, frontend/apps/web_app/tests/export-account-flow.spec.ts, docs/architecture/storage/regional-cold-storage.md, docs/architecture/core/account-backup.md, docs/architecture/core/delete-account.md]
     verification_ids: [T-WEB-COLD-LIST, T-WEB-EXPORT]
     command: python3 scripts/tests.py run --spec cold-storage-pagination.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
-    dependencies: [TASK-11]
-    follow_up_tasks: [TASK-13]
-    ownership: {session: 8db7, files: [frontend/packages/ui/src/services, frontend/packages/ui/src/components, frontend/apps/web_app/tests/cold-storage-pagination.spec.ts, frontend/apps/web_app/tests/export-account-flow.spec.ts], shared_files: []}
-    independently_deployable: true
-    blockers: []
-  - id: TASK-13
-    title: Deploy review visual smoke and publish proof videos
-    phase: running_checks
-    status: pending
-    covers: {scenarios: [S-5, S-6, S-8, S-11, S-13], acceptance_criteria: [AC-5, AC-6, AC-9, AC-10, AC-13, AC-16, AC-17]}
-    contract_assertions: [storage.cold.discoverable-bounded, storage.export.persisted-bounded-complete, storage.media.explicit-exceptions, storage.surface.semantic-parity]
-    surface: gui.web
-    expected_files: [backend/core/api/app/services/s3/service.py, scripts/proof_video_workflow.py, docs/specs/regional-cold-storage-lifecycle/spec.yml, test-results/visual-smoke, test-results/proof-videos]
-    verification_ids: [T-MEDIA-EXCEPTIONS, T-WEB-COLD-LIST, T-WEB-EXPORT, V-UI-VISUAL-SMOKE]
-    command: python3 scripts/proof_video_workflow.py start --current --spec cold-storage-pagination.spec.ts
-    dependencies: [TASK-12]
-    follow_up_tasks: [TASK-14]
-    ownership: {session: 8db7, files: [docs/specs/regional-cold-storage-lifecycle/spec.yml], shared_files: [test-results/visual-smoke, test-results/proof-videos]}
-    independently_deployable: false
-    blockers: []
-  - id: TASK-14
-    title: Confirm deployed web behavior with the user
-    phase: running_checks
-    status: pending
-    covers: {scenarios: [S-5, S-6, S-8, S-13], acceptance_criteria: [AC-5, AC-6, AC-9, AC-10, AC-16, AC-17]}
-    contract_assertions: [storage.surface.semantic-parity]
-    surface: user_confirmation
-    expected_files: [docs/specs/regional-cold-storage-lifecycle/spec.yml]
-    verification_ids: [V-USER-CONFIRMATION]
-    command: python3 scripts/spec_verify.py docs/specs/regional-cold-storage-lifecycle/spec.yml --phase green
-    dependencies: [TASK-13]
-    follow_up_tasks: [TASK-15]
-    ownership: {session: 8db7, files: [docs/specs/regional-cold-storage-lifecycle/spec.yml], shared_files: []}
-    independently_deployable: false
-    blockers: []
-  - id: TASK-15
-    title: Implement and verify Apple semantic parity
-    phase: working_tasks
-    status: pending
-    covers: {scenarios: [S-5, S-6, S-8, S-13], acceptance_criteria: [AC-5, AC-6, AC-9, AC-10, AC-16, AC-17]}
-    contract_assertions: [storage.cold.discoverable-bounded, storage.cold.shared-team-authorized, storage.export.persisted-bounded-complete, storage.surface.semantic-parity]
-    surface: gui.apple
-    expected_files: [apple/OpenMates/Sources/Core/Networking, apple/OpenMates/Sources/Core/Sync, apple/OpenMates/Sources/Settings, apple/OpenMates/Tests]
-    verification_ids: [V-APPLE-PARITY]
-    command: python3 scripts/apple_remote.py test-ios
-    dependencies: [TASK-14]
-    follow_up_tasks: [TASK-16]
-    ownership: {session: 8db7, files: [apple/OpenMates/Sources/Core/Networking, apple/OpenMates/Sources/Core/Sync, apple/OpenMates/Sources/Settings, apple/OpenMates/Tests], shared_files: []}
-    independently_deployable: true
-    blockers: [A-6 must be confirmed or explicitly waived before Apple implementation.]
-  - id: TASK-16
-    title: Update documentation and verify complete evidence
-    phase: running_checks
-    status: pending
-    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10, S-11, S-12, S-13], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17]}
-    contract_assertions: [storage.regions.configurable-redundancy, storage.replication.active-write-durable-outbox, storage.failover.health-reconciled, storage.cold.atomic-eligible-graphs, storage.cold.discoverable-bounded, storage.cold.shared-team-authorized, storage.cold.rehydrate-on-mutation, storage.files.reference-safe-single-copy, storage.deletion.global-authoritative, storage.retention.system-generation-only, storage.export.persisted-bounded-complete, storage.privacy.ciphertext-boundary, storage.media.explicit-exceptions, storage.integrity.observable-reconcilable, storage.surface.semantic-parity]
-    surface: documentation
-    expected_files: [docs/user-guide/export-account.md, docs/user-guide/teams.md, docs/architecture/core/account-backup.md, docs/architecture/core/delete-account.md, docs/architecture/infrastructure/file-upload-pipeline.md, docs/architecture/data/sync.md, docs/architecture/storage/regional-cold-storage.md]
-    verification_ids: [V-DEV-STORAGE-API, V-DEV-REGIONAL-BACKFILL, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE-PARITY]
-    command: python3 scripts/spec_verify.py docs/specs/regional-cold-storage-lifecycle/spec.yml --phase complete --json
-    dependencies: [TASK-15]
+    dependencies: [TASK-9]
     follow_up_tasks: []
-    ownership: {session: 8db7, files: [docs/user-guide/export-account.md, docs/user-guide/teams.md, docs/architecture/core/account-backup.md, docs/architecture/core/delete-account.md, docs/architecture/infrastructure/file-upload-pipeline.md, docs/architecture/data/sync.md, docs/architecture/storage/regional-cold-storage.md], shared_files: [docs/specs/regional-cold-storage-lifecycle/spec.yml]}
-    independently_deployable: false
+    ownership: {session: 2e36, files: [frontend/packages/ui/src/services, frontend/packages/ui/src/components, frontend/apps/web_app/tests/cold-storage-pagination.spec.ts, frontend/apps/web_app/tests/export-account-flow.spec.ts, docs/architecture/storage/regional-cold-storage.md, docs/architecture/core/account-backup.md, docs/architecture/core/delete-account.md], shared_files: []}
+    independently_deployable: true
     blockers: []
 
 demonstration:
   eligibility:
-    status: required
-    surface: mixed
-    reason: Users must see complete older-item pagination, cold-item opening, and bounded export behavior across web and the actual OpenMates CLI.
+    status: not_applicable
+    surface: non_visual
+    reason: User explicitly deferred proof-video and visual-proof publication for this iteration on 2026-08-26; functional CLI, SDK, API, authorization, privacy, deletion, concurrency, export, and web tests remain required.
     classified_at: "2026-08-25"
-  narration_outline:
-    - id: NARR-1
-      purpose: Show recent resource metadata followed by bounded older cold metadata through Show more in Personal and Team contexts.
-      expected_proof: Older chats and workspace resources appear without replacing or removing recent items and without loading complete content.
-      scenario_ids: [S-5, S-6, S-7]
-      acceptance_criteria: [AC-5, AC-6, AC-7, AC-16]
-    - id: NARR-2
-      purpose: Open one cold item and demonstrate coherent archive-aware loading and read behavior.
-      expected_proof: The selected encrypted content renders after bounded loading with no ciphertext, raw error, duplicate, or full-list reset.
-      scenario_ids: [S-5, S-6]
-      acceptance_criteria: [AC-5, AC-6]
-    - id: NARR-3
-      purpose: Demonstrate a large web export using streaming or multipart fallback and resume.
-      expected_proof: Progress persists, bounded parts download, and complete/partial status is explicit.
-      scenario_ids: [S-8]
-      acceptance_criteria: [AC-9, AC-10]
-    - id: NARR-4
-      purpose: Demonstrate the actual OpenMates CLI listing cold metadata and streaming an export to disk.
-      expected_proof: CLI cursors and export progress operate against the real dev API without full ZIP buffering.
-      scenario_ids: [S-5, S-8]
-      acceptance_criteria: [AC-5, AC-9, AC-16]
+    verification_ids: [T-COLD-CHAT, T-CLI-COLD-LIST, T-CLI-EXPORT-DEV, T-NPM-SDK-COLD, T-PIP-SDK-COLD, T-WEB-COLD-LIST, T-WEB-EXPORT]
+  narration_outline: []
   evidence:
-    status: pending
-    privacy_status: pending
-    review_status: pending
-    publication_status: pending
+    status: not_applicable
+    privacy_status: not_applicable
+    review_status: not_applicable
+    publication_status: not_applicable
     review_attempts: 0
     subject_commit: ""
     manifest_path: ""
     manifest_hash: ""
     review_run_id: ""
     timestamp: ""
-    source: Passing deployed cold-storage-pagination and export-account-flow Playwright plus real OpenMates CLI recordings.
-    device_profiles: [web_phone_390x844, web_laptop_1440x900, cli_terminal_1280x720]
-    captions: Exact device-scoped WebVTT written only after normal green gates.
+    source: User-approved proof publication deferral; normal functional verification remains mandatory.
+    device_profiles: []
+    captions: not_applicable
     full_video_in_model_context: forbidden
     frame_sampling: Bounded canonical frame-only review.
     pii_replacement: disabled_for_proof_workflow
-    publication: Upload approved videos and captions through scripts/opencode_response_media.py.
+    publication: not_applicable
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Add failing cold-chat archive, bounded pagination, current-authorization, and generation-fenced promotion tests before implementing the first-party archive read and promotion API.
+  current_task_id: TASK-6
+  next_action: Complete the existing regional API verification and bounded backfill path; attempt current-authority FSN1/HEL1 provisioning once and record the existing 403 as an external blocker if it persists.
   command: >-
-    python3 -m pytest backend/tests/test_cold_chat_archive_service.py
-    backend/tests/test_cold_archive_pagination.py
-    backend/tests/test_cold_archive_authorization.py
-    backend/tests/test_cold_archive_promotion.py
-  expected_outcome: Complete eligible encrypted chat graphs archive atomically, remain discoverable and readable through bounded authorized parts, and promote exactly once before mutation.
-  blocker: null
-  last_verified_commit: 5f508c686c993f5a7d079f63f437205d267eec67
+    python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
+  expected_outcome: NBG1, FSN1, and HEL1 replication/failover/backfill behavior is proven where provisioned, with no destructive action on ambiguity and a precise external blocker for any provider-denied region.
+  blocker:
+    status: external_possible
+    reason: FSN1/HEL1 provisioning previously returned 403 and may require external provider authority.
+  last_verified_commit: 6720319cef595602548d9b060613c9e49004ccd7
