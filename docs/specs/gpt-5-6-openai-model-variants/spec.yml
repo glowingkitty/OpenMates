@@ -397,7 +397,7 @@ tests:
   - id: T-DEV-API-001
     type: manual
     file: scripts/openai_compat_smoke.py
-    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode http-basic --model openai/gpt-5.6-luna
+    command: OPENMATES_TEST_ACCOUNT_API_KEY=<test-key> python3 scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode http-basic --model openai/gpt-5.6-luna --required-model openai/gpt-5.6-luna --required-model openai/gpt-5.6-terra --required-model openai/gpt-5.6-sol --required-model openai/gpt-5.6-sol-max
     covers:
       - AC-4
     assertions:
@@ -417,11 +417,14 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
-        command: ""
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: blocked
+        command: /tmp/opencode/gpt56-smoke-venv/bin/python scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode http-basic --model openai/gpt-5.6-luna --create-api-key-from-cli-session --device-id openai-compat-smoke
+        run_id: local-gpt56-dev-api-credit-blocker-20260826T2314Z
+        subject_commit: 729f74bfd3c06592b225aa62b0857c4f3bbc1028+worktree
+        timestamp: "2026-08-26T23:14:13Z"
+        actor: OpenCode
+        reason: The rebuilt API and AI worker selected and invoked direct upstream `gpt-5.6-luna`, but OpenAI returned HTTP 429 `insufficient_quota` with code `credit_balance_exhausted` because the configured provider account has no credits remaining.
+        next_action: Add credits to the configured OpenAI provider account, then rerun the test's canonical smoke command with all four `--required-model` checks and replace this blocked evidence with a passing run.
 
 verifications:
   - id: V-SECURITY-001

@@ -467,7 +467,8 @@ class AskSkill(BaseSkill):
             device_hash=device_hash,
             api_key_name=api_key_name,
             user_preferences={
-                "model": openai_request.model,
+                "default_ai_model_simple": openai_request.model,
+                "default_ai_model_complex": openai_request.model,
                 "provider": openai_request.provider,
                 "temperature": openai_request.temperature,
                 "max_tokens": openai_request.max_tokens,

@@ -301,6 +301,21 @@ def test_gpt56_catalog_entries_define_routing_pricing_and_capabilities() -> None
         assert model.get("reasoning_effort") == expected["reasoning_effort"]
 
 
+def test_openai_request_model_overrides_simple_and_complex_auto_selection() -> None:
+    from backend.apps.ai.skills.ask_skill import AskSkill, OpenAICompletionRequest
+
+    request = OpenAICompletionRequest(
+        model="openai/gpt-5.6-luna",
+        messages=[{"role": "user", "content": "Say hello"}],
+        _user_id="user-1",
+    )
+
+    internal_request = asyncio.run(AskSkill._transform_openai_to_internal(object(), request))
+
+    assert internal_request.user_preferences["default_ai_model_simple"] == "openai/gpt-5.6-luna"
+    assert internal_request.user_preferences["default_ai_model_complex"] == "openai/gpt-5.6-luna"
+
+
 @pytest.mark.parametrize(
     ("request_model_id", "catalog_model_id", "expected_upstream_model_id", "expected_reasoning_effort"),
     [
