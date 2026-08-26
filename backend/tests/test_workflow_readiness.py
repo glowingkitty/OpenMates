@@ -33,7 +33,7 @@ QUALIFYING_EFFECTS = (
 def _graph(nodes: list[dict[str, Any]], edges: list[dict[str, str]] | None = None) -> dict[str, Any]:
     return {
         "version": 1,
-        "trigger_node_id": "trigger",
+        "trigger_node_id": "trigger" if nodes else None,
         "nodes": nodes,
         "edges": edges or [],
     }
@@ -57,21 +57,24 @@ def test_disabled_persisted_blank_workflow_accepts_zero_triggers_and_steps() -> 
     assert workflow.graph.nodes == []
 
 
-@pytest.mark.parametrize(
-    "graph",
-    [
-        _graph([], []),
-        _graph([SCHEDULE_TRIGGER, {"id": "manual", "type": "manual_trigger", "config": {}}]),
-    ],
-    ids=("zero-triggers", "multiple-triggers"),
-)
 # contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect
-def test_zero_or_multiple_triggers_cannot_enable(graph: dict[str, Any]) -> None:
+def test_zero_triggers_cannot_enable() -> None:
     service = workflow_service()
-    workflow = service.create_workflow(USER_ID, "Incomplete draft", graph, enabled=False)
+    workflow = service.create_workflow(USER_ID, "Incomplete draft", _graph([], []), enabled=False)
 
     with pytest.raises(ValueError, match="exactly one trigger"):
         service.update_workflow(workflow.id, USER_ID, enabled=True)
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect
+def test_multiple_triggers_cannot_persist_even_when_disabled() -> None:
+    with pytest.raises(ValueError, match="exactly one trigger"):
+        workflow_service().create_workflow(
+            USER_ID,
+            "Invalid draft",
+            _graph([SCHEDULE_TRIGGER, {"id": "manual", "type": "manual_trigger", "config": {}}]),
+            enabled=False,
+        )
 
 
 @pytest.mark.parametrize(
@@ -147,3 +150,24 @@ def test_failed_readiness_does_not_accept_a_run_or_execute_an_effect() -> None:
 
     assert repository.runs == {}
     assert repository.get_workflow(workflow.id, USER_ID)["enabled"] is False
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect
+def test_disabling_and_clearing_an_enabled_workflow_in_one_update_is_allowed() -> None:
+    service = workflow_service()
+    workflow = service.create_workflow(
+        USER_ID,
+        "Ready then cleared",
+        _schedule_graph_with({"id": "notify", "type": "send_notification", "config": {"title": "Ready", "body": "Ready"}}),
+        enabled=True,
+    )
+
+    updated = service.update_workflow(
+        workflow.id,
+        USER_ID,
+        enabled=False,
+        graph=_graph([], []),
+    )
+
+    assert updated.enabled is False
+    assert updated.graph.nodes == []

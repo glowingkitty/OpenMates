@@ -622,7 +622,16 @@ tests:
         timestamp: '2026-08-26T17:27:59Z'
         subject_commit: pending
         summary: Eleven assertions failed as expected because blank drafts require an existing trigger and non-effect or unreachable-effect graphs currently enable without readiness rejection; four reachable qualifying-effect cases passed.
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: PYTHONPATH=. python3 -m pytest backend/tests/test_workflow_readiness.py backend/tests/test_workflows_models.py backend/tests/test_workflow_core_ui_contract.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_template_projection.py -q
+        run_id: local-workflow-readiness-green-20260826
+        timestamp: '2026-08-26T17:59:33Z'
+        subject_commit: pending
+        summary: All 70 readiness, model, core UI, runner, and template-projection tests passed, including disable-and-clear behavior.
   - id: T-UI-WORKFLOWS
     type: build
     file: frontend/packages/ui/src/components/workflows
@@ -687,7 +696,16 @@ tests:
       - Existing board scroll, filters, and column state survive detail close, while bounded polling updates run and node status to completion without remounting the board.
     contract_assertions: [workflows.activation.reachable-side-effect, workflows.execution.lifecycle-visible, tasks.workflow-projections.read-only, tasks.detail.embed-responsive]
     covers: [AC-9, AC-10]
-    red_phase: {required: true, expected: fail_before_implementation_on_deployed_dev, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail_before_implementation_on_deployed_dev
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec workflows-ready-run-tasks.spec.ts --no-mocks --gate-deploy --require-exact-commit --expected-commit f19efa4dc9d7b133932df60d3d51acb411b99ce9
+        run_id: '32995358507'
+        timestamp: '2026-08-26T17:53:01Z'
+        subject_commit: f19efa4dc9d7b133932df60d3d51acb411b99ce9
+        summary: The deployed real-account flow failed on the first missing blank-authoring control, create-blank-workflow, before implementation.
     green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
   - id: T-PW-WORKFLOW-DEFINITION-HISTORY
     type: playwright
@@ -1441,7 +1459,7 @@ tasks:
     surfaces: [documentation, product_spec]
   - id: TASK-16
     title: Add red readiness and Workflow-run projection contract tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-8, S-9]
@@ -1465,7 +1483,7 @@ tasks:
     surfaces: [rest_api, gui.web]
   - id: TASK-17
     title: Implement blank-draft readiness and existing-route lifecycle gate
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-8]
@@ -1703,14 +1721,14 @@ attempts:
     recorded_at: '2026-08-26T17:27:59Z'
 
 handoff:
-  current_task_id: TASK-16
-  next_action: Add the red pure-readiness and deployed proof-flow tests before changing Workflow or Tasks implementation.
-  command: python3 -m pytest backend/tests/test_workflow_readiness.py backend/tests/test_workflow_runner.py -q
-  expected_outcome: The new readiness assertions fail against the current implementation, proving blank-draft, reachability, and projection behavior is not yet implemented.
+  current_task_id: TASK-18
+  next_action: Deploy the green backend readiness boundary, restart the dev API, and prove real REST behavior before CLI and SDK parity.
+  command: python3 scripts/workflow_readiness_real_test.py
+  expected_outcome: Real dev REST accepts a blank disabled draft, rejects invalid activation, accepts one reachable-effect graph, and leaves no run/effect on rejection.
   blocker:
-    task_id: TASK-16
+    task_id: TASK-18
     requires_user_input: false
-    reason: No product blocker; implementation starts with the required red test slice.
+    reason: No product blocker; verification follows the required REST before CLI and SDK phase order.
     question: ''
-    next_action: Record red evidence, then proceed to TASK-17.
+    next_action: Deploy and run the authenticated real-dev REST probe.
   last_verified_commit: pending

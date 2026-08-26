@@ -41,6 +41,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowValidationError,
     WorkflowVersionDetail,
     WorkflowVersionSummary,
+    validate_workflow_readiness,
 )
 from backend.core.api.app.services.workflow_identity_service import (
     DEFAULT_WORKFLOW_CATEGORY,
@@ -1174,6 +1175,8 @@ class WorkflowService:
         self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash)
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
+        if enabled:
+            validate_workflow_readiness(workflow_graph)
         identity = (
             normalize_workflow_identity(category, icon)
             if category is not None or icon is not None
@@ -1288,6 +1291,13 @@ class WorkflowService:
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
+        workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph) if graph is not None else None
+        effective_enabled = record["enabled"] if enabled is None else enabled
+        if effective_enabled:
+            validate_workflow_readiness(
+                workflow_graph
+                or WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
+            )
         if slug_lookup_hash is not None:
             self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash, exclude_workflow_id=workflow_id)
             record["encrypted_slug"] = encrypted_slug
@@ -1324,7 +1334,7 @@ class WorkflowService:
             record["encrypted_icon_ref"] = icon_blob["ref"]
             record["encrypted_icon_checksum"] = icon_blob["checksum"]
         if graph is not None:
-            workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
+            assert workflow_graph is not None
             version_id = str(uuid.uuid4())
             graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
             graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload, vault_key_id=vault_key_id)
@@ -1852,6 +1862,10 @@ class WorkflowService:
         replace_config_refs: bool,
     ) -> None:
         """Persist the one executable trigger separately from the encrypted graph."""
+        if graph.trigger_node_id is None:
+            self._delete_workflow_trigger(workflow_record["id"], workflow_record["owner_hash"], user_id)
+            workflow_record["next_run_at"] = None
+            return
         trigger_node = next(node for node in graph.nodes if node.id == graph.trigger_node_id)
         existing = self.repository.get_trigger_for_workflow(workflow_record["id"], user_id)
         should_replace_refs = replace_config_refs or existing is None
@@ -1980,6 +1994,8 @@ class WorkflowService:
             self._delete_replaced_trigger_config_blobs(trigger, {})
 
     def _trigger_summary(self, graph: WorkflowGraph) -> str:
+        if graph.trigger_node_id is None:
+            return "draft"
         trigger = next(node for node in graph.nodes if node.id == graph.trigger_node_id)
         if trigger.type.value == "schedule_trigger":
             schedule = trigger.config.get("schedule") or {}
