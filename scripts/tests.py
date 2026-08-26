@@ -1769,6 +1769,16 @@ def auto_finalize_proof_video_sources(
             for item in assertion_events
             if item.get("id") and item.get("at_ms") is not None
         }
+        assertion_checkpoint_ids = {
+            str(item.get("id")): str(item.get("checkpoint"))
+            for item in (contract.get("assertions") if isinstance(contract.get("assertions"), list) else [])
+            if isinstance(item, dict) and item.get("id") and item.get("checkpoint")
+        }
+        assertion_anchor_times_by_id = {
+            assertion_id: checkpoint_times_by_id.get(checkpoint_id, assertion_times_by_id.get(assertion_id))
+            for assertion_id, checkpoint_id in assertion_checkpoint_ids.items()
+            if checkpoint_id in checkpoint_times_by_id or assertion_id in assertion_times_by_id
+        }
         action_times: list[float] = []
         for item in timeline_events:
             if item.get("kind") != "action":
@@ -1812,7 +1822,7 @@ def auto_finalize_proof_video_sources(
             "kind": str(record.get("source_kind") or "playwright"),
             "action_timestamps": action_times,
             "state_change_timestamps": checkpoint_times,
-            "state_change_timestamps_by_id": {**checkpoint_times_by_id, **assertion_times_by_id},
+            "state_change_timestamps_by_id": {**checkpoint_times_by_id, **assertion_anchor_times_by_id},
         }
         if surface == "web":
             source["browser_domain"] = str(claims.get("domain") or contract.get("domain") or "")
