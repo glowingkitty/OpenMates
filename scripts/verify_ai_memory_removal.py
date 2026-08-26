@@ -79,6 +79,8 @@ def _request_json(
 
 def _apps(payload: dict[str, Any]) -> list[dict[str, Any]]:
     raw = payload.get("apps") or payload.get("data") or []
+    if isinstance(raw, dict):
+        raw = raw.get("apps") or []
     return [item for item in raw if isinstance(item, dict)] if isinstance(raw, list) else []
 
 
@@ -94,7 +96,10 @@ def _validate_types(payload: dict[str, Any]) -> dict[str, int]:
     ai_types = _memory_types(by_id.get(REMOVED_APP_ID, {}))
     retained_types = _memory_types(by_id.get(RETAINED_APP_ID, {}))
     retained_ids = {str(item.get("id") or item.get("item_type") or "") for item in retained_types}
-    _require(not ai_types, "AI memory types remain discoverable")
+    _require(
+        not ai_types,
+        f"AI memory types remain discoverable: {[str(item.get('id') or item.get('item_type') or '') for item in ai_types]}",
+    )
     _require(RETAINED_ITEM_TYPE in retained_ids, "Retained Code memory type is not discoverable")
     return {"aiTypeCount": len(ai_types), "retainedTypeCount": len(retained_types)}
 

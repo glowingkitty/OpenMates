@@ -206,7 +206,7 @@
             'example-privacy-first-product-launch',
         ],
         'openmates-mates-focus': [
-            'example-memory-ai-learning-preferences',
+            'example-memory-study-learning-goals',
             'example-frontend-developer-career-pivot',
             'example-openmates-add-app-skill',
         ],

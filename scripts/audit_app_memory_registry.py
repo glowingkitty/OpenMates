@@ -20,12 +20,16 @@ SURFACES = (
     ROOT / "frontend/packages/openmates-cli/src/client.ts",
     ROOT / "frontend/packages/ui/src/demo_chats/exampleChatData.ts",
     ROOT / "frontend/packages/ui/src/demo_chats/interestTags.ts",
+    ROOT / "apple/OpenMates/Sources/Features/Settings/Views/SettingsAIFull.swift",
 )
 FORBIDDEN_MARKERS = (
     "ai/communication_style",
     "ai/learning_preferences",
     "memory-ai-communication-style",
     "memory-ai-learning-preferences",
+    "app_settings_memories.ai",
+    "AIMemoryCategory",
+    "AIMemoryAppStoreCard",
 )
 
 
