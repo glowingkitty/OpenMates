@@ -605,15 +605,14 @@ async def _iter_item_pages(
     fields: str,
     item_filter: dict[str, Any] | None = None,
 ) -> AsyncIterator[list[dict[str, Any]]]:
-    cursor: str | None = None
+    offset = 0
     while True:
         filters = dict(item_filter or {})
-        if cursor:
-            filters["id"] = {"_gt": cursor}
         params: dict[str, Any] = {
             "fields": fields,
             "sort": "id",
             "limit": REFERENCE_SCAN_PAGE_SIZE,
+            "offset": offset,
         }
         if filters:
             params["filter"] = filters
@@ -628,6 +627,4 @@ async def _iter_item_pages(
             yield page
         if len(page) < REFERENCE_SCAN_PAGE_SIZE:
             return
-        cursor = str(page[-1].get("id") or "")
-        if not cursor:
-            raise RuntimeError(f"Cannot paginate storage references for {collection}")
+        offset += len(page)

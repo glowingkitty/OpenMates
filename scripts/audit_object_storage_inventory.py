@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -33,8 +32,8 @@ from backend.shared.python_utils.object_storage_regions import (  # noqa: E402
 
 
 PROBE_BUCKET_PREFIX = "dev-openmates-region-probe"
-CHECKSUM_CHUNK_SIZE = 1024 * 1024
 MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
+SHA256_METADATA_KEY = "openmates-sha256"
 
 
 def sanitized_provider_error(error: Exception) -> dict[str, object]:
@@ -88,16 +87,24 @@ def compare_regional_inventory(
     }
 
 
-def _body_checksum(body: object) -> str:
-    digest = hashlib.sha256()
-    try:
-        while chunk := body.read(CHECKSUM_CHUNK_SIZE):
-            digest.update(chunk)
-    finally:
-        close = getattr(body, "close", None)
-        if callable(close):
-            close()
-    return digest.hexdigest()
+def _normalise_sha256(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    checksum = value.removeprefix("sha256:").lower()
+    if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+        return None
+    return checksum
+
+
+def _inventory_object_fingerprint(*, client: object, bucket: str, item: dict[str, object]) -> str:
+    head = client.head_object(Bucket=bucket, Key=str(item["Key"]))
+    metadata_checksum = _normalise_sha256((head.get("Metadata") or {}).get(SHA256_METADATA_KEY))
+    if metadata_checksum:
+        return f"sha256:{metadata_checksum}"
+    etag = str(item.get("ETag") or "").strip('"')
+    if etag:
+        return f"etag:{etag}"
+    raise RuntimeError("Provider inventory fingerprint unavailable")
 
 
 def _scan_region_inventory(
@@ -136,12 +143,11 @@ def _iter_region_inventory(
             page = client.list_objects_v2(**request)
             for item in page.get("Contents") or []:
                 object_key = str(item["Key"])
-                response = client.get_object(Bucket=bucket, Key=object_key)
                 yield (
                     logical_bucket,
                     object_key,
                     int(item.get("Size", 0)),
-                    _body_checksum(response["Body"]),
+                    _inventory_object_fingerprint(client=client, bucket=bucket, item=item),
                 )
             continuation_token = page.get("NextContinuationToken")
             if not continuation_token:

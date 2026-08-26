@@ -68,10 +68,13 @@ def _stream_sha256(body: Any) -> str:
 
 def _read_source_checksum(client: Any, bucket: str, object_key: str) -> tuple[str, str | None]:
     head = client.head_object(Bucket=bucket, Key=object_key)
+    metadata = dict(head.get("Metadata") or {})
+    metadata_checksum = _normalise_checksum(metadata.get(SHA256_METADATA_KEY))
+    if metadata_checksum:
+        return metadata_checksum, metadata_checksum
     response = client.get_object(Bucket=bucket, Key=object_key)
     computed = _stream_sha256(response["Body"])
-    metadata = dict(head.get("Metadata") or {})
-    return computed, _normalise_checksum(metadata.get(SHA256_METADATA_KEY))
+    return computed, metadata_checksum
 
 
 def _target_matches(client: Any, bucket: str, object_key: str, checksum: str) -> bool:

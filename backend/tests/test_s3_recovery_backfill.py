@@ -31,6 +31,7 @@ def _module():
 class _S3Client:
     def __init__(self, objects: dict[tuple[str, str], dict]) -> None:
         self.objects = objects
+        self.get_calls = 0
 
     def head_object(self, *, Bucket: str, Key: str) -> dict:
         try:
@@ -39,6 +40,7 @@ class _S3Client:
             raise _ClientError({"Error": {"Code": "NoSuchKey"}}, "HeadObject") from exc
 
     def get_object(self, *, Bucket: str, Key: str) -> dict:
+        self.get_calls += 1
         try:
             return {"Body": BytesIO(self.objects[(Bucket, Key)]["bytes"])}
         except KeyError as exc:
@@ -129,6 +131,64 @@ async def test_recovered_source_creates_checksum_verified_repair_jobs_and_saniti
     assert directus.created[0]["active_region"] == "nbg1"
     assert directus.created[0]["checksum"] == checksum
     assert directus.created[0]["region_states"] == {"nbg1": "verified", "fsn1": "pending", "hel1": "pending"}
+
+
+# contract-test: direct surface=rest_api assertions=storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_backfill_uses_sha_metadata_before_downloading_ciphertext() -> None:
+    module = _module()
+    checksum = "a" * 64
+    objects = {
+        ("dev-openmates-chatfiles", "historic.bin"): {
+            "bytes": b"would be slow",
+            "head": {"Metadata": {"openmates-sha256": checksum}},
+        },
+    }
+    clients = _s3(objects)
+
+    result = await module.backfill_recovered_page(
+        references=[{
+            "logical_bucket": "chatfiles",
+            "object_key": "historic.bin",
+            "generation": 1,
+            "checksum": checksum,
+        }],
+        source_region="nbg1",
+        configured_regions=("nbg1", "fsn1", "hel1"),
+        s3_clients=clients,
+        directus_service=_Directus(),
+        environment="development",
+        now=datetime(2026, 8, 26, tzinfo=timezone.utc),
+    )
+
+    assert result["scheduled"] == 1
+    assert clients["nbg1"].get_calls == 0
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_inventory_fingerprint_uses_metadata_or_etag_without_body_download() -> None:
+    from scripts import audit_object_storage_inventory as module
+
+    class Client:
+        def __init__(self, metadata: dict[str, str]) -> None:
+            self.metadata = metadata
+
+        def head_object(self, **_kwargs: object) -> dict:
+            return {"Metadata": self.metadata}
+
+        def get_object(self, **_kwargs: object) -> dict:
+            raise AssertionError("inventory should not download object bodies")
+
+    assert module._inventory_object_fingerprint(
+        client=Client({"openmates-sha256": "b" * 64}),
+        bucket="private-bucket",
+        item={"Key": "private/object.bin", "ETag": '"etag-value"'},
+    ) == f"sha256:{'b' * 64}"
+    assert module._inventory_object_fingerprint(
+        client=Client({}),
+        bucket="private-bucket",
+        item={"Key": "private/object.bin", "ETag": '"etag-value"'},
+    ) == "etag:etag-value"
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.integrity.observable-reconcilable

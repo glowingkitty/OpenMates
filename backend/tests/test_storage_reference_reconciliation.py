@@ -314,3 +314,38 @@ async def test_full_reference_inventory_loads_all_backfill_authority() -> None:
         ("chatfiles", "owner/cold.bin"),
     }
     assert inventory.ambiguous == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_reference_inventory_uses_offset_pages_for_uuid_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _reference_module()
+    monkeypatch.setattr(module, "REFERENCE_SCAN_PAGE_SIZE", 2)
+    calls: list[tuple[str, dict]] = []
+
+    class FakeDirectus:
+        async def get_items(self, collection: str, **kwargs: object) -> list[dict]:
+            params = dict(kwargs["params"])
+            calls.append((collection, params))
+            if collection != "upload_files":
+                return []
+            rows = [
+                {"id": "018f-a", "files_metadata": {"original": {"s3_key": "owner/a.bin"}}},
+                {"id": "018f-b", "files_metadata": {"original": {"s3_key": "owner/b.bin"}}},
+                {"id": "018f-c", "files_metadata": {"original": {"s3_key": "owner/c.bin"}}},
+            ]
+            offset = int(params.get("offset", 0))
+            return rows[offset : offset + 2]
+
+    inventory = await module.load_authoritative_storage_reference_inventory(
+        directus_service=FakeDirectus()
+    )
+
+    upload_calls = [params for collection, params in calls if collection == "upload_files"]
+    assert [params["offset"] for params in upload_calls] == [0, 2]
+    assert all("id" not in (params.get("filter") or {}) for params in upload_calls)
+    assert inventory.references == {
+        ("chatfiles", "owner/a.bin"),
+        ("chatfiles", "owner/b.bin"),
+        ("chatfiles", "owner/c.bin"),
+    }
