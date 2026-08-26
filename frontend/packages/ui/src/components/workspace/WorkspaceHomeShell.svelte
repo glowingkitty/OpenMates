@@ -259,7 +259,7 @@
     </div>
 
     {#if actionItems.length > 0}
-      <div class="recent-chats-scroll-container" data-testid={actionItemsTestId}>
+      <div class="recent-chats-scroll-container" class:centered-row={actionItems.length <= 3} data-testid={actionItemsTestId}>
         {#each actionItems as item (item.id)}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
@@ -839,6 +839,13 @@
 
   .recent-chats-scroll-container.secondary {
     padding-top: 8px;
+  }
+
+  @media (min-width: 1100px) {
+    .recent-chats-scroll-container.centered-row {
+      justify-content: center;
+      padding-inline: 48px;
+    }
   }
 
   .resume-chat-card {

@@ -133,7 +133,7 @@
     <span>Unsaved changes</span>
     <div>
       <button type="button" class="undo" data-testid="undo-workflow" disabled={saving} onclick={onUndoWorkflow}>Undo</button>
-      <button type="button" class="save" data-testid="save-workflow" disabled={saving} onclick={() => void onSaveWorkflow()}>{saving ? 'Saving...' : 'Save'}</button>
+      <button type="button" class="save" data-testid="save-workflow" disabled={saving} aria-busy={saving} onclick={() => void onSaveWorkflow()}>Save</button>
     </div>
   </section>
 {/if}
