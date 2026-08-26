@@ -19,8 +19,72 @@ const {
 } = require('./signup-flow-helpers');
 const { deleteActiveChat, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const DRAFT_SELECTION_PROOF = defineVideoProof({
+	id: 'late-draft-activation-navigation-authority',
+	title: 'Late draft activation preserves newer chat navigation',
+	surface: 'web',
+	devices: ['web-phone', 'web-laptop'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'draft-saved',
+			text: 'A new chat draft is saved while another chat is ready to open.',
+			checkpoint: 'draft-saved',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'target-selected',
+			text: 'The saved chat is selected before the delayed draft activation completes.',
+			checkpoint: 'target-selected',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'target-preserved',
+			text: 'The newer selection remains active when draft persistence finishes.',
+			checkpoint: 'target-preserved',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'draft-reopened',
+			text: 'The draft remains saved and can still be reopened later.',
+			checkpoint: 'draft-reopened',
+			devices: ['web-phone', 'web-laptop']
+		}
+	],
+	assertions: [
+		{
+			id: 'target-remains-rendered',
+			checkpoint: 'target-preserved',
+			visual: 'The selected target chat remains rendered after delayed draft activation is released.',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'target-route-remains-active',
+			checkpoint: 'target-preserved',
+			visual: 'The URL continues to identify the selected target chat.',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'draft-does-not-reopen',
+			checkpoint: 'target-preserved',
+			visual: 'No delayed activation reopens the draft.',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'draft-remains-navigable',
+			checkpoint: 'draft-reopened',
+			visual: 'The persisted draft remains navigable for cleanup.',
+			devices: ['web-phone', 'web-laptop']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 test.describe.configure({ mode: 'serial' });
 
 async function insertComposerText(page: any, messageEditor: any, text: string, visibleText: string): Promise<void> {
@@ -162,7 +226,7 @@ test('stop during new chat creation restores the sent message as a draft', async
 });
 
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,chat-navigation.open.local-first-coherent
-test('late draft persistence cannot override a newer explicit chat selection', async ({ page }: { page: any }) => {
+test('late draft persistence cannot override a newer explicit chat selection', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(150000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -171,6 +235,13 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
 		filenamePrefix: 'draft-selection-authority'
 	});
+	const proof = IS_PROOF_CAPTURE
+		? createVideoProofRuntime(DRAFT_SELECTION_PROOF, {
+			device: PROOF_DEVICE,
+			attach: (name: string, options: { body: Buffer; contentType: string }) => testInfo.attach(name, options),
+			captureFrame: () => page.screenshot({ animations: 'disabled' })
+		})
+		: null;
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
 
@@ -183,6 +254,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
+		await proof?.checkpoint('draft-saved');
 		await startNewChat(page, logCheckpoint);
 		await page.evaluate(async (chatId: string) => {
 			const seedChat = (window as typeof window & {
@@ -238,6 +310,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
 		}, targetChatId);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+		await proof?.checkpoint('target-selected');
 		await page.evaluate(() => {
 			const release = (window as typeof window & {
 				__openmatesE2EReleaseDraftSelection?: () => void;
@@ -261,6 +334,27 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		expect(finalDecisions.some((decision) => decision.result === 'skipped')).toBe(true);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
+		if (proof && draftChatId) {
+			await proof.assert('target-remains-rendered', async () => {
+				await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+			});
+			await proof.assert('target-route-remains-active', async () => {
+				await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId)}`);
+			});
+			await proof.assert('draft-does-not-reopen', async () => {
+				expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
+			});
+			await proof.checkpoint('target-preserved');
+			await page.evaluate((chatId: string) => {
+				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+			}, draftChatId);
+			await proof.assert('draft-remains-navigable', async () => {
+				await expect(page.getByTestId('active-chat-container'))
+					.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 });
+			});
+			await proof.checkpoint('draft-reopened');
+			await proof.attach();
+		}
 	} finally {
 		await page.evaluate(() => {
 			(window as typeof window & {

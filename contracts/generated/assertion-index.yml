@@ -566,7 +566,7 @@ assertions:
     direct_tests:
     - &id056
       path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
-      line: 90
+      line: 154
       name: stop during new chat creation restores the sent message as a draft
       surface: gui.web
     - &id057
@@ -694,12 +694,12 @@ assertions:
       surface: gui.web
     - &id071
       path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
-      line: 90
+      line: 154
       name: stop during new chat creation restores the sent message as a draft
       surface: gui.web
     - &id072
       path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
-      line: 165
+      line: 229
       name: late draft persistence cannot override a newer explicit chat selection
       surface: gui.web
     supporting_tests:
@@ -8722,7 +8722,7 @@ assertions:
       surface: gui.web
     - &id949
       path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
-      line: 165
+      line: 229
       name: late draft persistence cannot override a newer explicit chat selection
       surface: gui.web
     supporting_tests:
