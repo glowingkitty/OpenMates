@@ -9,6 +9,11 @@ import XCTest
 
 @MainActor
 enum RealAccountUITestSupport {
+    struct ProgressiveResponseProof {
+        let firstChunkVisibleAt: Date
+        let completedAt: Date
+    }
+
     private static let streamingAccessibilitySettleInterval: TimeInterval = 20
     private static let proofResponseSettleInterval: TimeInterval = 35
 
@@ -137,6 +142,33 @@ enum RealAccountUITestSupport {
         let responseVisibleAt = Date()
         RunLoop.current.run(until: Date().addingTimeInterval(proofResponseSettleInterval))
         return responseVisibleAt
+    }
+
+    static func awaitProgressiveAssistantResponseForProof(
+        app: XCUIApplication,
+        timeout: TimeInterval = 90
+    ) -> ProgressiveResponseProof {
+        let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(
+            assistantMessage.waitForExistence(timeout: timeout),
+            "Expected the first assistant response chunk to appear"
+        )
+        let firstChunkVisibleAt = Date()
+        let firstChunkLabel = assistantMessage.label
+        XCTAssertFalse(firstChunkLabel.isEmpty, "First assistant response chunk was empty")
+
+        let completionMarker = app.otherElements["assistant-response-feedback"]
+        let deadline = Date().addingTimeInterval(timeout)
+        var observedLongerContent = false
+        while Date() < deadline, !completionMarker.exists {
+            if assistantMessage.label.count > firstChunkLabel.count {
+                observedLongerContent = true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTAssertTrue(completionMarker.exists, "Assistant response did not finish streaming")
+        XCTAssertTrue(observedLongerContent, "Assistant response did not visibly grow after its first chunk")
+        return ProgressiveResponseProof(firstChunkVisibleAt: firstChunkVisibleAt, completedAt: Date())
     }
 
     static func revealLatestAssistantResponse(app: XCUIApplication) {

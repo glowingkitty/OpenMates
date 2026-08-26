@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class ChatFlowRealAccountUITests: XCTestCase {
-    private let markerPrompt = "Say: Kyoto neighbors Osaka."
+    private let markerPrompt = "Write four short sentences about Kyoto and Osaka. Start with: Kyoto neighbors Osaka."
     private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
     private let assistantResponseTimeout: TimeInterval = 90
 
@@ -64,12 +64,20 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let loginReadyMs = Int(Date().timeIntervalSince(started) * 1000)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
         let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
-        let responseVisibleAt = RealAccountUITestSupport.awaitAssistantResponseForProof(
+        let streamingBanner = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "streaming-banner"
+        )
+        XCTAssertTrue(streamingBanner.waitForExistence(timeout: 30), "Expected visible processing state")
+        let processingVisibleMs = Int(Date().timeIntervalSince(started) * 1000)
+        let responseProgress = RealAccountUITestSupport.awaitProgressiveAssistantResponseForProof(
             app: app,
             timeout: assistantResponseTimeout
         )
-        let responseVisibleMs = Int(responseVisibleAt.timeIntervalSince(started) * 1000)
+        let firstChunkVisibleMs = Int(responseProgress.firstChunkVisibleAt.timeIntervalSince(started) * 1000)
+        let responseVisibleMs = Int(responseProgress.completedAt.timeIntervalSince(started) * 1000)
         assertAssistantContentFitsHorizontally(in: app)
+        assertAssistantUsesTranscriptWidth(in: app)
         assertFollowUpSuggestionsClearComposer(in: app)
         let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
 
@@ -78,6 +86,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             profile: proofDeviceProfile,
             loginReadyMs: loginReadyMs,
             messageSentMs: messageSentMs,
+            processingVisibleMs: processingVisibleMs,
+            firstChunkVisibleMs: firstChunkVisibleMs,
             responseVisibleMs: responseVisibleMs,
             responseReadyMs: responseReadyMs
         )
@@ -94,6 +104,23 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         XCTAssertTrue(
             overflowing.isEmpty,
             "Assistant content extended beyond its horizontal bounds: \(overflowing.map { $0.frame })"
+        )
+    }
+
+    private func assertAssistantUsesTranscriptWidth(in app: XCUIApplication) {
+        let history = app.otherElements["chat-history-container"]
+        let assistant = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(history.exists)
+        XCTAssertTrue(assistant.exists)
+        XCTAssertLessThanOrEqual(
+            assistant.frame.minX,
+            history.frame.minX + 24,
+            "Assistant response was centered instead of leading-aligned"
+        )
+        XCTAssertGreaterThanOrEqual(
+            assistant.frame.width,
+            history.frame.width - 48,
+            "Assistant response did not use the available transcript width"
         )
     }
 
@@ -166,6 +193,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         profile: String,
         loginReadyMs: Int,
         messageSentMs: Int,
+        processingVisibleMs: Int,
+        firstChunkVisibleMs: Int,
         responseVisibleMs: Int,
         responseReadyMs: Int
     ) throws {
@@ -179,23 +208,32 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "devices": [profile],
                 "transcript": [
                     ["id": "shell", "text": "The authenticated native chat shell is ready for the conversation.", "checkpoint": "message-sent", "devices": [profile]],
-                    ["id": "message", "text": "The sent travel prompt remains visible in the native conversation.", "checkpoint": "message-sent", "devices": [profile]],
-                    ["id": "chat", "text": "One assistant response appears below that message without duplication.", "checkpoint": "response-visible", "devices": [profile]],
+                    ["id": "processing", "text": "A side rainbow marks active processing while the composer remains integrated with the chat background.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "first-chunk", "text": "The left-aligned assistant card appears as the first response chunk arrives.", "checkpoint": "first-chunk-visible", "devices": [profile]],
+                    ["id": "chat", "text": "The same assistant card grows chunk by chunk into the completed four-sentence response.", "checkpoint": "response-visible", "devices": [profile]],
                 ],
                 "assertions": [
                     ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "message-sent", "devices": [profile]],
-                    ["id": "chat.response", "visual": "The sent user message and assistant response are visible once.", "checkpoint": "response-visible", "devices": [profile]],
+                    ["id": "chat.processing_rainbow", "visual": "The processing rainbow stays on the outer chat sides and does not overlay the thinking or message content.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "chat.composer_shell", "visual": "No opaque white strip appears behind the processing status or compact composer.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "chat.progressive_response", "visual": "The assistant response is visibly shorter at first-chunk-visible than at response-visible.", "checkpoint": "first-chunk-visible", "devices": [profile]],
+                    ["id": "chat.response", "visual": "The completed assistant response is left-aligned, uses the available transcript width, and appears once.", "checkpoint": "response-visible", "devices": [profile]],
                 ],
             ],
             "events": [
                 ["kind": "checkpoint", "id": "login-ready", "at_ms": loginReadyMs],
                 ["kind": "action", "id": "send-message", "start_ms": loginReadyMs, "end_ms": messageSentMs],
                 ["kind": "checkpoint", "id": "message-sent", "at_ms": messageSentMs],
+                ["kind": "checkpoint", "id": "processing-visible", "at_ms": processingVisibleMs],
+                ["kind": "checkpoint", "id": "first-chunk-visible", "at_ms": firstChunkVisibleMs],
                 ["kind": "checkpoint", "id": "response-visible", "at_ms": responseVisibleMs],
                 ["kind": "checkpoint", "id": "response-ready", "at_ms": responseReadyMs],
             ],
             "assertion_results": [
                 ["id": "auth.ready", "status": "passed", "at_ms": messageSentMs],
+                ["id": "chat.processing_rainbow", "status": "passed", "at_ms": processingVisibleMs],
+                ["id": "chat.composer_shell", "status": "passed", "at_ms": processingVisibleMs],
+                ["id": "chat.progressive_response", "status": "passed", "at_ms": firstChunkVisibleMs],
                 ["id": "chat.response", "status": "passed", "at_ms": responseVisibleMs],
             ],
         ]

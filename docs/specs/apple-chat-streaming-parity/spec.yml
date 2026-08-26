@@ -187,6 +187,11 @@ decisions:
     decision: Final parity requires bounded frame review of current deployed web chat-flow and Apple E2E recordings at phone and wide responsive profiles.
     reason: Passing automation alone cannot establish that streaming progression, rich embeds, inline links, chat history, and the composer look and behave equivalently.
     decided_at: "2026-08-25T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Phone proof must show the outer processing rainbow separately from thinking content, a transparent composer/status shell, a leading full-width assistant card, and at least two visibly different response-growth checkpoints.
+    reason: The prior Apple proof showed an opaque bottom shell and only the completed short response, so it could not establish the rendered web lifecycle requested by the user.
+    decided_at: "2026-08-26T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -840,8 +845,8 @@ tests:
       evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
   - id: T-APPLE-UI-IPHONE
     type: unit
-    file: apple/OpenMatesUITests/ChatResponseProcessingParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatResponseProcessingParityUITests
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof
     covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-7, AC-8, AC-10, AC-11, AC-12]
     assertions:
       - deterministic lifecycle stages preserve one assistant row and correct hierarchy
@@ -850,6 +855,7 @@ tests:
       - typing state contains no empty assistant avatar, bubble, or three-dot transcript row
       - accepted follow-up suggestions remain after empty sync or post-processing payloads
       - responsive history and composer remain unclipped, reachable, and unobstructed
+      - phone proof shows the outer rainbow, transparent composer/status shell, leading full-width assistant card, first response chunk, and visibly longer completed response
     red_phase:
       required: true
       expected: fail
