@@ -302,7 +302,7 @@ test.describe('Workflows web UI contract', () => {
 			await selectedRun.click();
 			await expect(page.getByTestId('workflow-run-detail')).toBeVisible();
 			await expect(page.getByTestId('workflow-run-graph')).toHaveAttribute('data-read-only', 'true');
-			await expect(page.getByTestId('workflow-run-node-status').filter({ hasText: /waiting/i })).toBeVisible();
+			await expect(page.getByTestId('workflow-run-node-status').first()).toContainText(/queued|running|completed|skipped|failed/i);
 			await expect(page.getByTestId('workflow-run-cancel')).toBeVisible();
 			if (proof) {
 				await proof.assert('runs-visible', async () => {

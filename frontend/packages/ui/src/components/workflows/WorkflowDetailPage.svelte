@@ -158,7 +158,7 @@
   .workflow-kicker { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.78; }
   .identity-icon { display: grid; width: 64px; height: 64px; place-items: center; border-radius: var(--radius-10); background: color-mix(in srgb, var(--color-grey-0) 18%, transparent); }
   h1, .description { margin: 0; }
-  h1 { max-width: 780px; font-size: clamp(2rem, 4.5vw, 4rem); line-height: 1; }
+  h1 { max-width: 780px; overflow-wrap: anywhere; font-size: clamp(1.8rem, 3.5vw, 3rem); line-height: 1.05; }
   .description { max-width: 660px; font-size: clamp(0.95rem, 1.8vw, 1.2rem); opacity: 0.88; }
   .metadata { font-size: var(--font-size-small); font-weight: 700; opacity: 0.8; }
   .toggle-pill { display: inline-flex; align-items: center; gap: var(--spacing-4); border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; font-weight: 800; cursor: pointer; }
