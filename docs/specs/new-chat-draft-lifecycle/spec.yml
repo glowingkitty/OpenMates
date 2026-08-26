@@ -94,7 +94,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 39d1cdc941ed35b40a75264268b8a04bdcbfc4d6
+  subject_commit: aa0f960fd15f540356fcec5f5bc0b39831436e15
 
 approvals:
   product_contract:
@@ -272,7 +272,7 @@ acceptance_criteria:
   - { id: AC-6, scenario: S-6, text: "Saving a draft in an established chat does not change that chat's existing header presentation.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
   - { id: AC-7, scenario: S-7, text: "A synchronized newer draft revision refreshes active draft-only title and saved time without plaintext leaving authenticated client boundaries.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-E2E-002] }
   - { id: AC-8, scenario: S-1, text: "Apple implements the confirmed web-visible draft-only header and identity lifecycle after deployed web user confirmation.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-001, T-APPLE-002, V-USER-CONFIRMATION] }
-  - { id: AC-9, scenario: S-8, text: "A late first-save draft activation cannot override a newer explicit saved-chat selection; the draft remains persisted without reopening.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
+  - { id: AC-9, scenario: S-8, text: "A late first-save draft activation cannot override a newer explicit saved-chat selection; the draft remains persisted without reopening.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
 
 assumptions:
   - id: A-1
@@ -394,8 +394,8 @@ tests:
       - clearing returns to focused / welcome state without a header
       - an established-chat draft leaves its generated header unchanged
       - a late first-save activation cannot override a newer explicit saved-chat selection
-    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, run_id: "32916523303", subject_commit: "f2d926ce85fa3d97e2309cdfeaff94745d210fed", timestamp: "2026-08-26T00:52:14Z", target: app.dev.openmates.org, summary: "The replayed late first-save activation was applied after a different saved chat had been explicitly selected." } }
-    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: "" } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts --gate-deploy --require-exact-commit --expected-commit e9adac071f02d396f78b888be1459912f102710c", run_id: "32922696086", subject_commit: "e9adac071f02d396f78b888be1459912f102710c", timestamp: "2026-08-26T02:31:05Z", target: app.dev.openmates.org, summary: "Both activation consumers reached the deterministic asynchronous commit gate, then zero rejected the stale activation after navigation changed." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts --gate-deploy --require-exact-commit --expected-commit aa0f960fd15f540356fcec5f5bc0b39831436e15", run_id: "32927066050", subject_commit: "aa0f960fd15f540356fcec5f5bc0b39831436e15", timestamp: "2026-08-26T03:42:06Z", target: app.dev.openmates.org, deployment_reference: "https://app.dev.openmates.org", summary: "Legacy draft restoration and the deterministic late-activation navigation-authority regression both passed." } }
   - id: T-E2E-002
     type: playwright
     file: frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
