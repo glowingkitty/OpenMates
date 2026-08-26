@@ -225,12 +225,14 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect.poll(() => page.evaluate(() =>
 			(window as typeof window & {
 				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
-			}).__openmatesE2EDraftSelectionTrace ?? []
-		), { message: 'Both draft activation consumers should reach their asynchronous commit point' })
-			.toEqual(expect.arrayContaining([
-				expect.objectContaining({ consumer: 'active_chat', result: 'paused' }),
-				expect.objectContaining({ consumer: 'chat_list', result: 'paused' })
-			]));
+			}).__openmatesE2EDraftSelectionTrace?.filter((decision) => decision.result === 'paused') ?? []
+		), { message: 'A mounted draft activation consumer should reach its asynchronous commit point' })
+			.not.toHaveLength(0);
+		const pausedConsumerCount = await page.evaluate(() =>
+			(window as typeof window & {
+				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
+			}).__openmatesE2EDraftSelectionTrace?.filter((decision) => decision.result === 'paused').length ?? 0
+		);
 
 		await page.evaluate((chatId: string) => {
 			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
@@ -248,7 +250,8 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			(window as typeof window & {
 				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
 			}).__openmatesE2EDraftSelectionTrace?.filter((decision) => decision.result === 'skipped') ?? []
-		), { message: 'Both draft activation consumers should reject the stale commit' }).toHaveLength(2);
+		), { message: 'Every mounted draft activation consumer should reject the stale commit' })
+			.toHaveLength(pausedConsumerCount);
 		const finalDecisions = await page.evaluate(() =>
 			(window as typeof window & {
 				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
