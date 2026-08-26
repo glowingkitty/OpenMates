@@ -78,7 +78,7 @@ def _run_npm(env: dict[str, str]) -> dict[str, Any]:
         if (listed?.category !== identity.category || listed?.icon !== identity.icon) throw new Error('npm list identity mismatch');
         if (fetched.category !== identity.category || fetched.icon !== identity.icon) throw new Error('npm detail identity mismatch');
 
-        const blank = await client.workflows.create({{ title: 'npm SDK readiness smoke', graph: {json.dumps(BLANK_GRAPH)}, enabled: false }});
+        const blank = await client.workflows.create({{ title: `npm SDK readiness smoke ${{Date.now()}}`, graph: {json.dumps(BLANK_GRAPH)}, enabled: false }});
         readinessId = blank.id;
         if (blank.graph.trigger_node_id !== null || blank.graph.nodes.length !== 0) throw new Error('npm blank draft mismatch');
         let rejected = false;
@@ -134,7 +134,7 @@ try:
     if {"category": fetched.get("category"), "icon": fetched.get("icon")} != identity:
         raise RuntimeError("pip detail identity mismatch")
 
-    blank = client.workflows.create(title="pip SDK readiness smoke", graph=%r, enabled=False)
+    blank = client.workflows.create(title=f"pip SDK readiness smoke {int(time.time())}", graph=%r, enabled=False)
     readiness_id = blank["id"]
     if blank.get("graph", {}).get("trigger_node_id") is not None or blank.get("graph", {}).get("nodes") != []:
         raise RuntimeError("pip blank draft mismatch")
