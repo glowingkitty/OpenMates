@@ -13942,7 +13942,7 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
 
 
 def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
-    """Validate restore routing and advance a clean merged worktree to origin/dev."""
+    """Validate routing and safely advance a resumable worktree to origin/dev."""
     data = _load_sessions()
     matches = [
         (session_id, session)
@@ -13962,36 +13962,53 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
             f"Run `python3 scripts/sessions.py worktree repair --opencode-session {opencode_session_id}` first."
         )
     advanced = False
-    if worktree.get("status") == "merged":
+    if worktree.get("status") in {"active", "merged"}:
         rc, porcelain, stderr = _run_cmd(["git", "status", "--porcelain"], cwd=str(worktree_path))
         if rc != 0:
             raise RuntimeError(f"Restore preflight could not inspect {worktree_path}: {stderr}")
-        if not porcelain:
-            rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(worktree_path))
-            if rc != 0:
-                raise RuntimeError(f"Restore preflight could not fetch origin/dev: {stderr}")
-            rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"], cwd=str(worktree_path))
-            if rc != 0:
-                raise RuntimeError(f"Restore preflight could not resolve origin/dev: {stderr}")
-            current_head = _current_git_sha(worktree_path)
-            rc, _stdout, stderr = _run_cmd(["git", "merge-base", "--is-ancestor", current_head, target_commit], cwd=str(worktree_path))
-            if rc != 0:
-                raise RuntimeError("Restore blocked: the clean merged worktree diverged from origin/dev; preserve it and reconcile manually. " + stderr)
+        rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not fetch origin/dev: {stderr}")
+        rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not resolve origin/dev: {stderr}")
+        current_head = _current_git_sha(worktree_path)
+        rc, _stdout, stderr = _run_cmd(["git", "merge-base", "--is-ancestor", current_head, target_commit], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError("Restore blocked: the worktree diverged from origin/dev; preserve it and reconcile manually. " + stderr)
+        rc, upstream_output, stderr = _run_cmd(
+            ["git", "diff", "--name-only", current_head, target_commit, "--"], cwd=str(worktree_path)
+        )
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not compare upstream changes: {stderr}")
+        local_paths = {
+            path
+            for line in porcelain.splitlines()
+            for path in line[3:].split(" -> ")
+            if path
+        }
+        upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
+        conflicts = sorted(local_paths.intersection(upstream_paths))
+        if conflicts:
+            raise RuntimeError(
+                "Restore blocked: local work overlaps changes in origin/dev: " + ", ".join(conflicts)
+            )
+        if current_head != target_commit:
             rc, _stdout, stderr = _run_cmd(["git", "switch", "--detach", target_commit], cwd=str(worktree_path))
             if rc != 0:
                 raise RuntimeError(f"Restore preflight could not advance the worktree: {stderr}")
 
-            def update(sessions_data: dict) -> None:
-                current = sessions_data["sessions"][repository_session_id]
-                current_worktree = current["worktree"]
-                current_worktree["base_commit"] = target_commit
-                current_worktree["status"] = "active"
-                current_worktree["last_active"] = _now_iso()
-                current["last_active"] = current_worktree["last_active"]
-                current["binding_mode"] = "worktree_routed"
+        def update(sessions_data: dict) -> None:
+            current = sessions_data["sessions"][repository_session_id]
+            current_worktree = current["worktree"]
+            current_worktree["base_commit"] = target_commit
+            current_worktree["status"] = "active"
+            current_worktree["last_active"] = _now_iso()
+            current["last_active"] = current_worktree["last_active"]
+            current["binding_mode"] = "worktree_routed"
 
-            _mutate_sessions(update)
-            advanced = current_head != target_commit
+        _mutate_sessions(update)
+        advanced = current_head != target_commit
     link_shared_worktree_resources(worktree_path)
     return {"cwd": str(worktree_path), "repository_session_id": repository_session_id, "advanced": advanced}
 
@@ -14173,12 +14190,11 @@ def cmd_restore(args: argparse.Namespace) -> None:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
-    coordinator = Path(__file__).resolve()
     prompt = (
         f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
         f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
-        f"For every shared Docker or test operation, use the current host coordinator explicitly: "
-        f"python3 {coordinator} <command>. Do not invoke a stale worktree copy of sessions.py for shared runtime mutations.\n\n"
+        "For every shared Docker or test operation, use the current routed coordinator: "
+        "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree.\n\n"
         + prompt
     )
 

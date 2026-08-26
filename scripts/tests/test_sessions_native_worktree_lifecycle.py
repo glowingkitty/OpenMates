@@ -375,6 +375,34 @@ def test_restore_advances_clean_merged_worktree_and_routes_current_coordinator(m
     assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
 
 
+def test_restore_advances_dirty_active_worktree_when_upstream_paths_do_not_overlap(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    worktree_path = tmp_path / "agent-abcd"
+    worktree_path.mkdir()
+    data = {"sessions": {"abcd": {"opencode_session_id": "ses_parent", "worktree": {"path": str(worktree_path), "status": "active", "base_commit": "old"}}}}
+
+    def run_command(command, **_kwargs):
+        if command[1:3] == ["status", "--porcelain"]:
+            return 0, " M local-only.py", ""
+        if command[1] == "rev-parse":
+            return 0, "new", ""
+        if command[1:3] == ["diff", "--name-only"]:
+            return 0, "upstream-only.py", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "old")
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+
+    result = sessions.prepare_opencode_restore("ses_parent")
+
+    assert result["advanced"] is True
+    assert data["sessions"]["abcd"]["worktree"]["base_commit"] == "new"
+
+
 def test_managed_worktrees_cannot_nest(monkeypatch, tmp_path: Path) -> None:
     sessions = load_sessions_module()
     managed = tmp_path / "managed"
