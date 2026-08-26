@@ -525,7 +525,7 @@ async def test_sdk_dispatch_new_chat_suggestions_falls_back_to_database():
     assert request.app.state.cache_service.cached_suggestions is not None
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
     async def fake_list_apps(request, user_info):
         assert user_info == {"user_id": "user-1"}
@@ -543,6 +543,30 @@ async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
     )
 
     assert result == {"apps": [{"id": "calendar", "memory": True}]}
+
+
+@pytest.mark.anyio
+async def test_sdk_dispatch_memory_types_does_not_double_wrap_apps_response(monkeypatch):
+    apps_api = importlib.import_module("backend.core.api.app.routes.apps_api")
+
+    async def fake_list_apps(request, user_info):
+        return apps_api.AppsListResponse(apps=[])
+
+    monkeypatch.setitem(
+        sys.modules,
+        "backend.core.api.app.routes.apps_api",
+        SimpleNamespace(list_apps=fake_list_apps),
+    )
+
+    result = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET"),
+        {"user_id": "user-1"},
+        "memories",
+        "types",
+        None,
+    )
+
+    assert result == {"apps": []}
 
 
 @pytest.mark.anyio
