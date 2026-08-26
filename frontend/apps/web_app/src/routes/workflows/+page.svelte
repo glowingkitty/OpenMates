@@ -862,11 +862,12 @@
 
   .blank-workflow-action {
     position: absolute;
-    z-index: 5;
+    z-index: var(--z-index-popover);
     inset: var(--spacing-5) var(--spacing-5) auto auto;
     color: var(--color-font-button);
     background: var(--color-button-primary);
     font-weight: 800;
+    pointer-events: auto;
   }
 
   .workflow-management {
