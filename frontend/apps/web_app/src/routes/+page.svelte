@@ -3768,8 +3768,6 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
-		container-name: chat-settings-layout;
-		container-type: inline-size;
 		box-sizing: border-box;
 		/* Fallback for browsers that don't support dvh */
 		height: calc(100vh - 55px - var(--dev-console-height, 0px));

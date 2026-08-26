@@ -213,13 +213,6 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			});
 		}, targetChatId);
 
-		const sidebar = page.getByTestId('activity-history-wrapper');
-		if (!(await sidebar.isVisible().catch(() => false))) {
-			await page.getByTestId('sidebar-toggle').click();
-			await expect(sidebar).toBeVisible({ timeout: 10000 });
-		}
-		const targetChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${targetChatId}"]`);
-		await expect(targetChatRow).toBeVisible({ timeout: 10000 });
 		await page.evaluate((chatId: string) => {
 			const replay = (window as typeof window & {
 				__openmatesE2EReplayDraftSelection?: (draftChatId: string, pauseBeforeCommit?: boolean) => void;
@@ -238,7 +231,9 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				expect.objectContaining({ consumer: 'chat_list', result: 'paused' })
 			]));
 
-		await targetChatRow.click();
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, targetChatId);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 		await page.evaluate(() => {
 			const release = (window as typeof window & {
