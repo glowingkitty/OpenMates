@@ -18,6 +18,7 @@ const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_STATE_SETTLE_MS = 750;
+const PROOF_TEMPLATE_HOLD_MS = 2500;
 const WORKFLOW_TITLE_PREFIX = 'Workflow UI contract';
 
 const WORKFLOWS_UI_PROOF = defineVideoProof({
@@ -141,8 +142,8 @@ function workflowDetailsHashUrlPattern(workflowId: string): RegExp {
 	return new RegExp(`/workflows#(?:[^#]*&)?workflow-id=${workflowId}&workflow-tab=details(?:&|$)`);
 }
 
-async function settleProofState(page: any): Promise<void> {
-	if (IS_PROOF_CAPTURE) await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
+async function settleProofState(page: any, durationMs = PROOF_STATE_SETTLE_MS): Promise<void> {
+	if (IS_PROOF_CAPTURE) await page.waitForTimeout(durationMs);
 }
 
 async function createWorkflow(page: any, apiUrl: string, data: Record<string, unknown>) {
@@ -254,7 +255,7 @@ test.describe('Workflows web UI contract', () => {
 					await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
 				});
 				await proof.checkpoint('template-visible');
-				await settleProofState(page);
+				await settleProofState(page, PROOF_TEMPLATE_HOLD_MS);
 			}
 
 			const weatherNode = page.getByTestId('workflow-node-card').filter({ hasText: 'Weather' }).first();
