@@ -21,6 +21,7 @@ const { deleteActiveChat, loginToTestAccount, startNewChat } = require('./helper
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+test.describe.configure({ mode: 'serial' });
 
 async function insertComposerText(page: any, messageEditor: any, text: string, visibleText: string): Promise<void> {
 	await messageEditor.click({ position: { x: 12, y: 12 }, force: true });
