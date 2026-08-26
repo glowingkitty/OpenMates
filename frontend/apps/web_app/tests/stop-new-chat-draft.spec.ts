@@ -90,7 +90,7 @@ const DRAFT_SELECTION_PROOF = defineVideoProof({
 			devices: ['web-phone', 'web-laptop']
 		}
 	],
-	tutorial: { readingWordsPerSecond: 3.0, minimumHoldMs: 1500, maximumHoldMs: 3500 }
+	tutorial: { readingWordsPerSecond: 3.0, minimumHoldMs: 1500, maximumHoldMs: 4000 }
 });
 test.describe.configure({ mode: 'serial' });
 
@@ -161,16 +161,34 @@ async function dismissOfflineSyncNoticeIfPresent(
 	page: any,
 	logCheckpoint: (message: string) => void
 ): Promise<void> {
-	const notification = page.getByTestId('notification').filter({ hasText: 'Offline sync:' });
-	const appeared = await notification
-		.waitFor({ state: 'visible', timeout: 2000 })
-		.then(() => true)
-		.catch(() => false);
-	if (!appeared) return;
+	const visibleDismissButtons = await page.getByTestId('notification-dismiss').evaluateAll(
+		(buttons: HTMLElement[]) => buttons.filter((button) => {
+			const rect = button.getBoundingClientRect();
+			const style = window.getComputedStyle(button);
+			return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+		}).length
+	).catch(() => 0);
+	if (visibleDismissButtons === 0) return;
 
-	await notification.getByTestId('notification-dismiss').dispatchEvent('click');
-	await expect(notification).not.toBeVisible({ timeout: 10000 });
-	logCheckpoint('Dismissed pre-existing offline sync notification before proof capture.');
+	await page.getByTestId('notification-dismiss').evaluateAll((buttons: HTMLElement[]) => {
+		for (const button of buttons) {
+			const rect = button.getBoundingClientRect();
+			const style = window.getComputedStyle(button);
+			if (rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none') {
+				button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+			}
+		}
+	}).catch(() => undefined);
+	await expect
+		.poll(async () => page.getByTestId('notification').evaluateAll((notifications: HTMLElement[]) => {
+			return notifications.filter((notification) => {
+				const rect = notification.getBoundingClientRect();
+				const style = window.getComputedStyle(notification);
+				return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+			}).length;
+		}), { timeout: 10000 })
+		.toBe(0);
+	logCheckpoint('Dismissed pre-existing notification before proof capture.');
 }
 
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
