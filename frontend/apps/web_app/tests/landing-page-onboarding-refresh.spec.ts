@@ -822,10 +822,10 @@ test.describe('Landing page onboarding refresh', () => {
 			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
 			{ timeout: 3000 }
 		).toBe(true);
-		const narrowSettingsRight = await page.getByTestId('settings-menu').evaluate(
-			(element: HTMLElement) => element.getBoundingClientRect().right
-		);
-		expect(narrowSettingsRight, 'narrow settings overlay must remain inside the viewport').toBeLessThanOrEqual(1000);
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().right),
+			{ message: 'narrow settings overlay must remain inside the viewport', timeout: 3000 }
+		).toBeLessThanOrEqual(1000);
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
