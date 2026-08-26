@@ -13990,9 +13990,36 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
         upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
         conflicts = sorted(local_paths.intersection(upstream_paths))
         if conflicts:
-            raise RuntimeError(
-                "Restore blocked: local work overlaps changes in origin/dev: " + ", ".join(conflicts)
+            integration = worktree.get("integration") if isinstance(worktree.get("integration"), dict) else {}
+            if worktree.get("status") != "merged" or integration.get("status") != "merged":
+                raise RuntimeError(
+                    "Restore blocked: local work overlaps changes in origin/dev: " + ", ".join(conflicts)
+                )
+            recovery_path = worktree_path.with_name(
+                f"{worktree_path.name}.recovery-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
             )
+            worktree_path.rename(recovery_path)
+            _run_cmd(["git", "worktree", "prune"])
+            rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(worktree_path), target_commit])
+            if rc != 0:
+                if recovery_path.exists() and not worktree_path.exists():
+                    recovery_path.rename(worktree_path)
+                raise RuntimeError(f"Restore preflight could not recreate merged worktree: {stderr}")
+
+            def record_recreated(sessions_data: dict) -> None:
+                current = sessions_data["sessions"][repository_session_id]
+                current_worktree = current["worktree"]
+                current_worktree["base_commit"] = target_commit
+                current_worktree["status"] = "active"
+                current_worktree["recovered_from"] = str(recovery_path)
+                current_worktree["recovered_at"] = _now_iso()
+                current_worktree["last_active"] = current_worktree["recovered_at"]
+                current["last_active"] = current_worktree["last_active"]
+                current["binding_mode"] = "worktree_routed"
+
+            _mutate_sessions(record_recreated)
+            link_shared_worktree_resources(worktree_path)
+            return {"cwd": str(worktree_path), "repository_session_id": repository_session_id, "advanced": True}
         if current_head != target_commit:
             rc, _stdout, stderr = _run_cmd(["git", "switch", "--detach", target_commit], cwd=str(worktree_path))
             if rc != 0:
