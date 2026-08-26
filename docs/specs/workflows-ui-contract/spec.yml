@@ -562,15 +562,25 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-8]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: python3 scripts/verify_workflow_identity_sdk_live.py --api-url https://api.dev.openmates.org
+      run_id: workflow-identity-sdk-live-20260826T0320Z
+      timestamp: '2026-08-26T03:20:00Z'
+      subject_commit: 44432ba6fb04b66ded2a8655b65540ae32e507a4
+      result: Ephemeral-key npm and pip SDK create/list/detail calls returned stable science/cloud-rain identity; npm/pip devices were approved and the key was revoked.
   - id: V-CI-PARITY
     kind: deterministic_check
     phase: green
     required_for_done: true
     covers: [AC-1, AC-8]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: npm --prefix frontend/packages/openmates-cli run test:unit:sdk-workflows && python3 -m pytest packages/openmates-python/tests/test_workflows.py -q && python3 scripts/audit_sdk_cli_parity.py && python3 scripts/audit_sdk_cleartext_parity.py && python3 scripts/audit_sdk_cleartext_boundary.py && python3 scripts/audit_sdk_docs_coverage.py && python3 scripts/audit_sdk_test_coverage.py
+      run_id: workflow-identity-sdk-ci-parity-20260826T0320Z
+      timestamp: '2026-08-26T03:20:00Z'
+      subject_commit: 44432ba6fb04b66ded2a8655b65540ae32e507a4
+      result: npm SDK 4 tests and pip SDK 5 tests passed; parity, cleartext boundary, docs coverage, and test coverage audits passed.
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
@@ -922,8 +932,8 @@ tasks:
     surfaces: [cli]
   - id: TASK-6
     title: Add npm and pip SDK identity parity with real dev proof
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-7]
       acceptance_criteria: [AC-1, AC-8]
@@ -949,8 +959,8 @@ tasks:
     surfaces: [sdks.npm, sdks.pip]
   - id: TASK-7
     title: Reproduce identity parity in deterministic CI coverage
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-7]
       acceptance_criteria: [AC-1, AC-8]
@@ -969,7 +979,7 @@ tasks:
     surfaces: [rest_api, cli, sdks.npm, sdks.pip]
   - id: TASK-8
     title: Add and record the deployed red Workflows UI contract spec
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
@@ -1190,11 +1200,16 @@ attempts:
     approach: Normalize the existing ANSI reset sequence in readable CLI output assertions and rerun the deployed real Workflow lifecycle.
     outcome: succeeded
     recorded_at: '2026-08-26T03:15:03Z'
+  - id: ATTEMPT-9
+    task_id: TASK-6
+    approach: Add npm/pip identity assertions, deploy a focused ephemeral-key live verifier, and rerun real create/list/detail parity plus deterministic SDK audits on the committed subject.
+    outcome: succeeded
+    recorded_at: '2026-08-26T03:20:00Z'
 
 handoff:
-  current_task_id: TASK-6
-  next_action: Prove npm and pip SDK list/create/detail identity parity against the real dev API.
-  command: python3 scripts/audit_sdk_cli_parity.py
-  expected_outcome: Both SDKs preserve category and icon metadata without exposing encrypted identity fields.
+  current_task_id: TASK-8
+  next_action: Add and deploy the red Workflows web contract spec before implementing the redesigned UI.
+  command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --gate-deploy --expected-commit <commit>
+  expected_outcome: The deployed spec fails on the missing recommendation-led workspace, shared Template/Runs detail composition, guarded editing, versions, Runs, and responsive proof checkpoints.
   blocker: null
-  last_verified_commit: 6200ff20cfbb346934c912308ca9798f40c78b2b
+  last_verified_commit: 44432ba6fb04b66ded2a8655b65540ae32e507a4
