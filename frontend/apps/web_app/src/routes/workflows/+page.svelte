@@ -918,7 +918,7 @@
 
     .workflow-sidebar-shell {
       position: fixed;
-      z-index: 30;
+      z-index: var(--z-index-modal);
       inset: 82px auto 0 0;
       width: min(325px, calc(100vw - 32px));
       transform: translateX(-110%);
