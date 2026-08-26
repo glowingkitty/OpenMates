@@ -90,7 +90,7 @@ const DRAFT_SELECTION_PROOF = defineVideoProof({
 			devices: ['web-phone', 'web-laptop']
 		}
 	],
-	tutorial: { readingWordsPerSecond: 3.5, minimumHoldMs: 1500, maximumHoldMs: 3500 }
+	tutorial: { readingWordsPerSecond: 3.0, minimumHoldMs: 1500, maximumHoldMs: 3500 }
 });
 test.describe.configure({ mode: 'serial' });
 
@@ -377,6 +377,9 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		}, targetChatId);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 		const targetMessage = page.getByTestId('message-user').filter({ hasText: 'Keep this saved chat selected.' });
+		if (proof) {
+			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
+		}
 		await proof?.assert('target-selection-visible', async () => {
 			await expect(targetMessage).toBeVisible({ timeout: 10000 });
 		});
@@ -405,6 +408,9 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 		await expect(targetMessage).toBeVisible();
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
+		if (proof) {
+			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
+		}
 		if (proof) {
 			await proof.assert('target-identity-remains-visible', async () => {
 				await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
