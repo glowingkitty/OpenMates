@@ -98,6 +98,21 @@ def test_infrastructure_view_exposes_active_and_recent_docker_operations():
     assert view["infrastructure"]["recent_docker_operations"][0]["id"] == "docker-old"
 
 
+def test_resource_wait_is_visible_instead_of_looking_idle():
+    durable, presence = fixtures()
+    durable["sessions"]["a111"]["resource_wait"] = {
+        "status": "waiting",
+        "resource": "docker_rebuild",
+        "owner_session_id": "b222",
+        "heartbeat_at": sessions._now_iso(),
+    }
+
+    view = sessions.presence_status_view(durable, presence)
+
+    assert [item["repository_session_id"] for item in view["waiting_for_resource"]] == ["a111"]
+    assert view["working"] == []
+
+
 def test_coordination_section_lists_current_sessions_without_merged_history(monkeypatch):
     durable, presence = fixtures()
     durable["locks"] = {"docker_rebuild": {"status": "IN_PROGRESS", "claimed_by": "a111", "since": "2026-08-11T00:00:00Z"}}

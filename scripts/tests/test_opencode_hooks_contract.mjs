@@ -136,6 +136,17 @@ test("GitHub MCP tools are rejected in favor of gh CLI", async () => {
   );
 });
 
+test("temporary shared lock output forces same-turn deterministic continuation", async () => {
+  const text = await runAfterShell("python3 scripts/sessions.py status", "active lock(s): docker_rebuild");
+  assert.match(text, /OpenMates temporary lock continuation/);
+  assert.match(text, /wait-lock --session \$\{OPENCODE_SESSION_ID:-manual\} --type docker --follow --poll 10/);
+  assert.match(text, /Do not finish this response as blocked/);
+  assert.deepEqual(
+    pluginModule.OpenMatesHooks.test.temporaryLockWaitTypesForTest("vercel_deploy: IN_PROGRESS"),
+    ["vercel"],
+  );
+});
+
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);

@@ -217,6 +217,7 @@ scenarios:
       - An equivalent active or successful dispatch is reused instead of creating duplicate work.
       - A changed runtime epoch permits a new dispatch after an environmental interruption.
       - Typed targeted events let waiting chats resume from a durable cursor without fixed sleeps or loss across process restarts.
+      - A chat that observes temporary contention enters a renewable waiting state, follows lock-owner transitions, receives an explicit ready signal, and continues in the same response instead of returning a terminal blocker.
 
 acceptance_criteria:
   - id: AC-1
@@ -317,12 +318,12 @@ acceptance_criteria:
     verification_ids: [T-RETENTION]
   - id: AC-13
     scenario: S-11
-    text: Every supported test and product-runtime mutation path uses one transactional resource-lease and operation queue; equivalent dispatches are idempotent by repository, commit, test selection, profile, account, mocks, required services, and runtime epoch; typed targeted events support durable cursor reads and acknowledgements.
+    text: Every supported test and product-runtime mutation path uses one transactional resource-lease and operation queue; equivalent dispatches are idempotent by repository, commit, test selection, profile, account, mocks, required services, and runtime epoch; typed targeted events support durable cursor reads and acknowledgements; temporary contention produces a renewable visible wait and explicit same-response ready signal rather than a terminal chat response.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: related_backend
-    verification_ids: [T-COORDINATION-CORE, T-LIFECYCLE-INDEPENDENCE]
+    verification_ids: [T-COORDINATION-CORE, T-CHAT-RESOURCE-WAIT, T-LIFECYCLE-INDEPENDENCE]
 
 assumptions:
   - id: A-1
@@ -610,6 +611,17 @@ tests:
         command: python3 -m pytest backend/engineering_control_plane/tests -q
         result: Coordination, migration-invariant, and independent service-boundary tests passed.
         timestamp: "2026-08-26T12:05:00Z"
+  - id: T-CHAT-RESOURCE-WAIT
+    type: pytest
+    file: scripts/tests/test_sessions_vercel_build_machine_gate.py
+    command: python3 -m pytest scripts/tests/test_sessions_vercel_build_machine_gate.py -q
+    covers: [AC-13]
+    assertions:
+      - Follow mode survives lock-owner transitions and exits only after the shared resource is available.
+      - The waiter publishes and clears renewable resource-wait state and emits OPENMATES_WAIT_READY.
+      - OpenCode hook output converts observed temporary contention into a deterministic same-response continuation command.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
   - id: T-FIXTURE-BOUNDARY
     type: pytest
     file: scripts/tests/test_test_fixture_boundary.py

@@ -8329,6 +8329,7 @@ def _presence_identity_item(
         "worktree": durable.get("worktree", {}),
         "workspace_state": durable.get("workspace_state", "unknown"),
         "auto_integration": durable.get("auto_integration", {}),
+        "resource_wait": durable.get("resource_wait", {}),
         "paths": record.get("paths", []),
         "updated_at": record.get("updated_at", ""),
     }
@@ -8352,6 +8353,7 @@ def presence_status_view(
     }
     view = {
         "working": [],
+        "waiting_for_resource": [],
         "waiting_for_user": [],
         "idle_after_response": [],
         "stopped_or_failed": [],
@@ -8376,7 +8378,15 @@ def presence_status_view(
         ][-DOCKER_OPERATION_HISTORY_LIMIT:],
     }
     for item in items.values():
-        if item["attention"].startswith("required_"):
+        resource_wait = item.get("resource_wait") if isinstance(item.get("resource_wait"), dict) else {}
+        resource_wait_live = (
+            resource_wait.get("status") == "waiting"
+            and resource_wait.get("heartbeat_at")
+            and _minutes_since(resource_wait["heartbeat_at"]) <= 3
+        )
+        if resource_wait_live:
+            view["waiting_for_resource"].append(item)
+        elif item["attention"].startswith("required_"):
             view["waiting_for_user"].append(item)
         elif item["execution"] in {"busy", "retrying"}:
             view["working"].append(item)
@@ -8384,7 +8394,7 @@ def presence_status_view(
             view["idle_after_response"].append(item)
         elif item["execution"] in {"stopped", "error"}:
             view["stopped_or_failed"].append(item)
-    for section in ("working", "waiting_for_user", "idle_after_response", "stopped_or_failed"):
+    for section in ("working", "waiting_for_resource", "waiting_for_user", "idle_after_response", "stopped_or_failed"):
         view[section].sort(key=lambda item: item["opencode_session_id"])
 
     for path, lease in sorted(durable.get("edit_leases", {}).items()):
@@ -8515,6 +8525,7 @@ def _edit_lease_summary_lines(edit_leases: dict[str, Any]) -> list[str]:
 
 def _format_coordination_section(session_id: str, data: dict[str, Any], view: dict[str, Any]) -> str:
     working = _sort_presence_items(list(view.get("working") or []))
+    waiting_for_resource = _sort_presence_items(list(view.get("waiting_for_resource") or []))
     waiting = _sort_presence_items(list(view.get("waiting_for_user") or []))
     completed = _sort_presence_items(
         [
@@ -8525,12 +8536,14 @@ def _format_coordination_section(session_id: str, data: dict[str, Any], view: di
     )
     visible_session_ids = [
         str(item.get("opencode_session_id") or "")
-        for item in [*working, *waiting, *completed]
+        for item in [*working, *waiting_for_resource, *waiting, *completed]
         if item.get("opencode_session_id")
     ]
     titles = _opencode_session_titles(visible_session_ids)
     lines: list[str] = []
     _append_presence_section(lines, "Working now", working, titles, show_activity=True)
+    lines.append("")
+    _append_presence_section(lines, "Waiting for shared resource", waiting_for_resource, titles)
     lines.append("")
     _append_presence_section(lines, "Waiting for user", waiting, titles)
     lines.append("")
@@ -8564,7 +8577,13 @@ def _format_status_session_card(selected: dict[str, Any] | None, locks: dict[str
     worktree_path = worktree.get("path") or "none"
     active_locks = [name for name, lock in locks.items() if isinstance(lock, dict) and lock.get("status") == "IN_PROGRESS"]
     owned_leases = [path for path, lease in edit_leases.items() if isinstance(lease, dict) and lease.get("session_id") == repository_session_id]
-    if active_locks:
+    resource_wait = selected.get("resource_wait") if isinstance(selected.get("resource_wait"), dict) else {}
+    if resource_wait.get("status") == "waiting" and resource_wait.get("heartbeat_at") and _minutes_since(resource_wait["heartbeat_at"]) <= 3:
+        blocker = (
+            f"waiting for {resource_wait.get('resource', 'shared resource')} "
+            f"held by {resource_wait.get('owner_session_id') or '?'}"
+        )
+    elif active_locks:
         blocker = f"active lock(s): {', '.join(sorted(active_locks))}"
     elif attention.startswith("required_"):
         blocker = f"user input required ({attention})"
@@ -8649,6 +8668,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     else:
         labels = (
             ("working", "Currently working"),
+            ("waiting_for_resource", "Waiting for a shared resource"),
             ("waiting_for_user", "Waiting for required user input"),
             ("idle_after_response", "Idle after completed response"),
             ("stopped_or_failed", "Stopped or failed"),
@@ -9602,6 +9622,54 @@ def _active_lock_snapshot(lock_type: str) -> dict:
     return {}
 
 
+def _set_session_resource_wait(session_id: str, lock_type: str, lock: dict) -> None:
+    """Publish a renewable, privacy-minimal resource wait for status consumers."""
+    if not session_id:
+        return
+
+    def update(data: dict) -> None:
+        sessions = data.setdefault("sessions", {})
+        repository_session_id = session_id if session_id in sessions else next(
+            (
+                candidate_id
+                for candidate_id, candidate in sessions.items()
+                if isinstance(candidate, dict) and candidate.get("opencode_session_id") == session_id
+            ),
+            "",
+        )
+        if not repository_session_id:
+            return
+        session = sessions[repository_session_id]
+        session["resource_wait"] = {
+            "status": "waiting",
+            "resource": lock_type,
+            "owner_session_id": str(lock.get("claimed_by") or ""),
+            "owner_phase": str(lock.get("phase") or ""),
+            "heartbeat_at": _now_iso(),
+            "waiter_pid": os.getpid(),
+        }
+        session["last_active"] = session["resource_wait"]["heartbeat_at"]
+
+    _mutate_sessions(update)
+
+
+def _clear_session_resource_wait(session_id: str, lock_type: str) -> None:
+    """Clear only the matching wait so an older waiter cannot erase a newer one."""
+    if not session_id:
+        return
+
+    def update(data: dict) -> None:
+        for candidate_id, session in data.setdefault("sessions", {}).items():
+            if candidate_id != session_id and session.get("opencode_session_id") != session_id:
+                continue
+            wait = session.get("resource_wait")
+            if isinstance(wait, dict) and wait.get("resource") == lock_type and wait.get("waiter_pid") == os.getpid():
+                session.pop("resource_wait", None)
+            return
+
+    _mutate_sessions(update)
+
+
 def cmd_wait_lock(args: argparse.Namespace) -> None:
     """Wait for a shared lock to become available instead of verbally pausing."""
     lock_type = _normalize_lock_type(args.type)
@@ -9609,39 +9677,50 @@ def cmd_wait_lock(args: argparse.Namespace) -> None:
         print(f"Error: Unknown lock type '{args.type}'.", file=sys.stderr)
         sys.exit(1)
 
+    follow = bool(getattr(args, "follow", False))
     timeout = args.timeout
-    if timeout is None:
+    if timeout is None and not follow:
         timeout = _lock_stale_minutes(lock_type) * 60
     poll = max(1, args.poll)
-    deadline = time.time() + max(0, timeout)
+    deadline = None if timeout is None else time.time() + max(0, timeout)
     last_report = 0.0
+    last_owner_signature: tuple[str, str] | None = None
 
-    while True:
-        lock = _active_lock_snapshot(lock_type)
-        if not lock:
-            print(f"Lock '{lock_type}' is available.")
-            return
+    try:
+        while True:
+            lock = _active_lock_snapshot(lock_type)
+            if not lock:
+                print(json.dumps({"signal": "OPENMATES_WAIT_READY", "resource": lock_type, "session_id": args.session or ""}, sort_keys=True))
+                print(f"Lock '{lock_type}' is available; continue the interrupted operation in this chat.")
+                return
 
-        now = time.time()
-        if now >= deadline:
-            print(_format_lock_block_message(lock_type, lock), file=sys.stderr)
-            print(
-                f"Timed out after {timeout}s waiting for lock '{lock_type}'. "
-                "Do not force-unlock unless you have confirmed the other deploy/test is inactive.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            _set_session_resource_wait(args.session or "", lock_type, lock)
+            now = time.time()
+            if deadline is not None and now >= deadline:
+                print(_format_lock_block_message(lock_type, lock), file=sys.stderr)
+                print(
+                    f"Timed out after {timeout}s waiting for lock '{lock_type}'. "
+                    "Do not force-unlock unless you have confirmed the other deploy/test is inactive.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
-        if last_report == 0.0 or now - last_report >= 60:
-            commit = str(lock.get("commit_sha") or "")[:9]
-            commit_text = f", commit {commit}" if commit else ""
-            print(
-                f"Waiting for lock '{lock_type}' held by {lock.get('claimed_by', '?')}"
-                f"{commit_text}, phase {lock.get('phase', '?')}..."
-            )
-            last_report = now
+            owner_signature = (str(lock.get("claimed_by") or ""), str(lock.get("phase") or ""))
+            if owner_signature != last_owner_signature or last_report == 0.0 or now - last_report >= 60:
+                commit = str(lock.get("commit_sha") or "")[:9]
+                commit_text = f", commit {commit}" if commit else ""
+                print(
+                    f"Waiting for lock '{lock_type}' held by {lock.get('claimed_by', '?')}"
+                    f"{commit_text}, phase {lock.get('phase', '?')}...",
+                    flush=True,
+                )
+                last_report = now
+                last_owner_signature = owner_signature
 
-        time.sleep(min(poll, max(1, int(deadline - now))))
+            sleep_for = poll if deadline is None else min(poll, max(1, int(deadline - now)))
+            time.sleep(sleep_for)
+    finally:
+        _clear_session_resource_wait(args.session or "", lock_type)
 
 
 def _wait_and_acquire_session_lock(
@@ -14221,7 +14300,10 @@ def cmd_restore(args: argparse.Namespace) -> None:
         f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
         f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
         "For every shared Docker or test operation, use the current routed coordinator: "
-        "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree.\n\n"
+        "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree. "
+        "A temporary shared lock is not a terminal blocker: run the intended canonical command directly so it queues, "
+        "or run `python3 scripts/sessions.py wait-lock --session <repository-session-id> --type <docker|vercel> "
+        "--follow --poll 10` with a long tool timeout, wait for OPENMATES_WAIT_READY, and continue in this same response.\n\n"
         + prompt
     )
 
@@ -14836,6 +14918,11 @@ def main() -> None:
         "--timeout",
         type=int,
         help="Seconds to wait before failing (default: lock stale timeout)",
+    )
+    p_wait_lock.add_argument(
+        "--follow",
+        action="store_true",
+        help="Keep following owner transitions until release (no default timeout)",
     )
     p_wait_lock.add_argument(
         "--poll",

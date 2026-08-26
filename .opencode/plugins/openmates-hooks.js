@@ -53,6 +53,7 @@ const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
+const TEMPORARY_LOCK_WAIT_MARKER = "[OpenMates temporary lock continuation]";
 const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
@@ -1780,6 +1781,33 @@ Parallel failed-test work should be leased before edits:
 Use --lease-required --lease-id <lease> on follow-up test runs when debugging that group.`;
 }
 
+function temporaryLockWaitTypesForTest(text) {
+  const lockTypes = new Set();
+  const value = String(text || "");
+  if (/active lock\(s\):[^\n]*\bdocker_rebuild\b|BLOCKED:[^\n]*\bdocker_rebuild\b[^\n]*lock held|\bdocker_rebuild:\s*IN_PROGRESS/i.test(value)) {
+    lockTypes.add("docker");
+  }
+  if (/active lock\(s\):[^\n]*\bvercel_deploy\b|BLOCKED:[^\n]*\bvercel_deploy\b[^\n]*lock held|\bvercel_deploy:\s*IN_PROGRESS/i.test(value)) {
+    lockTypes.add("vercel");
+  }
+  return [...lockTypes];
+}
+
+function appendTemporaryLockWaitHint(output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(TEMPORARY_LOCK_WAIT_MARKER)) return;
+  const lockTypes = temporaryLockWaitTypesForTest(output.output);
+  if (!lockTypes.length) return;
+  const commands = lockTypes.map(
+    (lockType) => `  python3 scripts/sessions.py wait-lock --session \${OPENCODE_SESSION_ID:-manual} --type ${lockType} --follow --poll 10`,
+  );
+  output.output += `
+
+${TEMPORARY_LOCK_WAIT_MARKER}
+This is temporary resource contention, not a terminal blocker. Do not finish this response as blocked.
+Run the matching deterministic waiter with a sufficiently long Bash timeout, wait for OPENMATES_WAIT_READY, then continue the interrupted operation in this same response:
+${commands.join("\n")}`;
+}
+
 function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
@@ -2387,6 +2415,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
+        appendTemporaryLockWaitHint(output);
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
           await recordWorktreeRouting(input.sessionID);
         }
@@ -2443,6 +2472,7 @@ OpenMatesHooks.test = Object.freeze({
   repeatedRoutingFailureMessageForTest,
   completedAssistantMessageID,
   notifierEventArgsForTest,
+  temporaryLockWaitTypesForTest,
   reducePresenceEventForTest,
   runProcessForTest: runProcess,
   resolveWorktreeRouteForTest,
