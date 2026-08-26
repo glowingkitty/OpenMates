@@ -171,7 +171,6 @@ changes to the documentation (to keep the documentation up to date).
     // Track viewport width for reactive dimmed class logic
     // Settings menu becomes overlay at 1100px, so we need to track this
     let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 0);
-    let settingsLayoutWidth = $state(0);
 
     // Add reference to settings content element
     let settingsContentElement: HTMLElement | undefined = $state();
@@ -2378,16 +2377,6 @@ changes to the documentation (to keep the documentation up to date).
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
-        const chatLayout = document.querySelector<HTMLElement>('.chat-container');
-        const settingsLayoutObserver = chatLayout && typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(([entry]) => {
-                settingsLayoutWidth = entry?.contentRect.width ?? 0;
-            })
-            : null;
-        if (chatLayout) {
-            settingsLayoutWidth = chatLayout.clientWidth;
-            settingsLayoutObserver?.observe(chatLayout);
-        }
 
         // Listen for programmatic close requests from child components
         // (e.g., SettingsIncognitoInfo calls this after activating incognito mode).
@@ -2563,7 +2552,6 @@ changes to the documentation (to keep the documentation up to date).
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
-            settingsLayoutObserver?.disconnect();
             window.removeEventListener('closeSettingsMenu', handleCloseSettingsMenu);
             window.removeEventListener('forceCloseSettings', handleForceCloseSettings);
             window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
@@ -2615,13 +2603,11 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     // Update DOM elements opacity and classes based on menu state.
-    // Overlay mode also depends on the available chat layout width, not only the viewport.
     $effect(() => {
         if (typeof window !== 'undefined') {
             const activeChatContainer = document.querySelector('.active-chat-container');
             if (activeChatContainer) {
                 void viewportWidth;
-                void settingsLayoutWidth;
                 if (isSettingsOverlay() && isMenuVisible) {
                     activeChatContainer.classList.add('dimmed');
                 } else {
@@ -3729,43 +3715,6 @@ changes to the documentation (to keep the documentation up to date).
         /* svelte-ignore css_unused_selector */
         .settings-menu.mobile-overlay {
             z-index: var(--z-index-popover-above-2) !important; /* Higher than profile-container-wrapper */
-        }
-    }
-
-    /* The activity sidebar reduces the chat canvas independently of viewport width.
-       Keep the full transcript column by overlaying settings until both panels fit. */
-    @container chat-settings-layout (max-width: 1412px) {
-        .settings-menu {
-            position: fixed;
-            inset-inline-end: 20px;
-            top: 65px;
-            bottom: 18px;
-            height: auto;
-            width: var(--settings-panel-width);
-            z-index: var(--z-index-modal);
-            transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
-            transform: translateX(calc(100% + 40px));
-            visibility: hidden;
-            will-change: transform;
-        }
-
-        .settings-menu.visible {
-            transform: translateX(0);
-            visibility: visible;
-        }
-
-        :global(.settings-edge-dragging) .settings-menu.visible {
-            width: var(--settings-panel-width);
-            transition: none;
-            transform: translateX(var(--settings-drag-offset));
-        }
-
-        :global([dir="rtl"]) .settings-menu:not(.visible) {
-            transform: translateX(calc(-100% - 40px));
-        }
-
-        .settings-menu.overlay {
-            box-shadow: var(--shadow-md);
         }
     }
 
