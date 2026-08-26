@@ -28,7 +28,7 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'workspace-visible',
-			text: 'The Workflows workspace presents recommendation-led creation, category-styled cards, browse controls, and a bottom composer.',
+			text: 'The Workflows screen presents recommendation-led creation, category-styled cards, browse controls, and a bottom composer.',
 			checkpoint: 'workspace-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
