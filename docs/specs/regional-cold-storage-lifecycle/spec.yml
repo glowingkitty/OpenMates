@@ -325,7 +325,7 @@ attempts:
     approach: Rebuild the deployed API image and run internal API, FSN1/HEL1 capability, exact inventory, and real CLI image-token gates.
     outcome: blocked
     recorded_at: "2026-08-26"
-    notes: The internal-only API contract passed with missing-token 401, three configured regions, two health rows, eight pending replication jobs, and zero pending deletions. Public api.dev ingress disconnected, and the shared Docker coordinator remained stuck draining another session's API operation, preventing the packaging rebuild and Vault-backed regional/CLI gates. No storage mutation was attempted.
+    notes: The rebuilt API is healthy and the internal-only contract passed with missing-token 401, three configured regions, two health rows, eight pending replication jobs, and zero pending deletions. FSN1 temporary create/head/delete passed; NBG1 and HEL1 returned sanitized ClientError. The exact read-only inventory audit exceeded five minutes and was terminated. The mandatory all-region CLI image test did not start because its three-region prerequisite failed, so no test chat or upload was left behind.
 
 scenarios:
   - id: S-1
@@ -1107,7 +1107,7 @@ verifications:
     covers: [AC-12, AC-14]
     status: blocked
     command: python3 scripts/audit_object_storage_inventory.py --env dev --verify-replicas --json
-    evidence: {status: blocked, command: "docker exec api python /app/scripts/audit_object_storage_inventory.py --env dev --probe-regions --regions nbg1,fsn1,hel1 --json", run_id: "task6-docker-lock-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Runtime packaging is deployed, but the shared Docker coordinator remained in draining_tests for another API operation, so the rebuilt image and Vault-backed capability/backfill probes could not run. Prior FSN1/HEL1 create probes remain 403.", timestamp: "2026-08-26T19:08:00Z"}
+    evidence: {status: blocked, command: "docker exec api python /app/scripts/audit_object_storage_inventory.py --env dev --probe-regions --regions nbg1,fsn1,hel1 --json; docker exec api python /app/scripts/audit_object_storage_inventory.py --env dev --verify-replicas --regions nbg1,fsn1,hel1 --source-region nbg1 --json", run_id: "task6-regional-capability-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Rebuilt runtime executed the bounded capability probe: FSN1 passed temporary create/head/delete; NBG1 and HEL1 returned sanitized ClientError. Exact read-only inventory exceeded five minutes and was terminated without mutation. Backfill remains blocked until NBG1 is readable and HEL1 provisioning succeeds.", timestamp: "2026-08-26T19:25:00Z"}
   - id: V-DEV-CLI-IMAGE-REPLICATION
     kind: automated_test
     phase: green
@@ -1120,7 +1120,7 @@ verifications:
       - The real OpenMates CLI uploads the dedicated private test image and receives a successful answer that requires image inspection.
       - The encrypted upload generation and exact checksum verify in the nbg1, fsn1, and hel1 physical buckets without printing private object identifiers.
       - Authoritative cleanup tombstones and removes the test chat and file from every configured region.
-    evidence: {status: blocked, command: "python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup", run_id: "task6-docker-lock-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Verifier implementation and helper tests pass, but the real chat was not started because all-region verification cannot succeed until the deployed packaging image is rebuilt and FSN1/HEL1 buckets are available; no test upload or chat was left behind.", timestamp: "2026-08-26T19:08:00Z"}
+    evidence: {status: blocked, command: "python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup", run_id: "task6-regional-capability-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Verifier implementation and helper tests pass, but the real chat was intentionally not started because the prerequisite capability probe failed in NBG1 and HEL1. Mandatory all-region checksum and tombstone cleanup evidence therefore remains blocked; no test upload or chat was created.", timestamp: "2026-08-26T19:25:00Z"}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
@@ -1460,11 +1460,11 @@ demonstration:
 
 handoff:
   current_task_id: TASK-6
-  next_action: After the shared API Docker operation releases, rebuild API from b830fff9, rerun the internal/public API verifier, then run the regional capability probe, exact replica inventory/backfill, and mandatory-cleanup CLI image-token test; keep TASK-6 blocked if FSN1/HEL1 still return 403.
+  next_action: Restore NBG1 object readability and HEL1 bucket provisioning authority, then rerun exact replica inventory/backfill and the mandatory-cleanup CLI image-token test across nbg1,fsn1,hel1; keep TASK-6 blocked until all three pass.
   command: >-
     python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
   expected_outcome: NBG1, FSN1, and HEL1 replication/failover/backfill behavior is proven where provisioned, with no destructive action on ambiguity and a precise external blocker for any provider-denied region.
   blocker:
-    status: external_possible
-    reason: FSN1/HEL1 provisioning previously returned 403 and may require external provider authority.
+    status: external_confirmed
+    reason: Current bounded capability proof passes FSN1 but returns provider ClientError for NBG1 and HEL1; all-region backfill and CLI image verification cannot complete until NBG1 recovers and HEL1 provisioning authority is available.
   last_verified_commit: b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f
