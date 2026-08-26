@@ -387,9 +387,24 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			await proof.checkpoint('target-preserved');
 		}
 		if (draftChatId) {
-			await page.evaluate((chatId: string) => {
-				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
-			}, draftChatId);
+			if (proof) {
+				await proof.action('reopen-draft', async () => {
+					const sidebarToggle = page.getByTestId('sidebar-toggle');
+					if (await sidebarToggle.getAttribute('aria-expanded') !== 'true') {
+						await sidebarToggle.click();
+					}
+					const draftChatListItem = page
+						.locator('[data-testid="chat-item"]')
+						.filter({ has: page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${draftChatId}"]`) })
+						.first();
+					await expect(draftChatListItem).toBeVisible({ timeout: 10000 });
+					await draftChatListItem.click();
+				});
+			} else {
+				await page.evaluate((chatId: string) => {
+					window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+				}, draftChatId);
+			}
 			const assertDraftRemainsNavigable = async () => {
 				await expect(page.getByTestId('active-chat-container'))
 					.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 });
