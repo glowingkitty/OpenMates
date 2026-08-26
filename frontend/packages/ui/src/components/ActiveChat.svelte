@@ -6026,6 +6026,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             if (newChat) {
                 await waitForE2EDraftSelectionCommit(persistedChatId, 'active_chat');
+                const latestSelectedChatId = activeChatStore.get();
+                if (latestSelectedChatId !== selectedChatId) {
+                    recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'skipped' });
+                    console.debug('[ActiveChat] Skipping persisted draft activation because selection changed while loading:', {
+                        persistedChatId,
+                        selectedChatId,
+                        latestSelectedChatId,
+                    });
+                    return;
+                }
                 recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'applied' });
                 activeChatStore.setActiveChat(persistedChatId);
                 await loadChat(newChat);

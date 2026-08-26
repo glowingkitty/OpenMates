@@ -2974,11 +2974,22 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 		if (_chatIdToSelectAfterUpdate) {
 			const queuedChatId = _chatIdToSelectAfterUpdate;
 			const isDraftActivation = _draftChatIdToSelectAfterUpdate === queuedChatId;
+			const expectedActiveChatId = isDraftActivation ? _draftSelectionExpectedActiveId : undefined;
 			_chatIdToSelectAfterUpdate = null;
 			if (isDraftActivation) {
 				_draftChatIdToSelectAfterUpdate = null;
 				_draftSelectionExpectedActiveId = undefined;
 				await waitForE2EDraftSelectionCommit(queuedChatId, 'chat_list');
+				const latestSelectedChatId = activeChatStore.get();
+				if (latestSelectedChatId !== expectedActiveChatId) {
+					recordE2EDraftSelectionDecision({ chatId: queuedChatId, consumer: 'chat_list', result: 'skipped' });
+					console.debug('[Chats] Skipping persisted draft activation because selection changed while refreshing:', {
+						persistedChatId: queuedChatId,
+						expectedActiveChatId,
+						latestSelectedChatId
+					});
+					return;
+				}
 			}
 			const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === queuedChatId); // Corrected variable
 			if (chatToSelect) {

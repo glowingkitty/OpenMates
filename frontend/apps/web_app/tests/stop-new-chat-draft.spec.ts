@@ -174,6 +174,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 	await startNewChat(page, logCheckpoint);
 
 	let draftChatId: string | null = null;
+	const targetChatId = `e2e-draft-selection-target-${Date.now()}`;
 	try {
 		const visibleDraft = 'Keep this draft while I open a different saved chat.';
 		const messageEditor = page.getByTestId('message-editor');
@@ -182,20 +183,43 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
 		await startNewChat(page, logCheckpoint);
+		await page.evaluate(async (chatId: string) => {
+			const seedChat = (window as typeof window & {
+				__openmatesE2ESeedChat?: (input: {
+					chat: Record<string, unknown>;
+					messages: Record<string, unknown>[];
+				}) => Promise<unknown>;
+			}).__openmatesE2ESeedChat;
+			if (!seedChat) throw new Error('E2E chat seed helper is unavailable');
+			const now = Math.floor(Date.now() / 1000);
+			await seedChat({
+				chat: {
+					chat_id: chatId,
+					title: 'Draft selection target',
+					messages_v: 1,
+					title_v: 1,
+					created_at: now,
+					updated_at: now,
+					last_edited_overall_timestamp: now
+				},
+				messages: [{
+					message_id: `${chatId}-message`,
+					chat_id: chatId,
+					role: 'user',
+					created_at: now,
+					status: 'synced',
+					content: 'Keep this saved chat selected.'
+				}]
+			});
+		}, targetChatId);
 
 		const sidebar = page.getByTestId('activity-history-wrapper');
 		if (!(await sidebar.isVisible().catch(() => false))) {
 			await page.getByTestId('sidebar-toggle').click();
 			await expect(sidebar).toBeVisible({ timeout: 10000 });
 		}
-		const targetChatId = await page.getByTestId('chat-item-wrapper').evaluateAll((rows, excludedChatId) =>
-			rows
-				.map((row) => row.getAttribute('data-chat-id') || '')
-				.find((chatId) => chatId && chatId !== excludedChatId && !chatId.startsWith('demo-') && !chatId.startsWith('legal-') && !chatId.startsWith('example-')) ?? null,
-			draftChatId
-		);
-		expect(targetChatId, 'The test account needs another mounted saved chat').toBeTruthy();
 		const targetChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${targetChatId}"]`);
+		await expect(targetChatRow).toBeVisible({ timeout: 10000 });
 		await page.evaluate((chatId: string) => {
 			const replay = (window as typeof window & {
 				__openmatesE2EReplayDraftSelection?: (draftChatId: string, pauseBeforeCommit?: boolean) => void;
@@ -247,6 +271,13 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				__openmatesE2EDraftSelectionTrace?: unknown;
 			}).__openmatesE2EDraftSelectionTrace;
 		}).catch(() => undefined);
+		await page.evaluate((chatId: string) => {
+			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+		}, targetChatId).catch(() => undefined);
+		await expect(page.getByTestId('active-chat-container'))
+			.toHaveAttribute('data-current-chat-id', targetChatId, { timeout: 10000 })
+			.catch(() => undefined);
+		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-selection-target').catch(() => undefined);
 		if (draftChatId) {
 			await page.evaluate((chatId: string) => {
 				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
