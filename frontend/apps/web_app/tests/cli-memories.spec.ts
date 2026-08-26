@@ -4,7 +4,7 @@ export {};
 /**
  * CLI Memories E2E Test
  *
- * Tests the full zero-knowledge memory lifecycle via the CLI:
+ * Tests the full zero-knowledge app-memory lifecycle via the CLI:
  *   1. Login via pair auth (shared helper from cli-pair-login.spec.ts)
  *   2. List memory types
  *   3. Create a memory entry (verifies encryption round-trip)
@@ -13,6 +13,7 @@ export {};
  *   6. Update the memory entry
  *   7. Delete the memory entry
  *   8. Verify it's gone from list
+ *   9. Verify removed AI memory types are absent and rejected
  *
  * Architecture doc: docs/architecture/openmates-cli.md
  *
@@ -268,9 +269,10 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 // Tests
 // ---------------------------------------------------------------------------
 
-test.describe('CLI Memories', () => {
+	test.describe('CLI Memories', () => {
 	test.setTimeout(360_000);
 
+	// contract-test: direct surface=cli assertions=app-memories.lifecycle.encrypted-crud,app-memories.privacy.client-encrypted,app-memories.surface.semantic-parity
 	test('full memory lifecycle: create → list (decrypted) → update → delete', async ({
 		page
 	}: {
@@ -520,9 +522,10 @@ test.describe('CLI Memories', () => {
 // Additional memory app coverage
 // ---------------------------------------------------------------------------
 
-test.describe('CLI Memories — Additional Apps', () => {
+	test.describe('CLI Memories — Additional Apps', () => {
 	test.setTimeout(420_000);
 
+	// contract-test: direct surface=cli assertions=app-memories.lifecycle.encrypted-crud,app-memories.privacy.client-encrypted,app-memories.surface.semantic-parity
 	test('travel/trips memory lifecycle: create → list (decrypted) → update → delete', async ({
 		page
 	}: {
@@ -668,7 +671,8 @@ test.describe('CLI Memories — Additional Apps', () => {
 		await runCli(apiUrl, ['logout']);
 	});
 
-	test('ai/communication_style memory lifecycle: create → list (decrypted) → update → delete', async ({
+	// contract-test: direct surface=cli assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+	test('AI memory types are absent and creation is rejected', async ({
 		page
 	}: {
 		page: any;
@@ -685,10 +689,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		logCheckpoint('Logging in...');
 		await loginViaPair(page, apiUrl, logCheckpoint);
 
-		// -----------------------------------------------------------------------
-		// List memory types for ai app (JSON output test)
-		// -----------------------------------------------------------------------
-		logCheckpoint('Listing ai memory types with --json...');
+		logCheckpoint('Verifying AI exposes no memory types...');
 		const typesResult = await runCli(apiUrl, [
 			'settings',
 			'memories',
@@ -709,17 +710,10 @@ test.describe('CLI Memories — Additional Apps', () => {
 			);
 		}
 		expect(Array.isArray(types)).toBe(true);
-		const commStyleType = types.find((t: any) => t.item_type === 'communication_style');
-		expect(commStyleType).toBeTruthy();
-		expect(commStyleType.required).toContain('title');
-		expect(commStyleType.required).toContain('tone');
-		expect(commStyleType.required).toContain('verbosity');
-		logCheckpoint(`Found ${types.length} ai memory types. communication_style validated.`);
+		expect(types).toEqual([]);
+		logCheckpoint('AI memory type discovery is empty.');
 
-		// -----------------------------------------------------------------------
-		// Create an ai/communication_style memory entry
-		// -----------------------------------------------------------------------
-		logCheckpoint('Creating ai/communication_style memory...');
+		logCheckpoint('Verifying AI memory creation is rejected...');
 		const createResult = await runCli(
 			apiUrl,
 			[
@@ -740,135 +734,11 @@ test.describe('CLI Memories — Additional Apps', () => {
 			],
 			30_000
 		);
-		consoleLogs.push(`[ai create] ${createResult.stdout}`);
-		consoleLogs.push(`[ai create stderr] ${createResult.stderr}`);
-		expect(createResult.code).toBe(0);
-		const createData = parseJsonOutput(createResult.stdout, 'memories create');
-		expect(createData.success).toBe(true);
-		expect(typeof createData.id).toBe('string');
-		const entryId = createData.id;
-		logCheckpoint(`Created ai entry: ${entryId}`);
-
-		// -----------------------------------------------------------------------
-		// List + verify decryption
-		// -----------------------------------------------------------------------
-		logCheckpoint('Listing ai/communication_style memories...');
-		const listResult = await runCli(
-			apiUrl,
-			[
-				'settings',
-				'memories',
-				'list',
-				'--app-id',
-				'ai',
-				'--item-type',
-				'communication_style',
-				'--json'
-			],
-			MEMORY_LIST_TIMEOUT_MS
+		expect(createResult.code).not.toBe(0);
+		expect(`${createResult.stdout}\n${createResult.stderr}`).toContain(
+			"Unknown memory type 'ai/communication_style'"
 		);
-		expect(listResult.code).toBe(0);
-		const memories = parseJsonOutput(listResult.stdout, 'memories list');
-		expect(Array.isArray(memories)).toBe(true);
-
-		const ourEntry = memories.find((m: any) => m.id === entryId);
-		expect(ourEntry).toBeTruthy();
-		// Verify decryption
-		expect(ourEntry.data.title).toBe('E2E Test Style');
-		expect(ourEntry.data.tone).toBe('professional');
-		expect(ourEntry.data.verbosity).toBe('concise');
-		// Zero-knowledge: item_key_hash is a 32-char hex hash
-		expect(ourEntry.item_key_hash).toMatch(/^[0-9a-f]{32}$/);
-		expect(ourEntry.item_key_hash).not.toBe('communication_style');
-		logCheckpoint(`Decrypted OK. tone=${ourEntry.data.tone}, verbosity=${ourEntry.data.verbosity}`);
-
-		// -----------------------------------------------------------------------
-		// Update the entry
-		// -----------------------------------------------------------------------
-		logCheckpoint('Updating ai entry...');
-		const updateResult = await runCli(
-			apiUrl,
-			[
-				'settings',
-				'memories',
-				'update',
-				'--id',
-				entryId,
-				'--app-id',
-				'ai',
-				'--item-type',
-				'communication_style',
-				'--data',
-				JSON.stringify({
-					title: 'E2E Test Style Updated',
-					tone: 'casual',
-					verbosity: 'detailed'
-				}),
-				'--version',
-				String(ourEntry.item_version),
-				'--json'
-			],
-			30_000
-		);
-		expect(updateResult.code).toBe(0);
-		const updateData = parseJsonOutput(updateResult.stdout, 'memories update');
-		expect(updateData.success).toBe(true);
-
-		// Verify update
-		const listAfterUpdate = await runCli(
-			apiUrl,
-			[
-				'settings',
-				'memories',
-				'list',
-				'--app-id',
-				'ai',
-				'--item-type',
-				'communication_style',
-				'--json'
-			],
-			MEMORY_LIST_TIMEOUT_MS
-		);
-		const updatedMemories = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
-		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
-		expect(updatedEntry).toBeTruthy();
-		expect(updatedEntry.data.tone).toBe('casual');
-		expect(updatedEntry.data.verbosity).toBe('detailed');
-		logCheckpoint('Update verified.');
-
-		// -----------------------------------------------------------------------
-		// Delete and verify gone
-		// -----------------------------------------------------------------------
-		logCheckpoint('Deleting ai entry...');
-		const deleteResult = await runCli(
-			apiUrl,
-			['settings', 'memories', 'delete', '--id', entryId, '--json'],
-			30_000
-		);
-		expect(deleteResult.code).toBe(0);
-		const deleteData = parseJsonOutput(deleteResult.stdout, 'memories delete');
-		expect(deleteData.success).toBe(true);
-		logCheckpoint('Entry deleted.');
-
-		// Verify gone
-		const listAfterDelete = await runCli(
-			apiUrl,
-			[
-				'settings',
-				'memories',
-				'list',
-				'--app-id',
-				'ai',
-				'--item-type',
-				'communication_style',
-				'--json'
-			],
-			MEMORY_LIST_TIMEOUT_MS
-		);
-		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
-		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
-		expect(deletedEntry).toBeUndefined();
-		logCheckpoint('Deletion verified — entry gone from list.');
+		logCheckpoint('AI memory creation was rejected before persistence.');
 
 		await runCli(apiUrl, ['logout']);
 	});

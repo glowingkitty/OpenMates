@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * AI settings breadcrumb + model/provider detail E2E test.
@@ -16,6 +15,7 @@
  *    — informational only (no toggles, no nested links).
  * 4. Provider display names are simplified ("Anthropic" / "OpenAI",
  *    not "Anthropic API" / "OpenAI API").
+ * 5. The removed AI Memories section is absent while normal AI controls remain.
  *
  * REQUIRED ENV VARS:
  * - OPENMATES_TEST_ACCOUNT_EMAIL
@@ -82,6 +82,7 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	// contract-test: direct surface=gui.web assertions=app-memories.catalog.declared-types-only
 	test('model and provider detail pages use banner shell and back returns to AI settings', async ({ page }) => {
 		const logCheckpoint = createSignupLogger('AI_SETTINGS_BREADCRUMB');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -101,6 +102,8 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		const aiSettings = settingsMenu.getByTestId('ai-settings');
+		await expect(aiSettings.getByText('Memories', { exact: true })).toHaveCount(0);
+		logCheckpoint('Removed AI Memories section is absent.');
 
 		// ── Step 3: Verify section order (models before providers) ────
 		// The Available models section should appear above the Available providers section

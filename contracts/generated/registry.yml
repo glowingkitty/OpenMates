@@ -70,6 +70,18 @@ contracts:
     - cli
     - gui.web
     - gui.apple
+  feature.app-memories:
+    version: 1
+    status: draft
+    path: features/app-memories
+    fingerprint: e89a0a941d9be035bf67daed74db7f0048503f88cb4a53f51f538f8b9296e227
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.audio-generate:
     version: 1
     status: approved
@@ -1029,6 +1041,90 @@ assertions:
     fingerprint: d7ddd8d27c9e31d4887984b09553c6e9e84cb883212f71beda0967bb39a33da0
     required_surfaces:
     - cli
+    - gui.web
+    - gui.apple
+  app-memories.catalog.declared-types-only:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: invariant
+    fingerprint: bef3232081dbac69e6969b2501f7665edd75ef45ffb9d6a783b858f9e69044a9
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.lifecycle.encrypted-crud:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: behavior
+    fingerprint: 4bd5697ade55dbb6eb6fcfd842305c1e5ca65e5b69a8da9492e70a7fa06e96b9
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.privacy.client-encrypted:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: privacy
+    fingerprint: d2854a8f5c31540ca2f399365b179d02323e2319a77dc6ce8368ab1bbdbda4f5
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.access.owner-scoped:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: security
+    fingerprint: 58c84cbdd836e95d2f0ba03a110fe9ad7ee0fc8601be002d00583f362fe9f9b4
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.sync.versioned-convergence:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: invariant
+    fingerprint: 642f2e547ac9d253d06ab0709b34155fc6c6b9b142bf1b75146998a11723fc8a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.conversation.explicit-approval:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: behavior
+    fingerprint: 9c2405675a097f2d73a4a250afd4a300512f16fe96e1f3a1f2d27897b12368d1
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.surface.semantic-parity:
+    contract: feature.app-memories@1
+    contract_id: feature.app-memories
+    type: parity
+    fingerprint: c758bfde2fe2a42a2daa3308a19fb3632c8904c4ac98322732462143da0b4d82
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
     - gui.web
     - gui.apple
   audio-generate.request.validated:
