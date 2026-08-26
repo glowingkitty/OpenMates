@@ -261,6 +261,20 @@
     };
   }
 
+  function readBookingContext(content: Record<string, unknown>): Record<string, string> | undefined {
+    if (typeof content.booking_context === 'object' && content.booking_context !== null && !Array.isArray(content.booking_context)) {
+      return content.booking_context as Record<string, string>;
+    }
+
+    const contextKeys = ['departure_id', 'arrival_id', 'outbound_date', 'return_date', 'type', 'currency', 'gl', 'adults', 'travel_class'];
+    const context: Record<string, string> = {};
+    for (const key of contextKeys) {
+      const value = content[`booking_context_${key}`];
+      if (value !== undefined && value !== null) context[key] = String(value);
+    }
+    return Object.keys(context).length > 0 ? context : undefined;
+  }
+
   // Build the connection object from data.decodedContent
   // The decodedContent fields map directly to ConnectionData since ActiveChat
   // previously passed the whole decodedContent as-is to construct the connection prop
@@ -286,7 +300,7 @@
     booking_url: typeof dc.booking_url === 'string' ? dc.booking_url : undefined,
     booking_provider: typeof dc.booking_provider === 'string' ? dc.booking_provider : undefined,
     booking_token: typeof dc.booking_token === 'string' ? dc.booking_token : undefined,
-    booking_context: (typeof dc.booking_context === 'object' && dc.booking_context !== null) ? dc.booking_context as Record<string, string> : undefined,
+    booking_context: readBookingContext(dc as Record<string, unknown>),
     origin: typeof dc.origin === 'string' ? dc.origin : undefined,
     destination: typeof dc.destination === 'string' ? dc.destination : undefined,
     departure: typeof dc.departure === 'string' ? dc.departure : undefined,
