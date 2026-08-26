@@ -314,6 +314,18 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-26"
     notes: The current source preserves the deployed storage-resilience behavior and regional policy together. The combined focused suite passes, including non-blocking startup and outage behavior.
+  - id: ATTEMPT-7
+    task_id: TASK-6
+    approach: Implement recovery-aware bounded backfill, exact target checksums, complete failback fences, internal diagnostics, scalable inventory, and real CLI image replication verification before live regional proof.
+    outcome: succeeded
+    recorded_at: "2026-08-26"
+    notes: Commits 204ee9011b721f2cccc1571b2ead006b4d78f58f and b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f deployed the implementation and runtime packaging. The focused storage gate passed 46 tests; Ruff, compile, contract metadata, diff checks, and two bounded code reviews passed.
+  - id: ATTEMPT-8
+    task_id: TASK-6
+    approach: Rebuild the deployed API image and run internal API, FSN1/HEL1 capability, exact inventory, and real CLI image-token gates.
+    outcome: blocked
+    recorded_at: "2026-08-26"
+    notes: The internal-only API contract passed with missing-token 401, three configured regions, two health rows, eight pending replication jobs, and zero pending deletions. Public api.dev ingress disconnected, and the shared Docker coordinator remained stuck draining another session's API operation, preventing the packaging rebuild and Vault-backed regional/CLI gates. No storage mutation was attempted.
 
 scenarios:
   - id: S-1
@@ -1084,31 +1096,31 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-2, AC-3, AC-4, AC-6, AC-16, AC-17]
-    status: pending
+    status: blocked
     command: python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
     target: api.dev.openmates.org
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: blocked, command: "docker exec api python /app/scripts/verify_storage_lifecycle_api.py --runtime; python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all", run_id: "task6-internal-api-20260826", subject_commit: "204ee9011b721f2cccc1571b2ead006b4d78f58f", summary: "Internal-only route passed: missing token returned 401, three configured regions and sanitized durable-work totals returned; public api.dev ingress disconnected before the intentional 404 exposure check.", timestamp: "2026-08-26T19:02:00Z"}
   - id: V-DEV-REGIONAL-BACKFILL
     kind: artifact_review
     phase: green
     required_for_done: true
     covers: [AC-12, AC-14]
-    status: pending
+    status: blocked
     command: python3 scripts/audit_object_storage_inventory.py --env dev --verify-replicas --json
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: blocked, command: "docker exec api python /app/scripts/audit_object_storage_inventory.py --env dev --probe-regions --regions nbg1,fsn1,hel1 --json", run_id: "task6-docker-lock-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Runtime packaging is deployed, but the shared Docker coordinator remained in draining_tests for another API operation, so the rebuilt image and Vault-backed capability/backfill probes could not run. Prior FSN1/HEL1 create probes remain 403.", timestamp: "2026-08-26T19:08:00Z"}
   - id: V-DEV-CLI-IMAGE-REPLICATION
     kind: automated_test
     phase: green
     required_for_done: true
     covers: [AC-1, AC-2, AC-12, AC-15, AC-18]
-    status: pending
+    status: blocked
     command: python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup
     target: api.dev.openmates.org
     assertions:
       - The real OpenMates CLI uploads the dedicated private test image and receives a successful answer that requires image inspection.
       - The encrypted upload generation and exact checksum verify in the nbg1, fsn1, and hel1 physical buckets without printing private object identifiers.
       - Authoritative cleanup tombstones and removes the test chat and file from every configured region.
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: blocked, command: "python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup", run_id: "task6-docker-lock-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Verifier implementation and helper tests pass, but the real chat was not started because all-region verification cannot succeed until the deployed packaging image is rebuilt and FSN1/HEL1 buckets are available; no test upload or chat was left behind.", timestamp: "2026-08-26T19:08:00Z"}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
@@ -1448,11 +1460,11 @@ demonstration:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Complete the existing regional API verification and bounded backfill path; attempt current-authority FSN1/HEL1 provisioning once and record the existing 403 as an external blocker if it persists.
+  next_action: After the shared API Docker operation releases, rebuild API from b830fff9, rerun the internal/public API verifier, then run the regional capability probe, exact replica inventory/backfill, and mandatory-cleanup CLI image-token test; keep TASK-6 blocked if FSN1/HEL1 still return 403.
   command: >-
     python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
   expected_outcome: NBG1, FSN1, and HEL1 replication/failover/backfill behavior is proven where provisioned, with no destructive action on ambiguity and a precise external blocker for any provider-denied region.
   blocker:
     status: external_possible
     reason: FSN1/HEL1 provisioning previously returned 403 and may require external provider authority.
-  last_verified_commit: 6720319cef595602548d9b060613c9e49004ccd7
+  last_verified_commit: b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f
