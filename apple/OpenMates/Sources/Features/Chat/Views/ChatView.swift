@@ -1585,7 +1585,6 @@ struct ChatView: View {
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing2)
-        .background(Color.grey0)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(AppStrings.aiResponding)
         .accessibilityIdentifier("streaming-banner")
@@ -1650,7 +1649,6 @@ struct ChatView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
-        .background(Color.grey0)
         .animation(.easeInOut(duration: 0.25), value: isInputFocused)
     }
 
@@ -1663,7 +1661,6 @@ struct ChatView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
-            .background(Color.grey0)
     }
 
     @ViewBuilder
@@ -3672,6 +3669,7 @@ struct MessageBubble: View {
                     }
                     .foregroundStyle(Color.grey100)
                     .padding(.spacing6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.grey0)
                     .clipShape(RoundedRectangle(cornerRadius: 13))
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
@@ -3682,6 +3680,8 @@ struct MessageBubble: View {
                     .onLongPressGesture {
                         onShowActions?()
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("assistant-message-content")
 
                     if let modelName = message.modelName, !modelName.isEmpty {
                         generatedByContainer(modelName: modelName)
@@ -3689,6 +3689,7 @@ struct MessageBubble: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .bottomLeading) {
             Color.clear
                 .frame(width: 1, height: 1)

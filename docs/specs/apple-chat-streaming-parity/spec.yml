@@ -242,6 +242,12 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-25T11:42:49Z"
     evidence: Run apple-0d754eb7999b44bd reached the native login flow at commit 20f812e52183c8e408050074483de93b3340e385, but the password step returned backend HTTP 502 before chat assertions. The dev API remained unhealthy because startup failed while external S3 bucket CORS calls returned 503.
+  - id: ATTEMPT-9
+    task_id: TASK-9
+    approach: Run the credential-free iPhone chat-history fixture against a card-level assistant alignment and transcript-width assertion.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-26T02:08:29Z"
+    evidence: ChatHistoryFullParityUITests/testBannerTranscriptAndComposerMatchResponsiveWebContract failed on exact commit c195ba9331f3df5db11f83f1abb03bbbd58f9d79 because the visible assistant card had no independent accessibility element and remained shrink-wrapped instead of satisfying the rendered web width contract.
 
 handoff:
   current_task_id: TASK-9
@@ -765,7 +771,13 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: {status: "", run_id: "", timestamp: ""}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatHistoryFullParityUITests/testBannerTranscriptAndComposerMatchResponsiveWebContract"
+        run_id: remote:assistant-card-red-20260826T0208Z
+        subject_commit: c195ba9331f3df5db11f83f1abb03bbbd58f9d79
+        reason: The credential-free iPhone fixture failed at the visible assistant-card assertion before product changes; the outer row accessibility frame had masked the shrink-wrapped centered card in the earlier assertion.
+        timestamp: "2026-08-26T02:08:29Z"
     green_phase:
       required: true
       expected: pass
