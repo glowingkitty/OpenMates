@@ -793,6 +793,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 		});
 		await proof.checkpoint('processing-visible');
 
+		// Capture before OTel collection can consume the fixture's observable chunk interval.
 		const streamingAssistant = assistantResponse.last();
 		await expect(streamingAssistant).toBeVisible({ timeout: 60000 });
 		const streamingCard = page.getByTestId('mate-message-content').last();
