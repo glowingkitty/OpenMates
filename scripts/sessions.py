@@ -141,7 +141,8 @@ STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 CHECKPOINT_LOCK_RETENTION_HOURS = 24
 VERCEL_DEPLOY_LOCK_MINUTES = 90
-DOCKER_TEST_LEASE_TTL_SECONDS = 12 * 60 * 60
+DOCKER_TEST_LEASE_TTL_SECONDS = 30 * 60
+DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS = 60
 DOCKER_OPERATION_HISTORY_LIMIT = 20
 DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "draining_tests", "restarting", "verifying"}
 DOCKER_OPERATION_TERMINAL_STATUSES = {"completed", "failed"}
@@ -1045,15 +1046,20 @@ def _load_opencode_message_rows(
     rows = connection.execute(
         f"""
         SELECT id, session_id, time_created, time_updated, data
-        FROM message
-        WHERE session_id IN ({placeholders})
-        {match_sql}
+        FROM (
+            SELECT id, session_id, time_created, time_updated, data
+            FROM message
+            WHERE session_id IN ({placeholders})
+            {match_sql}
+            ORDER BY time_created DESC, id DESC
+            LIMIT ?
+        ) AS recent_messages
         ORDER BY time_created ASC, id ASC
-        LIMIT ?
         """,
         tuple(parameters),
     ).fetchall()
-    return rows[:max_messages], len(rows) > max_messages
+    truncated = len(rows) > max_messages
+    return (rows[-max_messages:] if truncated else rows), truncated
 
 
 def _load_opencode_part_rows(
@@ -1976,6 +1982,11 @@ def acquire_test_resource_lease(
                 f"Docker restart {blocked_by} is queued or active for {', '.join(sorted(resources))}"
             )
         time.sleep(min(poll, max(1, int(deadline - time.time()))))
+
+
+def renew_test_resource_lease(lease_id: str, owner: str, resources: set[str]) -> dict:
+    """Renew a lease held by this process without waiting behind other work."""
+    return acquire_test_resource_lease(lease_id, owner, resources, timeout=0, poll=1)
 
 
 def release_test_resource_lease(lease_id: str) -> bool:
@@ -13899,6 +13910,61 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
     os.execvp(cmd[0], cmd)
 
 
+def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
+    """Validate restore routing and advance a clean merged worktree to origin/dev."""
+    data = _load_sessions()
+    matches = [
+        (session_id, session)
+        for session_id, session in data.get("sessions", {}).items()
+        if isinstance(session, dict) and session.get("opencode_session_id") == opencode_session_id
+    ]
+    if not matches:
+        return {"cwd": str(CONTROL_PLANE_ROOT), "repository_session_id": "", "advanced": False}
+    if len(matches) != 1:
+        raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple repository sessions")
+    repository_session_id, session = matches[0]
+    worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    worktree_path = Path(str(worktree.get("path") or ""))
+    if not worktree_path or not _existing_direct_managed_worktree(worktree_path):
+        raise RuntimeError(
+            f"Restore blocked: repository session {repository_session_id} has an invalid or missing managed worktree. "
+            f"Run `python3 scripts/sessions.py worktree repair --opencode-session {opencode_session_id}` first."
+        )
+    advanced = False
+    if worktree.get("status") == "merged":
+        rc, porcelain, stderr = _run_cmd(["git", "status", "--porcelain"], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not inspect {worktree_path}: {stderr}")
+        if not porcelain:
+            rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(worktree_path))
+            if rc != 0:
+                raise RuntimeError(f"Restore preflight could not fetch origin/dev: {stderr}")
+            rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"], cwd=str(worktree_path))
+            if rc != 0:
+                raise RuntimeError(f"Restore preflight could not resolve origin/dev: {stderr}")
+            current_head = _current_git_sha(worktree_path)
+            rc, _stdout, stderr = _run_cmd(["git", "merge-base", "--is-ancestor", current_head, target_commit], cwd=str(worktree_path))
+            if rc != 0:
+                raise RuntimeError("Restore blocked: the clean merged worktree diverged from origin/dev; preserve it and reconcile manually. " + stderr)
+            rc, _stdout, stderr = _run_cmd(["git", "switch", "--detach", target_commit], cwd=str(worktree_path))
+            if rc != 0:
+                raise RuntimeError(f"Restore preflight could not advance the worktree: {stderr}")
+
+            def update(sessions_data: dict) -> None:
+                current = sessions_data["sessions"][repository_session_id]
+                current_worktree = current["worktree"]
+                current_worktree["base_commit"] = target_commit
+                current_worktree["status"] = "active"
+                current_worktree["last_active"] = _now_iso()
+                current["last_active"] = current_worktree["last_active"]
+                current["binding_mode"] = "worktree_routed"
+
+            _mutate_sessions(update)
+            advanced = current_head != target_commit
+    link_shared_worktree_resources(worktree_path)
+    return {"cwd": str(worktree_path), "repository_session_id": repository_session_id, "advanced": advanced}
+
+
 def cmd_restore(args: argparse.Namespace) -> None:
     """Send a continuation prompt to an existing OpenCode session.
 
@@ -14071,10 +14137,24 @@ def cmd_restore(args: argparse.Namespace) -> None:
         "Continue where you left off."
     )
 
+    try:
+        restore = prepare_opencode_restore(session_id)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    coordinator = CONTROL_PLANE_ROOT / "scripts" / "sessions.py"
+    prompt = (
+        f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
+        f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
+        f"For every shared Docker or test operation, use the current host coordinator explicitly: "
+        f"python3 {coordinator} <command>. Do not invoke a stale worktree copy of sessions.py for shared runtime mutations.\n\n"
+        + prompt
+    )
+
     success = resume_opencode_session(
         session_name=restore_name,
         opencode_session_id=session_id,
-        cwd=str(CONTROL_PLANE_ROOT),
+        cwd=restore["cwd"],
         prompt=prompt,
         permission_mode=getattr(args, "mode", "plan"),
     )

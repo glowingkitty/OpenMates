@@ -28,6 +28,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -5557,6 +5558,39 @@ def release_docker_test_lease(lease_id: str) -> None:
     session_control.release_test_resource_lease(lease_id)
 
 
+def run_with_docker_lease_heartbeat(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    lease_id: str,
+    owner: str,
+    resources: set[str],
+) -> int:
+    """Run a test command while keeping its short-lived Docker lease current."""
+    stopped = threading.Event()
+    renewal_error: list[RuntimeError] = []
+
+    def heartbeat() -> None:
+        while not stopped.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
+            try:
+                session_control.renew_test_resource_lease(lease_id, owner, resources)
+            except RuntimeError as exc:
+                renewal_error.append(exc)
+                return
+
+    thread = threading.Thread(target=heartbeat, name=f"lease-heartbeat-{lease_id}", daemon=True)
+    thread.start()
+    try:
+        result = subprocess.run(command, cwd=PROJECT_ROOT, env=env)
+    finally:
+        stopped.set()
+        thread.join(timeout=1)
+    if renewal_error:
+        print(f"Docker test lease renewal failed: {renewal_error[0]}", file=sys.stderr)
+        return 2
+    return result.returncode
+
+
 def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:
     failures: list[str] = []
     for url in urls:
@@ -5816,11 +5850,12 @@ def command_run(runner_args: list[str]) -> int:
             return 2
     resources = docker_resources_for_run(options.forwarded_args)
     docker_lease_id = f"test-{uuid.uuid4().hex[:12]}" if resources else ""
+    docker_lease_owner = os.environ.get("OPENCODE_SESSION_ID", "manual")
     if docker_lease_id:
         try:
             acquire_docker_test_lease(
                 docker_lease_id,
-                os.environ.get("OPENCODE_SESSION_ID", "manual"),
+                docker_lease_owner,
                 resources,
             )
         except RuntimeError as exc:
@@ -5887,12 +5922,21 @@ def command_run(runner_args: list[str]) -> int:
             suite, tests = infer_run_suite_and_tests(options.forwarded_args)
             mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
-        result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
+        if docker_lease_id:
+            returncode = run_with_docker_lease_heartbeat(
+                command,
+                env=run_env,
+                lease_id=docker_lease_id,
+                owner=docker_lease_owner,
+                resources=resources,
+            )
+        else:
+            returncode = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env).returncode
         if dispatch_store and dispatch_key:
             dispatch_store.update_dispatch(
                 dispatch_key,
-                "succeeded" if result.returncode == 0 else "failed",
-                None if result.returncode == 0 else f"runner_exit:{result.returncode}",
+                "succeeded" if returncode == 0 else "failed",
+                None if returncode == 0 else f"runner_exit:{returncode}",
             )
             dispatch_terminal = True
         recorded_commit = record_latest_run_artifact(
@@ -5905,12 +5949,12 @@ def command_run(runner_args: list[str]) -> int:
             response_media_run_type=playwright_response_media_run_type(options),
         )
         if not recorded_commit:
-            return 2 if options.expected_commit else result.returncode
+            return 2 if options.expected_commit else returncode
         if options.campaign_key:
             artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
             if artifacts:
                 add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
-        return result.returncode
+        return returncode
     finally:
         if dispatch_store and dispatch_key and not dispatch_terminal:
             try:
