@@ -699,7 +699,7 @@ assertions:
       surface: gui.web
     - &id072
       path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
-      line: 229
+      line: 230
       name: late draft persistence cannot override a newer explicit chat selection
       surface: gui.web
     supporting_tests:
@@ -8722,7 +8722,7 @@ assertions:
       surface: gui.web
     - &id949
       path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
-      line: 229
+      line: 230
       name: late draft persistence cannot override a newer explicit chat selection
       surface: gui.web
     supporting_tests:

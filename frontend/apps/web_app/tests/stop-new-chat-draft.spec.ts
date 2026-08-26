@@ -152,6 +152,7 @@ async function insertComposerText(page: any, messageEditor: any, text: string, v
 
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
 test('stop during new chat creation restores the sent message as a draft', async ({ page }: { page: any }) => {
+	test.skip(IS_PROOF_CAPTURE, 'Proof profiles record only the late draft activation navigation contract.');
 	test.slow();
 	test.setTimeout(150000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
