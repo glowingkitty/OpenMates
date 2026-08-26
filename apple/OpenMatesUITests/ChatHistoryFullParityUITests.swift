@@ -127,14 +127,17 @@ final class ChatHistoryFullParityUITests: XCTestCase {
 
     private func assertAssistantUsesTranscriptWidth(in app: XCUIApplication) {
         let history = element(in: app, identifier: "chat-history-container")
-        let assistant = element(in: app, identifier: "chat-history-fixture-assistant")
+        let assistantContent = element(in: app, identifier: "assistant-message-content")
+        let senderName = element(in: app, identifier: "message-sender-name")
+        XCTAssertTrue(assistantContent.waitForExistence(timeout: 5))
+        XCTAssertTrue(senderName.waitForExistence(timeout: 5))
         XCTAssertLessThanOrEqual(
-            assistant.frame.minX,
+            senderName.frame.minX,
             history.frame.minX + 24,
             "Assistant response was centered instead of leading-aligned"
         )
         XCTAssertGreaterThanOrEqual(
-            assistant.frame.width,
+            assistantContent.frame.width,
             history.frame.width - 48,
             "Assistant response did not use the available transcript width"
         )

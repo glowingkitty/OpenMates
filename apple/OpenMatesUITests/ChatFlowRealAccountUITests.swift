@@ -109,16 +109,18 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     private func assertAssistantUsesTranscriptWidth(in app: XCUIApplication) {
         let history = app.otherElements["chat-history-container"]
-        let assistant = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        let assistantContent = app.descendants(matching: .any)["assistant-message-content"]
+        let senderName = app.descendants(matching: .any)["message-sender-name"]
         XCTAssertTrue(history.exists)
-        XCTAssertTrue(assistant.exists)
+        XCTAssertTrue(assistantContent.exists)
+        XCTAssertTrue(senderName.exists)
         XCTAssertLessThanOrEqual(
-            assistant.frame.minX,
+            senderName.frame.minX,
             history.frame.minX + 24,
             "Assistant response was centered instead of leading-aligned"
         )
         XCTAssertGreaterThanOrEqual(
-            assistant.frame.width,
+            assistantContent.frame.width,
             history.frame.width - 48,
             "Assistant response did not use the available transcript width"
         )
