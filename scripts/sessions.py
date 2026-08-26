@@ -82,6 +82,19 @@ try:
 except ModuleNotFoundError:
     from opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
 
+try:
+    from scripts.engineering_control_plane import (
+        ControlPlaneApiError,
+        ENV_FILE as ENGINEERING_CONTROL_PLANE_ENV_FILE,
+        control_plane_api_request,
+    )
+except ModuleNotFoundError:
+    from engineering_control_plane import (
+        ControlPlaneApiError,
+        ENV_FILE as ENGINEERING_CONTROL_PLANE_ENV_FILE,
+        control_plane_api_request,
+    )
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -1770,6 +1783,55 @@ def _infrastructure_state(data: dict) -> dict:
     return infrastructure
 
 
+def _persistent_coordination_enabled() -> bool:
+    configured = os.getenv("OPENMATES_COORDINATION_BACKEND", "").strip().lower()
+    if configured not in {"", "api", "local"}:
+        raise RuntimeError("OPENMATES_COORDINATION_BACKEND must be 'api' or 'local'")
+    if configured == "local":
+        return False
+    if configured == "api" and not ENGINEERING_CONTROL_PLANE_ENV_FILE.is_file():
+        raise RuntimeError(
+            f"Persistent coordination was requested but configuration is missing: {ENGINEERING_CONTROL_PLANE_ENV_FILE}"
+        )
+    return configured == "api" or ENGINEERING_CONTROL_PLANE_ENV_FILE.is_file()
+
+
+def _coordination_owner_key(pid: int | None = None) -> str:
+    return f"{socket.gethostname()}:{pid if pid is not None else os.getpid()}"
+
+
+def _legacy_lease_record(lease: dict, *, owner: str = "") -> dict:
+    owner_key = str(lease.get("owner_key") or "")
+    owner_pid = int(owner_key.rsplit(":", 1)[-1]) if owner_key.rsplit(":", 1)[-1].isdigit() else 0
+    return {
+        "lease_id": str(lease.get("lease_key") or ""),
+        "owner": owner,
+        "owner_pid": owner_pid,
+        "owner_host": owner_key.rsplit(":", 1)[0] if ":" in owner_key else "",
+        "resources": list(lease.get("resources") or []),
+        "acquired_at": str(lease.get("acquired_at") or ""),
+        "updated_at": str(lease.get("acquired_at") or ""),
+        "expires_at": str(lease.get("expires_at") or ""),
+        "status": str(lease.get("status") or ""),
+    }
+
+
+def _legacy_operation_record(operation: dict) -> dict:
+    metadata = operation.get("metadata") if isinstance(operation.get("metadata"), dict) else {}
+    return {
+        "id": str(operation.get("operation_key") or ""),
+        "session_id": str(metadata.get("session_id") or ""),
+        "services": list(metadata.get("services") or []),
+        "resources": list(operation.get("resources") or []),
+        "status": str(operation.get("status") or ""),
+        "requested_at": str(operation.get("requested_at") or ""),
+        "updated_at": str(operation.get("completed_at") or operation.get("admitted_at") or operation.get("requested_at") or ""),
+        "started_at": str(operation.get("admitted_at") or ""),
+        "completed_at": str(operation.get("completed_at") or ""),
+        **metadata,
+    }
+
+
 def _process_is_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -1861,6 +1923,25 @@ def acquire_test_resource_lease(
     """Acquire a shared test lease after any conflicting restart completes."""
     if not resources:
         return {}
+    if _persistent_coordination_enabled():
+        deadline = time.time() + max(0, timeout)
+        while True:
+            try:
+                response = control_plane_api_request(
+                    "POST",
+                    "/v1/coordination/leases",
+                    data={
+                        "lease_key": lease_id,
+                        "owner_key": _coordination_owner_key(),
+                        "resources": sorted(resources),
+                        "ttl_seconds": DOCKER_TEST_LEASE_TTL_SECONDS,
+                    },
+                )
+                return _legacy_lease_record(response["lease"], owner=owner)
+            except ControlPlaneApiError as exc:
+                if exc.status != 409 or time.time() >= deadline:
+                    raise RuntimeError(f"Persistent test lease acquisition failed: {exc.detail}") from exc
+                time.sleep(min(max(1, poll), max(1, int(deadline - time.time()))))
     deadline = time.time() + max(0, timeout)
     poll = max(1, poll)
     while True:
@@ -1898,6 +1979,10 @@ def acquire_test_resource_lease(
 
 
 def release_test_resource_lease(lease_id: str) -> bool:
+    if _persistent_coordination_enabled():
+        response = control_plane_api_request("DELETE", f"/v1/coordination/leases/{lease_id}")
+        return bool(response.get("released"))
+
     def mutate(data: dict) -> bool:
         return _infrastructure_state(data)["test_leases"].pop(lease_id, None) is not None
 
@@ -1907,6 +1992,19 @@ def release_test_resource_lease(lease_id: str) -> bool:
 def transfer_test_resource_lease(lease_id: str, *, expected_owner_pid: int, new_owner_pid: int) -> dict:
     """Atomically transfer a local test lease to a spawned child process."""
     host = socket.gethostname()
+    if _persistent_coordination_enabled():
+        try:
+            response = control_plane_api_request(
+                "POST",
+                f"/v1/coordination/leases/{lease_id}/transfer",
+                data={
+                    "expected_owner_key": _coordination_owner_key(expected_owner_pid),
+                    "new_owner_key": _coordination_owner_key(new_owner_pid),
+                },
+            )
+        except ControlPlaneApiError as exc:
+            raise RuntimeError(f"Docker test lease {lease_id} is not owned by the launching process") from exc
+        return _legacy_lease_record(response["lease"])
 
     def mutate(data: dict) -> dict:
         lease = _infrastructure_state(data)["test_leases"].get(lease_id)
@@ -1923,6 +2021,12 @@ def transfer_test_resource_lease(lease_id: str, *, expected_owner_pid: int, new_
 
 def test_resource_lease_owned_by(lease_id: str, *, owner_pid: int) -> bool:
     """Return whether a local lease is currently owned by the expected process."""
+    if _persistent_coordination_enabled():
+        response = control_plane_api_request(
+            "GET",
+            f"/v1/coordination/leases/{lease_id}/owned?{urllib.parse.urlencode({'owner_key': _coordination_owner_key(owner_pid)})}",
+        )
+        return bool(response.get("owned"))
     data = _load_sessions()
     lease = _infrastructure_state(data)["test_leases"].get(lease_id)
     return bool(
@@ -1936,6 +2040,28 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
     """Atomically queue one restart, preventing new dependent test leases."""
     normalized_services = sorted(set(services))
     now = _now_iso()
+    if _persistent_coordination_enabled():
+        operation_id = f"docker-{secrets.token_hex(4)}"
+        try:
+            response = control_plane_api_request(
+                "POST",
+                "/v1/coordination/runtime-operations",
+                data={
+                    "operation_key": operation_id,
+                    "operation_type": "product_docker_restart",
+                    "resources": sorted(_docker_operation_resources(normalized_services)),
+                    "metadata": {
+                        "session_id": session_id,
+                        "services": normalized_services,
+                        "owner_pid": os.getpid(),
+                        "owner_host": socket.gethostname(),
+                        "waiting_for_tests": [],
+                    },
+                },
+            )
+        except ControlPlaneApiError as exc:
+            raise RuntimeError(f"Docker restart request conflicted: {exc.detail}") from exc
+        return _legacy_operation_record(response["operation"])
 
     def mutate(data: dict) -> dict:
         _prune_stale_test_resource_leases(data)
@@ -1969,6 +2095,16 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
 def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
     if status not in DOCKER_OPERATION_ACTIVE_STATUSES | DOCKER_OPERATION_TERMINAL_STATUSES:
         raise ValueError(f"Unknown Docker operation status: {status}")
+    if _persistent_coordination_enabled():
+        try:
+            response = control_plane_api_request(
+                "PATCH",
+                f"/v1/coordination/runtime-operations/{operation_id}",
+                data={"status": status, "metadata": fields},
+            )
+        except ControlPlaneApiError as exc:
+            raise RuntimeError(f"Docker operation update failed: {exc.detail}") from exc
+        return _legacy_operation_record(response["operation"])
 
     def mutate(data: dict) -> dict:
         operations = _infrastructure_state(data)["docker_operations"]
@@ -1989,6 +2125,13 @@ def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
 
 
 def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
+    if _persistent_coordination_enabled():
+        response = control_plane_api_request(
+            "GET",
+            f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
+        )
+        return [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+
     def mutate(data: dict) -> list[dict]:
         _prune_stale_test_resource_leases(data)
         operations = _infrastructure_state(data)["docker_operations"]

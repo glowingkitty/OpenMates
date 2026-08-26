@@ -26,6 +26,11 @@ from scripts import sessions
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+@pytest.fixture(autouse=True)
+def use_local_coordination(monkeypatch):
+    monkeypatch.setenv("OPENMATES_COORDINATION_BACKEND", "local")
+
+
 def load_run_tests_module():
     spec = importlib.util.spec_from_file_location("docker_orchestration_run_tests", PROJECT_ROOT / "scripts" / "run_tests.py")
     assert spec is not None

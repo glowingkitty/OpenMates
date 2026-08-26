@@ -44,6 +44,7 @@ except ModuleNotFoundError:
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONTROL_PLANE_ENV_FILE = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config")) / "openmates" / "engineering-control-plane.env"
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
 PROOF_CAPTURE_END_BUFFER_SECONDS = 4.0
@@ -186,6 +187,29 @@ _SOURCE_TEXT_CACHE: dict[str, str] | None = None
 
 def _copy_json(data: Any) -> Any:
     return json.loads(json.dumps(data))
+
+
+def _control_plane_client_config() -> dict[str, str]:
+    values = {
+        "url": os.getenv("ENGINEERING_CONTROL_PLANE_URL", "").strip(),
+        "token": os.getenv("ENGINEERING_CONTROL_PLANE_API_TOKEN", "").strip(),
+    }
+    if values["token"] or os.getenv("OPENMATES_DISABLE_CONTROL_PLANE_ENV_FILE") == "1":
+        return values
+    if not CONTROL_PLANE_ENV_FILE.is_file():
+        return values
+    for raw_line in CONTROL_PLANE_ENV_FILE.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        if key == "ENGINEERING_CONTROL_PLANE_URL" and not values["url"]:
+            values["url"] = value
+        elif key == "ENGINEERING_CONTROL_PLANE_API_TOKEN" and not values["token"]:
+            values["token"] = value
+    return values
 
 
 class InMemoryTestControlStore:
@@ -335,6 +359,399 @@ class InMemoryTestControlStore:
 
     def get_test_run(self, run_key: str) -> dict[str, Any]:
         return _copy_json(self.test_runs.get(run_key) or {})
+
+
+class ControlPlaneTestControlStore(InMemoryTestControlStore):
+    """Private engineering-control-plane API adapter."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        config = _control_plane_client_config()
+        self.base_url = (config["url"] or "http://127.0.0.1:8091").rstrip("/")
+        self.token = config["token"]
+        if not self.token:
+            raise RuntimeError(
+                "ENGINEERING_CONTROL_PLANE_API_TOKEN is required; "
+                "there is no Directus, product-database, or local-JSON fallback"
+            )
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        timeout: int = 30,
+    ) -> Any:
+        query = f"?{urllib.parse.urlencode(params)}" if params else ""
+        body = json.dumps(data, separators=(",", ":")).encode("utf-8") if data is not None else None
+        request = urllib.request.Request(
+            f"{self.base_url}{path}{query}",
+            data=body,
+            method=method,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache, no-store, max-age=0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"Engineering control-plane request rejected: {method} {path}: {exc.code} {detail}"
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Engineering control-plane request failed: {method} {path}: {exc}") from exc
+        return json.loads(payload) if payload else {}
+
+    def _records(
+        self,
+        collection: str,
+        *,
+        filters: dict[str, Any] | None = None,
+        sort: str | None = None,
+        limit: int = -1,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"filters_json": json.dumps(filters or {}, separators=(",", ":")), "limit": limit}
+        if sort:
+            params["sort"] = sort
+        response = self._request("GET", f"/v1/records/{collection}", params=params)
+        records = response.get("records") if isinstance(response, dict) else None
+        return records if isinstance(records, list) else []
+
+    def _upsert(self, collection: str, record: dict[str, Any]) -> dict[str, Any]:
+        response = self._request("PUT", f"/v1/records/{collection}", data={"record": record})
+        stored = response.get("record") if isinstance(response, dict) else None
+        return stored if isinstance(stored, dict) else {}
+
+    def _import(self, collections: dict[str, list[dict[str, Any]]], *, replace_current_state: bool = False) -> None:
+        self._request(
+            "POST",
+            "/v1/import",
+            data={"collections": collections, "replace_current_state": replace_current_state},
+            timeout=900,
+        )
+
+    def request_dispatch(
+        self,
+        *,
+        commit: str,
+        tests: list[str],
+        profile: str,
+        required_services: list[str],
+    ) -> tuple[dict[str, Any], bool]:
+        response = self._request(
+            "POST",
+            "/v1/coordination/dispatches",
+            data={
+                "repository": "OpenMates",
+                "commit": commit,
+                "tests": tests,
+                "profile": profile,
+                "account": os.getenv("OPENMATES_TEST_ACCOUNT", "default"),
+                "mocks": {},
+                "required_services": required_services,
+            },
+        )
+        return dict(response["dispatch"]), bool(response["reused"])
+
+    def record_dispatch_canary(self, dispatch_key: str, service: str, *, healthy: bool) -> dict[str, Any]:
+        response = self._request(
+            "PUT",
+            f"/v1/coordination/dispatches/{dispatch_key}/canaries",
+            data={
+                "service": service,
+                "healthy": healthy,
+                "failure_class": None if healthy else "preflight_unhealthy",
+            },
+        )
+        return dict(response["dispatch"])
+
+    def update_dispatch(self, dispatch_key: str, status: str, reason: str | None = None) -> dict[str, Any]:
+        response = self._request(
+            "PATCH",
+            f"/v1/coordination/dispatches/{dispatch_key}",
+            data={"status": status, "reason": reason},
+        )
+        return dict(response["dispatch"])
+
+    def load_state(self) -> dict[str, Any]:
+        rows = self._records("test_current_state", sort="test_key")
+        tests = {str(row.get("test_key")): self._state_row_to_record(row) for row in rows if row.get("test_key")}
+        latest_run_id = self._latest_current_state_run(rows)
+        latest_run = self.get_test_run(latest_run_id) if latest_run_id else {}
+        return {
+            "latest_run_id": latest_run_id,
+            "updated_at": utc_now(),
+            "summary": summarize_current_tests(tests),
+            "latest_run_summary": latest_run.get("summary") if isinstance(latest_run.get("summary"), dict) else {},
+            "tests": tests,
+            "recorded_event_ids": [],
+        }
+
+    def load_history_events(self, days: int = 7) -> list[dict[str, Any]]:
+        cutoff = int((datetime.now(timezone.utc) - timedelta(days=max(days, 0))).timestamp())
+        rows = self._records(
+            "test_results",
+            filters={"created_at_unix": {"gte": cutoff}},
+            sort="-created_at_unix",
+        )
+        events = []
+        for row in rows:
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            events.append(
+                {
+                    **metadata,
+                    "suite": row.get("suite"),
+                    "test": row.get("test_name"),
+                    "key": row.get("test_key"),
+                    "event": "failed" if is_problem(str(row.get("status") or "")) else row.get("status"),
+                    "status": row.get("status"),
+                    "run_id": row.get("run_key"),
+                    "timestamp": row.get("created_at") or utc_now(),
+                    "error": row.get("error_summary"),
+                }
+            )
+        return events
+
+    def save_current_state(self, state: dict[str, Any], events: list[dict[str, Any]]) -> None:
+        self._import(
+            self._state_import_collections(None, state, events),
+            replace_current_state=bool(state.get("replace_current_state")),
+        )
+
+    def record_run_result(
+        self,
+        run_data: dict[str, Any],
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+        source: str = "scripts_tests",
+        external_run_id: str = "",
+        workflow: str = "",
+    ) -> None:
+        collections = self._state_import_collections(
+            run_data,
+            state,
+            events,
+            source=source,
+            external_run_id=external_run_id,
+            workflow=workflow,
+        )
+        self._import(collections, replace_current_state=bool(state.get("replace_current_state")))
+
+    def _state_import_collections(
+        self,
+        run_data: dict[str, Any] | None,
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+        *,
+        source: str = "scripts_tests",
+        external_run_id: str = "",
+        workflow: str = "",
+    ) -> dict[str, list[dict[str, Any]]]:
+        tests = state.get("tests") or {}
+        run_key = str((run_data or {}).get("run_id") or state.get("latest_run_id") or utc_now())
+        return {
+            "test_runs": self._run_rows(
+                run_data,
+                state,
+                events,
+                source=source,
+                external_run_id=external_run_id,
+                workflow=workflow,
+                run_key=run_key,
+            ),
+            "test_catalog": [self._catalog_item(str(key), record) for key, record in tests.items()],
+            "test_current_state": [self._current_state_item(str(key), record) for key, record in tests.items()],
+            "test_results": [
+                self._result_item(
+                    str(event.get("event_id") or f"{event.get('run_id')}:{event.get('key')}:{event.get('event')}"),
+                    event,
+                )
+                for event in events
+            ],
+        }
+
+    def _run_rows(
+        self,
+        run_data: dict[str, Any] | None,
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+        *,
+        source: str,
+        external_run_id: str,
+        workflow: str,
+        run_key: str,
+    ) -> list[dict[str, Any]]:
+        timestamp = state.get("updated_at") or utc_now()
+        now_unix = int(datetime.now(timezone.utc).timestamp())
+        started_by_run: dict[str, list[dict[str, Any]]] = {}
+        for event in events:
+            if event.get("event") == "started" and event.get("run_id"):
+                started_by_run.setdefault(str(event["run_id"]), []).append(event)
+        if started_by_run:
+            return [
+                {
+                    "run_key": key,
+                    "source": "scripts_tests",
+                    "external_run_id": "",
+                    "workflow": "",
+                    "status": "running",
+                    "git_sha": state.get("latest_git_sha"),
+                    "git_branch": state.get("latest_git_branch"),
+                    "environment": state.get("environment"),
+                    "requested_tests": [event.get("key") for event in run_events],
+                    "campaign_key": "",
+                    "debug_group_key": "",
+                    "summary": {},
+                    "record_json": {"events": run_events, "command": run_events[0].get("command")},
+                    "updated_at": timestamp,
+                    "updated_at_unix": now_unix,
+                }
+                for key, run_events in started_by_run.items()
+            ]
+        return [
+            {
+                "run_key": run_key,
+                "source": source,
+                "external_run_id": external_run_id,
+                "workflow": workflow,
+                "status": "completed" if run_data else "snapshot",
+                "git_sha": (run_data or {}).get("git_sha") or state.get("latest_git_sha"),
+                "git_branch": (run_data or {}).get("git_branch") or state.get("latest_git_branch"),
+                "environment": (run_data or {}).get("environment") or state.get("environment"),
+                "requested_tests": (run_data or {}).get("requested_tests") or [],
+                "campaign_key": (run_data or {}).get("campaign_key") or "",
+                "debug_group_key": (run_data or {}).get("debug_group_key") or "",
+                "summary": (run_data or {}).get("summary") or state.get("summary") or {},
+                "record_json": run_data
+                or {"state_snapshot": {"latest_run_id": run_key, "summary": state.get("summary") or {}}},
+                "updated_at": timestamp,
+                "updated_at_unix": now_unix,
+            }
+        ]
+
+    def _catalog_item(self, key: str, record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "test_key": key,
+            "suite": record.get("suite"),
+            "test_name": record.get("test"),
+            "file_path": record.get("test"),
+            "verification_command": record.get("verification_command") or verification_command(record),
+            "metadata": {"linked_files": record.get("linked_files") or []},
+        }
+
+    def _current_state_item(self, key: str, record: dict[str, Any]) -> dict[str, Any]:
+        status = record.get("status")
+        active_status = record.get("active_status") or ("running" if status == "running" else None)
+        stable_status = record.get("stable_status") or (status if status != "running" else None)
+        return {
+            "test_key": key,
+            "suite": record.get("suite"),
+            "test_name": record.get("test"),
+            "stable_status": stable_status,
+            "stable_result_key": record.get("stable_result_key"),
+            "stable_run_key": record.get("stable_run_id")
+            or (record.get("run_id") if record.get("status") != "running" else None),
+            "active_status": active_status,
+            "active_run_key": record.get("active_run_id") or (record.get("run_id") if active_status else None),
+            "triage_group_id": record.get("triage_group_id"),
+            "error_summary": record.get("error"),
+            "metadata": record,
+            "updated_at": record.get("updated_at"),
+            "updated_at_unix": int(datetime.now(timezone.utc).timestamp()),
+        }
+
+    def _result_item(self, result_key: str, record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "result_key": result_key,
+            "run_key": record.get("run_id"),
+            "test_key": record.get("key"),
+            "suite": record.get("suite"),
+            "test_name": record.get("test"),
+            "status": record.get("status") or record.get("event"),
+            "error_summary": record.get("error"),
+            "metadata": record,
+            "created_at": record.get("timestamp") or utc_now(),
+            "created_at_unix": int(datetime.now(timezone.utc).timestamp()),
+        }
+
+    def _state_row_to_record(self, row: dict[str, Any]) -> dict[str, Any]:
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        status = row.get("stable_status") or row.get("active_status") or "unknown"
+        return {
+            **metadata,
+            "key": row.get("test_key"),
+            "suite": row.get("suite"),
+            "test": row.get("test_name"),
+            "status": status,
+            "stable_status": row.get("stable_status"),
+            "stable_result_key": row.get("stable_result_key"),
+            "stable_run_id": row.get("stable_run_key"),
+            "active_status": row.get("active_status"),
+            "active_run_id": row.get("active_run_key"),
+            "run_id": row.get("stable_run_key") or row.get("active_run_key"),
+            "error": row.get("error_summary"),
+            "updated_at": row.get("updated_at"),
+        }
+
+    def _latest_current_state_run(self, rows: list[dict[str, Any]]) -> str:
+        counts: dict[str, int] = {}
+        for row in rows:
+            run_key = str(row.get("stable_run_key") or row.get("active_run_key") or "")
+            if run_key:
+                counts[run_key] = counts.get(run_key, 0) + 1
+        return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0] if counts else ""
+
+    def list_claims(self) -> list[dict[str, Any]]:
+        return self._records("test_claims", sort="leased_at")
+
+    def create_claim(self, claim: dict[str, Any]) -> dict[str, Any]:
+        item = dict(claim)
+        entry = item.pop("entry", None)
+        item = {"claim_key": claim["lease_id"], **item, "entry_json": entry or claim.get("entry_json") or {}}
+        self._upsert("test_claims", item)
+        return claim
+
+    def update_claim(self, lease_id: str, status: str, fields: dict[str, Any]) -> dict[str, Any]:
+        rows = self._records("test_claims", filters={"claim_key": {"eq": lease_id}}, limit=1)
+        if not rows:
+            raise RuntimeError(f"Unknown lease id: {lease_id}")
+        claim = {**rows[0], "lease_id": lease_id, "status": status, "updated_at": utc_now(), **fields}
+        entry = claim.pop("entry", None)
+        if entry is not None:
+            claim["entry_json"] = entry
+        return self._upsert("test_claims", claim)
+
+    def list_debug_campaigns(self) -> list[dict[str, Any]]:
+        return self._records("test_debug_campaigns", sort="created_at")
+
+    def create_debug_campaign(self, campaign: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_campaigns", campaign)
+
+    def update_debug_campaign(self, campaign_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_campaigns", {"campaign_key": campaign_key, **fields})
+
+    def list_debug_groups(self, campaign_key: str = "") -> list[dict[str, Any]]:
+        filters = {"campaign_key": {"eq": campaign_key}} if campaign_key else None
+        return self._records("test_debug_groups", filters=filters, sort="selected_at_unix")
+
+    def create_debug_group(self, group: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_groups", group)
+
+    def update_debug_group(self, group_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_groups", {"group_key": group_key, **fields})
+
+    def list_test_results(self, test_keys: list[str] | None = None) -> list[dict[str, Any]]:
+        filters = {"test_key": {"in": test_keys}} if test_keys else None
+        return self._records("test_results", filters=filters, sort="created_at_unix")
+
+    def get_test_run(self, run_key: str) -> dict[str, Any]:
+        rows = self._records("test_runs", filters={"run_key": {"eq": run_key}}, limit=1)
+        return rows[0] if rows else {}
 
 
 class DirectusTestControlStore(InMemoryTestControlStore):
@@ -966,7 +1383,13 @@ ON CONFLICT (result_key) DO UPDATE SET run_key=EXCLUDED.run_key, test_key=EXCLUD
 def get_store():
     global TEST_STORE
     if TEST_STORE is None:
-        TEST_STORE = DirectusTestControlStore()
+        backend = os.getenv("OPENMATES_TEST_CONTROL_BACKEND", "api").strip().lower()
+        if backend == "api":
+            TEST_STORE = ControlPlaneTestControlStore()
+        elif backend == "directus":
+            TEST_STORE = DirectusTestControlStore()
+        else:
+            raise RuntimeError("OPENMATES_TEST_CONTROL_BACKEND must be 'api' or 'directus'")
     return TEST_STORE
 
 
@@ -5299,6 +5722,40 @@ def command_run_detached(runner_args: list[str]) -> int:
     return 0
 
 
+def begin_control_plane_dispatch(
+    options: ControlRunOptions,
+    *,
+    subject_commit: str,
+    selected_test_keys: list[str],
+    resources: set[str],
+) -> tuple[ControlPlaneTestControlStore | None, str, bool]:
+    """Fingerprint a run and suppress an equivalent live/successful dispatch."""
+    store = get_store()
+    if not isinstance(store, ControlPlaneTestControlStore):
+        return None, "", False
+    suite, inferred_tests = infer_run_suite_and_tests(options.forwarded_args)
+    selection = selected_test_keys or inferred_tests or [" ".join(options.forwarded_args) or f"suite:{suite}"]
+    dispatch, reused = store.request_dispatch(
+        commit=subject_commit or current_git_sha(),
+        tests=selection,
+        profile=suite,
+        required_services=sorted(resources),
+    )
+    dispatch_key = str(dispatch["dispatch_key"])
+    if reused:
+        print(
+            f"Equivalent test dispatch already {dispatch.get('status')}: {dispatch_key}; not starting a duplicate run."
+        )
+        return store, dispatch_key, True
+    for service in sorted(resources):
+        failures = check_dev_health_urls() if service == session_control.DOCKER_RESOURCE_DEV_STACK else []
+        dispatch = store.record_dispatch_canary(dispatch_key, service, healthy=not failures)
+        if failures:
+            raise RuntimeError(f"Required service canary failed for {service}: {'; '.join(failures)}")
+    store.update_dispatch(dispatch_key, "running")
+    return store, dispatch_key, False
+
+
 def command_run(runner_args: list[str]) -> int:
     try:
         options = parse_control_run_options(runner_args)
@@ -5390,6 +5847,26 @@ def command_run(runner_args: list[str]) -> int:
             release_docker_test_lease(docker_lease_id)
         return 2
 
+    dispatch_store: ControlPlaneTestControlStore | None = None
+    dispatch_key = ""
+    dispatch_terminal = False
+    try:
+        dispatch_store, dispatch_key, dispatch_reused = begin_control_plane_dispatch(
+            options,
+            subject_commit=subject_commit,
+            selected_test_keys=selected_test_keys,
+            resources=resources,
+        )
+    except RuntimeError as exc:
+        print(f"Test dispatch rejected by the engineering control plane: {exc}", file=sys.stderr)
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
+        return 2
+    if dispatch_reused:
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
+        return 0
+
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
     if subject_commit:
@@ -5411,6 +5888,13 @@ def command_run(runner_args: list[str]) -> int:
             mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
         result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
+        if dispatch_store and dispatch_key:
+            dispatch_store.update_dispatch(
+                dispatch_key,
+                "succeeded" if result.returncode == 0 else "failed",
+                None if result.returncode == 0 else f"runner_exit:{result.returncode}",
+            )
+            dispatch_terminal = True
         recorded_commit = record_latest_run_artifact(
             expected_commit=subject_commit or options.expected_commit,
             since_mtime=artifact_start_mtime,
@@ -5428,6 +5912,11 @@ def command_run(runner_args: list[str]) -> int:
                 add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
         return result.returncode
     finally:
+        if dispatch_store and dispatch_key and not dispatch_terminal:
+            try:
+                dispatch_store.update_dispatch(dispatch_key, "failed", "runner_interrupted")
+            except RuntimeError as exc:
+                print(f"Could not finalize interrupted dispatch {dispatch_key}: {exc}", file=sys.stderr)
         if docker_lease_id:
             release_docker_test_lease(docker_lease_id)
 

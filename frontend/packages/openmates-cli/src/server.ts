@@ -350,6 +350,72 @@ function runInteractive(cmd: string, args: string[], cwd: string): Promise<numbe
   });
 }
 
+function beginEngineeringRuntimeOperation(
+  installPath: string,
+  operationType: string,
+  services: string[],
+): string | null {
+  const manager = join(installPath, "scripts", "engineering_control_plane.py");
+  const sharedConfig = join(homedir(), ".config", "openmates", "engineering-control-plane.env");
+  if (!existsSync(manager) || !existsSync(sharedConfig)) return null;
+  const requestedBy = process.env.OPENCODE_SESSION_ID || `openmates-cli:${process.pid}`;
+  const args = [
+    manager,
+    "operation",
+    "begin",
+    "--operation-type",
+    operationType,
+    "--requested-by",
+    requestedBy,
+    "--resource",
+    "dev-stack",
+  ];
+  for (const service of services) args.push("--service", service);
+  const output = execFileSync("python3", args, {
+    cwd: installPath,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const parsed = JSON.parse(output.trim()) as { operation_key?: string };
+  if (!parsed.operation_key) throw new Error("Engineering control plane did not return an operation key.");
+  return parsed.operation_key;
+}
+
+function finishEngineeringRuntimeOperation(
+  installPath: string,
+  operationKey: string,
+  status: "completed" | "failed",
+): void {
+  const manager = join(installPath, "scripts", "engineering_control_plane.py");
+  execFileSync(
+    "python3",
+    [manager, "operation", "update", "--operation-key", operationKey, "--status", status],
+    { cwd: installPath, stdio: ["ignore", "ignore", "pipe"] },
+  );
+}
+
+async function withEngineeringRuntimeOperation(
+  installPath: string,
+  operationType: string,
+  services: string[],
+  mutation: () => Promise<void>,
+): Promise<void> {
+  const operationKey = beginEngineeringRuntimeOperation(installPath, operationType, services);
+  try {
+    await mutation();
+  } catch (error) {
+    if (operationKey) {
+      try {
+        finishEngineeringRuntimeOperation(installPath, operationKey, "failed");
+      } catch (coordinationError) {
+        console.error(`Failed to record runtime-operation failure: ${String(coordinationError)}`);
+      }
+    }
+    throw error;
+  }
+  if (operationKey) finishEngineeringRuntimeOperation(installPath, operationKey, "completed");
+}
+
 function loadConfigForInstallPath(installPath: string): ServerConfig | null {
   const config = loadServerConfig();
   return config?.installPath === installPath ? config : null;
@@ -1902,50 +1968,57 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   const installMode = getInstallMode(installPath, config);
   const selection = lifecycleServiceSelection(role, flags, config);
 
-  if (flags.rebuild === true) {
-    if (installMode === "image") {
-      throw new Error(
-        "Image-mode installs use prebuilt images and cannot rebuild locally. " +
-        "Run 'openmates server update' to pull newer images, or reinstall with --from-source to build from source.",
-      );
-    }
-    // Full rebuild: down → optional cache reset → selected build → selected up
-    console.error("Rebuilding OpenMates server (this may take a few minutes)...");
-    const downArgs = [...composeArgs(installPath, withOverrides, installMode, role), "down"];
-    let code = await runInteractive("docker", downArgs, installPath);
-    if (code !== 0) process.exit(code);
+  await withEngineeringRuntimeOperation(
+    installPath,
+    flags.rebuild === true ? "product_server_rebuild" : "product_server_restart",
+    selection.services,
+    async () => {
+      if (flags.rebuild === true) {
+        if (installMode === "image") {
+          throw new Error(
+            "Image-mode installs use prebuilt images and cannot rebuild locally. " +
+            "Run 'openmates server update' to pull newer images, or reinstall with --from-source to build from source.",
+          );
+        }
+        // Full rebuild: down → optional cache reset → selected build → selected up
+        console.error("Rebuilding OpenMates server (this may take a few minutes)...");
+        const downArgs = [...composeArgs(installPath, withOverrides, installMode, role), "down"];
+        let code = await runInteractive("docker", downArgs, installPath);
+        if (code !== 0) throw new Error(`Docker Compose down failed with exit code ${code}.`);
 
-    if (flags["reset-cache"] === true) {
-      try {
-        exec("docker volume rm openmates-cache-data", installPath);
-      } catch {
-        // Volume may not exist — that's fine.
+        if (flags["reset-cache"] === true) {
+          try {
+            exec("docker volume rm openmates-cache-data", installPath);
+          } catch {
+            // Volume may not exist — that's fine.
+          }
+        }
+
+        const buildArgs = appendSelectedServices(
+          [...composeArgs(installPath, withOverrides, installMode, role), "build"],
+          selection.services,
+          selection.requested,
+        );
+        code = await runInteractive("docker", buildArgs, installPath);
+        if (code !== 0) throw new Error(`Docker Compose build failed with exit code ${code}.`);
+
+        const upArgs = appendSelectedServices(
+          [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
+          selection.services,
+          selection.requested,
+        );
+        code = await runInteractive("docker", upArgs, installPath);
+        if (code !== 0) throw new Error(`Docker Compose up failed with exit code ${code}.`);
+      } else {
+        // Graceful restart (no rebuild)
+        console.error("Restarting OpenMates server...");
+        const args = [...composeArgs(installPath, withOverrides, installMode, role), "restart"];
+        if (selection.requested) args.push(...selection.services);
+        const code = await runInteractive("docker", args, installPath);
+        if (code !== 0) throw new Error(`Docker Compose restart failed with exit code ${code}.`);
       }
-    }
-
-    const buildArgs = appendSelectedServices(
-      [...composeArgs(installPath, withOverrides, installMode, role), "build"],
-      selection.services,
-      selection.requested,
-    );
-    code = await runInteractive("docker", buildArgs, installPath);
-    if (code !== 0) process.exit(code);
-
-    const upArgs = appendSelectedServices(
-      [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
-      selection.services,
-      selection.requested,
-    );
-    code = await runInteractive("docker", upArgs, installPath);
-    if (code !== 0) process.exit(code);
-  } else {
-    // Graceful restart (no rebuild)
-    console.error("Restarting OpenMates server...");
-    const args = [...composeArgs(installPath, withOverrides, installMode, role), "restart"];
-    if (selection.requested) args.push(...selection.services);
-    const code = await runInteractive("docker", args, installPath);
-    if (code !== 0) process.exit(code);
-  }
+    },
+  );
 
   if (flags.json === true) {
     printJson({ command: "restart", status: "success", path: installPath, rebuild: flags.rebuild === true });

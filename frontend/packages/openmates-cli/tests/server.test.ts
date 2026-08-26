@@ -112,6 +112,20 @@ after(() => {
   else process.env.OPENMATES_STATE_DIR = ORIGINAL_STATE_DIR;
 });
 
+it("routes source server restarts through the engineering runtime-operation guard", () => {
+  const source = readFileSync(join(import.meta.dirname, "..", "src", "server.ts"), "utf-8");
+  assert.match(source, /withEngineeringRuntimeOperation\(/);
+  assert.match(source, /product_server_rebuild/);
+  assert.match(source, /product_server_restart/);
+  assert.match(source, /engineering_control_plane\.py/);
+  const guardSource = source.slice(
+    source.indexOf("function beginEngineeringRuntimeOperation"),
+    source.indexOf("function finishEngineeringRuntimeOperation"),
+  );
+  assert.match(guardSource, /if \(!existsSync\(manager\) \|\| !existsSync\(sharedConfig\)\) return null/);
+  assert.match(guardSource, /\.config["', ]+openmates["', ]+engineering-control-plane\.env/);
+});
+
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
 // Re-implement the pure functions we want to test inline, or import them
 // from the built dist/. For unit tests of pure functions, we test the logic
