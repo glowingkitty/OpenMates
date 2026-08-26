@@ -28,6 +28,16 @@ async function waitForFiniteVisualMotion(page: any, testId: string): Promise<voi
 	});
 }
 
+async function waitForVisibleStoryStage(page: any, demoTestId: string, stage: string, contentTestId: string): Promise<void> {
+	await expect(page.getByTestId(demoTestId)).toHaveAttribute('data-active-stage', stage, {timeout: 12000});
+	const content = page.getByTestId(contentTestId);
+	await expect(content).toBeVisible();
+	await expect.poll(async () => content.evaluate((element: Element) => {
+		const motion = element.closest('[data-testid="landing-subslide-motion"]');
+		return Number.parseFloat(getComputedStyle(motion ?? element).opacity);
+	}), {timeout: 2500}).toBeGreaterThanOrEqual(0.95);
+}
+
 const proofContract = defineVideoProof({
 	id: 'proof-video-browser-architecture',
 	title: 'Explore the OpenMates welcome stories',
@@ -101,7 +111,7 @@ test.describe('Proof video browser architecture', () => {
 			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
 			await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
 		});
-		await waitForFiniteVisualMotion(page, 'guest-slide-content');
+		await waitForVisibleStoryStage(page, 'landing-actionable-event-demo', 'event-preview', 'landing-actionable-event-preview');
 		await proof.checkpoint('actionable-visible');
 
 		await proof.action('open-privacy-story', async () => {
@@ -112,7 +122,7 @@ test.describe('Proof video browser architecture', () => {
 			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety', {timeout: 5000});
 		});
-		await waitForFiniteVisualMotion(page, 'guest-slide-content');
+		await waitForVisibleStoryStage(page, 'landing-privacy-safety-demo', 'encryption-lock', 'landing-privacy-encryption');
 		await proof.checkpoint('privacy-visible');
 		await proof.attach();
 	});
