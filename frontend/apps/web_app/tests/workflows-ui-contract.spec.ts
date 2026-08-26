@@ -194,7 +194,7 @@ test.describe('Workflows web UI contract', () => {
 				title: runnerTitle,
 				description: 'A manual approval Workflow.',
 				graph: waitingGraph(),
-				enabled: false,
+				enabled: true,
 				run_content_retention: 'last_5',
 				category: 'general_knowledge',
 				icon: 'help-circle'
