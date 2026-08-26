@@ -781,6 +781,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	}
 
 	const activeChat = page.getByTestId('active-chat-container');
+	const assistantResponse = page.getByTestId('message-assistant');
+	let firstChunkText = '';
 	if (proof) {
 		await expect(activeChat).toHaveAttribute('data-processing', 'true', { timeout: 30000 });
 		await proof.assert('chat.processing_rainbow', async () => {
@@ -790,6 +792,17 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 			await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
 		});
 		await proof.checkpoint('processing-visible');
+
+		const streamingAssistant = assistantResponse.last();
+		await expect(streamingAssistant).toBeVisible({ timeout: 60000 });
+		const streamingCard = page.getByTestId('mate-message-content').last();
+		await expect(streamingCard).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
+		firstChunkText = ((await streamingCard.textContent()) || '').trim();
+		await proof.assert('chat.progressive_response', async () => {
+			expect(firstChunkText.length).toBeGreaterThan(0);
+			await expect(activeChat).toHaveAttribute('data-processing', 'true');
+		});
+		await proof.checkpoint('first-chunk-visible');
 	}
 
 	// Wait for chat ID in URL
@@ -809,20 +822,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 
 	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
-	const assistantResponse = page.getByTestId('message-assistant');
-	let firstChunkText = '';
-	if (proof) {
-		const streamingAssistant = assistantResponse.last();
-		await expect(streamingAssistant).toBeVisible({ timeout: 60000 });
-		const streamingCard = page.getByTestId('mate-message-content').last();
-		await expect(streamingCard).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
-		firstChunkText = ((await streamingCard.textContent()) || '').trim();
-		await proof.assert('chat.progressive_response', async () => {
-			expect(firstChunkText.length).toBeGreaterThan(0);
-			await expect(activeChat).toHaveAttribute('data-processing', 'true');
-		});
-		await proof.checkpoint('first-chunk-visible');
-	}
 	const permissionDialog = page.getByTestId('app-settings-memories-permission-dialog');
 	const firstResponseOrPermission = await Promise.race([
 		permissionDialog.waitFor({ state: 'visible', timeout: 60000 }).then(() => 'permission').catch(() => null),
