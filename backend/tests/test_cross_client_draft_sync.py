@@ -754,6 +754,7 @@ async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> No
 
     class Cache(ChatCacheMixin):
         USER_DRAFT_TTL = 60
+        CHAT_VERSIONS_TTL = 120
 
         def __init__(self) -> None:
             self.redis = Redis()
@@ -806,6 +807,7 @@ async def test_stale_draft_cache_write_does_not_replace_equal_version_tombstone(
 
     class Cache(ChatCacheMixin):
         USER_DRAFT_TTL = 60
+        CHAT_VERSIONS_TTL = 120
 
         def __init__(self) -> None:
             self.redis = Redis()
@@ -859,6 +861,7 @@ async def test_newer_draft_cache_write_replaces_older_tombstone() -> None:
 
     class Cache(ChatCacheMixin):
         USER_DRAFT_TTL = 60
+        CHAT_VERSIONS_TTL = 120
 
         def __init__(self) -> None:
             self.redis = Redis()

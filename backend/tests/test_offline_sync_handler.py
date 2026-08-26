@@ -40,6 +40,7 @@ class _LocalDraftChat:
         return None
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
 async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_chat() -> None:
     manager = _Manager()
@@ -104,6 +105,7 @@ async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_c
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_offline_delete_draft_missing_versions_is_idempotent_tombstone() -> None:
     manager = _Manager()
@@ -152,7 +154,10 @@ async def test_offline_delete_draft_missing_versions_is_idempotent_tombstone() -
     assert removed == [("user-1", "33333333-3333-4333-8333-333333333333")]
     assert manager.broadcasts[-1] == {
         "type": "draft_deleted",
-        "payload": {"chat_id": "33333333-3333-4333-8333-333333333333"},
+        "payload": {
+            "chat_id": "33333333-3333-4333-8333-333333333333",
+            "draft_v": 3,
+        },
     }
     assert manager.sent[-1] == {
         "type": "offline_sync_complete",
