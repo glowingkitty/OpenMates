@@ -25,6 +25,8 @@
         id: string;
         /** Icon name — matches a CSS variable --icon-url-{name} defined in Icon.svelte */
         icon: string;
+        /** Accessible name for icon-only tab controls */
+        label?: string;
         /** Optional counter badge number */
         count?: number;
     }
@@ -124,6 +126,7 @@
                         data-testid={`${testIdPrefix}-${tab.id}`}
                         role="tab"
                         aria-selected={activeTab === tab.id}
+                        aria-label={tab.label ?? tab.id}
                         aria-controls={`tabpanel-${tab.id}`}
                         onclick={() => selectTab(tab.id)}
                         onkeydown={(e) => handleKeydown(e, tab.id)}

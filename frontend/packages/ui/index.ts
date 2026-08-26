@@ -24,6 +24,7 @@ export {
   CATEGORY_GRADIENTS,
 } from "./src/utils/categoryUtils";
 export * from "./src/utils/settingsHashUtils";
+export { focusTrap } from "./src/actions/focusTrap";
 export { parse_message } from "./src/message_parsing/parse_message";
 export { default as DevConsole } from "./src/components/DevConsole.svelte";
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
@@ -43,6 +44,7 @@ export { default as WorkspaceDetailHeader } from "./src/components/workspace/Wor
 export { default as WorkspaceReportIssueButton } from "./src/components/workspace/WorkspaceReportIssueButton.svelte";
 export { default as ProjectDetailPage } from "./src/components/projects/ProjectDetailPage.svelte";
 export { default as WorkflowDetailPage } from "./src/components/workflows/WorkflowDetailPage.svelte";
+export { default as WorkflowGraphRenderer } from "./src/components/workflows/WorkflowGraphRenderer.svelte";
 export { default as WorkflowTemplateShare } from "./src/components/workflows/WorkflowTemplateShare.svelte";
 export { default as TaskDetailPage } from "./src/components/tasks/TaskDetailPage.svelte";
 export { default as PlanDetailPage } from "./src/components/plans/PlanDetailPage.svelte";

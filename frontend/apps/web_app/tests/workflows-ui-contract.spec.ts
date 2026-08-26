@@ -257,12 +257,17 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflow-guard-save')).toBeVisible();
 			await expect(page.getByTestId('workflow-guard-discard')).toBeVisible();
 			await expect(page.getByTestId('workflow-guard-stay')).toBeVisible();
+			await expect.poll(async () => page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="workflow-unsaved-guard"]')))).toBe(true);
 			if (proof) {
 				await proof.assert('guard-visible', async () => {
 					await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 				});
 				await proof.checkpoint('guard-visible');
 			}
+			await page.keyboard.press('Escape');
+			await expect(page.getByTestId('workflow-unsaved-guard')).toHaveCount(0);
+			await page.getByTestId('workflow-tab-runs').click();
+			await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 			await page.getByTestId('workflow-guard-stay').click();
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(editorWorkflow.id));
 			await page.getByTestId('save-workflow').click();
@@ -310,13 +315,14 @@ test.describe('Workflows web UI contract', () => {
 
 			await page.getByTestId('workflow-run-cancel').click();
 			await expect(page.getByTestId('workflow-run-cancel-confirmation')).toBeVisible();
+			await expect.poll(async () => page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="workflow-run-cancel-confirmation"]')))).toBe(true);
 			const cancelResponse = page.waitForResponse(
 				(response: any) => response.url().endsWith(`/runs/${run.id}/cancel`) && response.request().method() === 'POST' && response.ok(),
 				{ timeout: 30_000 }
 			);
 			await page.getByTestId('workflow-run-cancel-confirm').click();
 			await cancelResponse;
-			await expect(selectedRun).toContainText(/cancelled/i, { timeout: 30_000 });
+			await expect(selectedRun).toContainText(/cancellation requested|cancelled/i, { timeout: 30_000 });
 			await expectNoPageOverflow(page);
 
 			if (proof) await proof.attach();

@@ -107,6 +107,7 @@
   let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
   let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
   let hasShowAllLink = $derived(!!onShowAll && showAllLabel.trim().length > 0 && !showAllMode);
+  let hasBrowseControls = $derived(!showAllMode && (hasShowAllLink || !!onSearchAll));
   let hasAllItemsToolbar = $derived(showAllMode && (!!onBackToRecent || !!onSearchAll));
   let showTopButtons = $derived(showReportIssue || hasAllItemsToolbar);
   const ChevronRight = getLucideIcon('chevron-right');
@@ -211,6 +212,8 @@
               class="resume-chat-large-card"
               data-testid={allItemTestId}
               data-card-source={item.source ?? undefined}
+              data-category={item.category ?? undefined}
+              data-icon={iconName}
               style={continueLargeCardStyle(item)}
               onclick={() => handleAllItem(item)}
             >
@@ -266,6 +269,8 @@
               class="resume-chat-large-card"
               data-testid={itemTestId}
               data-card-source={item.source ?? undefined}
+              data-category={item.category ?? undefined}
+              data-icon={iconName}
               style={continueLargeCardStyle(item)}
               onclick={() => handleActionItem(item)}
             >
@@ -299,6 +304,8 @@
               class="resume-chat-card"
               data-testid={itemTestId}
               data-card-source={item.source ?? undefined}
+              data-category={item.category ?? undefined}
+              data-icon={iconName}
               style={continueCardStyle(item)}
               onclick={() => handleActionItem(item)}
             >
@@ -321,12 +328,20 @@
           {/if}
         {/each}
       </div>
-      {#if hasShowAllLink}
+      {#if hasBrowseControls}
         <div class="workspace-link-row" data-testid={`${surface}-workspace-link-row`}>
-          <button type="button" class="workspace-show-all-link" data-testid={showAllTestId} data-surface={surface} onclick={handleShowAll}>
-            <span class="workspace-link-icon workspace-link-icon-surface" aria-hidden="true"></span>
-            <span>{showAllLabel}</span>
-          </button>
+          {#if hasShowAllLink}
+            <button type="button" class="workspace-show-all-link" data-testid={showAllTestId} data-surface={surface} onclick={handleShowAll}>
+              <span class="workspace-link-icon workspace-link-icon-surface" aria-hidden="true"></span>
+              <span>{showAllLabel}</span>
+            </button>
+          {/if}
+          {#if onSearchAll}
+            <button type="button" class="workspace-show-all-link" data-testid={searchTestId} onclick={handleSearchAll}>
+              <AllItemsSearchIcon size={18} color="currentColor" />
+              <span>{searchLabel}</span>
+            </button>
+          {/if}
         </div>
       {/if}
     {:else if continueItems.length > 0}

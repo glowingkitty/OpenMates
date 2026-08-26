@@ -148,7 +148,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  subject_commit: 154a522724c4a15d01c4cf10029c8d90885ba3f7
 
 approvals:
   product_contract:
@@ -516,7 +516,13 @@ tests:
     red_phase:
       required: true
       expected: fail_before_implementation_on_deployed_dev
-      evidence: {}
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --gate-deploy --require-exact-commit --expected-commit 154a522724c4a15d01c4cf10029c8d90885ba3f7
+        run_id: '32929656418'
+        timestamp: '2026-08-26T04:20:22Z'
+        subject_commit: 154a522724c4a15d01c4cf10029c8d90885ba3f7
+        summary: The authenticated real-dev fixture completed and the deployed UI failed on the first intended missing contract element, the visible Workflows Search control.
     green_phase:
       required: true
       expected: pass_after_deploy
@@ -979,8 +985,8 @@ tasks:
     surfaces: [rest_api, cli, sdks.npm, sdks.pip]
   - id: TASK-8
     title: Add and record the deployed red Workflows UI contract spec
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
       acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
@@ -999,7 +1005,7 @@ tasks:
     surfaces: [gui.web]
   - id: TASK-9
     title: Implement shared Workflow graph, header, tabs, and guarded editing
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-6]
@@ -1205,11 +1211,26 @@ attempts:
     approach: Add npm/pip identity assertions, deploy a focused ephemeral-key live verifier, and rerun real create/list/detail parity plus deterministic SDK audits on the committed subject.
     outcome: succeeded
     recorded_at: '2026-08-26T03:20:00Z'
+  - id: ATTEMPT-10
+    task_id: TASK-8
+    approach: Deploy the initial Workflows web contract with real version and cancellable-run fixtures.
+    outcome: rejected
+    recorded_at: '2026-08-26T03:50:42Z'
+  - id: ATTEMPT-11
+    task_id: TASK-8
+    approach: Enable the approval fixture and rerun the deployed contract.
+    outcome: rejected
+    recorded_at: '2026-08-26T04:04:08Z'
+  - id: ATTEMPT-12
+    task_id: TASK-8
+    approach: Supply the required run idempotency header and rerun against the exact deployed commit.
+    outcome: failed_as_expected
+    recorded_at: '2026-08-26T04:20:22Z'
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Add and deploy the red Workflows web contract spec before implementing the redesigned UI.
-  command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --gate-deploy --expected-commit <commit>
-  expected_outcome: The deployed spec fails on the missing recommendation-led workspace, shared Template/Runs detail composition, guarded editing, versions, Runs, and responsive proof checkpoints.
+  current_task_id: TASK-9
+  next_action: Implement the shared Workflow graph, category header, Template/Runs tabs, visible browse controls, and guarded explicit editing.
+  command: npm --prefix frontend/packages/ui run build
+  expected_outcome: Shared Workflow UI components compile before version and Runs implementation continues.
   blocker: null
-  last_verified_commit: 44432ba6fb04b66ded2a8655b65540ae32e507a4
+  last_verified_commit: 154a522724c4a15d01c4cf10029c8d90885ba3f7

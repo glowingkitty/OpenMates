@@ -8,6 +8,7 @@
 
 <script lang="ts">
   import { text } from '../../i18n/translations';
+  import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import {
     workflowWorkspaceStore,
     type WorkflowDetail,
@@ -18,10 +19,12 @@
   let {
     workflow,
     disabled = false,
+    onRequestNavigation,
     onRestored,
   }: {
     workflow: WorkflowDetail;
     disabled?: boolean;
+    onRequestNavigation: (action: () => void | Promise<void>) => void;
     onRestored: (workflow: WorkflowDetail) => void | Promise<void>;
   } = $props();
 
@@ -36,6 +39,7 @@
   let restoreConfirmationVersionId = $state<string | null>(null);
   let errorMessage = $state<string | null>(null);
   let restoredMessage = $state<string | null>(null);
+  let inspectionRequest = 0;
 
   let selectedVersion = $derived(versions.find((version) => version.version_id === selectedVersionId) ?? null);
   let canRestoreSelected = $derived(!!selectedVersion && !selectedVersion.current && !disabled && !restoring);
@@ -66,7 +70,9 @@
   }
 
   async function inspectVersion(version: WorkflowVersionSummary) {
+    const request = ++inspectionRequest;
     selectedVersionId = version.version_id;
+    inspectedGraph = version.version_id === currentVersionId ? workflow.graph : null;
     restoreConfirmationVersionId = null;
     errorMessage = null;
     restoredMessage = null;
@@ -78,15 +84,19 @@
     inspecting = true;
     try {
       const detail = await workflowWorkspaceStore.getWorkflowVersion(workflow.id, version.version_id);
-      if (selectedVersionId === version.version_id) inspectedGraph = detail.graph;
+      if (request === inspectionRequest && selectedVersionId === version.version_id) inspectedGraph = detail.graph;
     } catch (error) {
       if (selectedVersionId === version.version_id) {
         inspectedGraph = null;
         errorMessage = error instanceof Error ? error.message : $text('workflows.version_history.inspect_failed');
       }
     } finally {
-      inspecting = false;
+      if (request === inspectionRequest) inspecting = false;
     }
+  }
+
+  function requestVersionInspection(version: WorkflowVersionSummary): void {
+    onRequestNavigation(() => inspectVersion(version));
   }
 
   function requestRestore() {
@@ -96,13 +106,15 @@
 
   async function restoreSelectedVersion() {
     if (!selectedVersion || restoreConfirmationVersionId !== selectedVersion.version_id || !canRestoreSelected) return;
+    const versionId = selectedVersion.version_id;
+    const versionNumber = selectedVersion.version_number;
     restoring = true;
     errorMessage = null;
     restoredMessage = null;
     try {
-      const restoredWorkflow = await workflowWorkspaceStore.restoreWorkflowVersion(workflow.id, selectedVersion.version_id);
+      const restoredWorkflow = await workflowWorkspaceStore.restoreWorkflowVersion(workflow.id, versionId);
       await onRestored(restoredWorkflow);
-      restoredMessage = $text('workflows.version_history.restore_success', { values: { version: selectedVersion.version_number } });
+      restoredMessage = $text('workflows.version_history.restore_success', { values: { version: versionNumber } });
       await loadHistory(workflow.id, restoredWorkflow.graph);
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : $text('workflows.version_history.restore_failed');
@@ -120,6 +132,8 @@
       minute: '2-digit',
     });
   }
+
+  function ignoreGraphChange(_graph: WorkflowGraph): void {}
 </script>
 
 <section class="version-history" data-testid="workflow-version-history" aria-label={$text('workflows.version_history.title')}>
@@ -139,7 +153,11 @@
   {:else if versions.length === 0}
     <p data-testid="workflow-version-history-empty">{$text('workflows.version_history.empty')}</p>
   {:else}
-    <div class="version-list" role="list" data-testid="workflow-version-list">
+    <div class="version-selector" data-testid="workflow-version-selector" aria-label="Selected Workflow version">
+      {selectedVersion ? formatVersionDate(selectedVersion.created_at) : $text('workflows.version_history.title')}
+      <span aria-hidden="true">⌄</span>
+    </div>
+    <div class="version-list" role="list" data-testid="workflow-version-timeline">
       {#each versions as version (version.version_id)}
         <button
           type="button"
@@ -148,17 +166,18 @@
           data-testid="workflow-version-row"
           data-current={version.current ? 'true' : 'false'}
           data-version-number={version.version_number}
-          onclick={() => void inspectVersion(version)}
+          disabled={restoring}
+          onclick={() => requestVersionInspection(version)}
         >
           <span class="version-label">{$text('workflows.version_history.version', { values: { version: version.version_number } })}</span>
           <span>{formatVersionDate(version.created_at)}</span>
-          {#if version.current}<span class="current-marker">{$text('workflows.version_history.current')}</span>{/if}
+          {#if version.current}<span class="current-marker">Active</span>{/if}
           {#if version.restored_from_version_id}<span>{$text('workflows.version_history.restored')}</span>{/if}
         </button>
       {/each}
     </div>
 
-    <section class="graph-inspection" data-testid="workflow-version-graph-inspection" aria-live="polite">
+    <section class="graph-inspection" data-testid="workflow-version-graph-inspection" data-read-only="true" aria-live="polite">
       {#if inspecting}
         <p data-testid="workflow-version-inspection-loading">{$text('workflows.version_history.inspecting')}</p>
       {:else if selectedVersion && inspectedGraph}
@@ -166,11 +185,12 @@
           <h3>{$text('workflows.version_history.inspecting_version', { values: { version: selectedVersion.version_number } })}</h3>
           <span>{inspectedGraph.nodes.length} {$text('workflows.version_history.nodes')}</span>
         </div>
-        <div class="graph-nodes" data-testid="workflow-version-inspection-nodes">
+        <div class="inspection-node-count" data-testid="workflow-version-inspection-nodes" aria-hidden="true">
           {#each inspectedGraph.nodes as node (node.id)}
             <span data-testid="workflow-version-inspection-node">{node.title ?? node.type}</span>
           {/each}
         </div>
+        <WorkflowGraphRenderer graph={inspectedGraph} readOnly testId="workflow-version-graph" onChange={ignoreGraphChange} />
       {/if}
     </section>
 
@@ -232,19 +252,26 @@
   .history-heading p,
   .inspection-heading span,
   .version-list button span:not(.version-label),
-  .graph-nodes span,
   .restore-confirmation p {
     color: var(--color-font-secondary);
     font-size: var(--font-size-small);
   }
 
   .version-list {
-    display: grid;
-    gap: var(--spacing-2);
+    position: relative;
+    display: flex;
+    gap: var(--spacing-4);
+    overflow-x: auto;
+    padding: var(--spacing-6) var(--spacing-2) var(--spacing-3);
+    scrollbar-width: thin;
   }
 
+  .version-list::before { content: ''; position: absolute; inset: 31px var(--spacing-5) auto; height: 2px; background: var(--color-grey-30); }
+
   .version-list button {
-    width: 100%;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 190px;
     border: 1px solid transparent;
     border-radius: var(--radius-4);
     padding: var(--spacing-4);
@@ -263,6 +290,20 @@
   .version-label { font-weight: 800; }
   .current-marker { color: var(--color-button-primary) !important; font-weight: 700; }
 
+  .version-selector {
+    justify-self: center;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    border: 0;
+    border-radius: var(--radius-full);
+    padding: var(--spacing-3) var(--spacing-5);
+    color: var(--color-font-primary);
+    background: var(--color-grey-20);
+    font: inherit;
+    font-weight: 700;
+  }
+
   .graph-inspection,
   .restore-confirmation {
     display: grid;
@@ -272,17 +313,7 @@
     background: var(--color-grey-10);
   }
 
-  .graph-nodes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-3);
-  }
-
-  .graph-nodes span {
-    padding: var(--spacing-2) var(--spacing-3);
-    border-radius: var(--radius-full);
-    background: var(--color-grey-10);
-  }
+  .inspection-node-count { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
   .restore-action,
   .restore-confirmation button {
