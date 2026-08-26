@@ -1443,7 +1443,7 @@ async function dismissSecurityReminderIfPresent(
 	const reminder = page.getByTestId('notification').filter({ hasText: 'Security Reminder' });
 	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
 
-	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
+	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000, force: true });
 	await expect(reminder).not.toBeVisible({ timeout: 10000 });
 	logCheckpoint('Dismissed security reminder.');
 }
