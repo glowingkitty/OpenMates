@@ -85,12 +85,13 @@ test.describe('Workflows editor', () => {
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details$/);
 			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('If false:');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Do nothing');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Berlin');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('rain probability > 60');
+			const templateNodeStack = page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack');
+			await expect(templateNodeStack).toContainText('then');
+			await expect(templateNodeStack).toContainText('If true:');
+			await expect(templateNodeStack).toContainText('If false:');
+			await expect(templateNodeStack).toContainText('Do nothing');
+			await expect(templateNodeStack).toContainText('Weather | Get forecast for Berlin');
+			await expect(templateNodeStack).toContainText('rain probability > 60');
 
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
@@ -108,7 +109,7 @@ test.describe('Workflows editor', () => {
 			);
 			await page.getByTestId('save-workflow').click();
 			await saveWorkflowResponse;
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
+			await expect(templateNodeStack).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-version-history')).toBeVisible();

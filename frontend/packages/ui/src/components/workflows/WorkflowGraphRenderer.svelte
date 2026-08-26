@@ -110,7 +110,8 @@
     if (node.type === 'decision') {
       const predicate = predicateRecord(node);
       const left = stringValue(predicate.left, 'value').replace('$nodes.weather.output.', '').replaceAll('_', ' ').replaceAll('.', ' ');
-      return `${left} ${stringValue(predicate.op, 'gte')} ${predicate.right ?? ''}`.trim();
+      const operator = { gte: '>', gt: '>', lte: '<', lt: '<', eq: '=' }[stringValue(predicate.op, 'gte')] ?? stringValue(predicate.op, 'gte');
+      return `${left} ${operator} ${predicate.right ?? ''}`.trim();
     }
     if (node.type === 'send_notification') return 'Send notification';
     if (node.type === 'send_email_notification') return 'Send email';

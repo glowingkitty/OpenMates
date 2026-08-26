@@ -272,7 +272,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(editorWorkflow.id));
 			await page.getByTestId('save-workflow').click();
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0, { timeout: 30_000 });
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Paris');
+			await expect(page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')).toContainText('Paris');
 
 			await expect(page.getByTestId('workflow-version-selector')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-timeline')).toBeVisible();
