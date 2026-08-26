@@ -292,6 +292,7 @@ def test_daily_archive_includes_terminal_notification_outcomes(monkeypatch, tmp_
     monkeypatch.setattr(run_tests, "record_flake_history", lambda _data: None)
     monkeypatch.setattr(run_tests, "_record_unified_test_state", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(run_tests.ReportGenerator, "generate", lambda *_args: None)
+    monkeypatch.setattr(run_tests.TestRecordingPublisher, "publish", lambda *_args: None)
 
     class FakeNotification:
         def split_results(self):
@@ -317,6 +318,7 @@ def test_daily_archive_includes_terminal_notification_outcomes(monkeypatch, tmp_
 
     orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
     orchestrator.notification = FakeNotification()
+    orchestrator._sync_obsidian_test_results = lambda: None
     result = run_tests.RunResult(
         run_id="2026-08-26T03:00:05Z",
         git_sha="abc123def",
@@ -360,3 +362,110 @@ def test_daily_archive_retention_keeps_newest_seven(monkeypatch, tmp_path):
     assert len(archives) == run_tests.DAILY_ARTIFACT_RETENTION_DAYS
     assert "daily-run-2000-01-01.json" not in archives
     assert "daily-run-2000-01-02.json" not in archives
+
+
+def test_daily_terminal_result_and_notification_precede_optional_publication(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    events = []
+
+    monkeypatch.setattr(run_tests.ResultAggregator, "save", lambda _result: events.append("save"))
+    monkeypatch.setattr(run_tests.ReportGenerator, "generate", lambda *_args: events.append("report"))
+    monkeypatch.setattr(run_tests.TestRecordingPublisher, "publish", lambda *_args: events.append("s3"))
+
+    class FakeNotification:
+        def split_results(self):
+            events.append("split")
+
+        def push_to_openobserve(self, _result):
+            events.append("openobserve")
+
+        def send_summary_email(self, result):
+            events.append("notify")
+            result.flags["notification_channels"] = {
+                "email": {"configured": True, "status": "provider_accepted", "transport": "brevo"},
+                "discord": {"configured": True, "status": "provider_accepted", "transport": "webhook"},
+            }
+            return True
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.daily = True
+    orchestrator.dry_run = False
+    orchestrator.suite = "apple"
+    orchestrator.spec = None
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = False
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator.git_sha = "abc123def"
+    orchestrator.git_branch = "dev"
+    orchestrator.environment = "development"
+    orchestrator.run_id = "2026-08-26T03:00:05Z"
+    orchestrator.current_phase = "starting"
+    orchestrator.notification = FakeNotification()
+    orchestrator._daily_gate = lambda: True
+    orchestrator._start_daily_status_updates = lambda _start: None
+    orchestrator._stop_daily_status_updates = lambda: None
+    orchestrator._save_progress_snapshot = lambda *_args: None
+    orchestrator._run_apple_remote_nightly = lambda: run_tests.SuiteResult(
+        status="passed",
+        tests=[{"name": "apple", "status": "passed"}],
+        duration_seconds=1,
+    )
+    orchestrator._sync_obsidian_test_results = lambda: events.append("obsidian")
+    orchestrator._archive_daily_result = lambda: events.append("archive")
+    orchestrator._print_summary = lambda _result: None
+
+    assert orchestrator._run() == 0
+
+    assert events == [
+        "save",
+        "notify",
+        "save",
+        "archive",
+        "report",
+        "s3",
+        "openobserve",
+        "split",
+        "obsidian",
+    ]
+
+
+def test_non_daily_run_keeps_existing_publication_order(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    events = []
+
+    monkeypatch.setattr(run_tests.ResultAggregator, "save", lambda _result: events.append("save"))
+    monkeypatch.setattr(run_tests.ReportGenerator, "generate", lambda *_args: events.append("report"))
+    monkeypatch.setattr(run_tests.TestRecordingPublisher, "publish", lambda *_args: events.append("s3"))
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.daily = False
+    orchestrator.dry_run = False
+    orchestrator.suite = "apple"
+    orchestrator.spec = None
+    orchestrator.account = None
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = False
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator.git_sha = "abc123def"
+    orchestrator.git_branch = "dev"
+    orchestrator.environment = "development"
+    orchestrator.run_id = "2026-08-26T03:00:05Z"
+    orchestrator.current_phase = "starting"
+    orchestrator._save_progress_snapshot = lambda *_args: None
+    orchestrator._run_apple_remote_nightly = lambda: run_tests.SuiteResult(
+        status="passed",
+        tests=[{"name": "apple", "status": "passed"}],
+        duration_seconds=1,
+    )
+    orchestrator._sync_obsidian_test_results = lambda: events.append("obsidian")
+    orchestrator._print_summary = lambda _result: None
+
+    assert orchestrator._run() == 0
+    assert events == ["save", "report", "s3", "obsidian"]

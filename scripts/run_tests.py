@@ -6688,18 +6688,17 @@ class TestOrchestrator:
         # Save results
         if not self.dry_run:
             ResultAggregator.save(result)
-            # Always generate MD reports (useful for single-spec debugging too)
-            ReportGenerator().generate(result)
-            TestRecordingPublisher().publish(result)
-            self._sync_obsidian_test_results()
+            if self.daily:
+                self._stop_daily_status_updates()
+                self._daily_post_run(result)
+            else:
+                # Always generate MD reports (useful for single-spec debugging too)
+                ReportGenerator().generate(result)
+                TestRecordingPublisher().publish(result)
+                self._sync_obsidian_test_results()
 
         # Print summary
         self._print_summary(result)
-
-        # Daily mode: post-run tasks
-        if self.daily and not self.dry_run:
-            self._stop_daily_status_updates()
-            self._daily_post_run(result)
 
         return _exit_code_for_summary(result.summary)
 
@@ -7638,17 +7637,27 @@ class TestOrchestrator:
         return True
 
     def _daily_post_run(self, result: RunResult) -> None:
-        """Post-run tasks for daily mode: split results, archive, reports, notify."""
-        # Split results
-        self.notification.split_results()
+        """Persist notification outcomes before optional daily publication."""
+        # Keep daily runs notification-only. Follow-up fixing must be started
+        # separately so one day's remediation can never hold tomorrow's lock.
+        _log("Sending summary email...")
+        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
+        ResultAggregator.save(result)
+        self._archive_daily_result()
 
         # Generate structured MD reports
         _log("Generating MD reports...")
         ReportGenerator().generate(result)
+        TestRecordingPublisher().publish(result)
 
         # Push to OpenObserve
         _log("Pushing to OpenObserve...")
         self.notification.push_to_openobserve(result)
+
+        # Split results
+        self.notification.split_results()
+
+        self._sync_obsidian_test_results()
 
         # Prune old screenshot archives (keep last 7 daily snapshots).
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -7662,12 +7671,6 @@ class TestOrchestrator:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
-        # Keep daily runs notification-only. Follow-up fixing must be started
-        # separately so one day's remediation can never hold tomorrow's lock.
-        _log("Sending summary email...")
-        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
-        ResultAggregator.save(result)
-        self._archive_daily_result()
         if _problem_count(result.summary) > 0:
             _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
 
