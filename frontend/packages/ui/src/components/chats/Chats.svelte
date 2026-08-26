@@ -1974,10 +1974,20 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
 			if (value.newlyCreatedChatIdToSelect) {
-				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
-				recordE2EDraftSelectionDecision({ chatId: value.newlyCreatedChatIdToSelect, consumer: 'chat_list', result: 'applied' });
-				_chatIdToSelectAfterUpdate = value.newlyCreatedChatIdToSelect;
+				const persistedChatId = value.newlyCreatedChatIdToSelect;
+				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${persistedChatId}`);
 				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
+				const selectedChatId = activeChatStore.get();
+				if (selectedChatId && selectedChatId !== persistedChatId) {
+					recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'chat_list', result: 'skipped' });
+					console.debug('[Chats] Skipping stale persisted draft activation because another chat is selected:', {
+						persistedChatId,
+						selectedChatId
+					});
+					return;
+				}
+				recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'chat_list', result: 'applied' });
+				_chatIdToSelectAfterUpdate = persistedChatId;
 				
 				// Attempt selection after ensuring the list is updated
 				await updateChatListFromDB();

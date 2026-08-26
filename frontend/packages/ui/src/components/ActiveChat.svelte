@@ -6005,6 +6005,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const persistedChatId = value.newlyCreatedChatIdToSelect;
             console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${persistedChatId}`);
             draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
+            const selectedChatId = activeChatStore.get();
+            if (selectedChatId && selectedChatId !== persistedChatId) {
+                recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'skipped' });
+                console.debug('[ActiveChat] Skipping stale persisted draft activation because another chat is selected:', {
+                    persistedChatId,
+                    selectedChatId,
+                });
+                return;
+            }
             let newChat = await chatDB.getChat(persistedChatId).catch((error) => {
                 console.error('[ActiveChat] Failed to read decrypted persisted draft shell:', persistedChatId, error);
                 return null;

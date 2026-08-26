@@ -394,7 +394,7 @@ tests:
       - clearing returns to focused / welcome state without a header
       - an established-chat draft leaves its generated header unchanged
       - a late first-save activation cannot override a newer explicit saved-chat selection
-    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org } }
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, run_id: "32916523303", subject_commit: "f2d926ce85fa3d97e2309cdfeaff94745d210fed", timestamp: "2026-08-26T00:52:14Z", target: app.dev.openmates.org, summary: "The replayed late first-save activation was applied after a different saved chat had been explicitly selected." } }
     green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: "" } }
   - id: T-E2E-002
     type: playwright
