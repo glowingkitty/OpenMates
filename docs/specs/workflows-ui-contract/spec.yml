@@ -148,7 +148,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: 154a522724c4a15d01c4cf10029c8d90885ba3f7
+  subject_commit: 03b69078713b524271436c3f8724fbd5bc14f65c
 
 approvals:
   product_contract:
@@ -526,7 +526,13 @@ tests:
     green_phase:
       required: true
       expected: pass_after_deploy
-      evidence: {}
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --proof-video-profile web-laptop --no-mocks --gate-deploy --require-exact-commit --expected-commit 03b69078713b524271436c3f8724fbd5bc14f65c
+        run_id: '32983054617'
+        timestamp: '2026-08-26T14:56:39Z'
+        subject_commit: 03b69078713b524271436c3f8724fbd5bc14f65c
+        summary: The authenticated deployed Workflows contract passed all functional assertions; bounded review passed workspace, guard, version, and Runs, with only a proof-frame timing gap for the otherwise passing Template state.
 
 verifications:
   - id: V-SPEC-VALIDATE
@@ -1005,8 +1011,8 @@ tasks:
     surfaces: [gui.web]
   - id: TASK-9
     title: Implement shared Workflow graph, header, tabs, and guarded editing
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-6]
       acceptance_criteria: [AC-2, AC-3, AC-4, AC-7]
@@ -1035,8 +1041,8 @@ tasks:
     surfaces: [gui.web]
   - id: TASK-10
     title: Implement version timeline and detailed Runs execution view
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-4, S-5, S-6]
       acceptance_criteria: [AC-5, AC-6, AC-7]
@@ -1062,8 +1068,8 @@ tasks:
     surfaces: [gui.web]
   - id: TASK-11
     title: Deploy and pass the Workflows UI Playwright contract
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
       acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
@@ -1082,7 +1088,7 @@ tasks:
     surfaces: [gui.web]
   - id: TASK-12
     title: Review deployed laptop and mobile visual smoke
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios: [S-6]
@@ -1226,11 +1232,31 @@ attempts:
     approach: Supply the required run idempotency header and rerun against the exact deployed commit.
     outcome: failed_as_expected
     recorded_at: '2026-08-26T04:20:22Z'
+  - id: ATTEMPT-13
+    task_id: TASK-11
+    approach: Deploy the shared Template, version, and Runs implementation and rerun the authenticated Workflows contract plus adjacent editor, input, and sidebar regressions.
+    outcome: succeeded
+    recorded_at: '2026-08-26T07:33:07Z'
+  - id: ATTEMPT-14
+    task_id: TASK-12
+    approach: Review bounded laptop proof frames, fix raw historical definition text, prolonged save presentation, run-marker geometry, card-row clipping, and proof checkpoint timing, then rerun exact-commit deployed coverage.
+    outcome: blocked
+    recorded_at: '2026-08-26T14:56:39Z'
+  - id: ATTEMPT-15
+    task_id: TASK-12
+    approach: After explicit user authorization, reset the exhausted proof-review epoch and dispatch a replacement laptop capture with a longer clean Template hold.
+    outcome: blocked
+    recorded_at: '2026-08-26T15:37:10Z'
 
 handoff:
-  current_task_id: TASK-9
-  next_action: Implement the shared Workflow graph, category header, Template/Runs tabs, visible browse controls, and guarded explicit editing.
-  command: npm --prefix frontend/packages/ui run build
-  expected_outcome: Shared Workflow UI components compile before version and Runs implementation continues.
-  blocker: null
-  last_verified_commit: 154a522724c4a15d01c4cf10029c8d90885ba3f7
+  current_task_id: TASK-12
+  next_action: Retry the pinned laptop proof after GitHub exposes dispatched Actions run IDs, then capture and review web-phone before recording visual smoke and proof evidence.
+  command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --account 1 --proof-video-profile web-laptop --no-mocks --gate-deploy --require-exact-commit --expected-commit <CURRENT_DEV_SHA>
+  expected_outcome: The deployed spec passes, automatic bounded review approves all five laptop claims, and the same command with web-phone produces the required phone proof.
+  blocker:
+    task_id: TASK-12
+    requires_user_input: false
+    reason: GitHub Actions accepted workflow dispatches but did not expose new run IDs, so the test orchestrator could not start account preflight or proof capture.
+    question: ''
+    next_action: Recheck GitHub Actions dispatch visibility and rerun against the then-current exact dev commit.
+  last_verified_commit: 03b69078713b524271436c3f8724fbd5bc14f65c
