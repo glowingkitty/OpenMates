@@ -108,15 +108,15 @@ const CHAT_STREAMING_PHONE_PROOF = defineVideoProof({
 			devices: ['web-phone']
 		},
 		{
-			id: 'processing',
-			text: 'The outer side rainbow marks active processing without covering thinking or message content.',
-			checkpoint: 'processing-visible',
+			id: 'first-chunk',
+			text: 'The left-aligned assistant card shows the first answer chunk.',
+			checkpoint: 'first-chunk-visible',
 			devices: ['web-phone']
 		},
 		{
-			id: 'first-chunk',
-			text: 'A left-aligned assistant card appears as the first answer chunk arrives.',
-			checkpoint: 'first-chunk-visible',
+			id: 'processing',
+			text: 'The outer side rainbow remains active without covering thinking or message content.',
+			checkpoint: 'processing-visible',
 			devices: ['web-phone']
 		},
 		{

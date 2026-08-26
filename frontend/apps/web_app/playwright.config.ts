@@ -38,12 +38,14 @@ if ((process.env.PLAYWRIGHT_VIDEO_WIDTH || process.env.PLAYWRIGHT_VIDEO_HEIGHT) 
 	throw new Error('PLAYWRIGHT_VIDEO_WIDTH and PLAYWRIGHT_VIDEO_HEIGHT must both be positive integers when set.');
 }
 const videoSize = videoWidth > 0 && videoHeight > 0 ? { width: videoWidth, height: videoHeight } : undefined;
+const isPhoneProofProfile = videoWidth === 390 && videoHeight === 844;
 
 const config: PlaywrightTestConfig = {
 	use: {
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
 		...(videoSize ? { viewport: videoSize } : {}),
+		...(isPhoneProofProfile ? { hasTouch: true, isMobile: true } : {}),
 		...(browserChannel ? { channel: browserChannel } : {}),
 		// Capture artifacts for all tests — used by MD report generator
 		// (test-results/reports/) to show inline screenshots per step.
