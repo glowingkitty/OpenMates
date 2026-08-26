@@ -1,4 +1,5 @@
 // tests/mentions.test.ts
+// contract-test-file: infrastructure
 /**
  * Unit tests for CLI mention parsing and resolution.
  *
@@ -166,6 +167,22 @@ describe("parseMentions", () => {
       );
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-5.4");
+    });
+
+    it("resolves GPT-5.6 display names", () => {
+      for (const [mention, modelId] of [
+        ["@GPT-5.6-Luna", "gpt-5.6-luna"],
+        ["@GPT-5.6-Terra", "gpt-5.6-terra"],
+        ["@GPT-5.6-Sol", "gpt-5.6-sol"],
+        ["@GPT-5.6-Sol-Max", "gpt-5.6-sol-max"],
+      ] as const) {
+        const result = parseMentions(`${mention} explain this`, testContext);
+
+        assert.equal(result.unresolved.length, 0);
+        assert.equal(result.resolved.length, 1);
+        assert.equal(result.resolved[0].type, "model");
+        assert.equal(result.resolved[0].wireSyntax, `@ai-model:${modelId}`);
+      }
     });
 
   });

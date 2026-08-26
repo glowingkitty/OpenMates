@@ -61,6 +61,208 @@ models:
         price: 30.00
         currency: USD
 
+  - id: "gpt-5.6-luna"
+    name: "GPT-5.6 Luna"
+    description: "OpenAI's efficient GPT-5.6 model for fast everyday assistance, coding, and multimodal chat."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-08-26"
+    allow_auto_select: true
+    reasoning: true
+    external_ids:
+      lmarena: "gpt-5.6-luna"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.6-luna"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 1600 # 333.33 / 0.20 = 1666.67 -> 1600 (conservative round-down)
+        output:
+          per_credit_unit: 275 # 333.33 / 1.20 = 277.78 -> 275 (conservative round-down)
+    costs:
+      input_per_million_token:
+        price: 0.20
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.02
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 0.25
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 1.20
+        currency: USD
+        max_context: 1000000
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  - id: "gpt-5.6-terra"
+    name: "GPT-5.6 Terra"
+    description: "OpenAI's balanced GPT-5.6 model for complex writing, analysis, coding, and multimodal chat."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-08-26"
+    allow_auto_select: true
+    reasoning: true
+    external_ids:
+      lmarena: "gpt-5.6-terra"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.6-terra"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 165 # 333.33 / 2.00 = 166.67 -> 165 (conservative round-down)
+        output:
+          per_credit_unit: 25 # 333.33 / 12.00 = 27.78 -> 25 (conservative round-down)
+    costs:
+      input_per_million_token:
+        price: 2.00
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.20
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 2.50
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 12.00
+        currency: USD
+        max_context: 1000000
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  - id: "gpt-5.6-sol"
+    name: "GPT-5.6 Sol"
+    description: "OpenAI's high-capability GPT-5.6 reasoning model for demanding coding, analysis, and multimodal chat."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-08-26"
+    allow_auto_select: true
+    reasoning: true
+    reasoning_effort: "medium"
+    external_ids:
+      lmarena: "gpt-5.6-sol"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.6-sol"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+        output:
+          per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+    costs:
+      input_per_million_token:
+        price: 4.00
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.40
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 5.00
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 20.00
+        currency: USD
+        max_context: 1000000
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
+  - id: "gpt-5.6-sol-max"
+    name: "GPT-5.6 Sol Max"
+    description: "OpenMates' max-reasoning GPT-5.6 Sol variant for the hardest coding, analysis, and planning tasks."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-08-26"
+    allow_auto_select: true
+    reasoning: true
+    reasoning_effort: "max"
+    external_ids:
+      lmarena: "gpt-5.6-sol"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-5.6-sol"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 80 # 333.33 / 4.00 = 83.33 -> 80 (conservative round-down)
+        output:
+          per_credit_unit: 15 # 333.33 / 20.00 = 16.67 -> 15 (conservative round-down)
+    costs:
+      input_per_million_token:
+        price: 4.00
+        currency: USD
+        max_context: 1000000
+      cached_input_per_million_token:
+        price: 0.40
+        currency: USD
+        max_context: 1000000
+      cache_write_per_million_token:
+        price: 5.00
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 20.00
+        currency: USD
+        max_context: 1000000
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "gpt-5.5"
     name: "GPT-5.5"
     description: "OpenAI's most capable frontier model with advanced reasoning, coding, and multimodal understanding."

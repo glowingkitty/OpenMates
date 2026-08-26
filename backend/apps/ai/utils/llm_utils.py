@@ -1799,6 +1799,9 @@ async def call_main_llm_stream(
                                 logger.debug(f"{attempt_log_prefix} Using fallback server model_id '{server_actual_model_id}' for openrouter")
                             break
 
+        if server_provider_prefix == "openai" and original_model_id.startswith("openai/"):
+            server_llm_input_details["catalog_model_id"] = original_model_id.split("/", 1)[1]
+
         # Select provider client using dynamic registry - no hardcoded provider names!
         provider_client = _get_provider_client(server_provider_prefix)
         

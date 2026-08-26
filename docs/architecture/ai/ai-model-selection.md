@@ -93,6 +93,7 @@ Each LLM provider has a YAML config in [`backend/providers/`](../../backend/prov
 - **`allow_auto_select`**: Whether the model participates in auto-selection
 - **`external_ids`**: Cross-platform ID mappings (LMArena, OpenRouter)
 - **`default_server`** and **`servers`**: Provider routing (e.g., AWS Bedrock primary, direct API fallback)
+- **`servers[].model_id`** and **`reasoning_effort`**: Provider-specific upstream IDs and reasoning controls for catalog variants such as Sol Max
 - **`pricing`/`costs`**: Token pricing for billing
 
 ### Selection Flow
