@@ -157,6 +157,22 @@ async function insertComposerText(page: any, messageEditor: any, text: string, v
 		.toContain(visibleText);
 }
 
+async function dismissOfflineSyncNoticeIfPresent(
+	page: any,
+	logCheckpoint: (message: string) => void
+): Promise<void> {
+	const notification = page.getByTestId('notification').filter({ hasText: 'Offline sync:' });
+	const appeared = await notification
+		.waitFor({ state: 'visible', timeout: 2000 })
+		.then(() => true)
+		.catch(() => false);
+	if (!appeared) return;
+
+	await notification.getByTestId('notification-dismiss').click({ timeout: 5000, force: true });
+	await expect(notification).not.toBeVisible({ timeout: 10000 });
+	logCheckpoint('Dismissed pre-existing offline sync notification before proof capture.');
+}
+
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
 test('stop during new chat creation restores the sent message as a draft', async ({ page }: { page: any }) => {
 	test.skip(IS_PROOF_CAPTURE, 'Proof profiles record only the late draft activation navigation contract.');
@@ -295,6 +311,10 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		}
 		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
+		if (proof) {
+			await dismissSecurityReminderIfPresent(page, logCheckpoint);
+			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
+		}
 		await proof?.checkpoint('draft-saved');
 		await startNewChat(page, logCheckpoint);
 		await page.evaluate(async (chatId: string) => {
@@ -394,7 +414,6 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		if (draftChatId) {
 			if (proof) {
 				await proof.action('reopen-draft', async () => {
-					await dismissSecurityReminderIfPresent(page, logCheckpoint);
 					const sidebarToggle = page.getByTestId('sidebar-toggle');
 					if (await sidebarToggle.getAttribute('aria-expanded') !== 'true') {
 						await sidebarToggle.click();
@@ -414,6 +433,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			const assertDraftRemainsNavigable = async () => {
 				await expect(page.getByTestId('active-chat-container'))
 					.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 });
+				await expect(messageEditor).toContainText(visibleDraft, { timeout: 10000 });
 			};
 			if (proof) {
 				await proof.assert('draft-remains-navigable', assertDraftRemainsNavigable);
