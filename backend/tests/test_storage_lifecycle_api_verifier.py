@@ -41,3 +41,4 @@ def test_api_images_include_runtime_verifiers() -> None:
         content = dockerfile.read_text()
         assert "COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py" in content
         assert "COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py" in content
+        assert "COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py" in content

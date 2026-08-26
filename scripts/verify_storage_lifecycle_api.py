@@ -71,9 +71,6 @@ def _runtime_verify() -> dict[str, Any]:
 
 
 def _host_verify(api_url: str) -> dict[str, Any]:
-    public = httpx.get(f"{api_url.rstrip('/')}/internal/storage/health", timeout=15)
-    if public.status_code != 404:
-        raise RuntimeError(f"internal_route_publicly_reachable:{public.status_code}")
     completed = subprocess.run(
         [
             "docker",
@@ -92,6 +89,17 @@ def _host_verify(api_url: str) -> dict[str, Any]:
     if completed.returncode != 0:
         raise RuntimeError("runtime_api_verification_failed")
     report = json.loads(completed.stdout)
+    try:
+        public = httpx.get(f"{api_url.rstrip('/')}/internal/storage/health", timeout=15)
+    except httpx.RequestError:
+        report.update({
+            "status": "blocked",
+            "failure_class": "public_ingress_unreachable",
+            "public_ingress_status": "unreachable",
+        })
+        return report
+    if public.status_code != 404:
+        raise RuntimeError(f"internal_route_publicly_reachable:{public.status_code}")
     report["public_ingress_status"] = public.status_code
     return report
 
@@ -114,7 +122,7 @@ def main() -> int:
         print(json.dumps(report, separators=(",", ":")))
         return 1
     print(json.dumps(report, separators=(",", ":")))
-    return 0
+    return 0 if report.get("status") == "passed" else 1
 
 
 if __name__ == "__main__":
