@@ -11,6 +11,15 @@ import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 const MAX_CANDIDATE_KEYS = 5;
 
+function newestTimestamp(
+  ...timestamps: Array<number | null | undefined>
+): number | undefined {
+  const presentTimestamps = timestamps.filter(
+    (timestamp): timestamp is number => timestamp !== null && timestamp !== undefined,
+  );
+  return presentTimestamps.length > 0 ? Math.max(...presentTimestamps) : undefined;
+}
+
 export async function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
@@ -160,12 +169,12 @@ export async function mergeServerChatWithLocal(
     created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
     updated_at: serverChat.updated_at ?? localChat.updated_at ?? nowTimestamp,
     last_edited_overall_timestamp:
-      serverChat.last_edited_overall_timestamp ??
-      localChat.last_edited_overall_timestamp ??
-      serverChat.updated_at ??
-      localChat.updated_at ??
-      serverChat.created_at ??
-      localChat.created_at ??
+      newestTimestamp(
+        serverChat.last_edited_overall_timestamp,
+        localChat.last_edited_overall_timestamp,
+      ) ??
+      newestTimestamp(serverChat.updated_at, localChat.updated_at) ??
+      newestTimestamp(serverChat.created_at, localChat.created_at) ??
       nowTimestamp,
     encrypted_draft_md: serverClearsDraft
       ? undefined
