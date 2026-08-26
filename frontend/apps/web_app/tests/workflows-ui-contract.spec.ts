@@ -27,31 +27,31 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
-			id: 'workspace-visible.assertion',
+			id: 'workspace-visible',
 			text: 'The Workflows screen presents recommendation-led creation, category-styled cards, browse controls, and a bottom composer.',
 			checkpoint: 'workspace-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'template-visible.assertion',
+			id: 'template-visible',
 			text: 'The selected Workflow keeps its category identity above shared Template and Runs tabs and a centered editable graph.',
 			checkpoint: 'template-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'guard-visible.assertion',
+			id: 'guard-visible',
 			text: 'Editing a node reveals explicit Save and Undo controls, while navigation asks whether to Save, Discard, or Stay.',
 			checkpoint: 'guard-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'version-visible.assertion',
+			id: 'version-visible',
 			text: 'Immutable versions appear on a horizontal timeline and historical definitions reuse the same read-only graph.',
 			checkpoint: 'version-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'runs-visible.assertion',
+			id: 'runs-visible',
 			text: 'Runs presents a status timeline and the selected execution graph with retained node detail and contextual cancellation.',
 			checkpoint: 'runs-visible',
 			devices: ['web-laptop', 'web-phone']
@@ -59,31 +59,31 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 	],
 	assertions: [
 		{
-			id: 'workspace-visible',
+			id: 'workspace-visible.assertion',
 			checkpoint: 'workspace-visible',
 			visual: 'The recommendation, centered Workflow identity, category cards, Show all, Search, and composer are visible without clipping.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'template-visible',
+			id: 'template-visible.assertion',
 			checkpoint: 'template-visible',
 			visual: 'The category header, shared tab pill, and centered Template graph form one stable detail composition.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'guard-visible',
+			id: 'guard-visible.assertion',
 			checkpoint: 'guard-visible',
 			visual: 'The unsaved panel and Save, Discard, and Stay navigation decision remain reachable.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'version-visible',
+			id: 'version-visible.assertion',
 			checkpoint: 'version-visible',
 			visual: 'The selected historical version, Active current marker, timeline, and read-only graph are visible.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'runs-visible',
+			id: 'runs-visible.assertion',
 			checkpoint: 'runs-visible',
 			visual: 'The waiting run, execution graph, node statuses, and cancel action are visible without raw protocol text.',
 			devices: ['web-laptop', 'web-phone']
