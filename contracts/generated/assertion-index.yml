@@ -2227,17 +2227,17 @@ assertions:
       surface: rest_api
     - &id250
       path: backend/tests/test_s3_multi_region_service.py
-      line: 71
+      line: 75
       name: test_core_service_builds_one_client_per_configured_region
       surface: rest_api
     - &id251
       path: backend/tests/test_s3_multi_region_service.py
-      line: 108
+      line: 112
       name: test_presigned_url_uses_selected_regional_client_and_bucket
       surface: rest_api
     - &id252
       path: backend/tests/test_s3_multi_region_service.py
-      line: 147
+      line: 151
       name: test_existing_regional_buckets_receive_acl_lifecycle_and_cors
       surface: rest_api
     - &id253
@@ -2248,7 +2248,7 @@ assertions:
     supporting_tests:
     - &id249
       path: backend/tests/test_s3_multi_region_service.py
-      line: 53
+      line: 57
       name: test_region_endpoint_is_derived_from_selected_region
       surface: rest_api
     tests:
@@ -2982,7 +2982,7 @@ assertions:
       surface: rest_api
     - &id343
       path: backend/tests/test_s3_multi_region_service.py
-      line: 147
+      line: 151
       name: test_existing_regional_buckets_receive_acl_lifecycle_and_cors
       surface: rest_api
     - &id344
@@ -3117,7 +3117,7 @@ assertions:
       surface: rest_api
     - &id361
       path: backend/tests/test_s3_multi_region_service.py
-      line: 53
+      line: 57
       name: test_region_endpoint_is_derived_from_selected_region
       surface: rest_api
     - &id362

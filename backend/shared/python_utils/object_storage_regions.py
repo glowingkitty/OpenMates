@@ -16,6 +16,10 @@ HETZNER_OBJECT_STORAGE_DOMAIN = "your-objectstorage.com"
 REGION_MANAGED_MEDIA_BUCKETS = {"buffer_media"}
 REGION_EXCLUDED_BUCKETS = {"product_media"}
 NON_REPLICATED_BUCKETS = REGION_MANAGED_MEDIA_BUCKETS | REGION_EXCLUDED_BUCKETS
+REGIONAL_BUCKET_NAME_OVERRIDES = {
+    # The default dev HEL1 workspace-history name is already taken in the provider namespace.
+    ("dev-openmates-workspace-history-archives", "hel1"): "dev-openmates-workspace-history-archives-hel1-om",
+}
 
 
 def parse_storage_regions(value: str | None) -> tuple[str, ...]:
@@ -48,6 +52,8 @@ def resolve_regional_bucket_name(legacy_bucket_name: str, region: str) -> str:
         raise ValueError(f"Unsupported storage region: {region}")
     if region == LEGACY_BUCKET_REGION:
         return legacy_bucket_name
+    if override := REGIONAL_BUCKET_NAME_OVERRIDES.get((legacy_bucket_name, region)):
+        return override
     return f"{legacy_bucket_name}-{region}"
 
 

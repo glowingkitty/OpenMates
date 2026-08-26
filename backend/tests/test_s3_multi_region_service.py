@@ -47,6 +47,10 @@ def test_logical_bucket_resolution_preserves_nbg_alias_and_uses_unique_replica_n
     assert module.resolve_regional_bucket_name("dev-openmates-chatfiles", "nbg1") == "dev-openmates-chatfiles"
     assert module.resolve_regional_bucket_name("dev-openmates-chatfiles", "fsn1") == "dev-openmates-chatfiles-fsn1"
     assert module.resolve_regional_bucket_name("dev-openmates-chatfiles", "hel1") == "dev-openmates-chatfiles-hel1"
+    assert (
+        module.resolve_regional_bucket_name("dev-openmates-workspace-history-archives", "hel1")
+        == "dev-openmates-workspace-history-archives-hel1-om"
+    )
 
 
 # contract-test: supporting surface=rest_api assertions=storage.regions.configurable-redundancy,storage.privacy.ciphertext-boundary
