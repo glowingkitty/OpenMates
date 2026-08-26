@@ -73,6 +73,7 @@ const {
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+const { dismissVisibleNotifications } = require('./helpers/embed-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const {
@@ -386,7 +387,8 @@ async function ensureSidebarOpen(
 	}
 
 	// Click the menu toggle button in the header to open the sidebar
-	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
+	await dismissVisibleNotifications(page);
+	const menuToggle = page.getByTestId('sidebar-toggle');
 	await expect(menuToggle).toBeVisible({ timeout: 5000 });
 	await menuToggle.click();
 	logCheckpoint('[Sidebar] Clicked menu toggle to open sidebar.');
