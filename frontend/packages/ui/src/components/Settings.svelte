@@ -3720,7 +3720,7 @@ changes to the documentation (to keep the documentation up to date).
 
     /* The activity sidebar reduces the chat canvas independently of viewport width.
        Keep the full transcript column by overlaying settings until both panels fit. */
-    @container chat-settings-layout (min-width: 1101px) and (max-width: 1412px) {
+    @container chat-settings-layout (max-width: 1412px) {
         .settings-menu {
             position: fixed;
             inset-inline-end: 20px;

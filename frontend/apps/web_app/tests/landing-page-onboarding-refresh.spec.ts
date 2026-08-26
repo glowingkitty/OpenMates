@@ -762,6 +762,10 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await page.getByTestId('sidebar-toggle').click();
 		await expect(page.getByTestId('activity-history-wrapper')).toBeVisible({ timeout: 10000 });
+		await expect.poll(
+			async () => page.getByTestId('chat-history-content').evaluate((element: HTMLElement) => element.getBoundingClientRect().width),
+			{ timeout: 3000 }
+		).toBeGreaterThan(990);
 
 		const chatHistoryWidthBeforeSettings = await page.getByTestId('chat-history-content').evaluate(
 			(element: HTMLElement) => element.getBoundingClientRect().width
