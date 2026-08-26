@@ -14142,7 +14142,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
-    coordinator = CONTROL_PLANE_ROOT / "scripts" / "sessions.py"
+    coordinator = Path(__file__).resolve()
     prompt = (
         f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
         f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
