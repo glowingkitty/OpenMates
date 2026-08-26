@@ -777,6 +777,14 @@ test.describe('Landing page onboarding refresh', () => {
 			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().width),
 			{ timeout: 3000 }
 		).toBeGreaterThan(300);
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
+			{ timeout: 3000 }
+		).toBe('fixed');
+		await expect.poll(
+			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
+			{ timeout: 3000 }
+		).toBe(true);
 
 		const activeChatLayout = await page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => {
 			const rect = element.getBoundingClientRect();

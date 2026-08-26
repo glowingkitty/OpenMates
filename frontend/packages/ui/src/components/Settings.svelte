@@ -171,6 +171,7 @@ changes to the documentation (to keep the documentation up to date).
     // Track viewport width for reactive dimmed class logic
     // Settings menu becomes overlay at 1100px, so we need to track this
     let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 0);
+    let settingsLayoutWidth = $state(0);
 
     // Add reference to settings content element
     let settingsContentElement: HTMLElement | undefined = $state();
@@ -2307,12 +2308,16 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    function isSettingsOverlay(): boolean {
+        const settingsMenu = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
+        return settingsMenu !== null && getComputedStyle(settingsMenu).position === 'fixed';
+    }
+
     // Click outside handler
     function handleClickOutside(event: MouseEvent) {
 	    // Close on outside-click only when settings is rendered as an overlay.
-	    // In side-by-side mode (>1100px), outside clicks should not close the panel.
-	    const isOverlayMode = viewportWidth <= 1100;
-	    if (!isMenuVisible || !isOverlayMode) {
+	    // In side-by-side mode, outside clicks should not close the panel.
+	    if (!isMenuVisible || !isSettingsOverlay()) {
 	    	return;
 	    }
 
@@ -2322,7 +2327,7 @@ changes to the documentation (to keep the documentation up to date).
 	    	return;
 	    }
 
-	    const settingsMenu = document.querySelector('.settings-menu');
+	    const settingsMenu = document.querySelector('[data-testid="settings-menu"]');
 	    const profileWrapper = document.querySelector('.profile-container-wrapper');
 	    const closeButton = document.querySelector('.close-icon-container');
 
@@ -2373,6 +2378,16 @@ changes to the documentation (to keep the documentation up to date).
         updateMobileState();
         window.addEventListener('resize', handleResize);
         document.addEventListener('click', handleClickOutside);
+        const chatLayout = document.querySelector<HTMLElement>('.chat-container');
+        const settingsLayoutObserver = chatLayout && typeof ResizeObserver !== 'undefined'
+            ? new ResizeObserver(([entry]) => {
+                settingsLayoutWidth = entry?.contentRect.width ?? 0;
+            })
+            : null;
+        if (chatLayout) {
+            settingsLayoutWidth = chatLayout.clientWidth;
+            settingsLayoutObserver?.observe(chatLayout);
+        }
 
         // Listen for programmatic close requests from child components
         // (e.g., SettingsIncognitoInfo calls this after activating incognito mode).
@@ -2548,6 +2563,7 @@ changes to the documentation (to keep the documentation up to date).
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
+            settingsLayoutObserver?.disconnect();
             window.removeEventListener('closeSettingsMenu', handleCloseSettingsMenu);
             window.removeEventListener('forceCloseSettings', handleForceCloseSettings);
             window.removeEventListener('openSettingsMenu', handleOpenSettingsMenu);
@@ -2605,10 +2621,8 @@ changes to the documentation (to keep the documentation up to date).
             const activeChatContainer = document.querySelector('.active-chat-container');
             if (activeChatContainer) {
                 void viewportWidth;
-                const settingsMenu = document.querySelector('.settings-menu');
-                const isOverlayMode = settingsMenu instanceof HTMLElement
-                    && getComputedStyle(settingsMenu).position === 'fixed';
-                if (isOverlayMode && isMenuVisible) {
+                void settingsLayoutWidth;
+                if (isSettingsOverlay() && isMenuVisible) {
                     activeChatContainer.classList.add('dimmed');
                 } else {
                     activeChatContainer.classList.remove('dimmed');
