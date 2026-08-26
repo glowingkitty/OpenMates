@@ -872,6 +872,8 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 		});
 		await proof.checkpoint('response-complete');
 		await proof.attach();
+		// Keep the completed chat unobscured through the proof renderer's caption tail.
+		await page.waitForTimeout(5000);
 	}
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed travel-planning assistant response.');
