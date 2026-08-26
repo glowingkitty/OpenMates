@@ -15,8 +15,6 @@ import hmac
 import logging
 from typing import Any
 
-from botocore.exceptions import ClientError
-
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.core.api.app.services.s3.reconciliation import find_deletion_tombstone
 from backend.core.api.app.services.s3.replication import build_replication_job, persist_replication_job
@@ -29,6 +27,17 @@ ACTIVE_REPLICATION_STATES = ("pending", "retry_scheduled", "failed")
 PENDING_TOMBSTONE_STATES = ("pending", "retry_scheduled")
 READINESS_PAGE_SIZE = 100
 logger = logging.getLogger(__name__)
+
+
+def _provider_error_code(error: Exception) -> str | None:
+    response = getattr(error, "response", None)
+    if not isinstance(response, dict):
+        return None
+    provider_error = response.get("Error")
+    if not isinstance(provider_error, dict):
+        return None
+    code = provider_error.get("Code")
+    return str(code) if code is not None else None
 
 
 def sha256_hex(value: bytes) -> str:
@@ -69,8 +78,8 @@ def _target_matches(client: Any, bucket: str, object_key: str, checksum: str) ->
     try:
         response = client.get_object(Bucket=bucket, Key=object_key)
         actual = _stream_sha256(response["Body"])
-    except ClientError as error:
-        if str(error.response.get("Error", {}).get("Code")) in {"404", "NoSuchKey"}:
+    except Exception as error:
+        if _provider_error_code(error) in {"404", "NoSuchKey"}:
             return False
         raise
     return hmac.compare_digest(actual, checksum)

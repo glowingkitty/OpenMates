@@ -13,7 +13,12 @@ from io import BytesIO
 import importlib
 
 import pytest
-from botocore.exceptions import ClientError
+
+
+class _ClientError(Exception):
+    def __init__(self, response: dict, operation_name: str) -> None:
+        super().__init__(operation_name)
+        self.response = response
 
 
 def _module():
@@ -31,13 +36,13 @@ class _S3Client:
         try:
             return self.objects[(Bucket, Key)]["head"]
         except KeyError as exc:
-            raise ClientError({"Error": {"Code": "NoSuchKey"}}, "HeadObject") from exc
+            raise _ClientError({"Error": {"Code": "NoSuchKey"}}, "HeadObject") from exc
 
     def get_object(self, *, Bucket: str, Key: str) -> dict:
         try:
             return {"Body": BytesIO(self.objects[(Bucket, Key)]["bytes"])}
         except KeyError as exc:
-            raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject") from exc
+            raise _ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject") from exc
 
 
 class _Directus:
@@ -274,3 +279,22 @@ def test_replica_inventory_report_is_aggregate_and_detects_drift() -> None:
         "replicas_match": False,
         "object_keys_in_output": False,
     }
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_provider_error_evidence_is_sanitized() -> None:
+    from scripts.audit_object_storage_inventory import sanitized_provider_error
+
+    error = _ClientError(
+        {
+            "Error": {"Code": "AccessDenied", "Message": "private provider detail"},
+            "ResponseMetadata": {"HTTPStatusCode": 403, "RequestId": "private-request-id"},
+        },
+        "CreateBucket",
+    )
+
+    evidence = sanitized_provider_error(error)
+
+    assert evidence["error_code"] == "AccessDenied"
+    assert evidence["http_status"] == 403
+    assert "private" not in str(evidence)

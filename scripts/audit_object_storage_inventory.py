@@ -34,6 +34,19 @@ from backend.shared.python_utils.object_storage_regions import (  # noqa: E402
 
 PROBE_BUCKET_PREFIX = "dev-openmates-region-probe"
 CHECKSUM_CHUNK_SIZE = 1024 * 1024
+MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
+
+
+def sanitized_provider_error(error: Exception) -> dict[str, object]:
+    """Return provider classification without request IDs, names, or messages."""
+    result: dict[str, object] = {"error_class": type(error).__name__}
+    response = getattr(error, "response", None)
+    if isinstance(response, dict):
+        result["error_code"] = str(response.get("Error", {}).get("Code") or "Unknown")
+        status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        if isinstance(status, int):
+            result["http_status"] = status
+    return result
 
 
 def compare_regional_inventory(
@@ -472,7 +485,7 @@ async def probe_region_capabilities(regions: tuple[str, ...]) -> list[dict[str, 
                 await asyncio.to_thread(client.head_bucket, Bucket=bucket_name)
                 results.append({"region": region, "status": "passed"})
             except Exception as exc:
-                results.append({"region": region, "status": "failed", "error_class": type(exc).__name__})
+                results.append({"region": region, "status": "failed", **sanitized_provider_error(exc)})
             finally:
                 if created:
                     try:
@@ -488,6 +501,89 @@ async def probe_region_capabilities(regions: tuple[str, ...]) -> list[dict[str, 
         await secrets.aclose()
 
 
+async def provision_regional_buckets(
+    *,
+    environment: str,
+    regions: tuple[str, ...],
+) -> dict:
+    """Create and verify only missing managed replicated physical buckets."""
+    import boto3
+    from botocore.config import Config
+    from botocore.exceptions import ClientError
+
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    secrets = SecretsManager()
+    await secrets.initialize()
+    try:
+        access_key = await secrets.get_secret("kv/data/providers/hetzner", "s3_access_key")
+        secret_key = await secrets.get_secret("kv/data/providers/hetzner", "s3_secret_key")
+        if not access_key or not secret_key:
+            raise RuntimeError("Object-storage credentials are unavailable")
+        config = Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "path"},
+            connect_timeout=10,
+            read_timeout=20,
+            retries={"max_attempts": 2},
+        )
+        reports: dict[str, dict[str, object]] = {}
+        for region in regions:
+            client = boto3.client(
+                "s3",
+                endpoint_url=endpoint_for_region(region),
+                region_name=region,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=config,
+            )
+            physical_buckets = {
+                resolve_regional_bucket_name(get_bucket_name(logical_bucket, environment), region)
+                for logical_bucket, bucket_config in BUCKETS.items()
+                if bucket_config.get("managed", True) and should_replicate_bucket(logical_bucket)
+            }
+            report: dict[str, object] = {
+                "planned": len(physical_buckets),
+                "existing": 0,
+                "created": 0,
+                "failed": 0,
+                "errors": {},
+            }
+            errors: dict[str, int] = {}
+            for bucket in sorted(physical_buckets):
+                try:
+                    await asyncio.to_thread(client.head_bucket, Bucket=bucket)
+                    report["existing"] = int(report["existing"]) + 1
+                    continue
+                except ClientError as error:
+                    code = str(error.response.get("Error", {}).get("Code") or "Unknown")
+                    status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+                    if code not in MISSING_BUCKET_CODES and status != 404:
+                        report["failed"] = int(report["failed"]) + 1
+                        error_key = f"{code}:{status if isinstance(status, int) else 'unknown'}"
+                        errors[error_key] = errors.get(error_key, 0) + 1
+                        continue
+                try:
+                    await asyncio.to_thread(client.create_bucket, Bucket=bucket)
+                    await asyncio.to_thread(client.head_bucket, Bucket=bucket)
+                    report["created"] = int(report["created"]) + 1
+                except Exception as error:
+                    report["failed"] = int(report["failed"]) + 1
+                    evidence = sanitized_provider_error(error)
+                    error_key = f"{evidence.get('error_code', evidence['error_class'])}:{evidence.get('http_status', 'unknown')}"
+                    errors[error_key] = errors.get(error_key, 0) + 1
+            report["errors"] = errors
+            reports[region] = report
+        return {
+            "status": "passed" if all(int(report["failed"]) == 0 for report in reports.values()) else "blocked",
+            "regions": reports,
+            "bucket_names_in_output": False,
+            "object_keys_in_output": False,
+        }
+    finally:
+        await secrets.aclose()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", choices=("dev", "prod"), required=True)
@@ -496,6 +592,7 @@ def main() -> int:
     parser.add_argument("--probe-regions", action="store_true")
     parser.add_argument("--verify-replicas", action="store_true")
     parser.add_argument("--backfill-recovered-source", action="store_true")
+    parser.add_argument("--provision-regions", action="store_true")
     parser.add_argument("--source-region", default="nbg1")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -505,11 +602,12 @@ def main() -> int:
         args.probe_regions,
         args.verify_replicas,
         args.backfill_recovered_source,
+        args.provision_regions,
     ))
     if selected_modes != 1:
         parser.error(
             "Choose exactly one of --dry-run, --probe-regions, --verify-replicas, "
-            "or --backfill-recovered-source"
+            "--backfill-recovered-source, or --provision-regions"
         )
 
     regions = parse_storage_regions(args.regions)
@@ -541,7 +639,7 @@ def main() -> int:
                 "failure_class": type(exc).__name__,
                 "object_keys_in_output": False,
             }
-    else:
+    elif args.backfill_recovered_source:
         if args.source_region not in regions:
             parser.error("--source-region must be included in configured regions")
         environment = "development" if args.env == "dev" else "production"
@@ -557,6 +655,22 @@ def main() -> int:
             report = {
                 "status": "blocked",
                 "failure_class": type(exc).__name__,
+                "object_keys_in_output": False,
+            }
+    else:
+        environment = "development" if args.env == "dev" else "production"
+        try:
+            report = asyncio.run(
+                provision_regional_buckets(
+                    environment=environment,
+                    regions=regions,
+                )
+            )
+        except Exception as exc:
+            report = {
+                "status": "blocked",
+                **sanitized_provider_error(exc),
+                "bucket_names_in_output": False,
                 "object_keys_in_output": False,
             }
 
