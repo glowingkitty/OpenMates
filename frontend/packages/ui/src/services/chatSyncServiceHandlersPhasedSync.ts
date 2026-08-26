@@ -584,6 +584,10 @@ export async function handleBackgroundMessageSyncImpl(
                     encrypted_draft_md: null,
                     encrypted_draft_preview: null,
                     draft_v: 0,
+                    cleared_draft_v: Math.max(
+                      existingChat.cleared_draft_v ?? 0,
+                      existingChat.draft_v ?? 0,
+                    ),
                   }
                 : {}),
             },

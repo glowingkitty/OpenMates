@@ -145,6 +145,7 @@ async def _apply_cached_draft_override(
     if is_tombstoned and await is_tombstoned(user_id, chat_id):
         if cached_version_int >= current_version_int:
             _apply_authoritative_draft_metadata(chat_details, None)
+            chat_details["cleared_draft_v"] = cached_version_int
         return
 
     if cached_md is not None and cached_md != "null" and cached_version_int >= current_version_int:

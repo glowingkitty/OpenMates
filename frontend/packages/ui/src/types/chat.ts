@@ -431,6 +431,7 @@ export interface Chat {
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
   encrypted_draft_preview?: string | null; // User's encrypted draft preview (truncated text for chat list display)
   draft_v?: number; // Version of the user's draft for this chat
+  cleared_draft_v?: number; // Local-only fence preventing stale sync snapshots from restoring a cleared draft
   ideabucket?: boolean | null; // Sparse marker for IdeaBucket-origin drafts/chats.
   ideabucket_processing_window_id?: string | null; // Non-private IdeaBucket bucket/window id for UI provenance.
   ideabucket_triggered_at?: number | null; // Unix timestamp when IdeaBucket sent this chat, if already processed.

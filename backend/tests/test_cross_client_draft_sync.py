@@ -72,6 +72,28 @@ class _WebSocket:
         self.sent.append(message)
 
 
+class _DraftWriteRedis:
+    async def eval(self, _script, _key_count, draft_key, versions_key, field, draft_version, encrypted_md, encrypted_preview, _draft_ttl, _versions_ttl):
+        draft = self.data.setdefault(draft_key, {})
+        dedicated_version = int(draft.get("draft_v", 0))
+        general_version = int(self.data.get(versions_key, {}).get(field, 0))
+        incoming_version = int(draft_version)
+        if dedicated_version > incoming_version or general_version > incoming_version:
+            return 0
+        if draft.get("deleted") == "true" and dedicated_version >= incoming_version:
+            return 0
+        draft.update({
+            "draft_v": str(incoming_version),
+            "encrypted_draft_md": encrypted_md,
+            "encrypted_draft_preview": encrypted_preview,
+        })
+        if encrypted_md != "null":
+            draft["deleted"] = "false"
+        self.data.setdefault(versions_key, {})[field] = str(incoming_version)
+        return 1
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext(monkeypatch) -> None:
     manager = _Manager()
@@ -156,6 +178,7 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext(m
     assert "plaintext" not in str(websocket.sent + manager.broadcasts).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext(monkeypatch) -> None:
     manager = _Manager()
@@ -222,6 +245,7 @@ async def test_update_draft_broadcasts_ideabucket_metadata_without_plaintext(mon
     assert "captured ideas" not in str(websocket.sent + manager.broadcasts).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_update_draft_replaces_ideabucket_processing_window_payload(monkeypatch) -> None:
     manager = _Manager()
@@ -321,6 +345,7 @@ async def test_update_draft_replaces_ideabucket_processing_window_payload(monkey
     assert websocket.sent[0]["payload"]["processing_payload_synced"] is True
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_late_ideabucket_draft_persistence_skips_sent_window(monkeypatch) -> None:
     closed = []
@@ -354,6 +379,7 @@ async def test_late_ideabucket_draft_persistence_skips_sent_window(monkeypatch) 
     assert closed == [True]
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_offline_draft_sync_uses_user_specific_draft_version() -> None:
     manager = _Manager()
@@ -404,6 +430,7 @@ async def test_offline_draft_sync_uses_user_specific_draft_version() -> None:
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
 async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_chat() -> None:
     manager = _Manager()
@@ -452,14 +479,64 @@ async def test_delete_draft_accepts_canonical_chat_id_and_tombstones_draft_only_
         "payload": {
             "chat_id": "11111111-1111-4111-8111-111111111111",
             "success": True,
+            "draft_v": 3,
         },
     }
     assert manager.broadcasts[-1] == {
         "type": "draft_deleted",
-        "payload": {"chat_id": "11111111-1111-4111-8111-111111111111"},
+        "payload": {
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "draft_v": 3,
+        },
     }
 
 
+# contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+@pytest.mark.anyio
+async def test_delete_draft_cas_rejection_preserves_newer_persisted_draft() -> None:
+    manager = _Manager()
+
+    class Cache:
+        async def increment_user_draft_version(self, user_id, chat_id):
+            return 3
+
+        async def tombstone_user_draft_in_cache(self, *, user_id, chat_id, draft_version):
+            return False
+
+    class Chat:
+        async def check_chat_ownership(self, chat_id, user_id):
+            return False
+
+        async def get_chat_metadata(self, chat_id):
+            return None
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, params):
+            raise AssertionError("rejected deletion must not read or delete the persisted draft")
+
+    await handle_delete_draft(
+        websocket=None,
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=Directus(),
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={"chat_id": "11111111-1111-4111-8111-111111111111"},
+    )
+
+    assert manager.sent[-1] == {
+        "type": "draft_delete_receipt",
+        "payload": {
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "success": False,
+        },
+    }
+    assert manager.broadcasts == []
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() -> None:
     manager = _Manager()
@@ -470,8 +547,11 @@ async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() ->
             if chat_id == "available":
                 return ("cipher", 3, "preview")
             if chat_id == "deleted":
-                return None
+                return (None, 4, None)
             raise RuntimeError("cache unavailable")
+
+        async def is_user_draft_tombstoned(self, user_id, chat_id):
+            return chat_id == "deleted"
 
         async def update_user_draft_in_cache(self, *args, **kwargs):
             return True
@@ -498,12 +578,14 @@ async def test_get_draft_versions_does_not_turn_cache_errors_into_deletions() ->
         "type": "draft_versions_response",
         "payload": {
             "versions": {"available": 3, "deleted": 0},
+            "tombstone_versions": {"deleted": 4},
             "unavailable_chat_ids": ["unknown"],
         },
     }]
     assert manager.sent == []
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_draft_cache_miss_falls_back_to_encrypted_directus_row() -> None:
     warmed = []
@@ -532,6 +614,7 @@ async def test_draft_cache_miss_falls_back_to_encrypted_directus_row() -> None:
     assert warmed[0][0][2:] == ("persisted-cipher", 7)
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_version_only_draft_cache_falls_back_to_encrypted_directus_row() -> None:
     warmed = []
@@ -561,6 +644,7 @@ async def test_version_only_draft_cache_falls_back_to_encrypted_directus_row() -
     assert warmed[0][0][2:] == ("persisted-cipher-v8", 8)
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_empty_cached_draft_does_not_hide_persisted_ciphertext() -> None:
     warmed = []
@@ -591,6 +675,7 @@ async def test_empty_cached_draft_does_not_hide_persisted_ciphertext() -> None:
     assert warmed[0][0][2:] == ("persisted-cipher", 2)
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_tombstoned_cached_draft_hides_stale_persisted_ciphertext() -> None:
     class Cache:
@@ -614,6 +699,7 @@ async def test_tombstoned_cached_draft_hides_stale_persisted_ciphertext() -> Non
     assert draft is None
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_newer_persisted_draft_overrides_stale_cached_ciphertext() -> None:
     warmed = []
@@ -643,9 +729,10 @@ async def test_newer_persisted_draft_overrides_stale_cached_ciphertext() -> None
     assert warmed[0][0][2:] == ("persisted-cipher-v2", 2)
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> None:
-    class Redis:
+    class Redis(_DraftWriteRedis):
         def __init__(self) -> None:
             self.data = {
                 "user:user-1:chat:chat-1:draft": {
@@ -685,7 +772,7 @@ async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> No
         encrypted_draft_preview="stale-preview",
     )
 
-    assert updated is True
+    assert updated is False
     assert cache.redis.data["user:user-1:chat:chat-1:draft"] == {
         "draft_v": "2",
         "encrypted_draft_md": "newer-cipher",
@@ -693,9 +780,10 @@ async def test_stale_draft_cache_write_does_not_replace_newer_ciphertext() -> No
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_stale_draft_cache_write_does_not_replace_equal_version_tombstone() -> None:
-    class Redis:
+    class Redis(_DraftWriteRedis):
         def __init__(self) -> None:
             self.data = {
                 "user:user-1:chat:chat-1:draft": {
@@ -736,7 +824,7 @@ async def test_stale_draft_cache_write_does_not_replace_equal_version_tombstone(
         encrypted_draft_preview="stale-directus-preview",
     )
 
-    assert updated is True
+    assert updated is False
     assert cache.redis.data["user:user-1:chat:chat-1:draft"] == {
         "draft_v": "2",
         "encrypted_draft_md": "null",
@@ -745,9 +833,10 @@ async def test_stale_draft_cache_write_does_not_replace_equal_version_tombstone(
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_newer_draft_cache_write_replaces_older_tombstone() -> None:
-    class Redis:
+    class Redis(_DraftWriteRedis):
         def __init__(self) -> None:
             self.data = {
                 "user:user-1:chat:chat-1:draft": {
@@ -797,6 +886,7 @@ async def test_newer_draft_cache_write_replaces_older_tombstone() -> None:
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
     class Cache:
@@ -827,6 +917,7 @@ async def test_session_draft_route_returns_authoritative_ciphertext() -> None:
     assert "plaintext" not in str(response).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_session_draft_route_prefers_newer_persisted_directus_draft() -> None:
     class Cache:
@@ -882,6 +973,7 @@ async def test_session_draft_route_prefers_newer_persisted_directus_draft() -> N
     assert "plaintext" not in str(response).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_session_draft_route_prefers_newer_cache_draft_before_persistence() -> None:
     class Cache:
@@ -919,6 +1011,7 @@ async def test_session_draft_route_prefers_newer_cache_draft_before_persistence(
     assert "plaintext" not in str(response).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 def test_authoritative_reconciliation_requires_a_complete_server_set() -> None:
     partial = _authoritative_chat_reconciliation(
         client_chat_ids=["kept", "deleted"],
@@ -939,6 +1032,7 @@ def test_authoritative_reconciliation_requires_a_complete_server_set() -> None:
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 def test_phase2_delta_sync_resends_newer_draft_ciphertext() -> None:
     server_versions = SimpleNamespace(
         messages_v=2,
@@ -959,6 +1053,7 @@ def test_phase2_delta_sync_resends_newer_draft_ciphertext() -> None:
     )
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 def test_phase2_delta_sync_resends_authoritative_draft_deletion() -> None:
     server_versions = SimpleNamespace(
         messages_v=2,
@@ -974,6 +1069,7 @@ def test_phase2_delta_sync_resends_authoritative_draft_deletion() -> None:
     )
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_phase2_targeted_refresh_bypasses_delta_skip() -> None:
     manager = _Manager()
@@ -1035,6 +1131,7 @@ async def test_phase2_targeted_refresh_bypasses_delta_skip() -> None:
     assert payload["chats"][0]["chat_details"]["encrypted_draft_md"] == "cipher-md"
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_phase2_tombstone_suppresses_stale_directus_chat_row() -> None:
     manager = _Manager()
@@ -1083,6 +1180,7 @@ async def test_phase2_tombstone_suppresses_stale_directus_chat_row() -> None:
     assert payload["deleted_chat_ids"] == ["chat-1"]
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
 @pytest.mark.anyio
 async def test_phase2_metadata_only_does_not_fetch_chat_key_wrappers() -> None:
     manager = _Manager()
@@ -1145,6 +1243,7 @@ async def test_phase2_metadata_only_does_not_fetch_chat_key_wrappers() -> None:
     assert wrapper_fetches == []
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_phase2_emits_client_tombstone_when_deleted_chat_is_outside_result_window() -> None:
     manager = _Manager()
@@ -1204,6 +1303,7 @@ async def test_phase2_emits_client_tombstone_when_deleted_chat_is_outside_result
     assert [chat["chat_details"]["id"] for chat in payload["chats"]] == ["kept-chat"]
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 def test_phase2_emits_explicit_authoritative_draft_deletion_fields() -> None:
     chat_details = {"id": "chat-1", "draft_v": 4, "encrypted_draft_md": "stale"}
 
@@ -1214,6 +1314,7 @@ def test_phase2_emits_explicit_authoritative_draft_deletion_fields() -> None:
     assert chat_details["encrypted_draft_preview"] is None
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
 async def test_phase2_synthesizes_encrypted_draft_only_chat_metadata() -> None:
     class Cache:
@@ -1236,6 +1337,7 @@ async def test_phase2_synthesizes_encrypted_draft_only_chat_metadata() -> None:
     assert "plaintext" not in str(wrapper).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
 async def test_phase2_synthesizes_ideabucket_draft_only_metadata() -> None:
     class Cache:
@@ -1261,6 +1363,7 @@ async def test_phase2_synthesizes_ideabucket_draft_only_metadata() -> None:
     assert "captured ideas" not in str(wrapper).lower()
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
 async def test_phase2_synthesizes_persisted_draft_only_metadata_after_cache_miss() -> None:
     warmed = []

@@ -986,24 +986,14 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Skip for incognito chats (drafts are not saved for incognito chats)
         if not is_incognito:
             try:
-                cache_delete_success = await cache_service.delete_user_draft_from_cache(
-                    user_id=user_id,
-                    chat_id=chat_id
+                deleted_draft_v = await cache_service.increment_and_tombstone_user_draft(
+                    user_id,
+                    chat_id,
                 )
-                if cache_delete_success:
-                    logger.info(f"Successfully deleted draft from cache for chat {chat_id} after message {message_id} was sent")
+                if deleted_draft_v is not None:
+                    logger.info(f"Successfully tombstoned draft at version {deleted_draft_v} for chat {chat_id} after message {message_id} was sent")
                 else:
-                    logger.debug(f"Draft cache key not found for chat {chat_id} (already deleted or never existed)")
-                
-                # Also delete the user-specific draft version from the general chat versions key
-                version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
-                    user_id=user_id,
-                    chat_id=chat_id
-                )
-                if version_delete_success:
-                    logger.debug(f"Successfully deleted user-specific draft version from chat versions for chat {chat_id}")
-                else:
-                    logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
+                    logger.warning(f"Failed to create versioned draft tombstone for chat {chat_id} after message {message_id} was sent")
                 
                 # CRITICAL FIX: ALWAYS broadcast draft deletion to other devices when a message is sent.
                 # This ensures consistent state across all user devices, even if the draft was never
@@ -1012,15 +1002,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 # The broadcast is intentionally OUTSIDE the inner try/except so that if it throws,
                 # the failure propagates to the outer except (logged as a warning) rather than being
                 # silently swallowed — making broadcast failures visible in logs.
-                await manager.broadcast_to_user(
-                    message={
-                        "type": "draft_deleted",
-                        "payload": {"chat_id": chat_id}
-                    },
-                    user_id=user_id,
-                    exclude_device_hash=device_fingerprint_hash
-                )
-                logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
+                if deleted_draft_v is not None:
+                    await manager.broadcast_to_user(
+                        message={
+                            "type": "draft_deleted",
+                            "payload": {"chat_id": chat_id, "draft_v": deleted_draft_v},
+                        },
+                        user_id=user_id,
+                        exclude_device_hash=device_fingerprint_hash
+                    )
+                    logger.info(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices after message send")
             except Exception as e_draft_delete:
                 # Non-critical error — draft will expire via TTL or be overwritten by the client's
                 # subsequent delete_draft WebSocket message. The reconnect reconciliation

@@ -1843,6 +1843,10 @@ export async function handleSend(
           existingChat.updated_at = Math.floor(Date.now() / 1000);
 
           // Clear draft fields after message is sent (especially important for draft chats)
+          existingChat.cleared_draft_v = Math.max(
+            existingChat.cleared_draft_v ?? 0,
+            existingChat.draft_v ?? 0,
+          );
           existingChat.encrypted_draft_md = null;
           existingChat.encrypted_draft_preview = null;
           existingChat.draft_v = 0;

@@ -653,6 +653,7 @@ async function discardStaleDraftWrite(chatId: string): Promise<void> {
     if (!chat) return;
     await chatDB.upsertRawChat({
       ...chat,
+      cleared_draft_v: Math.max(chat.cleared_draft_v ?? 0, chat.draft_v ?? 0),
       encrypted_draft_md: null,
       encrypted_draft_preview: null,
       draft_v: 0,

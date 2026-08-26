@@ -26,6 +26,7 @@ import { notificationStore } from "../stores/notificationStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
+import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
 
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 // Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
@@ -420,9 +421,12 @@ export async function handleChatDraftUpdatedImpl(
       console.debug(
         `[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`,
       );
-      if ((chat.draft_v ?? 0) > payload.versions.draft_v) {
+      if (
+        (chat.draft_v ?? 0) > payload.versions.draft_v ||
+        isDraftUpdateBlockedByLocalDeletion(chat, payload.versions.draft_v)
+      ) {
         console.info(
-          `[ChatSyncService:ChatUpdates] Ignoring stale chat_draft_updated for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, incoming draft_v=${payload.versions.draft_v}.`,
+          `[ChatSyncService:ChatUpdates] Ignoring stale chat_draft_updated for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, cleared_draft_v=${chat.cleared_draft_v ?? 0}, incoming draft_v=${payload.versions.draft_v}.`,
         );
         return;
       }
@@ -431,6 +435,11 @@ export async function handleChatDraftUpdatedImpl(
       if (payload.data.encrypted_draft_md === null) {
         console.debug(
           `[ChatSyncService:ChatUpdates] Received draft deletion for chat ${payload.chat_id}`,
+        );
+        chat.cleared_draft_v = Math.max(
+          chat.cleared_draft_v ?? 0,
+          chat.draft_v ?? 0,
+          payload.versions.draft_v,
         );
       }
 
@@ -516,7 +525,7 @@ export async function handleChatDraftUpdatedImpl(
  */
 export async function handleDraftDeletedImpl(
   serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string },
+  payload: { chat_id: string; draft_v?: number },
 ): Promise<void> {
   console.info(
     "[ChatSyncService:ChatUpdates] Received draft_deleted from server for chat:",
@@ -540,10 +549,26 @@ export async function handleDraftDeletedImpl(
     const chat = await chatDB.getChat(payload.chat_id);
 
     if (chat) {
+      if (payload.draft_v === undefined && (chat.draft_v ?? 0) > 0) {
+        console.warn(
+          `[ChatSyncService:ChatUpdates] Ignoring versionless draft_deleted for chat ${payload.chat_id} with local draft_v=${chat.draft_v ?? 0}.`,
+        );
+        return;
+      }
+      if (payload.draft_v !== undefined && (chat.draft_v ?? 0) > payload.draft_v) {
+        console.info(
+          `[ChatSyncService:ChatUpdates] Ignoring stale draft_deleted for chat ${payload.chat_id}. Local draft_v=${chat.draft_v ?? 0}, incoming draft_v=${payload.draft_v}.`,
+        );
+        return;
+      }
       console.debug(
         `[ChatSyncService:ChatUpdates] Clearing draft for chat ${payload.chat_id}`,
       );
       // Clear the draft since it was deleted on another device
+      chat.cleared_draft_v = Math.max(
+        chat.cleared_draft_v ?? 0,
+        payload.draft_v ?? chat.draft_v ?? 0,
+      );
       chat.encrypted_draft_md = null;
       chat.encrypted_draft_preview = null;
       chat.draft_v = 0;

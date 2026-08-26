@@ -602,7 +602,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("draft_deleted", (payload) =>
       chatUpdateHandlers.handleDraftDeletedImpl(
         this,
-        payload as { chat_id: string },
+        payload as { chat_id: string; draft_v?: number },
       ),
     );
     webSocketService.on("new_chat_message", (payload) =>

@@ -164,8 +164,8 @@ async def handle_update_draft(
             encrypted_draft_preview=draft_preview_from_payload
         )
         if not update_success:
-            logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
-            # Log error but continue, version was incremented.
+            logger.info(f"Skipped superseded user draft update for user {user_id}, chat {chat_id}.")
+            return
 
         draft_metadata: Dict[str, Any] = {}
         if "ideabucket" in payload or "ideabucket_processing_window_id" in payload:
