@@ -1,0 +1,276 @@
+"""Recovery-aware bounded regional backfill contract tests.
+
+Recovered source bytes, rather than newly empty secondary buckets, establish
+historical authority. The service creates only durable generation jobs and
+returns aggregate progress suitable for a resumable internal caller.
+Contract: architecture.storage-lifecycle.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from io import BytesIO
+import importlib
+
+import pytest
+from botocore.exceptions import ClientError
+
+
+def _module():
+    try:
+        return importlib.import_module("backend.core.api.app.services.s3.recovery_backfill")
+    except ModuleNotFoundError as exc:
+        pytest.fail(f"Recovery backfill service is not implemented: {exc}")
+
+
+class _S3Client:
+    def __init__(self, objects: dict[tuple[str, str], dict]) -> None:
+        self.objects = objects
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict:
+        try:
+            return self.objects[(Bucket, Key)]["head"]
+        except KeyError as exc:
+            raise ClientError({"Error": {"Code": "NoSuchKey"}}, "HeadObject") from exc
+
+    def get_object(self, *, Bucket: str, Key: str) -> dict:
+        try:
+            return {"Body": BytesIO(self.objects[(Bucket, Key)]["bytes"])}
+        except KeyError as exc:
+            raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject") from exc
+
+
+class _Directus:
+    def __init__(self, *, tombstoned: set[tuple[str, str]] | None = None, jobs: list[dict] | None = None) -> None:
+        self.tombstoned = tombstoned or set()
+        self.jobs = jobs or []
+        self.created: list[dict] = []
+        self.calls: list[tuple[str, dict]] = []
+
+    async def get_items(self, collection: str, *, params: dict, **_kwargs: object) -> list[dict]:
+        self.calls.append((collection, params))
+        filter_ = params["filter"]
+        if collection == "storage_deletion_tombstones":
+            bucket = filter_.get("logical_bucket", {}).get("_eq")
+            key = filter_.get("object_key", {}).get("_eq")
+            if bucket and key:
+                return [{"id": "tombstone"}] if (bucket, key) in self.tombstoned else []
+            return []
+        if collection == "storage_replication_jobs":
+            bucket = filter_.get("logical_bucket", {}).get("_eq")
+            key = filter_.get("object_key", {}).get("_eq")
+            if bucket is None or key is None:
+                return list(self.jobs)
+            return [
+                job for job in self.jobs
+                if job.get("logical_bucket", "chatfiles") == bucket
+                and job.get("object_key", "historic.bin") == key
+            ]
+        if collection == "storage_region_health":
+            return [{"probe_succeeded": True}]
+        return []
+
+    async def create_item(self, _collection: str, payload: dict, **_kwargs: object) -> tuple[bool, dict]:
+        self.created.append(payload)
+        return True, payload
+
+
+def _s3(objects: dict[tuple[str, str], dict]) -> dict[str, _S3Client]:
+    return {region: _S3Client(objects) for region in ("nbg1", "fsn1", "hel1")}
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_recovered_source_creates_checksum_verified_repair_jobs_and_sanitized_cursor() -> None:
+    module = _module()
+    payload = b"legacy encrypted bytes"
+    checksum = module.sha256_hex(payload)
+    source_bucket = "dev-openmates-chatfiles"
+    objects = {
+        (source_bucket, "historic.bin"): {"bytes": payload, "head": {"Metadata": {}}},
+        ("dev-openmates-chatfiles-fsn1", "historic.bin"): {
+            "bytes": b"stale",
+            "head": {"Metadata": {"openmates-sha256": checksum}},
+        },
+    }
+    directus = _Directus()
+
+    result = await module.backfill_recovered_page(
+        references=[{
+            "logical_bucket": "chatfiles",
+            "object_key": "historic.bin",
+            "generation": 3,
+            "checksum": checksum,
+        }],
+        source_region="nbg1",
+        configured_regions=("nbg1", "fsn1", "hel1"),
+        s3_clients=_s3(objects),
+        directus_service=directus,
+        environment="development",
+        now=datetime(2026, 8, 26, tzinfo=timezone.utc),
+        next_cursor="opaque-next",
+    )
+
+    assert result == {
+        "processed": 1,
+        "scheduled": 1,
+        "skipped_tombstoned": 0,
+        "skipped_unavailable_source": 0,
+        "skipped_source_checksum_mismatch": 0,
+        "skipped_newer_authority": 0,
+        "cursor": "opaque-next",
+        "complete": False,
+    }
+    assert directus.created[0]["active_region"] == "nbg1"
+    assert directus.created[0]["checksum"] == checksum
+    assert directus.created[0]["region_states"] == {"nbg1": "verified", "fsn1": "pending", "hel1": "pending"}
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_backfill_never_uses_empty_secondary_authority_or_resurrects_tombstones() -> None:
+    module = _module()
+    directus = _Directus(tombstoned={("chatfiles", "deleted.bin")})
+
+    result = await module.backfill_recovered_page(
+        references=[{
+            "logical_bucket": "chatfiles",
+            "object_key": "deleted.bin",
+            "generation": 1,
+            "checksum": "0" * 64,
+        }],
+        source_region="nbg1",
+        configured_regions=("nbg1", "fsn1"),
+        s3_clients=_s3({}),
+        directus_service=directus,
+        environment="development",
+        now=datetime(2026, 8, 26, tzinfo=timezone.utc),
+    )
+
+    assert result["skipped_tombstoned"] == 1
+    assert result["skipped_unavailable_source"] == 0
+    assert directus.created == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.failover.health-reconciled
+@pytest.mark.anyio
+async def test_backfill_preserves_newer_secondary_generation_and_source_failures_are_not_authority() -> None:
+    module = _module()
+    payload = b"historic bytes"
+    directus = _Directus(jobs=[{
+        "logical_bucket": "chatfiles",
+        "object_key": "historic.bin",
+        "generation": 4,
+        "checksum": "f" * 64,
+        "active_region": "fsn1",
+    }])
+
+    result = await module.backfill_recovered_page(
+        references=[{
+            "logical_bucket": "chatfiles",
+            "object_key": "historic.bin",
+            "generation": 3,
+            "checksum": module.sha256_hex(payload),
+        }, {
+            "logical_bucket": "chatfiles",
+            "object_key": "unavailable.bin",
+            "generation": 1,
+            "checksum": "1" * 64,
+        }],
+        source_region="nbg1",
+        configured_regions=("nbg1", "fsn1"),
+        s3_clients=_s3({("dev-openmates-chatfiles", "historic.bin"): {"bytes": payload, "head": {}}}),
+        directus_service=directus,
+        environment="development",
+        now=datetime(2026, 8, 26, tzinfo=timezone.utc),
+    )
+
+    assert result["skipped_newer_authority"] == 1
+    assert result["skipped_unavailable_source"] == 1
+    assert directus.created == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_recovered_region_is_ready_for_failback_only_after_all_durable_fences_clear() -> None:
+    module = _module()
+
+    class ReadinessDirectus(_Directus):
+        def __init__(self, *, jobs: list[dict], tombstones: list[dict]) -> None:
+            super().__init__()
+            self.jobs = jobs
+            self.tombstones = tombstones
+
+        async def get_items(self, collection: str, *, params: dict, **kwargs: object) -> list[dict]:
+            if collection == "storage_deletion_tombstones" and "purge_states" in params["fields"]:
+                return self.tombstones
+            return await super().get_items(collection, params=params, **kwargs)
+
+    assert await module.is_region_failback_ready(
+        directus_service=ReadinessDirectus(jobs=[], tombstones=[]),
+        region="nbg1",
+        historical_backfill_complete=True,
+    ) is True
+    assert await module.is_region_failback_ready(
+        directus_service=ReadinessDirectus(
+            jobs=[{"state": "failed", "desired_regions": ["nbg1"], "region_states": {"nbg1": "pending"}}], tombstones=[]
+        ),
+        region="nbg1",
+        historical_backfill_complete=True,
+    ) is False
+    assert await module.is_region_failback_ready(
+        directus_service=ReadinessDirectus(
+            jobs=[{"state": "failed", "desired_regions": ["nbg1", "fsn1"], "region_states": {"nbg1": "verified", "fsn1": "pending"}}],
+            tombstones=[],
+        ),
+        region="nbg1",
+        historical_backfill_complete=True,
+    ) is True
+    assert await module.is_region_failback_ready(
+        directus_service=ReadinessDirectus(
+            jobs=[], tombstones=[{"state": "pending", "purge_states": {"1": {"nbg1": "pending"}}}]
+        ),
+        region="nbg1",
+        historical_backfill_complete=True,
+    ) is False
+    assert await module.is_region_failback_ready(
+        directus_service=ReadinessDirectus(jobs=[], tombstones=[]),
+        region="nbg1",
+        historical_backfill_complete=False,
+    ) is False
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_replica_inventory_report_is_aggregate_and_detects_drift() -> None:
+    from scripts.audit_object_storage_inventory import compare_regional_inventory
+
+    report = compare_regional_inventory(
+        source_region="nbg1",
+        regions=("nbg1", "fsn1", "hel1"),
+        inventories={
+            "nbg1": {
+                ("chatfiles", "private/a.bin"): (10, "a" * 64),
+                ("chatfiles", "private/b.bin"): (20, "b" * 64),
+            },
+            "fsn1": {
+                ("chatfiles", "private/a.bin"): (10, "a" * 64),
+            },
+            "hel1": {
+                ("chatfiles", "private/a.bin"): (10, "c" * 64),
+                ("chatfiles", "private/b.bin"): (20, "b" * 64),
+            },
+        },
+    )
+
+    assert report == {
+        "source_region": "nbg1",
+        "source_object_count": 2,
+        "source_bytes": 30,
+        "regions": {
+            "nbg1": {"object_count": 2, "bytes": 30, "missing": 0, "mismatched": 0, "extra": 0},
+            "fsn1": {"object_count": 1, "bytes": 10, "missing": 1, "mismatched": 0, "extra": 0},
+            "hel1": {"object_count": 2, "bytes": 30, "missing": 0, "mismatched": 1, "extra": 0},
+        },
+        "replicas_match": False,
+        "object_keys_in_output": False,
+    }

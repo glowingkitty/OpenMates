@@ -34,6 +34,9 @@ from backend.core.api.app.services.s3.replication import (
     persist_replication_job,
 )
 from backend.core.api.app.services.s3.reconciliation import find_deletion_tombstone
+from backend.core.api.app.services.s3.recovery_backfill import (
+    backfill_recovered_page,
+)
 from backend.shared.python_utils.object_storage_regions import parse_storage_regions
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
@@ -136,6 +139,23 @@ class PersistStorageReplicationJobRequest(BaseModel):
     active_region: str = Field(pattern=r"^(nbg1|fsn1|hel1)$")
 
 
+class StorageRecoveryReference(BaseModel):
+    """Safe routing authority for one immutable historical ciphertext object."""
+
+    logical_bucket: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
+    object_key: str = Field(min_length=1, max_length=1024)
+    generation: int = Field(default=1, ge=1)
+    checksum: str | None = Field(default=None, pattern=r"^(sha256:)?[0-9a-f]{64}$")
+
+
+class ReconcileRecoveredStorageRequest(BaseModel):
+    """Bounded internal-only recovery page; object identifiers never echo back."""
+
+    source_region: str = Field(pattern=r"^(nbg1|fsn1|hel1)$")
+    references: list[StorageRecoveryReference] = Field(max_length=100)
+    next_cursor: str | None = Field(default=None, max_length=1024)
+
+
 @router.post("/storage/replication-jobs")
 async def persist_storage_replication_job_route(
     payload: PersistStorageReplicationJobRequest,
@@ -165,6 +185,76 @@ async def persist_storage_replication_job_route(
         job=job,
     )
     return {"job_id": str(persisted["id"]), "state": str(persisted.get("state", job["state"]))}
+
+
+@router.post("/storage/replication/reconcile")
+async def reconcile_recovered_storage_route(
+    payload: ReconcileRecoveredStorageRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    s3_service: S3UploadService = Depends(get_s3_service),
+) -> dict[str, Any]:
+    """Internal-only bounded historical backfill and recovered-region fence."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    result = await backfill_recovered_page(
+        references=[reference.model_dump(exclude_none=True) for reference in payload.references],
+        source_region=payload.source_region,
+        configured_regions=configured_regions,
+        s3_clients=s3_service.region_clients,
+        directus_service=directus_service,
+        environment=s3_service.environment,
+        now=datetime.now(timezone.utc),
+        next_cursor=payload.next_cursor,
+    )
+    return result
+
+
+@router.get("/storage/health")
+async def storage_region_health_route(
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> dict[str, Any]:
+    """Return sanitized internal regional health and durable-work totals."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    health_rows = await directus_service.get_items(
+        "storage_region_health",
+        params={
+            "filter": {"region": {"_in": list(configured_regions)}},
+            "fields": "region,failure_count,open_until,probe_succeeded,reconciled,last_error_code,updated_at",
+            "sort": "region",
+            "limit": len(configured_regions),
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    replication_rows = await directus_service.get_items(
+        "storage_replication_jobs",
+        params={
+            "filter": {"state": {"_in": ["pending", "retry_scheduled", "failed"]}},
+            "fields": "state,region_states,created_at",
+            "limit": 100,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    tombstone_rows = await directus_service.get_items(
+        "storage_deletion_tombstones",
+        params={
+            "filter": {"state": {"_in": ["pending", "retry_scheduled"]}},
+            "fields": "state,purge_states,created_at",
+            "limit": 100,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    return {
+        "configured_regions": list(configured_regions),
+        "regions": health_rows,
+        "pending_replication": len(replication_rows),
+        "pending_deletion": len(tombstone_rows),
+        "result_truncated": len(replication_rows) == 100 or len(tombstone_rows) == 100,
+    }
 
 
 # ---------------------------------------------------------------------------

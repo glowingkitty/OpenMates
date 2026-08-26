@@ -1250,7 +1250,29 @@ class S3UploadService:
                     yielded = True
                     yield chunk
                 return
-            except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as exc:
+            except ClientError as exc:
+                last_error = exc
+                response = exc.response if isinstance(exc.response, dict) else {}
+                error_details = response.get("Error") or {}
+                response_metadata = response.get("ResponseMetadata") or {}
+                error_code = str(error_details.get("Code") or "Unknown")
+                status_code = response_metadata.get("HTTPStatusCode")
+                if yielded:
+                    raise storage_unavailable_error() from exc
+                if error_code in {"NoSuchKey", "404"} or status_code == 404:
+                    raise HTTPException(status_code=404, detail="Generated asset file missing") from exc
+                retryable = error_code in _TRANSIENT_CLIENT_ERROR_CODES or status_code == 429 or (
+                    isinstance(status_code, int) and status_code >= 500
+                )
+                if not retryable:
+                    raise storage_unavailable_error() from exc
+                logger.warning(
+                    "Regional object read failed over: region=%s logical_bucket=%s error=%s",
+                    region,
+                    bucket_key,
+                    type(exc).__name__,
+                )
+            except _TRANSIENT_NETWORK_ERRORS as exc:
                 last_error = exc
                 if yielded:
                     raise storage_unavailable_error() from exc

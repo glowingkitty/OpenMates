@@ -290,3 +290,27 @@ def test_inventory_classifies_missing_and_unreferenced_objects_without_emitting_
         "object_keys_in_output": False,
         "mutations_performed": False,
     }
+
+
+# contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_full_reference_inventory_loads_all_backfill_authority() -> None:
+    module = _reference_module()
+
+    class FakeDirectus:
+        async def get_items(self, collection: str, **_kwargs: object) -> list[dict]:
+            if collection == "upload_files":
+                return [{"id": "upload-1", "files_metadata": {"original": {"s3_key": "owner/file.bin"}}}]
+            if collection == "cold_archive_manifests":
+                return [{"id": "archive-1", "file_references": [{"logical_bucket": "chatfiles", "object_key": "owner/cold.bin"}]}]
+            return []
+
+    inventory = await module.load_authoritative_storage_reference_inventory(
+        directus_service=FakeDirectus()
+    )
+
+    assert inventory.references == {
+        ("chatfiles", "owner/file.bin"),
+        ("chatfiles", "owner/cold.bin"),
+    }
+    assert inventory.ambiguous == []

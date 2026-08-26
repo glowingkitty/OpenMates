@@ -17,6 +17,17 @@ from urllib.parse import urlparse
 
 DEFAULT_UPLOAD_BUCKET = "chatfiles"
 REFERENCE_SCAN_PAGE_SIZE = 500
+REFERENCE_COLLECTION_FIELDS = (
+    ("embeds", "id,s3_file_keys"),
+    ("upload_files", "id,files_metadata"),
+    ("directus_users", "id,profile_image_s3_key,encrypted_profileimage_url,vault_key_id"),
+    ("usage_monthly_chat_summaries", "id,archive_s3_key"),
+    ("usage_monthly_app_summaries", "id,archive_s3_key"),
+    ("usage_monthly_api_key_summaries", "id,archive_s3_key"),
+    ("user_task_archives", "id,archive_s3_key"),
+    ("workspace_change_archives", "id,s3_bucket_key,s3_object_key"),
+    ("cold_archive_manifests", "id,file_references"),
+)
 
 
 @dataclass(frozen=True)
@@ -79,6 +90,60 @@ def collect_storage_references(
             references.add((bucket, key))
 
     return StorageReferenceInventory(references=references, ambiguous=ambiguous)
+
+
+async def load_authoritative_storage_reference_inventory(
+    *,
+    directus_service: Any,
+    encryption_service: Any | None = None,
+) -> StorageReferenceInventory:
+    """Load all current storage references in bounded Directus pages."""
+    inventory = StorageReferenceInventory(references=set(), ambiguous=[])
+    async for page_inventory in iter_authoritative_storage_reference_pages(
+        directus_service=directus_service,
+        encryption_service=encryption_service,
+    ):
+        inventory.references.update(page_inventory.references)
+        inventory.ambiguous.extend(page_inventory.ambiguous)
+    return inventory
+
+
+async def iter_authoritative_storage_reference_pages(
+    *,
+    directus_service: Any,
+    encryption_service: Any | None = None,
+) -> AsyncIterator[StorageReferenceInventory]:
+    """Yield bounded authoritative reference pages for resumable reconciliation."""
+    for collection, fields in REFERENCE_COLLECTION_FIELDS:
+        async for page in _iter_item_pages(
+            directus_service=directus_service,
+            collection=collection,
+            fields=fields,
+        ):
+            inventory = StorageReferenceInventory(references=set(), ambiguous=[])
+            for row in page:
+                row_inventory = _inventory_for_reference_row(collection, row)
+                inventory.references.update(row_inventory.references)
+                inventory.ambiguous.extend(row_inventory.ambiguous)
+                if collection != "directus_users" or not row.get("encrypted_profileimage_url"):
+                    continue
+                record_id = str(row.get("id") or "unknown")
+                vault_key_id = row.get("vault_key_id")
+                if encryption_service is None or not vault_key_id:
+                    inventory.ambiguous.append(
+                        _ambiguity("directus_users", record_id, "legacy_profile_unreadable")
+                    )
+                    continue
+                try:
+                    value = await encryption_service.decrypt_with_user_key(
+                        row["encrypted_profileimage_url"], vault_key_id
+                    )
+                    inventory.references.add(("profile_images_legacy", _legacy_profile_object_key(value)))
+                except Exception:
+                    inventory.ambiguous.append(
+                        _ambiguity("directus_users", record_id, "legacy_profile_unreadable")
+                    )
+            yield inventory
 
 
 def plan_reference_safe_deletions(
@@ -172,21 +237,7 @@ async def find_surviving_storage_references(
 
     surviving: set[tuple[str, str]] = set()
     ambiguous: list[dict[str, str]] = []
-    collection_fields = (
-        ("embeds", "id,s3_file_keys"),
-        ("upload_files", "id,files_metadata"),
-        (
-            "directus_users",
-            "id,profile_image_s3_key,encrypted_profileimage_url,vault_key_id",
-        ),
-        ("usage_monthly_chat_summaries", "id,archive_s3_key"),
-        ("usage_monthly_app_summaries", "id,archive_s3_key"),
-        ("usage_monthly_api_key_summaries", "id,archive_s3_key"),
-        ("user_task_archives", "id,archive_s3_key"),
-        ("workspace_change_archives", "id,s3_bucket_key,s3_object_key"),
-        ("cold_archive_manifests", "id,file_references"),
-    )
-    for collection, fields in collection_fields:
+    for collection, fields in REFERENCE_COLLECTION_FIELDS:
         rows = await _get_items_bounded(
             directus_service=directus_service,
             collection=collection,
@@ -482,10 +533,15 @@ def _inventory_for_reference_row(
         return collect_storage_references(embeds=[], uploads=[], cold_manifests=[row])
 
     inventory = StorageReferenceInventory(references=set(), ambiguous=[])
+    record_id = str(row.get("id") or "unknown")
     if collection == "directus_users":
         key = row.get("profile_image_s3_key")
         if _non_empty(key):
             inventory.references.add(("profile_images_private", key))
+        elif key is not None:
+            inventory.ambiguous.append(
+                _ambiguity(collection, record_id, "invalid_object_key")
+            )
         return inventory
     if collection.startswith("usage_monthly_"):
         bucket = "usage_archives"
@@ -498,6 +554,10 @@ def _inventory_for_reference_row(
         key = row.get("s3_object_key")
     if _non_empty(bucket) and _non_empty(key):
         inventory.references.add((bucket, key))
+    elif bucket is not None or key is not None:
+        inventory.ambiguous.append(
+            _ambiguity(collection, record_id, "invalid_object_reference")
+        )
     return inventory
 
 

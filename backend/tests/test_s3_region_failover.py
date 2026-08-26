@@ -25,6 +25,10 @@ def _replication_module():
         pytest.fail(f"Regional circuit state is not implemented: {exc}")
 
 
+def _service_module():
+    return importlib.import_module("backend.core.api.app.services.s3.service")
+
+
 # contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
 def test_retryable_failures_open_circuit_but_missing_object_is_neutral() -> None:
     module = _replication_module()
@@ -103,3 +107,44 @@ def test_region_health_schema_persists_circuit_and_failback_fences() -> None:
     assert schema["open_until"]["type"] == "datetime"
     assert schema["probe_succeeded"]["type"] == "boolean"
     assert schema["reconciled"]["type"] == "boolean"
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
+@pytest.mark.anyio
+@pytest.mark.parametrize("error_code", ["404", "NoSuchKey"])
+async def test_replicated_read_does_not_fail_over_on_missing_object(error_code: str) -> None:
+    service_module = _service_module()
+
+    class MissingObjectClient:
+        calls = 0
+
+        def get_object(self, **_kwargs: object) -> None:
+            self.calls += 1
+            raise service_module.ClientError(
+                {"Error": {"Code": error_code}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "GetObject",
+            )
+
+    class SecondaryClient:
+        calls = 0
+
+        def get_object(self, **_kwargs: object) -> None:
+            self.calls += 1
+            return {"Body": None}
+
+    primary = MissingObjectClient()
+    secondary = SecondaryClient()
+    service = service_module.S3UploadService(secrets_manager=None)
+    service.region_clients = {"nbg1": primary, "fsn1": secondary}
+
+    with pytest.raises(service_module.HTTPException) as error:
+        async for _chunk in service.get_replicated_file_stream(
+            bucket_key="chatfiles",
+            object_key="missing.bin",
+            regions=("nbg1", "fsn1"),
+        ):
+            pass
+
+    assert error.value.status_code == 404
+    assert primary.calls == 1
+    assert secondary.calls == 0
