@@ -162,7 +162,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "surface": "apple",
                 "devices": [profile],
                 "transcript": [
-                    ["id": "shell", "text": "The authenticated native chat shell shows the sent travel prompt.", "checkpoint": "message-sent", "devices": [profile]],
+                    ["id": "shell", "text": "The authenticated native chat shell is ready for the conversation.", "checkpoint": "message-sent", "devices": [profile]],
+                    ["id": "message", "text": "The sent travel prompt remains visible in the native conversation.", "checkpoint": "message-sent", "devices": [profile]],
                     ["id": "chat", "text": "One assistant response appears below that message without duplication.", "checkpoint": "response-visible", "devices": [profile]],
                 ],
                 "assertions": [
