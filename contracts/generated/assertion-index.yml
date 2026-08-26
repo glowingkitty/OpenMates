@@ -10387,7 +10387,7 @@ assertions:
       surface: gui.apple
     - &id1168
       path: frontend/apps/web_app/tests/chat-flow.spec.ts
-      line: 512
+      line: 582
       name: logs in and sends a chat message
       surface: gui.web
     supporting_tests: []
@@ -10437,7 +10437,7 @@ assertions:
       surface: gui.apple
     - &id1171
       path: frontend/apps/web_app/tests/chat-flow.spec.ts
-      line: 512
+      line: 582
       name: logs in and sends a chat message
       surface: gui.web
     - &id1172
@@ -10762,7 +10762,7 @@ assertions:
       surface: gui.web
     - &id1234
       path: frontend/apps/web_app/tests/chat-flow.spec.ts
-      line: 512
+      line: 582
       name: logs in and sends a chat message
       surface: gui.web
     - &id1235

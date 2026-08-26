@@ -72,6 +72,7 @@ const {
 
 const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./helpers/otel-capture');
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const {
@@ -89,6 +90,75 @@ const LLM_QUICK_TIP_SLUGS = [
 ];
 const QUICK_TIP_CHAT_RESPONSE_MARKER = 'Kyoto and Osaka quick tip test';
 const CHAT_RESPONSE_SMOKE_TIMEOUT_MS = 90000;
+const IS_PHONE_PROOF_CAPTURE = process.env.PLAYWRIGHT_VIDEO_WIDTH === '390'
+	&& process.env.PLAYWRIGHT_VIDEO_HEIGHT === '844';
+
+const CHAT_STREAMING_PHONE_PROOF = defineVideoProof({
+	id: 'chat-streaming-phone-parity',
+	title: 'Phone chat response streams with Apple-equivalent processing presentation',
+	surface: 'web',
+	devices: ['web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'request',
+			text: 'The phone chat shows the sent Kyoto and Osaka request above the composer.',
+			checkpoint: 'request-visible',
+			devices: ['web-phone']
+		},
+		{
+			id: 'processing',
+			text: 'The outer side rainbow marks active processing without covering thinking or message content.',
+			checkpoint: 'processing-visible',
+			devices: ['web-phone']
+		},
+		{
+			id: 'first-chunk',
+			text: 'A left-aligned assistant card appears as the first answer chunk arrives.',
+			checkpoint: 'first-chunk-visible',
+			devices: ['web-phone']
+		},
+		{
+			id: 'complete',
+			text: 'The same card grows into the completed response while the side rainbow clears.',
+			checkpoint: 'response-complete',
+			devices: ['web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'chat.request_visible',
+			checkpoint: 'request-visible',
+			visual: 'One sent user request is visible in the phone transcript.',
+			devices: ['web-phone']
+		},
+		{
+			id: 'chat.processing_rainbow',
+			checkpoint: 'processing-visible',
+			visual: 'The rainbow is confined to the outer chat border and remains separate from thinking content.',
+			devices: ['web-phone']
+		},
+		{
+			id: 'chat.composer_shell',
+			checkpoint: 'processing-visible',
+			visual: 'The compact composer remains integrated with the chat surface without an opaque shell behind it.',
+			devices: ['web-phone']
+		},
+		{
+			id: 'chat.progressive_response',
+			checkpoint: 'first-chunk-visible',
+			visual: 'The assistant card at first-chunk-visible is visibly shorter than at response-complete.',
+			devices: ['web-phone']
+		},
+		{
+			id: 'chat.response_complete',
+			checkpoint: 'response-complete',
+			visual: 'The completed assistant card is left-aligned, uses the available width, and appears once.',
+			devices: ['web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -509,7 +579,7 @@ async function performLogin(
 // ─── Test ────────────────────────────────────────────────────────────────────
 
 // contract-test: direct surface=gui.web assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
-test('logs in and sends a chat message', async ({ page }: { page: any }) => {
+test('logs in and sends a chat message', async ({ page }: { page: any }, testInfo: any) => {
 	// ── Console log listeners ────────────────────────────────────────────────
 	// Capture ALL console messages for failure diagnostics.
 	// Separately track warn/error for the warn-log save feature.
@@ -543,6 +613,16 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 
 	// Pre-test skip checks
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	if (IS_PHONE_PROOF_CAPTURE) {
+		await page.setViewportSize({ width: 390, height: 844 });
+	}
+	const proof = IS_PHONE_PROOF_CAPTURE
+		? createVideoProofRuntime(CHAT_STREAMING_PHONE_PROOF, {
+			device: 'web-phone',
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => page.screenshot({ type: 'png' })
+		})
+		: null;
 
 	await archiveExistingScreenshots(logChatCheckpoint);
 	logChatCheckpoint('Starting chat flow test.', { email: TEST_EMAIL });
@@ -689,6 +769,26 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await sendButton.click();
 	logChatCheckpoint(`Sent message: "${firstMessage}"`);
 	await takeStepScreenshot(page, '03-message-sent');
+	const sentUserMessage = page.getByTestId('message-user').last();
+	await expect(sentUserMessage).toBeVisible({ timeout: 15000 });
+	if (proof) {
+		await proof.assert('chat.request_visible', async () => {
+			await expect(sentUserMessage).toBeVisible();
+		});
+		await proof.checkpoint('request-visible');
+	}
+
+	const activeChat = page.getByTestId('active-chat-container');
+	if (proof) {
+		await expect(activeChat).toHaveAttribute('data-processing', 'true', { timeout: 30000 });
+		await proof.assert('chat.processing_rainbow', async () => {
+			await expect(activeChat).toHaveAttribute('data-processing', 'true');
+		});
+		await proof.assert('chat.composer_shell', async () => {
+			await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
+		});
+		await proof.checkpoint('processing-visible');
+	}
 
 	// Wait for chat ID in URL
 	logChatCheckpoint('Waiting for Chat ID to appear in URL...');
@@ -708,6 +808,19 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// Wait for assistant response from the travel-planning fixture.
 	logChatCheckpoint('Waiting for assistant response...');
 	const assistantResponse = page.getByTestId('message-assistant');
+	let firstChunkText = '';
+	if (proof) {
+		const streamingAssistant = assistantResponse.last();
+		await expect(streamingAssistant).toBeVisible({ timeout: 60000 });
+		const streamingCard = page.getByTestId('mate-message-content').last();
+		await expect(streamingCard).toContainText(QUICK_TIP_CHAT_RESPONSE_MARKER, { timeout: 60000 });
+		firstChunkText = ((await streamingCard.textContent()) || '').trim();
+		await proof.assert('chat.progressive_response', async () => {
+			expect(firstChunkText.length).toBeGreaterThan(0);
+			await expect(activeChat).toHaveAttribute('data-processing', 'true');
+		});
+		await proof.checkpoint('first-chunk-visible');
+	}
 	const permissionDialog = page.getByTestId('app-settings-memories-permission-dialog');
 	const firstResponseOrPermission = await Promise.race([
 		permissionDialog.waitFor({ state: 'visible', timeout: 60000 }).then(() => 'permission').catch(() => null),
@@ -727,6 +840,25 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	expect(messageResponseMs, 'Chat response should arrive within the E2E smoke timeout').toBeLessThan(CHAT_RESPONSE_SMOKE_TIMEOUT_MS);
 	await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 180000 });
 	logChatCheckpoint('Assistant response finished streaming.');
+	if (proof) {
+		await proof.assert('chat.response_complete', async () => {
+			const completedCard = page.getByTestId('mate-message-content').last();
+			const completedText = ((await completedCard.textContent()) || '').trim();
+			const [cardBox, historyBox] = await Promise.all([
+				completedCard.boundingBox(),
+				page.getByTestId('chat-history-container').boundingBox()
+			]);
+			expect(completedText.length).toBeGreaterThan(firstChunkText.length);
+			expect(cardBox).not.toBeNull();
+			expect(historyBox).not.toBeNull();
+			expect(cardBox!.x).toBeLessThanOrEqual(historyBox!.x + 24);
+			expect(cardBox!.width).toBeGreaterThanOrEqual(historyBox!.width - 48);
+			await expect(activeChat).toHaveAttribute('data-processing', 'false');
+			await expect(assistantResponse).toHaveCount(1);
+		});
+		await proof.checkpoint('response-complete');
+		await proof.attach();
+	}
 	await takeStepScreenshot(page, '04-response-received');
 	logChatCheckpoint('Confirmed travel-planning assistant response.');
 

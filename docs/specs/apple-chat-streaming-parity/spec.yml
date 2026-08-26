@@ -248,6 +248,12 @@ attempts:
     outcome: failed_as_expected
     recorded_at: "2026-08-26T02:08:29Z"
     evidence: ChatHistoryFullParityUITests/testBannerTranscriptAndComposerMatchResponsiveWebContract failed on exact commit c195ba9331f3df5db11f83f1abb03bbbd58f9d79 because the visible assistant card had no independent accessibility element and remained shrink-wrapped instead of satisfying the rendered web width contract.
+  - id: ATTEMPT-10
+    task_id: TASK-9
+    approach: Stretch the visible assistant card to the leading transcript width, remove opaque status/composer shells, and rerun the credential-free iPhone geometry fixture.
+    outcome: succeeded
+    recorded_at: "2026-08-26T02:12:00Z"
+    evidence: ChatHistoryFullParityUITests/testBannerTranscriptAndComposerMatchResponsiveWebContract passed on exact commit d47d7aa2d8a9ca419217ed1da8d907c672afbef8 on iPhone 15 Pro; current-commit real-account video review remains required for color, rainbow, and progressive response evidence.
 
 handoff:
   current_task_id: TASK-9
