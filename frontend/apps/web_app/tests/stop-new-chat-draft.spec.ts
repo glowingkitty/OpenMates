@@ -66,27 +66,27 @@ const DRAFT_SELECTION_PROOF = defineVideoProof({
 	],
 	assertions: [
 		{
-			id: 'target-remains-rendered',
-			checkpoint: 'target-preserved',
-			visual: 'The selected target chat remains rendered after delayed draft activation is released.',
+			id: 'draft-is-saved-visible',
+			checkpoint: 'draft-saved',
+			visual: 'The saved draft is visible before delayed draft activation is replayed.',
+			devices: ['web-phone', 'web-laptop']
+		},
+		{
+			id: 'target-selection-visible',
+			checkpoint: 'target-selected',
+			visual: 'The selected target chat message is visible before delayed draft activation is released.',
 			devices: ['web-phone', 'web-laptop']
 		},
 		{
 			id: 'target-identity-remains-visible',
 			checkpoint: 'target-preserved',
-			visual: 'The selected target chat message remains visible.',
-			devices: ['web-phone', 'web-laptop']
-		},
-		{
-			id: 'draft-does-not-reopen',
-			checkpoint: 'target-preserved',
-			visual: 'No delayed activation reopens the draft.',
+			visual: 'The selected target chat message remains visible; no delayed activation reopens the draft.',
 			devices: ['web-phone', 'web-laptop']
 		},
 		{
 			id: 'draft-remains-navigable',
 			checkpoint: 'draft-reopened',
-			visual: 'The persisted draft remains navigable for cleanup.',
+			visual: 'The persisted draft reopens with the saved draft text visible.',
 			devices: ['web-phone', 'web-laptop']
 		}
 	],
@@ -315,6 +315,10 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			await dismissSecurityReminderIfPresent(page, logCheckpoint);
 			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
 		}
+		await proof?.assert('draft-is-saved-visible', async () => {
+			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 10000 });
+			await expect(messageEditor).toContainText(visibleDraft, { timeout: 10000 });
+		});
 		await proof?.checkpoint('draft-saved');
 		await startNewChat(page, logCheckpoint);
 		await page.evaluate(async (chatId: string) => {
@@ -371,6 +375,10 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
 		}, targetChatId);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+		const targetMessage = page.getByTestId('message-user').filter({ hasText: 'Keep this saved chat selected.' });
+		await proof?.assert('target-selection-visible', async () => {
+			await expect(targetMessage).toBeVisible({ timeout: 10000 });
+		});
 		await proof?.checkpoint('target-selected');
 		await page.evaluate(() => {
 			const release = (window as typeof window & {
@@ -394,18 +402,12 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
 		expect(finalDecisions.some((decision) => decision.result === 'skipped')).toBe(true);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
-		const targetMessage = page.getByTestId('message-user').filter({ hasText: 'Keep this saved chat selected.' });
 		await expect(targetMessage).toBeVisible();
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
 		if (proof) {
-			await proof.assert('target-remains-rendered', async () => {
-				await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
-			});
 			await proof.assert('target-identity-remains-visible', async () => {
+				await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 				await expect(targetMessage).toBeVisible();
-			});
-			await page.waitForTimeout(PROOF_ASSERTION_DWELL_MS);
-			await proof.assert('draft-does-not-reopen', async () => {
 				expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
 			});
 			await page.waitForTimeout(PROOF_ASSERTION_DWELL_MS);
