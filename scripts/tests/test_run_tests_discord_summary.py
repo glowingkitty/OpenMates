@@ -187,7 +187,7 @@ def test_discord_summary_payload_uses_grouped_failure_embeds(monkeypatch):
     assert captured["timeout"] == 30
 
 
-def test_summary_email_prefers_internal_api_when_both_transports_are_configured(monkeypatch):
+def test_summary_email_prefers_direct_brevo_when_both_transports_are_configured(monkeypatch):
     run_tests = load_run_tests_module()
     result = run_tests.RunResult(
         run_id="run-1",
@@ -212,6 +212,7 @@ def test_summary_email_prefers_internal_api_when_both_transports_are_configured(
     service.admin_email = "admin@example.invalid"
     service.internal_token = "internal-token"
     service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = "https://example.invalid/webhook"
     service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or True
     service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or True
     service._send_summary_to_discord = lambda *_args, **_kwargs: True
@@ -220,12 +221,16 @@ def test_summary_email_prefers_internal_api_when_both_transports_are_configured(
     delivered = service.send_summary_email(result)
 
     assert delivered is True
-    assert calls == [("internal", "dispatch-test-summary-email")]
+    assert calls == [("brevo", None)]
     assert result.flags["email_delivered"] is True
     assert result.flags["discord_delivered"] is True
+    assert result.flags["notification_channels"] == {
+        "email": {"configured": True, "status": "provider_accepted", "transport": "brevo"},
+        "discord": {"configured": True, "status": "provider_accepted", "transport": "webhook"},
+    }
 
 
-def test_summary_email_falls_back_to_brevo_when_internal_dispatch_fails():
+def test_summary_email_falls_back_to_internal_queue_when_brevo_fails():
     run_tests = load_run_tests_module()
     result = run_tests.RunResult(
         run_id="run-1",
@@ -250,18 +255,25 @@ def test_summary_email_falls_back_to_brevo_when_internal_dispatch_fails():
     service.admin_email = "admin@example.invalid"
     service.internal_token = "internal-token"
     service.brevo_api_key = "brevo-key"
-    service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or False
-    service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or True
+    service.discord_webhook_url = "https://example.invalid/webhook"
+    service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or True
+    service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or False
     service._send_summary_to_discord = lambda *_args, **_kwargs: True
     service.send_urgent_essential_failure_email = lambda *_args: None
 
     delivered = service.send_summary_email(result)
 
-    assert delivered is True
+    assert delivered is False
     assert calls == [
-        ("internal", "dispatch-test-summary-email"),
         ("brevo", None),
+        ("internal", "dispatch-test-summary-email"),
     ]
+    assert result.flags["email_delivered"] is False
+    assert result.flags["notification_channels"]["email"] == {
+        "configured": True,
+        "status": "queued_unconfirmed",
+        "transport": "internal_api",
+    }
 
 
 def test_summary_email_is_delivered_when_optional_discord_is_unconfigured():
@@ -287,12 +299,47 @@ def test_summary_email_is_delivered_when_optional_discord_is_unconfigured():
     service = run_tests.NotificationService.__new__(run_tests.NotificationService)
     service.admin_email = "admin@example.invalid"
     service.internal_token = "internal-token"
-    service.brevo_api_key = ""
-    service._send_via_internal_api = lambda *_args: True
+    service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = ""
+    service._send_via_brevo = lambda *_args: True
     service._send_summary_to_discord = lambda *_args, **_kwargs: False
     service.send_urgent_essential_failure_email = lambda *_args: None
 
     assert service.send_summary_email(result) is True
+    assert result.flags["email_delivered"] is True
+    assert result.flags["discord_delivered"] is False
+
+
+def test_summary_notifications_are_incomplete_when_configured_discord_fails():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = "https://example.invalid/webhook"
+    service._send_via_brevo = lambda *_args: True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: False
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    assert service.send_summary_email(result) is False
     assert result.flags["email_delivered"] is True
     assert result.flags["discord_delivered"] is False
 

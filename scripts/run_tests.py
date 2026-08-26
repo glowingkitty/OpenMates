@@ -3057,6 +3057,11 @@ class NotificationService:
         self.discord_webhook_prod_smoke = _get_env(
             "DISCORD_WEBHOOK_PROD_SMOKE", self.dot_env
         )
+        self._last_email_outcome = {
+            "configured": bool(self.admin_email),
+            "status": "not_attempted",
+            "transport": None,
+        }
 
     def send_start_email(self, git_sha: str, git_branch: str, environment: str) -> None:
         """Notify admin that a test run has started."""
@@ -3202,18 +3207,24 @@ class NotificationService:
         email_delivered = False
         if not self.admin_email:
             _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
+            self._last_email_outcome = {
+                "configured": False,
+                "status": "unconfigured",
+                "transport": None,
+            }
         else:
             # Build HTML email body
             html = self._build_summary_html(result)
             text = self._build_summary_text(result)
 
-            email_delivered = self._send_email(
+            self._send_email(
                 subject,
                 text,
                 "dispatch-test-summary-email",
                 self._build_internal_api_payload(result),
                 html,
             )
+            email_delivered = self._last_email_outcome["status"] == "provider_accepted"
 
         # --- Discord fallback (OPE-76) ---
         # Fires for EVERY run — nightly success gives a visible heartbeat so we
@@ -3221,9 +3232,27 @@ class NotificationService:
         discord_delivered = self._send_summary_to_discord(result)
         result.flags["email_delivered"] = email_delivered
         result.flags["discord_delivered"] = discord_delivered
+        discord_configured = bool(self.discord_webhook_url)
+        result.flags["notification_channels"] = {
+            "email": dict(self._last_email_outcome),
+            "discord": {
+                "configured": discord_configured,
+                "status": (
+                    "provider_accepted"
+                    if discord_delivered
+                    else "failed" if discord_configured else "unconfigured"
+                ),
+                "transport": "webhook" if discord_configured else None,
+            },
+        }
 
         self.send_urgent_essential_failure_email(result)
-        return email_delivered or discord_delivered
+        configured_results = []
+        if self.admin_email:
+            configured_results.append(email_delivered)
+        if discord_configured:
+            configured_results.append(discord_delivered)
+        return bool(configured_results) and all(configured_results)
 
     def send_urgent_essential_failure_email(self, result: RunResult) -> None:
         """Send a separate admin email when signup, login, or chat flow fails."""
@@ -3328,11 +3357,24 @@ class NotificationService:
         internal_payload: dict,
         html: Optional[str] = None,
     ) -> bool:
-        """Use the server-managed email path first, with direct Brevo as fallback."""
-        if self.internal_token and self._send_via_internal_api(internal_endpoint, internal_payload):
+        """Seek provider acceptance first, with the unconfirmed queue as fallback."""
+        self._last_email_outcome = {
+            "configured": bool(self.admin_email),
+            "status": "failed",
+            "transport": None,
+        }
+        if self.brevo_api_key and self._send_via_brevo(subject, text, html):
+            self._last_email_outcome.update(
+                status="provider_accepted",
+                transport="brevo",
+            )
             return True
-        if self.brevo_api_key:
-            return self._send_via_brevo(subject, text, html)
+        if self.internal_token and self._send_via_internal_api(internal_endpoint, internal_payload):
+            self._last_email_outcome.update(
+                status="queued_unconfirmed",
+                transport="internal_api",
+            )
+            return True
         _log("No working email transport available", "WARN")
         return False
 
@@ -6552,6 +6594,7 @@ class TestOrchestrator:
         self._stop_daily_status_updates()
         result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
         ResultAggregator.save(result)
+        self._archive_daily_result()
         return 1
 
     def _run(self) -> int:
@@ -7607,20 +7650,6 @@ class TestOrchestrator:
         _log("Pushing to OpenObserve...")
         self.notification.push_to_openobserve(result)
 
-        # Archive daily result
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        archive = RESULTS_DIR / f"daily-run-{today}.json"
-        last_run = RESULTS_DIR / "last-run.json"
-        if last_run.is_file():
-            shutil.copy2(str(last_run), str(archive))
-            _log(f"Archived to {archive.name}")
-
-        # Bound daily JSON and screenshot growth to one week. The canonical
-        # latest results remain separate from these dated archives.
-        archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
-        for old in archives[DAILY_ARTIFACT_RETENTION_DAYS:]:
-            old.unlink(missing_ok=True)
-
         # Prune old screenshot archives (keep last 7 daily snapshots).
         screenshots_dir = RESULTS_DIR / "screenshots"
         if screenshots_dir.is_dir():
@@ -7638,8 +7667,22 @@ class TestOrchestrator:
         _log("Sending summary email...")
         result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
         ResultAggregator.save(result)
+        self._archive_daily_result()
         if _problem_count(result.summary) > 0:
             _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
+
+    def _archive_daily_result(self) -> None:
+        """Archive the final result, including terminal notification outcomes."""
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        archive = RESULTS_DIR / f"daily-run-{today}.json"
+        last_run = RESULTS_DIR / "last-run.json"
+        if last_run.is_file():
+            shutil.copy2(str(last_run), str(archive))
+            _log(f"Archived to {archive.name}")
+
+        archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
+        for old in archives[DAILY_ARTIFACT_RETENTION_DAYS:]:
+            old.unlink(missing_ok=True)
 
     def _print_summary(self, result: RunResult) -> None:
         """Print a formatted summary."""

@@ -253,10 +253,18 @@ def test_daily_runner_exception_persists_and_notifies_terminal_failure(monkeypat
     orchestrator._progress_start_time = 100.0
     orchestrator._daily_status_stop = run_tests.threading.Event()
     orchestrator._daily_status_thread = None
+    def send_summary_email(_self, result):
+        notifications.append(result)
+        result.flags["notification_channels"] = {
+            "email": {"configured": True, "status": "failed", "transport": "brevo"},
+            "discord": {"configured": True, "status": "failed", "transport": "webhook"},
+        }
+        return False
+
     orchestrator.notification = type(
         "FakeNotification",
         (),
-        {"send_summary_email": lambda _self, result: notifications.append(result)},
+        {"send_summary_email": send_summary_email},
     )()
     monkeypatch.setattr(orchestrator, "_run", lambda: (_ for _ in ()).throw(RuntimeError("artifact collection exploded")))
     monkeypatch.setattr(run_tests.time, "time", lambda: 130.0)
@@ -271,3 +279,84 @@ def test_daily_runner_exception_persists_and_notifies_terminal_failure(monkeypat
     assert result["suites"]["orchestration"]["tests"][0]["status"] == "failed"
     assert "artifact collection exploded" in result["suites"]["orchestration"]["tests"][0]["error"]
     assert len(notifications) == 1
+    archives = list(tmp_path.glob("daily-run-*.json"))
+    assert len(archives) == 1
+    archived = json.loads(archives[0].read_text(encoding="utf-8"))
+    assert archived["flags"]["notifications_complete"] is False
+    assert archived["flags"]["notification_channels"]["discord"]["status"] == "failed"
+
+
+def test_daily_archive_includes_terminal_notification_outcomes(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(run_tests, "record_flake_history", lambda _data: None)
+    monkeypatch.setattr(run_tests, "_record_unified_test_state", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(run_tests.ReportGenerator, "generate", lambda *_args: None)
+
+    class FakeNotification:
+        def split_results(self):
+            return None
+
+        def push_to_openobserve(self, _result):
+            return None
+
+        def send_summary_email(self, result):
+            result.flags["notification_channels"] = {
+                "email": {
+                    "configured": True,
+                    "status": "provider_accepted",
+                    "transport": "brevo",
+                },
+                "discord": {
+                    "configured": True,
+                    "status": "provider_accepted",
+                    "transport": "webhook",
+                },
+            }
+            return True
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator.notification = FakeNotification()
+    result = run_tests.RunResult(
+        run_id="2026-08-26T03:00:05Z",
+        git_sha="abc123def",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+        flags={"daily": True, "suite": "all"},
+    )
+
+    orchestrator._daily_post_run(result)
+
+    archives = list(tmp_path.glob("daily-run-*.json"))
+    assert len(archives) == 1
+    archived = json.loads(archives[0].read_text(encoding="utf-8"))
+    assert archived["flags"]["notifications_complete"] is True
+    assert archived["flags"]["notification_channels"]["email"]["status"] == "provider_accepted"
+
+
+def test_daily_archive_retention_keeps_newest_seven(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "RESULTS_DIR", tmp_path)
+    (tmp_path / "last-run.json").write_text('{"run_id":"latest"}\n', encoding="utf-8")
+    for day in range(1, 9):
+        (tmp_path / f"daily-run-2000-01-{day:02d}.json").write_text("{}\n", encoding="utf-8")
+
+    orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
+    orchestrator._archive_daily_result()
+
+    archives = sorted(path.name for path in tmp_path.glob("daily-run-*.json"))
+    assert len(archives) == run_tests.DAILY_ARTIFACT_RETENTION_DAYS
+    assert "daily-run-2000-01-01.json" not in archives
+    assert "daily-run-2000-01-02.json" not in archives
