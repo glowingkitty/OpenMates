@@ -252,6 +252,17 @@ scenarios:
       - Web decrypts inside the client boundary and updates the header preview and Last saved time.
       - No draft plaintext enters server logs, analytics, or durable unencrypted storage.
 
+  - id: S-8
+    title: Late first-save activation preserves newer navigation
+    given:
+      - A new-chat draft is being persisted for the first time.
+      - The user explicitly selects a different saved chat before draft activation finishes.
+    when:
+      - The delayed persisted-draft activation signal arrives.
+    then:
+      - The explicitly selected saved chat remains active in the route, sidebar, and rendered chat surface.
+      - The draft-only chat remains persisted and navigable but does not reopen itself.
+
 acceptance_criteria:
   - { id: AC-1, scenario: S-1, text: "The first successful non-empty autosave activates one draft-only #chat-id route and shows header plus New Chat control; focus, typing, and failed persistence do not.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-002, T-E2E-001] }
   - { id: AC-2, scenario: S-2, text: "A draft-only header shows the canonical draft icon, Draft badge, saved preview title, and localized Last saved relative time from the last successful revision.", required: true, status: pending, coverage_status: covered, verification_scope: ui_visual_smoke, verification_ids: [T-E2E-001, V-UI-VISUAL-SMOKE] }
@@ -261,6 +272,7 @@ acceptance_criteria:
   - { id: AC-6, scenario: S-6, text: "Saving a draft in an established chat does not change that chat's existing header presentation.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
   - { id: AC-7, scenario: S-7, text: "A synchronized newer draft revision refreshes active draft-only title and saved time without plaintext leaving authenticated client boundaries.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-E2E-002] }
   - { id: AC-8, scenario: S-1, text: "Apple implements the confirmed web-visible draft-only header and identity lifecycle after deployed web user confirmation.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-001, T-APPLE-002, V-USER-CONFIRMATION] }
+  - { id: AC-9, scenario: S-8, text: "A late first-save draft activation cannot override a newer explicit saved-chat selection; the draft remains persisted without reopening.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
 
 assumptions:
   - id: A-1
@@ -373,7 +385,7 @@ tests:
     file: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
     command: python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts
     target: app.dev.openmates.org
-    covers: [AC-1, AC-2, AC-4, AC-5, AC-6]
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-9]
     assertions:
       - first successful autosave activates #chat-id and shows draft header plus New Chat control
       - draft header shows icon, badge, preview, and Last saved and updates after a second save
@@ -381,6 +393,7 @@ tests:
       - Stop restores draft-only presentation on the same UUID
       - clearing returns to focused / welcome state without a header
       - an established-chat draft leaves its generated header unchanged
+      - a late first-save activation cannot override a newer explicit saved-chat selection
     red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org } }
     green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: "" } }
   - id: T-E2E-002

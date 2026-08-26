@@ -6,6 +6,21 @@
  * Production hosts never receive these globals.
  */
 import { chatDB } from './db';
+import { draftEditorUIState } from './drafts/draftState';
+
+export type E2EDraftSelectionDecision = {
+  chatId: string;
+  consumer: 'active_chat' | 'chat_list';
+  result: 'applied' | 'skipped';
+};
+
+export function recordE2EDraftSelectionDecision(decision: E2EDraftSelectionDecision): void {
+  if (typeof window === 'undefined' || !window.location.hostname.endsWith('.dev.openmates.org')) return;
+  const testWindow = window as unknown as {
+    __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
+  };
+  testWindow.__openmatesE2EDraftSelectionTrace?.push(decision);
+}
 
 export async function installE2ETestHooks() {
   if (typeof window === 'undefined') return;
@@ -25,6 +40,8 @@ export async function installE2ETestHooks() {
       websocketConnected: boolean;
       cachePrimed: boolean;
     }>;
+    __openmatesE2EReplayDraftSelection?: (chatId: string) => void;
+    __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
   };
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
@@ -52,5 +69,13 @@ export async function installE2ETestHooks() {
       websocketConnected: chatSyncService.webSocketConnected_FOR_SENDERS_ONLY,
       cachePrimed: chatSyncService.cachePrimed_FOR_HANDLERS_ONLY,
     };
+  };
+
+  testWindow.__openmatesE2EReplayDraftSelection = (chatId: string) => {
+    testWindow.__openmatesE2EDraftSelectionTrace = [];
+    draftEditorUIState.update((state) => ({
+      ...state,
+      newlyCreatedChatIdToSelect: chatId,
+    }));
   };
 }

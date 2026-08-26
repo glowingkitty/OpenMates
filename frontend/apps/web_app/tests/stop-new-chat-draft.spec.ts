@@ -85,6 +85,7 @@ async function insertComposerText(page: any, messageEditor: any, text: string, v
 		.toContain(visibleText);
 }
 
+// contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
 test('stop during new chat creation restores the sent message as a draft', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(150000);
@@ -155,6 +156,84 @@ test('stop during new chat creation restores the sent message as a draft', async
 	} finally {
 		if (shouldTryCleanup) {
 			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup');
+		}
+	}
+});
+
+// contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,chat-navigation.open.local-first-coherent
+test('late draft persistence cannot override a newer explicit chat selection', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(150000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logCheckpoint = createSignupLogger('DRAFT_SELECTION_AUTHORITY');
+	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
+		filenamePrefix: 'draft-selection-authority'
+	});
+	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await startNewChat(page, logCheckpoint);
+
+	let draftChatId: string | null = null;
+	try {
+		const visibleDraft = 'Keep this draft while I open a different saved chat.';
+		const messageEditor = page.getByTestId('message-editor');
+		await insertComposerText(page, messageEditor, visibleDraft, visibleDraft);
+		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
+		expect(draftChatId).toBeTruthy();
+
+		const sidebar = page.getByTestId('activity-history-wrapper');
+		if (!(await sidebar.isVisible().catch(() => false))) {
+			await page.getByTestId('sidebar-toggle').click();
+			await expect(sidebar).toBeVisible({ timeout: 10000 });
+		}
+		const targetChatId = await page.getByTestId('chat-item-wrapper').evaluateAll((rows, excludedChatId) =>
+			rows
+				.map((row) => row.getAttribute('data-chat-id') || '')
+				.find((chatId) => chatId && chatId !== excludedChatId && !chatId.startsWith('demo-') && !chatId.startsWith('legal-') && !chatId.startsWith('example-')) ?? null,
+			draftChatId
+		);
+		expect(targetChatId, 'The test account needs another mounted saved chat').toBeTruthy();
+		const targetChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${targetChatId}"]`);
+		await targetChatRow.click();
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+
+		await page.evaluate((chatId: string) => {
+			const replay = (window as typeof window & {
+				__openmatesE2EReplayDraftSelection?: (draftChatId: string) => void;
+			}).__openmatesE2EReplayDraftSelection;
+			if (!replay) throw new Error('Draft selection E2E hook is unavailable');
+			replay(chatId);
+		}, draftChatId);
+
+		await expect.poll(() => page.evaluate(() =>
+			(window as typeof window & {
+				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
+			}).__openmatesE2EDraftSelectionTrace ?? []
+		), { message: 'A draft activation consumer should classify the replayed late signal' }).not.toHaveLength(0);
+		const finalDecisions = await page.evaluate(() =>
+			(window as typeof window & {
+				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
+			}).__openmatesE2EDraftSelectionTrace ?? []
+		);
+		expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
+		expect(finalDecisions.some((decision) => decision.result === 'skipped')).toBe(true);
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
+	} finally {
+		await page.evaluate(() => {
+			delete (window as typeof window & {
+				__openmatesE2EDraftSelectionTrace?: unknown;
+			}).__openmatesE2EDraftSelectionTrace;
+		}).catch(() => undefined);
+		if (draftChatId) {
+			await page.evaluate((chatId: string) => {
+				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+			}, draftChatId).catch(() => undefined);
+			await expect(page.getByTestId('active-chat-container'))
+				.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 })
+				.catch(() => undefined);
+			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-late-draft').catch(() => undefined);
 		}
 	}
 });

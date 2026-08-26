@@ -7,6 +7,7 @@
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
+	import { recordE2EDraftSelectionDecision } from '../../services/e2eTestHooks';
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
 	import { tooltip } from '../../actions/tooltip';
@@ -1974,6 +1975,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
 			if (value.newlyCreatedChatIdToSelect) {
 				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
+				recordE2EDraftSelectionDecision({ chatId: value.newlyCreatedChatIdToSelect, consumer: 'chat_list', result: 'applied' });
 				_chatIdToSelectAfterUpdate = value.newlyCreatedChatIdToSelect;
 				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
 				

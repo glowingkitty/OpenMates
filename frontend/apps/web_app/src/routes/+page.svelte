@@ -122,28 +122,6 @@
 	const EXAMPLE_CHAT_ID_PREFIX = 'example-';
 	const ANONYMOUS_RELOAD_CATEGORY = 'general_knowledge';
 	const ANONYMOUS_RELOAD_ICON = 'sparkles';
-	type E2EChatSelectionPhase = 'delay_started' | 'delay_resumed' | 'load_chat_called';
-
-	function recordE2EChatSelectionPhase(chatId: string, phase: E2EChatSelectionPhase): void {
-		if (!browser || !window.location.hostname.endsWith('.dev.openmates.org')) return;
-		const testWindow = window as typeof window & {
-			__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: E2EChatSelectionPhase }>;
-		};
-		testWindow.__openmatesE2EChatSelectionTrace?.push({ chatId, phase });
-	}
-
-	async function waitForE2EChatSelectionDelay(chatId: string): Promise<void> {
-		if (!browser || !window.location.hostname.endsWith('.dev.openmates.org')) return;
-		const testWindow = window as typeof window & {
-			__openmatesE2EChatSelectionDelays?: Record<string, number>;
-		};
-		const delayMs = testWindow.__openmatesE2EChatSelectionDelays?.[chatId] ?? 0;
-		if (delayMs <= 0) return;
-		recordE2EChatSelectionPhase(chatId, 'delay_started');
-		delete testWindow.__openmatesE2EChatSelectionDelays?.[chatId];
-		await new Promise((resolve) => window.setTimeout(resolve, delayMs));
-		recordE2EChatSelectionPhase(chatId, 'delay_resumed');
-	}
 
 	function createAnonymousReloadChat(chatId: string): Chat {
 		const now = Math.floor(Date.now() / 1000);
@@ -3432,13 +3410,11 @@
 		const selectedChat: Chat = event.detail.chat;
 		console.debug('[+page.svelte] Received chatSelected event:', selectedChat.chat_id); // Use chat_id
 		notFoundPathStore.set(null);
-		await waitForE2EChatSelectionDelay(selectedChat.chat_id);
 
 		// Retry mechanism with multiple attempts to ensure chat loads (critical for SEO)
 		const loadChatWithRetry = async (retries = 20): Promise<void> => {
 			if (activeChat) {
 				console.debug('[+page.svelte] activeChat ready, loading chat:', selectedChat.chat_id);
-				recordE2EChatSelectionPhase(selectedChat.chat_id, 'load_chat_called');
 				activeChat.loadChat(selectedChat);
 				lastLoadedChatId = selectedChat.chat_id;
 				console.debug('[+page.svelte] ✅ Successfully called loadChat for:', selectedChat.chat_id);

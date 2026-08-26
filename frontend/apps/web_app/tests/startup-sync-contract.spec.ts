@@ -20,7 +20,6 @@ const STARTUP_SYNC_FRAME_TIMEOUT_MS = 30_000;
 const STARTUP_SYNC_DIAGNOSTIC_TAIL = 25;
 const LOCAL_CHAT_SHELL_TIMEOUT_MS = 1_500;
 const LOCAL_SHORT_WINDOW_TARGET_COUNT = 4;
-const STALE_SELECTION_DELAY_MS = 750;
 const PROOF_VIDEO_STATE_HOLD_MS = process.env.PLAYWRIGHT_VIDEO_WIDTH ? 4_000 : 0;
 
 async function holdProofVideoState(page: any): Promise<void> {
@@ -299,65 +298,6 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 	}
 }
 
-async function verifyLatestChatSelectionWins(page: any): Promise<void> {
-	const sidebar = page.getByTestId('activity-history-wrapper');
-	if (!(await sidebar.isVisible().catch(() => false))) {
-		await page.getByTestId('sidebar-toggle').click();
-		await expect(sidebar).toBeVisible({ timeout: 10_000 });
-	}
-
-	const mountedChatIds = await page.getByTestId('chat-item-wrapper').evaluateAll((rows) => Array.from(new Set(rows
-		.map((row) => row.getAttribute('data-chat-id') || '')
-		.filter((chatId) => chatId && !chatId.startsWith('demo-') && !chatId.startsWith('legal-') && !chatId.startsWith('example-'))
-	)));
-	expect(mountedChatIds.length, 'The mounted sidebar must contain two saved chats for stale-selection coverage').toBeGreaterThanOrEqual(2);
-	const [staleChatId, latestChatId] = mountedChatIds;
-	const staleChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${staleChatId}"]`);
-	const latestChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${latestChatId}"]`);
-
-	try {
-		await page.evaluate(({ chatId, delayMs }: { chatId: string; delayMs: number }) => {
-			const testWindow = window as typeof window & {
-				__openmatesE2EChatSelectionDelays?: Record<string, number>;
-				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
-			};
-			testWindow.__openmatesE2EChatSelectionDelays = { [chatId]: delayMs };
-			testWindow.__openmatesE2EChatSelectionTrace = [];
-		}, { chatId: staleChatId, delayMs: STALE_SELECTION_DELAY_MS });
-
-		await staleChatRow.click();
-		await expect.poll(() => page.evaluate((chatId: string) =>
-			(window as typeof window & {
-				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
-			}).__openmatesE2EChatSelectionTrace?.some((entry) => entry.chatId === chatId && entry.phase === 'delay_started') ?? false,
-		staleChatId)).toBe(true);
-		await latestChatRow.click();
-		await expect(latestChatRow).toHaveAttribute('data-active', 'true');
-		await expect.poll(() => page.evaluate((chatId: string) =>
-			(window as typeof window & {
-				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
-			}).__openmatesE2EChatSelectionTrace?.some((entry) => entry.chatId === chatId && entry.phase === 'load_chat_called') ?? false,
-		latestChatId)).toBe(true);
-		await expect.poll(() => page.evaluate((chatId: string) =>
-			(window as typeof window & {
-				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
-			}).__openmatesE2EChatSelectionTrace?.some((entry) => entry.chatId === chatId && entry.phase === 'load_chat_called') ?? false,
-		staleChatId)).toBe(true);
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', latestChatId);
-		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(latestChatId)}`);
-		await expect(latestChatRow).toHaveAttribute('data-active', 'true');
-	} finally {
-		await page.evaluate(() => {
-			const testWindow = window as typeof window & {
-				__openmatesE2EChatSelectionDelays?: Record<string, number>;
-				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
-			};
-			delete testWindow.__openmatesE2EChatSelectionDelays;
-			delete testWindow.__openmatesE2EChatSelectionTrace;
-		}).catch(() => undefined);
-	}
-}
-
 async function getContinueCarouselState(page: any): Promise<{ visible: boolean; chatIds: string[] }> {
 	return await page.evaluate(() => {
 		const container = document.querySelector('[data-testid="recent-chats-scroll-container"]') as HTMLElement | null;
@@ -617,5 +557,4 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
 	await verifyCachedShortChatOpening(page);
-	await verifyLatestChatSelectionWins(page);
 });
