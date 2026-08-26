@@ -16,6 +16,7 @@ const API_URL = process.env.OPENMATES_API_URL || "https://api.dev.openmates.org"
 const API_KEY = process.env.OPENMATES_REAL_DEV_API_KEY || process.env.OPENMATES_API_KEY || "";
 
 describe("OpenMates npm SDK real dev Workflows", () => {
+  // contract-test: direct surface=sdks.npm assertions=workflows-ui.identity.automatic-category-icon,workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it(
     "creates, step-tests, runs, inspects, and deletes an expanded-capability workflow",
     { skip: API_KEY ? false : "Set OPENMATES_REAL_DEV_API_KEY or OPENMATES_API_KEY to run real dev SDK workflow tests", timeout: 180_000 },
@@ -35,6 +36,15 @@ describe("OpenMates npm SDK real dev Workflows", () => {
         const created = await client.workflows.createFromYaml(source);
         workflowId = created.workflow.id;
         assert.ok(workflowId);
+        assert.equal(typeof created.workflow.category, "string");
+        assert.equal(typeof created.workflow.icon, "string");
+
+        const listed = (await client.workflows.list()).find((workflow) => workflow.id === workflowId);
+        const fetched = await client.workflows.get(workflowId);
+        assert.equal(listed?.category, created.workflow.category);
+        assert.equal(listed?.icon, created.workflow.icon);
+        assert.equal(fetched.category, created.workflow.category);
+        assert.equal(fetched.icon, created.workflow.icon);
 
         const stepRun = await client.workflows.stepTest(workflowId, "math", { input: { expression: "2 + 2" }, confirmed: true });
         assert.equal(stepRun.trigger_type, "step_test");

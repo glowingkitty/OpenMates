@@ -46,7 +46,7 @@ def assert_public_workflow_slug(workflow, slug):
     assert "slug_lookup_hash" not in workflow
 
 
-# contract-test: direct surface=sdks.pip assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
+# contract-test: direct surface=sdks.pip assertions=workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
 def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     requests_seen = []
     graph = minimal_graph()
@@ -83,7 +83,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/v1/projects?include_archived=true"):
             return FakeResponse({"projects": [{"project_id": PROJECT_ID, "encrypted_project_key": encrypted_project_key, "encrypted_name": _encrypt_aes_gcm_text("Project", project_key)}]})
         if url.endswith("/v1/workflows"):
-            return FakeResponse({"workflows": [{"id": "wf-1", "title": "Morning", **encrypted_slug_fields}]})
+            return FakeResponse({"workflows": [{"id": "wf-1", "title": "Morning", "category": "science", "icon": "cloud-rain", **encrypted_slug_fields}]})
         if url.endswith("/v1/workflows/temporary"):
             return FakeResponse({"workflows": [{"id": "wf-temp", "title": "Temporary", "lifecycle": "temporary", **encrypted_temp_slug_fields}]})
         if url.endswith("/v1/workflows/capabilities"):
@@ -160,6 +160,8 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     listed_workflow = client.workflows.list()[0]
     temporary_workflow = client.workflows.temporary()[0]
     assert listed_workflow["id"] == "wf-1"
+    assert listed_workflow["category"] == "science"
+    assert listed_workflow["icon"] == "cloud-rain"
     assert temporary_workflow["id"] == "wf-temp"
     assert_public_workflow_slug(listed_workflow, "morning")
     assert_public_workflow_slug(temporary_workflow, "temporary")

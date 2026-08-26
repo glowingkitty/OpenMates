@@ -21,6 +21,7 @@ API_KEY = os.getenv("OPENMATES_REAL_DEV_API_KEY") or os.getenv("OPENMATES_API_KE
 
 
 @pytest.mark.skipif(not API_KEY, reason="Set OPENMATES_REAL_DEV_API_KEY or OPENMATES_API_KEY to run real dev SDK workflow tests")
+# contract-test: direct surface=sdks.pip assertions=workflows-ui.identity.automatic-category-icon,workflows.surface.semantic-parity,sdk.surface.semantic-parity
 def test_pip_sdk_real_dev_workflow_execution():
     client = OpenMates(api_key=API_KEY, api_url=API_URL)
     workflow_id = ""
@@ -36,6 +37,15 @@ def test_pip_sdk_real_dev_workflow_execution():
         created = client.workflows.create_from_yaml(source)
         workflow_id = created["workflow"]["id"]
         assert workflow_id
+        assert isinstance(created["workflow"].get("category"), str)
+        assert isinstance(created["workflow"].get("icon"), str)
+
+        listed = next(item for item in client.workflows.list() if item["id"] == workflow_id)
+        fetched = client.workflows.get(workflow_id)
+        assert listed["category"] == created["workflow"]["category"]
+        assert listed["icon"] == created["workflow"]["icon"]
+        assert fetched["category"] == created["workflow"]["category"]
+        assert fetched["icon"] == created["workflow"]["icon"]
 
         step_run = client.workflows.step_test(workflow_id, "math", input_data={"expression": "2 + 2"}, confirmed=True)
         assert step_run["trigger_type"] == "step_test"

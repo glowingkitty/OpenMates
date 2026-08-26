@@ -83,7 +83,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK workflows", () => {
-  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
+  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("manages workflows through the shared API contract", async () => {
     const graph = minimalGraph();
     const masterKey = Buffer.alloc(32, 11);
@@ -104,7 +104,7 @@ describe("OpenMates SDK workflows", () => {
           return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
         }
         if (request.url === "/v1/workflows" && request.method === "GET") {
-          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields }] };
+          return { workflows: [{ id: "wf-1", title: "Morning", category: "science", icon: "cloud-rain", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields }] };
         }
         if (request.url === "/v1/workflows/temporary" && request.method === "GET") {
           return { workflows: [{ id: "wf-temp", title: "Temporary", status: "disabled", enabled: false, lifecycle: "temporary", run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedTempSlugFields }] };
@@ -185,6 +185,8 @@ describe("OpenMates SDK workflows", () => {
         const listedWorkflow = (await client.workflows.list())[0];
         const temporaryWorkflow = (await client.workflows.temporary())[0];
         assert.equal(listedWorkflow?.id, "wf-1");
+        assert.equal(listedWorkflow?.category, "science");
+        assert.equal(listedWorkflow?.icon, "cloud-rain");
         assert.equal(temporaryWorkflow?.id, "wf-temp");
         assertPublicWorkflowSlug(listedWorkflow as Record<string, unknown>, "morning");
         assertPublicWorkflowSlug(temporaryWorkflow as Record<string, unknown>, "temporary");

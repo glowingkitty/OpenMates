@@ -550,8 +550,13 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-8]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: python3 scripts/tests.py run --spec cli-workflows-rain-real.spec.ts --gate-deploy --require-exact-commit --expected-commit 6200ff20cfbb346934c912308ca9798f40c78b2b
+      run_id: '32925372786'
+      timestamp: '2026-08-26T03:15:03Z'
+      subject_commit: 6200ff20cfbb346934c912308ca9798f40c78b2b
+      result: Real CLI create, list, and show preserved science/cloud-rain identity in JSON and readable output; cleanup passed.
   - id: V-SDK-DEV
     kind: automated_test
     phase: green
@@ -893,8 +898,8 @@ tasks:
     surfaces: [rest_api]
   - id: TASK-5
     title: Add CLI identity output and real dev proof
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-7]
       acceptance_criteria: [AC-1, AC-8]
@@ -917,7 +922,7 @@ tasks:
     surfaces: [cli]
   - id: TASK-6
     title: Add npm and pip SDK identity parity with real dev proof
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-7]
@@ -1175,11 +1180,21 @@ attempts:
     approach: Deploy the backend contract, rebuild the integrated dev runtime under the shared Docker lock, and run the authenticated real REST probe.
     outcome: succeeded
     recorded_at: '2026-08-26T02:10:32Z'
+  - id: ATTEMPT-7
+    task_id: TASK-5
+    approach: Deploy CLI identity output and run the existing real Workflow lifecycle spec with JSON and human-readable list/detail assertions.
+    outcome: rejected
+    recorded_at: '2026-08-26T02:48:00Z'
+  - id: ATTEMPT-8
+    task_id: TASK-5
+    approach: Normalize the existing ANSI reset sequence in readable CLI output assertions and rerun the deployed real Workflow lifecycle.
+    outcome: succeeded
+    recorded_at: '2026-08-26T03:15:03Z'
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Add Workflow category and icon to CLI list/detail output and prove the real CLI behavior against the dev API.
+  current_task_id: TASK-6
+  next_action: Prove npm and pip SDK list/create/detail identity parity against the real dev API.
   command: python3 scripts/audit_sdk_cli_parity.py
-  expected_outcome: CLI Workflow output exposes stable category and icon metadata without ciphertext before SDK parity work begins.
+  expected_outcome: Both SDKs preserve category and icon metadata without exposing encrypted identity fields.
   blocker: null
-  last_verified_commit: 7b257e2ce518fa01dc85df35efd65034aec59ce4
+  last_verified_commit: 6200ff20cfbb346934c912308ca9798f40c78b2b
