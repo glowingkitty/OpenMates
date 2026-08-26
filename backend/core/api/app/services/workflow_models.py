@@ -217,6 +217,8 @@ class WorkflowSummary(BaseModel):
     encrypted_slug: str | None = None
     slug_lookup_hash: str | None = None
     description: str | None = None
+    category: str = "general_knowledge"
+    icon: str = "help-circle"
     status: WorkflowStatus
     enabled: bool
     lifecycle: WorkflowLifecycle = WorkflowLifecycle.PERSISTED

@@ -22,6 +22,12 @@ from backend.core.api.app.services.directus.team_methods import TeamPermissionEr
 from backend.core.api.app.services.feature_availability_guards import ensure_workflows_enabled
 from backend.core.api.app.services.team_workspace_service import TeamWorkspaceMoveError, move_workspace_record_to_team
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_identity_service import (
+    WorkflowIdentity,
+    WorkflowIdentityService,
+    build_preprocessing_workflow_classifier,
+    normalize_workflow_identity,
+)
 from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowLifecycle, WorkflowMissingInputError, WorkflowRunContentRetention, WorkflowRunStatus
 from backend.core.api.app.services.workflow_runtime_service import WorkflowRuntimeProtocolError, WorkflowRuntimeService
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
@@ -67,6 +73,8 @@ class WorkflowCreateRequest(BaseModel):
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     description: str | None = Field(default=None, max_length=2_000)
+    category: str | None = Field(default=None, max_length=80)
+    icon: str | None = Field(default=None, max_length=80)
     graph: WorkflowGraph
     enabled: bool = False
     run_content_retention: WorkflowRunContentRetention = WorkflowRunContentRetention.LAST_5
@@ -82,6 +90,8 @@ class WorkflowUpdateRequest(BaseModel):
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
     description: str | None = Field(default=None, max_length=2_000)
+    category: str | None = Field(default=None, max_length=80)
+    icon: str | None = Field(default=None, max_length=80)
     graph: WorkflowGraph | None = None
     enabled: bool | None = None
     run_content_retention: WorkflowRunContentRetention | None = None
@@ -224,6 +234,18 @@ def get_workflow_service(request: Request) -> WorkflowService:
     return service
 
 
+def get_workflow_identity_service(request: Request) -> WorkflowIdentityService:
+    secrets_manager = getattr(request.app.state, "secrets_manager", None)
+    classifier = build_preprocessing_workflow_classifier(secrets_manager) if secrets_manager is not None else None
+    return WorkflowIdentityService(classifier=classifier)
+
+
+async def _resolve_create_identity(body: WorkflowCreateRequest, identity_service: WorkflowIdentityService) -> WorkflowIdentity:
+    if body.category is not None or body.icon is not None:
+        return normalize_workflow_identity(body.category, body.icon)
+    return await identity_service.resolve(title=body.title, description=body.description, graph=body.graph)
+
+
 def get_directus_service(request: Request) -> Any:
     if not hasattr(request.app.state, "directus_service"):
         raise HTTPException(status_code=500, detail="Internal configuration error")
@@ -340,7 +362,16 @@ def _workflow_ask_update_operation(patch: WorkflowUpdateRequest) -> str:
     if patch.graph is not None:
         return "workflow_version"
     if patch.enabled is not None and all(
-        value is None for value in (patch.title, patch.encrypted_slug, patch.slug_lookup_hash, patch.description, patch.run_content_retention)
+        value is None
+        for value in (
+            patch.title,
+            patch.encrypted_slug,
+            patch.slug_lookup_hash,
+            patch.description,
+            patch.category,
+            patch.icon,
+            patch.run_content_retention,
+        )
     ):
         return "status"
     return "update"
@@ -510,9 +541,11 @@ async def create_workflow(
     body: WorkflowCreateRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    identity_service: WorkflowIdentityService = Depends(get_workflow_identity_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     try:
+        identity = await _resolve_create_identity(body, identity_service)
         workflow = await run_in_threadpool(
             service.create_workflow,
             current_user.id,
@@ -529,6 +562,8 @@ async def create_workflow(
             body.description,
             body.encrypted_slug,
             body.slug_lookup_hash,
+            identity.category,
+            identity.icon,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
@@ -573,6 +608,7 @@ async def ask_workflows(
     body: WorkflowAskRequest,
     current_user: User = Depends(get_current_user_or_api_key),
     service: WorkflowService = Depends(get_workflow_service),
+    identity_service: WorkflowIdentityService = Depends(get_workflow_identity_service),
     history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
 ) -> dict[str, Any]:
     if sum(bool(value) for value in (body.create, body.exact_update, body.exact_action)) > 1:
@@ -703,6 +739,7 @@ async def ask_workflows(
     if create is None:
         return _workflow_ask_fallback("Open a specific workflow to instruct more complex changes.")
     try:
+        identity = await _resolve_create_identity(create, identity_service)
         workflow = await run_in_threadpool(
             service.create_workflow,
             current_user.id,
@@ -719,6 +756,8 @@ async def ask_workflows(
             create.description,
             create.encrypted_slug,
             create.slug_lookup_hash,
+            identity.category,
+            identity.icon,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         history = await _record_workflow_history(
@@ -1411,6 +1450,11 @@ async def update_workflow(
 ) -> dict[str, Any]:
     try:
         before = await run_in_threadpool(service.get_workflow, workflow_id, current_user.id, current_user.vault_key_id)
+        identity = (
+            normalize_workflow_identity(body.category or before.category, body.icon or before.icon)
+            if body.category is not None or body.icon is not None
+            else None
+        )
         workflow = await run_in_threadpool(
             service.update_workflow,
             workflow_id,
@@ -1423,6 +1467,8 @@ async def update_workflow(
             description=body.description,
             encrypted_slug=body.encrypted_slug,
             slug_lookup_hash=body.slug_lookup_hash,
+            category=identity.category if identity else None,
+            icon=identity.icon if identity else None,
         )
         after = workflow.model_dump(mode="json", by_alias=True)
         operation = _workflow_ask_update_operation(body)

@@ -323,6 +323,13 @@ contracts:
     - rest_api
     - cli
     - gui.web
+  feature.workflows-ui:
+    version: 1
+    status: draft
+    path: features/workflows-ui
+    fingerprint: f1dfb7472bf07f46b05c179805b376cac5fffa27115824938f733514c68630a7
+    required_surfaces:
+    - gui.web
   feature.workspace-shell:
     version: 2
     status: draft
@@ -3110,6 +3117,83 @@ assertions:
     required_surfaces:
     - rest_api
     - cli
+    - gui.web
+  workflows-ui.visual-language.coherent:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: ac52044eaec65ab8b3784d28742fb418edd3d3386f7fb77415aaec6dcadc0e43
+    required_surfaces:
+    - gui.web
+  workflows-ui.identity.automatic-category-icon:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: fad44ef73d67d7cbc4f6e2584a2f28a80331f652595b64291c4b280c5ec339e3
+    required_surfaces:
+    - gui.web
+  workflows-ui.workspace.recommendation-led-composition:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 58d41979824024c3ab94bdbd81ed82432d5e369c95df4fe33c32358c1137c7e2
+    required_surfaces:
+    - gui.web
+  workflows-ui.workspace.title-first-draft:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 03480fb487f5eb7577f72f3a24b7a524d0d47c41aef745fe17c1ca9355d5a4d1
+    required_surfaces:
+    - gui.web
+  workflows-ui.detail.stable-visual-header:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: e8faf5a72a75dcd73155a32ee41b1690bc5f3e7684ba0cd8c08d5b873ad8f5fd
+    required_surfaces:
+    - gui.web
+  workflows-ui.detail.shared-template-runs-tabs:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 903d9f6c37b6eeaec14760b70366ccd32036d22753303c9a7646ba64a774aba5
+    required_surfaces:
+    - gui.web
+  workflows-ui.template.centered-in-place-editor:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 9633eb3c74bf55b11428d6e18fc651bf802c2adbf5b9be7f07006ac6e0b52373
+    required_surfaces:
+    - gui.web
+  workflows-ui.template.explicit-guarded-save:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: invariant
+    fingerprint: eaef12005a09f0359b5a64b2d7415472355cc6b4a9557bda6d557bf86a7212eb
+    required_surfaces:
+    - gui.web
+  workflows-ui.versions.timeline-readonly-restore-new:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 0bc6a62e4b577cc3ffbf980dc43e69437bf64c9101367d11d86a3f5e40f41df3
+    required_surfaces:
+    - gui.web
+  workflows-ui.runs.timeline-execution-detail:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: 3daf22975163dce860f0a648a38e1cd78dfc84a8d5d5b50c66dcfd0c917129e0
+    required_surfaces:
+    - gui.web
+  workflows-ui.responsive-accessible-reachable:
+    contract: feature.workflows-ui@1
+    contract_id: feature.workflows-ui
+    type: behavior
+    fingerprint: aee7d410f47440fd96655673ac28af23f4b32b2a15d735950d77eb235ed419dd
+    required_surfaces:
     - gui.web
   workspace-shell.nav.released-surfaces-visible:
     contract: feature.workspace-shell@2

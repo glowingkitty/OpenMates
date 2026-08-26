@@ -1060,6 +1060,15 @@ async def call_preprocessing_llm(
                     # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+                    if "category" in sanitized_args and isinstance(sanitized_args["category"], str):
+                        sanitized_args["category"] = "[REDACTED_CONTENT]"
+                    if "icon" in sanitized_args and isinstance(sanitized_args["icon"], str):
+                        sanitized_args["icon"] = "[REDACTED_CONTENT]"
+                    if "icon_names" in sanitized_args and isinstance(sanitized_args["icon_names"], list):
+                        sanitized_args["icon_names"] = {
+                            "count": len(sanitized_args["icon_names"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     if "injection_strings" in sanitized_args and isinstance(sanitized_args["injection_strings"], list):
                         sanitized_args["injection_strings"] = {
                             "count": len(sanitized_args["injection_strings"]),

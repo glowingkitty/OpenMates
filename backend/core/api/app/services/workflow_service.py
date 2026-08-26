@@ -42,6 +42,12 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowVersionDetail,
     WorkflowVersionSummary,
 )
+from backend.core.api.app.services.workflow_identity_service import (
+    DEFAULT_WORKFLOW_CATEGORY,
+    DEFAULT_WORKFLOW_ICON,
+    normalize_workflow_identity,
+    resolve_deterministic_workflow_identity,
+)
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.shared.python_utils.encrypted_slug_metadata import (
@@ -420,6 +426,8 @@ class DirectusWorkflowRepository:
             "hashed_user_id": record["owner_hash"],
             "hashed_team_id": record.get("hashed_team_id"),
             "encrypted_title": record["encrypted_title_ref"],
+            "encrypted_category": record.get("encrypted_category_ref"),
+            "encrypted_icon": record.get("encrypted_icon_ref"),
             "encrypted_slug": record.get("encrypted_slug"),
             "slug_lookup_hash": record.get("slug_lookup_hash"),
             "status": record["status"],
@@ -1155,6 +1163,8 @@ class WorkflowService:
         description: str | None = None,
         encrypted_slug: str | None = None,
         slug_lookup_hash: str | None = None,
+        category: str | None = None,
+        icon: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         validate_encrypted_slug_metadata(
@@ -1164,6 +1174,12 @@ class WorkflowService:
         self._ensure_workflow_slug_lookup_available(user_id, slug_lookup_hash)
         vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
+        identity = (
+            normalize_workflow_identity(category, icon)
+            if category is not None or icon is not None
+            else resolve_deterministic_workflow_identity(workflow_graph)
+            or normalize_workflow_identity(None, None)
+        )
         retention = WorkflowRunContentRetention(run_content_retention)
         workflow_lifecycle = WorkflowLifecycle(lifecycle)
         now = int(time.time())
@@ -1183,6 +1199,18 @@ class WorkflowService:
             if description is not None
             else None
         )
+        category_blob = self._save_encrypted_blob(
+            user_id,
+            "workflow_category",
+            identity.category,
+            vault_key_id=vault_key_id,
+        )
+        icon_blob = self._save_encrypted_blob(
+            user_id,
+            "workflow_icon",
+            identity.icon,
+            vault_key_id=vault_key_id,
+        )
         graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
         graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload, vault_key_id=vault_key_id)
         record = {
@@ -1194,6 +1222,10 @@ class WorkflowService:
             "slug_lookup_hash": slug_lookup_hash,
             "encrypted_description_ref": description_blob["ref"] if description_blob else None,
             "encrypted_description_checksum": description_blob["checksum"] if description_blob else None,
+            "encrypted_category_ref": category_blob["ref"],
+            "encrypted_category_checksum": category_blob["checksum"],
+            "encrypted_icon_ref": icon_blob["ref"],
+            "encrypted_icon_checksum": icon_blob["checksum"],
             "status": WorkflowStatus.ACTIVE.value if enabled else WorkflowStatus.DISABLED.value,
             "enabled": enabled,
             "lifecycle": workflow_lifecycle.value,
@@ -1244,6 +1276,8 @@ class WorkflowService:
         restored_from_version_id: str | None = None,
         encrypted_slug: str | None = None,
         slug_lookup_hash: str | None = None,
+        category: str | None = None,
+        icon: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         validate_encrypted_slug_metadata(
@@ -1270,6 +1304,25 @@ class WorkflowService:
                 self.repository.delete_encrypted_blob(record["encrypted_description_ref"])
             record["encrypted_description_ref"] = description_blob["ref"]
             record["encrypted_description_checksum"] = description_blob["checksum"]
+        if category is not None:
+            identity = normalize_workflow_identity(category, icon or DEFAULT_WORKFLOW_ICON)
+            category_blob = self._save_encrypted_blob(user_id, "workflow_category", identity.category, vault_key_id=vault_key_id)
+            if record.get("encrypted_category_ref"):
+                self.repository.delete_encrypted_blob(record["encrypted_category_ref"])
+            record["encrypted_category_ref"] = category_blob["ref"]
+            record["encrypted_category_checksum"] = category_blob["checksum"]
+        if icon is not None:
+            existing_category = (
+                str(self._load_encrypted_blob(record["encrypted_category_ref"], vault_key_id))
+                if record.get("encrypted_category_ref")
+                else DEFAULT_WORKFLOW_CATEGORY
+            )
+            identity = normalize_workflow_identity(category or existing_category, icon)
+            icon_blob = self._save_encrypted_blob(user_id, "workflow_icon", identity.icon, vault_key_id=vault_key_id)
+            if record.get("encrypted_icon_ref"):
+                self.repository.delete_encrypted_blob(record["encrypted_icon_ref"])
+            record["encrypted_icon_ref"] = icon_blob["ref"]
+            record["encrypted_icon_checksum"] = icon_blob["checksum"]
         if graph is not None:
             workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
             version_id = str(uuid.uuid4())
@@ -1462,7 +1515,13 @@ class WorkflowService:
             if not isinstance(auto_delete_at, int) or auto_delete_at > cutoff:
                 continue
             workflow_id = record["id"]
-            for ref_key in ("encrypted_title_ref", "encrypted_graph_ref"):
+            for ref_key in (
+                "encrypted_title_ref",
+                "encrypted_description_ref",
+                "encrypted_category_ref",
+                "encrypted_icon_ref",
+                "encrypted_graph_ref",
+            ):
                 ref = record.get(ref_key)
                 if ref:
                     self.repository.delete_encrypted_blob(ref)
@@ -1625,6 +1684,16 @@ class WorkflowService:
                 str(self._load_encrypted_blob(record["encrypted_description_ref"], vault_key_id))
                 if record.get("encrypted_description_ref")
                 else None
+            ),
+            category=(
+                str(self._load_encrypted_blob(record["encrypted_category_ref"], vault_key_id))
+                if record.get("encrypted_category_ref")
+                else DEFAULT_WORKFLOW_CATEGORY
+            ),
+            icon=(
+                str(self._load_encrypted_blob(record["encrypted_icon_ref"], vault_key_id))
+                if record.get("encrypted_icon_ref")
+                else DEFAULT_WORKFLOW_ICON
             ),
             encrypted_slug=record.get("encrypted_slug"),
             slug_lookup_hash=record.get("slug_lookup_hash"),

@@ -36,6 +36,14 @@ workflows:
     encrypted_description:
       type: text
       note: "[Encrypted, Nullable] Workflow description."
+    encrypted_category:
+      type: text
+      nullable: true
+      note: "[Encrypted, Nullable] Workflow category reference. Never stores plaintext category."
+    encrypted_icon:
+      type: text
+      nullable: true
+      note: "[Encrypted, Nullable] Workflow icon reference. Never stores plaintext icon."
     status:
       type: string
       note: "draft, active, disabled, error, or deleted."

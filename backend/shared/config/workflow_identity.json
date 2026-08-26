@@ -1,0 +1,28 @@
+{
+  "categories": {
+    "software_development": {"start": "#155D91", "end": "#42ABF4", "fallback_icon": "code"},
+    "business_development": {"start": "#004040", "end": "#008080", "fallback_icon": "briefcase"},
+    "medical_health": {"start": "#FD50A0", "end": "#F42C2D", "fallback_icon": "heart"},
+    "legal_law": {"start": "#239CFF", "end": "#005BA5", "fallback_icon": "gavel"},
+    "openmates_official": {"start": "#6366f1", "end": "#4f46e5", "fallback_icon": "shield-check"},
+    "maker_prototyping": {"start": "#EA7600", "end": "#FBAB59", "fallback_icon": "wrench"},
+    "marketing_sales": {"start": "#FF8C00", "end": "#F4B400", "fallback_icon": "megaphone"},
+    "finance": {"start": "#119106", "end": "#15780D", "fallback_icon": "dollar-sign"},
+    "design": {"start": "#101010", "end": "#2E2E2E", "fallback_icon": "palette"},
+    "electrical_engineering": {"start": "#233888", "end": "#2E4EC8", "fallback_icon": "zap"},
+    "movies_tv": {"start": "#00C2C5", "end": "#3170DC", "fallback_icon": "tv"},
+    "history": {"start": "#4989F2", "end": "#2F44BF", "fallback_icon": "clock"},
+    "science": {"start": "#CE5B06", "end": "#8F220E", "fallback_icon": "microscope"},
+    "life_coach_psychology": {"start": "#FDB250", "end": "#F42C2D", "fallback_icon": "users"},
+    "cooking_food": {"start": "#FD8450", "end": "#F42C2D", "fallback_icon": "utensils"},
+    "activism": {"start": "#F53D00", "end": "#F56200", "fallback_icon": "trending-up"},
+    "general_knowledge": {"start": "#DE1E66", "end": "#FF763B", "fallback_icon": "help-circle"},
+    "onboarding_support": {"start": "#6364FF", "end": "#9B6DFF", "fallback_icon": "compass"}
+  },
+  "allowed_icons": [
+    "bell", "briefcase", "calendar", "check-circle", "clock", "cloud-rain", "code",
+    "compass", "dollar-sign", "file-text", "gavel", "heart", "help-circle", "mail",
+    "megaphone", "microscope", "newspaper", "palette", "search", "shield-check",
+    "sparkles", "trending-up", "tv", "users", "utensils", "workflow", "wrench", "zap"
+  ]
+}

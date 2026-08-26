@@ -1,0 +1,1175 @@
+schema_version: 3
+id: workflows-ui-contract
+title: Workflows Web UI Contract Implementation
+status: approved
+
+contract_refs:
+  - id: feature.workflows-ui
+    version: 1
+    role: primary
+    fingerprint: f1dfb7472bf07f46b05c179805b376cac5fffa27115824938f733514c68630a7
+  - id: feature.workflows
+    version: 1
+    role: inherited
+    fingerprint: 4c63c9b4ff32cd28615f14034c83adce313f3533718773fc57adf01dae27db23
+  - id: feature.workspace-shell
+    version: 2
+    role: inherited
+
+contract_impact:
+  classification: implementation_only
+  contract_update_required: false
+  affected_assertions:
+    - workflows-ui.visual-language.coherent
+    - workflows-ui.identity.automatic-category-icon
+    - workflows-ui.workspace.recommendation-led-composition
+    - workflows-ui.workspace.title-first-draft
+    - workflows-ui.detail.stable-visual-header
+    - workflows-ui.detail.shared-template-runs-tabs
+    - workflows-ui.template.centered-in-place-editor
+    - workflows-ui.template.explicit-guarded-save
+    - workflows-ui.versions.timeline-readonly-restore-new
+    - workflows-ui.runs.timeline-execution-detail
+    - workflows-ui.responsive-accessible-reachable
+  reason: >
+    Implement the newly approved self-contained Workflows UI contract and add
+    the encrypted category/icon metadata required for its category-derived
+    visual identity.
+
+documentation_impact:
+  generated_reference:
+    status: regenerate
+    reason: Workflow REST, CLI, npm SDK, and pip SDK models gain category and icon metadata.
+    documents:
+      - contracts/generated/registry.yml
+      - contracts/generated/assertion-index.yml
+      - contracts/generated/coverage.yml
+      - frontend/packages/openmates-cli/src/generated
+      - packages/openmates-python/openmates/generated
+  user_docs:
+    status: update_required
+    reason: Users need a guide for creating, editing, versioning, and inspecting Workflow runs.
+    documents:
+      - docs/user-guide/workflows.md
+  semantic_layer:
+    status: unchanged
+    reason: The approved permanent contracts already define the intended UI and Workflow execution semantics.
+    documents:
+      - contracts/features/workflows-ui/contract.yml
+      - contracts/features/workflows/contract.yml
+
+goal: >
+  Make the deployed Workflows workspace implement the approved visual and UX
+  contract: category-derived Workflow identity, recommendation-led creation,
+  a stable detail header with shared Template/Runs tabs, compact in-place graph
+  editing, guarded explicit saves, immutable version inspection, and a detailed
+  run timeline on laptop and mobile.
+
+scope:
+  in:
+    - Add encrypted Workflow category and icon persistence, API models, graph-first assignment, bounded metadata fallback, and stable fallbacks.
+    - Preserve owner/team scoping and expose category/icon through existing Workflow REST, CLI, npm SDK, pip SDK, and web models.
+    - Render start cards and Workflow headers from existing category gradients and assigned icons.
+    - Use only dark-mode-aware `--color-grey-*` tokens for reusable grey surfaces.
+    - Implement the stable category-gradient detail header and existing shared icon-tab system for Template and Runs.
+    - Refactor the graph into a reusable renderer for editable Template, read-only versions, and read-only run executions.
+    - Implement contextual Save/Undo and Save/Discard/Stay navigation protection.
+    - Replace the version list with a timestamp selector, horizontal timeline, full read-only graph, and restore-as-new confirmation.
+    - Replace run summary cards with a next/past run timeline and selected execution graph containing available statuses, inputs, outputs, sources, branches, and errors.
+    - Verify deployed behavior and visual quality at 1440x900 and 390x844 and publish separate laptop and phone proof videos.
+  out:
+    - Natural-language Workflow planning or modification.
+    - Voice Workflow authoring.
+    - Public Workflow marketplace changes.
+    - New Workflow execution node types or changes to existing execution semantics.
+    - Apple-native Workflow workspace implementation.
+    - Pixel-copying raw Figma values or introducing raw reusable colors.
+
+context_discovery:
+  github_issues:
+    - Targeted `gh issue list` search for Workflow UI, category, icon, runs, and version history returned no matching issue.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/workflows-v1/spec.yml
+    - DESIGN.md
+    - contracts/features/workflows-ui/contract.yml
+    - contracts/features/workflows/contract.yml
+    - contracts/features/workspace-shell/contract.yml
+  code_patterns:
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte owns current hash state, creation, editing, and view orchestration.
+    - frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte is the existing icon-tab system with a sliding gradient pill.
+    - frontend/packages/ui/src/utils/categoryUtils.ts owns existing category gradients and category fallback icons.
+    - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte owns the current Workflow header.
+    - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte owns immutable history and restore behavior.
+    - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte currently renders summary cards only.
+    - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts caches Workflow detail and run lists but not selected run detail.
+    - backend/core/directus/schemas/workflows.yml stores encrypted Workflow metadata but has no category/icon fields.
+    - backend/core/api/app/services/workflow_service.py encrypts, hydrates, versions, and scopes Workflow records.
+    - backend/core/api/app/services/workflow_models.py exposes Workflow summary, version, and run detail models.
+    - backend/core/api/app/routes/workflows.py exposes existing authenticated/API-key CRUD, version, restore, run detail, and cancellation routes.
+  tests:
+    - backend/tests/test_workflow_core_ui_contract.py
+    - backend/tests/test_workflow_runner.py
+    - backend/tests/test_workflow_template_projection.py
+    - frontend/apps/web_app/tests/workflows-input.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+    - frontend/apps/web_app/tests/workspace-sidebar.spec.ts
+    - frontend/packages/openmates-cli/tests/workflows.test.ts
+    - packages/openmates-python/tests/test_workflows.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - An existing Apple-native Workflow workspace consumes the shared additive API, but the approved workflows-ui contract explicitly defers Apple UI parity for this web-first implementation.
+    - Additive category/icon response fields must not break existing Apple decoding; native visual identity, version-history, and Runs redesign remain deferred.
+  verification:
+    - Static source audit of WorkflowModels.swift confirms additive JSON fields do not break existing Codable models.
+  intentional_native_differences:
+    - Existing Apple Workflow UI remains unchanged and visually behind the approved web contract until a separately approved native parity implementation.
+
+clarification:
+  rounds:
+    - question: How strictly should implementation follow the source design when it conflicts with current components?
+      answer: Preserve structural fidelity while implementing it through current OpenMates design-system primitives.
+    - question: When should a new Workflow become persisted?
+      answer: Persist a disabled title draft immediately; later graph edits require explicit Save or Undo.
+    - question: What may users do with historical Workflow versions?
+      answer: Inspect them read-only and restore one as a new current version after confirmation.
+    - question: Which run states and controls are required?
+      answer: Show the full run lifecycle including next, active, historical detail, unavailable content, and contextual cancellation.
+    - question: How should Workflow category and icon be assigned automatically?
+      answer: Resolve graph/app metadata first, use a bounded chat-style metadata fallback only for ambiguous graphs, and use general_knowledge/help-circle if assignment cannot produce valid metadata.
+  vision_summary: >
+    The Workflows UI must stand on its own as a durable visual product contract.
+    Workflow identity comes from encrypted category/icon metadata and existing
+    category gradients; the editor and run views share one stable header, tabs,
+    and graph language, with explicit persistence and detailed history.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+
+approvals:
+  product_contract:
+    status: approved
+    approved_at: '2026-08-26T00:00:00Z'
+    reason: The user explicitly approved the validated executable product spec in the active OpenCode session.
+  implementation_plan:
+    status: not_required
+    approved_at: ''
+    reason: The technical plan introduces no material architecture, security, privacy, migration, rollout, or external-dependency decision beyond the approved product spec and permanent contract.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Category and icon are encrypted Workflow metadata and never plaintext Directus fields.
+    reason: Workflow subject identity can reveal private intent and follows the existing encrypted Workflow metadata boundary.
+    decided_at: '2026-08-26'
+  - id: D-2
+    status: active
+    decision: Identity resolution uses graph/app metadata first and a bounded metadata classifier only for ambiguous graphs.
+    reason: Obvious Workflows need no AI cost; ambiguous title/manual Workflows still receive useful identity.
+    decided_at: '2026-08-26'
+  - id: D-3
+    status: active
+    decision: Identity fallback is category general_knowledge and icon help-circle, using existing category gradients and icon validation.
+    reason: Creation must remain reliable and visually coherent when classification fails.
+    decided_at: '2026-08-26'
+  - id: D-4
+    status: active
+    decision: Existing Workflow routes are extended rather than adding a new identity endpoint.
+    reason: Category/icon are ordinary Workflow metadata and should preserve REST/CLI/SDK parity through existing create, update, list, and detail contracts.
+    decided_at: '2026-08-26'
+  - id: D-5
+    status: active
+    decision: The same graph renderer powers editable Template, historical versions, and run execution detail.
+    reason: Shared geometry is required by the visual contract and avoids divergent card/timeline implementations.
+    decided_at: '2026-08-26'
+  - id: D-6
+    status: active
+    decision: Reuse only call_preprocessing_llm through a bounded Workflow identity adapter after redacting category/icon arguments; never call the full chat preprocessing pipeline.
+    reason: The low-level seam has no credit debit or chat side effects, while the full pipeline is unsafe and unnecessary for Workflow metadata assignment.
+    decided_at: '2026-08-26'
+
+scenarios:
+  - id: S-1
+    title: Alice creates a category-styled disabled Workflow draft
+    given:
+      - Alice is authenticated and opens /workflows.
+      - Existing Workflows and starter cards are available.
+    when:
+      - Alice enters Daily weather check in the bottom composer.
+    then:
+      - A disabled persisted draft opens in Template.
+      - Its category and icon are assigned automatically and stored encrypted.
+      - Its card and header use the resolved existing category gradient and assigned icon.
+      - Invalid or missing identity falls back to general_knowledge and help-circle without blocking creation.
+  - id: S-2
+    title: Alice edits a Workflow through the Template canvas
+    given:
+      - Alice has opened a Workflow in Template.
+    when:
+      - Alice expands the Weather action and changes Berlin to Paris.
+    then:
+      - The action expands inside its existing card.
+      - Save and Undo appear in the contextual unsaved panel.
+      - The server graph remains unchanged until Save.
+      - Saving creates a new immutable definition version.
+  - id: S-3
+    title: Dirty edits are protected during navigation
+    given:
+      - Alice has unsaved Template changes.
+    when:
+      - Alice selects Runs, another Workflow, a historical version, or workspace home.
+    then:
+      - Alice must choose Save, Discard, or Stay.
+      - No transition silently discards local edits.
+  - id: S-4
+    title: Alice inspects and restores a historical version
+    given:
+      - The Workflow has multiple immutable definition versions.
+    when:
+      - Alice selects an older timestamp in the version timeline.
+    then:
+      - The full Workflow graph renders read-only with the same Template geometry.
+      - The current version remains visibly marked Active.
+      - Confirmed restore creates a new current version without mutating history.
+  - id: S-5
+    title: Alice inspects the full Workflow run lifecycle
+    given:
+      - The Workflow has a next scheduled occurrence and completed, failed, or active persisted runs.
+    when:
+      - Alice switches to Runs and selects a persisted run.
+    then:
+      - A horizontal timeline distinguishes Next, completed, failed, active, waiting, and cancelled states with text and icons.
+      - The selected run renders its pinned Workflow version and per-node execution statuses.
+      - Available input, output, source, branch, and error detail is grouped inside expanded nodes.
+      - Expired content remains explicitly unavailable while run and node statuses remain visible.
+      - Cancellation is available only for cancellable runs and requires confirmation.
+  - id: S-6
+    title: Laptop and phone render the same Workflow hierarchy
+    given:
+      - The deployed app is opened at 1440x900 and 390x844.
+    when:
+      - Alice uses the workspace, Template, expanded editor, version history, and Runs.
+    then:
+      - The category header, tabs, cards, timelines, save controls, and bottom composer remain reachable without clipping or page overflow.
+      - Mobile forms stack in one column and timelines scroll horizontally.
+      - Dark mode uses only color-grey tokens and preserves hierarchy.
+  - id: S-7
+    title: Workflow identity metadata remains consistent across programmatic surfaces
+    given:
+      - A Workflow has encrypted category software_development and icon code.
+    when:
+      - Alice reads it through REST, CLI, npm SDK, pip SDK, and web.
+    then:
+      - Every surface resolves the same decrypted category and icon for its authorized owner context.
+      - No API, log, notification, or Directus cleartext field exposes private category/icon values.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Workflow create/list/detail persist encrypted automatically assigned category/icon metadata, use graph-first classification with bounded fallback, and expose stable owner-scoped values across REST, CLI, SDKs, and web.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PY-WORKFLOW-IDENTITY, T-NODE-WORKFLOW-CLI, T-NODE-WORKFLOW-SDK, T-PY-WORKFLOW-SDK, V-REST-DEV, V-CLI-DEV, V-SDK-DEV]
+    contract_assertions: [workflows-ui.identity.automatic-category-icon, workflows-ui.workspace.title-first-draft]
+  - id: AC-2
+    scenario: S-1
+    text: The Workflows start screen preserves the recommendation, centered identity, recent-then-starter carousel, browse controls, category-styled cards, and bottom composer hierarchy on desktop and mobile.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PW-WORKFLOWS-UI, V-UI-VISUAL-SMOKE]
+    contract_assertions: [workflows-ui.visual-language.coherent, workflows-ui.workspace.recommendation-led-composition]
+  - id: AC-3
+    scenario: S-2
+    text: Workflow detail uses the category-gradient header and existing shared Template/Runs tabs, while Template renders compact centered nodes that expand and edit in place with explicit contextual Save/Undo.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-UI-WORKFLOWS, T-PW-WORKFLOWS-UI, V-UI-VISUAL-SMOKE]
+    contract_assertions: [workflows-ui.detail.stable-visual-header, workflows-ui.detail.shared-template-runs-tabs, workflows-ui.template.centered-in-place-editor]
+  - id: AC-4
+    scenario: S-3
+    text: Dirty Template state protects every contracted navigation transition with Save, Discard, or Stay and never silently loses graph edits.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-UI-WORKFLOWS, T-PW-WORKFLOWS-UI]
+    contract_assertions: [workflows-ui.template.explicit-guarded-save]
+  - id: AC-5
+    scenario: S-4
+    text: Version history uses a timestamp selector and horizontal stateful timeline, renders the full selected graph read-only, and restores only as a new immutable current version after confirmation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PY-WORKFLOW-IDENTITY, T-UI-WORKFLOWS, T-PW-WORKFLOWS-UI]
+    contract_assertions: [workflows-ui.versions.timeline-readonly-restore-new]
+  - id: AC-6
+    scenario: S-5
+    text: Runs combines next_run_at with persisted runs, renders the contracted status timeline and selected pinned execution graph, preserves status when content expires, and confirms cancellation only for cancellable runs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PY-WORKFLOW-IDENTITY, T-UI-WORKFLOWS, T-PW-WORKFLOWS-UI]
+    contract_assertions: [workflows-ui.runs.timeline-execution-detail]
+  - id: AC-7
+    scenario: S-6
+    text: All contracted states are visually reviewed at 1440x900 and 390x844 in light and dark modes without clipping, overlap, unintended overflow, raw grey values, inaccessible primary controls, or unresponsive interactions.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: ui_visual_smoke
+    verification_ids: [T-PW-WORKFLOWS-UI, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO, V-USER-CONFIRMATION]
+    contract_assertions: [workflows-ui.visual-language.coherent, workflows-ui.responsive-accessible-reachable]
+  - id: AC-8
+    scenario: S-7
+    text: Category/icon storage, transport, logs, fallbacks, and cross-surface rendering preserve the encrypted Workflow privacy boundary and semantic parity.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PY-WORKFLOW-IDENTITY, T-NODE-WORKFLOW-CLI, T-NODE-WORKFLOW-SDK, T-PY-WORKFLOW-SDK, V-REST-DEV, V-CLI-DEV, V-SDK-DEV]
+    contract_assertions: [workflows-ui.identity.automatic-category-icon]
+
+assumptions:
+  - id: A-1
+    text: Existing categoryUtils metadata can be moved or mirrored into a shared generated category catalog without introducing a second gradient source.
+    category: design_system
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/utils/categoryUtils.ts
+        summary: CATEGORY_GRADIENTS and CATEGORY_FALLBACK_ICONS already define software_development, general_knowledge, and other supported categories.
+  - id: A-2
+    text: Existing Workflow version and run APIs already supply immutable graph history, pinned run version IDs, per-node details, unavailable-content state, and cancellation.
+    category: backend
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/workflows.py
+        summary: Existing version list/detail/restore and run list/detail/cancel routes are owner scoped.
+      - source: backend/core/api/app/services/workflow_models.py
+        summary: WorkflowRunDetail contains version_id, node statuses, input/output summaries, errors, and content availability.
+  - id: A-3
+    text: The low-level preprocessing LLM call can be reused through a bounded Workflow adapter after category/icon log redaction, without invoking chat preprocessing or sending credentials or node input values.
+    category: privacy
+    required_before: implementation
+    status: corrected
+    evidence:
+      - source: backend/apps/ai/utils/llm_utils.py
+        summary: call_preprocessing_llm returns structured arguments or an error, performs no credit debit, and requires category/icon development-log redaction before reuse.
+      - source: backend/apps/ai/processing/preprocessor.py
+        summary: Full chat preprocessing has routing and UI side effects and must not be called by Workflow identity assignment.
+  - id: A-4
+    text: SettingsTabs can serve as the existing shared icon-tab implementation outside Settings without changing its visual contract.
+    category: frontend
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/settings/elements/SettingsTabs.svelte
+        summary: Component is a generic icon-only tab bar with animated gradient selection, keyboard roles, and configurable test IDs.
+
+contracts:
+  api:
+    - routes: ['POST /v1/workflows', 'PATCH /v1/workflows/{workflow_id}', 'GET /v1/workflows', 'GET /v1/workflows/{workflow_id}']
+      access_model: first-party client surface plus existing approved developer API-key Workflow access
+      auth: authenticated owner/team session or API key with existing workflow read/write scopes
+      owner_team_scoping: existing hashed owner/team context checks remain mandatory
+      rate_limits: existing Workflow read/write route limits
+      credit_budget_limits: graph-first identity costs no credits; bounded metadata fallback consumes no Workflow run credits and failure uses deterministic fallback
+      encryption_boundary: category and icon are encrypted with the Workflow owner Vault path at rest and returned decrypted only to authorized existing Workflow clients; classifier input excludes credentials, secrets, and node input values
+      request_changes: create/update may accept validated category/icon only from approved first-party/SDK producers; missing values invoke server assignment
+      response_changes: WorkflowSummary and WorkflowDetail include category and icon
+    - routes: ['GET /v1/workflows/{workflow_id}/versions', 'GET /v1/workflows/{workflow_id}/versions/{version_id}', 'POST /v1/workflows/{workflow_id}/versions/{version_id}/restore']
+      access_model: unchanged existing Workflow access
+      auth: unchanged authenticated owner/team/API-key scope
+      rate_limits: unchanged
+      credit_budget_limits: none
+      encryption_boundary: historical graph remains Automation Vault encrypted; identity is stable Workflow-level metadata
+    - routes: ['GET /v1/workflows/{workflow_id}/runs', 'GET /v1/workflows/{workflow_id}/runs/{run_id}', 'POST /v1/workflows/{workflow_id}/runs/{run_id}/cancel']
+      access_model: unchanged existing Workflow access
+      auth: unchanged authenticated owner/team/API-key scope
+      rate_limits: unchanged
+      credit_budget_limits: cancellation/read do not spend credits
+      encryption_boundary: retained run content remains encrypted and owner scoped; unavailable content is never fabricated
+  data:
+    - Add encrypted_category and encrypted_icon nullable text fields to workflows; existing records remain valid and resolve general_knowledge/help-circle until backfilled on write or bounded migration.
+    - Store only encrypted metadata and encrypted refs in Directus and record_json; never add plaintext category/icon indexes.
+    - Keep category/icon stable at Workflow level across immutable graph versions and runs.
+    - Normal deletion remains the existing restorable soft-delete and retains encrypted metadata under Workflow history retention; temporary-expiry cleanup removes category/icon blobs with the other Workflow blobs.
+  ui_states:
+    - Workspace loading, empty, recent cards, show all, and creation error.
+    - New disabled draft, current Template, dirty Template, expanded node, historical read-only version, restore confirmation.
+    - Runs empty, next-only, selected completed, selected failed, selected active, expired content, cancellation confirmation.
+    - Desktop/mobile, light/dark, reduced motion, API error, and metadata fallback identity.
+  privacy_security:
+    - Category/icon can reveal Workflow purpose and therefore use the same encrypted owner/team Vault boundary as title and description.
+    - Metadata fallback receives only title, description, node types, and app/skill identifiers; node input values, credentials, run content, and outputs are forbidden.
+    - Logs and notifications contain no decrypted title, category, icon, graph, input, output, or error payload.
+
+tests:
+  - id: T-PY-WORKFLOW-IDENTITY
+    type: pytest
+    file: backend/tests/test_workflow_ui_identity.py
+    command: python3 -m pytest backend/tests/test_workflow_ui_identity.py backend/tests/test_workflow_core_ui_contract.py backend/tests/test_workflow_runner.py -q
+    assertions:
+      - Directus schema and service persist category/icon only encrypted.
+      - Graph-first resolver selects valid category/icon and ambiguous fallback is bounded and privacy-minimal.
+      - Missing/invalid metadata resolves general_knowledge/help-circle without creation failure.
+      - Existing records hydrate with fallbacks; update/version/run behavior remains unchanged.
+      - Run detail and cancellation data support the contracted Runs view.
+    contract_assertions: [workflows-ui.identity.automatic-category-icon, workflows-ui.versions.timeline-readonly-restore-new, workflows-ui.runs.timeline-execution-detail]
+    covers: [AC-1, AC-5, AC-6, AC-8]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_workflow_ui_identity.py backend/tests/test_workflow_core_ui_contract.py backend/tests/test_workflow_runner.py -q
+        run_id: local-workflow-identity-red-20260826
+        timestamp: '2026-08-26T00:00:00Z'
+        subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+        summary: Six identity tests failed for the intended missing models, encrypted refs, legacy fallback, resolver module, and log redaction; twelve existing Workflow tests passed.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_workflow_ui_identity.py backend/tests/test_workflow_core_ui_contract.py backend/tests/test_workflow_runner.py backend/tests/test_workflows_models.py backend/tests/test_workflow_runtime_directus_deployment.py backend/tests/test_workflow_key_boundary.py -q
+        run_id: local-workflow-identity-green-20260826
+        timestamp: '2026-08-26T00:00:00Z'
+        subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+        summary: All 51 focused identity, persistence, model, runner, Directus deployment, and key-boundary tests passed.
+  - id: T-NODE-WORKFLOW-CLI
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/workflows.test.ts
+    assertions:
+      - CLI list/show/create/update preserve category/icon metadata and readable fallbacks.
+      - Human output does not expose ciphertext or private metadata diagnostics.
+    contract_assertions: [workflows-ui.identity.automatic-category-icon]
+    covers: [AC-1, AC-8]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-NODE-WORKFLOW-SDK
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+    command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+    assertions:
+      - npm SDK Workflow models round-trip category/icon through the real dev API.
+    contract_assertions: [workflows-ui.identity.automatic-category-icon]
+    covers: [AC-1, AC-8]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-PY-WORKFLOW-SDK
+    type: pytest
+    file: packages/openmates-python/tests/test_workflows.py
+    command: python3 -m pytest packages/openmates-python/tests/test_workflows.py -q
+    assertions:
+      - pip SDK Workflow models round-trip category/icon and preserve fallback semantics.
+    contract_assertions: [workflows-ui.identity.automatic-category-icon]
+    covers: [AC-1, AC-8]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-UI-WORKFLOWS
+    type: build
+    file: frontend/packages/ui/src/components/workflows
+    command: npm --prefix frontend/packages/ui run build
+    assertions:
+      - Shared graph, timeline, header, and tab components compile with generated translations and icon validation.
+      - Reusable surfaces use dark-mode-aware tokens and no raw grey values.
+    contract_assertions: [workflows-ui.visual-language.coherent, workflows-ui.detail.shared-template-runs-tabs, workflows-ui.template.centered-in-place-editor, workflows-ui.template.explicit-guarded-save]
+    covers: [AC-3, AC-4, AC-5, AC-6]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-PW-WORKFLOWS-UI
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec workflows-ui-contract.spec.ts --gate-deploy --expected-commit <SHA>
+    assertions:
+      - Real authenticated creation shows category/icon identity and a disabled Template draft.
+      - Template/Runs tabs use the shared pill without route reload.
+      - Node editing, Save/Undo, navigation guard, version inspection/restore, run timeline/detail, unavailable content, and cancellation states satisfy the contract.
+      - Phone and laptop proof checkpoints contain no clipping, overlap, raw protocol text, stuck loading, or unresponsive primary controls.
+    contract_assertions:
+      - workflows-ui.workspace.recommendation-led-composition
+      - workflows-ui.workspace.title-first-draft
+      - workflows-ui.detail.stable-visual-header
+      - workflows-ui.detail.shared-template-runs-tabs
+      - workflows-ui.template.centered-in-place-editor
+      - workflows-ui.template.explicit-guarded-save
+      - workflows-ui.versions.timeline-readonly-restore-new
+      - workflows-ui.runs.timeline-execution-detail
+      - workflows-ui.responsive-accessible-reachable
+    covers: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    red_phase:
+      required: true
+      expected: fail_before_implementation_on_deployed_dev
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {}
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: red
+    required_for_done: false
+    status: passed
+    evidence:
+      command: python3 scripts/spec_validate.py docs/specs/workflows-ui-contract/spec.yml
+      run_id: local-spec-validate-20260826
+      timestamp: '2026-08-26T00:00:00Z'
+      subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  - id: V-REST-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-8]
+    status: pending
+    evidence: {}
+  - id: V-CLI-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-8]
+    status: pending
+    evidence: {}
+  - id: V-SDK-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-8]
+    status: pending
+    evidence: {}
+  - id: V-CI-PARITY
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-8]
+    status: pending
+    evidence: {}
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-2, AC-3, AC-5, AC-6, AC-7]
+    status: pending
+    target: https://app.dev.openmates.org/workflows
+    viewports: [laptop, mobile]
+    evidence: {}
+  - id: V-PROOF-VIDEO
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    status: pending
+    evidence: {}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-7]
+    status: pending
+    evidence: {}
+  - id: V-SPEC-VERIFY
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    status: pending
+    evidence: {}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: This is a large user-visible web workspace and detail-flow redesign.
+    classified_at: '2026-08-26T00:00:00Z'
+  narration_outline:
+    - id: NARR-1
+      purpose: Show the recommendation-led Workflows workspace and category-styled draft creation.
+      expected_proof: Phone and laptop show the start hierarchy, submit a title, and open a disabled draft whose gradient and icon match its resolved identity.
+      scenario_ids: [S-1, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-7]
+    - id: NARR-2
+      purpose: Show compact Template editing and protected explicit persistence.
+      expected_proof: Phone and laptop switch to Template, expand a node in place, change it, show Save/Undo, exercise Stay, and save the new version.
+      scenario_ids: [S-2, S-3, S-6]
+      acceptance_criteria: [AC-3, AC-4, AC-7]
+    - id: NARR-3
+      purpose: Show immutable version history and detailed Workflow runs.
+      expected_proof: Phone and laptop select a historical version read-only, return to current, switch through the shared tab pill, and inspect a run timeline and execution node details.
+      scenario_ids: [S-4, S-5, S-6]
+      acceptance_criteria: [AC-5, AC-6, AC-7]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: pending
+    manifest_path: pending
+    manifest_hash: pending
+    review_run_id: pending
+    timestamp: pending
+
+implementation_plan:
+  status: ready
+  spec_path: docs/specs/workflows-ui-contract/spec.yml
+  contract_refs:
+    - feature.workflows-ui@1
+    - feature.workflows@1
+    - feature.workspace-shell@2
+  affected_assertions:
+    - workflows-ui.visual-language.coherent
+    - workflows-ui.identity.automatic-category-icon
+    - workflows-ui.workspace.recommendation-led-composition
+    - workflows-ui.workspace.title-first-draft
+    - workflows-ui.detail.stable-visual-header
+    - workflows-ui.detail.shared-template-runs-tabs
+    - workflows-ui.template.centered-in-place-editor
+    - workflows-ui.template.explicit-guarded-save
+    - workflows-ui.versions.timeline-readonly-restore-new
+    - workflows-ui.runs.timeline-execution-detail
+    - workflows-ui.responsive-accessible-reachable
+  contract_change: implementation_only
+  exact_surface_proof:
+    - Real REST, CLI, npm SDK, and pip SDK calls against https://api.dev.openmates.org prove encrypted category/icon parity.
+    - Deployed Playwright proves the authenticated /workflows creation, Template, versions, Runs, cancellation, and dirty-navigation behavior.
+    - Reviewed 1440x900 laptop and 390x844 phone captures prove light/dark responsive visual quality.
+    - Separate approved laptop and phone videos with toggleable device-scoped WebVTT captions prove the complete visual flow.
+  documentation_impact:
+    - Regenerate contract and SDK references after metadata model changes.
+    - Update docs/user-guide/workflows.md for creation, editing, versions, and Runs.
+  architecture: >
+    Extend the existing Workflow vertical slice. A small async WorkflowIdentityService
+    resolves deterministic graph/app mappings first and calls only
+    call_preprocessing_llm for ambiguous graphs. WorkflowService remains the sole
+    encryption and persistence boundary. Existing REST routes, CLI/SDK clients,
+    workspace store, and reusable Svelte components carry the additive metadata.
+    One shared WorkflowGraphRenderer renders editable Template graphs, read-only
+    historical graphs, and read-only run execution graphs.
+  existing_patterns:
+    - Reuse WorkflowService encrypted blob storage, immutable versions, owner/team scoping, and run-retention behavior.
+    - Reuse call_preprocessing_llm as a low-level structured-output seam, not handle_preprocessing or chat routing.
+    - Reuse CATEGORY_GRADIENTS, CATEGORY_FALLBACK_ICONS, Lucide validation, SettingsTabs, WorkspaceHomeShell, and WorkspacePromptComposer.
+    - Reuse hash-based Workflow selection and warm detail/run caches without remounting the selected Workflow.
+  data_flow:
+    - A create request for Daily weather check carries a title and manual or weather graph to POST /v1/workflows.
+    - WorkflowIdentityService maps a weather app node directly to a supported category/icon; an ambiguous manual graph sends only title, description, node types, and app/skill IDs to the bounded classifier.
+    - Invalid output or inference failure resolves general_knowledge/help-circle without failing creation or spending Workflow run credits.
+    - WorkflowService encrypts category and icon as owner/team Vault blobs and persists only encrypted refs in Directus record_json and nullable encrypted metadata columns.
+    - Authorized list/detail responses decrypt category/icon into WorkflowSummary and WorkflowDetail; CLI, SDKs, web, and existing additive Apple decoding receive the same response without ciphertext.
+    - The web store caches selected run detail separately, while graph/version/run rendering receives one normalized graph plus read-only/editable execution state.
+  api_data_privacy:
+    - Existing Workflow routes retain their first-party plus approved developer API-key access, owner/team checks, and 60/minute reads and 30/minute creates.
+    - Graph-first assignment has no provider cost; ambiguous inference has bounded fallback-model attempts but no credit debit or Workflow budget charge.
+    - Classifier input forbids credentials, node inputs, outputs, run content, and decrypted secret fields.
+    - Development preprocessing logs redact category and icon arguments; production retains completion-only logging.
+    - Existing records require no destructive backfill and hydrate with general_knowledge/help-circle until a later write persists encrypted identity.
+  ui_boundaries:
+    - Keep route orchestration and dirty-navigation decisions in +page.svelte.
+    - Keep graph geometry and node expansion in WorkflowGraphRenderer.svelte.
+    - Keep header and shared Template/Runs pill in WorkflowDetailPage.svelte using category gradient values passed by the route.
+    - Keep version and run data loading in their focused components/store methods and render their graphs through WorkflowGraphRenderer.
+    - Use color-grey design tokens for reusable surfaces and horizontal overflow only for timelines on mobile.
+  affected_files:
+    - path: backend/shared/config/workflow_identity.json
+      reason: Canonical supported category gradients, category fallback icons, and bounded Workflow icon choices shared by backend and web.
+    - path: backend/apps/ai/utils/llm_utils.py
+      reason: Redact category/icon structured arguments in development preprocessing logs.
+    - path: backend/core/api/app/services/workflow_identity_service.py
+      reason: Deterministic graph-first and bounded ambiguous identity resolution.
+    - path: backend/core/api/app/services/workflow_models.py
+      reason: Add category/icon response metadata.
+    - path: backend/core/api/app/services/workflow_service.py
+      reason: Encrypt, persist, hydrate, update, and clean up category/icon refs.
+    - path: backend/core/api/app/routes/workflows.py
+      reason: Validate optional identity inputs and invoke assignment for missing metadata.
+    - path: backend/core/directus/schemas/workflows.yml
+      reason: Add nullable encrypted category/icon metadata columns.
+    - path: backend/tests/test_workflow_ui_identity.py
+      reason: Red/green identity, encryption, fallback, logging, and existing-record coverage.
+    - path: scripts/workflow_identity_real_test.py
+      reason: Direct real-dev REST proof for auth and identity round trips before CLI and SDK gates.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add npm SDK Workflow category/icon fields.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Render stable category/icon in Workflow list/detail output without ciphertext.
+    - path: frontend/packages/openmates-cli/tests/workflows.test.ts
+      reason: CLI contract coverage.
+    - path: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+      reason: Real npm SDK dev-server round-trip coverage.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: Preserve category/icon through the pip SDK Workflow facade.
+    - path: packages/openmates-python/tests/test_workflows.py
+      reason: Pip SDK unit contract coverage.
+    - path: packages/openmates-python/tests/test_workflows_real_dev.py
+      reason: Real pip SDK dev-server round-trip coverage.
+    - path: frontend/packages/ui/src/utils/categoryUtils.ts
+      reason: Consume the shared identity catalog while retaining existing exports.
+    - path: frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      reason: Add identity fields and selected run-detail caching/actions.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+      reason: Shared editable/read-only/execution graph geometry.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      reason: Category header and shared Template/Runs tabs.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+      reason: Timestamp selector, timeline, shared read-only graph, and restore confirmation.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+      reason: Next/past timeline, selected execution detail, unavailable state, and cancellation confirmation.
+    - path: frontend/apps/web_app/src/routes/workflows/+page.svelte
+      reason: Workspace composition, shared renderer orchestration, tabs, save/undo, and navigation guard.
+    - path: frontend/packages/ui/src/i18n/sources/workflows.yml
+      reason: User-facing Workflow labels and states.
+    - path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+      reason: Deployed end-to-end contract and proof-video source.
+    - path: docs/user-guide/workflows.md
+      reason: User documentation for the implemented flow.
+  migration_rollout:
+    - Apply additive nullable Directus encrypted metadata fields before API verification.
+    - Do not bulk-decrypt or backfill existing Workflow records; use read fallback and persist identity on a later write.
+    - Restart the local Docker-backed API through sessions.py before real dev-server REST, CLI, and SDK probes.
+  observability:
+    - Log only assignment path, success/fallback/error class, attempt count, and hashed Workflow/task identifiers.
+    - Never log decrypted title, category, icon, graph, classifier payload, node input/output, or provider raw arguments.
+  assumptions_before_implementation:
+    - A-1, A-2, and A-4 are confirmed from existing source.
+    - A-3 is corrected and confirmed by using only call_preprocessing_llm after category/icon redaction.
+  acceptance_coverage:
+    - AC-1 and AC-8 use backend identity tests plus real REST, CLI, npm SDK, and pip SDK evidence.
+    - AC-2 through AC-6 use the UI build and deployed Workflows Playwright spec.
+    - AC-7 uses Playwright checkpoints, reviewed laptop/mobile visual smoke, separate proof videos, and user confirmation.
+  risks:
+    - Provider fallback attempts can add latency to ambiguous creation; deterministic mappings and a hard timeout keep creation bounded.
+    - Shared graph extraction can regress existing editing; component-level build checks and deployed edit/version/run flows gate rollout.
+    - Existing Apple Workflow UI is intentionally behind the new web contract; additive decoding compatibility is preserved and visual parity remains deferred by the approved permanent contract.
+  open_questions:
+    - none
+  separate_technical_approval: not_required
+  verification_strategy:
+    - Run python3 -m pytest backend/tests/test_workflow_ui_identity.py backend/tests/test_workflow_core_ui_contract.py backend/tests/test_workflow_runner.py -q for backend red/green evidence.
+    - Restart the API and run a real authenticated REST create/list/detail/update probe including unauthorized behavior against https://api.dev.openmates.org.
+    - Run real OpenMates CLI Workflow create/show/list/update commands against the dev API before SDK gates.
+    - Run npm and pip SDK real-dev Workflow tests and python3 scripts/audit_sdk_cli_parity.py before web work.
+    - Write and deploy workflows-ui-contract.spec.ts red before UI implementation, then deploy and rerun it green with an expected commit.
+    - Build the UI package and review laptop/mobile deployed visual-smoke screenshots before proof capture.
+    - Run python3 scripts/spec_verify.py docs/specs/workflows-ui-contract/spec.yml --phase complete --json before completion.
+  verification_order:
+    - REST API
+    - OpenMates CLI
+    - npm SDK and pip SDK
+    - GitHub Actions parity reproduction
+    - Web build and deployed Playwright
+    - Laptop and mobile visual smoke
+    - Separate laptop and phone proof videos
+    - User confirmation
+    - Apple UI skipped under approved contract; static additive decoding audit only
+  demonstration_plan:
+    capture_source: Passing deployed workflows-ui-contract.spec.ts recordings at 1440x900 and 390x844.
+    captions: Write exact device-scoped hash-bound WebVTT only after normal green gates; captions default on, remain toggleable, and never reduce or obscure clean frames.
+    audio: Optional; retain provenance if narration audio is added.
+    frame_review: Review bounded frames every three seconds plus action/state/caption boundaries; never put the full video in model context.
+    privacy: Do not run proof-specific PII or sensitive-data detection or replacement; use only intentionally shareable test-account evidence.
+    repair_routing: Objective defects return to test, implementation, deploy, source rerun, and replacement recording.
+    retention: Publish approved media and captions through scripts/opencode_response_media.py with 48-hour response-media expiry.
+    response_embedding: Paste both returned laptop and phone video HTML snippets verbatim in the task-closing response.
+
+tasks:
+  - id: TASK-1
+    title: Validate and obtain approval for the executable product spec
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    expected_files:
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-SPEC-VALIDATE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    ownership:
+      files:
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon, workflows-ui.visual-language.coherent]
+    surfaces: [product_spec]
+  - id: TASK-2
+    title: Add red Workflow identity and privacy contract tests
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-7]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - backend/tests/test_workflow_ui_identity.py
+    verification_ids: [T-PY-WORKFLOW-IDENTITY]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    ownership:
+      files:
+        - backend/tests/test_workflow_ui_identity.py
+      shared_files:
+        - backend/apps/ai/utils/llm_utils.py
+        - backend/core/api/app/services/workflow_service.py
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon]
+    surfaces: [rest_api]
+  - id: TASK-3
+    title: Implement encrypted Workflow identity assignment and persistence
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-7]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - backend/shared/config/workflow_identity.json
+      - backend/apps/ai/utils/llm_utils.py
+      - backend/core/api/app/services/workflow_identity_service.py
+      - backend/core/api/app/services/workflow_models.py
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/routes/workflows.py
+      - backend/core/directus/schemas/workflows.yml
+    verification_ids: [T-PY-WORKFLOW-IDENTITY]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    ownership:
+      files:
+        - backend/shared/config/workflow_identity.json
+        - backend/core/api/app/services/workflow_identity_service.py
+        - backend/core/api/app/services/workflow_models.py
+        - backend/core/directus/schemas/workflows.yml
+      shared_files:
+        - backend/apps/ai/utils/llm_utils.py
+        - backend/core/api/app/services/workflow_service.py
+        - backend/core/api/app/routes/workflows.py
+    independently_deployable: true
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon, workflows-ui.workspace.title-first-draft]
+    surfaces: [rest_api]
+  - id: TASK-4
+    title: Prove the real dev REST identity contract
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-7]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - scripts/workflow_identity_real_test.py
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-REST-DEV]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    ownership:
+      files:
+        - scripts/workflow_identity_real_test.py
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon]
+    surfaces: [rest_api]
+  - id: TASK-5
+    title: Add CLI identity output and real dev proof
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/workflows.test.ts
+    verification_ids: [T-NODE-WORKFLOW-CLI, V-CLI-DEV]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/workflows.test.ts
+      shared_files: []
+    independently_deployable: true
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon]
+    surfaces: [cli]
+  - id: TASK-6
+    title: Add npm and pip SDK identity parity with real dev proof
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_workflows.py
+      - packages/openmates-python/tests/test_workflows_real_dev.py
+    verification_ids: [T-NODE-WORKFLOW-SDK, T-PY-WORKFLOW-SDK, V-SDK-DEV]
+    dependencies: [TASK-5]
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_workflows.py
+        - packages/openmates-python/tests/test_workflows_real_dev.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/client.ts
+    independently_deployable: true
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon]
+    surfaces: [sdks.npm, sdks.pip]
+  - id: TASK-7
+    title: Reproduce identity parity in deterministic CI coverage
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-7]
+      acceptance_criteria: [AC-1, AC-8]
+    expected_files:
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-CI-PARITY]
+    dependencies: [TASK-6]
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    ownership:
+      files:
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.identity.automatic-category-icon]
+    surfaces: [rest_api, cli, sdks.npm, sdks.pip]
+  - id: TASK-8
+    title: Add and record the deployed red Workflows UI contract spec
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    verification_ids: [T-PW-WORKFLOWS-UI]
+    dependencies: [TASK-7]
+    blockers: []
+    follow_up_tasks: [TASK-9]
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.workspace.recommendation-led-composition, workflows-ui.template.explicit-guarded-save, workflows-ui.runs.timeline-execution-detail]
+    surfaces: [gui.web]
+  - id: TASK-9
+    title: Implement shared Workflow graph, header, tabs, and guarded editing
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-6]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-7]
+    expected_files:
+      - frontend/packages/ui/src/utils/categoryUtils.ts
+      - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      - frontend/apps/web_app/src/routes/workflows/+page.svelte
+      - frontend/packages/ui/src/i18n/sources/workflows.yml
+    verification_ids: [T-UI-WORKFLOWS]
+    dependencies: [TASK-8]
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+      shared_files:
+        - frontend/packages/ui/src/utils/categoryUtils.ts
+        - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+        - frontend/apps/web_app/src/routes/workflows/+page.svelte
+        - frontend/packages/ui/src/i18n/sources/workflows.yml
+    independently_deployable: true
+    permanent_assertions: [workflows-ui.visual-language.coherent, workflows-ui.detail.shared-template-runs-tabs, workflows-ui.template.centered-in-place-editor, workflows-ui.template.explicit-guarded-save]
+    surfaces: [gui.web]
+  - id: TASK-10
+    title: Implement version timeline and detailed Runs execution view
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-4, S-5, S-6]
+      acceptance_criteria: [AC-5, AC-6, AC-7]
+    expected_files:
+      - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+      - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+      - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    verification_ids: [T-UI-WORKFLOWS]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: [TASK-11]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/workflows/WorkflowVersionHistory.svelte
+        - frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+      shared_files:
+        - frontend/packages/ui/src/components/workflows/WorkflowGraphRenderer.svelte
+        - frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
+        - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    independently_deployable: true
+    permanent_assertions: [workflows-ui.versions.timeline-readonly-restore-new, workflows-ui.runs.timeline-execution-detail]
+    surfaces: [gui.web]
+  - id: TASK-11
+    title: Deploy and pass the Workflows UI Playwright contract
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [T-PW-WORKFLOWS-UI]
+    dependencies: [TASK-10]
+    blockers: []
+    follow_up_tasks: [TASK-12]
+    ownership:
+      files:
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.workspace.title-first-draft, workflows-ui.template.explicit-guarded-save, workflows-ui.versions.timeline-readonly-restore-new, workflows-ui.runs.timeline-execution-detail]
+    surfaces: [gui.web]
+  - id: TASK-12
+    title: Review deployed laptop and mobile visual smoke
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-2, AC-3, AC-5, AC-6, AC-7]
+    expected_files:
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-UI-VISUAL-SMOKE]
+    dependencies: [TASK-11]
+    blockers: []
+    follow_up_tasks: [TASK-13]
+    ownership:
+      files:
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.visual-language.coherent, workflows-ui.responsive-accessible-reachable]
+    surfaces: [gui.web]
+  - id: TASK-13
+    title: Produce and review laptop and phone proof videos
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-PROOF-VIDEO]
+    dependencies: [TASK-12]
+    blockers: []
+    follow_up_tasks: [TASK-14]
+    ownership:
+      files:
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files:
+        - frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.visual-language.coherent, workflows-ui.responsive-accessible-reachable]
+    surfaces: [gui.web]
+  - id: TASK-14
+    title: Obtain user confirmation of deployed Workflow behavior and visuals
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-7]
+    expected_files:
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-USER-CONFIRMATION]
+    dependencies: [TASK-13]
+    blockers: []
+    follow_up_tasks: [TASK-15]
+    ownership:
+      files:
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.responsive-accessible-reachable]
+    surfaces: [gui.web]
+  - id: TASK-15
+    title: Update Workflow docs and complete executable-spec verification
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    expected_files:
+      - docs/user-guide/workflows.md
+      - docs/specs/workflows-ui-contract/spec.yml
+    verification_ids: [V-SPEC-VERIFY]
+    dependencies: [TASK-14]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/user-guide/workflows.md
+        - docs/specs/workflows-ui-contract/spec.yml
+      shared_files: []
+    independently_deployable: false
+    permanent_assertions: [workflows-ui.visual-language.coherent, workflows-ui.identity.automatic-category-icon, workflows-ui.responsive-accessible-reachable]
+    surfaces: [documentation, product_spec]
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Investigate the complete design flow, current web implementation, backend version/run support, and approved permanent contracts before drafting the executable spec.
+    outcome: succeeded
+    recorded_at: '2026-08-26T00:00:00Z'
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Replace external design references with a self-contained permanent visual contract and obtain explicit user approval.
+    outcome: succeeded
+    recorded_at: '2026-08-26T00:00:00Z'
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Audit the proposed chat metadata seam and existing Apple Workflow counterpart before finalizing the implementation plan.
+    outcome: succeeded
+    recorded_at: '2026-08-26T00:00:00Z'
+  - id: ATTEMPT-4
+    task_id: TASK-2
+    approach: Add focused identity/privacy tests and run them with adjacent Workflow suites before product implementation.
+    outcome: failed_as_expected
+    recorded_at: '2026-08-26T00:00:00Z'
+  - id: ATTEMPT-5
+    task_id: TASK-3
+    approach: Implement graph-first identity resolution, bounded classification, encrypted persistence, legacy fallback, route integration, and development-log redaction.
+    outcome: succeeded
+    recorded_at: '2026-08-26T00:00:00Z'
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Restart the session API and prove authenticated create/list/detail/update plus unauthorized behavior against the real dev endpoint.
+  command: python3 scripts/sessions.py docker restart --session 79f3 --service api --build
+  expected_outcome: The local Docker-backed dev API serves the session Workflow identity implementation and is ready for direct REST proof.
+  blocker: null
+  last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
