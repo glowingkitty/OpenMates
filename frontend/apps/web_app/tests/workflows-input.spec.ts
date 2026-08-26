@@ -48,6 +48,7 @@ function blankWorkflowGraph(index: number) {
 }
 
 test.describe('Workflows input home', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.title-first-draft
 	test('preserves home content and creates a title-only manual draft', async ({ page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -108,7 +109,7 @@ test.describe('Workflows input home', () => {
 			await expect(mixedCards.first()).toHaveAttribute('data-card-source', 'recent');
 			await expect(mixedCards.last()).toHaveAttribute('data-card-source', 'example');
 			await expect(page.getByTestId('workflows-show-all')).toBeVisible();
-			await expect(page.getByTestId('workflows-search')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-search')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-submit')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-mic')).toBeVisible();
@@ -158,7 +159,7 @@ test.describe('Workflows input home', () => {
 			const draftData = await createDraftResponse;
 			const draft = (await draftData.json()).workflow;
 			createdWorkflowIds.add(draft.id);
-			await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(draft.id));
 			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Daily school weather');
 			expect(draft.title).toBe('Daily school weather');

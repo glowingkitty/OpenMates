@@ -25,6 +25,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Workspace sidebar', () => {
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.detail.shared-template-runs-tabs,workflows-ui.template.centered-in-place-editor
   test('opens a workflow from the mobile workspace drawer', async ({ page }) => {
     test.setTimeout(180000);
     test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -67,7 +68,7 @@ test.describe('Workspace sidebar', () => {
       const workflowRow = sidebar.getByTestId('workflow-sidebar-row').filter({ hasText: title });
       await expect(workflowRow).toBeVisible({ timeout: 30000 });
       await workflowRow.click();
-      await expect(page.getByTestId('workflow-editor')).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId('workspace-detail-title')).toHaveText(title);
       await page.getByTestId('workflow-run-history').click();
       await expect(page).toHaveURL(new RegExp(`/workflows#workflow-id=${workflowId}&workflow-tab=runs$`));
