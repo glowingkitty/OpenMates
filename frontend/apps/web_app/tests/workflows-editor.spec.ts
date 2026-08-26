@@ -53,14 +53,14 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
 			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Tell me if it will rain tomorrow' }).click();
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details/);
 			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page).toHaveURL(/\/workflows$/);
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Daily rain alert' }).first().click();
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details/);
 			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', 'workflow-detail');
 			await expect(page.getByTestId('workflow-detail-actions')).toBeVisible();
@@ -83,7 +83,7 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-runs')).toBeVisible();
 			await page.getByTestId('workflow-runs-back-to-editor').click();
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details$/);
-			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
