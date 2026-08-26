@@ -54,8 +54,6 @@ import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcr
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
 import { frontendDeveloperCareerPivotChat } from "./data/example_chats/frontend-developer-career-pivot";
-import { memoryAiCommunicationStyleChat } from "./data/example_chats/memory-ai-communication-style";
-import { memoryAiLearningPreferencesChat } from "./data/example_chats/memory-ai-learning-preferences";
 import { memoryBooksFavoriteBooksChat } from "./data/example_chats/memory-books-favorite-books";
 import { memoryBooksCurrentlyReadingChat } from "./data/example_chats/memory-books-currently-reading";
 import { memoryBooksToReadListChat } from "./data/example_chats/memory-books-to-read-list";
@@ -161,8 +159,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   usEggPricesDeepResearchChat,
   frameworkStoreReputationCheckChat,
   frontendDeveloperCareerPivotChat,
-  memoryAiCommunicationStyleChat,
-  memoryAiLearningPreferencesChat,
   memoryBooksFavoriteBooksChat,
   memoryBooksCurrentlyReadingChat,
   memoryBooksToReadListChat,

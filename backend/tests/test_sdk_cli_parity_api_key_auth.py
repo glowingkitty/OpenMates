@@ -27,6 +27,11 @@ except ImportError as _exc:
     pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
 
 
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"
+
+
 class _FakeDirectusService:
     def __init__(self):
         self.chat = SimpleNamespace(
@@ -538,6 +543,38 @@ async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
     )
 
     assert result == {"apps": [{"id": "calendar", "memory": True}]}
+
+
+@pytest.mark.anyio
+async def test_sdk_dispatch_ai_memories_are_absent_and_rejected():
+    list_result = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"app_id": "ai"}),
+        {"user_id": "user-1"},
+        "memories",
+        "",
+        None,
+    )
+    assert list_result == {"memories": []}
+
+    with pytest.raises(HTTPException) as exc:
+        await _dispatch_sdk_surface(
+            _FakeRequest(method="POST"),
+            {"user_id": "user-1"},
+            "memories",
+            "",
+            {
+                "entry": {
+                    "id": "memory-1",
+                    "app_id": "ai",
+                    "item_key": "hash",
+                    "item_type": "communication_style",
+                    "encrypted_item_json": "ciphertext",
+                }
+            },
+        )
+
+    assert exc.value.status_code == 410
+    assert exc.value.detail == "AI memories are no longer supported"
 
 
 @pytest.mark.asyncio

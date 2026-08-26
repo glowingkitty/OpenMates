@@ -2,6 +2,7 @@ import logging
 from typing import Any, Optional, Union, List, Tuple, Literal, Dict
 from datetime import datetime, timezone
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
+from backend.shared.python_utils.app_memory_policy import is_removed_app_memory, is_removed_app_memory_key
 
 logger = logging.getLogger(__name__)
 
@@ -2404,6 +2405,8 @@ class ChatCacheMixin:
         Returns:
             App settings/memories data dictionary if found, None otherwise
         """
+        if is_removed_app_memory(app_id):
+            return None
         client = await self.client
         if not client:
             return None
@@ -2449,6 +2452,9 @@ class ChatCacheMixin:
         Returns:
             True if successful, False otherwise
         """
+        if is_removed_app_memory(app_id):
+            logger.warning("Rejected chat cache write for removed app-memory owner '%s'", app_id)
+            return False
         client = await self.client
         if not client:
             logger.warning(f"Redis client not available, skipping app settings/memories cache for {app_id}:{item_key}")
@@ -2573,6 +2579,8 @@ class ChatCacheMixin:
         logger.info(f"[DEBUG] get_app_settings_memories_batch_from_cache called with requested_keys={requested_keys} for chat {chat_id}")
         
         for key_str in requested_keys:
+            if is_removed_app_memory_key(key_str):
+                continue
             try:
                 # Parse "app_id:item_key" format
                 parts = key_str.split(":", 1)

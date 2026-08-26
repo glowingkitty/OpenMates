@@ -2,6 +2,8 @@ import logging
 import hashlib
 from typing import Any, Optional, Dict
 
+from backend.shared.python_utils.app_memory_policy import is_removed_app_memory
+
 logger = logging.getLogger(__name__)
 
 
@@ -424,6 +426,9 @@ class UserCacheMixin:
         self, user_id_hash: str, app_id: str, item_key: str, encrypted_value_json: str, ttl: Optional[int] = None
     ) -> bool:
         """Caches an encrypted user app setting or memory item value (JSON string)."""
+        if is_removed_app_memory(app_id):
+            logger.warning("Rejected cache write for removed app-memory owner '%s'", app_id)
+            return False
         key = self._get_user_app_settings_and_memories_key(user_id_hash, app_id, item_key)
         final_ttl = ttl if ttl is not None else self.USER_APP_DATA_TTL
         logger.debug(f"Cache SET for user app data item: Key '{key}', TTL: {final_ttl}s")
@@ -442,6 +447,8 @@ class UserCacheMixin:
         self, user_id_hash: str, app_id: str, item_key: str, refresh_ttl: bool = True
     ) -> Optional[str]:
         """Gets an encrypted user app setting or memory item value (JSON string) from cache. Optionally refreshes TTL."""
+        if is_removed_app_memory(app_id):
+            return None
         key = self._get_user_app_settings_and_memories_key(user_id_hash, app_id, item_key)
         logger.debug(f"Cache GET for user app data item: Key '{key}'")
         try:

@@ -1,18 +1,17 @@
 <!-- frontend/packages/ui/src/components/settings/SettingsAI.svelte
      Top-level AI settings page consolidating model selection, pricing,
-     and memories that previously lived under the AI app in the
+     and provider controls that previously lived under the AI app in the
      Apps. Replaces the old "Chat" settings sidebar entry.
 
      Sections:
      1. Pricing
      2. Default models
-     3. Memories
-     4. Available models
-     5. Available providers (server provider toggles)
+     3. Available models
+     4. Available providers (server provider toggles)
 -->
 
 <script lang="ts">
-    import { createEventDispatcher, onMount } from 'svelte';
+    import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { authStore } from '../../stores/authStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
@@ -20,16 +19,12 @@
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { providersMetadata } from '../../data/providersMetadata';
     import { simplifyProviderName } from '../../utils/providerDisplay';
-    import { appSkillsStore } from '../../stores/appSkillsStore';
-    import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
     import { notificationStore } from '../../stores/notificationStore';
     import { getApiUrl, apiEndpoints } from '../../config/api';
     import { SettingsSectionHeading } from './elements';
     import Toggle from '../Toggle.svelte';
     import Icon from '../Icon.svelte';
     import SearchSortBar from './SearchSortBar.svelte';
-    import AppStoreCard from './AppStoreCard.svelte';
-    import type { AppMetadata } from '../../types/apps';
 
     const dispatch = createEventDispatcher();
 
@@ -303,21 +298,6 @@
         { value: 'new',         label: $text('settings.ai_ask.ai_ask_settings.sort_by_new') },
     ]);
 
-    // ─── Memories section ─────────────────────────────────────
-
-    let storeState = $state(appSkillsStore.getState());
-    let aiApp = $derived<AppMetadata | undefined>(storeState.apps['ai']);
-    let memoryFields = $derived(aiApp?.settings_and_memories || []);
-
-    onMount(async () => {
-        if (!isAuthenticated) return;
-        try {
-            await appSettingsMemoriesStore.loadEntriesForApp('ai');
-        } catch (err) {
-            console.error('[SettingsAI] Error loading AI memories:', err);
-        }
-    });
-
     // ─── Available providers section ─────────────────────────────────────
     // Collect unique server providers from all AI Ask models.
     // Each server entry has: id, name, region (EU/US/global).
@@ -389,16 +369,6 @@
         }
     }
 
-    function handleMemoryCategorySelect(categoryId: string) {
-        dispatch('openSettings', {
-            settingsPath: `apps/ai/settings_memories/${categoryId}`,
-            direction: 'forward',
-            icon: 'ai',
-            title: $text(memoryFields.find(c => c.id === categoryId)?.name_translation_key || categoryId),
-            cameFrom: 'ai',
-            cameFromTitle: $text('settings.ai'),
-        });
-    }
 </script>
 
 <div class="ai-settings" data-testid="ai-settings">
@@ -556,37 +526,7 @@
         </div>
     {/if}
 
-    <!-- 3. Memories section - only for authenticated users with AI memories -->
-    {#if memoryFields.length > 0}
-        <div class="section">
-            <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
-            <p class="memories-description">{$text('settings.app_store.settings_memories.section_description')}</p>
-            <div class="items-scroll-container">
-                <div class="items-scroll">
-                    {#each memoryFields as category (category.id)}
-                        {@const categoryApp: AppMetadata = {
-                            id: 'ai',
-                            name_translation_key: category.name_translation_key,
-                            description_translation_key: category.description_translation_key,
-                            icon_image: category.icon_image || aiApp?.icon_image,
-                            icon_colorgradient: aiApp?.icon_colorgradient,
-                            providers: [],
-                            skills: [],
-                            focus_modes: [],
-                            settings_and_memories: []
-                        }}
-                        <AppStoreCard
-                            app={categoryApp}
-                            cardIconType="memory"
-                            onSelect={() => handleMemoryCategorySelect(category.id)}
-                        />
-                    {/each}
-                </div>
-            </div>
-        </div>
-    {/if}
-
-    <!-- 4. Available models section (ordered above providers because users
+    <!-- 3. Available models section (ordered above providers because users
          care more about model selection than the underlying server). -->
     <div class="section">
         <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.available_models')} icon="ai" />
@@ -864,7 +804,7 @@
     }
 
     :global(.dark) .model-select {
-        background-color: var(--color-grey-15);
+        background-color: var(--color-grey-20);
         border-color: var(--color-grey-25);
         color: var(--color-grey-90);
     }
@@ -998,7 +938,7 @@
     }
 
     :global(.dark) .provider-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
 
     .provider-icon {
@@ -1043,36 +983,9 @@
         flex-shrink: 0;
     }
 
-    /* Memories section */
-    .memories-description {
-        margin: 0.35rem 0 0.5rem 0;
-        padding: 0;
-        font-size: 0.9rem;
-        line-height: 1.5;
-        color: var(--color-font-secondary);
-    }
-
-    .items-scroll-container {
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        margin-top: 0.5rem;
-    }
-
-    .items-scroll-container::-webkit-scrollbar {
-        display: none;
-    }
-
-    .items-scroll {
-        display: flex;
-        gap: var(--spacing-6);
-        padding: 4px 0;
-    }
-
     /* Dark mode overrides */
     :global(.dark) .model-item:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
 
     :global(.dark) .provider-logo {

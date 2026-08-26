@@ -20,6 +20,7 @@ from .cache_bank_transfer_mixin import BankTransferCacheMixin
 # from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData # Already in ChatCacheMixin
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML # For discovered_apps_metadata
 from backend.apps.ai.utils.mate_utils import MateConfig # For mates_configs caching
+from backend.shared.python_utils.app_memory_policy import REMOVED_APP_MEMORY_APP_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,41 @@ class CacheService(
         # Initialize the base class which sets up the Redis connection and constants
         super().__init__()
         logger.info("CacheService fully initialized with all mixins.")
+
+    async def purge_removed_app_memory_cache(self) -> int:
+        """Delete removed app-memory payloads and index members across users/chats."""
+        client = await self.client
+        if not client:
+            return 0
+
+        deleted_count = 0
+        for app_id in REMOVED_APP_MEMORY_APP_IDS:
+            patterns = (
+                f"{self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX}*:{app_id}:*",
+                f"chat:*:app_settings_memories:{app_id}:*",
+            )
+            for pattern in patterns:
+                for key in await self.get_keys_by_pattern(pattern):
+                    deleted_count += int(bool(await client.delete(key)))
+
+            for index_key in await self.get_keys_by_pattern(
+                "chat:*:app_settings_memories_keys"
+            ):
+                members = await client.smembers(index_key)
+                removed_members = [
+                    member
+                    for member in members
+                    if (
+                        member.decode("utf-8")
+                        if isinstance(member, bytes)
+                        else str(member)
+                    ).startswith(f"{app_id}:")
+                ]
+                if removed_members:
+                    await client.srem(index_key, *removed_members)
+
+        logger.info("Purged %s removed app-memory cache payload(s)", deleted_count)
+        return deleted_count
 
     async def set_discovered_apps_metadata(self, metadata: Dict[str, AppYAML]):
         """

@@ -61,6 +61,7 @@ const ITEM_TYPE_MIGRATIONS: Record<string, Record<string, string>> = {
     interests: "preferred_activities",
   },
 };
+const REMOVED_APP_MEMORY_APP_IDS = new Set(["ai"]);
 
 interface AppSettingsMemoriesState {
   entries: AppSettingsMemoriesEntry[];
@@ -225,6 +226,14 @@ function createAppSettingsMemoriesStore() {
     },
 
     async loadEntriesForApp(appId: string) {
+      if (REMOVED_APP_MEMORY_APP_IDS.has(appId)) {
+        update((state) => {
+          const entriesByApp = new Map(state.entriesByApp);
+          entriesByApp.delete(appId);
+          return { ...state, entriesByApp, isLoading: false, error: null };
+        });
+        return;
+      }
       update((state) => ({ ...state, isLoading: true, error: null }));
       try {
         const entries = await chatDB.getAppSettingsMemoriesEntriesByApp(appId);
@@ -310,6 +319,9 @@ function createAppSettingsMemoriesStore() {
         settings_group: string;
       },
     ) {
+      if (REMOVED_APP_MEMORY_APP_IDS.has(appId)) {
+        throw new Error("AI memories are no longer supported");
+      }
       // Retrieve master key from storage (IndexedDB or memory based on stayLoggedIn preference)
       const masterKey = await getKeyFromStorage();
 
@@ -482,6 +494,9 @@ function createAppSettingsMemoriesStore() {
         settings_group: string;
       },
     ) {
+      if (REMOVED_APP_MEMORY_APP_IDS.has(appId)) {
+        throw new Error("AI memories are no longer supported");
+      }
       // Retrieve master key from storage (IndexedDB or memory based on stayLoggedIn preference)
       const masterKey = await getKeyFromStorage();
 

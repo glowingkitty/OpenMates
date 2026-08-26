@@ -40,6 +40,7 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
 )
 from backend.shared.python_utils.tracing.ai_observability import ai_phase_span, observe_ai_stream
+from backend.shared.python_utils.app_memory_policy import is_removed_app_memory_key
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
@@ -2517,7 +2518,11 @@ async def handle_main_processing(
         mentioned = request_data.mentioned_settings_memories_cleartext
         if isinstance(mentioned, dict) and mentioned:
             for key, value in mentioned.items():
-                if isinstance(key, str) and value is not None:
+                if (
+                    isinstance(key, str)
+                    and value is not None
+                    and not is_removed_app_memory_key(key)
+                ):
                     loaded_app_settings_and_memories_content[key] = value
             logger.info(f"{log_prefix} Pre-filled {len(mentioned)} app settings/memories from client-mentioned cleartext: {list(mentioned.keys())}")
 
@@ -2529,13 +2534,20 @@ async def handle_main_processing(
                 create_app_settings_memories_request_message
             )
             
-            requested_keys = list(preprocessing_results.load_app_settings_and_memories)
+            requested_keys = [
+                key
+                for key in preprocessing_results.load_app_settings_and_memories
+                if not is_removed_app_memory_key(key)
+            ]
             # Include keys from client-mentioned cleartext so we have a full set; they are already in loaded_app_settings_and_memories_content
             if getattr(request_data, "mentioned_settings_memories_cleartext", None):
                 mentioned = request_data.mentioned_settings_memories_cleartext
                 if isinstance(mentioned, dict):
                     for key in mentioned:
-                        if key not in requested_keys:
+                        if (
+                            key not in requested_keys
+                            and not is_removed_app_memory_key(key)
+                        ):
                             requested_keys.append(key)
             
             # Check cache first (similar to how embeds are handled)

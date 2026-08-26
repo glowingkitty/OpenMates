@@ -429,6 +429,7 @@ async def lifespan(app: FastAPI):
     # --- Initialize all services and store in app.state ---
     logger.info("Initializing services...")
     app.state.cache_service = CacheService()
+    await app.state.cache_service.purge_removed_app_memory_cache()
     app.state.metrics_service = MetricsService()
     app.state.compliance_service = ComplianceService()
     
@@ -473,6 +474,11 @@ async def lifespan(app: FastAPI):
         await asyncio.sleep(min(2 ** (_cms_attempt + 1), 16))
     else:
         logger.error("CMS did not become reachable after 10 attempts. Startup data may be incomplete.")
+
+    from backend.core.api.app.services.app_memory_removal import (
+        purge_removed_app_memory_rows,
+    )
+    await purge_removed_app_memory_rows(app.state.directus_service)
 
     # Initialize server stats service
     from backend.core.api.app.services.server_stats_service import ServerStatsService

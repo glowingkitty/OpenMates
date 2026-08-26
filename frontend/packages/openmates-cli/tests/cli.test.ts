@@ -3252,18 +3252,10 @@ describe("MEMORY_TYPE_REGISTRY", () => {
     assert.ok(def.required.includes("name"), "should require 'name'");
   });
 
-  it("ai/communication_style has enum values for 'tone'", () => {
-    const def = MEMORY_TYPE_REGISTRY["ai/communication_style"];
-    assert.ok(def, "ai/communication_style should exist");
-    const tone = def.properties["tone"];
-    assert.ok(
-      tone?.enum && tone.enum.length > 0,
-      "tone should have enum values",
-    );
-    assert.ok(
-      tone.enum!.includes("formal"),
-      "tone enum should include 'formal'",
-    );
+  it("does not expose removed AI memory types", () => {
+    const keys = Object.keys(MEMORY_TYPE_REGISTRY);
+    assert.equal(keys.some((key) => key.startsWith("ai/")), false);
+    assert.ok(MEMORY_TYPE_REGISTRY["travel/preferred_airlines"]);
   });
 
   it("registry key format matches appId/itemType", () => {
@@ -3339,13 +3331,14 @@ describe("memory schema validation", () => {
     assert.ok(result.valid === false && result.error.includes("guru"));
   });
 
-  it("accepts valid ai/communication_style entry", () => {
+  it("rejects removed ai/communication_style entries", () => {
     const result = validateMemory("ai/communication_style", {
       title: "Work Mode",
       tone: "professional",
       verbosity: "detailed",
     });
-    assert.ok(result.valid);
+    assert.ok(!result.valid);
+    assert.ok(result.valid === false && result.error.includes("Unknown"));
   });
 
   it("rejects unknown memory type", () => {

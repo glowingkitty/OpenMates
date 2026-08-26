@@ -24,6 +24,7 @@ from datetime import datetime
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.shared.python_utils.app_memory_policy import is_removed_app_memory_key
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +213,13 @@ async def create_app_settings_memories_request_message(
     Returns:
         Request ID if successful, None otherwise
     """
+    requested_keys = [
+        key for key in requested_keys if not is_removed_app_memory_key(key)
+    ]
+    if not requested_keys:
+        logger.warning("Skipped app-memory request containing only removed owners")
+        return None
+
     try:
         # Create YAML structure
         yaml_content = _create_request_yaml(requested_keys)
