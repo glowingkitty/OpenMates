@@ -292,13 +292,14 @@ test.describe('Workflows web UI contract', () => {
 			await historicalVersion.click();
 			await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-graph-inspection')).toHaveAttribute('data-read-only', 'true');
+			await expect(page.getByTestId('workflow-version-graph')).toBeVisible({ timeout: 30_000 });
 			await expect(page.getByTestId('workflow-version-graph-inspection')).not.toContainText('app_id');
 			await expect(page.locator('[data-testid="workflow-version-row"][data-current="true"]')).toContainText('Active');
 			if (proof) {
 				await settleProofState(page);
 				await proof.assert('version-visible.assertion', async () => {
 					await expect(page.getByTestId('workflow-version-timeline')).toBeVisible();
-					await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
+					await expect(page.getByTestId('workflow-version-graph')).toBeVisible();
 				});
 				await proof.checkpoint('version-visible');
 				await settleProofState(page);
