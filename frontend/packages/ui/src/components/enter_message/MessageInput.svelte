@@ -5978,7 +5978,7 @@
 
         {#if isDraftPreview && draftPreviewSummary}
             <div class="draft-preview-summary" data-testid="message-draft-summary" aria-hidden="true">
-                {draftPreviewSummary}
+                <span class="draft-preview-summary-text" data-testid="message-draft-summary-text">{draftPreviewSummary}</span>
             </div>
         {/if}
 
@@ -6154,6 +6154,15 @@
 
     .message-field.placeholder-fading :global(.ProseMirror p.is-editor-empty:first-child::before) {
         opacity: 0;
+    }
+
+    .draft-preview-summary-text {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
 	.message-input-wrapper.guest-cta-mode {

@@ -65,9 +65,9 @@ const DRAFT_SELECTION_PROOF = defineVideoProof({
 			devices: ['web-phone', 'web-laptop']
 		},
 		{
-			id: 'target-route-remains-active',
+			id: 'target-identity-remains-visible',
 			checkpoint: 'target-preserved',
-			visual: 'The URL continues to identify the selected target chat.',
+			visual: 'The selected target chat message remains visible.',
 			devices: ['web-phone', 'web-laptop']
 		},
 		{
@@ -254,17 +254,26 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await insertComposerText(page, messageEditor, visibleDraft, visibleDraft);
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 		if (IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-phone') {
+			await messageEditor.locator('[contenteditable="true"]').evaluate((element: HTMLElement) => element.blur());
+			await expect(page.getByTestId('message-draft-summary-text')).toBeVisible();
 			const composerGeometry = await page.evaluate(() => {
 				const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
 				const messageEditor = document.querySelector<HTMLElement>('[data-testid="message-editor"]');
 				const contentEditable = messageEditor?.querySelector<HTMLElement>('[contenteditable="true"]');
-				if (!messageField || !messageEditor || !contentEditable) throw new Error('Composer geometry targets are unavailable');
+				const draftSummaryText = document.querySelector<HTMLElement>('[data-testid="message-draft-summary-text"]');
+				if (!messageField || !messageEditor || !contentEditable || !draftSummaryText) {
+					throw new Error('Composer geometry targets are unavailable');
+				}
 				const fieldRect = messageField.getBoundingClientRect();
 				const editorRect = messageEditor.getBoundingClientRect();
+				const draftSummaryStyle = getComputedStyle(draftSummaryText);
 				return {
 					documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
 					fieldContentOverflow: messageField.scrollWidth - messageField.clientWidth,
 					editorContentOverflow: contentEditable.scrollWidth - contentEditable.clientWidth,
+					draftSummaryOverflow: draftSummaryText.scrollWidth - draftSummaryText.clientWidth,
+					draftSummaryOverflowX: draftSummaryStyle.overflowX,
+					draftSummaryTextOverflow: draftSummaryStyle.textOverflow,
 					fieldRight: fieldRect.right,
 					editorRight: editorRect.right,
 					viewportWidth: window.innerWidth
@@ -273,6 +282,9 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			expect(composerGeometry.documentOverflow, 'Phone composer must not create horizontal page overflow').toBeLessThanOrEqual(1);
 			expect(composerGeometry.fieldContentOverflow, 'Phone message field content must remain clipped to the field').toBeLessThanOrEqual(1);
 			expect(composerGeometry.editorContentOverflow, 'Phone message editor content must fit its editor').toBeLessThanOrEqual(1);
+			expect(composerGeometry.draftSummaryOverflow, 'Phone draft summary should exercise the ellipsis state').toBeGreaterThan(1);
+			expect(composerGeometry.draftSummaryOverflowX, 'Phone draft summary should clip inside its text box').toBe('hidden');
+			expect(composerGeometry.draftSummaryTextOverflow, 'Phone draft summary should show an ellipsis when clipped').toBe('ellipsis');
 			expect(composerGeometry.fieldRight, 'Phone message field must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
 			expect(composerGeometry.editorRight, 'Phone message editor must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
 		}
@@ -357,27 +369,36 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
 		expect(finalDecisions.some((decision) => decision.result === 'skipped')).toBe(true);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+		const targetMessage = page.getByTestId('message-user').filter({ hasText: 'Keep this saved chat selected.' });
+		await expect(targetMessage).toBeVisible();
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
-		if (proof && draftChatId) {
+		if (proof) {
 			await proof.assert('target-remains-rendered', async () => {
 				await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 			});
-			await proof.assert('target-route-remains-active', async () => {
-				await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId)}`);
+			await proof.assert('target-identity-remains-visible', async () => {
+				await expect(targetMessage).toBeVisible();
 			});
 			await proof.assert('draft-does-not-reopen', async () => {
 				expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
 			});
 			await proof.checkpoint('target-preserved');
+		}
+		if (draftChatId) {
 			await page.evaluate((chatId: string) => {
 				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
 			}, draftChatId);
-			await proof.assert('draft-remains-navigable', async () => {
+			const assertDraftRemainsNavigable = async () => {
 				await expect(page.getByTestId('active-chat-container'))
 					.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 });
-			});
-			await proof.checkpoint('draft-reopened');
-			await proof.attach();
+			};
+			if (proof) {
+				await proof.assert('draft-remains-navigable', assertDraftRemainsNavigable);
+				await proof.checkpoint('draft-reopened');
+				await proof.attach();
+			} else {
+				await assertDraftRemainsNavigable();
+			}
 		}
 	} finally {
 		await page.evaluate(() => {
