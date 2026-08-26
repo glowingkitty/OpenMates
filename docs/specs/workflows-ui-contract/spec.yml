@@ -538,8 +538,13 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-1, AC-8]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: python3 scripts/workflow_identity_real_test.py
+      run_id: workflow-identity-real-dev-20260826T0210Z
+      timestamp: '2026-08-26T02:10:32Z'
+      subject_commit: 7b257e2ce518fa01dc85df35efd65034aec59ce4
+      result: Unauthenticated list returned 401; authenticated create, list, detail, update, and delete preserved category and icon metadata.
   - id: V-CLI-DEV
     kind: automated_test
     phase: green
@@ -866,8 +871,8 @@ tasks:
     surfaces: [rest_api]
   - id: TASK-4
     title: Prove the real dev REST identity contract
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-7]
       acceptance_criteria: [AC-1, AC-8]
@@ -888,7 +893,7 @@ tasks:
     surfaces: [rest_api]
   - id: TASK-5
     title: Add CLI identity output and real dev proof
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-7]
@@ -1165,11 +1170,16 @@ attempts:
     approach: Implement graph-first identity resolution, bounded classification, encrypted persistence, legacy fallback, route integration, and development-log redaction.
     outcome: succeeded
     recorded_at: '2026-08-26T00:00:00Z'
+  - id: ATTEMPT-6
+    task_id: TASK-4
+    approach: Deploy the backend contract, rebuild the integrated dev runtime under the shared Docker lock, and run the authenticated real REST probe.
+    outcome: succeeded
+    recorded_at: '2026-08-26T02:10:32Z'
 
 handoff:
-  current_task_id: TASK-4
-  next_action: Restart the session API and prove authenticated create/list/detail/update plus unauthorized behavior against the real dev endpoint.
-  command: python3 scripts/sessions.py docker restart --session 79f3 --service api --build
-  expected_outcome: The local Docker-backed dev API serves the session Workflow identity implementation and is ready for direct REST proof.
+  current_task_id: TASK-5
+  next_action: Add Workflow category and icon to CLI list/detail output and prove the real CLI behavior against the dev API.
+  command: python3 scripts/audit_sdk_cli_parity.py
+  expected_outcome: CLI Workflow output exposes stable category and icon metadata without ciphertext before SDK parity work begins.
   blocker: null
-  last_verified_commit: b0daef15ddfd712814906ea25568c5f1cee5e704
+  last_verified_commit: 7b257e2ce518fa01dc85df35efd65034aec59ce4

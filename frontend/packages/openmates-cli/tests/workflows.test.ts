@@ -120,7 +120,7 @@ describe("OpenMatesClient workflows", () => {
     ]);
   });
 
-  // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity,cli.slugs.encrypted-stable,cli.slugs.local-resolution-id-transport,cli.surface.semantic-parity
+  // contract-test: direct surface=cli assertions=workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,cli.slugs.encrypted-stable,cli.slugs.local-resolution-id-transport,cli.surface.semantic-parity
   it("creates, lists, and updates workflows through typed endpoints", async () => {
     const graph = minimalGraph();
     const masterKey = Buffer.alloc(32);
@@ -134,12 +134,12 @@ describe("OpenMatesClient workflows", () => {
         if (request.method === "GET") {
           return {
             workflows: [
-              { id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields },
+              { id: "wf-1", title: "Morning", category: "productivity", icon: "sunrise", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields },
             ],
           };
         }
         return {
-          workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields },
+          workflow: { id: "wf-1", title: "Morning", category: "productivity", icon: "sunrise", status: "active", enabled: true, run_content_retention: "none", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields },
         };
       },
       async (apiUrl, seen) => {
@@ -151,6 +151,8 @@ describe("OpenMatesClient workflows", () => {
         const keptWorkflow = await client.keepWorkflow("wf-1");
 
         assert.equal(listedWorkflow?.id, "wf-1");
+        assert.equal(listedWorkflow?.category, "productivity");
+        assert.equal(listedWorkflow?.icon, "sunrise");
         assert.equal(temporaryWorkflow?.id, "wf-1");
         assert.equal(createdWorkflow.enabled, true);
         assert.equal(updatedWorkflow.id, "wf-1");

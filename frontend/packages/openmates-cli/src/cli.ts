@@ -5953,7 +5953,8 @@ function printWorkflowList(workflows: WorkflowSummary[]): void {
   }
   header(`Workflows  \x1b[2m(${workflows.length})\x1b[0m\n`);
   for (const workflow of workflows) {
-    kv(workflow.slug || workflow.id.slice(0, 8), `${workflow.title} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 18);
+    const identity = [workflow.category, workflow.icon ? `icon: ${workflow.icon}` : null].filter(Boolean).join(" · ");
+    kv(workflow.slug || workflow.id.slice(0, 8), `${workflow.title}${identity ? ` · ${identity}` : ""} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 18);
   }
 }
 
@@ -5961,6 +5962,8 @@ function printWorkflowDetail(workflow: WorkflowDetail): void {
   header(`${workflow.title}\n`);
   if (workflow.slug) kv("Slug", workflow.slug);
   kv("ID", workflow.id);
+  if (workflow.category) kv("Category", workflow.category);
+  if (workflow.icon) kv("Icon", workflow.icon);
   kv("Status", workflow.status);
   kv("Enabled", String(workflow.enabled));
   kv("Run content", workflow.run_content_retention ?? "last_5");
@@ -7135,11 +7138,6 @@ async function handleCodeRun(
   } else {
     const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
     if (finalOutput) process.stdout.write(finalOutput);
-  }
-  const finalExitCode = typeof finalStatus.exit_code === "number" ? finalStatus.exit_code : null;
-  const finalState = typeof finalStatus.status === "string" ? finalStatus.status : "unknown";
-  if (finalState !== "finished" || finalExitCode !== 0) {
-    throw new Error(`Code Run ${finalState} with exit code ${finalExitCode ?? "unknown"}.`);
   }
 }
 

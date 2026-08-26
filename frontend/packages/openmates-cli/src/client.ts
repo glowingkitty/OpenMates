@@ -652,6 +652,8 @@ export interface WorkflowSummary {
   slug_lookup_hash?: string | null;
   title: string;
   description?: string | null;
+  category?: string;
+  icon?: string;
   status: "draft" | "active" | "disabled" | "error" | "deleted";
   enabled: boolean;
   lifecycle?: WorkflowLifecycle;
