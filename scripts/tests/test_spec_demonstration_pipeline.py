@@ -140,6 +140,171 @@ def test_playwright_source_rejects_missing_required_provenance(tmp_path: Path) -
         )
 
 
+def test_browser_tutorial_plan_preserves_source_and_inserts_checkpoint_holds(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    source.write_bytes(b"video")
+    first = tmp_path / "first.png"
+    second = tmp_path / "second.png"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    timeline = {
+        "contract": {
+            "surface": "web",
+            "domain": "app.dev.openmates.org",
+            "devices": ["web-laptop"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [
+                {"id": "first", "text": "First state.", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second", "text": "Second stable state.", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+            "assertions": [
+                {"id": "first.visible", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second.visible", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+        },
+        "events": [
+            {"kind": "checkpoint", "id": "first-ready", "at_ms": 1000},
+            {"kind": "checkpoint", "id": "second-ready", "at_ms": 3000},
+        ],
+        "checkpoint_frames": [
+            {"checkpoint": "first-ready", "path": str(first), "sha256": module.sha256_file(first)},
+            {"checkpoint": "second-ready", "path": str(second), "sha256": module.sha256_file(second)},
+        ],
+    }
+
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=4.0,
+        device_profile_name="web-laptop",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+
+    assert plan["request"]["renderer"] == "openmates-remotion-browser-v1"
+    assert plan["request"]["presentationMode"] == "browser-frame-scaled-full-viewport"
+    assert plan["request"]["domain"] == "app.dev.openmates.org"
+    assert plan["request"]["sourceHash"] == module.sha256_file(source)
+    assert plan["request"]["segments"] == [
+        {"kind": "freeze", "source_image": str(first), "source_sha256": module.sha256_file(first), "duration_ms": 1000, "cue_id": "first"},
+        {"kind": "video", "source_from_ms": 1000, "source_to_ms": 3000, "duration_ms": 2000},
+        {"kind": "freeze", "source_image": str(second), "source_sha256": module.sha256_file(second), "duration_ms": 1500, "cue_id": "second"},
+        {"kind": "video", "source_from_ms": 3000, "source_to_ms": 4000, "duration_ms": 1000},
+    ]
+    assert plan["caption_segments"] == [
+        {"id": "CAP-1", "narration_id": "NARR-1", "text": "First state.", "start": 0.0, "end": 1.0, "claim_ids": ["first.visible"]},
+        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Second stable state.", "start": 3.0, "end": 4.5, "claim_ids": ["second.visible"]},
+    ]
+    assert plan["claim_anchor_times"] == {"first.visible": 0.0, "second.visible": 3.0}
+    assert plan["duration_seconds"] == 5.5
+
+    timeline["contract"]["assertions"][1]["checkpoint"] = "missing"
+    with pytest.raises(module.DemonstrationError, match="must map to one captured transcript checkpoint"):
+        module.build_browser_tutorial_plan(
+            timeline,
+            source_video=source,
+            source_end_seconds=4.0,
+            device_profile_name="web-laptop",
+            contract_hash="sha256:" + "a" * 64,
+            timeline_hash="sha256:" + "b" * 64,
+            narration_id="NARR-1",
+        )
+
+    timeline["contract"]["assertions"][1]["checkpoint"] = "second-ready"
+    timeline["contract"]["assertions"][0]["checkpoint"] = "second-ready"
+    with pytest.raises(module.DemonstrationError, match="transcript checkpoint must carry an assertion"):
+        module.build_browser_tutorial_plan(
+            timeline,
+            source_video=source,
+            source_end_seconds=4.0,
+            device_profile_name="web-laptop",
+            contract_hash="sha256:" + "a" * 64,
+            timeline_hash="sha256:" + "b" * 64,
+            narration_id="NARR-1",
+        )
+    timeline["contract"]["assertions"][0]["checkpoint"] = "first-ready"
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=4.0,
+        device_profile_name="web-laptop",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+    source.write_bytes(b"changed")
+    with pytest.raises(module.DemonstrationError, match="source video is missing or changed"):
+        module.render_browser_tutorial(plan["request"], tmp_path / "output.mp4")
+    source.write_bytes(b"video")
+    first.write_bytes(b"changed-frame")
+    with pytest.raises(module.DemonstrationError, match="checkpoint frame is missing or changed"):
+        module.render_browser_tutorial(plan["request"], tmp_path / "output.mp4")
+
+
+def test_node_remotion_renderer_rejects_tampered_browser_inputs(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    frame = tmp_path / "frame.png"
+    source.write_bytes(b"source")
+    frame.write_bytes(b"frame")
+    request = {
+        "renderer": "openmates-remotion-browser-v1",
+        "sourceVideo": str(source),
+        "sourceHash": "sha256:" + "0" * 64,
+        "segments": [],
+    }
+    request_path = tmp_path / "request.json"
+    request_path.write_text(json.dumps(request), encoding="utf-8")
+    renderer = ROOT / "tooling/proof-video-remotion/src/render.mjs"
+
+    source_result = subprocess.run(
+        ["node", str(renderer), str(request_path), str(tmp_path / "output.mp4")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert source_result.returncode != 0
+    assert "source hash changed after planning" in source_result.stderr
+
+    request["sourceHash"] = module.sha256_file(source)
+    request["segments"] = [
+        {
+            "kind": "freeze",
+            "source_image": str(frame),
+            "source_sha256": "sha256:" + "0" * 64,
+            "duration_ms": 1000,
+            "cue_id": "ready",
+        }
+    ]
+    request_path.write_text(json.dumps(request), encoding="utf-8")
+    frame_result = subprocess.run(
+        ["node", str(renderer), str(request_path), str(tmp_path / "output.mp4")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert frame_result.returncode != 0
+    assert "checkpoint hash changed after planning" in frame_result.stderr
+
+    request = {
+        "renderer": "openmates-remotion-terminal-v1",
+        "sourceVideo": str(source),
+        "sourceHash": module.sha256_file(source),
+        "sourceSha256": "sha256:" + "0" * 64,
+    }
+    request_path.write_text(json.dumps(request), encoding="utf-8")
+    terminal_result = subprocess.run(
+        ["node", str(renderer), str(request_path), str(tmp_path / "output.mp4")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert terminal_result.returncode != 0
+    assert "source hash changed after planning" in terminal_result.stderr
+
+
 def test_pty_capture_records_exact_argv_output_timing_and_exit_status(tmp_path: Path) -> None:
     module = load_module()
     result = module.capture_pty(

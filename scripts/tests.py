@@ -1727,11 +1727,21 @@ def auto_finalize_proof_video_sources(
                 from proof_video_workflow import calculate_pacing, marker_trim_start
         if source_duration_hook is None:
             try:
-                from scripts.spec_demo import media_duration_seconds as active_source_duration_hook
+                from scripts.spec_demo import (
+                    build_browser_tutorial_plan as active_browser_tutorial_plan_hook,
+                    media_duration_seconds as active_source_duration_hook,
+                )
             except ModuleNotFoundError:
-                from spec_demo import media_duration_seconds as active_source_duration_hook
+                from spec_demo import (
+                    build_browser_tutorial_plan as active_browser_tutorial_plan_hook,
+                    media_duration_seconds as active_source_duration_hook,
+                )
         else:
             active_source_duration_hook = source_duration_hook
+            try:
+                from scripts.spec_demo import build_browser_tutorial_plan as active_browser_tutorial_plan_hook
+            except ModuleNotFoundError:
+                from spec_demo import build_browser_tutorial_plan as active_browser_tutorial_plan_hook
         device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
         if surface == "apple" and device_profile not in {"apple-iphone-portrait", "apple-ipad-landscape"}:
             raise RuntimeError("Apple proof timeline requires an exact Apple device profile")
@@ -1764,20 +1774,26 @@ def auto_finalize_proof_video_sources(
             for item in timeline_events
             if item.get("kind") == "checkpoint" and item.get("id") and item.get("at_ms") is not None
         }
-        assertion_times_by_id = {
-            str(item.get("id")): float(item.get("at_ms") or 0) / 1000
-            for item in assertion_events
-            if item.get("id") and item.get("at_ms") is not None
-        }
         assertion_checkpoint_ids = {
             str(item.get("id")): str(item.get("checkpoint"))
             for item in (contract.get("assertions") if isinstance(contract.get("assertions"), list) else [])
-            if isinstance(item, dict) and item.get("id") and item.get("checkpoint")
+            if isinstance(item, dict)
+            and item.get("id")
+            and item.get("checkpoint")
+            and device_profile in (item.get("devices") if isinstance(item.get("devices"), list) else [])
         }
-        assertion_anchor_times_by_id = {
-            assertion_id: checkpoint_times_by_id.get(checkpoint_id, assertion_times_by_id.get(assertion_id))
+        missing_assertion_checkpoints = sorted(
+            assertion_id
             for assertion_id, checkpoint_id in assertion_checkpoint_ids.items()
-            if checkpoint_id in checkpoint_times_by_id or assertion_id in assertion_times_by_id
+            if checkpoint_id not in checkpoint_times_by_id
+        )
+        if missing_assertion_checkpoints:
+            raise RuntimeError(
+                f"Proof assertion checkpoint was not captured: {missing_assertion_checkpoints[0]}"
+            )
+        assertion_anchor_times_by_id = {
+            assertion_id: checkpoint_times_by_id[checkpoint_id]
+            for assertion_id, checkpoint_id in assertion_checkpoint_ids.items()
         }
         action_times: list[float] = []
         for item in timeline_events:
@@ -1828,6 +1844,17 @@ def auto_finalize_proof_video_sources(
             source["browser_domain"] = str(claims.get("domain") or contract.get("domain") or "")
         if source_end_timestamp_seconds is not None:
             source["source_end_timestamp_seconds"] = round(source_end_timestamp_seconds, 3)
+        browser_tutorial_plan = None
+        if surface == "web":
+            browser_tutorial_plan = active_browser_tutorial_plan_hook(
+                timeline,
+                source_video=source_video,
+                source_end_seconds=source_end_timestamp_seconds or source_media_duration_seconds,
+                device_profile_name=device_profile,
+                contract_hash=str(claims["contract_hash"]),
+                timeline_hash=str(record.get("proof_timeline_sha256") or ""),
+                narration_id=f"auto-{Path(spec_name).stem}",
+            )
         manifest = active_produce_hook(
             run_dir=run_dir,
             source_video=source_video,
@@ -1846,6 +1873,7 @@ def auto_finalize_proof_video_sources(
             playback_rate=pacing.playback_rate,
             hold_last_frame_seconds=pacing.final_hold_seconds,
             ready_timestamp_seconds=ready_timestamp_seconds,
+            browser_tutorial_plan=browser_tutorial_plan,
         )
         review = active_review_hook(run_dir=run_dir, correction_round=0, correction_kind="none")
         manifest = review.get("manifest") if isinstance(review.get("manifest"), dict) else manifest

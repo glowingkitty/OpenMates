@@ -18,6 +18,16 @@ async function captureBrowserProofFrame(page: any): Promise<Buffer> {
 	return page.screenshot({type: 'png'});
 }
 
+async function waitForFiniteVisualMotion(page: any, testId: string): Promise<void> {
+	await page.getByTestId(testId).evaluate(async (element: Element) => {
+		const finiteAnimations = element.getAnimations({subtree: true}).filter((animation) => {
+			const endTime = animation.effect?.getComputedTiming().endTime;
+			return typeof endTime === 'number' && Number.isFinite(endTime);
+		});
+		await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
+	});
+}
+
 const proofContract = defineVideoProof({
 	id: 'proof-video-browser-architecture',
 	title: 'Explore the OpenMates welcome stories',
@@ -48,7 +58,7 @@ const proofContract = defineVideoProof({
 		{
 			id: 'welcome.shell.visible',
 			checkpoint: 'welcome-visible',
-			visual: 'The OpenMates welcome interface is fully visible without clipping or loading errors.',
+			visual: 'The OpenMates welcome interface is fully visible with its intentional neighboring carousel-card preview and no loading errors.',
 			devices: ['web-laptop']
 		},
 		{
@@ -60,7 +70,7 @@ const proofContract = defineVideoProof({
 		{
 			id: 'welcome.privacy.visible',
 			checkpoint: 'privacy-visible',
-			visual: 'The Privacy and safety story is visible with no overlapping or truncated content.',
+			visual: 'The Privacy and safety story is visible while the intentional neighboring card preview stays at the edge without covering the primary content.',
 			devices: ['web-laptop']
 		}
 	],
@@ -80,6 +90,7 @@ test.describe('Proof video browser architecture', () => {
 		await proof.assert('welcome.shell.visible', async () => {
 			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({timeout: 15000});
 		});
+		await waitForFiniteVisualMotion(page, 'landing-intro-expanded');
 		await proof.checkpoint('welcome-visible');
 
 		await proof.action('open-actionable-story', async () => {
@@ -90,6 +101,7 @@ test.describe('Proof video browser architecture', () => {
 			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
 			await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
 		});
+		await waitForFiniteVisualMotion(page, 'guest-slide-content');
 		await proof.checkpoint('actionable-visible');
 
 		await proof.action('open-privacy-story', async () => {
@@ -100,6 +112,7 @@ test.describe('Proof video browser architecture', () => {
 			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
 			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety', {timeout: 5000});
 		});
+		await waitForFiniteVisualMotion(page, 'guest-slide-content');
 		await proof.checkpoint('privacy-visible');
 		await proof.attach();
 	});

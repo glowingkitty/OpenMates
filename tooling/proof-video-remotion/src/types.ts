@@ -12,7 +12,9 @@ export type TutorialSegment =
 export interface BrowserTutorialProps extends Record<string, unknown> {
 	schemaVersion: number;
 	renderer: string;
+	presentationMode: 'browser-frame-scaled-full-viewport';
 	sourceVideo: string;
+	sourceHash: string;
 	domain: string;
 	deviceProfile: string;
 	viewport: {width: number; height: number};

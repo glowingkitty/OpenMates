@@ -15,7 +15,9 @@ import type {BrowserTutorialProps, TerminalTutorialProps} from './types';
 const defaults: BrowserTutorialProps = {
 	schemaVersion: 1,
 	renderer: 'openmates-remotion-browser-v1',
+	presentationMode: 'browser-frame-scaled-full-viewport',
 	sourceVideo: 'source.webm',
+	sourceHash: 'sha256:default',
 	domain: 'app.dev.openmates.org',
 	deviceProfile: 'web-laptop',
 	viewport: {width: 1440, height: 900},

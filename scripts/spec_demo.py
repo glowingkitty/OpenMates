@@ -408,6 +408,232 @@ def assert_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str
         raise DemonstrationError(f"Proof-video aspect ratio does not match device profile {profile['id']}")
 
 
+def _proof_renderer_hash() -> str:
+    renderer_root = REPO_ROOT / "tooling/proof-video-remotion/src"
+    renderer_files = [
+        *sorted(path for path in renderer_root.iterdir() if path.suffix in {".ts", ".tsx", ".mjs"}),
+        REPO_ROOT / "tooling/proof-video-remotion/package.json",
+        REPO_ROOT / "pnpm-lock.yaml",
+    ]
+    digest = hashlib.sha256()
+    for path in renderer_files:
+        if not path.is_file():
+            raise DemonstrationError(f"Proof-video Remotion renderer file is missing: {path}")
+        digest.update(path.relative_to(REPO_ROOT).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
+
+
+def build_browser_tutorial_plan(
+    timeline: dict[str, Any],
+    *,
+    source_video: Path,
+    source_end_seconds: float,
+    device_profile_name: str,
+    contract_hash: str,
+    timeline_hash: str,
+    narration_id: str,
+) -> dict[str, Any]:
+    """Compile chronological source intervals and transcript-derived checkpoint freezes."""
+    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+    if contract.get("surface") != "web" or not str(contract.get("domain") or "").strip():
+        raise DemonstrationError("Browser tutorial requires a web contract with an attested domain")
+    profile = resolve_device_profile(device_profile_name)
+    if profile is None or not str(profile["id"]).startswith("web-"):
+        raise DemonstrationError("Browser tutorial requires an exact web device profile")
+    transcript = [
+        item
+        for item in (contract.get("transcript") if isinstance(contract.get("transcript"), list) else [])
+        if isinstance(item, dict)
+        and profile["id"] in (item.get("devices") if isinstance(item.get("devices"), list) else [])
+    ]
+    if not transcript:
+        raise DemonstrationError("Browser tutorial has no transcript for the selected device")
+    checkpoint_times = {
+        str(item.get("id")): int(item.get("at_ms"))
+        for item in (timeline.get("events") if isinstance(timeline.get("events"), list) else [])
+        if isinstance(item, dict)
+        and item.get("kind") == "checkpoint"
+        and item.get("id")
+        and isinstance(item.get("at_ms"), (int, float))
+    }
+    checkpoint_frames = {
+        str(item.get("checkpoint")): item
+        for item in (timeline.get("checkpoint_frames") if isinstance(timeline.get("checkpoint_frames"), list) else [])
+        if isinstance(item, dict) and item.get("checkpoint")
+    }
+    selected_assertions = [
+        assertion
+        for assertion in (contract.get("assertions") if isinstance(contract.get("assertions"), list) else [])
+        if isinstance(assertion, dict)
+        and profile["id"] in (assertion.get("devices") if isinstance(assertion.get("devices"), list) else [])
+    ]
+    transcript_checkpoints = {str(item.get("checkpoint") or "") for item in transcript}
+    if any(
+        not str(assertion.get("id") or "")
+        or str(assertion.get("checkpoint") or "") not in transcript_checkpoints
+        for assertion in selected_assertions
+    ):
+        raise DemonstrationError("Every browser tutorial assertion must map to one captured transcript checkpoint")
+    assertions_by_checkpoint: dict[str, list[str]] = {}
+    for assertion in selected_assertions:
+        if not isinstance(assertion, dict) or profile["id"] not in (
+            assertion.get("devices") if isinstance(assertion.get("devices"), list) else []
+        ):
+            continue
+        assertions_by_checkpoint.setdefault(str(assertion.get("checkpoint") or ""), []).append(
+            str(assertion.get("id") or "")
+        )
+    if any(not assertions_by_checkpoint.get(str(item.get("checkpoint") or "")) for item in transcript):
+        raise DemonstrationError("Every browser tutorial transcript checkpoint must carry an assertion")
+    tutorial = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
+    words_per_second = float(tutorial.get("readingWordsPerSecond") or 0)
+    minimum_hold_ms = int(tutorial.get("minimumHoldMs") or 0)
+    maximum_hold_ms = int(tutorial.get("maximumHoldMs") or 0)
+    if words_per_second <= 0 or not 0 < minimum_hold_ms <= maximum_hold_ms:
+        raise DemonstrationError("Browser tutorial policy has invalid reading or hold bounds")
+    source_end_ms = round(float(source_end_seconds) * 1000)
+    segments: list[dict[str, Any]] = []
+    caption_segments: list[dict[str, Any]] = []
+    claim_anchor_times: dict[str, float] = {}
+    transition_times: list[float] = []
+    output_cursor_ms = 0
+    previous_checkpoint_ms: int | None = None
+    for index, cue in enumerate(transcript, start=1):
+        cue_id = str(cue.get("id") or "")
+        checkpoint_id = str(cue.get("checkpoint") or "")
+        checkpoint_ms = checkpoint_times.get(checkpoint_id)
+        frame = checkpoint_frames.get(checkpoint_id)
+        if checkpoint_ms is None or not isinstance(frame, dict):
+            raise DemonstrationError(f"Browser tutorial checkpoint evidence is missing: {checkpoint_id}")
+        frame_path = Path(str(frame.get("path") or ""))
+        frame_hash = str(frame.get("sha256") or "")
+        if not frame_path.is_file() or sha256_file(frame_path) != frame_hash:
+            raise DemonstrationError(f"Browser tutorial checkpoint frame is missing or changed: {checkpoint_id}")
+        if previous_checkpoint_ms is not None:
+            if checkpoint_ms <= previous_checkpoint_ms:
+                raise DemonstrationError("Browser tutorial checkpoints must be strictly chronological")
+            duration_ms = checkpoint_ms - previous_checkpoint_ms
+            transition_times.append(round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS))
+            segments.append(
+                {
+                    "kind": "video",
+                    "source_from_ms": previous_checkpoint_ms,
+                    "source_to_ms": checkpoint_ms,
+                    "duration_ms": duration_ms,
+                }
+            )
+            output_cursor_ms += duration_ms
+        text = str(cue.get("text") or "").strip()
+        hold_ms = min(
+            maximum_hold_ms,
+            max(minimum_hold_ms, round(len(re.findall(r"\b\w+\b", text)) / words_per_second * 1000)),
+        )
+        caption_start = round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        caption_end = round((output_cursor_ms + hold_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        claim_ids = [value for value in assertions_by_checkpoint.get(checkpoint_id, []) if value]
+        for claim_id in claim_ids:
+            claim_anchor_times[claim_id] = caption_start
+        segments.append(
+            {
+                "kind": "freeze",
+                "source_image": str(frame_path),
+                "source_sha256": frame_hash,
+                "duration_ms": hold_ms,
+                "cue_id": cue_id,
+            }
+        )
+        caption_segments.append(
+            {
+                "id": f"CAP-{index}",
+                "narration_id": narration_id,
+                "text": text,
+                "start": caption_start,
+                "end": caption_end,
+                "claim_ids": claim_ids,
+            }
+        )
+        output_cursor_ms += hold_ms
+        previous_checkpoint_ms = checkpoint_ms
+    if previous_checkpoint_ms is None or source_end_ms < previous_checkpoint_ms:
+        raise DemonstrationError("Browser tutorial source ends before its final checkpoint")
+    if source_end_ms > previous_checkpoint_ms:
+        duration_ms = source_end_ms - previous_checkpoint_ms
+        transition_times.append(round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS))
+        segments.append(
+            {
+                "kind": "video",
+                "source_from_ms": previous_checkpoint_ms,
+                "source_to_ms": source_end_ms,
+                "duration_ms": duration_ms,
+            }
+        )
+        output_cursor_ms += duration_ms
+    renderer_hash = _proof_renderer_hash()
+    request = {
+        "schemaVersion": 1,
+        "renderer": "openmates-remotion-browser-v1",
+        "presentationMode": "browser-frame-scaled-full-viewport",
+        "sourceVideo": str(source_video.resolve()),
+        "sourceHash": sha256_file(source_video),
+        "domain": str(contract["domain"]),
+        "deviceProfile": str(profile["id"]),
+        "viewport": {"width": int(profile["width"]), "height": int(profile["height"])},
+        "output": {"width": int(profile["width"]), "height": int(profile["height"]), "fps": 30},
+        "segments": segments,
+        "contractHash": contract_hash,
+        "timelineHash": timeline_hash,
+        "rendererHash": renderer_hash,
+    }
+    canonical_request = json.loads(json.dumps(request))
+    canonical_request["sourceVideo"] = canonical_request["sourceHash"]
+    for segment in canonical_request["segments"]:
+        if segment.get("kind") == "freeze":
+            segment["source_image"] = segment["source_sha256"]
+    input_hash = f"sha256:{hashlib.sha256(json.dumps(canonical_request, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()}"
+    return {
+        "request": request,
+        "caption_segments": caption_segments,
+        "claim_anchor_times": claim_anchor_times,
+        "transition_times": transition_times,
+        "duration_seconds": round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
+        "renderer_hash": renderer_hash,
+        "input_hash": input_hash,
+    }
+
+
+def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> None:
+    """Render one canonical browser tutorial through the repository Remotion package."""
+    source_path = Path(str(request.get("sourceVideo") or ""))
+    if not source_path.is_file() or sha256_file(source_path) != request.get("sourceHash"):
+        raise DemonstrationError("Browser tutorial source video is missing or changed after planning")
+    for segment in request.get("segments") if isinstance(request.get("segments"), list) else []:
+        if not isinstance(segment, dict) or segment.get("kind") != "freeze":
+            continue
+        frame_path = Path(str(segment.get("source_image") or ""))
+        if not frame_path.is_file() or sha256_file(frame_path) != segment.get("source_sha256"):
+            raise DemonstrationError("Browser tutorial checkpoint frame is missing or changed after planning")
+    request_path = output_path.with_suffix(".remotion.json")
+    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
+    result = subprocess.run(
+        [
+            "node",
+            str(REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"),
+            str(request_path),
+            str(output_path),
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        timeout=600,
+        check=False,
+    )
+    if result.returncode != 0 or not output_path.is_file():
+        raise DemonstrationError(f"Remotion browser tutorial render failed: {(result.stderr or result.stdout).strip()[-1000:]}")
+
+
 def _black_bar_probe_times(duration_seconds: float) -> list[float]:
     if duration_seconds <= 0:
         raise DemonstrationError("Video duration must be positive before black-bar scanning")
@@ -1446,6 +1672,113 @@ def produce_cli_demonstration(
     )
 
 
+def _produce_browser_tutorial_demonstration(
+    *,
+    run_dir: Path,
+    source_video: Path,
+    selected: dict[str, Any],
+    spec_id: str,
+    subject_commit: str,
+    narration_id: str,
+    caption_text: str,
+    expected_proof: str,
+    acceptance_criteria: list[str],
+    proof_assertions: list[dict[str, str]] | None,
+    proof_contract_hash: str,
+    proof_group_id: str,
+    narration_audio_path: Path | None,
+    narration_audio_provider: str,
+    narration_audio_model: str,
+    narration_audio_voice: str,
+    narration_audio_reused_from: str,
+    device_profile_name: str | None,
+    demo_audio_path: Path | None,
+    browser_tutorial_plan: dict[str, Any],
+) -> dict[str, Any]:
+    profile = resolve_device_profile(device_profile_name)
+    if profile is None:
+        raise DemonstrationError("Browser tutorial requires an exact device profile")
+    assert_device_profile_dimensions(video_metadata(source_video), profile)
+    output_duration = float(browser_tutorial_plan.get("duration_seconds") or 0)
+    if not 0 < output_duration <= MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Browser tutorial output must be between zero and 35 seconds")
+    request = browser_tutorial_plan.get("request")
+    caption_segments = browser_tutorial_plan.get("caption_segments")
+    if not isinstance(request, dict) or not isinstance(caption_segments, list) or not caption_segments:
+        raise DemonstrationError("Browser tutorial plan is missing canonical render or caption segments")
+    if " ".join(str(item.get("text") or "").strip() for item in caption_segments) != caption_text.strip():
+        raise DemonstrationError("Browser tutorial captions do not match the approved transcript")
+    run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    run_dir.chmod(0o700)
+    _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
+    captions_path = run_dir / "captions.vtt"
+    write_webvtt_segments(captions_path, caption_segments)
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
+    )
+    video_path = run_dir / "demo.mp4"
+    if narration_audio_path is None:
+        if demo_audio_path is not None:
+            raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
+        render_browser_tutorial(request, video_path)
+    else:
+        remotion_path = run_dir / "browser-remotion.mp4"
+        render_browser_tutorial(request, remotion_path)
+        render_clean_video(
+            remotion_path,
+            Path(str(narration_audio["path"])),
+            video_path,
+            demo_audio_path=demo_audio_path,
+        )
+    rendered_metadata = video_metadata(video_path)
+    if abs(float(rendered_metadata["duration_seconds"]) - output_duration) > 0.1:
+        raise DemonstrationError("Rendered browser tutorial duration does not match its canonical segment plan")
+    claim_anchor_times = browser_tutorial_plan.get("claim_anchor_times")
+    state_change_times = sorted(
+        float(value)
+        for value in (claim_anchor_times.values() if isinstance(claim_anchor_times, dict) else [])
+    )
+    transition_times = [float(value) for value in browser_tutorial_plan.get("transition_times", [])]
+    return prepare_review_artifacts(
+        run_dir=run_dir,
+        video_path=video_path,
+        spec_id=spec_id,
+        subject_commit=subject_commit,
+        narration_id=narration_id,
+        caption_text=caption_text,
+        captions_path=captions_path,
+        expected_proof=expected_proof,
+        acceptance_criteria=acceptance_criteria,
+        proof_assertions=proof_assertions,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
+        source={"kind": "playwright", **selected},
+        narration_audio=narration_audio,
+        caption_segments=caption_segments,
+        device_profile=profile,
+        render_metadata={
+            "rendered_from": "spec_timeline_video_segments",
+            "renderer": str(request.get("renderer") or ""),
+            "renderer_hash": str(browser_tutorial_plan.get("renderer_hash") or ""),
+            "render_input_hash": str(browser_tutorial_plan.get("input_hash") or ""),
+            "edit_segments": request.get("segments"),
+            "browser_domain": str(request.get("domain") or ""),
+        },
+        scene_times=detect_scene_change_times(video_path),
+        action_times=transition_times,
+        state_change_times=state_change_times,
+    )
+
+
 def produce_playwright_demonstration(
     *,
     run_dir: Path,
@@ -1470,9 +1803,33 @@ def produce_playwright_demonstration(
     hold_last_frame_seconds: float = 0.0,
     ready_timestamp_seconds: float | None = None,
     demo_audio_path: Path | None = None,
+    browser_tutorial_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
+    if browser_tutorial_plan is not None:
+        return _produce_browser_tutorial_demonstration(
+            run_dir=run_dir,
+            source_video=source_video,
+            selected=selected,
+            spec_id=spec_id,
+            subject_commit=subject_commit,
+            narration_id=narration_id,
+            caption_text=caption_text,
+            expected_proof=expected_proof,
+            acceptance_criteria=acceptance_criteria,
+            proof_assertions=proof_assertions,
+            proof_contract_hash=proof_contract_hash,
+            proof_group_id=proof_group_id,
+            narration_audio_path=narration_audio_path,
+            narration_audio_provider=narration_audio_provider,
+            narration_audio_model=narration_audio_model,
+            narration_audio_voice=narration_audio_voice,
+            narration_audio_reused_from=narration_audio_reused_from,
+            device_profile_name=device_profile_name,
+            demo_audio_path=demo_audio_path,
+            browser_tutorial_plan=browser_tutorial_plan,
+        )
     render_source_video = source_video
     trim_metadata: dict[str, Any] = {}
     trim_start_seconds = 0.0

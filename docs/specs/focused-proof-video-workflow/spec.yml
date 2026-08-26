@@ -285,7 +285,7 @@ scenarios:
     when:
       - The deterministic renderer builds the tutorial.
     then:
-      - The full source recording plays chronologically from start to end, with no skipped intervals, and transcript-derived holds freeze reached checkpoints.
+      - The proof-relevant source recording plays chronologically from the first assertion-backed checkpoint through the explicit capture end, with no skipped intervals inside that bounded range, and transcript-derived holds freeze reached checkpoints.
       - Freeze holds are visibly marked as paused review moments without replacing the toggleable WebVTT captions.
       - The full real viewport is shown inside a deterministic browser frame with a compact attested-domain address bar and new-tab control.
       - The page pixels contain no proof-only domain overlay; the domain appears only in the browser address bar.
@@ -339,7 +339,7 @@ acceptance_criteria:
   - { id: AC-5, scenario: S-4, text: "The review request contains an immutable hash-bound index of one-to-twelve periodic and event frames per device, the approved contract and metadata, but no full video content; every assertion and incidental visual-integrity finding is reviewed.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
   - { id: AC-6, scenario: S-4, text: "One proof contract is capped at six AI calls, forty-eight cumulative frames, two automatic correction rounds, and one high-confidence product-code correction; uncertain, repeated, forged, or stale results cannot complete the session or publication.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
   - { id: AC-7, scenario: S-5, text: "A proof-enabled `.spec.ts` owns the complete transcript, devices, domain, checkpoints, and paired executable plus visual assertions, and its attached canonical timeline contains no presentation wait requirement.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-SPEC-PROOF-CONTRACT, T-WEB-PROOF-E2E] }
-  - { id: AC-8, scenario: S-6, text: "Remotion renders the full real Playwright recording chronologically with no skipped intervals, inserts visibly paused transcript-derived checkpoint freezes inside authentic deterministic browser chrome with one compact attested-domain address bar, a new-tab control, no in-page domain overlay, and no cropped viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
+  - { id: AC-8, scenario: S-6, text: "Remotion renders the proof-relevant real Playwright recording chronologically from the first assertion-backed checkpoint through explicit capture end with no skipped intervals inside that bounded range, inserts visibly paused transcript-derived checkpoint freezes inside authentic deterministic browser chrome with one compact attested-domain address bar, a new-tab control, no in-page domain overlay, and no cropped viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
   - { id: AC-9, scenario: S-6, text: "The browser tutorial, WebVTT, manifest, and cache identity are reproducibly bound to source video, spec contract, timeline, profile, deployed domain, and renderer hashes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF] }
   - { id: AC-10, scenario: S-7, text: "A real OpenMates CLI E2E journey records 1280x720 pixels from a graphical terminal displaying the tested PTY, visibly types the command character by character before execution, and retains transcript and exit provenance as hash-bound sidecars rather than reconstructed video input.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
   - { id: AC-11, scenario: S-8, text: "A deterministic audit covers all real CLI E2E entry points and rejects unclassified direct CLI spawning that bypasses the shared recorder.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-RECORDING-AUDIT] }
@@ -528,7 +528,7 @@ tests:
     command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py -q
     covers: [AC-8, AC-9]
     assertions:
-      - deterministic edit segments cover the full source recording chronologically and insert transcript-derived freezes without skipped intervals
+      - deterministic edit segments cover the proof-relevant source range chronologically from the first assertion-backed checkpoint through explicit capture end and insert transcript-derived freezes without skipped intervals inside that range
       - rendered browser frame uses one compact domain bar and new-tab control without an in-page domain overlay
       - rendered output preserves source-video action motion, complete checkpoint pixels, and a visible paused-state marker during freezes
       - renderer and input hashes bind output, captions, manifest, and cache identity
