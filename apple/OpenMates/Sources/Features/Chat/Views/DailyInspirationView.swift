@@ -340,7 +340,8 @@ struct InspirationCard: View {
                         .fontWeight(.bold)
                         .foregroundStyle(.white)
                         .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     if let channel = inspiration.video?.channelName {
                         Text(channel)
                             .font(.omXs)
@@ -352,6 +353,7 @@ struct InspirationCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.spacing4)
         }
         .clipShape(RoundedRectangle(cornerRadius: .radius6))
