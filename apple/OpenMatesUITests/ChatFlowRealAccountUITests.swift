@@ -64,7 +64,11 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         let loginReadyMs = Int(Date().timeIntervalSince(started) * 1000)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
         let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
-        RealAccountUITestSupport.awaitAssistantResponseForProof(app: app, timeout: assistantResponseTimeout)
+        let responseVisibleAt = RealAccountUITestSupport.awaitAssistantResponseForProof(
+            app: app,
+            timeout: assistantResponseTimeout
+        )
+        let responseVisibleMs = Int(responseVisibleAt.timeIntervalSince(started) * 1000)
         assertAssistantContentFitsHorizontally(in: app)
         let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
 
@@ -73,6 +77,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             profile: proofDeviceProfile,
             loginReadyMs: loginReadyMs,
             messageSentMs: messageSentMs,
+            responseVisibleMs: responseVisibleMs,
             responseReadyMs: responseReadyMs
         )
     }
@@ -145,6 +150,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         profile: String,
         loginReadyMs: Int,
         messageSentMs: Int,
+        responseVisibleMs: Int,
         responseReadyMs: Int
     ) throws {
         let timeline: [String: Any] = [
@@ -156,23 +162,24 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                 "surface": "apple",
                 "devices": [profile],
                 "transcript": [
-                    ["id": "login", "text": "OpenMates signs in and restores the native chat shell.", "checkpoint": "login-ready", "devices": [profile]],
-                    ["id": "message", "text": "The sent travel prompt remains visible in the native conversation.", "checkpoint": "response-ready", "devices": [profile]],
-                    ["id": "chat", "text": "One assistant response appears below that message without duplication.", "checkpoint": "response-ready", "devices": [profile]],
+                    ["id": "shell", "text": "The authenticated native chat shell shows the sent travel prompt.", "checkpoint": "message-sent", "devices": [profile]],
+                    ["id": "chat", "text": "One assistant response appears below that message without duplication.", "checkpoint": "response-visible", "devices": [profile]],
                 ],
                 "assertions": [
-                    ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "login-ready", "devices": [profile]],
-                    ["id": "chat.response", "visual": "The sent user message and assistant response are visible once.", "checkpoint": "response-ready", "devices": [profile]],
+                    ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "message-sent", "devices": [profile]],
+                    ["id": "chat.response", "visual": "The sent user message and assistant response are visible once.", "checkpoint": "response-visible", "devices": [profile]],
                 ],
             ],
             "events": [
                 ["kind": "checkpoint", "id": "login-ready", "at_ms": loginReadyMs],
                 ["kind": "action", "id": "send-message", "start_ms": loginReadyMs, "end_ms": messageSentMs],
+                ["kind": "checkpoint", "id": "message-sent", "at_ms": messageSentMs],
+                ["kind": "checkpoint", "id": "response-visible", "at_ms": responseVisibleMs],
                 ["kind": "checkpoint", "id": "response-ready", "at_ms": responseReadyMs],
             ],
             "assertion_results": [
-                ["id": "auth.ready", "status": "passed", "at_ms": loginReadyMs],
-                ["id": "chat.response", "status": "passed", "at_ms": responseReadyMs],
+                ["id": "auth.ready", "status": "passed", "at_ms": messageSentMs],
+                ["id": "chat.response", "status": "passed", "at_ms": responseVisibleMs],
             ],
         ]
         let data = try JSONSerialization.data(withJSONObject: timeline, options: [.prettyPrinted, .sortedKeys])

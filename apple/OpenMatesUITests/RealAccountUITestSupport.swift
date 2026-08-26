@@ -128,13 +128,15 @@ enum RealAccountUITestSupport {
         XCTAssertFalse(completedLabel.contains("app_skill_use"), "Assistant response exposed protocol metadata")
     }
 
-    static func awaitAssistantResponseForProof(app: XCUIApplication, timeout: TimeInterval = 90) {
+    static func awaitAssistantResponseForProof(app: XCUIApplication, timeout: TimeInterval = 90) -> Date {
         let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
         XCTAssertTrue(
             assistantMessage.waitForExistence(timeout: timeout),
             "Expected an assistant response to appear"
         )
+        let responseVisibleAt = Date()
         RunLoop.current.run(until: Date().addingTimeInterval(proofResponseSettleInterval))
+        return responseVisibleAt
     }
 
     static func revealLatestAssistantResponse(app: XCUIApplication) {
