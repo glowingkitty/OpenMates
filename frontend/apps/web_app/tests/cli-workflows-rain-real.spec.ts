@@ -130,8 +130,9 @@ steps:
 			expect(shown.icon).toBe('cloud-rain');
 			const readableDetail = await runWorkflowCli(apiUrl, homeDir, ['workflows', 'show', workflowId], 30_000);
 			expect(readableDetail.code).toBe(0);
-			expect(readableDetail.stdout).toMatch(/Category\s+science/);
-			expect(readableDetail.stdout).toMatch(/Icon\s+cloud-rain/);
+			const readableDetailText = readableDetail.stdout.replaceAll('\u001b[0m', '');
+			expect(readableDetailText).toMatch(/Category\s+science/);
+			expect(readableDetailText).toMatch(/Icon\s+cloud-rain/);
 
 			const acceptedRun = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'run', workflowId, '--idempotency-key', `${workflowId}-manual`], 'run workflow');
 			expect(acceptedRun.status).toMatch(/queued|running|completed/);
