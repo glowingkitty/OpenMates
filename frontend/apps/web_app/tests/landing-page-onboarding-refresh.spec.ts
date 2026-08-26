@@ -826,6 +826,22 @@ test.describe('Landing page onboarding refresh', () => {
 			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().right),
 			{ message: 'narrow settings overlay must remain inside the viewport', timeout: 3000 }
 		).toBeLessThanOrEqual(1100);
+
+		await page.setViewportSize({ width: 1101, height: 800 });
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
+			{ timeout: 3000 }
+		).not.toBe('fixed');
+		await expect.poll(
+			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
+			{ timeout: 3000 }
+		).toBe(false);
+		await expect.poll(async () => page.evaluate(() => {
+			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+			const settings = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
+			if (!activeChat || !settings) return true;
+			return activeChat.getBoundingClientRect().right > settings.getBoundingClientRect().left + 1;
+		}), { message: 'first split-layout width must not overlap active chat', timeout: 3000 }).toBe(false);
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
