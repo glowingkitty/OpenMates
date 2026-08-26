@@ -2598,19 +2598,16 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Update DOM elements opacity and classes based on menu state
-    // CRITICAL: Settings menu becomes an overlay at 1100px (see CSS @media (max-width: 1100px))
-    // We need to dim the background when settings is an overlay, not just on mobile (< 730px)
-    // So we check if viewport <= 1100px (overlay mode) rather than just $isMobileView (< 730px)
-    // The effect reacts to both isMenuVisible and viewportWidth changes (reactive to resize)
+    // Update DOM elements opacity and classes based on menu state.
+    // Overlay mode also depends on the available chat layout width, not only the viewport.
     $effect(() => {
         if (typeof window !== 'undefined') {
             const activeChatContainer = document.querySelector('.active-chat-container');
             if (activeChatContainer) {
-                // Check if settings menu is in overlay mode (viewport <= 1100px)
-                // This matches the CSS breakpoint where settings becomes an overlay
-                // Use reactive viewportWidth so effect re-runs on resize
-                const isOverlayMode = viewportWidth <= 1100;
+                void viewportWidth;
+                const settingsMenu = document.querySelector('.settings-menu');
+                const isOverlayMode = settingsMenu instanceof HTMLElement
+                    && getComputedStyle(settingsMenu).position === 'fixed';
                 if (isOverlayMode && isMenuVisible) {
                     activeChatContainer.classList.add('dimmed');
                 } else {
@@ -3718,6 +3715,43 @@ changes to the documentation (to keep the documentation up to date).
         /* svelte-ignore css_unused_selector */
         .settings-menu.mobile-overlay {
             z-index: var(--z-index-popover-above-2) !important; /* Higher than profile-container-wrapper */
+        }
+    }
+
+    /* The activity sidebar reduces the chat canvas independently of viewport width.
+       Keep the full transcript column by overlaying settings until both panels fit. */
+    @container chat-settings-layout (min-width: 1101px) and (max-width: 1412px) {
+        .settings-menu {
+            position: fixed;
+            inset-inline-end: 20px;
+            top: 65px;
+            bottom: 18px;
+            height: auto;
+            width: var(--settings-panel-width);
+            z-index: var(--z-index-modal);
+            transition: transform var(--duration-slow) var(--easing-default), visibility var(--duration-slow) var(--easing-default);
+            transform: translateX(calc(100% + 40px));
+            visibility: hidden;
+            will-change: transform;
+        }
+
+        .settings-menu.visible {
+            transform: translateX(0);
+            visibility: visible;
+        }
+
+        :global(.settings-edge-dragging) .settings-menu.visible {
+            width: var(--settings-panel-width);
+            transition: none;
+            transform: translateX(var(--settings-drag-offset));
+        }
+
+        :global([dir="rtl"]) .settings-menu:not(.visible) {
+            transform: translateX(calc(-100% - 40px));
+        }
+
+        .settings-menu.overlay {
+            box-shadow: var(--shadow-md);
         }
     }
 
