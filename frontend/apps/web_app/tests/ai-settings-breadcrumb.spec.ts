@@ -36,13 +36,54 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+
+const AI_MEMORY_REMOVAL_PROOF = defineVideoProof({
+	id: 'ai-memory-removal',
+	title: 'AI memories removed while app memories remain',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'ai-settings',
+			text: 'AI settings keeps model and provider controls, with no Memories section.',
+			checkpoint: 'ai-settings-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'app-memories',
+			text: 'The Books app still offers its app-owned memory categories.',
+			checkpoint: 'books-memories-visible',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'ai-memories-absent',
+			checkpoint: 'ai-settings-visible',
+			visual: 'AI settings visibly contains model and provider controls and no Memories heading.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'app-memories-preserved',
+			checkpoint: 'books-memories-visible',
+			visual: 'Books settings visibly contains app-owned memory category cards.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 
 async function navigateToAiSettings(
 	page: any,
@@ -83,10 +124,15 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	// contract-test: direct surface=gui.web assertions=app-memories.catalog.declared-types-only
-	test('model and provider detail pages use banner shell and back returns to AI settings', async ({ page }) => {
+	test('model and provider detail pages use banner shell and back returns to AI settings', async ({ page }, testInfo: any) => {
 		const logCheckpoint = createSignupLogger('AI_SETTINGS_BREADCRUMB');
 		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
 			filenamePrefix: 'ai-settings-breadcrumb'
+		});
+		const proof = createVideoProofRuntime(AI_MEMORY_REMOVAL_PROOF, {
+			device: PROOF_DEVICE,
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => page.screenshot({ type: 'png' })
 		});
 
 		attachConsoleListeners(page, logCheckpoint);
@@ -102,8 +148,13 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 
 		const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 		const aiSettings = settingsMenu.getByTestId('ai-settings');
-		await expect(aiSettings.getByText('Memories', { exact: true })).toHaveCount(0);
+		await proof.assert('ai-memories-absent', async () => {
+			await expect(aiSettings.getByText('Memories', { exact: true })).toHaveCount(0);
+			await expect(aiSettings.getByTestId('model-item').first()).toBeVisible({ timeout: 5000 });
+			await expect(aiSettings.getByTestId('provider-item').first()).toBeVisible({ timeout: 5000 });
+		});
 		logCheckpoint('Removed AI Memories section is absent.');
+		await proof.checkpoint('ai-settings-visible');
 
 		// ── Step 3: Verify section order (models before providers) ────
 		// The Available models section should appear above the Available providers section
@@ -197,5 +248,21 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 		await expect(aiSettings).toBeVisible({ timeout: 5000 });
 		logCheckpoint('Back from provider detail lands on AI settings page.');
 		await takeStepScreenshot(page, '07-back-to-ai-from-provider');
+
+		await proof.action('open-books-memories', async () => {
+			await page.goto(getE2EDebugUrl('/#settings/apps/books'), { waitUntil: 'domcontentloaded' });
+			await page.waitForLoadState('networkidle');
+		});
+		const booksSettings = page.locator('[data-testid="settings-menu"].visible');
+		const memoryCards = booksSettings.getByTestId('settings-memory-cards-scroll');
+		await proof.assert('app-memories-preserved', async () => {
+			await expect(booksSettings).toHaveAttribute('data-active-view', 'apps/books', { timeout: 10000 });
+			await expect(memoryCards).toBeVisible({ timeout: 10000 });
+			await expect(memoryCards.getByTestId('app-card-name').filter({ hasText: /^Currently reading$/i })).toBeVisible();
+		});
+		logCheckpoint('Books app memory categories remain visible.');
+		await takeStepScreenshot(page, '08-books-memories');
+		await proof.checkpoint('books-memories-visible');
+		await proof.attach();
 	});
 });
