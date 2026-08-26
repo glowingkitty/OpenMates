@@ -257,17 +257,22 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			const composerGeometry = await page.evaluate(() => {
 				const messageField = document.querySelector<HTMLElement>('[data-testid="message-field"]');
 				const messageEditor = document.querySelector<HTMLElement>('[data-testid="message-editor"]');
-				if (!messageField || !messageEditor) throw new Error('Composer geometry targets are unavailable');
+				const contentEditable = messageEditor?.querySelector<HTMLElement>('[contenteditable="true"]');
+				if (!messageField || !messageEditor || !contentEditable) throw new Error('Composer geometry targets are unavailable');
 				const fieldRect = messageField.getBoundingClientRect();
 				const editorRect = messageEditor.getBoundingClientRect();
 				return {
 					documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+					fieldContentOverflow: messageField.scrollWidth - messageField.clientWidth,
+					editorContentOverflow: contentEditable.scrollWidth - contentEditable.clientWidth,
 					fieldRight: fieldRect.right,
 					editorRight: editorRect.right,
 					viewportWidth: window.innerWidth
 				};
 			});
 			expect(composerGeometry.documentOverflow, 'Phone composer must not create horizontal page overflow').toBeLessThanOrEqual(1);
+			expect(composerGeometry.fieldContentOverflow, 'Phone message field content must remain clipped to the field').toBeLessThanOrEqual(1);
+			expect(composerGeometry.editorContentOverflow, 'Phone message editor content must fit its editor').toBeLessThanOrEqual(1);
 			expect(composerGeometry.fieldRight, 'Phone message field must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
 			expect(composerGeometry.editorRight, 'Phone message editor must remain inside the viewport').toBeLessThanOrEqual(composerGeometry.viewportWidth);
 		}
