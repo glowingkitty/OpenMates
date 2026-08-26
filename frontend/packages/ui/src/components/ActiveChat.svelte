@@ -74,7 +74,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
-    import { recordE2EDraftSelectionDecision } from '../services/e2eTestHooks';
+    import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../services/e2eTestHooks';
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
@@ -6025,6 +6025,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 });
             }
             if (newChat) {
+                await waitForE2EDraftSelectionCommit(persistedChatId, 'active_chat');
                 recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'applied' });
                 activeChatStore.setActiveChat(persistedChatId);
                 await loadChat(newChat);

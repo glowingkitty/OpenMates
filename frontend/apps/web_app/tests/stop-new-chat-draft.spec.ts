@@ -181,6 +181,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 		draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
+		await startNewChat(page, logCheckpoint);
 
 		const sidebar = page.getByTestId('activity-history-wrapper');
 		if (!(await sidebar.isVisible().catch(() => false))) {
@@ -195,22 +196,39 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		);
 		expect(targetChatId, 'The test account needs another mounted saved chat').toBeTruthy();
 		const targetChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${targetChatId}"]`);
-		await targetChatRow.click();
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
-
 		await page.evaluate((chatId: string) => {
 			const replay = (window as typeof window & {
-				__openmatesE2EReplayDraftSelection?: (draftChatId: string) => void;
+				__openmatesE2EReplayDraftSelection?: (draftChatId: string, pauseBeforeCommit?: boolean) => void;
 			}).__openmatesE2EReplayDraftSelection;
 			if (!replay) throw new Error('Draft selection E2E hook is unavailable');
-			replay(chatId);
+			replay(chatId, true);
 		}, draftChatId);
 
 		await expect.poll(() => page.evaluate(() =>
 			(window as typeof window & {
 				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
 			}).__openmatesE2EDraftSelectionTrace ?? []
-		), { message: 'A draft activation consumer should classify the replayed late signal' }).not.toHaveLength(0);
+		), { message: 'Both draft activation consumers should reach their asynchronous commit point' })
+			.toEqual(expect.arrayContaining([
+				expect.objectContaining({ consumer: 'active_chat', result: 'paused' }),
+				expect.objectContaining({ consumer: 'chat_list', result: 'paused' })
+			]));
+
+		await targetChatRow.click();
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
+		await page.evaluate(() => {
+			const release = (window as typeof window & {
+				__openmatesE2EReleaseDraftSelection?: () => void;
+			}).__openmatesE2EReleaseDraftSelection;
+			if (!release) throw new Error('Draft selection E2E release hook is unavailable');
+			release();
+		});
+
+		await expect.poll(() => page.evaluate(() =>
+			(window as typeof window & {
+				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
+			}).__openmatesE2EDraftSelectionTrace?.filter((decision) => decision.result === 'skipped') ?? []
+		), { message: 'Both draft activation consumers should reject the stale commit' }).toHaveLength(2);
 		const finalDecisions = await page.evaluate(() =>
 			(window as typeof window & {
 				__openmatesE2EDraftSelectionTrace?: Array<{ chatId: string; consumer: string; result: string }>;
@@ -222,6 +240,9 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
 	} finally {
 		await page.evaluate(() => {
+			(window as typeof window & {
+				__openmatesE2EReleaseDraftSelection?: () => void;
+			}).__openmatesE2EReleaseDraftSelection?.();
 			delete (window as typeof window & {
 				__openmatesE2EDraftSelectionTrace?: unknown;
 			}).__openmatesE2EDraftSelectionTrace;

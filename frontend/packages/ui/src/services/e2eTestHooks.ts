@@ -11,15 +11,42 @@ import { draftEditorUIState } from './drafts/draftState';
 export type E2EDraftSelectionDecision = {
   chatId: string;
   consumer: 'active_chat' | 'chat_list';
-  result: 'applied' | 'skipped';
+  result: 'applied' | 'paused' | 'skipped';
 };
 
+type E2EDraftSelectionGate = {
+  promise: Promise<void>;
+  release: () => void;
+};
+
+function isE2EHost(): boolean {
+  return typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.dev.openmates.org')
+  );
+}
+
 export function recordE2EDraftSelectionDecision(decision: E2EDraftSelectionDecision): void {
-  if (typeof window === 'undefined' || !window.location.hostname.endsWith('.dev.openmates.org')) return;
+  if (!isE2EHost()) return;
   const testWindow = window as unknown as {
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
   };
   testWindow.__openmatesE2EDraftSelectionTrace?.push(decision);
+}
+
+export async function waitForE2EDraftSelectionCommit(
+  chatId: string,
+  consumer: E2EDraftSelectionDecision['consumer'],
+): Promise<void> {
+  if (!isE2EHost()) return;
+  const testWindow = window as unknown as {
+    __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
+  };
+  const gate = testWindow.__openmatesE2EDraftSelectionGate;
+  if (!gate) return;
+  recordE2EDraftSelectionDecision({ chatId, consumer, result: 'paused' });
+  await gate.promise;
 }
 
 export async function installE2ETestHooks() {
@@ -40,7 +67,9 @@ export async function installE2ETestHooks() {
       websocketConnected: boolean;
       cachePrimed: boolean;
     }>;
-    __openmatesE2EReplayDraftSelection?: (chatId: string) => void;
+    __openmatesE2EReplayDraftSelection?: (chatId: string, pauseBeforeCommit?: boolean) => void;
+    __openmatesE2EReleaseDraftSelection?: () => void;
+    __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
   };
 
@@ -71,11 +100,23 @@ export async function installE2ETestHooks() {
     };
   };
 
-  testWindow.__openmatesE2EReplayDraftSelection = (chatId: string) => {
+  testWindow.__openmatesE2EReplayDraftSelection = (chatId: string, pauseBeforeCommit = false) => {
     testWindow.__openmatesE2EDraftSelectionTrace = [];
+    if (pauseBeforeCommit) {
+      let release = () => undefined;
+      const promise = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      testWindow.__openmatesE2EDraftSelectionGate = { promise, release };
+    }
     draftEditorUIState.update((state) => ({
       ...state,
       newlyCreatedChatIdToSelect: chatId,
     }));
+  };
+
+  testWindow.__openmatesE2EReleaseDraftSelection = () => {
+    testWindow.__openmatesE2EDraftSelectionGate?.release();
+    delete testWindow.__openmatesE2EDraftSelectionGate;
   };
 }
