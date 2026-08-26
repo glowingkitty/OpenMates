@@ -755,14 +755,24 @@ test.describe('Landing page onboarding refresh', () => {
 	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
-		await page.setViewportSize({ width: 1920, height: 1080 });
+		await page.setViewportSize({ width: 1440, height: 900 });
 
 		await page.goto(getE2EDebugUrl('/?settings-active-chat-layout'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('sidebar-toggle').click();
+		await expect(page.getByTestId('activity-history-wrapper')).toBeVisible({ timeout: 10000 });
+
+		const chatHistoryWidthBeforeSettings = await page.getByTestId('chat-history-content').evaluate(
+			(element: HTMLElement) => element.getBoundingClientRect().width
+		);
 
 		await page.getByTestId('profile-container').click();
 		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().width),
+			{ timeout: 3000 }
+		).toBeGreaterThan(300);
 
 		const activeChatLayout = await page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => {
 			const rect = element.getBoundingClientRect();
@@ -776,6 +786,14 @@ test.describe('Landing page onboarding refresh', () => {
 		expect(activeChatLayout.bottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
 			activeChatLayout.viewportHeight - 1
 		);
+
+		const chatHistoryWidthWithSettings = await page.getByTestId('chat-history-content').evaluate(
+			(element: HTMLElement) => element.getBoundingClientRect().width
+		);
+		expect(
+			chatHistoryWidthWithSettings,
+			'settings must not narrow chat history while the active chat already has room for its full transcript width'
+		).toBeGreaterThanOrEqual(chatHistoryWidthBeforeSettings - 1);
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
