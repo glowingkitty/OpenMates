@@ -239,7 +239,7 @@ contracts:
     version: 1
     status: draft
     path: features/message-input
-    fingerprint: 4a669a41781e0f29c97b1e7b9cd5b5380de0debbde0ca01090bf6f9f4726b911
+    fingerprint: ec8583ff631cab1a4d135d846842085116011e4d77fe4ff86748a6c87764889d
     required_surfaces:
     - gui.web
     - gui.apple
@@ -2586,7 +2586,7 @@ assertions:
     contract: feature.message-input@1
     contract_id: feature.message-input
     type: behavior
-    fingerprint: 307e189a65700826d3880a15fd80f392051987651b156f8738e4b56f57af0afd
+    fingerprint: 82f601769583d788ae63db0da4ea58d70a0b82f1ff5600918f8c2baf5453caed
     required_surfaces:
     - gui.web
     - gui.apple

@@ -60,6 +60,14 @@ drafts:
       draft_saved_for_chat_id: draft-chat-1
       draft_preview_summary_contains: Remember to compare flights
       editor_can_collapse_to_preview: true
+  - id: long-inactive-draft-preview-shortens-with-ellipsis
+    given: {currentChatId: draft-chat-1, text: Keep this draft while I open a different saved chat, embeds: [], available_inline_width: narrow}
+    actions: [save_draft, blur_message_editor]
+    expect:
+      draft_preview_single_line: true
+      overflowing_text_shortened_with_ellipsis: true
+      full_draft_content_retained: true
+      selecting_draft_restores_full_editor_content: true
   - id: embed-draft-stays-editable
     given: {currentChatId: draft-chat-2, embeds: [{type: audio-recording}], text: ''}
     actions: [save_draft, blur_message_editor]

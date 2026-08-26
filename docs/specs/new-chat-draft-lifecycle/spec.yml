@@ -164,12 +164,12 @@ attempts:
     reason: The approved product flow promotes a successfully saved draft shell to an explicit active draft-only chat.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Add implementation plan and traceable tasks, then update tests before product code.
-  command: python3 scripts/spec_validate.py docs/specs/new-chat-draft-lifecycle/spec.yml
-  expected_outcome: The approved Schema V2 product contract validates before red-phase test edits.
+  current_task_id: TASK-5
+  next_action: Capture and review the laptop proof profile, then publish both approved device videos.
+  command: python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts --proof-video-profile web-laptop --no-mocks --account 1 --gate-deploy --expected-commit <commit>
+  expected_outcome: The revised phone and laptop proof contract is hash-approved and both device captures pass frame review.
   blocker: null
-  last_verified_commit: 39d1cdc941ed35b40a75264268b8a04bdcbfc4d6
+  last_verified_commit: 07823578fecdcf5fad717adbb84ec832df19bfc6
 
 scenarios:
   - id: S-1

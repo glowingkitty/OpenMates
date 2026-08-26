@@ -78,7 +78,7 @@ models:
     draft_preview_summary:
       type: localized_summary
       required: true
-      constraints: {summarizes_text_and_embed_counts: true, text_only_blur_preview_allowed: true, embed_only_editor_stays_visible: true}
+      constraints: {summarizes_text_and_embed_counts: true, text_only_blur_preview_allowed: true, inactive_text_draft_is_single_line: true, overflow_shortens_with_ellipsis: true, full_draft_content_is_retained: true, embed_only_editor_stays_visible: true}
     persistence_target:
       type: chat_id
       required: true
@@ -173,7 +173,7 @@ assertions:
     depends_on: [models.ActionControlState, models.RecordingState.start_inputs, examples.action_controls]
   - id: message-input.drafts.preview-persistence
     type: behavior
-    must: Meaningful text or embed content updates draft state against the current or temporary chat id, text-only drafts may collapse into a localized preview after blur, embed drafts keep controls visible, and empty composer content does not create a sendable draft.
+    must: Meaningful text or embed content updates draft state against the current or temporary chat id; after blur, an inactive text-only draft may collapse into a single-line localized preview that shortens overflow with an ellipsis without discarding the full draft; embed drafts keep controls visible; and empty composer content does not create a sendable draft.
     depends_on: [models.DraftState, models.ComposerState.has_content, examples.drafts]
   - id: message-input.embeds.gated-send
     type: invariant

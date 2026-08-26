@@ -226,7 +226,7 @@ test('stop during new chat creation restores the sent message as a draft', async
 	}
 });
 
-// contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,chat-navigation.open.local-first-coherent
+// contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,chat-navigation.open.local-first-coherent,message-input.drafts.preview-persistence
 test('late draft persistence cannot override a newer explicit chat selection', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(150000);
