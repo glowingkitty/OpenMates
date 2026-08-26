@@ -22,16 +22,22 @@ from botocore.exceptions import (
 from urllib.parse import urlparse
 from typing import Any, Optional, Dict
 
+from backend.shared.python_utils.object_storage_regions import (
+    endpoint_for_region,
+    parse_storage_regions,
+    resolve_regional_bucket_name,
+    select_temporary_upload_region,
+    should_replicate_bucket,
+)
 from backend.shared.python_utils.storage_availability import (
     STORAGE_AVAILABLE,
     storage_unavailable_error,
 )
 
 # Import necessary config functions and the single-bucket lifecycle function
-from .config import BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name 
+from .config import BUCKETS, CORS_ENABLED_BUCKETS, get_bucket_config, get_bucket_by_name, get_bucket_name
 from .cors import apply_cors_settings
-# Import the single-bucket function instead of the multi-bucket one
-from .lifecycle import apply_lifecycle_policy_to_bucket 
+from .lifecycle import apply_lifecycle_policies
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +147,8 @@ class S3UploadService:
         self.client = None
         self.upload_client = None
         self.availability_client = None
+        self.region_clients = {}
+        self.upload_region_clients = {}
         self.base_domain = None
         self.region_name = None
         self.endpoint_url = None
@@ -170,13 +178,16 @@ class S3UploadService:
 
         self.configured = True
 
-        # Fetch region name from Secrets Manager with fallback to 'nbg1'
+        # The legacy region secret remains the active write region during rollout.
         region_secret = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_region_name")
         self.region_name = region_secret if region_secret else 'nbg1'
-        logger.info(f"Using S3 region: {self.region_name}")
+        configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        if self.region_name not in configured_regions:
+            raise ValueError("Active S3 region must be present in S3_REGIONS")
+        logger.info("Using active S3 region %s from configured regions %s", self.region_name, configured_regions)
         
         # Build endpoint URL based on region name
-        self.endpoint_url = f'https://{self.region_name}.your-objectstorage.com'
+        self.endpoint_url = endpoint_for_region(self.region_name)
         
         # Store the base domain for URL generation
         parsed_url = urlparse(self.endpoint_url)
@@ -190,15 +201,18 @@ class S3UploadService:
             read_timeout=10,
             retries={'max_attempts': 3}
         )
-        # Initialize the main S3 client for CORS and general operations
-        self.client = boto3.client(
-            's3',
-            region_name=self.region_name,
-            endpoint_url=self.endpoint_url,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            config=s3v4_config
-        )
+        self.region_clients = {
+            region: boto3.client(
+                's3',
+                region_name=region,
+                endpoint_url=endpoint_for_region(region),
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=s3v4_config,
+            )
+            for region in configured_regions
+        }
+        self.client = self.region_clients[self.region_name]
         
         # Separate client for uploads with older signature method
         upload_config = Config(
@@ -208,15 +222,18 @@ class S3UploadService:
             read_timeout=15,
             retries={'max_attempts': 3}
         )
-        # Create a separate client for uploads
-        self.upload_client = boto3.client(
-            's3',
-            region_name=self.region_name,
-            endpoint_url=self.endpoint_url,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            config=upload_config
-        )
+        self.upload_region_clients = {
+            region: boto3.client(
+                's3',
+                region_name=region,
+                endpoint_url=endpoint_for_region(region),
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=upload_config,
+            )
+            for region in configured_regions
+        }
+        self.upload_client = self.upload_region_clients[self.region_name]
 
         availability_config = Config(
             signature_version='s3v4',
@@ -241,11 +258,7 @@ class S3UploadService:
         logger.info("S3 clients created.")
 
         if configure_buckets:
-            # Initialize buckets (check existence, create if needed, apply lifecycle)
-            await self._initialize_buckets() # Make this async
-
-            # Apply CORS settings to required buckets (should happen after buckets exist)
-            apply_cors_settings(self.client)
+            await self.reconcile_configuration()
         
         logger.info("S3 service initialization complete.")
 
@@ -254,7 +267,7 @@ class S3UploadService:
         if not self.configured or self.client is None:
             return
         await self._initialize_buckets()
-        await asyncio.to_thread(apply_cors_settings, self.client)
+        await self._reconcile_regional_bucket_policies()
 
     async def check_availability(self) -> str:
         """Run one bounded, non-mutating provider probe and return a sanitized state."""
@@ -285,36 +298,38 @@ class S3UploadService:
              logger.error("S3 client not initialized. Cannot initialize buckets.")
              return
         logger.info("Initializing S3 buckets...")
+        reconciliation_failed = False
         for bucket_key, bucket_config in BUCKETS.items():
             bucket_name = get_bucket_name(bucket_key, self.environment)
-            lifecycle_days = bucket_config.get('lifecycle_policy')
             access_type = bucket_config.get('access', 'private') # Default to private
 
             try:
                 # Check if bucket exists
                 await asyncio.to_thread(self.client.head_bucket, Bucket=bucket_name)
-                logger.info(f"Bucket '{bucket_name}' already exists.")
+                logger.info("Active-region bucket exists: logical_bucket=%s", bucket_key)
                 bucket_exists = True
             except ClientError as e:
                 error_code = e.response.get('Error', {}).get('Code')
                 # Common error codes for non-existent buckets
                 if error_code == '404' or error_code == 'NoSuchBucket':
-                    logger.info(f"Bucket '{bucket_name}' not found. Creating...")
+                    logger.info("Active-region bucket is missing; creating logical_bucket=%s", bucket_key)
                     try:
                         # Attempt to create the bucket (Hetzner implies region from endpoint)
                         await asyncio.to_thread(self.client.create_bucket, Bucket=bucket_name)
-                        logger.info(f"Successfully created bucket '{bucket_name}'.")
+                        logger.info("Created active-region bucket: logical_bucket=%s", bucket_key)
                         # Hetzner Object Storage can be briefly eventually consistent after bucket creation.
                         # Wait before applying ACL/lifecycle so first-start initialization does not fail noisily.
                         await asyncio.sleep(2)
                         bucket_exists = True
                     except ClientError as create_e:
-                        logger.error(f"Failed to create bucket '{bucket_name}': {create_e}")
+                        logger.error("Failed to create active-region bucket: logical_bucket=%s error=%s", bucket_key, type(create_e).__name__)
+                        reconciliation_failed = True
                         bucket_exists = False  # Creation failed
                         continue  # Skip lifecycle for this bucket
                 else:
                     # Handle other errors during head_bucket (e.g., permissions)
-                    logger.error(f"Error checking bucket '{bucket_name}': {e}. Skipping lifecycle policy application.")
+                    logger.error("Cannot inspect active-region bucket: logical_bucket=%s error=%s", bucket_key, type(e).__name__)
+                    reconciliation_failed = True
                     bucket_exists = False  # Unsure about state, assume no for safety
                     continue  # Skip lifecycle for this bucket
 
@@ -331,33 +346,104 @@ class S3UploadService:
                         Bucket=bucket_name,
                         ACL=desired_acl,
                     )
-                    logger.info(f"Reconciled ACL for bucket '{bucket_name}' to '{desired_acl}'.")
+                    logger.info("Reconciled active-region bucket ACL: logical_bucket=%s acl=%s", bucket_key, desired_acl)
                 except ClientError as acl_e:
                     logger.warning(
-                        f"Failed to reconcile ACL for bucket '{bucket_name}' to '{desired_acl}': {acl_e}. "
-                        "Manual check might be needed."
+                        "Failed to reconcile active-region bucket ACL: logical_bucket=%s acl=%s error=%s",
+                        bucket_key,
+                        desired_acl,
+                        type(acl_e).__name__,
                     )
+                    reconciliation_failed = True
                     # Continue even if ACL reconciliation fails — object-level ACLs
                     # applied during put_object are the enforced boundary.
 
-            # Apply lifecycle policy if the bucket exists (or was just created) and has a policy defined
-            if bucket_exists and isinstance(lifecycle_days, int) and lifecycle_days > 0:
-                logger.info(f"Applying lifecycle policy to bucket '{bucket_name}' ({lifecycle_days} days)...")
-                success = await asyncio.to_thread(
-                    apply_lifecycle_policy_to_bucket,
-                    self.client,
-                    bucket_name,
-                    lifecycle_days,
-                )
-                if success:
-                    logger.info(f"Successfully applied lifecycle policy to '{bucket_name}'.")
-                else:
-                    logger.warning(f"Failed to apply lifecycle policy to '{bucket_name}'.")
-            elif bucket_exists:
-                 logger.info(f"No lifecycle policy defined or needed for bucket '{bucket_name}'.")
+        if reconciliation_failed:
+            raise RuntimeError("object_storage_reconciliation_failed")
+
+    async def _reconcile_regional_bucket_policies(self) -> None:
+        """Apply private ACL, lifecycle, and CORS to existing regional buckets."""
+        environment_name = 'dev_name' if self.environment == 'development' else 'name'
+        cors_bases = {
+            bucket_name
+            for bucket_name in CORS_ENABLED_BUCKETS
+            if (self.environment == 'development') == bucket_name.startswith('dev-')
+        }
+
+        reconciliation_failed = False
+        for region, client in self.region_clients.items():
+            regional_configs = {}
+            cors_buckets = []
+            for bucket_key, bucket_config in BUCKETS.items():
+                legacy_name = bucket_config[environment_name]
+                bucket_name = resolve_regional_bucket_name(legacy_name, region)
+                try:
+                    await asyncio.to_thread(client.head_bucket, Bucket=bucket_name)
+                except ClientError as exc:
+                    error_code = str(exc.response.get('Error', {}).get('Code', ''))
+                    if error_code in {'404', 'NoSuchBucket'}:
+                        logger.warning("Regional bucket is not provisioned: region=%s logical_bucket=%s", region, bucket_key)
+                        continue
+                    logger.error(
+                        "Cannot inspect regional bucket policy: region=%s logical_bucket=%s error=%s",
+                        region,
+                        bucket_key,
+                        error_code,
+                    )
+                    reconciliation_failed = True
+                    continue
+                except _TRANSIENT_NETWORK_ERRORS as exc:
+                    logger.warning(
+                        "Regional bucket inspection is degraded: region=%s logical_bucket=%s error=%s",
+                        region,
+                        bucket_key,
+                        type(exc).__name__,
+                    )
+                    reconciliation_failed = True
+                    continue
+
+                desired_acl = 'public-read' if bucket_config.get('access') == 'public-read' else 'private'
+                try:
+                    await asyncio.to_thread(client.put_bucket_acl, Bucket=bucket_name, ACL=desired_acl)
+                except ClientError as exc:
+                    logger.error(
+                        "Cannot reconcile regional bucket ACL: region=%s logical_bucket=%s error=%s",
+                        region,
+                        bucket_key,
+                        str(exc.response.get('Error', {}).get('Code', 'unknown')),
+                    )
+                    reconciliation_failed = True
+                    continue
+                regional_config = dict(bucket_config)
+                regional_config['name'] = bucket_name
+                regional_config['dev_name'] = bucket_name
+                regional_configs[bucket_key] = regional_config
+                if legacy_name in cors_bases:
+                    cors_buckets.append(bucket_name)
+
+            if regional_configs:
+                try:
+                    await asyncio.to_thread(
+                        apply_lifecycle_policies,
+                        client,
+                        regional_configs,
+                        self.environment,
+                    )
+                except Exception as exc:
+                    logger.error("Cannot reconcile lifecycle policy for region=%s: %s", region, type(exc).__name__)
+                    reconciliation_failed = True
+            if cors_buckets:
+                try:
+                    await asyncio.to_thread(apply_cors_settings, client, cors_buckets)
+                except Exception as exc:
+                    logger.error("Cannot reconcile CORS policy for region=%s: %s", region, type(exc).__name__)
+                    reconciliation_failed = True
+
+        if reconciliation_failed:
+            raise RuntimeError("object_storage_reconciliation_failed")
 
 
-    def get_s3_url(self, bucket_name: str, file_key: str) -> str:
+    def get_s3_url(self, bucket_name: str, file_key: str, region: str | None = None) -> str:
         """
         Generate a proper S3 URL for the uploaded file.
         
@@ -368,9 +454,12 @@ class S3UploadService:
         Returns:
             The S3 URL of the file
         """
-        return f"https://{bucket_name}.{self.base_domain}/{file_key}"
+        selected_region = region or self.region_name
+        regional_bucket = resolve_regional_bucket_name(bucket_name, selected_region)
+        base_domain = urlparse(endpoint_for_region(selected_region)).netloc
+        return f"https://{regional_bucket}.{base_domain}/{file_key}"
 
-    def generate_presigned_url(self, bucket_name: str, file_key: str, expiration: int = 3600) -> str:
+    def generate_presigned_url(self, bucket_name: str, file_key: str, expiration: int = 3600, region: str | None = None) -> str:
         """
         Generate a pre-signed URL for accessing a private file.
         
@@ -390,19 +479,21 @@ class S3UploadService:
             if bucket_config['access'] != 'private':
                 return self.get_s3_url(bucket_name, file_key)
             
-            # Generate pre-signed URL
-            url = self.client.generate_presigned_url(
+            selected_region = region or self.region_name
+            selected_client = self.region_clients[selected_region]
+            regional_bucket = resolve_regional_bucket_name(bucket_name, selected_region)
+            url = selected_client.generate_presigned_url(
                 'get_object',
-                Params={'Bucket': bucket_name, 'Key': file_key},
+                Params={'Bucket': regional_bucket, 'Key': file_key},
                 ExpiresIn=expiration
             )
             
-            logger.info(f"Generated pre-signed URL for {bucket_name}/{file_key} (expires in {expiration} seconds)")
+            logger.info("Generated private object URL: region=%s expires_in=%s", selected_region, expiration)
             return url
         except Exception as e:
             logger.error(f"Failed to generate pre-signed URL: {str(e)}")
             # Return regular S3 URL as fallback (will require authentication)
-            return self.get_s3_url(bucket_name, file_key)
+            return self.get_s3_url(bucket_name, file_key, region=region)
 
     def get_bucket_config(self, bucket_key: str) -> dict:
         """
@@ -441,6 +532,7 @@ class S3UploadService:
         content: bytes,
         content_type: str,
         metadata: Optional[Dict[str, str]] = None,
+        region: str | None = None,
     ) -> Dict[str, str]:
         """
         Upload a file to S3 using a simple approach with retries.
@@ -458,7 +550,8 @@ class S3UploadService:
             HTTPException: If the upload fails
         """
         # Ensure client is initialized before proceeding
-        if not self.client or not self.upload_client:
+        selected_region = region or self.region_name
+        if not selected_region or selected_region not in self.upload_region_clients:
             logger.error("S3 service not initialized. Cannot upload file.")
             raise storage_unavailable_error()
 
@@ -470,7 +563,8 @@ class S3UploadService:
             raise HTTPException(status_code=400, detail=f"Unknown bucket: {bucket_key}")
         
         # Get the appropriate bucket name based on environment
-        bucket_name = get_bucket_name(bucket_key, self.environment)
+        legacy_bucket_name = get_bucket_name(bucket_key, self.environment)
+        bucket_name = resolve_regional_bucket_name(legacy_bucket_name, selected_region)
         
         # Check file size
         if len(content) > bucket_config['max_size']:
@@ -490,7 +584,13 @@ class S3UploadService:
         
         try:
             # Log basic information
-            logger.info(f"Uploading file to S3: bucket={bucket_name}, key={file_key}, size={len(content)}, content_type={content_type}")
+            logger.info(
+                "Uploading storage object: logical_bucket=%s region=%s size=%s content_type=%s",
+                bucket_key,
+                selected_region,
+                len(content),
+                content_type,
+            )
             
             # Store content in BytesIO to ensure it's treated as a file-like object
             file_obj = BytesIO(content)
@@ -509,7 +609,7 @@ class S3UploadService:
             
             # Track the current upload client — starts with the default (15s timeout).
             # On timeout errors, we create a new client with a longer timeout.
-            current_upload_client = self.upload_client
+            current_upload_client = self.upload_region_clients[selected_region]
             current_read_timeout = base_read_timeout
             
             # Try uploading with retries and exponential backoff.
@@ -587,8 +687,8 @@ class S3UploadService:
                     )
                     current_upload_client = boto3.client(
                         's3',
-                        region_name=self.region_name,
-                        endpoint_url=self.endpoint_url,
+                        region_name=selected_region,
+                        endpoint_url=endpoint_for_region(selected_region),
                         aws_access_key_id=self._upload_access_key,
                         aws_secret_access_key=self._upload_secret_key,
                         config=retry_config
@@ -604,13 +704,14 @@ class S3UploadService:
             logger.info("Upload successful")
             
             # Generate S3 URL
-            s3_url = self.get_s3_url(bucket_name, file_key)
+            s3_url = self.get_s3_url(legacy_bucket_name, file_key, region=selected_region)
             
             # Generate pre-signed URL for private content
             result = {'url': s3_url}
             if bucket_config['access'] == 'private':
-                presigned_url = self.generate_presigned_url(bucket_name, file_key)
+                presigned_url = self.generate_presigned_url(legacy_bucket_name, file_key, region=selected_region)
                 result['presigned_url'] = presigned_url
+            result['region'] = selected_region
             
             return result
         
@@ -624,6 +725,34 @@ class S3UploadService:
         except Exception as exc:
             logger.error("Failed to upload to S3: %s", type(exc).__name__)
             raise storage_unavailable_error() from exc
+
+    async def upload_temporary_file(
+        self,
+        *,
+        bucket_key: str,
+        file_key: str,
+        content: bytes,
+        content_type: str,
+        healthy_regions: set[str],
+        metadata: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, str]:
+        """Upload non-replicated temporary media to a healthy configured region."""
+        if should_replicate_bucket(bucket_key):
+            raise ValueError(f"Temporary non-replicated upload is not allowed for {bucket_key}")
+        configured_regions = tuple(self.region_clients)
+        selected_region = select_temporary_upload_region(
+            configured_regions=configured_regions,
+            healthy_regions=healthy_regions,
+            preferred_region=self.region_name or configured_regions[0],
+        )
+        return await self.upload_file(
+            bucket_key=bucket_key,
+            file_key=file_key,
+            content=content,
+            content_type=content_type,
+            metadata=metadata,
+            region=selected_region,
+        )
 
     async def upload_file_stream(
         self,
@@ -765,7 +894,7 @@ class S3UploadService:
             await asyncio.to_thread(
                 self.client.delete_object, Bucket=bucket_name, Key=file_key
             )
-            logger.info(f"Successfully deleted file from S3: bucket={bucket_name}, key={file_key}")
+            logger.info("Deleted storage object: logical_bucket=%s", bucket_key)
         except HTTPException:
             # Re-raise HTTP exceptions
             raise
@@ -853,9 +982,7 @@ class S3UploadService:
             raise
         except Exception as exc:
             logger.error(
-                "Failed to stream S3 file: bucket=%s key=%s error=%s",
-                bucket_name,
-                object_key,
+                "Failed to stream storage object: error=%s",
                 type(exc).__name__,
                 exc_info=True,
             )

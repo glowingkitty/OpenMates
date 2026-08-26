@@ -242,7 +242,9 @@ def test_known_async_methods_are_covered():
         "reconcile_configuration",
         "check_availability",
         "_initialize_buckets",
+        "_reconcile_regional_bucket_policies",
         "upload_file",
+        "upload_temporary_file",
         "upload_file_stream",
         "delete_file",
         "get_file",
@@ -296,4 +298,4 @@ def test_client_only_initialization_guards_startup_bucket_configuration() -> Non
         if isinstance(call, ast.Call)
         and isinstance(call.func, (ast.Attribute, ast.Name))
     }
-    assert {"_initialize_buckets", "apply_cors_settings"}.issubset(guarded_calls)
+    assert guarded_calls == {"reconcile_configuration"}

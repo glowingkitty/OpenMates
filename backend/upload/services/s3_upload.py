@@ -26,6 +26,8 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 import httpx
 
+from backend.shared.python_utils.object_storage_regions import endpoint_for_region, parse_storage_regions
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +43,7 @@ class UploadsS3Service:
         self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
         self.vault_token_path = "/vault-data/api.token"
         self.client = None
+        self.region_clients = {}
         self.region_name: Optional[str] = None
         self.endpoint_url: Optional[str] = None
         self.base_domain: Optional[str] = None
@@ -99,7 +102,10 @@ class UploadsS3Service:
             raise RuntimeError("[S3Upload] S3 credentials not found in local Vault")
 
         self.region_name = region or "nbg1"
-        self.endpoint_url = f"https://{self.region_name}.your-objectstorage.com"
+        configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        if self.region_name not in configured_regions:
+            raise ValueError("Active S3 region must be present in S3_REGIONS")
+        self.endpoint_url = endpoint_for_region(self.region_name)
 
         from urllib.parse import urlparse
         self.base_domain = urlparse(self.endpoint_url).netloc
@@ -118,14 +124,18 @@ class UploadsS3Service:
             retries={"max_attempts": 3},
         )
 
-        self.client = boto3.client(
-            "s3",
-            endpoint_url=self.endpoint_url,
-            region_name=self.region_name,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            config=config,
-        )
+        self.region_clients = {
+            configured_region: boto3.client(
+                "s3",
+                endpoint_url=endpoint_for_region(configured_region),
+                region_name=configured_region,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=config,
+            )
+            for configured_region in configured_regions
+        }
+        self.client = self.region_clients[self.region_name]
 
         logger.info(
             f"[S3Upload] Initialised — bucket: {self.bucket_name}, "

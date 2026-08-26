@@ -12,22 +12,31 @@ logger = logging.getLogger(__name__)
 # Load URLs from shared config
 def load_urls_config():
     """Load URLs configuration from shared config file."""
-    try:
-        config_path = Path("/shared/config/urls.yml")
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
-            return config['urls']
-    except Exception as e:
-        logger.error(f"Failed to load URLs config: {str(e)}")
-        # Fallback to default values
-        return {
-            'base': {
-                'webapp': {
-                    'development': 'http://localhost:5173',
-                    'production': 'https://openmates.org'
-                }
+    config_paths = (
+        Path("/shared/config/urls.yml"),
+        Path(__file__).resolve().parents[6] / "shared" / "config" / "urls.yml",
+    )
+    for config_path in config_paths:
+        try:
+            with open(config_path, 'r') as file:
+                config = yaml.safe_load(file)
+                return config['urls']
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            logger.error(f"Failed to load URLs config from {config_path}: {str(e)}")
+            break
+    else:
+        logger.error("Failed to load URLs config from container or repository paths")
+
+    return {
+        'base': {
+            'webapp': {
+                'development': 'http://localhost:5173',
+                'production': 'https://openmates.org'
             }
         }
+    }
 
 # URLs configuration
 URLS_CONFIG = load_urls_config()
@@ -100,6 +109,7 @@ BUCKETS = {
         'max_size': 500 * 1024 * 1024,  # 500MB
         'access': 'private',
         'lifecycle_policy': 3650,  # 10 years — AO §147 / HGB §257
+        'lifecycle_prefix': 'financial-compliance/',
     },
     # Audit compliance logs — auth events, consents, account/data deletions.
     # Retention: 2 years (730 days) — GDPR accountability + BSI recommendation (§34 BDSG).
@@ -113,6 +123,7 @@ BUCKETS = {
         'max_size': 500 * 1024 * 1024,  # 500MB
         'access': 'private',
         'lifecycle_policy': 730,  # 2 years — GDPR / BSI §34 BDSG
+        'lifecycle_prefix': 'audit-compliance/',
     },
     'usage_archives': {
         'name': 'openmates-usage-archives',
@@ -197,6 +208,16 @@ BUCKETS = {
         'access': 'private',
         'lifecycle_policy': 2,
         'cache_control': 'private, max-age=172800',
+    },
+    # Temporary review/proof workflow media. Uploaders may select another
+    # healthy configured region, but objects are intentionally not replicated.
+    'buffer_media': {
+        'name': 'openmates-buffer-media',
+        'dev_name': 'dev-openmates-buffer-media',
+        'allowed_types': ['image/png', 'image/jpeg', 'video/mp4', 'video/webm'],
+        'max_size': 1024 * 1024 * 1024,
+        'access': 'private',
+        'lifecycle_policy': 2,
     },
     'issue_logs': {
         'name': 'openmates-issue-logs',

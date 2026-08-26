@@ -41,6 +41,18 @@ contracts:
     fingerprint: d52b3667314c96d4ad3ebd85287613ec966d9c9e1dee34d1aba7bf1c61324426
     required_surfaces:
     - cli
+  architecture.storage-lifecycle:
+    version: 1
+    status: draft
+    path: architecture/storage-lifecycle
+    fingerprint: ae774ec81f3e5d987abc326b4c099525e4ab9b51063e53dc35d2b921ea59d8cb
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   architecture.storage-resilience:
     version: 1
     status: draft
@@ -719,6 +731,186 @@ assertions:
     fingerprint: b6b12a31c596be6b9c78157f07b62923bd19937e3088b84a34a159091af2078b
     required_surfaces:
     - cli
+  storage.regions.configurable-redundancy:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 6a1e1f9c537cc5e13b0ea8968eb2912451d6bb2cef940634bb46ea014d10abf3
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.replication.active-write-durable-outbox:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: df1d44e2302008e5879e35d1f697c08794fec941a1ce5f3baa65bc5828a63d81
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.failover.health-reconciled:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: c93bbea164eecff72d7f429df7b6a48ae43b1295d5240817b50f2ffa90b1f6df
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.atomic-eligible-graphs:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: d11ee9f82e621368a0d289b310fd762512203276af94f5c96279945c65e3ecf8
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.discoverable-bounded:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: d397f6965894ea42b647ed0068568933ae6b0c13c39ffc242fff63f467490d00
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.shared-team-authorized:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: security
+    fingerprint: 86be81d8aa3fe50365544c7af20842dfca9b8c885301175d0236679eb234e50b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.cold.rehydrate-on-mutation:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: bacdc5584371297c0f53ed093ca69ef59552095311fda2b10e0e29faa22260c3
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.files.reference-safe-single-copy:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 165b127e5b5b521b3c1b68869599bf0fcc38d7ece182ba63014bb4f000da0bcc
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.deletion.global-authoritative:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: privacy
+    fingerprint: 545dc6e2e74d94c9d4cdc4787f7ff98a831f1aa706abf224f03cf31da5feb9c6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.retention.system-generation-only:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: privacy
+    fingerprint: ed7d044251dd42c08cb5927e85dc9e5e313dcb07b8c62bdc5465d72702ab11d5
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.export.persisted-bounded-complete:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: behavior
+    fingerprint: cde5069ff48699362bf8c0061a39871dbc3b9b2f00929ccbdeaf78defb9e23aa
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.privacy.ciphertext-boundary:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: privacy
+    fingerprint: 7cf57c87805d91ab6c53dca02d5bc508a2a43223141e1248b03afd6467dcf496
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.media.explicit-exceptions:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: invariant
+    fingerprint: 508c957f728c2dbe0e42eb88560f2b1138a7c06ab092a7e98d1bd78d1068642e
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.integrity.observable-reconcilable:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: failure
+    fingerprint: 6bda5609caa41648605cf814c5d4be58348896bce43277e9d6775e9e2191a3ea
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  storage.surface.semantic-parity:
+    contract: architecture.storage-lifecycle@1
+    contract_id: architecture.storage-lifecycle
+    type: parity
+    fingerprint: b29c0830dee535fedb2ed71467f59ec047a807b98f2a38b6b113a88733dbb536
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   storage-resilience.core.s3-is-noncritical:
     contract: architecture.storage-resilience@1
     contract_id: architecture.storage-resilience
