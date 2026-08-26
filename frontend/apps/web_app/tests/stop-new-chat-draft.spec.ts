@@ -31,7 +31,7 @@ const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || 
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_ASSERTION_DWELL_MS = 1200;
-const PROOF_CLEAN_END_HOLD_MS = 4500;
+const PROOF_CLEAN_END_HOLD_MS = 2500;
 const DRAFT_SELECTION_PROOF = defineVideoProof({
 	id: 'late-draft-activation-navigation-authority',
 	title: 'Late draft activation preserves newer chat navigation',
@@ -90,7 +90,7 @@ const DRAFT_SELECTION_PROOF = defineVideoProof({
 			devices: ['web-phone', 'web-laptop']
 		}
 	],
-	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+	tutorial: { readingWordsPerSecond: 3.5, minimumHoldMs: 1500, maximumHoldMs: 3500 }
 });
 test.describe.configure({ mode: 'serial' });
 
@@ -270,6 +270,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 	await startNewChat(page, logCheckpoint);
 
 	let draftChatId: string | null = null;
+	let proofAttached = false;
 	const targetChatId = `e2e-draft-selection-target-${Date.now()}`;
 	try {
 		const visibleDraft = 'Keep this draft while I open a different saved chat.';
@@ -441,7 +442,8 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				await proof.assert('draft-remains-navigable', assertDraftRemainsNavigable);
 				await proof.checkpoint('draft-reopened');
 				await proof.attach();
-				// Keep cleanup outside the proof pipeline's fixed post-checkpoint capture buffer.
+				proofAttached = true;
+				// End proof capture before slow best-effort cleanup expands the tutorial source segment.
 				await page.waitForTimeout(PROOF_CLEAN_END_HOLD_MS);
 			} else {
 				await assertDraftRemainsNavigable();
@@ -456,21 +458,23 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				__openmatesE2EDraftSelectionTrace?: unknown;
 			}).__openmatesE2EDraftSelectionTrace;
 		}).catch(() => undefined);
-		await page.evaluate((chatId: string) => {
-			window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
-		}, targetChatId).catch(() => undefined);
-		await expect(page.getByTestId('active-chat-container'))
-			.toHaveAttribute('data-current-chat-id', targetChatId, { timeout: 10000 })
-			.catch(() => undefined);
-		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-selection-target').catch(() => undefined);
-		if (draftChatId) {
+		if (!proofAttached) {
 			await page.evaluate((chatId: string) => {
 				window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
-			}, draftChatId).catch(() => undefined);
+			}, targetChatId).catch(() => undefined);
 			await expect(page.getByTestId('active-chat-container'))
-				.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 })
+				.toHaveAttribute('data-current-chat-id', targetChatId, { timeout: 10000 })
 				.catch(() => undefined);
-			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-late-draft').catch(() => undefined);
+			await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-selection-target').catch(() => undefined);
+			if (draftChatId) {
+				await page.evaluate((chatId: string) => {
+					window.location.hash = `chat-id=${encodeURIComponent(chatId)}`;
+				}, draftChatId).catch(() => undefined);
+				await expect(page.getByTestId('active-chat-container'))
+					.toHaveAttribute('data-current-chat-id', draftChatId, { timeout: 10000 })
+					.catch(() => undefined);
+				await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'cleanup-late-draft').catch(() => undefined);
+			}
 		}
 	}
 });
