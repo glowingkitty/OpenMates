@@ -3,10 +3,13 @@ S3 upload service for handling file uploads and storage.
 """
 import asyncio
 import boto3
+import hashlib
 import logging
 import os
 from collections.abc import AsyncIterable, AsyncIterator
+from datetime import datetime, timezone
 from io import BytesIO
+from tempfile import SpooledTemporaryFile
 from fastapi import HTTPException
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
@@ -32,6 +35,10 @@ from backend.shared.python_utils.object_storage_regions import (
 from backend.shared.python_utils.storage_availability import (
     STORAGE_AVAILABLE,
     storage_unavailable_error,
+)
+from backend.core.api.app.services.s3.replication import (
+    build_replication_job,
+    persist_replication_job,
 )
 
 # Import necessary config functions and the single-bucket lifecycle function
@@ -139,11 +146,12 @@ class S3UploadService:
     Service for handling file uploads to S3-compatible storage.
     """
     
-    def __init__(self, secrets_manager: SecretsManager):
+    def __init__(self, secrets_manager: SecretsManager, directus_service: Any | None = None):
         """
         Initialize the S3 service with SecretsManager. Clients are initialized asynchronously.
         """
         self.secrets_manager = secrets_manager
+        self.directus_service = directus_service
         self.client = None
         self.upload_client = None
         self.availability_client = None
@@ -157,6 +165,35 @@ class S3UploadService:
         
         # Get current environment - needed before initialization
         self.environment = os.getenv('SERVER_ENVIRONMENT', 'development')
+
+    async def _persist_replication_outbox(
+        self,
+        *,
+        logical_bucket: str,
+        object_key: str,
+        checksum: str,
+        active_region: str,
+    ) -> None:
+        """Require durable replica intent before acknowledging a replicated write."""
+        configured_regions = tuple(self.region_clients)
+        if not should_replicate_bucket(logical_bucket) or len(configured_regions) <= 1:
+            return
+        if self.directus_service is None:
+            raise RuntimeError("Durable replication outbox is unavailable")
+        now = datetime.now(timezone.utc)
+        job = build_replication_job(
+            logical_bucket=logical_bucket,
+            object_key=object_key,
+            generation=1,
+            checksum=checksum,
+            active_region=active_region,
+            configured_regions=configured_regions,
+            now=now,
+        )
+        await persist_replication_job(
+            directus_service=self.directus_service,
+            job=job,
+        )
 
     async def initialize(self, *, configure_buckets: bool = True):
         """
@@ -594,6 +631,7 @@ class S3UploadService:
             
             # Store content in BytesIO to ensure it's treated as a file-like object
             file_obj = BytesIO(content)
+            content_checksum = hashlib.sha256(content).hexdigest()
             
             # Set ACL based on bucket access configuration
             acl = 'private' if bucket_config['access'] == 'private' else 'public-read'
@@ -634,8 +672,11 @@ class S3UploadService:
                     if metadata:
                         # Caller metadata wins on conflicts (except we still keep lifecycle marker if distinct)
                         combined_metadata.update(metadata)
+                    combined_metadata['openmates-sha256'] = content_checksum
                     if combined_metadata:
                         put_params['Metadata'] = combined_metadata
+                    if should_replicate_bucket(bucket_key):
+                        put_params['IfNoneMatch'] = '*'
                     
                     # Upload the file using the current upload client.
                     # put_object is synchronous; run on the default executor so
@@ -648,6 +689,17 @@ class S3UploadService:
                     break
                 except ClientError as e:
                     error_code = e.response['Error']['Code']
+                    if error_code in {'PreconditionFailed', '412'}:
+                        existing = await asyncio.to_thread(
+                            self.region_clients[selected_region].head_object,
+                            Bucket=bucket_name,
+                            Key=file_key,
+                        )
+                        existing_checksum = (existing.get('Metadata') or {}).get('openmates-sha256')
+                        if existing_checksum == content_checksum:
+                            logger.info("Immutable storage object already exists with matching checksum")
+                            break
+                        raise RuntimeError("Immutable storage key already exists with different content") from e
                     logger.warning(f"Upload attempt {attempt + 1} failed with ClientError: {error_code}")
                     
                     # If we've reached the maximum number of retries, re-raise the exception
@@ -702,6 +754,13 @@ class S3UploadService:
                     file_obj.seek(0)
             
             logger.info("Upload successful")
+
+            await self._persist_replication_outbox(
+                logical_bucket=bucket_key,
+                object_key=file_key,
+                checksum=content_checksum,
+                active_region=selected_region,
+            )
             
             # Generate S3 URL
             s3_url = self.get_s3_url(legacy_bucket_name, file_key, region=selected_region)
@@ -774,7 +833,11 @@ class S3UploadService:
         bucket_config = self.get_bucket_config(bucket_key)
         if bucket_config["allowed_types"] != ["*/*"] and content_type not in bucket_config["allowed_types"]:
             raise HTTPException(status_code=400, detail="Content type not allowed for this bucket")
-        bucket_name = get_bucket_name(bucket_key, self.environment)
+        legacy_bucket_name = get_bucket_name(bucket_key, self.environment)
+        selected_region = self.region_name
+        if not selected_region:
+            raise storage_unavailable_error()
+        bucket_name = resolve_regional_bucket_name(legacy_bucket_name, selected_region)
         cache_control = bucket_config.get("cache_control") or "no-cache, no-store, must-revalidate"
         upload_parameters: Dict[str, Any] = {
             "Bucket": bucket_name,
@@ -791,17 +854,63 @@ class S3UploadService:
         if combined_metadata:
             upload_parameters["Metadata"] = combined_metadata
 
+        staged = SpooledTemporaryFile(max_size=8 * 1024 * 1024)
         upload_id: Optional[str] = None
         try:
+            total_size = 0
+            checksum = hashlib.sha256()
+            async for incoming in source:
+                if not incoming:
+                    continue
+                total_size += len(incoming)
+                if total_size > bucket_config["max_size"]:
+                    raise HTTPException(status_code=400, detail="File size exceeds bucket limit")
+                checksum.update(incoming)
+                await asyncio.to_thread(staged.write, incoming)
+            if total_size == 0:
+                raise ValueError("Cannot upload an empty stream")
+
+            content_checksum = checksum.hexdigest()
+            combined_metadata["openmates-sha256"] = content_checksum
+            upload_parameters["Metadata"] = combined_metadata
+
+            if should_replicate_bucket(bucket_key):
+                try:
+                    existing = await asyncio.to_thread(
+                        self.region_clients[selected_region].head_object,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                    )
+                except ClientError as error:
+                    error_code = error.response.get("Error", {}).get("Code")
+                    if error_code not in {"404", "NoSuchKey"}:
+                        raise
+                else:
+                    existing_checksum = (existing.get("Metadata") or {}).get("openmates-sha256")
+                    if existing_checksum != content_checksum:
+                        raise RuntimeError("Immutable storage key already exists with different content")
+                    await self._persist_replication_outbox(
+                        logical_bucket=bucket_key,
+                        object_key=file_key,
+                        checksum=content_checksum,
+                        active_region=selected_region,
+                    )
+                    result = {"url": self.get_s3_url(legacy_bucket_name, file_key, region=selected_region)}
+                    if bucket_config["access"] == "private":
+                        result["presigned_url"] = self.generate_presigned_url(
+                            legacy_bucket_name,
+                            file_key,
+                            region=selected_region,
+                        )
+                    return result
+
             created = await asyncio.to_thread(self.upload_client.create_multipart_upload, **upload_parameters)
             upload_id = str(created["UploadId"])
-            buffer = bytearray()
             uploaded_parts: list[Dict[str, Any]] = []
-            total_size = 0
             part_number = 1
 
-            async def upload_part(content: bytes) -> None:
-                nonlocal part_number
+            staged.seek(0)
+            while content := await asyncio.to_thread(staged.read, part_size):
                 response = await asyncio.to_thread(
                     self.upload_client.upload_part,
                     Bucket=bucket_name,
@@ -812,32 +921,38 @@ class S3UploadService:
                 )
                 uploaded_parts.append({"PartNumber": part_number, "ETag": response["ETag"]})
                 part_number += 1
-
-            async for incoming in source:
-                if not incoming:
-                    continue
-                total_size += len(incoming)
-                if total_size > bucket_config["max_size"]:
-                    raise HTTPException(status_code=400, detail="File size exceeds bucket limit")
-                view = memoryview(incoming)
-                while view:
-                    take = min(part_size - len(buffer), len(view))
-                    buffer.extend(view[:take])
-                    view = view[take:]
-                    if len(buffer) == part_size:
-                        await upload_part(bytes(buffer))
-                        buffer.clear()
-            if not uploaded_parts and not buffer:
-                raise ValueError("Cannot upload an empty stream")
-            if buffer:
-                await upload_part(bytes(buffer))
-            await asyncio.to_thread(
-                self.upload_client.complete_multipart_upload,
-                Bucket=bucket_name,
-                Key=file_key,
-                UploadId=upload_id,
-                MultipartUpload={"Parts": uploaded_parts},
-            )
+            completion_parameters: Dict[str, Any] = {
+                "Bucket": bucket_name,
+                "Key": file_key,
+                "UploadId": upload_id,
+                "MultipartUpload": {"Parts": uploaded_parts},
+            }
+            if should_replicate_bucket(bucket_key):
+                completion_parameters["IfNoneMatch"] = "*"
+            try:
+                await asyncio.to_thread(
+                    self.upload_client.complete_multipart_upload,
+                    **completion_parameters,
+                )
+            except ClientError as error:
+                error_code = error.response.get("Error", {}).get("Code")
+                if error_code not in {"PreconditionFailed", "412"}:
+                    raise
+                await asyncio.to_thread(
+                    self.upload_client.abort_multipart_upload,
+                    Bucket=bucket_name,
+                    Key=file_key,
+                    UploadId=upload_id,
+                )
+                upload_id = None
+                existing = await asyncio.to_thread(
+                    self.region_clients[selected_region].head_object,
+                    Bucket=bucket_name,
+                    Key=file_key,
+                )
+                existing_checksum = (existing.get("Metadata") or {}).get("openmates-sha256")
+                if existing_checksum != content_checksum:
+                    raise RuntimeError("Immutable storage key already exists with different content") from error
         except asyncio.CancelledError:
             if upload_id:
                 await asyncio.to_thread(
@@ -859,10 +974,22 @@ class S3UploadService:
                 except Exception as abort_exc:
                     logger.error("Failed to abort S3 multipart upload: %s", type(abort_exc).__name__)
             raise
+        finally:
+            staged.close()
 
-        result = {"url": self.get_s3_url(bucket_name, file_key)}
+        await self._persist_replication_outbox(
+            logical_bucket=bucket_key,
+            object_key=file_key,
+            checksum=content_checksum,
+            active_region=selected_region,
+        )
+        result = {"url": self.get_s3_url(legacy_bucket_name, file_key, region=selected_region)}
         if bucket_config["access"] == "private":
-            result["presigned_url"] = self.generate_presigned_url(bucket_name, file_key)
+            result["presigned_url"] = self.generate_presigned_url(
+                legacy_bucket_name,
+                file_key,
+                region=selected_region,
+            )
         return result
 
     async def delete_file(self, bucket_key: str, file_key: str):

@@ -48,6 +48,9 @@ async def initialize_task_storage(task: Any) -> StorageAvailabilityProbe:
     if task._s3_service is None:
         from backend.core.api.app.services.s3.service import S3UploadService
 
-        task._s3_service = S3UploadService(secrets_manager=task._secrets_manager)
+        task._s3_service = S3UploadService(
+            secrets_manager=task._secrets_manager,
+            directus_service=task._directus_service,
+        )
         await task._s3_service.initialize(configure_buckets=False)
     return task._s3_service

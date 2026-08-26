@@ -269,13 +269,17 @@ class RainRadarSkill(BaseSkill):
 
         try:
             from backend.core.api.app.services.cache import CacheService
+            from backend.core.api.app.services.directus import DirectusService
             from backend.core.api.app.services.s3.config import get_bucket_name
             from backend.core.api.app.services.s3.service import S3UploadService
             from backend.core.api.app.utils.secrets_manager import SecretsManager
 
             secrets_manager = SecretsManager()
             await secrets_manager.initialize()
-            s3_service = S3UploadService(secrets_manager=secrets_manager)
+            s3_service = S3UploadService(
+                secrets_manager=secrets_manager,
+                directus_service=DirectusService(),
+            )
             await s3_service.initialize()
             if not s3_service.base_domain:
                 raise RuntimeError("S3 service initialized without base domain")

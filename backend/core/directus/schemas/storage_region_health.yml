@@ -1,0 +1,16 @@
+# Durable regional circuit and reconciliation state for object storage.
+# Missing objects are data state and never increment failure_count. Failback is
+# permitted only after cooldown, a successful provider probe, and reconciliation
+# have all been persisted for the region.
+storage_region_health:
+  type: collection
+  note: "Internal regional object-storage circuit and failback state"
+  fields:
+    id: {type: uuid, primary: true}
+    region: {type: string, length: 16, required: true}
+    failure_count: {type: integer, required: true, default: 0}
+    open_until: {type: datetime, nullable: true}
+    probe_succeeded: {type: boolean, required: true, default: false}
+    reconciled: {type: boolean, required: true, default: false}
+    last_error_code: {type: string, length: 64, nullable: true}
+    updated_at: {type: datetime, required: true}

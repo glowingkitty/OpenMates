@@ -499,7 +499,10 @@ async def lifespan(app: FastAPI):
     app.state.email_template_service = EmailTemplateService(secrets_manager=app.state.secrets_manager)
     
     # Initialize S3UploadService (depends on SecretsManager)
-    app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
+    app.state.s3_service = S3UploadService(
+        secrets_manager=app.state.secrets_manager,
+        directus_service=app.state.directus_service,
+    )
     logger.info("S3 service instance created.")
     
     cloud_billing_enabled = is_cloud_billing_enabled()

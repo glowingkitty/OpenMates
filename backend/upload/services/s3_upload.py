@@ -17,6 +17,7 @@
 #   e.g. user-uuid-123/sha256abc.../original.bin
 #        user-uuid-123/sha256abc.../preview.bin
 
+import hashlib
 import logging
 import os
 from typing import Optional
@@ -26,7 +27,11 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 import httpx
 
-from backend.shared.python_utils.object_storage_regions import endpoint_for_region, parse_storage_regions
+from backend.shared.python_utils.object_storage_regions import (
+    endpoint_for_region,
+    parse_storage_regions,
+    resolve_regional_bucket_name,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +49,7 @@ class UploadsS3Service:
         self.vault_token_path = "/vault-data/api.token"
         self.client = None
         self.region_clients = {}
+        self.configured_regions: tuple[str, ...] = ()
         self.region_name: Optional[str] = None
         self.endpoint_url: Optional[str] = None
         self.base_domain: Optional[str] = None
@@ -103,6 +109,7 @@ class UploadsS3Service:
 
         self.region_name = region or "nbg1"
         configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        self.configured_regions = configured_regions
         if self.region_name not in configured_regions:
             raise ValueError("Active S3 region must be present in S3_REGIONS")
         self.endpoint_url = endpoint_for_region(self.region_name)
@@ -151,7 +158,10 @@ class UploadsS3Service:
         # Profile images (private bucket): ACL 'private' — bytes are AES-256-GCM
         # encrypted before upload. Served via GET /v1/users/{id}/profile-image
         # (authenticated API proxy that decrypts server-side).
-        for bucket_name in (self.bucket_name_dev, self.bucket_name_prod):
+        for bucket_name in (
+            self.get_bucket_for_env("dev"),
+            self.get_bucket_for_env("prod"),
+        ):
             try:
                 self.client.put_bucket_acl(Bucket=bucket_name, ACL="private")
                 logger.info(f"[S3Upload] Set private ACL on chatfiles bucket '{bucket_name}'")
@@ -161,7 +171,10 @@ class UploadsS3Service:
                 )
 
         # New private profile-images buckets — encrypted bytes, no anonymous access.
-        for bucket_name in (self.profile_private_bucket_name_dev, self.profile_private_bucket_name_prod):
+        for bucket_name in (
+            self.get_profile_private_bucket_for_env("dev"),
+            self.get_profile_private_bucket_for_env("prod"),
+        ):
             try:
                 self.client.put_bucket_acl(Bucket=bucket_name, ACL="private")
                 logger.info(f"[S3Upload] Set private ACL on private profile bucket '{bucket_name}'")
@@ -184,9 +197,42 @@ class UploadsS3Service:
         Returns:
             The bucket name for the specified environment.
         """
+        legacy_bucket = self.bucket_name_dev if target_env == "dev" else self.bucket_name_prod
+        if not self.region_name:
+            raise RuntimeError("[S3Upload] Active S3 region is not configured")
+        return resolve_regional_bucket_name(legacy_bucket, self.region_name)
+
+    async def _persist_replication_outbox(
+        self,
+        *,
+        logical_bucket: str,
+        object_key: str,
+        content: bytes,
+        target_env: str,
+    ) -> None:
+        if len(self.configured_regions) <= 1:
+            return
         if target_env == "dev":
-            return self.bucket_name_dev
-        return self.bucket_name_prod
+            core_api_url = os.environ.get("DEV_CORE_API_URL", "")
+            internal_token = os.environ.get("DEV_INTERNAL_API_SHARED_TOKEN", "")
+        else:
+            core_api_url = os.environ.get("PROD_CORE_API_URL", "http://api:8000")
+            internal_token = os.environ.get("PROD_INTERNAL_API_SHARED_TOKEN", "")
+        if not core_api_url or not internal_token or not self.region_name:
+            raise RuntimeError("[S3Upload] Durable replication outbox is unavailable")
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                f"{core_api_url.rstrip('/')}/internal/storage/replication-jobs",
+                headers={"X-Internal-Service-Token": internal_token},
+                json={
+                    "logical_bucket": logical_bucket,
+                    "object_key": object_key,
+                    "generation": 1,
+                    "checksum": hashlib.sha256(content).hexdigest(),
+                    "active_region": self.region_name,
+                },
+            )
+            response.raise_for_status()
 
     async def upload_file(
         self,
@@ -215,6 +261,7 @@ class UploadsS3Service:
             raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
 
         bucket = self.get_bucket_for_env(target_env)
+        content_checksum = hashlib.sha256(content).hexdigest()
         import asyncio
 
         def _put() -> None:
@@ -224,15 +271,39 @@ class UploadsS3Service:
                 Body=content,
                 ContentType="application/octet-stream",  # Always octet-stream since encrypted
                 ACL="private",  # Chatfiles are private — served via presigned URLs
+                Metadata={"openmates-sha256": content_checksum},
+                IfNoneMatch="*",
             )
 
         try:
             await asyncio.to_thread(_put)
+            await self._persist_replication_outbox(
+                logical_bucket="chatfiles",
+                object_key=s3_key,
+                content=content,
+                target_env=target_env,
+            )
             logger.info(
                 f"[S3Upload] Uploaded {len(content)} bytes → s3://{bucket}/{s3_key}"
             )
             return s3_key
         except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code in {"PreconditionFailed", "412"}:
+                existing = await asyncio.to_thread(
+                    self.client.head_object,
+                    Bucket=bucket,
+                    Key=s3_key,
+                )
+                if (existing.get("Metadata") or {}).get("openmates-sha256") == content_checksum:
+                    await self._persist_replication_outbox(
+                        logical_bucket="chatfiles",
+                        object_key=s3_key,
+                        content=content,
+                        target_env=target_env,
+                    )
+                    return s3_key
+                raise RuntimeError("Immutable storage key already exists with different content") from e
             logger.error(
                 f"[S3Upload] Upload failed for key {s3_key} (bucket={bucket}): {e}", exc_info=True
             )
@@ -341,9 +412,14 @@ class UploadsS3Service:
         Returns:
             The private profile-images bucket name for the specified environment.
         """
-        if target_env == "dev":
-            return self.profile_private_bucket_name_dev
-        return self.profile_private_bucket_name_prod
+        legacy_bucket = (
+            self.profile_private_bucket_name_dev
+            if target_env == "dev"
+            else self.profile_private_bucket_name_prod
+        )
+        if not self.region_name:
+            raise RuntimeError("[S3Upload] Active S3 region is not configured")
+        return resolve_regional_bucket_name(legacy_bucket, self.region_name)
 
     async def upload_profile_image_private(
         self,
@@ -375,6 +451,7 @@ class UploadsS3Service:
             raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
 
         bucket = self.get_profile_private_bucket_for_env(target_env)
+        content_checksum = hashlib.sha256(content).hexdigest()
         import asyncio
 
         def _put() -> None:
@@ -385,16 +462,40 @@ class UploadsS3Service:
                 ContentType="application/octet-stream",
                 ACL="private",
                 CacheControl="no-cache, no-store, must-revalidate",
+                Metadata={"openmates-sha256": content_checksum},
+                IfNoneMatch="*",
             )
 
         try:
             await asyncio.to_thread(_put)
+            await self._persist_replication_outbox(
+                logical_bucket="profile_images_private",
+                object_key=s3_key,
+                content=content,
+                target_env=target_env,
+            )
             logger.info(
                 f"[S3Upload] Private profile image uploaded "
                 f"{len(content) / 1024:.1f} KB → s3://{bucket}/{s3_key}"
             )
             return s3_key
         except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code")
+            if error_code in {"PreconditionFailed", "412"}:
+                existing = await asyncio.to_thread(
+                    self.client.head_object,
+                    Bucket=bucket,
+                    Key=s3_key,
+                )
+                if (existing.get("Metadata") or {}).get("openmates-sha256") == content_checksum:
+                    await self._persist_replication_outbox(
+                        logical_bucket="profile_images_private",
+                        object_key=s3_key,
+                        content=content,
+                        target_env=target_env,
+                    )
+                    return s3_key
+                raise RuntimeError("Immutable storage key already exists with different content") from e
             logger.error(
                 f"[S3Upload] Private profile image upload failed for key {s3_key} "
                 f"(bucket={bucket}): {e}",

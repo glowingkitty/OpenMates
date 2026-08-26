@@ -247,7 +247,10 @@ class BaseServiceTask(DedupedTask):
 
         if self._s3_service is None:
             logger.debug(f"Initializing S3Service for task {self.request.id}")
-            self._s3_service = S3UploadService(secrets_manager=self._secrets_manager)
+            self._s3_service = S3UploadService(
+                secrets_manager=self._secrets_manager,
+                directus_service=self._directus_service,
+            )
             await self._s3_service.initialize() # S3 service needs init
             logger.debug(f"S3Service initialized for task {self.request.id}")
         else:

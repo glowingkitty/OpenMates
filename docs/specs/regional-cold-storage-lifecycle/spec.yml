@@ -690,6 +690,10 @@ contracts:
         classification: internal-only
         request: "logical_bucket, prefix?, region?, dry_run"
         response: "counts, bytes, lag, checksum mismatch, missing and orphan classifications"
+      - route: POST /internal/storage/replication-jobs
+        classification: internal-only
+        request: "logical_bucket, immutable object_key, monotonic generation, ciphertext checksum, active_region"
+        response: "idempotent durable job identity and regional replication state"
       - route: GET /internal/storage/health
         classification: internal-only
         response: "configured regions, active region, regional health, replication lag, pending deletion"
@@ -735,7 +739,7 @@ tests:
       - Logical bucket resolution handles legacy NBG aliases and unique FSN/HEL physical names.
       - Generated URLs and presigned requests use the selected region rather than persisted s3_base_url authority.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_multi_region_service.py backend/tests/test_storage_reference_reconciliation.py backend/tests/test_s3_compliance_lifecycle.py", run_id: local-task1-red-20260826, subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704, timestamp: "2026-08-26T00:00:00Z", summary: Multi-region policy module is missing as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "sessions.py deploy integration pytest gate plus openmates server verify", run_id: deploy-cc9b292-runtime-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:18:00Z", summary: Regional policy tests passed in the isolated integration checkout; the rebuilt API is healthy and core.object_storage passed.}}
   - id: T-S3-REPLICATION
     type: pytest
     file: backend/tests/test_s3_replication_worker.py
@@ -746,7 +750,7 @@ tests:
       - Active success persists one idempotent desired generation and regional pending states.
       - Replica failure does not fail the acknowledged active write and retries with bounded backoff.
       - Duplicate delivery cannot create a competing generation.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Replication module is absent; deterministic job and bounded retry assertions fail as expected.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-S3-FAILOVER
     type: pytest
@@ -758,7 +762,7 @@ tests:
       - Retryable transport and service failures open the regional circuit only after threshold.
       - Missing object never changes regional health.
       - Failback remains blocked through reconciliation and stabilization.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Regional circuit and failback state are absent as expected.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-S3-RECONCILE
     type: pytest
@@ -769,7 +773,7 @@ tests:
     assertions:
       - Reconciliation classifies missing, stale, mismatched, pending-delete, and ambiguous objects.
       - It repairs verified drift but never deletes ambiguity without authority.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Replica classification and repair planning module is absent as expected.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-STORAGE-DELETION
     type: pytest
@@ -783,7 +787,7 @@ tests:
       - Shared surviving references prevent physical file deletion.
       - Explicit deletion removes every generation without seven-day rollback.
       - User-deletable reads expose no reusable regional URL; a tombstone rejects new reads and stops an in-flight proxy stream at the next bounded chunk.
-    red_phase: {required: true, expected: fail, status: pending, evidence: {}}
+    red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py -q", run_id: local-task3-red-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:50:00Z", summary: Authoritative regional deletion tombstones are absent as expected.}}
     green_phase: {required: true, expected: pass, status: pending, evidence: {}}
   - id: T-COLD-CHAT
     type: pytest
@@ -905,7 +909,7 @@ tests:
       - Financial and audit prefixes retain distinct non-overwriting lifecycle rules.
       - Every configured region receives equivalent private lifecycle policy.
     red_phase: {required: true, expected: fail, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_multi_region_service.py backend/tests/test_storage_reference_reconciliation.py backend/tests/test_s3_compliance_lifecycle.py", run_id: local-task1-red-20260826, subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704, timestamp: "2026-08-26T00:00:00Z", summary: Lifecycle API cannot merge prefix-specific rules as expected.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "sessions.py deploy integration pytest gate", run_id: deploy-cc9b292-pytest-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:06:00Z", summary: Prefix-specific lifecycle rules, unmanaged-rule preservation, and regional policy tests passed in the isolated integration checkout.}}
   - id: T-STORAGE-PRIVACY
     type: unit
     file: scripts/audit_client_encrypted_storage_boundary.py
@@ -916,7 +920,7 @@ tests:
       - New archive, replication, export, and tombstone schemas contain no prohibited plaintext/key fields.
       - Logs and diagnostics do not print object keys, credentials, ciphertext, or private metadata.
     red_phase: {required: true, expected: fail_before_implementation, status: passed_unexpectedly, evidence: {status: passed_unexpectedly, command: "python3 scripts/audit_client_encrypted_storage_boundary.py", run_id: local-task2-red-20260826, subject_commit: b0daef15ddfd712814906ea25568c5f1cee5e704, timestamp: "2026-08-26T01:25:00Z", summary: Current logging audit passes, but future replication/archive/export/tombstone schemas remain pending and require replacement evidence.}}
-    green_phase: {required: true, expected: pass, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass, status: passed, evidence: {status: passed, command: "python3 scripts/audit_client_encrypted_storage_boundary.py", run_id: local-task2-privacy-20260826, subject_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b, timestamp: "2026-08-26T11:18:00Z", summary: Storage logs reject raw physical bucket and object identifiers; SDK ciphertext boundary checks pass.}}
   - id: T-MEDIA-EXCEPTIONS
     type: pytest
     file: backend/tests/test_storage_media_exceptions.py
@@ -1239,7 +1243,7 @@ tasks:
   - id: TASK-2
     title: Add shared region policy and compliance lifecycle
     phase: running_checks
-    status: in_progress
+    status: done
     covers: {scenarios: [S-1, S-12], acceptance_criteria: [AC-1, AC-14, AC-15]}
     contract_assertions: [storage.regions.configurable-redundancy, storage.retention.system-generation-only, storage.privacy.ciphertext-boundary]
     surface: backend
@@ -1254,16 +1258,16 @@ tasks:
   - id: TASK-3
     title: Add durable replication failover and tombstones
     phase: working_tasks
-    status: pending
+    status: in_progress
     covers: {scenarios: [S-1, S-2, S-3, S-10], acceptance_criteria: [AC-1, AC-2, AC-3, AC-12, AC-15]}
     contract_assertions: [storage.replication.active-write-durable-outbox, storage.failover.health-reconciled, storage.deletion.global-authoritative, storage.integrity.observable-reconcilable]
     surface: backend
-    expected_files: [backend/core/directus/schemas/storage_replication_jobs.yml, backend/core/directus/schemas/storage_deletion_tombstones.yml, backend/core/api/app/services/s3/replication.py, backend/core/api/app/services/s3/reconciliation.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_s3_replication_worker.py, backend/tests/test_s3_region_failover.py, backend/tests/test_s3_replica_reconciliation.py, backend/tests/test_storage_deletion_tombstones.py]
+    expected_files: [backend/core/directus/schemas/storage_replication_jobs.yml, backend/core/directus/schemas/storage_deletion_tombstones.yml, backend/core/directus/schemas/storage_region_health.yml, backend/core/directus/setup/migrate_storage_replication_indexes.sql, backend/core/api/app/services/s3/replication.py, backend/core/api/app/services/s3/reconciliation.py, backend/core/api/app/services/s3/job_processor.py, backend/core/api/app/services/s3/service.py, backend/core/api/app/routes/internal_api.py, backend/core/api/app/tasks/storage_tasks.py, backend/core/api/app/tasks/celery_config.py, backend/upload/services/s3_upload.py, backend/tests/test_s3_replication_worker.py, backend/tests/test_s3_region_failover.py, backend/tests/test_s3_replica_reconciliation.py, backend/tests/test_storage_deletion_tombstones.py]
     verification_ids: [T-S3-REPLICATION, T-S3-FAILOVER, T-S3-RECONCILE, T-STORAGE-DELETION]
     command: python3 -m pytest backend/tests/test_s3_replication_worker.py backend/tests/test_s3_region_failover.py backend/tests/test_s3_replica_reconciliation.py backend/tests/test_storage_deletion_tombstones.py
     dependencies: [TASK-2]
     follow_up_tasks: [TASK-4]
-    ownership: {session: 8db7, files: [backend/core/directus/schemas/storage_replication_jobs.yml, backend/core/directus/schemas/storage_deletion_tombstones.yml, backend/core/api/app/services/s3/replication.py, backend/core/api/app/services/s3/reconciliation.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_s3_replication_worker.py, backend/tests/test_s3_region_failover.py, backend/tests/test_s3_replica_reconciliation.py, backend/tests/test_storage_deletion_tombstones.py], shared_files: []}
+    ownership: {session: 8db7, files: [backend/core/directus/schemas/storage_replication_jobs.yml, backend/core/directus/schemas/storage_deletion_tombstones.yml, backend/core/directus/schemas/storage_region_health.yml, backend/core/directus/setup/migrate_storage_replication_indexes.sql, backend/core/api/app/services/s3/replication.py, backend/core/api/app/services/s3/reconciliation.py, backend/core/api/app/services/s3/job_processor.py, backend/core/api/app/tasks/storage_tasks.py, backend/tests/test_s3_replication_worker.py, backend/tests/test_s3_region_failover.py, backend/tests/test_s3_replica_reconciliation.py, backend/tests/test_storage_deletion_tombstones.py], shared_files: [backend/core/api/app/services/s3/service.py, backend/core/api/app/routes/internal_api.py, backend/core/api/app/tasks/celery_config.py, backend/core/directus/setup/setup_schemas.py, backend/core/docker-compose.yml, backend/core/docker-compose.selfhost.yml, backend/core/directus/Dockerfile.setup.selfhost, frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml, backend/upload/services/s3_upload.py]}
     independently_deployable: false
     blockers: []
   - id: TASK-4
@@ -1510,11 +1514,13 @@ demonstration:
     publication: Upload approved videos and captions through scripts/opencode_response_media.py.
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Run the complete TASK-2 gates and scoped deploy, record commit-bound green evidence, then begin TASK-3 red tests.
+  current_task_id: TASK-3
+  next_action: Complete the TASK-3 deployment gate, rebuild API/persistence workers and cms-setup, then record commit-bound green evidence.
   command: >-
-    python3 scripts/sessions.py deploy --session 8db7
-    --title "feat: add regional object storage policy" --message "..."
-  expected_outcome: TASK-2 deploys cleanly on current origin/dev and preserves the storage-resilience contract.
+    python3 -m pytest backend/tests/test_s3_replication_worker.py
+    backend/tests/test_s3_region_failover.py
+    backend/tests/test_s3_replica_reconciliation.py
+    backend/tests/test_storage_deletion_tombstones.py
+  expected_outcome: Focused tests, schema setup, API startup, persistence-worker task registration, and core object-storage verification pass for the deployed TASK-3 commit.
   blocker: null
-  last_verified_commit: 785a870bc967f99bbc96ade86f658d3dddf10fba
+  last_verified_commit: cc9b29242b208efe9d3fc81c0ccda8f1c670b96b

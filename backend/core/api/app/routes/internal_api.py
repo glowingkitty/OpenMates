@@ -29,6 +29,11 @@ from backend.core.api.app.services.team_billing_service import TeamBillingServic
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.s3.replication import (
+    build_replication_job,
+    persist_replication_job,
+)
+from backend.shared.python_utils.object_storage_regions import parse_storage_regions
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService
@@ -118,6 +123,40 @@ def get_payment_service(request: Request) -> PaymentService:
 
 
 # --- Endpoint Implementations ---
+
+
+class PersistStorageReplicationJobRequest(BaseModel):
+    """Safe routing metadata for one completed active-region ciphertext write."""
+
+    logical_bucket: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
+    object_key: str = Field(min_length=1, max_length=1024)
+    generation: int = Field(default=1, ge=1)
+    checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
+    active_region: str = Field(pattern=r"^(nbg1|fsn1|hel1)$")
+
+
+@router.post("/storage/replication-jobs")
+async def persist_storage_replication_job_route(
+    payload: PersistStorageReplicationJobRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> dict[str, str]:
+    """Persist internal-only replica intent before an upload service acknowledges."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    now = datetime.now(timezone.utc)
+    job = build_replication_job(
+        logical_bucket=payload.logical_bucket,
+        object_key=payload.object_key,
+        generation=payload.generation,
+        checksum=payload.checksum,
+        active_region=payload.active_region,
+        configured_regions=configured_regions,
+        now=now,
+    )
+    persisted = await persist_replication_job(
+        directus_service=directus_service,
+        job=job,
+    )
+    return {"job_id": str(persisted["id"]), "state": str(persisted.get("state", job["state"]))}
 
 
 # ---------------------------------------------------------------------------

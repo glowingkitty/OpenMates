@@ -42,6 +42,17 @@ CHAT_RECOVERY_INDEXES = (
     'chat_recovery_jobs_task_uq',
     'chat_recovery_jobs_assistant_message_uq',
 )
+STORAGE_REPLICATION_MIGRATION_PATH = os.getenv(
+    'STORAGE_REPLICATION_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_replication_indexes.sql',
+)
+STORAGE_REPLICATION_INDEXES = (
+    'storage_replication_jobs_identity_uq',
+    'storage_replication_jobs_due_idx',
+    'storage_deletion_tombstones_identity_uq',
+    'storage_deletion_tombstones_due_idx',
+    'storage_region_health_region_uq',
+)
 WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
     'WORKFLOW_RUNTIME_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql',
@@ -1100,6 +1111,39 @@ def apply_and_verify_chat_recovery_indexes():
     print(f"Verified {len(CHAT_RECOVERY_INDEXES)} chat recovery indexes")
 
 
+def apply_and_verify_storage_replication_indexes():
+    """Apply durable regional storage identities and bounded due-work indexes."""
+    if not os.path.isfile(STORAGE_REPLICATION_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage replication migration is missing: {STORAGE_REPLICATION_MIGRATION_PATH}"
+        )
+
+    with open(STORAGE_REPLICATION_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_REPLICATION_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(STORAGE_REPLICATION_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage replication index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_REPLICATION_INDEXES)} storage replication indexes")
+
+
 def apply_and_verify_workflow_runtime_indexes():
     """Apply the Workflow runtime migration before its scheduler can be enabled."""
     if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
@@ -1436,6 +1480,9 @@ def setup_schemas():
 
         print("\n--- Applying chat recovery database indexes ---")
         apply_and_verify_chat_recovery_indexes()
+
+        print("\n--- Applying storage replication database indexes ---")
+        apply_and_verify_storage_replication_indexes()
 
         print("\n--- Verifying chat recovery Directus endpoint ---")
         verify_chat_recovery_endpoint()

@@ -64,7 +64,7 @@ async def main() -> int:
     await secrets.initialize()
     encryption = EncryptionService()
     directus = DirectusService(encryption_service=encryption)
-    s3 = S3UploadService(secrets_manager=secrets)
+    s3 = S3UploadService(secrets_manager=secrets, directus_service=directus)
     await s3.initialize()
 
     row_id = None

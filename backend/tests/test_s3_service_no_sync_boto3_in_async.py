@@ -243,6 +243,7 @@ def test_known_async_methods_are_covered():
         "check_availability",
         "_initialize_buckets",
         "_reconcile_regional_bucket_policies",
+        "_persist_replication_outbox",
         "upload_file",
         "upload_temporary_file",
         "upload_file_stream",
