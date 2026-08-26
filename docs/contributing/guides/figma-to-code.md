@@ -57,6 +57,9 @@ Local authentication lives in the gitignored `.env.figma.local` file:
 FIGMA_ACCESS_TOKEN=<PERSONAL_ACCESS_TOKEN>
 ```
 
+Managed agent worktrees reuse this file and `scripts/.figma-index.json` from the
+root control-plane checkout. Do not copy either private file into a worktree.
+
 The local OpenCode configuration starts the pinned Figma MCP through
 `scripts/run_figma_mcp.sh`, which reads this file without putting the token in
 configuration or command arguments. This private MCP registration belongs in the

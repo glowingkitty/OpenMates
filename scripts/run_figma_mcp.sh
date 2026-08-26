@@ -5,8 +5,20 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TOKEN_FILE="${REPO_ROOT}/.env.figma.local"
+CHECKOUT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if ! GIT_COMMON_DIR="$(git -C "${CHECKOUT_ROOT}" rev-parse --git-common-dir 2>/dev/null)"; then
+	printf 'Cannot resolve the OpenMates control-plane checkout from %s.\n' "${CHECKOUT_ROOT}" >&2
+	exit 2
+fi
+if [[ "${GIT_COMMON_DIR}" != /* ]]; then
+	GIT_COMMON_DIR="$(cd "${CHECKOUT_ROOT}/${GIT_COMMON_DIR}" && pwd)"
+fi
+if [[ "${GIT_COMMON_DIR}" != */.git ]]; then
+	printf 'Unexpected Git common directory for Figma MCP: %s\n' "${GIT_COMMON_DIR}" >&2
+	exit 2
+fi
+CONTROL_PLANE_ROOT="${GIT_COMMON_DIR%/.git}"
+TOKEN_FILE="${CONTROL_PLANE_ROOT}/.env.figma.local"
 
 if [[ -z "${FIGMA_ACCESS_TOKEN:-}" && -f "${TOKEN_FILE}" ]]; then
 	set -a

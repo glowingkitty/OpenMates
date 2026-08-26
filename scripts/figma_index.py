@@ -21,15 +21,23 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+try:
+    from scripts.figma_paths import resolve_control_plane_root
+except ModuleNotFoundError:
+    from figma_paths import resolve_control_plane_root
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_INDEX_PATH = REPO_ROOT / "scripts" / ".figma-index.json"
+CONTROL_PLANE_ROOT = resolve_control_plane_root(REPO_ROOT)
+DEFAULT_INDEX_PATH = CONTROL_PLANE_ROOT / "scripts" / ".figma-index.json"
 DEFAULT_FILE_KEY = "PzgE78TVxG0eWuEeO6o8ve"
 DEFAULT_MAX_AGE_HOURS = 168.0
 FIGMA_API_BASE_URL = "https://api.figma.com/v1"
 FIGMA_DESIGN_BASE_URL = "https://www.figma.com/design"
 TOKEN_ENV_NAME = "FIGMA_ACCESS_TOKEN"
-TOKEN_FILES = (REPO_ROOT / ".env.figma.local", REPO_ROOT / ".env")
+TOKEN_FILES = (
+    CONTROL_PLANE_ROOT / ".env.figma.local",
+    CONTROL_PLANE_ROOT / ".env",
+)
 ARTBOARD_TYPES = frozenset({"FRAME", "COMPONENT", "COMPONENT_SET"})
 INDEXED_TYPES = ARTBOARD_TYPES | {"SECTION"}
 TEXT_SNIPPET_LENGTH = 160
