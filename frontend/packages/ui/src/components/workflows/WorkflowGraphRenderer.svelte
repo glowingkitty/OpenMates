@@ -258,7 +258,6 @@
                   {/if}
                   {#if run?.skipped_reason}<section class="detail-group"><h4>Branch</h4><p>{run.skipped_reason}</p></section>{/if}
                   {#if run?.error_summary}<section class="detail-group error"><h4>Error</h4><p>{run.error_summary}</p></section>{/if}
-                  {#if !run}<section class="detail-group"><h4>Definition</h4><pre>{detailValue(item.node.config ?? {})}</pre></section>{/if}
                 {:else}
                   <label class="node-field"><span>Action title</span><input data-testid="workflow-node-title-input" value={item.node.title ?? item.node.type} oninput={(event) => updateNode(item.node.id, (node) => ({ ...node, title: event.currentTarget.value }))} /></label>
                   {#if item.node.type === 'schedule_trigger'}

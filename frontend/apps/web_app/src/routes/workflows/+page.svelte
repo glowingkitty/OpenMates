@@ -459,6 +459,7 @@
         run_content_retention: selectedRunContentRetention
       });
       resetEditor(workflow);
+      saving = false;
       await maintainTemplateProjection(workflow);
     } catch (saveError) {
       routeError = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';

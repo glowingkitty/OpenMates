@@ -27,31 +27,31 @@ const WORKFLOWS_UI_PROOF = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
-			id: 'workspace-visible',
+			id: 'workspace-visible.assertion',
 			text: 'The Workflows screen presents recommendation-led creation, category-styled cards, browse controls, and a bottom composer.',
 			checkpoint: 'workspace-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'template-visible',
+			id: 'template-visible.assertion',
 			text: 'The selected Workflow keeps its category identity above shared Template and Runs tabs and a centered editable graph.',
 			checkpoint: 'template-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'guard-visible',
+			id: 'guard-visible.assertion',
 			text: 'Editing a node reveals explicit Save and Undo controls, while navigation asks whether to Save, Discard, or Stay.',
 			checkpoint: 'guard-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'version-visible',
+			id: 'version-visible.assertion',
 			text: 'Immutable versions appear on a horizontal timeline and historical definitions reuse the same read-only graph.',
 			checkpoint: 'version-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'runs-visible',
+			id: 'runs-visible.assertion',
 			text: 'Runs presents a status timeline and the selected execution graph with retained node detail and contextual cancellation.',
 			checkpoint: 'runs-visible',
 			devices: ['web-laptop', 'web-phone']
@@ -221,7 +221,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
 			await expectNoPageOverflow(page);
 			if (proof) {
-				await proof.assert('workspace-visible', async () => {
+				await proof.assert('workspace-visible.assertion', async () => {
 					await expect(editorCard).toBeVisible();
 					await expect(page.getByTestId('workflows-search')).toBeVisible();
 					await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
@@ -241,7 +241,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute('data-read-only', 'false');
 			await expectNoPageOverflow(page);
 			if (proof) {
-				await proof.assert('template-visible', async () => {
+				await proof.assert('template-visible.assertion', async () => {
 					await expect(detailHeader).toBeVisible();
 					await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
 				});
@@ -259,7 +259,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflow-guard-stay')).toBeVisible();
 			await expect.poll(async () => page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="workflow-unsaved-guard"]')))).toBe(true);
 			if (proof) {
-				await proof.assert('guard-visible', async () => {
+				await proof.assert('guard-visible.assertion', async () => {
 					await expect(page.getByTestId('workflow-unsaved-guard')).toBeVisible();
 				});
 				await proof.checkpoint('guard-visible');
@@ -272,6 +272,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page).toHaveURL(workflowDetailsHashUrlPattern(editorWorkflow.id));
 			await page.getByTestId('save-workflow').click();
 			await expect(page.getByTestId('workflow-dirty-panel')).toHaveCount(0, { timeout: 30_000 });
+			await expect(page.getByText('Saving...', { exact: true })).toHaveCount(0);
 			await expect(page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack')).toContainText('Paris');
 
 			await expect(page.getByTestId('workflow-version-selector')).toBeVisible();
@@ -280,9 +281,10 @@ test.describe('Workflows web UI contract', () => {
 			await historicalVersion.click();
 			await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
 			await expect(page.getByTestId('workflow-version-graph-inspection')).toHaveAttribute('data-read-only', 'true');
+			await expect(page.getByTestId('workflow-version-graph-inspection')).not.toContainText('app_id');
 			await expect(page.locator('[data-testid="workflow-version-row"][data-current="true"]')).toContainText('Active');
 			if (proof) {
-				await proof.assert('version-visible', async () => {
+				await proof.assert('version-visible.assertion', async () => {
 					await expect(page.getByTestId('workflow-version-timeline')).toBeVisible();
 					await expect(page.getByTestId('workflow-version-graph-inspection')).toBeVisible();
 				});
@@ -299,13 +301,18 @@ test.describe('Workflows web UI contract', () => {
 			await expect(page.getByTestId('workflow-run-timeline')).toBeVisible();
 			const selectedRun = page.locator(`[data-testid="workflow-run-marker"][data-run-id="${run.id}"]`);
 			await expect(selectedRun).toContainText(/waiting/i);
+			await expect.poll(async () => selectedRun.evaluate((element: HTMLElement) => {
+				const marker = element.getBoundingClientRect();
+				const status = element.querySelector('strong')?.getBoundingClientRect();
+				return Boolean(status && status.top >= marker.top && status.bottom <= marker.bottom);
+			})).toBe(true);
 			await selectedRun.click();
 			await expect(page.getByTestId('workflow-run-detail')).toBeVisible();
 			await expect(page.getByTestId('workflow-run-graph')).toHaveAttribute('data-read-only', 'true');
 			await expect(page.getByTestId('workflow-run-node-status').first()).toContainText(/queued|running|completed|skipped|failed/i);
 			await expect(page.getByTestId('workflow-run-cancel')).toBeVisible();
 			if (proof) {
-				await proof.assert('runs-visible', async () => {
+				await proof.assert('runs-visible.assertion', async () => {
 					await expect(page.getByTestId('workflow-run-timeline')).toBeVisible();
 					await expect(page.getByTestId('workflow-run-detail')).toBeVisible();
 					await expect(page.getByTestId('workflow-run-cancel')).toBeVisible();

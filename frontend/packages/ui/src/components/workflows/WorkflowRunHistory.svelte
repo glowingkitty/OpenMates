@@ -207,7 +207,7 @@
   .run-selector { justify-self: center; display: flex; align-items: center; gap: var(--spacing-3); border: 0; border-radius: var(--radius-full); padding: var(--spacing-3) var(--spacing-5); color: var(--color-font-primary); background: var(--color-grey-20); font: inherit; font-weight: 700; }
   .run-timeline { position: relative; display: flex; gap: var(--spacing-4); overflow-x: auto; padding: var(--spacing-6) var(--spacing-2) var(--spacing-3); scrollbar-width: thin; }
   .run-timeline::before { content: ''; position: absolute; inset: 31px var(--spacing-5) auto; height: 2px; background: var(--color-grey-30); }
-  .run-marker { position: relative; z-index: 1; display: grid; flex: 0 0 190px; justify-items: center; gap: var(--spacing-2); padding: var(--spacing-4); border: 1px solid transparent; border-radius: var(--radius-8); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; text-transform: capitalize; cursor: pointer; }
+  .run-marker { position: relative; z-index: 1; box-sizing: border-box; display: grid; min-height: 96px; flex: 0 0 190px; align-content: center; justify-items: center; gap: var(--spacing-2); padding: var(--spacing-4); border: 1px solid transparent; border-radius: var(--radius-8); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; text-transform: capitalize; cursor: pointer; }
   .run-marker span { color: var(--color-font-secondary); font-size: var(--font-size-xs); }
   .run-marker.selected { border-color: var(--color-button-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-button-primary) 16%, transparent); }
   .run-marker.next { color: var(--color-button-primary); }
