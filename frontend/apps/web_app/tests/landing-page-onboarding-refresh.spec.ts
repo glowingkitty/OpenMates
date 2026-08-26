@@ -753,7 +753,7 @@ test.describe('Landing page onboarding refresh', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
-	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {
+	test('settings stays beside active chat on laptop and overlays only on narrow viewports', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1440, height: 900 });
 		const exampleChatId = 'example-berlin-dermatology-appointments';
@@ -763,16 +763,6 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', exampleChatId, { timeout: 15000 });
 		await expect(page.getByTestId('mate-message-content').last()).toContainText('dermatology', { timeout: 15000 });
-		await page.getByTestId('sidebar-toggle').click();
-		await expect(page.getByTestId('activity-history-wrapper')).toBeVisible({ timeout: 10000 });
-		await expect.poll(
-			async () => page.getByTestId('chat-history-content').evaluate((element: HTMLElement) => element.getBoundingClientRect().width),
-			{ timeout: 3000 }
-		).toBeGreaterThan(990);
-
-		const chatHistoryWidthBeforeSettings = await page.getByTestId('chat-history-content').evaluate(
-			(element: HTMLElement) => element.getBoundingClientRect().width
-		);
 
 		await page.getByTestId('profile-container').click();
 		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
@@ -783,32 +773,49 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect.poll(
 			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
 			{ timeout: 3000 }
+		).not.toBe('fixed');
+		await expect.poll(
+			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
+			{ timeout: 3000 }
+		).toBe(false);
+
+		const laptopLayout = await page.evaluate(() => {
+			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+			const settings = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
+			if (!activeChat || !settings) throw new Error('Expected active chat and settings panel');
+			const activeChatRect = activeChat.getBoundingClientRect();
+			const settingsRect = settings.getBoundingClientRect();
+			return {
+				activeChatBottom: activeChatRect.bottom,
+				activeChatRight: activeChatRect.right,
+				activeChatOverflowY: getComputedStyle(activeChat).overflowY,
+				settingsLeft: settingsRect.left,
+				settingsRight: settingsRect.right,
+				viewportHeight: window.innerHeight
+			};
+		});
+		expect(laptopLayout.activeChatOverflowY, 'active chat itself must not become vertically scrollable').toBe('hidden');
+		expect(laptopLayout.activeChatBottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
+			laptopLayout.viewportHeight - 1
+		);
+		expect(laptopLayout.activeChatRight, 'laptop settings must sit beside active chat without overlap').toBeLessThanOrEqual(
+			laptopLayout.settingsLeft + 1
+		);
+		expect(laptopLayout.settingsRight, 'laptop settings must remain inside the viewport').toBeLessThanOrEqual(1440);
+
+		await page.setViewportSize({ width: 1000, height: 800 });
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
+			{ timeout: 3000 }
 		).toBe('fixed');
 		await expect.poll(
 			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
 			{ timeout: 3000 }
 		).toBe(true);
-
-		const activeChatLayout = await page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => {
-			const rect = element.getBoundingClientRect();
-			return {
-				bottom: rect.bottom,
-				overflowY: getComputedStyle(element).overflowY,
-				viewportHeight: window.innerHeight
-			};
-		});
-		expect(activeChatLayout.overflowY, 'active chat itself must not become vertically scrollable').toBe('hidden');
-		expect(activeChatLayout.bottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
-			activeChatLayout.viewportHeight - 1
+		const narrowSettingsRight = await page.getByTestId('settings-menu').evaluate(
+			(element: HTMLElement) => element.getBoundingClientRect().right
 		);
-
-		const chatHistoryWidthWithSettings = await page.getByTestId('chat-history-content').evaluate(
-			(element: HTMLElement) => element.getBoundingClientRect().width
-		);
-		expect(
-			chatHistoryWidthWithSettings,
-			'settings must not narrow chat history while the active chat already has room for its full transcript width'
-		).toBeGreaterThanOrEqual(chatHistoryWidthBeforeSettings - 1);
+		expect(narrowSettingsRight, 'narrow settings overlay must remain inside the viewport').toBeLessThanOrEqual(1000);
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
