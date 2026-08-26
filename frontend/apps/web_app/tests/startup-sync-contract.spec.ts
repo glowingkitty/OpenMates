@@ -306,10 +306,10 @@ async function verifyLatestChatSelectionWins(page: any): Promise<void> {
 		await expect(sidebar).toBeVisible({ timeout: 10_000 });
 	}
 
-	const mountedChatIds = await page.getByTestId('chat-item-wrapper').evaluateAll((rows) => rows
+	const mountedChatIds = await page.getByTestId('chat-item-wrapper').evaluateAll((rows) => Array.from(new Set(rows
 		.map((row) => row.getAttribute('data-chat-id') || '')
 		.filter((chatId) => chatId && !chatId.startsWith('demo-') && !chatId.startsWith('legal-') && !chatId.startsWith('example-'))
-	);
+	)));
 	expect(mountedChatIds.length, 'The mounted sidebar must contain two saved chats for stale-selection coverage').toBeGreaterThanOrEqual(2);
 	const [staleChatId, latestChatId] = mountedChatIds;
 	const staleChatRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${staleChatId}"]`);
@@ -317,23 +317,43 @@ async function verifyLatestChatSelectionWins(page: any): Promise<void> {
 
 	try {
 		await page.evaluate(({ chatId, delayMs }: { chatId: string; delayMs: number }) => {
-			(window as typeof window & {
+			const testWindow = window as typeof window & {
 				__openmatesE2EChatSelectionDelays?: Record<string, number>;
-			}).__openmatesE2EChatSelectionDelays = { [chatId]: delayMs };
+				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
+			};
+			testWindow.__openmatesE2EChatSelectionDelays = { [chatId]: delayMs };
+			testWindow.__openmatesE2EChatSelectionTrace = [];
 		}, { chatId: staleChatId, delayMs: STALE_SELECTION_DELAY_MS });
 
 		await staleChatRow.click();
+		await expect.poll(() => page.evaluate((chatId: string) =>
+			(window as typeof window & {
+				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
+			}).__openmatesE2EChatSelectionTrace?.some((entry) => entry.chatId === chatId && entry.phase === 'delay_started') ?? false,
+		staleChatId)).toBe(true);
 		await latestChatRow.click();
 		await expect(latestChatRow).toHaveAttribute('data-active', 'true');
-		await page.waitForTimeout(STALE_SELECTION_DELAY_MS + 250);
+		await expect.poll(() => page.evaluate((chatId: string) =>
+			(window as typeof window & {
+				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
+			}).__openmatesE2EChatSelectionTrace?.some((entry) => entry.chatId === chatId && entry.phase === 'load_chat_called') ?? false,
+		latestChatId)).toBe(true);
+		await expect.poll(() => page.evaluate((chatId: string) =>
+			(window as typeof window & {
+				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
+			}).__openmatesE2EChatSelectionTrace?.some((entry) => entry.chatId === chatId && entry.phase === 'load_chat_called') ?? false,
+		staleChatId)).toBe(true);
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', latestChatId);
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(latestChatId)}`);
 		await expect(latestChatRow).toHaveAttribute('data-active', 'true');
 	} finally {
 		await page.evaluate(() => {
-			delete (window as typeof window & {
+			const testWindow = window as typeof window & {
 				__openmatesE2EChatSelectionDelays?: Record<string, number>;
-			}).__openmatesE2EChatSelectionDelays;
+				__openmatesE2EChatSelectionTrace?: Array<{ chatId: string; phase: string }>;
+			};
+			delete testWindow.__openmatesE2EChatSelectionDelays;
+			delete testWindow.__openmatesE2EChatSelectionTrace;
 		}).catch(() => undefined);
 	}
 }
