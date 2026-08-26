@@ -168,7 +168,7 @@ async function dismissOfflineSyncNoticeIfPresent(
 		.catch(() => false);
 	if (!appeared) return;
 
-	await notification.getByTestId('notification-dismiss').click({ timeout: 5000, force: true });
+	await notification.getByTestId('notification-dismiss').dispatchEvent('click');
 	await expect(notification).not.toBeVisible({ timeout: 10000 });
 	logCheckpoint('Dismissed pre-existing offline sync notification before proof capture.');
 }
