@@ -30,6 +30,7 @@ const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || 
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const EXPECTED_PROVIDER_ORDER = ['ChatGPT', 'Claude', 'Mistral', 'DeepSeek', 'Gemini', 'Qwen'];
 const EXPECTED_HEADER_DESCRIPTION = 'Manage which AI models are used, how they respond & add your subscriptions.';
+const PROOF_CAPTURE_END_HOLD_MS = 750;
 
 const AI_MODEL_SETTINGS_PROOF = defineVideoProof({
 	id: 'ai-model-settings-hierarchy',
@@ -158,5 +159,6 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 	});
 	await takeStepScreenshot(page, '03-model-detail');
 	await proof.checkpoint('ai-model-detail');
+	await page.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
 	await proof.attach();
 });
