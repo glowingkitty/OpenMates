@@ -344,7 +344,9 @@ describe("EmbedsMapView", () => {
     expect(target.querySelector('[data-testid="embeds-map-view-filter-button"]')?.textContent).toContain("Filter");
     expect(target.textContent).not.toContain("Map view");
     expect(target.textContent).not.toContain("Berlin AI events");
-    expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledTimes(3);
+    expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledWith("source-embed-id");
+    expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledWith("event-one-id");
+    expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledWith("place-two-id");
     expect(fullscreenMocks.dispatchEmbedFullscreen).not.toHaveBeenCalled();
 
     unmount(component);
@@ -618,18 +620,27 @@ describe("EmbedsMapView", () => {
     transferMin!.dispatchEvent(new Event("input", { bubbles: true }));
     await tick();
 
+    expect(target.querySelector('[data-testid="embeds-map-view-filter-summary"]')?.textContent).toContain("1 of 2 results remain");
+    filterButton!.click();
+    await tick();
+
     let cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
     expect(cards[0].textContent).toContain("Bonn Hbf");
     expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
 
+    filterButton!.click();
+    await tick();
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
     await tick();
 
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-deutsche_bahn"]')?.click();
     await tick();
 
+    expect(target.querySelector('[data-testid="embeds-map-view-filter-summary"]')?.textContent).toContain("1 of 2 results remain");
+    filterButton!.click();
+    await tick();
     cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
     expect(cards[0].textContent).toContain("Bonn Hbf");
@@ -637,7 +648,11 @@ describe("EmbedsMapView", () => {
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
     expect(embedResolverMocks.decodeToonContent.mock.calls.length).toBe(decodeCountAfterLoad);
 
+    filterButton!.click();
+    await tick();
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
+    await tick();
+    filterButton!.click();
     await tick();
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
 
