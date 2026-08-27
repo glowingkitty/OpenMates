@@ -98,7 +98,7 @@
             <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.default_models')} icon="ai" />
             <SettingsItem type="submenu" icon="subsetting_icon search" title={$text('settings.ai_ask.ai_ask_settings.simple_requests')} subtitleTop={modelLabel(defaultSimple)} data-testid="ai-tier-row-simple" onClick={() => openTier('simple')} />
             <SettingsItem type="submenu" icon="subsetting_icon code" title={$text('settings.ai_ask.ai_ask_settings.complex_requests')} subtitleTop={modelLabel(defaultComplex)} data-testid="ai-tier-row-complex" onClick={() => openTier('complex')} />
-            <SettingsItem type="submenu" icon="subsetting_icon performance" title={$text('settings.ai_ask.ai_ask_settings.most_demanding_requests')} subtitleTop={modelLabel(defaultMostDemanding)} data-testid="ai-tier-row-most-demanding" onClick={() => openTier('most-demanding')} />
+            <SettingsItem type="submenu" icon="subsetting_icon insight" title={$text('settings.ai_ask.ai_ask_settings.most_demanding_requests')} subtitleTop={modelLabel(defaultMostDemanding)} data-testid="ai-tier-row-most-demanding" onClick={() => openTier('most-demanding')} />
         </section>
     {/if}
 
