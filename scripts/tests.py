@@ -2402,6 +2402,20 @@ def iter_tests(run_data: dict[str, Any]):
                 yield str(suite), test
 
 
+def canonical_run_tests(run_data: dict[str, Any]):
+    """Yield one record per control-plane key, retaining any problem outcome."""
+    canonical: dict[str, tuple[str, dict[str, Any]]] = {}
+    for suite, test in iter_tests(run_data):
+        key = test_key(suite, test)
+        previous = canonical.get(key)
+        if previous is None or (
+            is_problem(str(test.get("status") or ""))
+            and not is_problem(str(previous[1].get("status") or ""))
+        ):
+            canonical[key] = (suite, test)
+    yield from canonical.values()
+
+
 def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]:
     """Materialize failed prerequisites once and mark their dependants as blocked."""
     normalized = _copy_json(run_data)
@@ -2903,7 +2917,7 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
     events: list[dict[str, Any]] = []
     observed_keys_by_suite: dict[str, set[str]] = {}
 
-    for suite, test in iter_tests(run_data):
+    for suite, test in canonical_run_tests(run_data):
         label = test_label(suite, test)
         key = test_key(suite, test)
         observed_keys_by_suite.setdefault(suite, set()).add(key)
@@ -3663,11 +3677,46 @@ def start_debug_campaign(
         _require_campaign_coordinator_for_campaign(campaign_key, session_id, "campaign start")
         return get_store().update_debug_campaign(campaign_key, {"session_id": session_id, "updated_at": utc_now()})
     active = _active_debug_campaign_for_session(session_id)
-    if active:
+    if active and (not daily_recovery or campaign_allows_daily_recovery_milestone(active)):
         _require_session_identity(session_id, "campaign start")
+        triage_entries = list(build_triage().get("entries") or [])
+        if daily_recovery:
+            linked_campaign_keys = [
+                str(key)
+                for key in (active.get("metadata") or {}).get("ownership_campaign_keys") or []
+            ]
+            owned_test_keys = {
+                str(test_key_value)
+                for owner_campaign_key in [str(active["campaign_key"]), *linked_campaign_keys]
+                for group in debug_groups_for_campaign(owner_campaign_key)
+                if owner_campaign_key == active["campaign_key"] or group.get("status") != "green"
+                for test_key_value in group.get("member_test_keys") or []
+            }
+            missing_entries = [
+                entry for entry in triage_entries if str(entry["key"]) not in owned_test_keys
+            ]
+            groups = [
+                _create_debug_group(str(active["campaign_key"]), group_id, group_entries)
+                for group_id, group_entries in _group_entries_by_signature(missing_entries).items()
+            ]
+            if groups:
+                return get_store().update_debug_campaign(
+                    str(active["campaign_key"]),
+                    {
+                        "selected_group_keys": [
+                            *(active.get("selected_group_keys") or []),
+                            *(group["group_key"] for group in groups),
+                        ],
+                        "selected_test_keys": sorted({
+                            *(str(key) for key in active.get("selected_test_keys") or []),
+                            *(str(entry["key"]) for entry in missing_entries),
+                        }),
+                        "updated_at": utc_now(),
+                    },
+                )
+            return active
         if active.get("selected_group_keys"):
             return active
-        triage_entries = list(build_triage().get("entries") or [])
         selected = set(active.get("selected_test_keys") or [])
         entries = [entry for entry in triage_entries if entry.get("key") in selected]
         if not entries:
@@ -3695,20 +3744,32 @@ def start_debug_campaign(
         pending_keys = _active_campaign_pending_test_keys(str(campaign["campaign_key"]))
         if requested_keys.intersection(pending_keys):
             resumable.append(campaign)
-    if len(resumable) == 1:
-        _require_campaign_coordinator_for_campaign(str(resumable[0]["campaign_key"]), session_id, "campaign start")
-        return get_store().update_debug_campaign(
-            str(resumable[0]["campaign_key"]),
-            {"session_id": session_id, "updated_at": utc_now()},
-        )
-    if len(resumable) > 1:
-        return {
-            "status": "selection_required",
-            "candidate_campaign_keys": sorted(str(campaign["campaign_key"]) for campaign in resumable),
-            "selected_test_keys": sorted(requested_keys),
-        }
+    daily_campaigns = [campaign for campaign in resumable if campaign_allows_daily_recovery_milestone(campaign)]
+    if not daily_recovery or daily_campaigns:
+        candidates = daily_campaigns if daily_recovery else resumable
+        if len(candidates) == 1:
+            _require_campaign_coordinator_for_campaign(str(candidates[0]["campaign_key"]), session_id, "campaign start")
+            return get_store().update_debug_campaign(
+                str(candidates[0]["campaign_key"]),
+                {"session_id": session_id, "updated_at": utc_now()},
+            )
+        if len(candidates) > 1:
+            return {
+                "status": "selection_required",
+                "candidate_campaign_keys": sorted(str(campaign["campaign_key"]) for campaign in candidates),
+                "selected_test_keys": sorted(requested_keys),
+            }
 
     _require_session_identity(session_id, "campaign start")
+    ownership_campaign_keys = sorted(str(campaign["campaign_key"]) for campaign in resumable)
+    externally_owned_keys = {
+        str(test_key_value)
+        for linked_campaign_key in ownership_campaign_keys
+        for group in debug_groups_for_campaign(linked_campaign_key)
+        if group.get("status") != "green"
+        for test_key_value in group.get("member_test_keys") or []
+    }
+    direct_entries = [entry for entry in entries if str(entry["key"]) not in externally_owned_keys]
     campaign_key = f"debug-campaign-{uuid.uuid4().hex[:12]}"
     now = utc_now()
     campaign = {
@@ -3726,7 +3787,10 @@ def start_debug_campaign(
             "daily_recovery_milestone": daily_recovery,
         },
         "blocker": None,
-        "metadata": {"scope_amendments": []},
+        "metadata": {
+            "scope_amendments": [],
+            "ownership_campaign_keys": ownership_campaign_keys,
+        },
         "created_at": now,
         "updated_at": now,
         "completed_at": None,
@@ -3734,7 +3798,7 @@ def start_debug_campaign(
     get_store().create_debug_campaign(campaign)
     groups = [
         _create_debug_group(campaign_key, group_id, group_entries)
-        for group_id, group_entries in _group_entries_by_signature(entries).items()
+        for group_id, group_entries in _group_entries_by_signature(direct_entries).items()
     ]
     return get_store().update_debug_campaign(
         campaign_key,
@@ -4725,7 +4789,16 @@ def record_daily_recovery_milestone(campaign_key: str, run_key: str) -> dict[str
     )
     run = get_store().get_test_run(run_key)
     run_data = run.get("record_json") if isinstance(run.get("record_json"), dict) else {}
-    groups = debug_groups_for_campaign(campaign_key)
+    metadata = campaign.get("metadata") if isinstance(campaign.get("metadata"), dict) else {}
+    ownership_campaign_keys = [
+        campaign_key,
+        *(str(key) for key in metadata.get("ownership_campaign_keys") or []),
+    ]
+    groups = [
+        group
+        for ownership_campaign_key in ownership_campaign_keys
+        for group in debug_groups_for_campaign(ownership_campaign_key)
+    ]
     owned_failure_keys = {
         str(member)
         for group in groups
