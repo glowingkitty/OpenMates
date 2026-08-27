@@ -417,14 +417,13 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: blocked
-        command: /tmp/opencode/gpt56-smoke-venv/bin/python scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode http-basic --model openai/gpt-5.6-luna --create-api-key-from-cli-session --device-id openai-compat-smoke
-        run_id: local-gpt56-dev-api-credit-blocker-20260826T2314Z
-        subject_commit: 729f74bfd3c06592b225aa62b0857c4f3bbc1028+worktree
-        timestamp: "2026-08-26T23:14:13Z"
+        status: passed
+        command: /tmp/opencode/gpt56-smoke-venv/bin/python scripts/openai_compat_smoke.py --base-url https://api.dev.openmates.org/v1 --mode http-basic --model openai/gpt-5.6-luna --required-model openai/gpt-5.6-luna --required-model openai/gpt-5.6-terra --required-model openai/gpt-5.6-sol --required-model openai/gpt-5.6-sol-max --create-api-key-from-cli-session --device-id openai-compat-smoke
+        run_id: local-gpt56-dev-api-green-20260827T0236Z
+        subject_commit: a20cffd1cb4958233c018b36f157a49802d9da36+worktree-smoke-guard
+        timestamp: "2026-08-27T02:36:46Z"
         actor: OpenCode
-        reason: The rebuilt API and AI worker selected and invoked direct upstream `gpt-5.6-luna`, but OpenAI returned HTTP 429 `insufficient_quota` with code `credit_balance_exhausted` because the configured provider account has no credits remaining.
-        next_action: Add credits to the configured OpenAI provider account, then rerun the test's canonical smoke command with all four `--required-model` checks and replace this blocked evidence with a passing run.
+        summary: Authenticated dev `/v1/models` included Luna, Terra, Sol, and Sol Max. GPT-5.6 Luna returned real plain text `OK`, streaming text `Okay`, one forced `get_weather` tool call with an ID, and a successful tool-result follow-up. The temporary API key was revoked after the run.
 
 verifications:
   - id: V-SECURITY-001
@@ -456,10 +455,10 @@ verifications:
     evidence:
       status: passed
       command: python3 scripts/spec_validate.py docs/specs/gpt-5-6-openai-model-variants/spec.yml
-      run_id: local-gpt56-spec-validate-20260826T2027Z
-      subject_commit: e0ab371b5d01b414aad59c151d1df535bcda3369+worktree
-      summary: Spec YAML validated successfully after recording pre-deploy evidence.
-      timestamp: "2026-08-26T20:27:30Z"
+      run_id: local-gpt56-spec-validate-20260827T0237Z
+      subject_commit: a20cffd1cb4958233c018b36f157a49802d9da36+worktree-smoke-guard
+      summary: Spec YAML validated successfully after recording passing dev API smoke evidence.
+      timestamp: "2026-08-27T02:37:40Z"
 
 demonstration:
   eligibility:

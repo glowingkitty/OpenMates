@@ -119,3 +119,11 @@ def test_ambiguous_name_recovery_does_not_revoke_preexisting_key(monkeypatch: py
 
     assert any("list" in command for command in commands)
     assert not any("revoke" in command for command in commands)
+
+
+def test_completion_text_rejects_standardized_ai_error() -> None:
+    with pytest.raises(AssertionError, match="standardized AI error text"):
+        openai_compat_smoke._assert_completion_text(
+            "Plain chat completion",
+            "The AI service encountered an error while processing your request. Please try again in a moment.",
+        )

@@ -28,6 +28,7 @@ DEFAULT_BASE_URL = "https://api.dev.openmates.org/v1"
 DEFAULT_ORIGIN = "https://app.dev.openmates.org"
 DEFAULT_DEVICE_ID = "openai-compat-smoke"
 DEFAULT_MAX_TOKENS = 128
+STANDARDIZED_AI_ERROR_PREFIX = "The AI service encountered an error while processing your request."
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CLI_DIST = REPO_ROOT / "frontend/packages/openmates-cli/dist/cli.js"
 CLI_TIMEOUT_SECONDS = 90
@@ -269,6 +270,12 @@ def _validate_required_models(client: Any, required_models: list[str]) -> None:
     _stage(f"required_models={','.join(required_models)}")
 
 
+def _assert_completion_text(label: str, text: str) -> None:
+    stripped = text.strip()
+    assert stripped, f"{label} returned empty content"
+    assert not stripped.startswith(STANDARDIZED_AI_ERROR_PREFIX), f"{label} returned standardized AI error text: {stripped!r}"
+
+
 def _run_smoke(args: argparse.Namespace, api_key: str | None = None) -> None:
     client = _client(args, api_key)
     _stage("listing models")
@@ -288,7 +295,7 @@ def _run_smoke(args: argparse.Namespace, api_key: str | None = None) -> None:
         temperature=0,
     )
     text = text_response.choices[0].message.content or ""
-    assert text.strip(), "Plain chat completion returned empty content"
+    _assert_completion_text("Plain chat completion", text)
     _stage(f"text={text[:80]!r}")
 
     _stage("creating streaming chat completion")
@@ -304,7 +311,7 @@ def _run_smoke(args: argparse.Namespace, api_key: str | None = None) -> None:
         delta = chunk.choices[0].delta
         if delta.content:
             stream_chunks.append(delta.content)
-    assert "".join(stream_chunks).strip(), "Streaming chat completion returned empty content"
+    _assert_completion_text("Streaming chat completion", "".join(stream_chunks))
     _stage(f"stream={''.join(stream_chunks)[:80]!r}")
 
     tools = [
@@ -348,7 +355,7 @@ def _run_smoke(args: argparse.Namespace, api_key: str | None = None) -> None:
         tools=tools,
     )
     final_text = followup.choices[0].message.content or ""
-    assert final_text.strip(), "Tool follow-up returned empty content"
+    _assert_completion_text("Tool follow-up", final_text)
     _stage(f"followup={final_text[:80]!r}")
     _stage("python SDK smoke passed")
 
