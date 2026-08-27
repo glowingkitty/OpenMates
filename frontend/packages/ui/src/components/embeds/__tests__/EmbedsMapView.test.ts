@@ -375,9 +375,12 @@ describe("EmbedsMapView", () => {
     await tick();
 
     const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
+    expect(filterMenu?.getAttribute("data-layout")).toBe("results-panel");
     expect(filterMenu?.textContent).toContain("All results");
     expect(filterMenu?.textContent).toContain("event");
     expect(filterMenu?.textContent).toContain("place");
+    expect(target.querySelector('[data-testid="embeds-map-view-list"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-pane"]')).toBeNull();
 
     const cards = Array.from(target.querySelectorAll<HTMLButtonElement>('[data-testid="embeds-map-view-card"]'));
     cards[1].dispatchEvent(new Event("pointerenter"));
@@ -414,6 +417,8 @@ describe("EmbedsMapView", () => {
 
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Map");
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Calendar");
+    expect(target.querySelector('[data-testid="embeds-results-view-tab-map-icon"]')).not.toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-tab-calendar-icon"]')).not.toBeNull();
     expect(target.querySelector('[data-testid="embeds-results-view-tab-list"]')).toBeNull();
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')).not.toBeNull();
@@ -520,7 +525,11 @@ describe("EmbedsMapView", () => {
     expect(target.querySelectorAll('[data-testid="connection-preview-details"]')).toHaveLength(2);
     expect(target.textContent).not.toContain("Search connections");
     expect(target.textContent).not.toContain("0 connections");
-    expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("2");
+    const map = target.querySelector('[data-testid="embeds-map-view-map"]');
+    expect(map?.getAttribute("data-route-count")).toBe("2");
+    expect(map?.getAttribute("data-marker-count")).toBe("5");
+    expect(map?.getAttribute("data-endpoint-marker-count")).toBe("3");
+    expect(map?.getAttribute("data-stop-marker-count")).toBe("2");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
 
     unmount(component);

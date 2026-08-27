@@ -18,6 +18,7 @@ const leafletMocks = vi.hoisted(() => {
   const mapInstance = {
     fitBounds: vi.fn(),
     invalidateSize: vi.fn(),
+    on: vi.fn(),
     panBy: vi.fn(),
     remove: vi.fn(),
     setView: vi.fn(),
@@ -136,6 +137,7 @@ describe("EmbedLeafletMap theme selection", () => {
       props: {
         center: { lat: 52.52, lon: 13.405 },
         fitBounds: true,
+        zoomControlPosition: "topleft",
         markers: [
           { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5 },
           { lat: 52.53, lon: 13.41, label: "Active marker", opacity: 1 },
@@ -155,6 +157,7 @@ describe("EmbedLeafletMap theme selection", () => {
     await flushLeafletImport();
 
     expect(leafletMocks.mapInstance.fitBounds).toHaveBeenCalledTimes(1);
+    expect(leafletMocks.control.zoom).toHaveBeenCalledWith({ position: "topleft" });
     expect(leafletMocks.markerInstances.map((marker) => marker.setOpacity.mock.calls[0]?.[0])).toEqual([
       0.5,
       1,
