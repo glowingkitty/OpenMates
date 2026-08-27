@@ -9,8 +9,8 @@ class ChatCacheMixin:
     """Mixin for new chat sync architecture caching methods"""
 
     _INCREMENT_DRAFT_VERSION_LUA = """
-    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0')
-    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0')
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
     local next_version = math.max(dedicated, general) + tonumber(ARGV[2])
     redis.call('HSET', KEYS[2], ARGV[1], next_version)
     redis.call('HSETNX', KEYS[2], 'messages_v', 0)
@@ -20,8 +20,8 @@ class ChatCacheMixin:
     """
 
     _INCREMENT_AND_TOMBSTONE_DRAFT_LUA = """
-    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0')
-    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0')
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
     local next_version = math.max(dedicated, general) + 1
     redis.call('HSET', KEYS[1],
       'draft_v', next_version,
@@ -37,8 +37,8 @@ class ChatCacheMixin:
     """
 
     _UPDATE_VERSIONED_DRAFT_IF_CURRENT_LUA = """
-    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0')
-    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0')
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
     local incoming_version = tonumber(ARGV[2])
     local deleted = redis.call('HGET', KEYS[1], 'deleted')
     if dedicated > incoming_version or general > incoming_version then
@@ -63,8 +63,8 @@ class ChatCacheMixin:
     """
 
     _TOMBSTONE_DRAFT_IF_CURRENT_LUA = """
-    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0')
-    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0')
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
     local tombstone_version = tonumber(ARGV[2])
     if dedicated > tombstone_version or general > tombstone_version then
       return 0
