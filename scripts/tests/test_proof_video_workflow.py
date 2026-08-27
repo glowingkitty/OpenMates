@@ -1312,6 +1312,7 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REPO_ROOT", tmp_path)
     run_dir, request = _write_review_run(tmp_path / "proof-videos" / "first")
     monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
 
@@ -1319,6 +1320,7 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
         prompt_data = json.loads(prompt.read_text(encoding="utf-8"))
         assert "every listed quality category must be fail or uncertain on every cited frame" in prompt_data["instructions"]
         assert "split findings when category sets differ" in prompt_data["required_output"]["incidental_findings"]
+        assert prompt_data["review_request"]["frames"][0]["read_path"] == "proof-videos/first/frames/frame.png"
         return (
             {
                 "status": "passed",
@@ -2325,8 +2327,8 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
 def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
+    run_dir = repo_root / "test-results" / "proof-videos" / "run"
+    run_dir.mkdir(parents=True)
     (run_dir / "frames").mkdir()
     prompt = run_dir / "review-prompt-round-0.json"
     prompt.write_text("{}\n", encoding="utf-8")
@@ -2356,7 +2358,7 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
     assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
     assert str(repo_root) in observed["command"]
     assert str(prompt.resolve()) not in " ".join(observed["command"])
-    assert "review-prompt-round-0.json" in " ".join(observed["command"])
+    assert "test-results/proof-videos/run/review-prompt-round-0.json" in " ".join(observed["command"])
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
 
@@ -2377,8 +2379,8 @@ def test_default_reviewer_reports_progress_and_terminates_at_timeout(
 ) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    run_dir = tmp_path / "run"
-    run_dir.mkdir()
+    run_dir = repo_root / "test-results" / "proof-videos" / "run"
+    run_dir.mkdir(parents=True)
     (run_dir / "frames").mkdir()
     prompt = run_dir / "review-prompt-round-0.json"
     prompt.write_text("{}\n", encoding="utf-8")

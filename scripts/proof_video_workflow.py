@@ -1360,10 +1360,10 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
     opencode_bin = _resolve_opencode_bin()
     if not opencode_bin:
         raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
-    staged_prompt = REPO_ROOT / prompt_path.name
-    staged_frames = REPO_ROOT / "frames"
-    if staged_prompt.exists() or staged_prompt.is_symlink() or staged_frames.exists() or staged_frames.is_symlink():
-        raise WorkflowError("proof-video reviewer staging paths already exist; remove stale review-prompt or frames symlink")
+    try:
+        prompt_relative = prompt_path.resolve().relative_to(REPO_ROOT.resolve())
+    except ValueError as exc:
+        raise WorkflowError("proof-video reviewer prompt must be inside the repository checkout") from exc
     command = [
         opencode_bin,
         "run",
@@ -1376,55 +1376,48 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
         *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
         str(REPO_ROOT),
-        f"Read {prompt_path.name} in full and return only the required JSON review receipt.",
+        f"Read {prompt_relative.as_posix()} in full and return only the required JSON review receipt.",
     ]
-    try:
-        staged_prompt.symlink_to(prompt_path.resolve())
-        staged_frames.symlink_to((run_dir / "frames").resolve(), target_is_directory=True)
-        started_at = time.monotonic()
-        print(
-            f"Proof reviewer round {correction_round} started"
-            + (f" via {REVIEWER_ATTACH_URL}" if REVIEWER_ATTACH_URL else " in standalone pure mode")
-            + f"; timeout={REVIEWER_TIMEOUT_SECONDS}s.",
-            flush=True,
+    started_at = time.monotonic()
+    print(
+        f"Proof reviewer round {correction_round} started"
+        + (f" via {REVIEWER_ATTACH_URL}" if REVIEWER_ATTACH_URL else " in standalone pure mode")
+        + f"; timeout={REVIEWER_TIMEOUT_SECONDS}s.",
+        flush=True,
+    )
+    with output_path.open("w+", encoding="utf-8") as output_file:
+        output_path.chmod(0o600)
+        process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
+            command,
+            cwd=REPO_ROOT,
+            text=True,
+            stdout=output_file,
+            stderr=subprocess.STDOUT,
         )
-        with output_path.open("w+", encoding="utf-8") as output_file:
-            output_path.chmod(0o600)
-            process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
-                command,
-                cwd=REPO_ROOT,
-                text=True,
-                stdout=output_file,
-                stderr=subprocess.STDOUT,
-            )
-            while True:
-                elapsed = time.monotonic() - started_at
-                remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
-                if remaining <= 0:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=5)
-                    raise WorkflowError(
-                        f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
-                    )
+        while True:
+            elapsed = time.monotonic() - started_at
+            remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
+            if remaining <= 0:
+                process.terminate()
                 try:
-                    returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
-                    break
+                    process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    print(
-                        f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
-                        flush=True,
-                    )
-            output_file.flush()
-            output_file.seek(0)
-            output = output_file.read().strip()
-    finally:
-        for staged in (staged_prompt, staged_frames):
-            if staged.is_symlink():
-                staged.unlink()
+                    process.kill()
+                    process.wait(timeout=5)
+                raise WorkflowError(
+                    f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
+                )
+            try:
+                returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                print(
+                    f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
+                    flush=True,
+                )
+        output_file.flush()
+        output_file.seek(0)
+        output = output_file.read().strip()
     if returncode != 0:
         raise WorkflowError(f"proof-video reviewer failed with exit code {returncode}; output: {output_path}")
     session_id = ""
@@ -1474,7 +1467,12 @@ def review_run(
             raise WorkflowError("review frame path escapes the run directory")
         if not resolved_path.is_file() or _file_sha256(resolved_path) != frame.get("sha256"):
             raise WorkflowError(f"review frame is missing or its hash changed: {relative_path}")
-        frame["read_path"] = str(relative_path)
+        try:
+            frame["read_path"] = str(resolved_path.relative_to(REPO_ROOT.resolve()))
+        except ValueError:
+            # Custom unit-test runners may relocate RESULTS_DIR outside the
+            # checkout; the default reviewer itself still rejects that layout.
+            frame["read_path"] = str(relative_path)
     proof_identity = str(request.get("proof_group_id") or "")
     budget_path = REVIEW_BUDGETS_DIR / f"{proof_identity.removeprefix('sha256:')}.json"
     frame_hash = str(request.get("frame_index_hash") or "")

@@ -193,8 +193,8 @@ def render_opencode_agent(source: Path) -> str:
             [
                 "  read:",
                 '    "*": deny',
-                '    "review-prompt-round-*.json": allow',
-                '    "frames/*": allow',
+                '    "test-results/proof-videos/**/review-prompt-round-*.json": allow',
+                '    "test-results/proof-videos/**/frames/*": allow',
                 "  grep: deny",
                 "  glob: deny",
                 "  external_directory: deny",

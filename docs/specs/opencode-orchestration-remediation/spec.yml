@@ -161,6 +161,7 @@ scenarios:
       - The proof workflow launches a reviewer.
     then:
       - The reviewer attaches to the existing server instead of starting another plugin and MCP stack.
+      - The launcher passes canonical proof paths directly under a generated narrow read policy and creates no temporary repository symlinks.
       - Progress is printed at least every 30 seconds.
       - Timeout terminates the reviewer and preserves partial output for diagnosis.
 
@@ -399,6 +400,7 @@ tests:
     command: python3 -m pytest scripts/tests/test_proof_video_workflow.py
     assertions:
       - Reviewer invocation attaches to the configured OpenCode server and remains scoped to the proof bundle.
+      - Generated permissions allow only canonical proof prompt/frame paths, so worktree routing cannot hide temporary staging links.
       - A long-running reviewer reports progress, terminates at its bounded timeout, preserves output, and removes staging links.
     covers:
       - AC-8
