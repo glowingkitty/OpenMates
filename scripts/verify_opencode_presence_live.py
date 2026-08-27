@@ -97,6 +97,7 @@ class FixtureProvider:
         self.warning_seen = threading.Event()
         self.child_tool_seen = threading.Event()
         self.child_tool_outputs: list[str] = []
+        self.task_tool_outputs: list[str] = []
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
@@ -170,6 +171,12 @@ class FixtureProvider:
                             time.sleep(0.1)
                         self._finish("stop")
                     else:
+                        if "PRESENCE_TASK" in user_text and tool_after_user:
+                            fixture.task_tool_outputs = [
+                                _message_text(message).strip()
+                                for message in messages
+                                if isinstance(message, dict) and message.get("role") == "tool"
+                            ]
                         for index, text in enumerate(("fixture", " stream", " complete")):
                             self._chunk({"role": "assistant", "content": text} if index == 0 else {"content": text})
                             time.sleep(0.12)
@@ -204,6 +211,7 @@ def _copy_fixture_files(fixture: Path) -> None:
         ".codex/hooks/claude-hook-bridge.sh",
         "scripts/safe_bash_guard.py",
         "scripts/sessions.py",
+        "scripts/engineering_control_plane.py",
         "scripts/opencode_presence_store.py",
     )
     for relative_path in files:
@@ -309,6 +317,7 @@ def _run_isolated() -> dict:
             "XDG_CONFIG_HOME": str(root / "xdg-config"),
             "XDG_CACHE_HOME": str(root / "xdg-cache"),
             "OPENMATES_PROJECT_ROOT": str(fixture),
+            "OPENMATES_CONTROL_PLANE_RUNTIME": str(fixture),
             "OPENCODE_DISABLE_AUTOUPDATE": "1",
         }
         process_log_path = root / "opencode-server.log"
@@ -379,6 +388,7 @@ def _run_isolated() -> dict:
             second_worktree = fixture / ".openmates-agent-worktrees" / "agent-b222"
             for worktree in (first_worktree, second_worktree):
                 worktree.mkdir(parents=True)
+                (worktree / ".git").mkdir()
                 (worktree / "fixture.txt").write_text("fixture\n", encoding="utf-8")
             mappings = {"a111": (first["id"], first_worktree), "b222": (second["id"], second_worktree)}
             _write_sessions(fixture, mappings, lease_owner="a111")
@@ -431,19 +441,28 @@ def _run_isolated() -> dict:
                 raise AssertionError(f"{error}; presence={json.dumps(second_record, sort_keys=True)}; events={json.dumps(second_trace, sort_keys=True)}") from error
 
             _prompt(base_url, fixture, second["id"], "PRESENCE_TASK")
-            child_id, child_record = _wait_for(
-                "task child role before parent completion",
-                lambda: next(
-                    (
-                        (child_id, record)
-                        for child_id, record in _presence(fixture).get("sessions", {}).items()
-                        if child_id not in {first["id"], second["id"]}
-                        and record.get("parent_id") == second["id"]
-                        and record.get("child_role") == "read_only"
+            try:
+                child_id, child_record = _wait_for(
+                    "task child role before parent completion",
+                    lambda: next(
+                        (
+                            (child_id, record)
+                            for child_id, record in _presence(fixture).get("sessions", {}).items()
+                            if child_id not in {first["id"], second["id"]}
+                            and record.get("parent_id") == second["id"]
+                            and record.get("child_role") == "read_only"
+                        ),
+                        None,
                     ),
-                    None,
-                ),
-            )
+                )
+            except AssertionError as error:
+                child_trace = [entry for entry in event_trace if entry["session_id"] not in {first["id"], second["id"]}][-30:]
+                raise AssertionError(
+                    f"{error}; presence={json.dumps(_presence(fixture), sort_keys=True)}; "
+                    f"child_events={json.dumps(child_trace, sort_keys=True)}; "
+                    f"provider_requests={json.dumps(provider.requests[-8:], sort_keys=True)}; "
+                    f"task_tool_outputs={provider.task_tool_outputs!r}"
+                ) from error
             created_sessions.append(child_id)
             assert child_record["parent_id"] == second["id"]
             assert child_record["child_role"] == "read_only"

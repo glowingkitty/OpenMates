@@ -63,6 +63,16 @@ test("auto-discovered modules export only valid OpenCode plugin factories", asyn
   assert.equal(typeof await cliAutoLoginPluginModule.CliAutoLogin({}), "object");
 });
 
+test("task child role survives runtime output wrappers without top-level metadata", () => {
+  assert.deepEqual(
+    pluginModule.OpenMatesHooks.test.taskChildClassificationForTest(
+      { tool: "task", sessionID: "ses_parent", args: { subagent_type: "explore" } },
+      { output: '<task id="ses_child123" state="completed"><task_result>done</task_result></task>' },
+    ),
+    { sessionID: "ses_child123", parentID: "ses_parent", role: "read_only" },
+  );
+});
+
 test("merged worktree routing requires an existing Git worktree", () => {
   const { routingDecisionForTest } = pluginModule.OpenMatesHooks.test;
   const worktreePath = routedWorktree;

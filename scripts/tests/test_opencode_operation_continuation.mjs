@@ -48,6 +48,23 @@ test("presence timer cannot perpetually renew stale busy records", () => {
   assert.equal(reconciled.find((item) => item.session_id === "active").heartbeat_at, "2026-08-27T13:40:00Z");
 });
 
+test("an older absent status snapshot cannot erase a fresh busy event", () => {
+  const now = "2026-08-27T13:40:00Z";
+  const fresh = {
+    session_id: "fresh",
+    execution: "busy",
+    turn: "streaming",
+    heartbeat_at: now,
+    updated_at: now,
+    pending_permission_ids: [],
+    pending_question_ids: [],
+  };
+
+  assert.deepEqual(reconcilePresenceStatesForTest([fresh], {}, { now }), []);
+  const later = reconcilePresenceStatesForTest([fresh], {}, { now: "2026-08-27T13:40:30Z" });
+  assert.equal(later[0].execution, "idle");
+});
+
 test("idle delivery claims durable operation before prompting", () => {
   assert.match(source, /continuationCommand\("claim", sessionID\)/);
   assert.match(source, /messageID: record\.message_id/);

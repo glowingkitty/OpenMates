@@ -51,6 +51,7 @@ const OPENCODE_NOTIFIER_LOG = `${PROJECT_ROOT}/logs/opencode-event-notifier.log`
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
 const PRESENCE_READ_CACHE_MS = 1_000;
+const PRESENCE_ABSENT_STATUS_GRACE_MS = 5_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
@@ -1761,9 +1762,14 @@ ${suggestions.map((suggestion) => `- ${suggestion}`).join("\n")}`;
 
 function taskChildClassificationForTest(input, output) {
   if (!TASK_TOOLS.has(input?.tool || "")) return null;
-  const metadata = output?.metadata || {};
-  const parentID = String(metadata.parentSessionId || "");
-  const sessionID = String(metadata.sessionId || "");
+  const metadata = output?.metadata || output?.state?.metadata || {};
+  const outputText = String(output?.output || output?.state?.output || "");
+  const parentID = String(metadata.parentSessionId || input?.sessionID || "");
+  const sessionID = String(
+    metadata.sessionId
+    || outputText.match(/<task\s+id=["'](ses_[A-Za-z0-9]+)["']/)?.[1]
+    || "",
+  );
   const subagentType = String((input?.args || {}).subagent_type || "");
   if (!parentID || parentID !== input?.sessionID || !sessionID) return null;
   const role = childRoleFromAgent(subagentType);
@@ -2075,6 +2081,21 @@ function reconcilePresenceStatesForTest(states, authoritativeStatuses, { now = i
         heartbeat_at: now,
         updated_at: now,
       });
+      continue;
+    }
+    const activityAt = Date.parse(state.heartbeat_at || state.updated_at || "");
+    const snapshotAt = Date.parse(now);
+    if (
+      !status
+      && Number.isFinite(activityAt)
+      && Number.isFinite(snapshotAt)
+      && snapshotAt - activityAt >= -1_000
+      && snapshotAt - activityAt < PRESENCE_ABSENT_STATUS_GRACE_MS
+    ) {
+      // A status request can start just before a generation event and finish
+      // just after it. Do not let that older absent snapshot erase fresh tool
+      // or streaming activity; the next 30s reconciliation clears real stale
+      // state if OpenCode still reports no generation.
       continue;
     }
     const idle = { ...state, execution: "idle", updated_at: now };
@@ -2477,6 +2498,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const notifierLiveSessions = new Set();
   const routingBlockCounts = new Map();
   const readyContinuationSessions = new Set();
+  const recordedChildRoles = new Set();
   const pendingMediaBySession = new Map();
   const claimedMediaBySession = new Map();
   const assistantTextParts = new Map();
@@ -2551,6 +2573,30 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       heartbeat_at: now,
       updated_at: now,
     });
+  };
+  const recordResolvedChildRole = async (route) => {
+    if (
+      !route?.inheritedParentRoute
+      || !route.requestingOpenCodeSessionID
+      || !route.topLevelOpenCodeSessionID
+      || !["read_only", "reviewer", "writable"].includes(route.childRole)
+      || recordedChildRoles.has(route.requestingOpenCodeSessionID)
+    ) return;
+    const result = await runProcess(
+      "python3",
+      [
+        "scripts/sessions.py", "presence", "child-role",
+        "--session", route.requestingOpenCodeSessionID,
+        "--parent", route.topLevelOpenCodeSessionID,
+        "--role", route.childRole,
+        "--if-unset",
+      ],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT },
+    );
+    if (result.status !== 0) {
+      throw new Error(`Could not persist authoritative child role: ${result.stderr || result.stdout}`);
+    }
+    recordedChildRoles.add(route.requestingOpenCodeSessionID);
   };
   const continuationCommand = async (action, sessionID, signal = null) => {
     const args = ["scripts/sessions.py", "continuation", action, "--session", sessionID];
@@ -2739,6 +2785,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+      await recordResolvedChildRole(route);
       if (BASH_TOOLS.has(tool)) await guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
       const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
       if (childMutation.decision === "block") {
