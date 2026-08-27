@@ -204,32 +204,6 @@ def test_regular_specs_use_normal_accounts_and_skip_reserved_slots():
     assert not set(assigned_accounts) & set(run_tests.RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS)
 
 
-def test_externally_held_account_lease_disables_inner_coordination(monkeypatch):
-    run_tests = load_run_tests_module()
-
-    class FakeGitHubActionsClient(run_tests.GitHubActionsClient):
-        def __init__(self):
-            pass
-
-    monkeypatch.delenv(run_tests.PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV, raising=False)
-    default_runner = run_tests.BatchRunner(
-        client=FakeGitHubActionsClient(),
-        specs=["chat-flow.spec.ts"],
-        batch_size=1,
-        fail_fast=True,
-    )
-    assert default_runner.coordinate_accounts is True
-
-    monkeypatch.setenv(run_tests.PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV, "1")
-    leased_runner = run_tests.BatchRunner(
-        client=FakeGitHubActionsClient(),
-        specs=["chat-flow.spec.ts"],
-        batch_size=1,
-        fail_fast=True,
-    )
-    assert leased_runner.coordinate_accounts is False
-
-
 def test_batch_size_is_capped_to_normal_account_pool():
     run_tests = load_run_tests_module()
     regular_specs = [f"regular-{index}.spec.ts" for index in range(21)]
@@ -482,15 +456,70 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
             )
 
     monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "_single_spec_fallback_accounts", lambda _account: [2, 3, 4])
     monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
     monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
 
     result = orchestrator._run_playwright()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert preflight_calls == [[1], [2, 3, 4]]
     assert captured["normal_account_slots"] == (2,)
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
+
+
+def test_single_spec_reuses_wrapper_account_lease(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured: dict[str, object] = {}
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = "regular.spec.ts"
+    orchestrator.account = 22
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator.proof_video_profile = ""
+    orchestrator._discover_specs = lambda: ["regular.spec.ts"]
+    monkeypatch.setenv("OPENMATES_TEST_ACCOUNT", "22")
+
+    def fake_preflight(_client, accounts=None):
+        assert accounts == [22]
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{
+                "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "account": 22,
+            }],
+        )
+
+    class FakeBatchRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run_all_batches(self):
+            return run_tests.SuiteResult(
+                status="passed",
+                tests=[{"name": "regular.spec.ts", "file": "regular.spec.ts", "status": "passed"}],
+            )
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "passed"
+    assert captured["normal_account_slots"] == (22,)
+    assert captured["coordinate_accounts"] is False
 
 
 def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeypatch):
@@ -633,13 +662,14 @@ def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_p
 
     monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
     monkeypatch.setattr(run_tests, "_full_git_sha", lambda sha: f"full-{sha}")
+    monkeypatch.setattr(run_tests, "_single_spec_fallback_accounts", lambda _account: [2, 3, 4])
     monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
     monkeypatch.setattr(run_tests.tempfile, "mkdtemp", lambda prefix: str(tmp_path / prefix))
 
     result = orchestrator._run_cli_integration()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert preflight_calls == [[1], [2, 3, 4]]
     assert dispatch_accounts == [2]
     assert captured_git_sha == {"git_sha": "full-abc123"}
     assert result.tests[0] == {

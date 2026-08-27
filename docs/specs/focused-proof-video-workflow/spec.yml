@@ -983,7 +983,7 @@ tasks:
     status: in_progress
     phase: working_tasks
     covers: { scenarios: [S-6], acceptance_criteria: [AC-8, AC-9] }
-    expected_files: [.github/workflows/playwright-spec.yml, frontend/apps/web_app/playwright.config.ts, frontend/apps/web_app/tests/proof-video-architecture.spec.ts, scripts/spec_demo.py, scripts/tests.py, scripts/tests/test_run_tests_account_policy.py, scripts/tests/test_spec_demonstration_pipeline.py, scripts/tests/test_tests_control.py, tooling/proof-video-remotion/src/BrowserTutorial.tsx, tooling/proof-video-remotion/src/types.ts]
+    expected_files: [.github/workflows/playwright-spec.yml, frontend/apps/web_app/playwright.config.ts, frontend/apps/web_app/tests/proof-video-architecture.spec.ts, scripts/spec_demo.py, scripts/tests.py, scripts/tests/test_phone_proof_video_safari.py, scripts/tests/test_spec_demonstration_pipeline.py, tooling/proof-video-remotion/src/BrowserTutorial.tsx, tooling/proof-video-remotion/src/types.ts]
     verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E]
     dependencies: [TASK-9]
     blockers: []

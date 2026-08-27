@@ -419,8 +419,6 @@ def test_playwright_proof_video_size_also_sets_viewport() -> None:
 
     assert "const videoSize" in config
     assert "viewport: videoSize" in config
-    assert "hasTouch: true" in config
-    assert "isMobile: true" not in config
 
 
 def test_run_options_consume_detach_before_forwarding(tmp_path, monkeypatch):
@@ -1687,3 +1685,39 @@ def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, m
     assert len(acquired) == 1
     assert acquired[0][2] == {"dev-stack"}
     assert released == [acquired[0][0]]
+
+
+def test_command_run_marks_externally_held_playwright_account_lease(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
+    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
+    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
+    monkeypatch.setattr(tests_control, "record_latest_run_artifact", lambda **_kwargs: "abc123def")
+    lease = ("playwright-account-25-test", "session-1", {"playwright-account:25"}, "exclusive")
+    captured = {}
+    released = []
+
+    monkeypatch.setattr(
+        tests_control,
+        "acquire_standalone_playwright_account",
+        lambda forwarded_args, *, owner: (forwarded_args, lease, 25),
+    )
+    monkeypatch.setattr(tests_control, "release_docker_test_lease", lambda lease_id: released.append(lease_id))
+
+    def fake_run_with_resource_lease_heartbeats(command, *, env, leases):
+        captured["command"] = command
+        captured["env"] = env
+        captured["leases"] = leases
+        return 0
+
+    monkeypatch.setattr(
+        tests_control,
+        "run_with_resource_lease_heartbeats",
+        fake_run_with_resource_lease_heartbeats,
+    )
+
+    assert tests_control.command_run(["--spec", "chat-flow.spec.ts", "--account", "25"]) == 0
+    assert captured["env"]["OPENMATES_TEST_ACCOUNT"] == "25"
+    assert captured["env"][tests_control.PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV] == "1"
+    assert captured["leases"] == [lease]
+    assert released == ["playwright-account-25-test"]
