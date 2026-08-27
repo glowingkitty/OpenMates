@@ -1614,7 +1614,8 @@
     {/if}
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
-      <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results" hidden={selectedVisualTab !== 'calendar'}>
+      {#if selectedVisualTab === 'calendar'}
+        <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
           {#if activeCalendarWeekStart != null}
             <header class="calendar-week-toolbar">
               <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}>Previous</button>
@@ -1660,7 +1661,8 @@
           {:else}
             <div class="empty-map">Referenced embeds do not expose date and time yet.</div>
           {/if}
-      </div>
+        </div>
+      {:else}
         <div
           class="map-view-map"
           data-testid="embeds-map-view-map"
@@ -1672,7 +1674,6 @@
           id="embeds-results-view-panel-map"
           role="tabpanel"
           aria-label="Mapped results"
-          hidden={selectedVisualTab !== 'map'}
           bind:this={mapShellElement}
         >
           {#if mapCenter}
@@ -1698,6 +1699,7 @@
             <div class="empty-map">Referenced embeds do not expose coordinates yet.</div>
           {/if}
         </div>
+      {/if}
     </div>
   </div>
 </section>
