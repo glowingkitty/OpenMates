@@ -11,7 +11,6 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
-import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -44,7 +43,6 @@ type DraftUpdateReceiptPayload = {
 	chat_id?: string;
 	draft_v?: number;
 	success?: boolean;
-	superseded?: boolean;
 };
 
 type DraftDeleteReceiptPayload = {
@@ -276,8 +274,7 @@ export async function sendDeleteDraftImpl(
 			}
 		}
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		notificationStore.error(`Failed to delete draft: ${errorMessage}`);
+		console.warn(`[ChatSyncService:Senders] Failed to delete draft for chat ${chat_id}:`, error);
 	}
 }
 
