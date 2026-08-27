@@ -3686,7 +3686,8 @@ def start_debug_campaign(
                 str(key)
                 for key in metadata.get("ownership_campaign_keys") or []
             ]
-            if "linked_owned_test_keys" not in metadata:
+            snapshot_missing = "linked_owned_test_keys" not in metadata
+            if snapshot_missing:
                 metadata["linked_owned_test_keys"] = sorted({
                     str(test_key_value)
                     for linked_campaign_key in linked_campaign_keys
@@ -3709,7 +3710,7 @@ def start_debug_campaign(
                 _create_debug_group(str(active["campaign_key"]), group_id, group_entries)
                 for group_id, group_entries in _group_entries_by_signature(missing_entries).items()
             ]
-            if groups:
+            if groups or snapshot_missing:
                 return get_store().update_debug_campaign(
                     str(active["campaign_key"]),
                     {

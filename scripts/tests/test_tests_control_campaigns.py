@@ -335,6 +335,11 @@ def test_daily_recovery_links_legacy_campaigns_and_owns_only_unclaimed_failures(
         control.debug_groups_for_campaign(first_key),
         control.debug_groups_for_campaign(second_key),
     )
+    legacy_metadata = dict(campaign["metadata"])
+    legacy_metadata.pop("linked_owned_test_keys")
+    control.get_store().update_debug_campaign(campaign["campaign_key"], {"metadata": legacy_metadata})
+    resumed = control.start_debug_campaign(session_id="daily-coordinator", daily_recovery=True)
+    assert resumed["metadata"]["linked_owned_test_keys"] == selected_test_keys[:2]
 
     daily_run = {
         "run_id": "run-daily-milestone",
