@@ -98,8 +98,7 @@ test("merged worktree routing requires an existing Git worktree", () => {
 test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
   assert.match(source, /routeLocalToolArgsForTest\(tool/);
-  assert.match(source, /const controlPlaneWorkdir = sessionsPyRuntime \? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT/);
-  assert.match(source, /sessionsPyControlPlane \|\| sessionsPyRuntime/);
+  assert.match(source, /sessionsPyRuntime \? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT/);
   assert.match(source, /Reason:/);
   assert.match(source, /Next:/);
   assert.match(source, /routedOpenCodeSessionID/);
@@ -110,6 +109,17 @@ test("loaded hook overwrites model-provided shell workdir", async () => {
   const { executionArgs, output } = await runBeforeShellWithExecutionArgs("pwd");
   assert.strictEqual(output.args, executionArgs);
   assert.equal(executionArgs.workdir, routedWorktree);
+});
+
+test("every canonical sessions.py command uses the deployed control-plane runtime", async () => {
+  for (const command of [
+    "python3 scripts/sessions.py status --json",
+    "python3 scripts/sessions.py deploy --session test --title scoped --use-staged",
+    "python3 scripts/sessions.py visual-smoke --session test --url https://app.dev.openmates.org",
+  ]) {
+    const { executionArgs } = await runBeforeShellWithExecutionArgs(command);
+    assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
+  }
 });
 
 test("loaded hook binds chained sessions.py start before later commands", async () => {

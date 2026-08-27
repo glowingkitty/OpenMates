@@ -1233,16 +1233,10 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
       ["python", "python3"].includes(shellUnescape(tokens[0]))
       && shellUnescape(tokens[1]) === "scripts/sessions.py"
     ));
-    const sessionsPyControlPlane = sessionsPySegment === 0
-      && commandSegments.length === 1
-      && !hasTopLevelSeparator
-      && !unsafeControlSyntax
-      && !existsSync(resolve(worktreePath, "scripts/sessions.py"));
     const sessionsPyRuntime = sessionsPySegment === 0
       && commandSegments.length === 1
       && !hasTopLevelSeparator
-      && !unsafeControlSyntax
-      && new Set(["docker", "wait-health", "wait-lock", "lock", "unlock"]).has(shellUnescape(commandSegments[0][2] || ""));
+      && !unsafeControlSyntax;
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
@@ -1265,12 +1259,11 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    const controlPlaneWorkdir = sessionsPyRuntime ? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT;
     return {
       ...input,
       command,
-      workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyControlPlane || sessionsPyRuntime)
-        ? controlPlaneWorkdir
+      workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyRuntime)
+        ? (sessionsPyRuntime ? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT)
         : worktreePath,
     };
   }
