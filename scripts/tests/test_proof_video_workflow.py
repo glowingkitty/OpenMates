@@ -2350,7 +2350,13 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
     monkeypatch.setattr(workflow.subprocess, "Popen", popen)
     monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
     monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
-    workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
+    monkeypatch.chdir(repo_root)
+    relative_run_dir = Path("test-results") / "proof-videos" / "run"
+    workflow._default_reviewer_runner(
+        relative_run_dir / "review-prompt-round-0.json",
+        run_dir=relative_run_dir,
+        correction_round=0,
+    )
 
     assert observed["cwd"] == run_dir
     assert observed["command"][0] == "/test/opencode"

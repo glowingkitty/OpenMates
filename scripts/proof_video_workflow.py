@@ -1356,12 +1356,14 @@ def _parse_reviewer_output(output: str) -> dict[str, Any]:
 
 
 def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_round: int) -> tuple[dict[str, Any], str]:
+    run_dir = run_dir.resolve()
+    prompt_path = prompt_path.resolve()
     output_path = run_dir / f"review-output-round-{correction_round}.jsonl"
     opencode_bin = _resolve_opencode_bin()
     if not opencode_bin:
         raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
     try:
-        prompt_relative = prompt_path.resolve().relative_to(run_dir.resolve())
+        prompt_relative = prompt_path.relative_to(run_dir)
     except ValueError as exc:
         raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
     command = [
@@ -1444,8 +1446,9 @@ def review_run(
     except ModuleNotFoundError:
         from spec_demo import record_review_receipt, review_request_hash, validate_review_request_files
 
+    run_dir = run_dir.resolve()
     canonical_runs_root = (RESULTS_DIR / "proof-videos").resolve()
-    if not run_dir.resolve().is_relative_to(canonical_runs_root):
+    if not run_dir.is_relative_to(canonical_runs_root):
         raise WorkflowError(f"review run directory must be inside {canonical_runs_root}")
     request = _load_json(run_dir / "review-request.json")
     existing_manifest = _load_json(run_dir / "manifest.json")
