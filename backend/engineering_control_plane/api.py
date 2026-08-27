@@ -208,6 +208,19 @@ def acquire_lease(
     return {"lease": lease}
 
 
+@router.get("/coordination/leases/{lease_key}")
+def get_lease(
+    lease_key: str,
+    identity: Identity = Depends(request_identity),
+    repository: PostgresCoordinationRepository = Depends(get_coordination_repository),
+) -> dict[str, Any]:
+    require_scope(identity, "coordinate")
+    lease = repository.get_lease(lease_key)
+    if lease is None:
+        raise HTTPException(status_code=404, detail=f"lease not found: {lease_key}")
+    return {"lease": lease}
+
+
 @router.delete("/coordination/leases/{lease_key}")
 def release_lease(
     lease_key: str,

@@ -49,6 +49,17 @@ class FakeCoordinationRepository:
     def runtime_epoch(self):
         return 7
 
+    def get_lease(self, lease_key):
+        if lease_key == "missing":
+            return None
+        return {
+            "lease_key": lease_key,
+            "owner_key": "dev-server:1234",
+            "resources": ["dev-stack"],
+            "status": "active",
+            "mode": "shared",
+        }
+
     def runtime_operation_blockers(self, operation_key):
         if operation_key == "missing":
             raise KeyError(operation_key)
@@ -198,6 +209,20 @@ def test_runtime_operation_blockers_report_operations_and_missing_keys(monkeypat
 
     assert response.status_code == 200
     assert response.json()["operations"][0]["operation_key"] == "restart-first"
+    assert missing.status_code == 404
+    app.dependency_overrides.clear()
+
+
+def test_coordinate_scope_can_inspect_one_lease_for_dead_owner_recovery(monkeypatch) -> None:
+    client, _, headers = _client(monkeypatch, ["read", "coordinate"])
+    coordination = FakeCoordinationRepository()
+    app.dependency_overrides[get_coordination_repository] = lambda: coordination
+
+    response = client.get("/v1/coordination/leases/test-run", headers=headers)
+    missing = client.get("/v1/coordination/leases/missing", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["lease"]["owner_key"] == "dev-server:1234"
     assert missing.status_code == 404
     app.dependency_overrides.clear()
 

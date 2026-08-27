@@ -1921,10 +1921,13 @@ def acquire_test_resource_lease(
     *,
     timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
     poll: int = 5,
+    mode: str = "exclusive",
 ) -> dict:
-    """Acquire a shared test lease after any conflicting restart completes."""
+    """Acquire or renew a test lease after any conflicting operation completes."""
     if not resources:
         return {}
+    if mode not in {"shared", "exclusive"}:
+        raise ValueError(f"Unknown test resource lease mode: {mode}")
     if _persistent_coordination_enabled():
         deadline = time.time() + max(0, timeout)
         while True:
@@ -1937,10 +1940,32 @@ def acquire_test_resource_lease(
                         "owner_key": _coordination_owner_key(),
                         "resources": sorted(resources),
                         "ttl_seconds": DOCKER_TEST_LEASE_TTL_SECONDS,
+                        "mode": mode,
                     },
                 )
                 return _legacy_lease_record(response["lease"], owner=owner)
             except ControlPlaneApiError as exc:
+                conflict = re.search(r"(?:already leased|unavailable): ([A-Za-z0-9_.:-]+)$", exc.detail)
+                if exc.status == 409 and conflict:
+                    conflicting_lease_id = conflict.group(1)
+                    try:
+                        response = control_plane_api_request(
+                            "GET",
+                            f"/v1/coordination/leases/{urllib.parse.quote(conflicting_lease_id, safe='')}",
+                        )
+                    except ControlPlaneApiError:
+                        response = {}
+                    conflicting = _legacy_lease_record(response.get("lease") or {})
+                    if (
+                        conflicting.get("owner_host") == socket.gethostname()
+                        and int(conflicting.get("owner_pid") or 0) > 0
+                        and not _process_is_alive(int(conflicting["owner_pid"]))
+                    ):
+                        control_plane_api_request(
+                            "DELETE",
+                            f"/v1/coordination/leases/{urllib.parse.quote(conflicting_lease_id, safe='')}",
+                        )
+                        continue
                 if exc.status != 409 or time.time() >= deadline:
                     raise RuntimeError(f"Persistent test lease acquisition failed: {exc.detail}") from exc
                 time.sleep(min(max(1, poll), max(1, int(deadline - time.time()))))
@@ -1957,6 +1982,24 @@ def acquire_test_resource_lease(
             if operation and resources.intersection(operation.get("resources", [])):
                 blocked_by = str(operation.get("id") or "unknown")
                 return None
+            leases = _infrastructure_state(data)["test_leases"]
+            existing = leases.get(lease_id)
+            if isinstance(existing, dict):
+                if (
+                    existing.get("owner") == owner
+                    and set(existing.get("resources") or []) == resources
+                    and str(existing.get("mode") or "exclusive") == mode
+                ):
+                    existing["updated_at"] = _now_iso()
+                    return dict(existing)
+                blocked_by = lease_id
+                return None
+            for active_lease_id, active_lease in leases.items():
+                if not resources.intersection(active_lease.get("resources", [])):
+                    continue
+                if str(active_lease.get("mode") or "exclusive") == "exclusive" or mode == "exclusive":
+                    blocked_by = str(active_lease_id)
+                    return None
             now = _now_iso()
             lease = {
                 "lease_id": lease_id,
@@ -1964,10 +2007,11 @@ def acquire_test_resource_lease(
                 "owner_pid": os.getpid(),
                 "owner_host": socket.gethostname(),
                 "resources": sorted(resources),
+                "mode": mode,
                 "acquired_at": now,
                 "updated_at": now,
             }
-            _infrastructure_state(data)["test_leases"][lease_id] = lease
+            leases[lease_id] = lease
             return lease
 
         lease = _mutate_sessions(mutate)
@@ -1989,6 +2033,24 @@ def release_test_resource_lease(lease_id: str) -> bool:
         return _infrastructure_state(data)["test_leases"].pop(lease_id, None) is not None
 
     return _mutate_sessions(mutate)
+
+
+def renew_test_resource_lease(
+    lease_id: str,
+    owner: str,
+    resources: set[str],
+    *,
+    mode: str = "exclusive",
+) -> dict:
+    """Refresh a lease TTL without changing ownership, resources, or mode."""
+    return acquire_test_resource_lease(
+        lease_id,
+        owner,
+        resources,
+        timeout=0,
+        poll=1,
+        mode=mode,
+    )
 
 
 def transfer_test_resource_lease(lease_id: str, *, expected_owner_pid: int, new_owner_pid: int) -> dict:

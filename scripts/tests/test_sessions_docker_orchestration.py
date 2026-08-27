@@ -127,6 +127,70 @@ def test_persistent_blocking_leases_reclaims_dead_same_host_owner(monkeypatch):
     assert ("DELETE", "/v1/coordination/leases/test-dead", None) in calls
 
 
+def test_persistent_acquire_reclaims_dead_same_host_conflict_and_preserves_mode(monkeypatch):
+    monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
+    monkeypatch.setattr(sessions, "_process_is_alive", lambda _pid: False)
+    host = sessions.socket.gethostname()
+    calls = []
+    attempts = 0
+
+    def api_request(method, path, *, data=None):
+        nonlocal attempts
+        calls.append((method, path, data))
+        if method == "POST":
+            attempts += 1
+            if attempts == 1:
+                raise sessions.ControlPlaneApiError(
+                    409,
+                    "requested resources are already leased: stale-lease",
+                )
+            return {
+                "lease": {
+                    "lease_key": "new-lease",
+                    "owner_key": f"{host}:1234",
+                    "resources": ["dev-stack"],
+                    "status": "active",
+                    "mode": "shared",
+                }
+            }
+        if method == "GET":
+            return {
+                "lease": {
+                    "lease_key": "stale-lease",
+                    "owner_key": f"{host}:999999",
+                    "resources": ["dev-stack"],
+                    "status": "active",
+                }
+            }
+        if method == "DELETE":
+            return {"released": True}
+        raise AssertionError((method, path, data))
+
+    monkeypatch.setattr(sessions, "control_plane_api_request", api_request)
+
+    lease = sessions.acquire_test_resource_lease(
+        "new-lease",
+        "tests",
+        {"dev-stack"},
+        timeout=0,
+        mode="shared",
+    )
+
+    assert lease["lease_id"] == "new-lease"
+    assert calls[-1][2]["mode"] == "shared"
+    assert ("DELETE", "/v1/coordination/leases/stale-lease", None) in calls
+
+
+def test_local_shared_test_leases_can_coexist(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+
+    sessions.acquire_test_resource_lease("reader-a", "a", {"dev-stack"}, timeout=0, mode="shared")
+    sessions.acquire_test_resource_lease("reader-b", "b", {"dev-stack"}, timeout=0, mode="shared")
+
+    with pytest.raises(RuntimeError):
+        sessions.acquire_test_resource_lease("writer", "c", {"dev-stack"}, timeout=0, mode="exclusive")
+
+
 def test_persistent_operation_blockers_include_operation_owner_and_phase(monkeypatch):
     monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
     monkeypatch.setattr(sessions, "_process_is_alive", lambda _pid: True)

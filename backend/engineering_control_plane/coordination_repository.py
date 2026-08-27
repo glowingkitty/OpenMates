@@ -146,6 +146,15 @@ class PostgresCoordinationRepository:
                 raise
             return self._lease_row(connection, lease_key)
 
+    def get_lease(self, lease_key: str) -> dict[str, Any] | None:
+        with connect(self.database_url) as connection:
+            self._expire_leases(connection, _utc_now())
+            row = connection.execute(
+                "SELECT lease_key FROM control_plane_resource_leases WHERE lease_key = %s",
+                (lease_key,),
+            ).fetchone()
+            return self._lease_row(connection, lease_key) if row is not None else None
+
     def release_lease(self, lease_key: str) -> bool:
         now = _utc_now()
         with connect(self.database_url) as connection:
