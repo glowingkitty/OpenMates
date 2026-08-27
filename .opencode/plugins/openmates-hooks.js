@@ -1959,25 +1959,80 @@ function firstResponseMediaImageSnippetForTest(text) {
   return match ? match[0] : "";
 }
 
-function responseMediaArtifactForTest({ command = "", output = "" } = {}) {
+function canonicalResponseMediaKeySourceForTest(value) {
+  return String(value || "")
+    .replace(/\\"/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function existingPathCandidateForTest(candidate) {
+  if (!candidate) return "";
+  try {
+    if (!existsSync(candidate)) return "";
+    return realpathSync(candidate);
+  } catch {
+    return "";
+  }
+}
+
+function resolveExistingFigmaExportPathForTest(
+  figmaPath,
+  { cwd = "", worktreePath = "", projectRoot = PROJECT_ROOT, controlPlaneRoot = CURRENT_CONTROL_PLANE_ROOT } = {},
+) {
+  const raw = String(figmaPath || "").trim();
+  if (!raw || raw.includes("\0")) return "";
+  const candidates = [];
+  if (isAbsolute(raw)) {
+    candidates.push(raw);
+  } else {
+    for (const base of [cwd, worktreePath, projectRoot, controlPlaneRoot, activeCwd()].filter(Boolean)) {
+      candidates.push(resolve(base, raw));
+    }
+  }
+  const seen = new Set();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    const existing = existingPathCandidateForTest(candidate);
+    if (existing) return existing;
+  }
+  return "";
+}
+
+function responseMediaArtifactForTest({
+  command = "",
+  output = "",
+  cwd = "",
+  worktreePath = "",
+  requireExistingFigmaExport = false,
+} = {}) {
   const video = firstResponseMediaVideoSnippetForTest(output);
   if (video) {
-    const key = createHash("sha256").update(video).digest("hex").slice(0, 24);
+    const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(video)).digest("hex").slice(0, 24);
     return { artifact_type: "video", artifact_key: key, snippet: video };
   }
-  const figmaPath = figmaExportPathForTest(`${command}\n${output}`);
+  const combined = `${command}\n${output}`;
+  const figmaPath = figmaExportPathForTest(combined);
+  const resolvedFigmaPath = figmaPath
+    ? resolveExistingFigmaExportPathForTest(figmaPath, { cwd, worktreePath })
+    : "";
   const image = firstResponseMediaImageSnippetForTest(output);
-  if (image && /figma/i.test(`${command}\n${output}`)) {
-    const keySource = figmaPath || image;
-    const key = createHash("sha256").update(keySource).digest("hex").slice(0, 24);
+  if (image && /figma/i.test(combined)) {
+    const keySource = resolvedFigmaPath || figmaPath || image;
+    const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(keySource)).digest("hex").slice(0, 24);
     return { artifact_type: "figma_image", artifact_key: key, snippet: image };
   }
   if (figmaPath) {
-    const key = createHash("sha256").update(figmaPath).digest("hex").slice(0, 24);
+    if (requireExistingFigmaExport && !resolvedFigmaPath) return null;
+    const uploadPath = resolvedFigmaPath || figmaPath;
+    const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(uploadPath)).digest("hex").slice(0, 24);
     return {
       artifact_type: "figma_export",
       artifact_key: key,
-      snippet: `Run python3 scripts/opencode_response_media.py ${figmaPath} --alt "Figma reference: current screen/frame", then embed the returned image Markdown in the same progress response.`,
+      artifact_path: resolvedFigmaPath,
+      snippet: `Figma export pending upload: ${uploadPath}`,
     };
   }
   return null;
@@ -1985,12 +2040,29 @@ function responseMediaArtifactForTest({ command = "", output = "" } = {}) {
 
 function mediaDeliveryPromptForTest(record) {
   if (!record?.snippet) return "";
+  if (record.artifact_type === "figma_export") return "";
   const label = record.artifact_type === "video" ? "video" : "Figma reference";
-  return `A required ${label} artifact from the previous tool result is still pending. ${record.artifact_type === "figma_export" ? record.snippet : `Include this exact snippet in your next progress response, even when the result is visibly broken or further debugging remains:\n${record.snippet}`} Do not redo completed tests merely to regenerate it.`;
+  return `A required ${label} artifact from the previous tool result is still pending. Include this exact snippet in your next progress response, even when the result is visibly broken or further debugging remains:\n${record.snippet}\nDo not redo completed tests merely to regenerate it.`;
 }
 
 function responseContainsMediaForTest(text, record) {
-  return Boolean(record?.snippet && String(text || "").includes(record.snippet));
+  if (!record?.snippet) return false;
+  const content = String(text || "");
+  if (content.includes(record.snippet)) return true;
+  if (record.artifact_type === "video") {
+    return canonicalResponseMediaKeySourceForTest(content).includes(canonicalResponseMediaKeySourceForTest(record.snippet));
+  }
+  return false;
+}
+
+function figmaExportPathFromRecordForTest(record) {
+  const explicit = String(record?.artifact_path || "").trim();
+  if (explicit) return explicit;
+  const snippet = String(record?.snippet || "");
+  const pending = snippet.match(/^Figma export pending upload:\s*(.+)$/i);
+  if (pending) return pending[1].trim();
+  const legacy = snippet.match(/opencode_response_media\.py\s+([^\s]+\.png)\b/i);
+  return legacy ? legacy[1] : "";
 }
 
 function assistantTextPartForTest(event) {
@@ -2019,19 +2091,23 @@ function figmaExportPathForTest(text) {
   return match ? match[1] : "";
 }
 
-function appendFigmaReferenceEmbedHint({ tool = "", command = "" } = {}, output) {
+function appendFigmaReferenceEmbedHint({ tool = "", command = "", cwd = "", worktreePath = "" } = {}, output) {
   if (!output || typeof output.output !== "string" || output.output.includes(FIGMA_REFERENCE_EMBED_MARKER)) return;
   const value = `${tool} ${command} ${output.output}`;
   if (!/figma/i.test(value)) return;
   if (!/download_figma_images|test-results\/figma\/[^\s"'<>]+\.png|figma-[^\s"'<>]+\.png/i.test(value)) return;
   const exportPath = figmaExportPathForTest(output.output);
+  const resolvedPath = exportPath ? resolveExistingFigmaExportPathForTest(exportPath, { cwd, worktreePath }) : "";
   const pathHint = exportPath ? `\nDetected reference export: ${exportPath}` : "";
+  const deliveryHint = exportPath && !resolvedPath
+    ? `\nAutomatic response-media delivery was not queued because the PNG was not found from this session's routed checkout. Re-run the Figma export in the active worktree before reporting implementation progress for that frame.`
+    : "";
   output.output += `
 
 ${FIGMA_REFERENCE_EMBED_MARKER}
 For Figma-based UI work, embed the exported Figma screenshot for the screen/frame currently being implemented in the next assistant progress response, and repeat when switching target frames. Upload it with:
   python3 scripts/opencode_response_media.py <exported-figma-png> --alt "Figma reference: <screen/frame>"
-Then paste the returned image Markdown before summarizing implementation progress.${pathHint}`;
+Then paste the returned image Markdown before summarizing implementation progress.${pathHint}${deliveryHint}`;
 }
 
 function continuationSignalForTest(text) {
@@ -2103,15 +2179,22 @@ function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
 
-function runProcess(command, args, { cwd = PROJECT_ROOT, env = process.env, input = "" } = {}) {
+function runProcess(command, args, { cwd = PROJECT_ROOT, env = process.env, input = "", timeoutMs = 0 } = {}) {
   return new Promise((resolvePromise) => {
     const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
     const stdout = [];
     const stderr = [];
+    const timeout = timeoutMs > 0
+      ? setTimeout(() => {
+        child.kill("SIGTERM");
+        finish(null, `timed out after ${timeoutMs}ms`);
+      }, timeoutMs)
+      : null;
     let settled = false;
     const finish = (status, error = "") => {
       if (settled) return;
       settled = true;
+      if (timeout) clearTimeout(timeout);
       resolvePromise({
         status,
         stdout: Buffer.concat(stdout).toString(),
@@ -2616,12 +2699,72 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         "--artifact-key", artifact.artifact_key,
         "--snippet", artifact.snippet,
       );
+      if (artifact.artifact_path) args.push("--artifact-path", artifact.artifact_path);
     } else if (["ack", "release"].includes(action) && artifact?.artifact_key) {
       args.push("--artifact-key", artifact.artifact_key);
+    } else if (action === "fail" && artifact?.artifact_key) {
+      args.push("--artifact-key", artifact.artifact_key);
+      if (artifact.failure_reason) args.push("--reason", artifact.failure_reason);
     }
     const result = await runProcess("python3", args, { cwd: CURRENT_CONTROL_PLANE_ROOT });
     if (result.status !== 0) throw new Error(result.stderr || result.stdout || `media ${action} failed`);
     return JSON.parse(result.stdout || "{}").media || null;
+  };
+  const failMediaRecord = async (sessionID, record, reason) => {
+    await mediaCommand("fail", sessionID, { ...record, failure_reason: reason });
+    console.warn(`[OpenMates response-media diagnostic] ${reason}`);
+  };
+  const uploadPendingFigmaExport = async (sessionID, record) => {
+    if (record?.artifact_type !== "figma_export") return record;
+    const route = await resolveWorktreeRoute(client, sessionID, routingData || sessionsData());
+    const rawPath = figmaExportPathFromRecordForTest(record);
+    const resolvedPath = resolveExistingFigmaExportPathForTest(rawPath, {
+      cwd: route.worktreePath || instanceDirectory,
+      worktreePath: route.worktreePath || "",
+    });
+    if (!resolvedPath) {
+      await failMediaRecord(
+        sessionID,
+        record,
+        `Figma export delivery skipped because the PNG is missing: ${rawPath || record.artifact_key}`,
+      );
+      return null;
+    }
+    const upload = await runProcess(
+      "python3",
+      [
+        "scripts/opencode_response_media.py",
+        resolvedPath,
+        "--alt",
+        "Figma reference: current screen/frame",
+        "--output",
+        "markdown",
+      ],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT, timeoutMs: 120_000 },
+    );
+    if (upload.status !== 0) {
+      await failMediaRecord(
+        sessionID,
+        record,
+        `Figma export upload failed for ${resolvedPath}: ${(upload.stderr || upload.stdout || "").trim()}`,
+      );
+      return null;
+    }
+    const markdown = firstResponseMediaImageSnippetForTest(upload.stdout);
+    if (!markdown) {
+      await failMediaRecord(
+        sessionID,
+        record,
+        `Figma export upload returned no image Markdown for ${resolvedPath}`,
+      );
+      return null;
+    }
+    return await mediaCommand("record", sessionID, {
+      artifact_type: "figma_image",
+      artifact_key: record.artifact_key,
+      artifact_path: resolvedPath,
+      snippet: markdown,
+    });
   };
   const deliverPendingMedia = async (sessionID) => {
     const current = currentPresence(sessionID);
@@ -2631,9 +2774,11 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     try {
       record = await mediaCommand("claim", sessionID);
       if (!record) return false;
+      record = await uploadPendingFigmaExport(sessionID, record);
+      if (!record) return false;
       const prompt = mediaDeliveryPromptForTest(record);
       if (!prompt) {
-        await mediaCommand("release", sessionID, record);
+        await mediaCommand("fail", sessionID, { ...record, failure_reason: "media record had no deliverable prompt" });
         return false;
       }
       claimedMediaBySession.set(sessionID, record);
@@ -2892,14 +3037,22 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(toolArgs(input, output));
+        const mediaRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+        const mediaCwd = output?.args?.workdir || mediaRoute.worktreePath || instanceDirectory;
         if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
         appendTemporaryLockWaitHint(output);
         appendApiHealthWaitHint(output);
         appendResponseMediaEmbedHint(command, output);
-        appendFigmaReferenceEmbedHint({ tool, command }, output);
-        const mediaArtifact = responseMediaArtifactForTest({ command, output: output?.output || "" });
+        appendFigmaReferenceEmbedHint({ tool, command, cwd: mediaCwd, worktreePath: mediaRoute.worktreePath || "" }, output);
+        const mediaArtifact = responseMediaArtifactForTest({
+          command,
+          output: output?.output || "",
+          cwd: mediaCwd,
+          worktreePath: mediaRoute.worktreePath || "",
+          requireExistingFigmaExport: true,
+        });
         if (mediaArtifact) {
           try {
             const record = await mediaCommand("record", input.sessionID, mediaArtifact);
@@ -2921,8 +3074,15 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
           await recordWorktreeRouting(input.sessionID);
         }
       } else {
-        appendFigmaReferenceEmbedHint({ tool }, output);
-        const mediaArtifact = responseMediaArtifactForTest({ output: output?.output || "" });
+        const mediaRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+        const mediaCwd = mediaRoute.worktreePath || instanceDirectory;
+        appendFigmaReferenceEmbedHint({ tool, cwd: mediaCwd, worktreePath: mediaRoute.worktreePath || "" }, output);
+        const mediaArtifact = responseMediaArtifactForTest({
+          output: output?.output || "",
+          cwd: mediaCwd,
+          worktreePath: mediaRoute.worktreePath || "",
+          requireExistingFigmaExport: true,
+        });
         if (mediaArtifact) {
           try {
             const record = await mediaCommand("record", input.sessionID, mediaArtifact);
@@ -2990,8 +3150,11 @@ OpenMatesHooks.test = Object.freeze({
   appendFigmaReferenceEmbedHint,
   appendResponseMediaEmbedHint,
   figmaExportPathForTest,
+  figmaExportPathFromRecordForTest,
   firstResponseMediaImageSnippetForTest,
   firstResponseMediaVideoSnippetForTest,
+  canonicalResponseMediaKeySourceForTest,
+  resolveExistingFigmaExportPathForTest,
   responseMediaArtifactForTest,
   mediaDeliveryPromptForTest,
   responseContainsMediaForTest,

@@ -9916,6 +9916,7 @@ def _record_session_media(
     artifact_type: str,
     snippet: str,
     artifact_key: str = "",
+    artifact_path: str = "",
     subject_commit: str = "",
     run_id: str = "",
 ) -> dict:
@@ -9942,6 +9943,7 @@ def _record_session_media(
             ):
                 current.update({
                     "artifact_type": artifact_type,
+                    "artifact_path": artifact_path or current.get("artifact_path", ""),
                     "snippet": snippet,
                     "snippet_hash": snippet_hash,
                     "subject_commit": subject_commit or current.get("subject_commit", ""),
@@ -9954,6 +9956,7 @@ def _record_session_media(
         record = {
             "artifact_key": stable_key,
             "artifact_type": artifact_type,
+            "artifact_path": artifact_path,
             "snippet": snippet,
             "snippet_hash": snippet_hash,
             "subject_commit": subject_commit,
@@ -9969,6 +9972,41 @@ def _record_session_media(
     return _mutate_sessions(mutate)
 
 
+def _canonical_response_media_text(value: object) -> str:
+    text = str(value or "").replace('\\"', '"')
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
+def _response_media_equivalence_key(record: dict) -> tuple[str, str]:
+    artifact_type = str(record.get("artifact_type") or "")
+    if artifact_type == "video":
+        return artifact_type, _canonical_response_media_text(record.get("snippet"))
+    if artifact_type == "figma_export":
+        return artifact_type, str(record.get("artifact_path") or record.get("snippet") or "").strip()
+    if artifact_type == "figma_image":
+        return artifact_type, _canonical_response_media_text(record.get("snippet"))
+    return artifact_type, str(record.get("artifact_key") or record.get("snippet") or "").strip()
+
+
+def _fail_session_media(session_reference: str, artifact_key: str, *, reason: str = "") -> dict | None:
+    """Retire an undeliverable media artifact without scheduling another prompt."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        artifacts = data["sessions"][repository_session_id].get("response_media")
+        record = artifacts.get(artifact_key) if isinstance(artifacts, dict) else None
+        if not isinstance(record, dict):
+            return None
+        record["status"] = "failed"
+        if reason:
+            record["failure_reason"] = reason
+        record["updated_at"] = _now_iso()
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
 def _claim_session_media(session_reference: str) -> dict | None:
     """Claim the oldest pending media artifact with a deterministic message id."""
     def mutate(data: dict) -> dict | None:
@@ -9978,10 +10016,28 @@ def _claim_session_media(session_reference: str) -> dict | None:
         artifacts = data["sessions"][repository_session_id].get("response_media")
         if not isinstance(artifacts, dict):
             return None
+        all_records = [item for item in artifacts.values() if isinstance(item, dict)]
+        delivered_keys = {
+            _response_media_equivalence_key(item)
+            for item in all_records
+            if item.get("status") == "delivered"
+        }
         candidates = sorted(
             (item for item in artifacts.values() if isinstance(item, dict) and item.get("status") == "pending"),
             key=lambda item: (str(item.get("created_at") or ""), str(item.get("artifact_key") or "")),
         )
+        selected = []
+        seen_pending = set()
+        for item in candidates:
+            equivalence_key = _response_media_equivalence_key(item)
+            if equivalence_key in delivered_keys or equivalence_key in seen_pending:
+                item["status"] = "failed"
+                item["failure_reason"] = "duplicate response-media artifact"
+                item["updated_at"] = _now_iso()
+                continue
+            seen_pending.add(equivalence_key)
+            selected.append(item)
+        candidates = selected
         if not candidates:
             return None
         record = candidates[0]
@@ -10033,6 +10089,7 @@ def cmd_media(args: argparse.Namespace) -> None:
                 artifact_type=args.artifact_type,
                 snippet=args.snippet,
                 artifact_key=args.artifact_key or "",
+                artifact_path=args.artifact_path or "",
                 subject_commit=args.subject_commit or "",
                 run_id=args.run_id or "",
             )
@@ -10043,6 +10100,12 @@ def cmd_media(args: argparse.Namespace) -> None:
                 args.session,
                 args.artifact_key,
                 delivered=args.media_action == "ack",
+            )
+        elif args.media_action == "fail":
+            result = _fail_session_media(
+                args.session,
+                args.artifact_key,
+                reason=args.reason or "",
             )
         else:
             raise RuntimeError(f"unknown media action: {args.media_action}")
@@ -16185,6 +16248,7 @@ def main() -> None:
         "--artifact-type", required=True, choices=["video", "figma_image", "figma_export"]
     )
     p_media_record.add_argument("--artifact-key", default="")
+    p_media_record.add_argument("--artifact-path", default="")
     p_media_record.add_argument("--snippet", required=True)
     p_media_record.add_argument("--subject-commit", default="")
     p_media_record.add_argument("--run-id", default="")
@@ -16194,6 +16258,10 @@ def main() -> None:
         p_media_finish = p_media_sub.add_parser(action)
         p_media_finish.add_argument("--session", required=True, help="Repository or OpenCode session ID")
         p_media_finish.add_argument("--artifact-key", required=True)
+    p_media_fail = p_media_sub.add_parser("fail")
+    p_media_fail.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    p_media_fail.add_argument("--artifact-key", required=True)
+    p_media_fail.add_argument("--reason", default="")
 
     p_docker = sub.add_parser("docker", help="Run coordinated Docker operations")
     p_docker_sub = p_docker.add_subparsers(dest="docker_action", required=True)

@@ -69,15 +69,59 @@ def test_uploaded_figma_image_upgrades_pending_export(monkeypatch) -> None:
     isolated_state(monkeypatch, sessions)
     key = "frame-settings"
     sessions._record_session_media(
-        "repo", artifact_type="figma_export", artifact_key=key, snippet="upload the exported frame"
+        "repo",
+        artifact_type="figma_export",
+        artifact_key=key,
+        artifact_path="/tmp/frame.png",
+        snippet="upload the exported frame",
     )
     upgraded = sessions._record_session_media(
         "repo",
         artifact_type="figma_image",
         artifact_key=key,
+        artifact_path="/tmp/frame.png",
         snippet="![Figma](https://example/frame.png)",
     )
 
     assert upgraded["artifact_type"] == "figma_image"
+    assert upgraded["artifact_path"] == "/tmp/frame.png"
     assert upgraded["snippet"].startswith("![Figma]")
     assert upgraded["status"] == "pending"
+
+
+def test_media_fail_retires_undeliverable_artifact(monkeypatch) -> None:
+    sessions = load_sessions()
+    isolated_state(monkeypatch, sessions)
+    record = sessions._record_session_media(
+        "repo",
+        artifact_type="figma_export",
+        artifact_key="missing-frame",
+        artifact_path="/tmp/missing.png",
+        snippet="Figma export pending upload: /tmp/missing.png",
+    )
+
+    failed = sessions._fail_session_media("repo", record["artifact_key"], reason="missing file")
+
+    assert failed["status"] == "failed"
+    assert failed["failure_reason"] == "missing file"
+    assert sessions._claim_session_media("repo") is None
+
+
+def test_media_claim_retires_duplicate_video_after_delivery(monkeypatch) -> None:
+    sessions = load_sessions()
+    state = isolated_state(monkeypatch, sessions)
+    normal = '<video controls crossorigin="anonymous"><source src="https://example/video.webm?x=1&amp;y=2"></video>'
+    escaped = '<video controls crossorigin=\\"anonymous\\"><source src=\\"https://example/video.webm?x=1&amp;y=2\\"></video>'
+    first = sessions._record_session_media("repo", artifact_type="video", artifact_key="normal", snippet=normal)
+    sessions._record_session_media("repo", artifact_type="video", artifact_key="escaped", snippet=escaped)
+
+    claimed = sessions._claim_session_media("repo")
+    sessions._finish_session_media("repo", claimed["artifact_key"], delivered=True)
+    duplicate_claim = sessions._claim_session_media("repo")
+    duplicate_key = "escaped" if claimed["artifact_key"] == first["artifact_key"] else first["artifact_key"]
+    duplicate = state["sessions"]["repo"]["response_media"][duplicate_key]
+
+    assert claimed["artifact_key"] in {"normal", "escaped"}
+    assert duplicate_claim is None
+    assert duplicate["status"] == "failed"
+    assert duplicate["failure_reason"] == "duplicate response-media artifact"
