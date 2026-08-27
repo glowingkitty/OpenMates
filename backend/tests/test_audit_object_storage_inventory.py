@@ -7,6 +7,7 @@ prints credentials, bucket names, or object keys.
 
 from scripts.audit_object_storage_inventory import (
     EMPTY_SHA256,
+    RUNTIME_INVENTORY_TIMEOUT_SECONDS,
     probe_managed_bucket,
     runtime_inventory_command,
 )
@@ -23,7 +24,16 @@ def test_networked_inventory_delegates_to_api_runtime() -> None:
         "--json",
     ])
 
-    assert command[:5] == ["docker", "exec", "api", "python", "/app/scripts/audit_object_storage_inventory.py"]
+    assert command[:7] == [
+        "docker",
+        "exec",
+        "api",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        f"{RUNTIME_INVENTORY_TIMEOUT_SECONDS}s",
+    ]
+    assert command[7:9] == ["python", "/app/scripts/audit_object_storage_inventory.py"]
     assert command[-1] == "--runtime"
 
 

@@ -37,6 +37,8 @@ MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
 SHA256_METADATA_KEY = "openmates-sha256"
 EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
+RUNTIME_INVENTORY_TIMEOUT_SECONDS = 900
+HOST_DELEGATION_TIMEOUT_SECONDS = RUNTIME_INVENTORY_TIMEOUT_SECONDS + 30
 
 
 def runtime_inventory_command(arguments: list[str]) -> list[str]:
@@ -46,6 +48,10 @@ def runtime_inventory_command(arguments: list[str]) -> list[str]:
         "docker",
         "exec",
         "api",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=10s",
+        f"{RUNTIME_INVENTORY_TIMEOUT_SECONDS}s",
         "python",
         "/app/scripts/audit_object_storage_inventory.py",
         *forwarded,
@@ -680,7 +686,7 @@ def main() -> int:
             text=True,
             capture_output=True,
             check=False,
-            timeout=900,
+            timeout=HOST_DELEGATION_TIMEOUT_SECONDS,
         )
         if completed.returncode != 0:
             if completed.stdout:

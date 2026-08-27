@@ -2283,7 +2283,7 @@ assertions:
     supporting_tests:
     - &id251
       path: backend/tests/test_audit_object_storage_inventory.py
-      line: 51
+      line: 61
       name: test_managed_bucket_probe_checks_data_plane_and_cleans_up
       surface: rest_api
     - &id255
@@ -3194,7 +3194,7 @@ assertions:
     supporting_tests:
     - &id363
       path: backend/tests/test_audit_object_storage_inventory.py
-      line: 16
+      line: 17
       name: test_networked_inventory_delegates_to_api_runtime
       surface: rest_api
     - &id366
@@ -3443,12 +3443,12 @@ assertions:
     supporting_tests:
     - &id393
       path: backend/tests/test_audit_object_storage_inventory.py
-      line: 16
+      line: 17
       name: test_networked_inventory_delegates_to_api_runtime
       surface: rest_api
     - &id394
       path: backend/tests/test_audit_object_storage_inventory.py
-      line: 51
+      line: 61
       name: test_managed_bucket_probe_checks_data_plane_and_cleans_up
       surface: rest_api
     - &id397
