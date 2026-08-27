@@ -49,6 +49,14 @@ semantic:
   chat-rainbow-green:      { light: "#30d158", dark: "#30d158" }
   chat-rainbow-cyan:       { light: "#32ade6", dark: "#32ade6" }
   chat-rainbow-purple:     { light: "#bf5af2", dark: "#bf5af2" }
+  ai-settings-muted:       { light: "#939393", dark: "#cfcfcf" }
+  ai-settings-pricing:     { light: "#646464", dark: "#d0d0d0" }
+  ai-icon-tile-start:      { light: "#ffffff", dark: "#2c2c2c" }
+  ai-icon-tile-end:        { light: "#eaeaea", dark: "#171717" }
+  ai-capability-low:       { light: "#09CCD6", dark: "#09CCD6" }
+  ai-capability-medium:    { light: "#09CCD6", dark: "#09CCD6" }
+  ai-capability-high:      { light: "#FFC745", dark: "#FFC745" }
+  ai-capability-max:       { light: "#FF2C2C", dark: "#FF2C2C" }
 
 button:
   primary:           { value: "#ff553b" }

@@ -16,12 +16,9 @@
     import { compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, getRecommendedModelForTier, getTierCapabilityLevel } from '../../utils/aiModelDisplay';
     import { aiModelSelectionValue } from '../../utils/aiModelSelection';
     import {
-        SettingsCapabilityScale,
-        SettingsCard,
         SettingsInfoBox,
         SettingsItem,
         SettingsPageContainer,
-        SettingsSectionHeading,
     } from './elements';
 
     interface Props {
@@ -57,6 +54,8 @@
                 : 'default_ai_model_most_demanding'
     );
     const currentSelection = $derived($userProfile[preferenceField] ?? null);
+    const tierCapability = $derived(getTierCapabilityLevel(tier));
+    const tierCapabilityLabel = $derived($text(`settings.ai_ask.ai_ask_settings.capability_${tierCapability}`));
     const providers = $derived.by(() => {
         const result = new Map<string, AIModelMetadata>();
         for (const model of aiModels) {
@@ -64,12 +63,6 @@
         }
         return [...result.values()].sort(compareAiProviders);
     });
-
-    function tierTitle(): string {
-        if (tier === 'simple') return $text('settings.ai_ask.ai_ask_settings.simple_requests');
-        if (tier === 'complex') return $text('settings.ai_ask.ai_ask_settings.complex_requests');
-        return $text('settings.ai_ask.ai_ask_settings.most_demanding_requests');
-    }
 
     function modelSubtitle(model: AIModelMetadata): string {
         const recommendation = model.id === recommendedModelId
@@ -123,61 +116,95 @@
 </script>
 
 <SettingsPageContainer maxWidth="wide">
-    <SettingsInfoBox type="info">
-        {providerId
-            ? $text('settings.ai_ask.ai_ask_settings.choose_exact_model')
-            : $text('settings.ai_ask.ai_ask_settings.choose_tier_provider')}
-    </SettingsInfoBox>
+    <div class="ai-tier-body">
+        <SettingsInfoBox type="info" plain={true} tone="muted" data-testid="ai-tier-routing-note">
+            {providerId
+                ? $text('settings.ai_ask.ai_ask_settings.choose_exact_model')
+                : $text('settings.ai_ask.ai_ask_settings.choose_tier_provider')}
+        </SettingsInfoBox>
 
-    <section data-testid="ai-tier-provider-catalog">
-        <SettingsSectionHeading
-            title={providerId ? getAiProviderDisplay(providerId, providerModels[0]?.provider_name ?? providerId).brandName : tierTitle()}
-            icon="ai"
-        />
-        <SettingsCard padding="sm">
-            <SettingsCapabilityScale level={getTierCapabilityLevel(tier)} label={$text(`settings.ai_ask.ai_ask_settings.capability_${getTierCapabilityLevel(tier)}`)} />
-        </SettingsCard>
-        <SettingsItem
-            type="submenu"
-            icon="ai"
-            title={$text('settings.ai_ask.ai_ask_settings.model_auto')}
-            subtitleBottom={$text('settings.ai_ask.ai_ask_settings.auto_description')}
-            hasToggle={true}
-            checked={currentSelection === null}
-            data-testid="ai-model-option-auto"
-            onClick={() => saveSelection(null)}
-        />
-
-        {#if providerId}
-            {#each providerModels as model (model.id)}
+        <section class="ai-section" data-testid="ai-tier-provider-catalog">
+            <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.default_models')}</h3>
+            <div class="ai-row-list">
                 <SettingsItem
-                    type="submenu"
-                    icon={model.provider_id}
-                    iconSrc={getProviderIconUrl(model.logo_svg)}
-                    iconAlt=""
-                    title={model.name}
-                    subtitleBottom={`${modelSubtitle(model)} · ${capabilityLabel(getModelCapabilityLevel(model))}`}
+                    type="ai-row"
+                    capability={tierCapability}
+                    capabilityLabel={tierCapabilityLabel}
+                    title={$text('settings.ai_ask.ai_ask_settings.model_auto')}
+                    subtitleBottom={$text('settings.ai_ask.ai_ask_settings.auto_description')}
                     hasToggle={true}
-                    checked={currentSelection === aiModelSelectionValue(model)}
-                    data-testid="ai-model-option-exact"
-                    onClick={() => openModel(model)}
-                    onToggleClick={() => saveSelection(aiModelSelectionValue(model))}
+                    checked={currentSelection === null}
+                    data-testid="ai-model-option-auto"
+                    onClick={() => saveSelection(null)}
                 />
-            {/each}
-        {:else}
-            {#each providers as model (model.provider_id)}
-                {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
-                <SettingsItem
-                    type="submenu"
-                    icon={model.provider_id}
-                    iconSrc={getProviderIconUrl(model.logo_svg)}
-                    iconAlt=""
-                    title={display.brandName}
-                    subtitleBottom={display.brandName !== display.companyName ? $text('enter_message.mention_dropdown.from_provider').replace('{provider}', display.companyName) : $text('settings.ai_ask.ai_ask_settings.view_provider_models')}
-                    data-testid="ai-provider-family-card"
-                    onClick={() => openProvider(model)}
-                />
-            {/each}
-        {/if}
-    </section>
+            </div>
+
+            <h3 class="ai-section-title">{providerId ? getAiProviderDisplay(providerId, providerModels[0]?.provider_name ?? providerId).brandName : $text('settings.ai_ask.ai_ask_settings.models_and_accounts')}</h3>
+            <div class="ai-row-list">
+                {#if providerId}
+                    {#each providerModels as model (model.id)}
+                        <SettingsItem
+                            type="ai-row"
+                            icon={model.provider_id}
+                            iconSrc={getProviderIconUrl(model.logo_svg)}
+                            iconAlt=""
+                            title={model.name}
+                            subtitleBottom={`${modelSubtitle(model)} · ${capabilityLabel(getModelCapabilityLevel(model))}`}
+                            hasToggle={true}
+                            checked={currentSelection === aiModelSelectionValue(model)}
+                            data-testid="ai-model-option-exact"
+                            onClick={() => openModel(model)}
+                            onToggleClick={() => saveSelection(aiModelSelectionValue(model))}
+                        />
+                    {/each}
+                {:else}
+                    {#each providers as model (model.provider_id)}
+                        {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
+                        <SettingsItem
+                            type="ai-row"
+                            icon={model.provider_id}
+                            iconSrc={getProviderIconUrl(model.logo_svg)}
+                            iconAlt=""
+                            title={display.brandName}
+                            subtitleBottom={display.brandName !== display.companyName ? $text('enter_message.mention_dropdown.from_provider').replace('{provider}', display.companyName) : $text('settings.ai_ask.ai_ask_settings.view_provider_models')}
+                            data-testid="ai-provider-family-card"
+                            onClick={() => openProvider(model)}
+                        />
+                    {/each}
+                {/if}
+            </div>
+        </section>
+    </div>
 </SettingsPageContainer>
+
+<style>
+    .ai-tier-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        width: min(100%, 20.1875rem);
+        margin: 0 auto;
+    }
+
+    .ai-section,
+    .ai-row-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ai-section {
+        gap: var(--spacing-5);
+    }
+
+    .ai-row-list {
+        gap: var(--spacing-4);
+    }
+
+    .ai-section-title {
+        margin: 0 var(--spacing-10);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-p);
+        font-weight: 700;
+        line-height: 1.25;
+    }
+</style>

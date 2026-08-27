@@ -13,16 +13,23 @@
 
     /** Box variant — controls background, border, and icon colors */
     type InfoBoxType = 'info' | 'success' | 'error' | 'warning';
+    type InfoBoxTone = 'default' | 'pricing' | 'muted';
 
     let {
         type = 'info' as InfoBoxType,
         icon = '' as string,
         ariaLabel = '',
+        plain = false,
+        tone = 'default' as InfoBoxTone,
+        'data-testid': testid = undefined,
         children,
     }: {
         type?: InfoBoxType;
         icon?: string;
         ariaLabel?: string;
+        plain?: boolean;
+        tone?: InfoBoxTone;
+        'data-testid'?: string | undefined;
         children: Snippet;
     } = $props();
 
@@ -38,12 +45,15 @@
 </script>
 
 <div
-    class="settings-info-box {type}"
-    data-testid={type === 'success' ? 'settings-info-box-success' : undefined}
-    role={type === 'error' || type === 'warning' ? 'alert' : 'status'}
+    class="settings-info-box {type} tone-{tone}"
+    class:plain
+    data-testid={testid ?? (type === 'success' ? 'settings-info-box-success' : undefined)}
+    role={plain ? undefined : (type === 'error' || type === 'warning' ? 'alert' : 'status')}
     aria-label={ariaLabel || undefined}
 >
-    <span class="clickable-icon {resolvedIcon} info-box-icon"></span>
+    {#if !plain}
+        <span class="clickable-icon {resolvedIcon} info-box-icon"></span>
+    {/if}
     <div class="info-box-content">
         {@render children()}
     </div>
@@ -115,5 +125,31 @@
 
     .info-box-content :global(p:last-child) {
         margin-bottom: 0;
+    }
+
+    .settings-info-box.plain {
+        display: block;
+        padding: 0;
+        margin: 0 var(--spacing-10);
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .settings-info-box.plain .info-box-content {
+        font-size: var(--font-size-small);
+        font-weight: 500;
+        line-height: 1.25;
+        color: var(--color-font-primary);
+        white-space: normal;
+    }
+
+    .settings-info-box.plain.tone-pricing .info-box-content {
+        color: var(--color-ai-settings-pricing, var(--color-font-primary));
+    }
+
+    .settings-info-box.plain.tone-muted .info-box-content {
+        color: var(--color-ai-settings-muted, var(--color-font-secondary));
     }
 </style>

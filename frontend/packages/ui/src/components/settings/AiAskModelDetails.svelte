@@ -6,19 +6,17 @@
 -->
 <script lang="ts">
     import { text } from '@repo/ui';
+    import { getProviderIconUrl } from '../../data/providerIcons';
     import { authStore } from '../../stores/authStore';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { updateProfile, userProfile } from '../../stores/userProfile';
     import { getAiProviderDisplay, getModelCapabilityLevel } from '../../utils/aiModelDisplay';
     import {
         SettingsCapabilityScale,
-        SettingsCard,
-        SettingsDetailRow,
         SettingsInfoBox,
         SettingsItem,
         SettingsLoadingState,
         SettingsPageContainer,
-        SettingsSectionHeading,
     } from './elements';
 
     interface Props {
@@ -92,64 +90,157 @@
     {#if !model}
         <SettingsLoadingState variant="empty" text={$text('settings.ai_ask.ai_ask_model_details.model_not_found')} />
     {:else}
-        <SettingsInfoBox type="info">{model.description}</SettingsInfoBox>
+        <div class="ai-model-body">
+            <SettingsInfoBox type="info" plain={true} tone="muted" data-testid="ai-model-description">
+                {model.description}
+            </SettingsInfoBox>
 
-        {#if isAuthenticated}
-            <SettingsItem
-                type="submenu"
-                icon="ai"
-                title={$text('settings.ai_ask.ai_ask_model_details.enable_model')}
-                hasToggle={true}
-                checked={isModelEnabled}
-                data-testid="ai-model-enabled-toggle"
-                onClick={toggleModel}
-            />
-        {/if}
-
-        <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.capability')} icon="insight" />
-        <SettingsCard padding="sm">
-            <SettingsCapabilityScale level={capabilityLevel} label={capabilityLabel} />
-        </SettingsCard>
-
-        <SettingsSectionHeading title={$text('common.details')} icon="insight" />
-        <SettingsCard padding="sm">
-            <SettingsDetailRow label={$text('settings.ai_ask.ai_ask_model_details.origin')} value={providerDisplay.companyName} highlight={true} />
-            {#if formattedReleaseDate}
-                <SettingsDetailRow label={$text('settings.ai_ask.ai_ask_model_details.release_date')} value={formattedReleaseDate} />
+            {#if isAuthenticated}
+                <SettingsItem
+                    type="ai-row"
+                    icon={model.provider_id}
+                    iconSrc={getProviderIconUrl(model.logo_svg)}
+                    iconAlt=""
+                    title={$text('settings.ai_ask.ai_ask_model_details.enable_model')}
+                    subtitleBottom={model.name}
+                    hasToggle={true}
+                    checked={isModelEnabled}
+                    data-testid="ai-model-enabled-toggle"
+                    onClick={toggleModel}
+                />
             {/if}
-            <SettingsDetailRow label={$text('settings.ai_ask.ai_ask_model_details.input_types')} value={inputTypes} />
-            <SettingsDetailRow label={$text('settings.ai_ask.ai_ask_model_details.output_types')} value={outputTypes} />
-        </SettingsCard>
 
-        {#if model.pricing}
-            <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
-            <SettingsCard padding="sm">
-                {#if model.pricing.input_tokens_per_credit}
-                    <SettingsDetailRow label={$text('settings.ai_ask.ai_ask_model_details.text_input')} value={priceValue(model.pricing.input_tokens_per_credit)} highlight={true} />
-                {/if}
-                {#if model.pricing.output_tokens_per_credit}
-                    <SettingsDetailRow label={$text('settings.ai_ask.ai_ask_model_details.text_output')} value={priceValue(model.pricing.output_tokens_per_credit)} highlight={true} />
-                {/if}
-            </SettingsCard>
-        {/if}
-
-        {#if model.servers?.length}
-            <section data-testid="ai-model-provider-options">
-                <SettingsSectionHeading title={$text('common.provider')} icon="server" />
-                {#each model.servers as server (server.id)}
-                    <SettingsItem
-                        type="submenu"
-                        icon="server"
-                        title={server.name}
-                        subtitleBottom={`${server.region} ${$text('settings.ai_ask.ai_ask_model_details.servers').toLowerCase()}`}
-                        hasToggle={isAuthenticated}
-                        checked={isServerEnabled(server.id)}
-                        data-testid={`ai-model-provider-option-${server.id}`}
-                        onClick={() => toggleServer(server.id)}
-                    />
-                {/each}
+            <section class="ai-section" data-testid="ai-model-summary-section">
+                <h3 class="ai-section-title">{$text('common.details')}</h3>
+                <div class="ai-row-list">
+                    <div class="capability-row" data-testid="ai-model-capability-row">
+                        <SettingsCapabilityScale level={capabilityLevel} label={capabilityLabel} compact={true} />
+                        <div class="capability-copy">
+                            <span class="capability-title">{$text('settings.ai_ask.ai_ask_settings.capability')}</span>
+                            <span class="capability-value">{capabilityLabel}</span>
+                        </div>
+                    </div>
+                    <SettingsItem type="ai-price-row" icon="openmates" title={$text('settings.ai_ask.ai_ask_model_details.origin')} subtitleBottom={providerDisplay.companyName} data-testid="ai-model-origin-row" />
+                    {#if formattedReleaseDate}
+                        <SettingsItem type="ai-price-row" icon="time" title={$text('settings.ai_ask.ai_ask_model_details.release_date')} subtitleBottom={formattedReleaseDate} data-testid="ai-model-release-row" />
+                    {/if}
+                    <SettingsItem type="ai-price-row" icon="text" title={$text('settings.ai_ask.ai_ask_model_details.input_types')} subtitleBottom={inputTypes} data-testid="ai-model-input-types-row" />
+                    <SettingsItem type="ai-price-row" icon="document" title={$text('settings.ai_ask.ai_ask_model_details.output_types')} subtitleBottom={outputTypes} data-testid="ai-model-output-types-row" />
+                </div>
             </section>
-        {/if}
+
+            {#if model.pricing}
+                <section class="ai-section" data-testid="ai-model-pricing-section">
+                    <h3 class="ai-section-title">{$text('common.pricing')}</h3>
+                    <div class="ai-row-list">
+                        {#if model.pricing.input_tokens_per_credit}
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_input')} subtitleBottom={priceValue(model.pricing.input_tokens_per_credit)} data-testid="ai-model-pricing-input-row" />
+                        {/if}
+                        {#if model.pricing.output_tokens_per_credit}
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_output')} subtitleBottom={priceValue(model.pricing.output_tokens_per_credit)} data-testid="ai-model-pricing-output-row" />
+                        {/if}
+                    </div>
+                </section>
+            {/if}
+
+            <section class="ai-section" data-testid="ai-model-example-chats">
+                <h3 class="ai-section-title">{$text('settings.app_store.skills.examples')}</h3>
+                <div class="ai-example-list">
+                    <SettingsItem type="ai-example-card" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.simple_requests')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.simple_requests_description')} data-testid="ai-model-example-card" />
+                    <SettingsItem type="ai-example-card" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.complex_requests')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.complex_requests_description')} data-testid="ai-model-example-card" />
+                </div>
+            </section>
+
+            {#if model.servers?.length}
+                <section class="ai-section" data-testid="ai-model-provider-options">
+                    <h3 class="ai-section-title">{$text('common.provider')}</h3>
+                    <div class="ai-row-list">
+                        {#each model.servers as server (server.id)}
+                            <SettingsItem
+                                type="ai-row"
+                                icon="server"
+                                title={server.name}
+                                subtitleBottom={`${server.region} ${$text('settings.ai_ask.ai_ask_model_details.servers').toLowerCase()}`}
+                                hasToggle={isAuthenticated}
+                                checked={isServerEnabled(server.id)}
+                                data-testid={`ai-model-provider-option-${server.id}`}
+                                onClick={() => toggleServer(server.id)}
+                            />
+                        {/each}
+                    </div>
+                </section>
+            {/if}
+        </div>
     {/if}
 </SettingsPageContainer>
 </div>
+
+<style>
+    .ai-model-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        width: min(100%, 20.1875rem);
+        margin: 0 auto;
+    }
+
+    .ai-section,
+    .ai-row-list,
+    .ai-example-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ai-section {
+        gap: var(--spacing-5);
+    }
+
+    .ai-row-list {
+        gap: var(--spacing-4);
+    }
+
+    .ai-example-list {
+        gap: var(--spacing-6);
+    }
+
+    .ai-section-title {
+        margin: 0 var(--spacing-10);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-p);
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .capability-row {
+        display: flex;
+        align-items: center;
+        gap: 0.8125rem;
+        min-height: 2.73125rem;
+        padding: 0 var(--spacing-10);
+        border-radius: 0.559rem;
+    }
+
+    .capability-copy {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 0.0625rem;
+    }
+
+    .capability-title {
+        color: var(--color-ai-settings-muted, var(--color-font-secondary));
+        font-size: var(--font-size-small);
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .capability-value {
+        color: transparent;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        font-size: var(--font-size-p);
+        font-weight: 700;
+        line-height: 1.25;
+    }
+</style>

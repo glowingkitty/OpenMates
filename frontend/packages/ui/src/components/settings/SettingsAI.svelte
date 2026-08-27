@@ -20,7 +20,6 @@
         SettingsItem,
         SettingsModelPreferenceItem,
         SettingsPageContainer,
-        SettingsSectionHeading,
     } from './elements';
 
     const dispatch = createEventDispatcher();
@@ -86,43 +85,82 @@
 
 <div data-testid="ai-settings">
     <SettingsPageContainer maxWidth="wide">
-        <SettingsInfoBox type="info" ariaLabel={$text('common.pricing')}>
-            <strong>{$text('common.pricing')}:</strong>
-            {$text('settings.ai_ask.ai_ask_settings.pricing_note')}
-        </SettingsInfoBox>
+        <div class="ai-settings-body">
+            <SettingsInfoBox type="info" plain={true} tone="pricing" ariaLabel={$text('common.pricing')} data-testid="ai-pricing-note">
+                {$text('common.pricing')}: {$text('settings.ai_ask.ai_ask_settings.pricing_note')}
+            </SettingsInfoBox>
 
-        {#if isAuthenticated}
-            <section data-testid="ai-default-models-group">
-                <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.default_models')} icon="ai" />
-                <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.simple_requests')} value={modelLabel(defaultSimple)} capability={getTierCapabilityLevel('simple')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_low')} data-testid="ai-tier-row-simple" onEdit={() => openTier('simple')} />
-                <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.complex_requests')} value={modelLabel(defaultComplex)} capability={getTierCapabilityLevel('complex')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_high')} data-testid="ai-tier-row-complex" onEdit={() => openTier('complex')} />
-                <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.most_demanding_requests')} value={modelLabel(defaultMostDemanding)} capability={getTierCapabilityLevel('most-demanding')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_max')} data-testid="ai-tier-row-most-demanding" onEdit={() => openTier('most-demanding')} />
+            {#if isAuthenticated}
+                <section class="ai-section" data-testid="ai-default-models-group">
+                    <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.default_models')}</h3>
+                    <div class="ai-row-list">
+                        <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.simple_requests')} value={modelLabel(defaultSimple)} capability={getTierCapabilityLevel('simple')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_low')} data-testid="ai-tier-row-simple" onEdit={() => openTier('simple')} />
+                        <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.complex_requests')} value={modelLabel(defaultComplex)} capability={getTierCapabilityLevel('complex')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_high')} data-testid="ai-tier-row-complex" onEdit={() => openTier('complex')} />
+                        <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.most_demanding_requests')} value={modelLabel(defaultMostDemanding)} capability={getTierCapabilityLevel('most-demanding')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_max')} data-testid="ai-tier-row-most-demanding" onEdit={() => openTier('most-demanding')} />
+                    </div>
+                </section>
+            {/if}
+
+            <section class="ai-section" data-testid="ai-models-accounts-group">
+                <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.models_and_accounts')}</h3>
+                <div class="ai-row-list">
+                    {#each providerFamilies as model (model.provider_id)}
+                        {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
+                        <SettingsItem
+                            type="ai-row"
+                            icon={model.provider_id}
+                            iconSrc={getProviderIconUrl(model.logo_svg)}
+                            iconAlt=""
+                            title={display.brandName}
+                            subtitleBottom={display.brandName !== display.companyName ? $text('enter_message.mention_dropdown.from_provider').replace('{provider}', display.companyName) : undefined}
+                            data-testid="ai-provider-family-card"
+                            onClick={() => openProvider(model)}
+                        />
+                    {/each}
+                </div>
             </section>
-        {/if}
 
-        <section data-testid="ai-models-accounts-group">
-            <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.models_and_accounts')} icon="search" />
-            {#each providerFamilies as model (model.provider_id)}
-                {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
-                <SettingsItem
-                    type="submenu"
-                    icon={model.provider_id}
-                    iconSrc={getProviderIconUrl(model.logo_svg)}
-                    iconAlt=""
-                    title={display.brandName}
-                    subtitleBottom={display.brandName !== display.companyName ? $text('enter_message.mention_dropdown.from_provider').replace('{provider}', display.companyName) : undefined}
-                    data-testid="ai-provider-family-card"
-                    onClick={() => openProvider(model)}
-                />
-            {/each}
-        </section>
-
-        {#if isAuthenticated}
-            <section data-testid="ai-response-settings-group">
-                <SettingsSectionHeading title={$text('settings.ai_ask.ai_ask_settings.response_settings')} icon="settings" />
-                <SettingsItem type="submenu" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions_description')} hasToggle={true} checked={followUpSuggestionsEnabled} data-testid="ai-response-feature-follow-up-suggestions" onClick={() => saveResponseSetting('follow_up_suggestions_enabled', !followUpSuggestionsEnabled)} />
-                <SettingsItem type="submenu" icon="insight" title={$text('settings.ai_ask.ai_ask_settings.quick_tips')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.quick_tips_description')} hasToggle={true} checked={quickTipsEnabled} data-testid="ai-response-feature-quick-tips" onClick={() => saveResponseSetting('quick_tips_enabled', !quickTipsEnabled)} />
-            </section>
-        {/if}
+            {#if isAuthenticated}
+                <section class="ai-section" data-testid="ai-response-settings-group">
+                    <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.response_settings')}</h3>
+                    <div class="ai-row-list">
+                        <SettingsItem type="ai-row" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions_description')} hasToggle={true} checked={followUpSuggestionsEnabled} data-testid="ai-response-feature-follow-up-suggestions" onClick={() => saveResponseSetting('follow_up_suggestions_enabled', !followUpSuggestionsEnabled)} />
+                        <SettingsItem type="ai-row" icon="insight" title={$text('settings.ai_ask.ai_ask_settings.quick_tips')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.quick_tips_description')} hasToggle={true} checked={quickTipsEnabled} data-testid="ai-response-feature-quick-tips" onClick={() => saveResponseSetting('quick_tips_enabled', !quickTipsEnabled)} />
+                    </div>
+                </section>
+            {/if}
+        </div>
     </SettingsPageContainer>
 </div>
+
+<style>
+    .ai-settings-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        width: min(100%, 20.1875rem);
+        margin: 0 auto;
+    }
+
+    .ai-section,
+    .ai-row-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ai-section {
+        gap: var(--spacing-5);
+    }
+
+    .ai-row-list {
+        gap: var(--spacing-4);
+    }
+
+    .ai-section-title {
+        margin: 0 var(--spacing-10);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-p);
+        font-weight: 700;
+        line-height: 1.25;
+    }
+</style>
