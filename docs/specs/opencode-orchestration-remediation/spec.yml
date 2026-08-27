@@ -778,11 +778,11 @@ verifications:
       status: passed
       timestamp: "2026-08-27T14:05:00Z"
       actor: Codex
-      command: python3 scripts/engineering_control_plane.py verify && python3 scripts/verify_opencode_presence_live.py --isolated
+      command: node --test scripts/tests/test_opencode_hooks_contract.mjs && python3 scripts/verify_opencode_presence_live.py --isolated && python3 scripts/engineering_control_plane.py verify
       run_id: live-green-operational-readiness-20260827
-      subject_commit: 133f7cb7509f1de76001d3b51fd8cd820d595128
-      reason: Live persistent-control-plane and isolated OpenCode checks passed against the deployed orchestration commit, and the normal zellij-hosted server is healthy on that same implementation.
-      summary: The private control plane passed live lease, FIFO operation, dispatch reuse, epoch, and cursor-event transactions. Isolated OpenCode 1.17.20 passed busy/idle/abort, permission, collision, and read-only child behavior with equal hook runtime/source hashes and no external model or normal-server use. The normal server restarted in zellij code from the same commit and returned HTTP 200.
+      subject_commit: 2a024674d3cc9beeddb414763993ec966e102097
+      reason: Focused hook, live persistent-control-plane, and isolated OpenCode checks passed against the deployed orchestration commit, and the normal zellij-hosted server is healthy on that same implementation.
+      summary: The 41-test hook suite verifies every canonical sessions.py command uses the deployed runtime. The private control plane passed live lease, FIFO operation, dispatch reuse, epoch, and cursor-event transactions. Isolated OpenCode 1.17.20 passed busy/idle/abort, permission, collision, and read-only child behavior with equal hook runtime/source hashes and no external model or normal-server use. The normal server restarted in zellij code from the same commit and returned HTTP 200.
       next_action: Reconcile and resume eligible product chats from their existing managed worktrees.
 
 assumptions:
@@ -1208,11 +1208,31 @@ tasks:
         - scripts/tests/test_opencode_media_delivery.mjs
       shared_files: []
 
+  - id: TASK-13
+    title: Route every canonical session command through the deployed coordinator
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5]
+    expected_files:
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/tests/test_opencode_hooks_contract.mjs
+    verification_ids: [T-OPENCODE-HOOKS, V-OPERATIONAL-READINESS]
+    dependencies: [TASK-12]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/tests/test_opencode_hooks_contract.mjs
+      shared_files: []
+
 implementation_state:
   phase: complete
-  subject_commit: 133f7cb7509f1de76001d3b51fd8cd820d595128
-  active_task: TASK-12
-  last_updated: "2026-08-27T14:05:00Z"
+  subject_commit: 2a024674d3cc9beeddb414763993ec966e102097
+  active_task: TASK-13
+  last_updated: "2026-08-27T14:30:00Z"
 
 approvals:
   product_contract:
@@ -1291,11 +1311,11 @@ attempts:
     recorded_at: "2026-08-27T01:06:45Z"
 
 handoff:
-  current_task_id: TASK-12
+  current_task_id: TASK-13
   next_action: Reconcile active worktrees against the deployed orchestration commit, resume only unfinished chats, and observe their first minute for real workflow regressions.
   command: python3 scripts/spec_verify.py docs/specs/opencode-orchestration-remediation/spec.yml --phase complete --json
   expected_outcome: Spec evidence passes after TASK-8 through TASK-12 and final operational readiness are complete.
-  last_verified_commit: 133f7cb7509f1de76001d3b51fd8cd820d595128
+  last_verified_commit: 2a024674d3cc9beeddb414763993ec966e102097
   blocker: null
 
 risks:
