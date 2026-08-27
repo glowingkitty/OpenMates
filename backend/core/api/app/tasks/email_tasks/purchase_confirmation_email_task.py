@@ -116,6 +116,122 @@ def _resolve_invoice_datetime(
     return datetime.now(timezone.utc)
 
 
+_PURCHASE_CONFIRMATION_USER_FIELDS = [
+    "account_id",
+    "vault_key_id",
+    "encrypted_email_address",
+    "encrypted_email_auto_topup",
+    "encrypted_invoice_counter",
+    "encrypted_credit_balance",
+    "language",
+    "country_code",
+    "darkmode",
+]
+
+
+def _has_purchase_confirmation_profile_fields(user_profile: Any) -> bool:
+    return (
+        isinstance(user_profile, dict)
+        and bool(user_profile.get("account_id"))
+        and bool(user_profile.get("vault_key_id"))
+        and bool(user_profile.get("encrypted_email_address"))
+    )
+
+
+async def _decrypt_optional_profile_int(
+    *,
+    task: BaseServiceTask,
+    encrypted_value: Any,
+    vault_key_id: str,
+    field_name: str,
+    order_id: str,
+) -> Optional[int]:
+    if not encrypted_value:
+        return None
+    try:
+        decrypted_value = await task.encryption_service.decrypt_with_user_key(
+            encrypted_value,
+            vault_key_id,
+        )
+        if decrypted_value in (None, ""):
+            return None
+        return int(float(decrypted_value))
+    except Exception as err:
+        logger.warning(
+            "Could not decrypt %s while preparing invoice task %s: %s",
+            field_name,
+            order_id,
+            err,
+        )
+        return None
+
+
+async def _get_purchase_confirmation_user_profile(
+    *,
+    task: BaseServiceTask,
+    cache_service: CacheService,
+    user_id: str,
+    order_id: str,
+) -> dict[str, Any]:
+    user_profile = await cache_service.get_user_by_id(user_id)
+    if _has_purchase_confirmation_profile_fields(user_profile):
+        return user_profile
+
+    logger.info(
+        "User profile cache miss or partial profile for invoice task %s; fetching direct fields for user %s.",
+        order_id,
+        user_id,
+    )
+    direct_fields = await task.directus_service.get_user_fields_direct(
+        user_id,
+        _PURCHASE_CONFIRMATION_USER_FIELDS,
+    )
+    if not _has_purchase_confirmation_profile_fields(direct_fields):
+        logger.error("Failed to fetch invoice-ready user profile for invoice task %s", order_id)
+        raise Exception("Failed to fetch user profile")
+
+    vault_key_id = direct_fields["vault_key_id"]
+    refreshed_profile = dict(user_profile or {})
+    for field in (
+        "account_id",
+        "vault_key_id",
+        "encrypted_email_address",
+        "encrypted_email_auto_topup",
+        "language",
+        "country_code",
+        "darkmode",
+    ):
+        if direct_fields.get(field) is not None:
+            refreshed_profile[field] = direct_fields[field]
+
+    invoice_counter = await _decrypt_optional_profile_int(
+        task=task,
+        encrypted_value=direct_fields.get("encrypted_invoice_counter"),
+        vault_key_id=vault_key_id,
+        field_name="invoice_counter",
+        order_id=order_id,
+    )
+    refreshed_profile["invoice_counter"] = invoice_counter if invoice_counter is not None else 0
+
+    credits = await _decrypt_optional_profile_int(
+        task=task,
+        encrypted_value=direct_fields.get("encrypted_credit_balance"),
+        vault_key_id=vault_key_id,
+        field_name="credits",
+        order_id=order_id,
+    )
+    if credits is not None:
+        refreshed_profile["credits"] = credits
+
+    if direct_fields.get("encrypted_credit_balance") is not None:
+        refreshed_profile["encrypted_credit_balance"] = direct_fields["encrypted_credit_balance"]
+
+    cache_success = await cache_service.set_user(refreshed_profile, user_id=user_id)
+    if not cache_success:
+        logger.warning("Could not refresh user profile cache for invoice task %s", order_id)
+    return refreshed_profile
+
+
 def _billing_admin_recipient() -> Optional[str]:
     return os.getenv("ADMIN_NOTIFY_EMAIL") or os.getenv("SERVER_OWNER_EMAIL")
 
@@ -416,15 +532,12 @@ async def _async_process_invoice_and_send_email(
         cache_service = CacheService()
 
         # 2. Fetch User Details (Email, Vault Key, Preferences) - Cache First
-        user_profile = await cache_service.get_user_by_id(user_id)
-        if not user_profile:
-            logger.info(f"User profile cache miss for invoice task {order_id}; fetching user {user_id} from Directus.")
-            profile_success, user_profile, profile_message = await task.directus_service.get_user_profile(user_id)
-            if not profile_success or not user_profile:
-                logger.error(
-                    f"Failed to fetch user profile for invoice task {order_id}: {profile_message}"
-                )
-                raise Exception("Failed to fetch user profile")
+        user_profile = await _get_purchase_confirmation_user_profile(
+            task=task,
+            cache_service=cache_service,
+            user_id=user_id,
+            order_id=order_id,
+        )
 
         # --- Extract user details from profile (same as before) ---
         encrypted_email = user_profile.get("encrypted_email_address")

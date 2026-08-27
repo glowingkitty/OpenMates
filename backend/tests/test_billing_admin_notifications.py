@@ -8,14 +8,89 @@ External services are replaced with small fakes so the checks stay local.
 """
 
 import asyncio
+import importlib.util
+import sys
+import types
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
-from botocore.exceptions import ClientError, EndpointConnectionError
 
-from backend.core.api.app.services.s3 import service as s3_service
-from backend.core.api.app.tasks.email_tasks import purchase_confirmation_email_task as billing_task
+from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+from backend.tests.s3_service_test_support import ensure_s3_dependencies
+
+ensure_s3_dependencies()
+install_code_route_import_stubs()
+
+
+REPO_ROOT = Path(__file__).parent.parent.parent
+PURCHASE_CONFIRMATION_TASK_PATH = (
+    REPO_ROOT
+    / "backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py"
+)
+
+
+class _FakeCeleryTask:
+    def __init__(self, func):
+        self.run = types.MethodType(func, self)
+        self.request = SimpleNamespace(kwargs={}, retries=0)
+
+    def __call__(self, *args, **kwargs):
+        return self.run(*args, **kwargs)
+
+    def retry(self, **_kwargs):
+        raise RuntimeError("retry not stubbed")
+
+
+class _FakeCeleryApp:
+    def task(self, *args, **_kwargs):
+        if args and callable(args[0]):
+            return _FakeCeleryTask(args[0])
+
+        def decorator(func):
+            return _FakeCeleryTask(func)
+
+        return decorator
+
+
+class _FakeBaseServiceTask:
+    pass
+
+
+tasks_module = types.ModuleType("backend.core.api.app.tasks")
+tasks_module.__path__ = [str(REPO_ROOT / "backend/core/api/app/tasks")]
+celery_config_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
+celery_config_module.app = _FakeCeleryApp()
+base_task_module = types.ModuleType("backend.core.api.app.tasks.base_task")
+base_task_module.BaseServiceTask = _FakeBaseServiceTask
+sys.modules["backend.core.api.app.tasks"] = tasks_module
+sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
+sys.modules["backend.core.api.app.tasks.base_task"] = base_task_module
+
+
+def _load_billing_task_module():
+    module_name = "backend.tests._purchase_confirmation_email_task_under_test"
+    spec = importlib.util.spec_from_file_location(module_name, PURCHASE_CONFIRMATION_TASK_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Could not load purchase confirmation task module")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+from backend.core.api.app.services.s3 import service as s3_service  # noqa: E402
+from botocore.exceptions import ClientError, EndpointConnectionError  # noqa: E402
+
+billing_task = _load_billing_task_module()
+
+
+def _endpoint_connection_error(endpoint_url: str) -> Exception:
+    try:
+        return EndpointConnectionError(endpoint_url=endpoint_url)
+    except TypeError:
+        return EndpointConnectionError(endpoint_url)
 
 
 class RecordingEmailService:
@@ -75,6 +150,56 @@ def test_invoice_datetime_uses_provider_payment_created_before_now():
     )
 
     assert resolved.date().isoformat() == "2026-07-04"
+
+
+# contract-test: direct surface=rest_api assertions=billing.documents.visible-downloadable,billing.credits.encrypted-authority-cache-projection
+@pytest.mark.anyio
+async def test_purchase_confirmation_profile_falls_back_to_directus_for_partial_cache():
+    cache_service = AsyncMock()
+    cache_service.get_user_by_id = AsyncMock(return_value={
+        "id": "user-1",
+        "language": "de",
+    })
+    cache_service.set_user = AsyncMock(return_value=True)
+
+    task = FakeTask(email_service=RecordingEmailService())
+    task.directus_service = AsyncMock()
+    task.directus_service.get_user_profile = AsyncMock(side_effect=AssertionError("cache-backed profile lookup used"))
+    task.directus_service.get_user_fields_direct = AsyncMock(return_value={
+        "account_id": "acct-1",
+        "vault_key_id": "vault-key",
+        "encrypted_email_address": "enc-email",
+        "encrypted_email_auto_topup": None,
+        "encrypted_invoice_counter": "enc-counter",
+        "encrypted_credit_balance": "enc-balance",
+        "language": "de",
+        "country_code": "DE",
+        "darkmode": True,
+    })
+    task.encryption_service = AsyncMock()
+    task.encryption_service.decrypt_with_user_key = AsyncMock(side_effect=["7", "250"])
+
+    profile = await billing_task._get_purchase_confirmation_user_profile(
+        task=task,
+        cache_service=cache_service,
+        user_id="user-1",
+        order_id="pi_123",
+    )
+
+    assert profile["account_id"] == "acct-1"
+    assert profile["vault_key_id"] == "vault-key"
+    assert profile["encrypted_email_address"] == "enc-email"
+    assert profile["language"] == "de"
+    assert profile["country_code"] == "DE"
+    assert profile["darkmode"] is True
+    assert profile["invoice_counter"] == 7
+    assert profile["credits"] == 250
+    task.directus_service.get_user_fields_direct.assert_awaited_once_with(
+        "user-1",
+        billing_task._PURCHASE_CONFIRMATION_USER_FIELDS,
+    )
+    task.directus_service.get_user_profile.assert_not_called()
+    cache_service.set_user.assert_awaited_once()
 
 
 # contract-test: infrastructure
@@ -210,7 +335,7 @@ def test_invoice_processing_task_retries_invoice_record_creation_failure(monkeyp
 @pytest.mark.parametrize(
     "error",
     [
-        EndpointConnectionError(endpoint_url="https://nbg1.your-objectstorage.com"),
+        _endpoint_connection_error("https://nbg1.your-objectstorage.com"),
         ClientError(
             {"Error": {"Code": "SlowDown", "Message": "slow"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
             "PutObject",
