@@ -794,6 +794,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(filterButton).toBeVisible();
 		await filterButton.click();
 		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
 		await expect(filterMenu).toContainText('Departure time');
 		await expect(filterMenu).toContainText('Duration');
 		await expect(filterMenu).toContainText('Stops');
@@ -805,7 +806,7 @@ test.describe('Example chats loading for new users', () => {
 			filterMenuBox!.x + filterMenuBox!.width,
 			'mobile map-view filter sheet should not be clipped off the right edge'
 		).toBeLessThanOrEqual(390);
-		expect(filterMenuBox!.height, 'mobile map-view filter sheet should stay compact and internally scrollable').toBeLessThanOrEqual(330);
+		expect(filterMenuBox!.height, 'mobile map-view filter panel should replace the full results body').toBeCloseTo(535, 0);
 		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
 		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');

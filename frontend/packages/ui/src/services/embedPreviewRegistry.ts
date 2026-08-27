@@ -597,6 +597,7 @@ const mapsPlaceResolver: PreviewResolver = async ({
 };
 resolvers.set("maps-place", mapsPlaceResolver);
 resolvers.set("map-location", mapsPlaceResolver);
+resolvers.set("place", mapsPlaceResolver);
 resolvers.set("app:maps:place", mapsPlaceResolver);
 resolvers.set("app:maps:location", mapsPlaceResolver);
 
