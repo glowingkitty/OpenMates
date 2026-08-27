@@ -1175,6 +1175,7 @@ class AccountImportService:
                 "sanitized_hash": job.get("last_sanitized_hash"),
                 "usage": {"credits": 0},
                 "credits_reserved": int(job.get("credits_reserved") or 0),
+                "messages_blocked": [],
                 "failures": [],
             }
         expected_sequence = last_sequence + 1
@@ -1343,6 +1344,7 @@ class AccountImportService:
                 "output_tokens": batch_output_tokens,
             },
             "credits_reserved": int(job.get("credits_reserved") or 0),
+            "messages_blocked": [],
             "failures": [],
             "duplicate_fingerprints": sorted(server_duplicates),
         }
