@@ -77,7 +77,6 @@ def write_phone_timeline(module, tmp_path: Path, *, commit: str, video: Path) ->
         },
         "events": [
             {"kind": "checkpoint", "id": "phone-ready", "at_ms": 100},
-            {"kind": "action", "id": "open-menu", "start_ms": 50, "end_ms": 4100},
         ],
         "assertion_results": [{"id": "phone.visible", "status": "passed", "at_ms": 80}],
         "checkpoint_frames": [{"checkpoint": "phone-ready", "path": str(frame), "sha256": module._file_sha256(frame)}],
@@ -105,7 +104,7 @@ def write_phone_timeline(module, tmp_path: Path, *, commit: str, video: Path) ->
 def test_playwright_workflow_uses_encoded_phone_content_viewport() -> None:
     workflow = (PROJECT_ROOT / ".github/workflows/playwright-spec.yml").read_text(encoding="utf-8")
 
-    assert "PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}" in workflow
+    assert "PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile || (inputs.spec == 'proof-video-architecture.spec.ts' && 'web-laptop') || '' }}" in workflow
     assert "inputs.proof_video_profile == 'web-phone' && '390'" in workflow
     assert "inputs.proof_video_profile == 'web-phone' && '630'" in workflow
 
@@ -118,12 +117,21 @@ def test_initial_welcome_proof_claim_matches_expanded_intro_state() -> None:
     assert "Privacy and safety story is visible while the intentional neighboring card preview" in spec
 
 
+def test_proof_assertions_are_recorded_after_visual_motion_settles() -> None:
+    spec = (PROJECT_ROOT / "frontend/apps/web_app/tests/proof-video-architecture.spec.ts").read_text(encoding="utf-8")
+
+    assert spec.index("await waitForFiniteVisualMotion(page, 'landing-intro-expanded');") < spec.index("await proof.assert('welcome.shell.visible'")
+    assert spec.index("await waitForFiniteVisualMotion(page, 'guest-slide-content');") < spec.index("await proof.assert('welcome.actionable.visible'")
+    privacy_wait = spec.index("await waitForFiniteVisualMotion(page, 'guest-slide-content');", spec.index("open-privacy-story"))
+    assert privacy_wait < spec.index("await proof.assert('welcome.privacy.visible'")
+
+
 def test_playwright_config_uses_phone_profile_for_mobile_touch_viewport(tmp_path: Path) -> None:
     config_url = (PROJECT_ROOT / "frontend/apps/web_app/playwright.config.ts").as_uri()
     loader = tmp_path / "load-playwright-config.mjs"
     loader.write_text(
         f"const config = (await import('{config_url}')).default;\n"
-        "console.log(JSON.stringify({ viewport: config.use.viewport ?? null, video: config.use.video, isMobile: config.use.isMobile ?? false, hasTouch: config.use.hasTouch ?? false }));\n",
+        "console.log(JSON.stringify({ viewport: config.use.viewport ?? null, video: config.use.video, isMobile: config.use.isMobile ?? false, hasTouch: config.use.hasTouch ?? false, colorScheme: config.use.colorScheme ?? null }));\n",
         encoding="utf-8",
     )
     env = os.environ.copy()
@@ -148,6 +156,36 @@ def test_playwright_config_uses_phone_profile_for_mobile_touch_viewport(tmp_path
     assert loaded["video"]["size"] == {"width": 390, "height": 630}
     assert loaded["isMobile"] is True
     assert loaded["hasTouch"] is True
+    assert loaded["colorScheme"] == "dark"
+
+
+def test_playwright_config_keeps_laptop_proof_in_light_mode(tmp_path: Path) -> None:
+    config_url = (PROJECT_ROOT / "frontend/apps/web_app/playwright.config.ts").as_uri()
+    loader = tmp_path / "load-playwright-laptop-config.mjs"
+    loader.write_text(
+        f"const config = (await import('{config_url}')).default;\n"
+        "console.log(JSON.stringify({ colorScheme: config.use.colorScheme ?? null, isMobile: config.use.isMobile ?? false }));\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env.update({
+        "PLAYWRIGHT_TEST_BASE_URL": "https://example.invalid",
+        "PLAYWRIGHT_PROOF_VIDEO_PROFILE": "web-laptop",
+        "PLAYWRIGHT_VIDEO_WIDTH": "1440",
+        "PLAYWRIGHT_VIDEO_HEIGHT": "900",
+    })
+
+    result = subprocess.run(
+        ["node", "--experimental-strip-types", str(loader)],
+        cwd=PROJECT_ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    loaded = json.loads(result.stdout)
+
+    assert loaded == {"colorScheme": "light", "isMobile": False}
 
 
 def test_spec_demo_phone_source_and_final_safari_dimensions() -> None:

@@ -46,6 +46,7 @@ if (proofVideoProfile && !videoSize) {
 	throw new Error('PLAYWRIGHT_VIDEO_WIDTH and PLAYWRIGHT_VIDEO_HEIGHT are required for proof-video profiles.');
 }
 const isPhoneProofProfile = proofVideoProfile === 'web-phone';
+const proofColorScheme = isPhoneProofProfile ? 'dark' : proofVideoProfile === 'web-laptop' ? 'light' : undefined;
 
 const config: PlaywrightTestConfig = {
 	use: {
@@ -53,6 +54,7 @@ const config: PlaywrightTestConfig = {
 		baseURL,
 		...(videoSize ? { viewport: videoSize } : {}),
 		...(isPhoneProofProfile ? { hasTouch: true, isMobile: true } : {}),
+		...(proofColorScheme ? { colorScheme: proofColorScheme } : {}),
 		...(browserChannel ? { channel: browserChannel } : {}),
 		// Capture artifacts for all tests — used by MD report generator
 		// (test-results/reports/) to show inline screenshots per step.
@@ -61,7 +63,6 @@ const config: PlaywrightTestConfig = {
 		// Keep a browser recording for every spec run in GitHub artifacts.
 		// Videos stay in Actions storage; local/Obsidian processing stores links only.
 		video: videoSize ? { mode: resolvedVideoMode, size: videoSize } : resolvedVideoMode,
-		...(videoSize ? { viewport: videoSize } : {}),
 		trace: 'off',
 		launchOptions: {
 			args: [

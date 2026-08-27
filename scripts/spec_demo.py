@@ -67,7 +67,6 @@ MAX_ADDITIONAL_FRAME_REQUESTS = 10
 MAX_REVIEW_ATTEMPTS = 3
 END_FRAME_OFFSET_SECONDS = 0.5
 MEDIA_TIMESTAMP_DECIMALS = 3
-SOURCE_ASSERTION_HOLD_FRAMES_DIR = "proof-render-frames"
 EVIDENCE_INTERVAL_END_GUARD_SECONDS = 0.1
 EVIDENCE_INTERVAL_END_GUARD_MS = 100
 DEFAULT_NARRATION_PROVIDER = "elevenlabs"
@@ -473,7 +472,7 @@ def build_browser_tutorial_plan(
     timeline_hash: str,
     narration_id: str,
 ) -> dict[str, Any]:
-    """Compile chronological source intervals and transcript-derived checkpoint freezes."""
+    """Compile one chronological Playwright video with timeline-bound captions."""
     contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
     if contract.get("surface") != "web" or not str(contract.get("domain") or "").strip():
         raise DemonstrationError("Browser tutorial requires a web contract with an attested domain")
@@ -526,8 +525,28 @@ def build_browser_tutorial_plan(
     if any(not assertions_by_checkpoint.get(str(item.get("checkpoint") or "")) for item in transcript):
         raise DemonstrationError("Every browser tutorial transcript checkpoint must carry an assertion")
     timeline_events = timeline.get("events") if isinstance(timeline.get("events"), list) else []
-    timeline_assertions = timeline.get("assertion_results") if isinstance(timeline.get("assertion_results"), list) else []
-    assertion_times_by_id: dict[str, int] = {}
+    action_ranges = sorted(
+        [
+            (int(round(float(item["start_ms"]))), int(round(float(item["end_ms"]))))
+            for item in timeline_events
+            if isinstance(item, dict)
+            and item.get("kind") == "action"
+            and isinstance(item.get("start_ms"), (int, float))
+            and isinstance(item.get("end_ms"), (int, float))
+            and float(item["start_ms"]) <= float(item["end_ms"])
+        ],
+        key=lambda item: item[0],
+    )
+    if len(action_ranges) != len(transcript) - 1:
+        raise DemonstrationError("Browser tutorial requires exactly one source action between transcript states")
+    stable_assertion_times = {
+        str(item.get("id")): int(round(float(item["at_ms"])))
+        for item in (timeline.get("assertion_results") if isinstance(timeline.get("assertion_results"), list) else [])
+        if isinstance(item, dict)
+        and item.get("id")
+        and item.get("status") == "passed"
+        and isinstance(item.get("at_ms"), (int, float))
+    }
     for item in timeline_events:
         if (
             isinstance(item, dict)
@@ -536,71 +555,7 @@ def build_browser_tutorial_plan(
             and item.get("id")
             and isinstance(item.get("at_ms"), (int, float))
         ):
-            assertion_times_by_id.setdefault(str(item["id"]), int(round(float(item["at_ms"]))))
-    for item in timeline_assertions:
-        if (
-            isinstance(item, dict)
-            and item.get("status") == "passed"
-            and item.get("id")
-            and isinstance(item.get("at_ms"), (int, float))
-        ):
-            assertion_times_by_id.setdefault(str(item["id"]), int(round(float(item["at_ms"]))))
-    action_ranges = [
-        (int(round(float(item["start_ms"]))), int(round(float(item["end_ms"]))))
-        for item in timeline_events
-        if isinstance(item, dict)
-        and item.get("kind") == "action"
-        and isinstance(item.get("start_ms"), (int, float))
-        and isinstance(item.get("end_ms"), (int, float))
-        and float(item["start_ms"]) <= float(item["end_ms"])
-    ]
-
-    def post_action_assertion_ms(
-        *,
-        assertion_ids: list[str],
-        previous_checkpoint_ms: int | None,
-        checkpoint_ms: int,
-    ) -> int | None:
-        if previous_checkpoint_ms is None:
-            return None
-        candidates = [
-            assertion_ms
-            for assertion_id in assertion_ids
-            if (assertion_ms := assertion_times_by_id.get(assertion_id)) is not None
-            and previous_checkpoint_ms <= assertion_ms <= checkpoint_ms
-        ]
-        return min(candidates) if candidates else None
-
-    def source_hold_frame(checkpoint_id: str, source_anchor_ms: int, frame: dict[str, Any]) -> tuple[Path, str]:
-        checkpoint_ms = checkpoint_times[checkpoint_id]
-        if source_anchor_ms == checkpoint_ms:
-            frame_path = Path(str(frame.get("path") or ""))
-            frame_hash = str(frame.get("sha256") or "")
-        else:
-            safe_checkpoint_id = re.sub(r"[^A-Za-z0-9_.-]+", "-", checkpoint_id).strip(".-") or "checkpoint"
-            frame_path = (
-                source_video.parent.parent
-                / SOURCE_ASSERTION_HOLD_FRAMES_DIR
-                / f"{profile['id']}-{safe_checkpoint_id}-{source_anchor_ms}.png"
-            )
-            extracted = extract_frame(
-                source_video,
-                timestamp_seconds=round(source_anchor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
-                output_path=frame_path,
-            )
-            frame_hash = str(extracted.get("sha256") or "")
-        if not frame_path.is_file() or sha256_file(frame_path) != frame_hash:
-            raise DemonstrationError(f"Browser tutorial checkpoint frame is missing or changed: {checkpoint_id}")
-        return frame_path, frame_hash
-
-    def transition_start_ms(previous_checkpoint_ms: int, source_anchor_ms: int) -> int:
-        action_starts = [
-            start_ms
-            for start_ms, end_ms in action_ranges
-            if previous_checkpoint_ms <= start_ms <= end_ms <= source_anchor_ms
-        ]
-        return max(action_starts, default=previous_checkpoint_ms)
-
+            stable_assertion_times.setdefault(str(item["id"]), int(round(float(item["at_ms"]))))
     tutorial = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
     words_per_second = float(tutorial.get("readingWordsPerSecond") or 0)
     minimum_hold_ms = int(tutorial.get("minimumHoldMs") or 0)
@@ -608,15 +563,8 @@ def build_browser_tutorial_plan(
     if words_per_second <= 0 or not 0 < minimum_hold_ms <= maximum_hold_ms:
         raise DemonstrationError("Browser tutorial policy has invalid reading or hold bounds")
     source_end_ms = round(float(source_end_seconds) * 1000)
-    segments: list[dict[str, Any]] = []
-    caption_segments: list[dict[str, Any]] = []
-    claim_anchor_times: dict[str, float] = {}
-    transition_times: list[float] = []
-    output_cursor_ms = 0
-    cue_items: list[tuple[dict[str, Any], int, dict[str, Any], int]] = []
     previous_checkpoint_ms: int | None = None
     for cue in transcript:
-        cue_id = str(cue.get("id") or "")
         checkpoint_id = str(cue.get("checkpoint") or "")
         checkpoint_ms = checkpoint_times.get(checkpoint_id)
         frame = checkpoint_frames.get(checkpoint_id)
@@ -624,93 +572,70 @@ def build_browser_tutorial_plan(
             raise DemonstrationError(f"Browser tutorial checkpoint evidence is missing: {checkpoint_id}")
         if previous_checkpoint_ms is not None and checkpoint_ms <= previous_checkpoint_ms:
             raise DemonstrationError("Browser tutorial checkpoints must be strictly chronological")
-        source_anchor_ms = post_action_assertion_ms(
-            assertion_ids=[value for value in assertions_by_checkpoint.get(checkpoint_id, []) if value],
-            previous_checkpoint_ms=previous_checkpoint_ms,
-            checkpoint_ms=checkpoint_ms,
-        ) or checkpoint_ms
-        cue_items.append((cue, checkpoint_ms, frame, source_anchor_ms))
+        frame_path = Path(str(frame.get("path") or ""))
+        frame_hash = str(frame.get("sha256") or "")
+        if not frame_path.is_file() or sha256_file(frame_path) != frame_hash:
+            raise DemonstrationError(f"Browser tutorial checkpoint frame is missing or changed: {checkpoint_id}")
         previous_checkpoint_ms = checkpoint_ms
     if previous_checkpoint_ms is None or source_end_ms < previous_checkpoint_ms:
         raise DemonstrationError("Browser tutorial source ends before its final checkpoint")
-    previous_checkpoint_ms = None
-    for index, (cue, checkpoint_ms, frame, source_anchor_ms) in enumerate(cue_items, start=1):
-        cue_id = str(cue.get("id") or "")
+    first_checkpoint = str(transcript[0].get("checkpoint") or "")
+    first_claim_ids = [value for value in assertions_by_checkpoint.get(first_checkpoint, []) if value]
+    first_stable_ms = min(
+        (stable_assertion_times[claim_id] for claim_id in first_claim_ids if claim_id in stable_assertion_times),
+        default=0,
+    )
+    source_start_ms = max(0, first_stable_ms - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
+    if source_start_ms >= source_end_ms:
+        raise DemonstrationError("Browser tutorial stable source interval is empty")
+    output_duration_ms = source_end_ms - source_start_ms
+    output_duration_seconds = output_duration_ms / 1000
+    caption_segments: list[dict[str, Any]] = []
+    claim_anchor_times: dict[str, float] = {}
+    claim_evidence_intervals: dict[str, list[list[float]]] = {}
+    for index, cue in enumerate(transcript):
         checkpoint_id = str(cue.get("checkpoint") or "")
-        frame_path, frame_hash = source_hold_frame(checkpoint_id, source_anchor_ms, frame)
-        caption_start_ms = output_cursor_ms
-        if previous_checkpoint_ms is not None:
-            transition_from_ms = transition_start_ms(previous_checkpoint_ms, source_anchor_ms)
-            if source_anchor_ms > transition_from_ms:
-                duration_ms = source_anchor_ms - transition_from_ms
-                transition_output_start_ms = output_cursor_ms
-                transition_times.append(round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS))
-                segments.append(
-                    {
-                        "kind": "video",
-                        "source_from_ms": transition_from_ms,
-                        "source_to_ms": source_anchor_ms,
-                        "duration_ms": duration_ms,
-                    }
-                )
-                output_cursor_ms += duration_ms
-                caption_start_ms = output_cursor_ms
-                if source_anchor_ms != checkpoint_ms:
-                    caption_start_ms = transition_output_start_ms
-        text = str(cue.get("text") or "").strip()
-        hold_ms = min(
-            maximum_hold_ms,
-            max(minimum_hold_ms, round(len(re.findall(r"\b\w+\b", text)) / words_per_second * 1000)),
-        )
-        caption_start = round(caption_start_ms / 1000, MEDIA_TIMESTAMP_DECIMALS)
-        caption_end = round((output_cursor_ms + hold_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        source_cue_start_ms = source_start_ms if index == 0 else action_ranges[index - 1][0]
+        source_cue_end_ms = action_ranges[index][0] if index < len(action_ranges) else source_end_ms
+        if not source_start_ms <= source_cue_start_ms < source_cue_end_ms <= source_end_ms:
+            raise DemonstrationError("Browser tutorial caption boundaries must follow chronological source actions")
+        caption_start = round((source_cue_start_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        caption_end = round((source_cue_end_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
         claim_ids = [value for value in assertions_by_checkpoint.get(checkpoint_id, []) if value]
         for claim_id in claim_ids:
-            claim_anchor_times[claim_id] = caption_start
-        segments.append(
-            {
-                "kind": "freeze",
-                "source_image": str(frame_path),
-                "source_sha256": frame_hash,
-                "duration_ms": hold_ms,
-                "cue_id": cue_id,
-            }
-        )
+            stable_ms = stable_assertion_times.get(claim_id)
+            if stable_ms is None or not source_cue_start_ms <= stable_ms < source_cue_end_ms:
+                raise DemonstrationError(f"Browser tutorial claim lacks stable source-video evidence: {claim_id}")
+            evidence_start = round((stable_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+            evidence_end = visual_interval_end(
+                evidence_start,
+                (source_cue_end_ms - source_start_ms) / 1000,
+                duration_seconds=output_duration_seconds,
+            )
+            if evidence_start >= evidence_end:
+                raise DemonstrationError(f"Browser tutorial stable evidence interval is empty: {claim_id}")
+            claim_anchor_times[claim_id] = evidence_start
+            claim_evidence_intervals[claim_id] = [[evidence_start, evidence_end]]
         caption_segments.append(
             {
-                "id": f"CAP-{index}",
+                "id": f"CAP-{index + 1}",
                 "narration_id": narration_id,
-                "text": text,
+                "text": str(cue.get("text") or "").strip(),
                 "start": caption_start,
                 "end": caption_end,
                 "claim_ids": claim_ids,
             }
         )
-        output_cursor_ms += hold_ms
-        if index < len(cue_items):
-            segments.append(
-                {
-                    "kind": "freeze",
-                    "source_image": str(frame_path),
-                    "source_sha256": frame_hash,
-                    "duration_ms": EVIDENCE_INTERVAL_END_GUARD_MS,
-                    "cue_id": f"{cue_id}-boundary",
-                }
-            )
-            output_cursor_ms += EVIDENCE_INTERVAL_END_GUARD_MS
-        previous_checkpoint_ms = checkpoint_ms
-    if previous_checkpoint_ms is not None and source_end_ms > previous_checkpoint_ms:
-        duration_ms = source_end_ms - previous_checkpoint_ms
-        transition_times.append(round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS))
-        segments.append(
-            {
-                "kind": "video",
-                "source_from_ms": previous_checkpoint_ms,
-                "source_to_ms": source_end_ms,
-                "duration_ms": duration_ms,
-            }
-        )
-        output_cursor_ms += duration_ms
+    segments = [{
+        "kind": "video",
+        "source_from_ms": source_start_ms,
+        "source_to_ms": source_end_ms,
+        "duration_ms": output_duration_ms,
+    }]
+    transition_times = [
+        round((start_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        for start_ms, _end_ms in action_ranges
+    ]
     renderer_hash = _proof_renderer_hash()
     source_width, source_height = source_device_profile_dimensions(profile)
     browser_chrome = profile.get("browser_chrome") if isinstance(profile.get("browser_chrome"), dict) else {"kind": "desktop-browser"}
@@ -732,16 +657,14 @@ def build_browser_tutorial_plan(
     }
     canonical_request = json.loads(json.dumps(request))
     canonical_request["sourceVideo"] = canonical_request["sourceHash"]
-    for segment in canonical_request["segments"]:
-        if segment.get("kind") == "freeze":
-            segment["source_image"] = segment["source_sha256"]
     input_hash = f"sha256:{hashlib.sha256(json.dumps(canonical_request, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()}"
     return {
         "request": request,
         "caption_segments": caption_segments,
         "claim_anchor_times": claim_anchor_times,
+        "claim_evidence_intervals": claim_evidence_intervals,
         "transition_times": transition_times,
-        "duration_seconds": round(output_cursor_ms / 1000, MEDIA_TIMESTAMP_DECIMALS),
+        "duration_seconds": round(output_duration_seconds, MEDIA_TIMESTAMP_DECIMALS),
         "renderer_hash": renderer_hash,
         "input_hash": input_hash,
     }
@@ -753,11 +676,8 @@ def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> None:
     if not source_path.is_file() or sha256_file(source_path) != request.get("sourceHash"):
         raise DemonstrationError("Browser tutorial source video is missing or changed after planning")
     for segment in request.get("segments") if isinstance(request.get("segments"), list) else []:
-        if not isinstance(segment, dict) or segment.get("kind") != "freeze":
-            continue
-        frame_path = Path(str(segment.get("source_image") or ""))
-        if not frame_path.is_file() or sha256_file(frame_path) != segment.get("source_sha256"):
-            raise DemonstrationError("Browser tutorial checkpoint frame is missing or changed after planning")
+        if not isinstance(segment, dict) or segment.get("kind") != "video":
+            raise DemonstrationError("Browser tutorial rendering accepts only real source-video segments")
     request_path = output_path.with_suffix(".remotion.json")
     _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
     result = subprocess.run(
@@ -1597,6 +1517,7 @@ def prepare_review_artifacts(
     scene_times: Iterable[float] = (),
     action_times: Iterable[float] = (),
     state_change_times: Iterable[float] = (),
+    claim_evidence_intervals: dict[str, list[list[float]]] | None = None,
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
     action_time_values = list(action_times)
@@ -1686,9 +1607,10 @@ def prepare_review_artifacts(
                 "text": str(assertion["description"]),
                 "acceptance_criteria": [str(assertion["id"])],
                 "evidence_intervals": evidence_intervals_for_claim(
-                    captions,
+                    captions, str(assertion["id"]), float(metadata["duration_seconds"])
+                ) if not claim_evidence_intervals else claim_evidence_intervals.get(
                     str(assertion["id"]),
-                    float(metadata["duration_seconds"]),
+                    evidence_intervals_for_claim(captions, str(assertion["id"]), float(metadata["duration_seconds"])),
                 ),
             }
             for assertion in proof_assertions
@@ -1923,6 +1845,7 @@ def _produce_browser_tutorial_demonstration(
     if abs(float(rendered_metadata["duration_seconds"]) - output_duration) > 0.1:
         raise DemonstrationError("Rendered browser tutorial duration does not match its canonical segment plan")
     claim_anchor_times = browser_tutorial_plan.get("claim_anchor_times")
+    claim_evidence_intervals = browser_tutorial_plan.get("claim_evidence_intervals")
     state_change_times = sorted(
         float(value)
         for value in (claim_anchor_times.values() if isinstance(claim_anchor_times, dict) else [])
@@ -1960,6 +1883,7 @@ def _produce_browser_tutorial_demonstration(
         scene_times=detect_scene_change_times(video_path),
         action_times=transition_times,
         state_change_times=state_change_times,
+        claim_evidence_intervals=claim_evidence_intervals if isinstance(claim_evidence_intervals, dict) else None,
     )
 
 

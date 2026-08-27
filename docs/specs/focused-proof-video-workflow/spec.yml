@@ -1,7 +1,7 @@
 schema_version: 2
 id: focused-proof-video-workflow
 title: Focused OpenCode Proof Video Workflow
-status: verified
+status: implementing
 
 goal: >
   Make each proof-enabled Playwright spec the source of truth for its complete
@@ -26,7 +26,7 @@ scope:
     - Update the create-demo-video skill and completion hint to use the focused entry point.
     - Define a typed proof contract directly in each proof-enabled `.spec.ts` file.
     - Record proof actions, assertions, and checkpoints as a hash-bound Playwright attachment without presentation sleeps.
-    - Build a deterministic edit timeline from real action intervals and checkpoint holds calculated from committed transcript text.
+    - Preserve one continuous real Playwright video segment while deriving captions and stable review intervals from committed timeline events.
     - Render the real Playwright viewport inside a deterministic Remotion browser frame that displays the tested domain.
     - Keep captions as a hash-bound toggleable WebVTT sidecar rather than burning them into browser or terminal pixels.
     - Capture real OpenMates CLI E2E pixels from a pinned graphical terminal on an isolated Xvfb display while preserving PTY transcript provenance.
@@ -79,7 +79,9 @@ clarification:
     - question: Should browser tutorials record native Chromium chrome or compose deterministic browser chrome around real Playwright pixels?
       answer: Compose the real Playwright recording inside a deterministic Remotion browser UI that shows the tested domain.
     - question: Should proof-enabled tests pause to make recordings watchable?
-      answer: No. Tests run at normal speed and deterministic post-processing inserts checkpoint holds based on the committed transcript.
+      answer: No. Tests and Remotion output retain the real recording at normal speed without replacing motion with checkpoint screenshots.
+    - question: Which browser color scheme should proof profiles use?
+      answer: Phone Playwright proofs always emulate dark mode and verify the app auto-detects it; laptop proofs remain explicitly light.
     - question: Should CLI proof continue reconstructing terminal text from PTY events?
       answer: No. All OpenMates CLI E2E journeys use real terminal-emulator screen recordings; PTY events remain sidecar provenance only.
     - question: Is implementation and end-to-end proof output approved now?
@@ -100,19 +102,19 @@ demonstration:
       scenario_ids: [S-9, S-10]
       acceptance_criteria: [AC-13, AC-14, AC-15]
   evidence:
-    status: passed
-    subject_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
-    manifest_path: test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223/manifest.json
-    manifest_hash: sha256:368d637aa27432b7b031bd4b475ed980bbf1ef8fd880ed57c4d82ca0d2e0c633
-    privacy_status: not_applicable
+    status: pending
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    privacy_status: pending
     audio_status: not_required
-    review_status: passed
-    review_run_id: review-proof-video-architecture.spec-33025175223
-    review_attempts: 3
-    timestamp: "2026-08-27T00:30:36Z"
-    publication_status: delivered
-    command: python3 scripts/proof_video_workflow.py review --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223 --correction-round 0 --correction-kind none && python3 scripts/proof_video_workflow.py approve-intent --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223 --finding-id UI-1 --reason "User confirmed the small pale Actionable heading is intentional visual hierarchy and the landing page should remain unchanged." --approved-at 2026-08-27T00:20:00Z && python3 scripts/spec_demo.py publish --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223
-    run_id: proof-video-architecture.spec-33025175223
+    review_status: pending
+    review_run_id: ""
+    review_attempts: 0
+    timestamp: ""
+    publication_status: pending
+    command: python3 scripts/proof_video_workflow.py start --current --spec proof-video-architecture.spec.ts
+    run_id: ""
 
 apple_impact:
   affected_files: [none]
@@ -123,7 +125,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
+  subject_commit: pending
 
 approvals:
   product_contract:
@@ -171,10 +173,15 @@ decisions:
     reason: Committed test metadata is reviewable, versioned with behavior, and deterministic to extract.
     decided_at: "2026-08-20T00:00:00Z"
   - id: D-8
-    status: active
+    status: superseded
     decision: Remotion composes normal-speed action segments and deterministic checkpoint freezes inside a browser frame showing the attested deployed domain.
-    reason: Presentation pacing must not increase E2E runtime, and the raw Playwright viewport must remain the real product evidence.
+    reason: Superseded because multi-second checkpoint freezes made the proof appear to be a screenshot sequence instead of the actual Playwright recording.
     decided_at: "2026-08-20T00:00:00Z"
+  - id: D-13
+    status: active
+    decision: Remotion preserves one continuous real Playwright video segment; phone proof capture emulates dark mode and laptop proof capture remains light.
+    reason: Product motion must remain visibly authentic, while fixed profile color schemes add deterministic dark-mode coverage without changing desktop evidence.
+    decided_at: "2026-08-27T00:00:00Z"
   - id: D-9
     status: active
     decision: Real CLI E2E evidence records a graphical terminal on Xvfb; reconstructed ASS terminal videos are no longer eligible proof sources.
@@ -246,12 +253,12 @@ attempts:
     reason: The exact deployed run 33025175223 at c40b7bed0c9923db7252dfd0edbddd241dfca4a8 passed, receipt sha256:ea980de50c083d29b5f073c01e597f67b483aa351bd8716629ba6db1992485ad records user-approved visual intent for UI-1, and response-media publication delivered video sha256:439cb6b4399571bdaaa31e0ef6e730fcc08b7f8aa58d8599fe0617d6aa4c0450 with WebVTT captions.
 
 handoff:
-  current_task_id: TASK-17
-  next_action: Spec verification is complete; keep the delivered snippet_html embedded in the task-closing response.
-  command: python3 scripts/spec_verify.py docs/specs/focused-proof-video-workflow/spec.yml --phase complete --json
-  expected_outcome: complete is true and the demonstration evidence manifest remains delivered with snippet_html.
+  current_task_id: TASK-18
+  next_action: Deploy continuous video rendering and fixed proof color schemes, then produce reviewed phone and laptop proof videos.
+  command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --proof-video-profile web-phone --gate-deploy --expected-commit <sha>
+  expected_outcome: Phone proof is dark and video-first; laptop proof remains light and 1440x900.
   blocker: null
-  last_verified_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
+  last_verified_commit: pending
 
 scenarios:
   - id: S-1
@@ -314,10 +321,10 @@ scenarios:
     when:
       - The deterministic renderer builds the tutorial.
     then:
-      - The proof-relevant source recording plays chronologically from the first assertion-backed checkpoint through the explicit capture end, with no skipped intervals inside that bounded range, and transcript-derived holds freeze reached checkpoints.
-      - Freeze holds are visibly marked as paused review moments without replacing the toggleable WebVTT captions.
-      - Laptop web proof keeps the existing exact 1440x900 Playwright source and final canvas while rendering deterministic desktop browser chrome.
-      - Phone web proof records only the constrained iPhone 13 Pro Safari content viewport at 390x630, then renders a final 390x844 iPhone 13 Pro Safari frame with status chrome, a top tab-group control named Personal, and the attested domain in the bottom Safari address bar.
+      - The proof-relevant source recording remains one continuous chronological video segment from the first stable assertion lead through explicit capture end, with no screenshot or checkpoint-freeze segments.
+      - Toggleable WebVTT captions follow source action boundaries while visual review uses stable assertion-result intervals from the same video.
+      - Laptop web proof keeps the exact 1440x900 light-mode Playwright source and final canvas while rendering deterministic desktop browser chrome.
+      - Phone web proof records the constrained iPhone 13 Pro Safari content viewport at 390x630 in dark mode, verifies app auto-detection, then renders a final 390x844 iPhone 13 Pro Safari frame with status chrome, a top tab-group control named Personal, and the attested domain in the bottom Safari address bar.
       - The page pixels contain no proof-only domain overlay; the domain appears only in the browser address bar.
       - The output and WebVTT sidecar are reproducible from source, contract, timeline, source viewport, final device canvas, browser chrome profile, and renderer hashes.
   - id: S-7
@@ -369,7 +376,7 @@ acceptance_criteria:
   - { id: AC-5, scenario: S-4, text: "The review request contains an immutable hash-bound index of one-to-twelve periodic and event frames per device, the approved contract and metadata, but no full video content; every assertion and incidental visual-integrity finding is reviewed.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
   - { id: AC-6, scenario: S-4, text: "One proof contract is capped at six AI calls, forty-eight cumulative frames, two automatic correction rounds, and one high-confidence product-code correction; uncertain, repeated, forged, or stale results cannot complete the session or publication.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
   - { id: AC-7, scenario: S-5, text: "A proof-enabled `.spec.ts` owns the complete transcript, devices, domain, checkpoints, and paired executable plus visual assertions, and its attached canonical timeline contains no presentation wait requirement.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-SPEC-PROOF-CONTRACT, T-WEB-PROOF-E2E] }
-  - { id: AC-8, scenario: S-6, text: "Remotion renders the proof-relevant real Playwright recording chronologically from the first assertion-backed checkpoint through explicit capture end with no skipped intervals inside that bounded range, inserts visibly paused transcript-derived checkpoint freezes inside authentic deterministic browser chrome, keeps laptop proof at a 1440x900 source/final canvas, and renders phone proof from a 390x630 source viewport into a 390x844 iPhone 13 Pro Safari frame with Personal tab group, bottom attested-domain address bar, no in-page domain overlay, and no cropped viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
+  - { id: AC-8, scenario: S-6, text: "Remotion renders one continuous real Playwright video segment with no screenshot or checkpoint-freeze segments, keeps laptop proof light at a 1440x900 source/final canvas, and captures phone proof in auto-detected dark mode from a 390x630 source viewport into a 390x844 iPhone 13 Pro Safari frame with Personal tab group, bottom attested-domain address bar, no in-page domain overlay, and no cropped viewport.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
   - { id: AC-9, scenario: S-6, text: "The browser tutorial, WebVTT, manifest, and cache identity are reproducibly bound to source video, spec contract, timeline, profile, deployed domain, source viewport, final device canvas, browser chrome profile, and renderer hashes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF] }
   - { id: AC-10, scenario: S-7, text: "A real OpenMates CLI E2E journey records 1280x720 pixels from a graphical terminal displaying the tested PTY, visibly types the command character by character before execution, and retains transcript and exit provenance as hash-bound sidecars rather than reconstructed video input.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
   - { id: AC-11, scenario: S-8, text: "A deterministic audit covers all real CLI E2E entry points and rejects unclassified direct CLI spawning that bypasses the shared recorder.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-RECORDING-AUDIT] }
@@ -558,9 +565,9 @@ tests:
     command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py -q
     covers: [AC-8, AC-9]
     assertions:
-      - deterministic edit segments cover the proof-relevant source range chronologically from the first assertion-backed checkpoint through explicit capture end and insert transcript-derived freezes without skipped intervals inside that range
+      - one continuous video segment covers the proof-relevant source range chronologically without screenshot or checkpoint-freeze segments
       - rendered browser frame uses one compact domain bar and new-tab control without an in-page domain overlay
-      - rendered output preserves source-video action motion, complete checkpoint pixels, and a visible paused-state marker during freezes
+      - rendered output preserves source-video action motion while stable assertion-result intervals drive bounded visual review
       - renderer and input hashes bind output, captions, manifest, and cache identity
     red_phase:
       required: true
@@ -573,12 +580,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py -q
-        run_id: local-2026-08-21-browser-no-leading-preproof-green
-        subject_commit: f6c016e5f0d38dcf06fe817af10b58a66bb83316
-        timestamp: "2026-08-21T14:54:00Z"
-        summary: 50 focused renderer checks passed, including chronological full-source playback from the first assertion-backed proof state, inserted pause holds, candidate checkpoint frame extraction, no in-page domain overlay, browser chrome, and cache-hash binding.
+        status: pending
+        command: python3 -m pytest -p no:cacheprovider scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_phone_proof_video_safari.py -q
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+        summary: Awaiting exact implementation commit evidence for continuous video rendering and fixed phone-dark/laptop-light profiles.
   - id: T-CLI-CAPTURE
     type: pytest
     file: scripts/tests/test_cli_video_capture.py

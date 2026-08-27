@@ -39,21 +39,12 @@ if (await sha256(path.join(publicDir, sourceName)) !== expectedSourceHash) {
 	throw new Error('Browser tutorial copied source hash does not match the plan');
 }
 const requestSegments = Array.isArray(request.segments) ? request.segments : [];
-const segments = await Promise.all(requestSegments.map(async (segment, index) => {
-	if (segment.kind !== 'freeze') return segment;
-	if (await sha256(segment.source_image) !== segment.source_sha256) {
-		throw new Error(`Browser tutorial checkpoint hash changed after planning: ${index}`);
-	}
-	const imageName = `checkpoint-${index}${path.extname(segment.source_image) || '.png'}`;
-	await fs.copyFile(segment.source_image, path.join(publicDir, imageName));
-	if (await sha256(path.join(publicDir, imageName)) !== segment.source_sha256) {
-		throw new Error(`Browser tutorial copied checkpoint hash does not match the plan: ${index}`);
-	}
-	return {...segment, source_image: imageName};
-}));
+if (request.renderer !== 'openmates-remotion-terminal-v1' && requestSegments.some((segment) => segment?.kind !== 'video')) {
+	throw new Error('Browser tutorial rendering accepts only real source-video segments');
+}
 const inputProps = request.renderer === 'openmates-remotion-terminal-v1'
 	? {...request, sourceVideo: sourceName}
-	: {...request, sourceVideo: sourceName, segments};
+	: {...request, sourceVideo: sourceName, segments: requestSegments};
 
 try {
 	const serveUrl = await bundle({

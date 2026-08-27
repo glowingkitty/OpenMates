@@ -89,32 +89,43 @@ test.describe('Proof video browser architecture', () => {
 		});
 
 		await page.goto(getE2EDebugUrl('/?landing-header-motion'), {waitUntil: 'domcontentloaded'});
-		await proof.assert('welcome.shell.visible', async () => {
-			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({timeout: 15000});
-		});
+		await expect.poll(() => page.evaluate(() => ({
+			colorScheme: document.documentElement.style.colorScheme,
+			prefersDark: window.matchMedia('(prefers-color-scheme: dark)').matches
+		}))).toEqual(PROOF_DEVICE === 'web-phone'
+			? {colorScheme: 'dark', prefersDark: true}
+			: {colorScheme: 'light', prefersDark: false});
+		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({timeout: 15000});
 		await waitForFiniteVisualMotion(page, 'landing-intro-expanded');
+		await proof.assert('welcome.shell.visible', async () => {
+			await expect(page.getByTestId('landing-intro-expanded')).toBeVisible();
+		});
 		await proof.checkpoint('welcome-visible');
 
 		await proof.action('open-actionable-story', async () => {
 			await page.getByTestId('daily-inspiration-next').click();
 		});
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable.', {timeout: 5000});
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
+		await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
+		await waitForFiniteVisualMotion(page, 'guest-slide-content');
 		await proof.assert('welcome.actionable.visible', async () => {
-			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable.', {timeout: 5000});
-			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
+			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Actionable.');
 			await expect(page.getByTestId('landing-actionable-event-demo')).toBeVisible();
 		});
-		await waitForFiniteVisualMotion(page, 'guest-slide-content');
 		await proof.checkpoint('actionable-visible');
 
 		await proof.action('open-privacy-story', async () => {
 			await page.getByTestId('daily-inspiration-next').click();
 		});
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
+		await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
+		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety', {timeout: 5000});
+		await waitForFiniteVisualMotion(page, 'guest-slide-content');
 		await proof.assert('welcome.privacy.visible', async () => {
 			await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-current-inspiration-id', 'openmates-privacy-safety');
-			await expect(page.getByTestId('guest-slide-content')).toHaveAttribute('data-guest-heading-phase', 'demo', {timeout: 5000});
-			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety', {timeout: 5000});
+			await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('Privacy & safety');
 		});
-		await waitForFiniteVisualMotion(page, 'guest-slide-content');
 		await proof.checkpoint('privacy-visible');
 		await proof.attach();
 	});
