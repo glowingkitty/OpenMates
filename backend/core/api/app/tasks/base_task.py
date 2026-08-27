@@ -458,6 +458,9 @@ class BaseServiceTask(DedupedTask):
                 self._directus_service = None
             except Exception as e:
                 logger.warning(f"Error closing DirectusService in task {self.request.id}: {e}")
+            finally:
+                # S3UploadService uses this Directus instance for replication outbox writes.
+                self._s3_service = None
         
         # Close CacheService's Redis client
         # CRITICAL: The async Redis client is bound to a specific event loop.
