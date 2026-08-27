@@ -188,6 +188,9 @@ describe("EmbedLeafletMap theme selection", () => {
     expect(leafletMocks.markerInstances[0].elementSetAttribute).toHaveBeenCalledWith("data-testid", "endpoint-marker");
     expect(leafletMocks.markerInstances[1].elementSetAttribute).toHaveBeenCalledWith("data-testid", "stop-marker");
     expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
+      html: expect.stringContaining('<img'),
+    }));
+    expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
       html: expect.stringContaining('/icons/maps.svg'),
     }));
     expect(leafletMocks.markerInstances[1].bindTooltip).toHaveBeenCalledWith("Mainz Hbf", expect.objectContaining({
