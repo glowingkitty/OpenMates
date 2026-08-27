@@ -224,11 +224,21 @@ attempts:
       clearance failed with one incident and 171 blocked dependants, scheduled notification
       receipts were incomplete after Brevo rejected the start email, and 104 product failures
       exceeded the approved budget of fifty.
+  - id: ATTEMPT-7
+    task_id: TASK-6
+    approach: Work the first three directly owned campaign groups with exact-commit GitHub verification.
+    outcome: succeeded
+    recorded_at: "2026-08-27T22:21:43Z"
+    note: >
+      Fixed the stale parent-continuation reservation assertion in 44c5be0c and restored
+      user chat preference migration setup and packaging in ac2ee6f after identifying the
+      accidental a424357a6 reversion. Groups debug-group-71c9030050b0,
+      debug-group-4aee685cfa4f, and debug-group-2babc7c49e11 are green with exact-dev evidence.
 
 handoff:
   current_task_id: TASK-6
   next_action: Work the next high-priority campaign group, clear the GitHub dispatch incident and Brevo authorization blocker, then rerun the full daily milestone.
-  command: python3 scripts/tests.py run --campaign debug-campaign-8d2273d766a0 --group debug-group-71c9030050b0
+  command: python3 scripts/tests.py run --campaign debug-campaign-8d2273d766a0 --group debug-group-d51d9e564c1f
   expected_outcome: Product failures fall toward fifty while every unresolved remainder stays durably owned.
   blocker:
     task_id: TASK-6
@@ -236,7 +246,7 @@ handoff:
     reason: Full daily completion still requires zero infrastructure incidents, provider-accepted scheduled email and Discord receipts, and at most fifty product failures.
     question: null
     next_action: Work the durable campaign and rerun the full daily milestone after infrastructure and notification health recover.
-  last_verified_commit: 61b951564d5646fe46efaefe917814587ac91cd4
+  last_verified_commit: 4bb926856b96fd0a27a034391cfbe973d14e95e1
 
 scenarios:
   - id: S-1
