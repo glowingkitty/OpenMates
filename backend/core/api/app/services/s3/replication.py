@@ -152,14 +152,16 @@ async def record_persisted_region_error(
         "updated_at": now.isoformat(),
     }
     if existing.get("id"):
-        updated = await directus_service.update_item(
+        updated = await directus_service.update_item_if_version(
             "storage_region_health",
             existing["id"],
             payload,
+            existing.get("updated_at"),
+            version_field="updated_at",
             admin_required=True,
         )
         if not updated:
-            raise RuntimeError("Failed to update regional storage health")
+            return
         return
     success, created = await directus_service.create_item(
         "storage_region_health",
@@ -168,6 +170,57 @@ async def record_persisted_region_error(
     )
     if not success or not created:
         raise RuntimeError("Failed to create regional storage health")
+
+
+async def record_persisted_region_probe_success(
+    *,
+    directus_service: Any,
+    region: str,
+    now: datetime,
+) -> bool:
+    """Persist a successful recovery probe after the circuit cooldown expires."""
+    rows = await directus_service.get_items(
+        "storage_region_health",
+        params={"filter": {"region": {"_eq": region}}, "fields": "*", "limit": 1},
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    )
+    existing = dict(rows[0]) if rows else {}
+    open_until = existing.get("open_until")
+    if isinstance(open_until, str):
+        open_until = datetime.fromisoformat(open_until.replace("Z", "+00:00"))
+    if isinstance(open_until, datetime) and now < open_until:
+        return False
+    payload = {
+        "region": region,
+        "failure_count": 0,
+        "open_until": None,
+        "probe_succeeded": True,
+        "reconciled": bool(existing.get("reconciled", False)),
+        "last_error_code": None,
+        "updated_at": now.isoformat(),
+    }
+    if existing.get("id"):
+        updated = await directus_service.update_item_if_version(
+            "storage_region_health",
+            existing["id"],
+            payload,
+            existing.get("updated_at"),
+            version_field="updated_at",
+            admin_required=True,
+        )
+        if not updated:
+            return False
+        return True
+    success, created = await directus_service.create_item(
+        "storage_region_health",
+        payload,
+        admin_required=True,
+    )
+    if not success or not created:
+        raise RuntimeError("Failed to create regional storage recovery probe")
+    return True
 
 
 def record_replica_failure(job: dict, *, region: str, now: datetime) -> dict:

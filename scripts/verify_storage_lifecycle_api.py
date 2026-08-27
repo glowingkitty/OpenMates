@@ -29,6 +29,9 @@ def validate_health_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "configured_regions",
         "regions",
         "pending_replication",
+        "source_missing_replication",
+        "replication_error_code_counts",
+        "max_replication_attempts",
         "pending_deletion",
         "result_truncated",
     }
@@ -56,6 +59,9 @@ def validate_health_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "reconciled_region_count": sum(1 for row in region_states if row["reconciled"]),
         "region_states": region_states,
         "pending_replication": int(payload["pending_replication"]),
+        "source_missing_replication": int(payload["source_missing_replication"]),
+        "replication_error_code_counts": dict(payload["replication_error_code_counts"]),
+        "max_replication_attempts": int(payload["max_replication_attempts"]),
         "pending_deletion": int(payload["pending_deletion"]),
         "result_truncated": bool(payload["result_truncated"]),
     }

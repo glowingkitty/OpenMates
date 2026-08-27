@@ -27,6 +27,7 @@ from backend.shared.python_utils.object_storage_regions import resolve_regional_
 
 COPY_CHUNK_SIZE = 1024 * 1024
 COPY_MEMORY_LIMIT = 8 * COPY_CHUNK_SIZE
+MISSING_SOURCE_CODES = {"404", "NoSuchBucket", "NoSuchKey"}
 
 
 class ReplicaChecksumMismatchError(RuntimeError):
@@ -203,6 +204,10 @@ class RegionalStorageJobProcessor:
                 health_region = error.region if isinstance(error, RegionalObjectOperationError) else region
                 root_error = error.error if isinstance(error, RegionalObjectOperationError) else error
                 last_error_code = _error_code(root_error)
+                if health_region == str(job["active_region"]) and last_error_code in MISSING_SOURCE_CODES:
+                    job["state"] = "source_missing"
+                    job["next_attempt_at"] = None
+                    break
                 job = record_replica_failure(job, region=region, now=now)
                 await record_persisted_region_error(
                     directus_service=self.directus_service,
@@ -215,7 +220,7 @@ class RegionalStorageJobProcessor:
         if all_verified:
             job["state"] = "verified"
             job["next_attempt_at"] = None
-        elif job.get("state") not in {"failed", "cancelled"}:
+        elif job.get("state") not in {"failed", "cancelled", "source_missing"}:
             job["state"] = "retry_scheduled"
 
         await self._update(

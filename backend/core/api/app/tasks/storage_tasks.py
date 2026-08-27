@@ -8,16 +8,66 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+from datetime import datetime, timezone
 from typing import Any
+import uuid
 
 from backend.core.api.app.services.cold_archive_service import (
     ColdArchiveService,
     dispatch_due_cold_chat_archives,
 )
 from backend.core.api.app.services.s3.job_processor import RegionalStorageJobProcessor
-from backend.core.api.app.services.s3.replication import dispatch_due_storage_jobs
+from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.core.api.app.services.s3.probe import probe_region_data_plane
+from backend.core.api.app.services.s3.replication import (
+    dispatch_due_storage_jobs,
+    record_persisted_region_error,
+    record_persisted_region_probe_success,
+)
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
+from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+
+def _provider_error_code(error: Exception) -> str:
+    response = getattr(error, "response", None)
+    if isinstance(response, dict):
+        code = response.get("Error", {}).get("Code")
+        if code:
+            return str(code)[:64]
+    return type(error).__name__[:64]
+
+
+async def probe_configured_storage_regions(
+    *,
+    directus_service: Any,
+    s3_service: Any,
+    now: datetime,
+) -> dict[str, int]:
+    """Run bounded managed-bucket probes and persist sanitized recovery state."""
+    legacy_bucket = get_bucket_name("chatfiles", s3_service.environment)
+    passed = 0
+    failed = 0
+    for region, client in s3_service.region_clients.items():
+        bucket = resolve_regional_bucket_name(legacy_bucket, region)
+        object_key = f".openmates-region-probe/{uuid.uuid4().hex}"
+        try:
+            await asyncio.to_thread(probe_region_data_plane, client, bucket, object_key)
+        except Exception as error:
+            failed += 1
+            await record_persisted_region_error(
+                directus_service=directus_service,
+                region=region,
+                error_code=_provider_error_code(error),
+                now=now,
+            )
+            continue
+        persisted = await record_persisted_region_probe_success(
+            directus_service=directus_service,
+            region=region,
+            now=now,
+        )
+        passed += int(persisted)
+    return {"region_probes_passed": passed, "region_probes_failed": failed}
 
 
 @app.task(name="storage.process_replication_job", base=BaseServiceTask, bind=True)
@@ -98,6 +148,11 @@ def sweep_due_storage_jobs(self: BaseServiceTask) -> dict[str, int]:
                     queue="persistence",
                 ),
             )
+            result.update(await probe_configured_storage_regions(
+                directus_service=self.directus_service,
+                s3_service=self.s3_service,
+                now=datetime.now(timezone.utc),
+            ))
             result["cold_archives_dispatched"] = await dispatch_due_cold_chat_archives(
                 directus_service=self.directus_service,
                 cache_service=self.cache_service,

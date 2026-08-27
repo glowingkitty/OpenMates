@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import yaml
+from collections import Counter
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import Response
 from typing import Dict, Any, Optional
@@ -229,14 +230,25 @@ async def storage_region_health_route(
     replication_rows = await directus_service.get_items(
         "storage_replication_jobs",
         params={
-            "filter": {"state": {"_in": ["pending", "retry_scheduled", "failed"]}},
-            "fields": "state,region_states,created_at",
+            "filter": {"state": {"_in": ["pending", "retry_scheduled", "failed", "source_missing"]}},
+            "fields": "state,region_states,last_error_code,attempts,created_at",
             "limit": 100,
         },
         no_cache=True,
         admin_required=True,
         raise_on_error=True,
     ) or []
+    replication_error_counts = Counter(
+        str(row.get("last_error_code"))
+        for row in replication_rows
+        if row.get("last_error_code")
+    )
+    pending_replication = sum(
+        1 for row in replication_rows if row.get("state") != "source_missing"
+    )
+    source_missing_replication = sum(
+        1 for row in replication_rows if row.get("state") == "source_missing"
+    )
     tombstone_rows = await directus_service.get_items(
         "storage_deletion_tombstones",
         params={
@@ -251,7 +263,13 @@ async def storage_region_health_route(
     return {
         "configured_regions": list(configured_regions),
         "regions": health_rows,
-        "pending_replication": len(replication_rows),
+        "pending_replication": pending_replication,
+        "source_missing_replication": source_missing_replication,
+        "replication_error_code_counts": dict(sorted(replication_error_counts.items())),
+        "max_replication_attempts": max(
+            (int(row.get("attempts") or 0) for row in replication_rows),
+            default=0,
+        ),
         "pending_deletion": len(tombstone_rows),
         "result_truncated": len(replication_rows) == 100 or len(tombstone_rows) == 100,
     }

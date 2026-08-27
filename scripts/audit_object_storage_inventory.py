@@ -2,8 +2,8 @@
 """Audit logical and regional object-storage inventory without exposing keys.
 
 Dry-run is deterministic and non-networked. Optional capability probes fetch
-credentials from Vault inside the API runtime, create one temporary empty bucket
-per configured region, verify access, and remove it in a finally block.
+credentials from Vault inside the API runtime, exercise each managed regional
+bucket with a temporary empty object, and remove it in a finally block.
 Object keys, credentials, and private metadata are never emitted.
 """
 

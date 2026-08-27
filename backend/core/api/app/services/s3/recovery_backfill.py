@@ -23,7 +23,7 @@ from backend.shared.python_utils.object_storage_regions import resolve_regional_
 
 SHA256_METADATA_KEY = "openmates-sha256"
 COPY_CHUNK_SIZE = 1024 * 1024
-ACTIVE_REPLICATION_STATES = ("pending", "retry_scheduled", "failed")
+ACTIVE_REPLICATION_STATES = ("pending", "retry_scheduled", "failed", "source_missing")
 PENDING_TOMBSTONE_STATES = ("pending", "retry_scheduled")
 READINESS_PAGE_SIZE = 100
 logger = logging.getLogger(__name__)
