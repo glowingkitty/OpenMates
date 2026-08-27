@@ -147,6 +147,43 @@ changes to the documentation (to keep the documentation up to date).
         return pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
     }
 
+    function getAiTierTitle(tier: string): string {
+        if (tier === 'simple') return $text('settings.ai_ask.ai_ask_settings.simple_requests');
+        if (tier === 'complex') return $text('settings.ai_ask.ai_ask_settings.complex_requests');
+        if (tier === 'most-demanding') return $text('settings.ai_ask.ai_ask_settings.most_demanding_requests');
+        return tier;
+    }
+
+    function getAiProviderTitle(providerId: string): string {
+        const model = modelsMetadata.find(candidate => candidate.provider_id === providerId);
+        return getAiProviderDisplay(providerId, model?.provider_name ?? providerId).brandName;
+    }
+
+    function getAiRouteLabel(pathString: string): string | null | undefined {
+        const parts = pathString.split('/');
+        if (parts[0] !== 'ai') return undefined;
+        if (parts.length === 1) return $text('settings.ai');
+
+        if (parts[1] === 'model') {
+            if (parts.length === 2) return null;
+            return modelsMetadata.find(model => model.id === parts[2])?.name ?? parts[2];
+        }
+
+        if (parts[1] === 'provider') {
+            if (parts.length === 2) return null;
+            return getAiProviderTitle(parts[2]);
+        }
+
+        if (parts[1] === 'tier') {
+            if (parts.length === 2) return null;
+            if (parts.length === 3) return getAiTierTitle(parts[2]);
+            if (parts.length === 4 && parts[3] === 'provider') return null;
+            if (parts.length === 5 && parts[3] === 'provider') return getAiProviderTitle(parts[4]);
+        }
+
+        return undefined;
+    }
+
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
 
@@ -862,6 +899,17 @@ changes to the documentation (to keep the documentation up to date).
                     const translationKey = `settings.${translationKeyParts.join('.')}`;
                     pathLabels.push($text(translationKey));
                 }
+            } else if (pathUpToSegment[0] === 'ai') {
+                const aiRouteLabel = getAiRouteLabel(pathString);
+                if (aiRouteLabel === null) {
+                    continue;
+                }
+                if (aiRouteLabel !== undefined) {
+                    pathLabels.push(aiRouteLabel);
+                    continue;
+                }
+                const translationKey = `settings.${pathUpToSegment.map(segment => segment.replace(/-/g, '_')).join('.')}`;
+                pathLabels.push($text(translationKey));
             } else if (pathString === 'chats') {
                 pathLabels.push('Chats');
             } else if (pathString.startsWith('chats/')) {
@@ -1743,19 +1791,21 @@ changes to the documentation (to keep the documentation up to date).
             // Top-level AI server-provider detail route: ai/provider/{providerId}
             // Rendered inside the standard settings-banner-shell (AI icon + provider name).
             const aiProviderId = settingsPath.replace('ai/provider/', '');
-            const providerMeta = providersMetadata[aiProviderId];
             activeSubMenuIcon = 'ai';
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
             // Prefer the title passed in from SettingsAI (already simplified) over
             // raw providersMetadata which has a different name for some ids.
-            activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? aiProviderId);
+            activeSubMenuTitleRaw = detail.title ?? getAiProviderTitle(aiProviderId);
         } else if (/^ai\/tier\//.test(settingsPath)) {
             const tierRouteParts = settingsPath.split('/');
             activeSubMenuIcon = 'ai';
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
-            activeSubMenuTitleRaw = detail.title ?? tierRouteParts[tierRouteParts.length - 1];
+            activeSubMenuTitleRaw = detail.title
+                ?? (tierRouteParts[3] === 'provider' && tierRouteParts[4]
+                    ? getAiProviderTitle(tierRouteParts[4])
+                    : getAiTierTitle(tierRouteParts[2]));
         } else if (/^projects\/[^/]+$/.test(settingsPath)) {
             activeSubMenuIcon = 'project';
             activeSubMenuProviderIconSvg = '';
@@ -2112,11 +2162,16 @@ changes to the documentation (to keep the documentation up to date).
                 // For other nested paths (like account/security), icon is already set to last segment above
                 
                 if (!title) {
-                    // Build the translation key for the previous view's title
-                    const titleKey = getSettingsRouteTitleKey(previousPath) ??
-                        `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
-                    const translatedTitle = $text(titleKey);
-                    title = translatedTitle;
+                    const aiRouteLabel = getAiRouteLabel(previousPath);
+                    if (aiRouteLabel !== undefined && aiRouteLabel !== null) {
+                        title = aiRouteLabel;
+                    } else {
+                        // Build the translation key for the previous view's title
+                        const titleKey = getSettingsRouteTitleKey(previousPath) ??
+                            `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
+                        const translatedTitle = $text(titleKey);
+                        title = translatedTitle;
+                    }
                 }
             }
             
@@ -2875,12 +2930,13 @@ changes to the documentation (to keep the documentation up to date).
                     translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
 
-                // For ai/model/* and ai/provider/* deep links, don't pass a title —
-                // handleOpenSettings resolves the name from modelsMetadata / providersMetadata.
-                // The auto-generated translation key (e.g. settings.ai.model.claude_opus_4_6)
-                // doesn't exist and would show a raw [T:...] placeholder.
-                const isAiDetailRoute = /^ai\/(model|provider)\//.test(cleanPath);
-                const title = isAiDetailRoute ? undefined : $text(translationKey);
+                // For dynamic AI routes, don't pass an auto-generated title.
+                // handleOpenSettings resolves model/provider/tier labels from metadata
+                // or known tier title keys. Auto-generated keys such as
+                // settings.ai.tier.simple.provider.openai do not exist and would
+                // render as raw [T:...] placeholders.
+                const isDynamicAiRoute = /^ai\/(model|provider|tier)\//.test(cleanPath);
+                const title = isDynamicAiRoute ? undefined : $text(translationKey);
 
                 handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {

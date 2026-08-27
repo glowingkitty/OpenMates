@@ -40,41 +40,77 @@ const AI_MODEL_SETTINGS_PROOF = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
-			id: 'overview',
-			text: 'AI Settings shows editable request defaults and product-brand model providers in the approved order.',
-			checkpoint: 'ai-settings-overview',
+			id: 'overview-defaults',
+			text: 'AI Settings shows editable request defaults.',
+			checkpoint: 'ai-settings-overview-defaults',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'tier-provider',
+			id: 'overview-providers',
+			text: 'AI Settings shows product-brand model providers in the approved order.',
+			checkpoint: 'ai-settings-overview-providers',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'tier-catalog',
 			text: 'Simple requests opens a tier catalog with automatic routing, provider families, and capability guidance.',
-			checkpoint: 'ai-tier-provider',
+			checkpoint: 'ai-tier-catalog',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'model-detail',
-			text: 'A model detail page explains capability, pricing, supported inputs, and available provider regions.',
-			checkpoint: 'ai-model-detail',
+			id: 'tier-provider-models',
+			text: 'The ChatGPT provider page lists exact model choices for the Simple requests tier.',
+			checkpoint: 'ai-tier-provider-models',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'model-detail-summary',
+			text: 'A model detail page explains capability and supported inputs.',
+			checkpoint: 'ai-model-detail-summary',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'model-detail-pricing-providers',
+			text: 'The model detail page also shows pricing and available provider regions.',
+			checkpoint: 'ai-model-detail-pricing-providers',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
 	assertions: [
 		{
-			id: 'ai-model-routing.settings.hierarchy-canonical',
-			checkpoint: 'ai-settings-overview',
-			visual: 'The AI settings overview visibly contains three editable default-model rows and ordered branded provider rows.',
+			id: 'ai-model-routing.settings.default-models',
+			checkpoint: 'ai-settings-overview-defaults',
+			visual: 'The AI settings overview visibly contains three editable default-model rows.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'ai-model-routing.settings.provider-order',
+			checkpoint: 'ai-settings-overview-providers',
+			visual: 'The AI settings overview visibly contains ordered branded provider rows.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'ai-model-routing.catalog.capability-recommendation-variants',
-			checkpoint: 'ai-tier-provider',
-			visual: 'The tier/provider catalog visibly identifies automatic routing, provider models, and low-to-max capability guidance.',
+			checkpoint: 'ai-tier-catalog',
+			visual: 'The tier catalog visibly identifies automatic routing, provider families, and low capability guidance.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'ai-model-routing.model-detail.informative',
-			checkpoint: 'ai-model-detail',
-			visual: 'The model page visibly presents capability, details, pricing, and provider availability without a generic reasoning control.',
+			id: 'ai-model-routing.catalog.provider-models',
+			checkpoint: 'ai-tier-provider-models',
+			visual: 'The provider-specific tier catalog visibly lists exact model choices without raw translation placeholders.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'ai-model-routing.model-detail.summary',
+			checkpoint: 'ai-model-detail-summary',
+			visual: 'The model page visibly presents capability and details without a generic reasoning control.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'ai-model-routing.model-detail.pricing-provider-availability',
+			checkpoint: 'ai-model-detail-pricing-providers',
+			visual: 'The model page visibly presents pricing and provider availability.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -92,7 +128,7 @@ async function openAiSettings(page: any): Promise<void> {
 	await expect(visibleMenu.getByTestId('ai-settings')).toBeVisible({ timeout: 10000 });
 }
 
-// contract-test: direct surface=gui.web assertions=ai-model-routing.settings.hierarchy-canonical,ai-model-routing.catalog.capability-recommendation-variants
+// contract-test: direct surface=gui.web assertions=ai-model-routing.settings.default-models,ai-model-routing.settings.provider-order,ai-model-routing.catalog.capability-recommendation-variants,ai-model-routing.catalog.provider-models,ai-model-routing.model-detail.summary,ai-model-routing.model-detail.pricing-provider-availability
 test('AI settings overview, tier, provider, and model detail match the approved hierarchy', async ({ page }, testInfo: any) => {
 	test.setTimeout(240000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -113,23 +149,32 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
 	const aiSettings = settingsMenu.getByTestId('ai-settings');
-	await proof.assert('ai-model-routing.settings.hierarchy-canonical', async () => {
+	await proof.assert('ai-model-routing.settings.default-models', async () => {
 		await expect(settingsMenu.getByText(EXPECTED_HEADER_DESCRIPTION, { exact: true })).toBeVisible();
 		await expect(aiSettings.getByTestId('ai-tier-row-simple')).toBeVisible();
 		await expect(aiSettings.getByTestId('ai-tier-row-complex')).toBeVisible();
 		await expect(aiSettings.getByTestId('ai-tier-row-most-demanding')).toBeVisible();
-		const providerRows = aiSettings.getByTestId('ai-provider-family-card');
+		await expect(settingsMenu).not.toContainText('[T:');
+	});
+	await aiSettings.getByTestId('ai-tier-row-simple').scrollIntoViewIfNeeded();
+	await takeStepScreenshot(page, '01-ai-settings-defaults');
+	await proof.checkpoint('ai-settings-overview-defaults');
+
+	const providerRows = aiSettings.getByTestId('ai-provider-family-card');
+	await proof.assert('ai-model-routing.settings.provider-order', async () => {
 		for (let index = 0; index < EXPECTED_PROVIDER_ORDER.length; index += 1) {
 			await expect(providerRows.nth(index)).toContainText(EXPECTED_PROVIDER_ORDER[index]);
 		}
 		await expect(providerRows.nth(0)).toContainText('from OpenAI');
 		await expect(providerRows.nth(1)).toContainText('from Anthropic');
 		await expect(providerRows.nth(2)).not.toContainText('from Mistral');
+		await expect(settingsMenu).not.toContainText('[T:');
 	});
-	await aiSettings.getByTestId('ai-tier-row-simple').scrollIntoViewIfNeeded();
-	await takeStepScreenshot(page, '01-ai-settings-overview');
-	await proof.checkpoint('ai-settings-overview');
+	await providerRows.first().scrollIntoViewIfNeeded();
+	await takeStepScreenshot(page, '02-ai-settings-providers');
+	await proof.checkpoint('ai-settings-overview-providers');
 
+	await aiSettings.getByTestId('ai-tier-row-simple-modify-button').scrollIntoViewIfNeeded();
 	await aiSettings.getByTestId('ai-tier-row-simple-modify-button').click();
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/simple', { timeout: 10000 });
 	const tierCatalog = settingsMenu.getByTestId('ai-tier-provider-catalog');
@@ -137,28 +182,45 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 		await expect(tierCatalog.getByTestId('ai-model-option-auto')).toContainText('Auto select');
 		await expect(tierCatalog.getByTestId('ai-capability-scale')).toHaveAttribute('data-level', 'low');
 		await expect(tierCatalog.getByTestId('ai-provider-family-card').first()).toContainText('ChatGPT');
+		await expect(settingsMenu).not.toContainText('[T:');
 	});
-	await takeStepScreenshot(page, '02-simple-tier');
+	await tierCatalog.getByTestId('ai-provider-family-card').first().scrollIntoViewIfNeeded();
+	await takeStepScreenshot(page, '03-simple-tier-families');
+	await proof.checkpoint('ai-tier-catalog');
 
 	await tierCatalog.getByTestId('ai-provider-family-card').first().click();
 	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/simple/provider/openai', { timeout: 10000 });
 	const providerCatalog = settingsMenu.getByTestId('ai-tier-provider-catalog');
-	await expect(providerCatalog.getByTestId('ai-model-option-exact').first()).toBeVisible();
-	await expect(providerCatalog.getByText(/Recommended/i).first()).toBeVisible();
-	await proof.checkpoint('ai-tier-provider');
+	await proof.assert('ai-model-routing.catalog.provider-models', async () => {
+		await expect(providerCatalog.getByTestId('ai-model-option-exact').first()).toBeVisible();
+		await expect(providerCatalog.getByText(/Recommended/i).first()).toBeVisible();
+		await expect(settingsMenu).not.toContainText('[T:');
+	});
+	await takeStepScreenshot(page, '04-simple-tier-chatgpt-models');
+	await proof.checkpoint('ai-tier-provider-models');
 
 	await providerCatalog.getByTestId('ai-model-option-exact').first().click();
 	await expect(settingsMenu).toHaveAttribute('data-active-view', /^ai\/model\//, { timeout: 10000 });
 	const modelDetails = settingsMenu.getByTestId('ai-model-details');
-	await proof.assert('ai-model-routing.model-detail.informative', async () => {
+	await proof.assert('ai-model-routing.model-detail.summary', async () => {
 		await expect(modelDetails).toBeVisible();
 		await expect(modelDetails.getByTestId('ai-capability-scale')).toBeVisible();
+		await expect(modelDetails.getByText('Details', { exact: true })).toBeVisible();
+		await expect(modelDetails.getByText(/reasoning level/i)).toHaveCount(0);
+		await expect(settingsMenu).not.toContainText('[T:');
+	});
+	await modelDetails.getByTestId('ai-capability-scale').scrollIntoViewIfNeeded();
+	await takeStepScreenshot(page, '05-model-detail-summary');
+	await proof.checkpoint('ai-model-detail-summary');
+
+	await proof.assert('ai-model-routing.model-detail.pricing-provider-availability', async () => {
 		await expect(modelDetails.getByText('Pricing', { exact: true })).toBeVisible();
 		await expect(modelDetails.getByTestId('ai-model-provider-options')).toBeVisible();
-		await expect(modelDetails.getByText(/reasoning level/i)).toHaveCount(0);
+		await expect(settingsMenu).not.toContainText('[T:');
 	});
-	await takeStepScreenshot(page, '03-model-detail');
-	await proof.checkpoint('ai-model-detail');
+	await modelDetails.getByText('Pricing', { exact: true }).scrollIntoViewIfNeeded();
+	await takeStepScreenshot(page, '06-model-detail-pricing-providers');
+	await proof.checkpoint('ai-model-detail-pricing-providers');
 	await page.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
 	await proof.attach();
 });
