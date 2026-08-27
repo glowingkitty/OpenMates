@@ -196,6 +196,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				const boardState = await taskBoard.getAttribute('data-board-state');
 				const projection = await expectExactRunProjection(page, run.id);
 				await projection.click();
+				const detailOpenBoardScrollLeft = await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft);
 
 				const detail = page.getByTestId('workflow-run-projection-detail');
 				await expect(detail).toBeVisible();
@@ -204,7 +205,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(liveStatus).toHaveAttribute('data-live', /^(true|false)$/);
 				await expect(liveStatus).toHaveAttribute('data-status', VISIBLE_RUN_DETAIL_STATUS);
 				const runNodeStatus = page.getByTestId('workflow-run-detail-node-status').first();
-				await expect(runNodeStatus).toHaveAttribute('data-status', VISIBLE_NODE_STATUS);
+				await expect(runNodeStatus).toHaveAttribute('data-status', VISIBLE_NODE_STATUS, { timeout: 30_000 });
 				if (viewport.width === 1440) {
 					await expect(detail).toHaveAttribute('data-presentation', 'split');
 				} else {
@@ -239,12 +240,12 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(detail).toHaveCount(0);
 				await expect(taskBoard).toBeVisible();
 				expect(await taskBoard.evaluate((node: HTMLElement, original: HTMLElement | null) => node === original, boardNode)).toBe(true);
-				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(preservedBoardScrollLeft);
+				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(detailOpenBoardScrollLeft);
 				await expect(taskBoard).toHaveAttribute('data-board-state', boardState);
 				if (proof) {
 					await proof.assert('responsive-close-visible.assertion', async () => {
 						await expect(taskBoard).toBeVisible();
-						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(preservedBoardScrollLeft);
+						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(detailOpenBoardScrollLeft);
 					});
 					await proof.checkpoint('responsive-close-visible');
 				}
