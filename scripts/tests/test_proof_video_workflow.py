@@ -1320,7 +1320,7 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
         prompt_data = json.loads(prompt.read_text(encoding="utf-8"))
         assert "every listed quality category must be fail or uncertain on every cited frame" in prompt_data["instructions"]
         assert "split findings when category sets differ" in prompt_data["required_output"]["incidental_findings"]
-        assert prompt_data["review_request"]["frames"][0]["read_path"] == "proof-videos/first/frames/frame.png"
+        assert prompt_data["review_request"]["frames"][0]["read_path"] == "frames/frame.png"
         return (
             {
                 "status": "passed",
@@ -2352,13 +2352,14 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
     monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
     workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
 
-    assert observed["cwd"] == repo_root
+    assert observed["cwd"] == run_dir
     assert observed["command"][0] == "/test/opencode"
     assert "--dir" in observed["command"]
     assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
-    assert str(repo_root) in observed["command"]
+    assert observed["command"][observed["command"].index("--dir") + 1] == str(run_dir)
     assert str(prompt.resolve()) not in " ".join(observed["command"])
-    assert "test-results/proof-videos/run/review-prompt-round-0.json" in " ".join(observed["command"])
+    assert "review-prompt-round-0.json" in " ".join(observed["command"])
+    assert "test-results/proof-videos/run/review-prompt-round-0.json" not in " ".join(observed["command"])
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
 

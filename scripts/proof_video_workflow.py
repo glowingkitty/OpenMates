@@ -1361,9 +1361,9 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
     if not opencode_bin:
         raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
     try:
-        prompt_relative = prompt_path.resolve().relative_to(REPO_ROOT.resolve())
+        prompt_relative = prompt_path.resolve().relative_to(run_dir.resolve())
     except ValueError as exc:
-        raise WorkflowError("proof-video reviewer prompt must be inside the repository checkout") from exc
+        raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
     command = [
         opencode_bin,
         "run",
@@ -1375,7 +1375,7 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
         "proof-video-reviewer",
         *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
-        str(REPO_ROOT),
+        str(run_dir),
         f"Read {prompt_relative.as_posix()} in full and return only the required JSON review receipt.",
     ]
     started_at = time.monotonic()
@@ -1389,7 +1389,7 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
         output_path.chmod(0o600)
         process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
             command,
-            cwd=REPO_ROOT,
+            cwd=run_dir,
             text=True,
             stdout=output_file,
             stderr=subprocess.STDOUT,
@@ -1467,12 +1467,7 @@ def review_run(
             raise WorkflowError("review frame path escapes the run directory")
         if not resolved_path.is_file() or _file_sha256(resolved_path) != frame.get("sha256"):
             raise WorkflowError(f"review frame is missing or its hash changed: {relative_path}")
-        try:
-            frame["read_path"] = str(resolved_path.relative_to(REPO_ROOT.resolve()))
-        except ValueError:
-            # Custom unit-test runners may relocate RESULTS_DIR outside the
-            # checkout; the default reviewer itself still rejects that layout.
-            frame["read_path"] = str(relative_path)
+        frame["read_path"] = str(relative_path)
     proof_identity = str(request.get("proof_group_id") or "")
     budget_path = REVIEW_BUDGETS_DIR / f"{proof_identity.removeprefix('sha256:')}.json"
     frame_hash = str(request.get("frame_index_hash") or "")
