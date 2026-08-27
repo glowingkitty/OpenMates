@@ -3681,17 +3681,27 @@ def start_debug_campaign(
         _require_session_identity(session_id, "campaign start")
         triage_entries = list(build_triage().get("entries") or [])
         if daily_recovery:
+            metadata = dict(active.get("metadata") or {})
             linked_campaign_keys = [
                 str(key)
-                for key in (active.get("metadata") or {}).get("ownership_campaign_keys") or []
+                for key in metadata.get("ownership_campaign_keys") or []
             ]
+            if "linked_owned_test_keys" not in metadata:
+                metadata["linked_owned_test_keys"] = sorted({
+                    str(test_key_value)
+                    for linked_campaign_key in linked_campaign_keys
+                    for group in debug_groups_for_campaign(linked_campaign_key)
+                    if group.get("status") != "green"
+                    for test_key_value in group.get("member_test_keys") or []
+                })
+            linked_owned_test_keys = {
+                str(key) for key in metadata.get("linked_owned_test_keys") or []
+            }
             owned_test_keys = {
                 str(test_key_value)
-                for owner_campaign_key in [str(active["campaign_key"]), *linked_campaign_keys]
-                for group in debug_groups_for_campaign(owner_campaign_key)
-                if owner_campaign_key == active["campaign_key"] or group.get("status") != "green"
+                for group in debug_groups_for_campaign(str(active["campaign_key"]))
                 for test_key_value in group.get("member_test_keys") or []
-            }
+            }.union(linked_owned_test_keys)
             missing_entries = [
                 entry for entry in triage_entries if str(entry["key"]) not in owned_test_keys
             ]
@@ -3711,6 +3721,10 @@ def start_debug_campaign(
                             *(str(key) for key in active.get("selected_test_keys") or []),
                             *(str(entry["key"]) for entry in missing_entries),
                         }),
+                        "metadata": {
+                            **metadata,
+                            "linked_owned_test_keys": sorted(linked_owned_test_keys),
+                        },
                         "updated_at": utc_now(),
                     },
                 )
@@ -3790,6 +3804,7 @@ def start_debug_campaign(
         "metadata": {
             "scope_amendments": [],
             "ownership_campaign_keys": ownership_campaign_keys,
+            "linked_owned_test_keys": sorted(externally_owned_keys),
         },
         "created_at": now,
         "updated_at": now,
@@ -4790,20 +4805,11 @@ def record_daily_recovery_milestone(campaign_key: str, run_key: str) -> dict[str
     run = get_store().get_test_run(run_key)
     run_data = run.get("record_json") if isinstance(run.get("record_json"), dict) else {}
     metadata = campaign.get("metadata") if isinstance(campaign.get("metadata"), dict) else {}
-    ownership_campaign_keys = [
-        campaign_key,
-        *(str(key) for key in metadata.get("ownership_campaign_keys") or []),
-    ]
-    groups = [
-        group
-        for ownership_campaign_key in ownership_campaign_keys
-        for group in debug_groups_for_campaign(ownership_campaign_key)
-    ]
     owned_failure_keys = {
         str(member)
-        for group in groups
+        for group in debug_groups_for_campaign(campaign_key)
         for member in group.get("member_test_keys") or []
-    }
+    }.union(str(key) for key in metadata.get("linked_owned_test_keys") or [])
     milestone = {
         **evaluate_daily_recovery_milestone(
             run_data,
