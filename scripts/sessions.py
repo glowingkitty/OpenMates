@@ -150,6 +150,9 @@ DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
+PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
+PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
 API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
 API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
 API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
@@ -9694,13 +9697,142 @@ def _docker_checkout_root(session_id: str) -> Path:
     session = _load_sessions().get("sessions", {}).get(session_id)
     if not isinstance(session, dict):
         raise RuntimeError(f"Docker restart session not found: {session_id}")
-    worktree = session.get("worktree")
-    if not isinstance(worktree, dict) or worktree.get("status") not in {"active", "changes_pending"}:
-        raise RuntimeError(f"Docker restart requires an active session worktree: {session_id}")
-    checkout_root = _validate_managed_worktree_path(str(worktree.get("path") or ""))
-    if not checkout_root.is_dir():
-        raise RuntimeError(f"Docker restart worktree is missing: {checkout_root}")
-    return checkout_root
+    return _ensure_product_runtime_checkout(refresh=False)
+
+
+def _ensure_product_runtime_checkout(*, refresh: bool) -> Path:
+    """Return the one clean checkout mounted by every product-code container."""
+    PRODUCT_RUNTIME_STATE_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with PRODUCT_RUNTIME_STATE_LOCK_FILE.open("a+") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        try:
+            checkout = PRODUCT_RUNTIME_CHECKOUT.resolve()
+            if not (checkout / ".git").exists():
+                checkout.parent.mkdir(parents=True, exist_ok=True)
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "fetch", "origin", "dev"],
+                    cwd=str(CONTROL_PLANE_ROOT),
+                    timeout=60,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not fetch product runtime commit: {stderr}")
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "worktree", "add", "--detach", str(checkout), "origin/dev"],
+                    cwd=str(CONTROL_PLANE_ROOT),
+                    timeout=120,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not create product runtime checkout: {stderr}")
+            if _get_dirty_files(checkout_root=checkout):
+                raise RuntimeError(f"Product runtime checkout is dirty: {checkout}")
+            link_shared_worktree_resources(checkout)
+            if refresh:
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "fetch", "origin", "dev"],
+                    cwd=str(CONTROL_PLANE_ROOT),
+                    timeout=60,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not refresh product runtime commit: {stderr}")
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "merge", "--ff-only", "origin/dev"],
+                    cwd=str(checkout),
+                    timeout=60,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not fast-forward product runtime checkout: {stderr}")
+            return checkout
+        finally:
+            fcntl.flock(lock_handle, fcntl.LOCK_UN)
+
+
+def _load_product_runtime_state() -> dict:
+    try:
+        state = json.loads(PRODUCT_RUNTIME_STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"version": 1, "services": {}}
+    return state if isinstance(state, dict) and isinstance(state.get("services"), dict) else {"version": 1, "services": {}}
+
+
+def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
+    rc, stdout, _stderr = _run_cmd(
+        _docker_compose_command("ps", "--services", "--status", "running", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        return {}
+    mounted: dict[str, dict[str, str]] = {}
+    for service in sorted({line.strip() for line in stdout.splitlines() if line.strip()}):
+        rc, container_id, _stderr = _run_cmd(
+            _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+        )
+        container_id = container_id.strip()
+        if rc != 0 or not container_id:
+            continue
+        rc, mounts_json, _stderr = _run_cmd(
+            ["docker", "inspect", "--format", "{{json .Mounts}}", container_id],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        if rc != 0:
+            continue
+        try:
+            mounts = json.loads(mounts_json)
+        except json.JSONDecodeError:
+            continue
+        backend_mount = next(
+            (item for item in mounts if isinstance(item, dict) and item.get("Destination") == "/app/backend"),
+            None,
+        )
+        if backend_mount:
+            mounted[service] = {
+                "container_id": container_id,
+                "source": str(backend_mount.get("Source") or ""),
+            }
+    return mounted
+
+
+def _coherent_docker_services(requested: list[str], checkout_root: Path, backend_tree: str) -> list[str]:
+    """Expand a restart only when needed to eliminate mixed source generations."""
+    state = _load_product_runtime_state().get("services") or {}
+    expected_source = str((checkout_root / "backend").resolve())
+    services = set(requested)
+    for service, live in _running_backend_mounts(checkout_root).items():
+        recorded = state.get(service) if isinstance(state.get(service), dict) else {}
+        if (
+            Path(str(live.get("source") or "")).resolve() != Path(expected_source)
+            or recorded.get("backend_tree") != backend_tree
+            or recorded.get("container_id") != live.get("container_id")
+        ):
+            services.add(service)
+    return sorted(services)
+
+
+def _record_product_runtime_services(
+    services: list[str],
+    checkout_root: Path,
+    source_commit: str,
+    backend_tree: str,
+) -> None:
+    live = _running_backend_mounts(checkout_root)
+    with PRODUCT_RUNTIME_STATE_LOCK_FILE.open("a+") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        try:
+            state = _load_product_runtime_state()
+            for service in services:
+                if service in live:
+                    state["services"][service] = {
+                        "commit": source_commit,
+                        "backend_tree": backend_tree,
+                        "container_id": live[service]["container_id"],
+                        "source": live[service]["source"],
+                        "verified_at": _now_iso(),
+                    }
+            temporary = PRODUCT_RUNTIME_STATE_FILE.with_suffix(".tmp")
+            temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            temporary.replace(PRODUCT_RUNTIME_STATE_FILE)
+        finally:
+            fcntl.flock(lock_handle, fcntl.LOCK_UN)
 
 
 def _docker_service_state(service: str, checkout_root: Path = CONTROL_PLANE_ROOT) -> dict:
@@ -9839,9 +9971,31 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             poll=args.poll,
             heartbeat=heartbeat,
         )
-        if _docker_checkout_root(args.session) != checkout_root:
-            raise RuntimeError("Docker restart session worktree changed while waiting for the lock")
-        update_docker_operation(operation["id"], "restarting", waiting_for_tests=[])
+        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        source_commit = _current_git_sha(checkout_root)
+        rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
+        if rc != 0 or not backend_tree.strip():
+            raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
+        backend_tree = backend_tree.strip()
+        coherent_services = _coherent_docker_services(services, checkout_root, backend_tree)
+        added_services = sorted(set(coherent_services) - set(services))
+        if added_services:
+            print(
+                "Expanding Docker restart to restore one source generation: " + ", ".join(added_services),
+                flush=True,
+            )
+        services = coherent_services
+        invalid = sorted(set(services) - available)
+        if invalid:
+            raise RuntimeError(f"Runtime-coherence services are not restartable: {', '.join(invalid)}")
+        update_docker_operation(
+            operation["id"],
+            "restarting",
+            waiting_for_tests=[],
+            services=services,
+            source_commit=source_commit,
+            backend_tree=backend_tree,
+        )
         if not persistent_coordination:
             _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
         compose_args = (
@@ -9874,6 +10028,7 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             ),
         )
         completed = update_docker_operation(operation["id"], "completed", health=health)
+        _record_product_runtime_services(services, checkout_root, source_commit, backend_tree)
         print(
             f"Docker restart {completed['id']} completed for {', '.join(services)}; "
             "all services are running and healthy."

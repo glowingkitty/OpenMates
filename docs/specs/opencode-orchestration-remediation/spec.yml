@@ -24,6 +24,7 @@ scope:
     - Report the exact lease or earlier runtime operation that blocks admission.
     - Reuse the running OpenCode server for proof review and emit bounded progress and timeout cleanup.
     - Keep deploy test discovery module-local when an exact sibling test or explicit test-file contract exists.
+    - Mount every shared product-code container from one clean integrated runtime checkout and repair mixed generations together.
   out:
     - Rewriting the full engineering control-plane architecture.
     - Changing product-facing OpenMates behavior, self-hosting CLI behavior, or user-visible UI.
@@ -55,6 +56,7 @@ context_discovery:
     - A queued Docker operation remained queued after all visible blockers disappeared because polling did not rerun admission.
     - Standalone proof reviewers each booted a full OpenCode and unrelated MCP stack, consumed roughly 600 MB, and stayed silent for up to ten minutes.
     - The deploy gate mapped engineering_control_plane/api.py to unrelated product API-key tests and failed on dependencies outside the changed component.
+    - API and worker containers mounted different chat worktrees and resolved the same HEL1 storage configuration differently while sharing one Compose project.
   user_direction:
     - Create and execute a spec that resolves the remaining agentic coding flow issues.
     - Stop wasting tokens in the currently running chats until the orchestration flow is fixed.
@@ -165,6 +167,18 @@ scenarios:
       - Progress is printed at least every 30 seconds.
       - Timeout terminates the reviewer and preserves partial output for diagnosis.
 
+  - id: S-8
+    title: Shared product containers use one source generation
+    given:
+      - Multiple chats restart different services in the shared development Compose project.
+    when:
+      - A canonical Docker operation is admitted.
+    then:
+      - The operation refreshes one clean product-runtime checkout only after dependent tests drain.
+      - Every recreated code-mounted service uses that checkout and records its exact commit and container ID.
+      - Existing services with another mount, commit, or unrecorded container generation are included in the coherence restart.
+      - Already coherent services are not restarted unnecessarily.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -251,6 +265,16 @@ acceptance_criteria:
     verification_ids:
       - T-PROOF-REVIEWER
 
+  - id: AC-9
+    scenario: S-8
+    text: Canonical Docker operations cannot leave API and workers mounted from different chat worktrees or recorded source generations.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-SESSIONS-DOCKER
+
 tests:
   - id: T-CONTROL-PLANE
     type: pytest
@@ -294,6 +318,7 @@ tests:
       - AC-2
       - AC-3
       - AC-7
+      - AC-9
     red_phase:
       required: true
       expected: fail_before_fix
@@ -462,6 +487,7 @@ implementation_plan:
   data_flow:
     - Test runners acquire shared leases for dev-stack read/proof work.
     - Docker restart requests create or reuse runtime-operation records and wait for exclusive admission.
+    - After admission and test drain, Docker operations refresh one clean product-runtime checkout and expand only for running code services whose mount, commit, or container identity is incoherent.
     - Dead same-host lease owners are detected by sessions.py using host PID liveness and released through the coordination API.
     - Restore and child-session commands resolve to the top-level repository session worktree before source commands run.
   affected_files:
@@ -691,6 +717,29 @@ tasks:
         - scripts/proof_video_workflow.py
       shared_files: []
 
+  - id: TASK-7
+    title: Eliminate mixed-worktree product container generations
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-9
+    expected_files:
+      - scripts/sessions.py
+      - scripts/tests/test_sessions_docker_orchestration.py
+    verification_ids:
+      - T-SESSIONS-DOCKER
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/sessions.py
+      shared_files: []
+
 implementation_state:
   phase: implementation_validated
   subject_commit: 40f14fd489a4a0f00af633764d04478440b738d6
@@ -735,6 +784,11 @@ decisions:
     decision: Run proof reviewers through the existing OpenCode server and preserve a pure standalone opt-out only when explicitly configured.
     reason: Reviewer permissions are already bounded, while duplicate OpenCode and MCP startup wastes memory and time.
     decided_at: "2026-08-27T11:00:00Z"
+  - id: D-6
+    status: active
+    decision: Shared product Docker services mount one clean integrated runtime checkout, never individual chat worktrees.
+    reason: One Compose project with per-chat bind mounts creates silent API/worker split-brain even when lease coordination is correct.
+    decided_at: "2026-08-27T11:10:00Z"
 
 attempts:
   - id: ATT-1
@@ -771,6 +825,7 @@ risks:
   - Queue reconciliation must lock FIFO rows in one order to avoid deadlocks between unrelated waiters.
   - Attached proof review depends on the internal OpenCode server; standalone pure mode remains available by clearing OPENMATES_OPENCODE_SERVER_URL.
   - Broad filename-substring test discovery can turn a focused deploy into an unrelated dependency gate; exact sibling tests and explicit test-file directives take precedence.
+  - Advancing shared runtime source can leave long-running Python processes on old imports; recorded commit/container generations force a bounded coherence restart when needed.
   - Reclaiming dead-owner leases must be limited to same-host PIDs so remote live work is not released incorrectly.
   - Hook dedupe must not hide new or changed failures.
   - Resuming chats before readiness checks pass can recreate the same blocking pattern.

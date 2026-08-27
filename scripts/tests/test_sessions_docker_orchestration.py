@@ -51,6 +51,25 @@ def configure_state(monkeypatch, tmp_path):
     return sessions_file
 
 
+def configure_runtime_checkout(monkeypatch, checkout_root: Path) -> None:
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: checkout_root)
+    monkeypatch.setattr(sessions, "_ensure_product_runtime_checkout", lambda *, refresh: checkout_root)
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _root: "a" * 40)
+    monkeypatch.setattr(
+        sessions,
+        "_coherent_docker_services",
+        lambda requested, _root, _commit: sorted(requested),
+    )
+    monkeypatch.setattr(sessions, "_record_product_runtime_services", lambda *_args: None)
+    monkeypatch.setattr(
+        sessions,
+        "_run_cmd",
+        lambda command, **_kwargs: (0, "backend-tree\n", "")
+        if command[:3] == ["git", "rev-parse", "HEAD:backend"]
+        else (0, "", ""),
+    )
+
+
 def test_restart_request_blocks_new_dependent_tests(monkeypatch, tmp_path):
     configure_state(monkeypatch, tmp_path)
 
@@ -180,7 +199,61 @@ def test_docker_command_uses_session_worktree_compose_files(monkeypatch, tmp_pat
     ]
 
 
-def test_restart_command_routes_all_compose_operations_through_worktree(monkeypatch, tmp_path):
+def test_runtime_coherence_expands_restart_for_mixed_mounts_and_generations(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "runtime"
+    (checkout_root / "backend").mkdir(parents=True)
+    monkeypatch.setattr(
+        sessions,
+        "_running_backend_mounts",
+        lambda _root: {
+            "api": {"source": str(checkout_root / "backend"), "container_id": "api-current"},
+            "core-worker": {"source": "/old/session/backend", "container_id": "worker-old"},
+            "workflow-worker": {"source": str(checkout_root / "backend"), "container_id": "workflow-new"},
+        },
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_load_product_runtime_state",
+        lambda: {
+            "services": {
+                "api": {"backend_tree": "new", "container_id": "api-current"},
+                "core-worker": {"backend_tree": "old", "container_id": "worker-old"},
+                "workflow-worker": {"backend_tree": "old", "container_id": "workflow-new"},
+            }
+        },
+    )
+
+    services = sessions._coherent_docker_services(["api"], checkout_root, "new")
+
+    assert services == ["api", "core-worker", "workflow-worker"]
+
+
+def test_runtime_coherence_keeps_matching_services_parallel_and_scoped(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "runtime"
+    (checkout_root / "backend").mkdir(parents=True)
+    monkeypatch.setattr(
+        sessions,
+        "_running_backend_mounts",
+        lambda _root: {
+            "api": {"source": str(checkout_root / "backend"), "container_id": "api-current"},
+            "core-worker": {"source": str(checkout_root / "backend"), "container_id": "worker-current"},
+        },
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_load_product_runtime_state",
+        lambda: {
+            "services": {
+                "api": {"backend_tree": "new", "container_id": "api-current"},
+                "core-worker": {"backend_tree": "new", "container_id": "worker-current"},
+            }
+        },
+    )
+
+    assert sessions._coherent_docker_services(["api"], checkout_root, "new") == ["api"]
+
+
+def test_restart_command_routes_all_compose_operations_through_shared_runtime(monkeypatch, tmp_path):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
     monkeypatch.setattr(
@@ -188,7 +261,7 @@ def test_restart_command_routes_all_compose_operations_through_worktree(monkeypa
         "_load_sessions",
         lambda: {"sessions": {"abcd": {"worktree": {"path": str(checkout_root), "status": "active"}}}},
     )
-    monkeypatch.setattr(sessions, "_validate_managed_worktree_path", lambda path: Path(path))
+    configure_runtime_checkout(monkeypatch, checkout_root)
     roots = []
     monkeypatch.setattr(sessions, "available_docker_services", lambda root: roots.append(("available", root)) or {"api"})
     monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
@@ -223,7 +296,7 @@ def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, t
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
     monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
-    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: checkout_root)
+    configure_runtime_checkout(monkeypatch, checkout_root)
     monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
     monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1", "status": "queued"})
     admission_statuses = iter(["queued", "queued", "admitted"])
@@ -286,16 +359,13 @@ def test_docker_checkout_root_rejects_unknown_session(monkeypatch) -> None:
         sessions._docker_checkout_root("missing")
 
 
-def test_restart_stops_if_worktree_disappears_while_waiting(monkeypatch, tmp_path) -> None:
-    roots = iter([tmp_path, RuntimeError("Docker restart worktree is missing")])
-
-    def checkout_root(_session_id):
-        result = next(roots)
-        if isinstance(result, Exception):
-            raise result
-        return result
-
-    monkeypatch.setattr(sessions, "_docker_checkout_root", checkout_root)
+def test_restart_stops_if_runtime_checkout_cannot_refresh(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: tmp_path)
+    monkeypatch.setattr(
+        sessions,
+        "_ensure_product_runtime_checkout",
+        lambda *, refresh: (_ for _ in ()).throw(RuntimeError("product runtime checkout refresh failed")),
+    )
     monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
     monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
@@ -308,7 +378,7 @@ def test_restart_stops_if_worktree_disappears_while_waiting(monkeypatch, tmp_pat
     monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", lambda *_args, **_kwargs: compose_calls.append(True))
     args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=True)
 
-    with pytest.raises(RuntimeError, match="worktree is missing"):
+    with pytest.raises(RuntimeError, match="runtime checkout refresh failed"):
         sessions.cmd_docker_restart(args)
 
     assert compose_calls == []
@@ -458,7 +528,7 @@ def test_lock_release_requires_current_owner(monkeypatch, tmp_path):
 
 def test_restart_command_records_failure_and_releases_lock(monkeypatch, tmp_path):
     configure_state(monkeypatch, tmp_path)
-    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: tmp_path)
+    configure_runtime_checkout(monkeypatch, tmp_path)
     monkeypatch.setattr(sessions, "available_docker_services", lambda _checkout_root: {"api"})
     monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
