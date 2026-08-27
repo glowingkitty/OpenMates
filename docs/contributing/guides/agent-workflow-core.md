@@ -148,9 +148,9 @@ Playwright specs, the committed `*.spec.ts` file is the source of truth for the
 browser or terminal recording contract: command, profile, assertions, transcript,
 checkpoints, and attachments must come from the spec rather than a chat-only
 override. Use retiming or a last-frame hold when the source flow moves too quickly,
-and do not ask the user for separate proof-contract approval before rendering; the
-tooling authorizes the canonical contract from the spec/test assertions.
-and preserve product audio when playback is part of the claim. Give the active agent the canonical transcript
+and preserve product audio when playback is part of the claim. Do not ask the user
+for separate proof-contract approval before rendering; the tooling authorizes the
+canonical contract from the spec/test assertions. Give the active agent the canonical transcript
 and bounded image frames, never the full video. Use a default three-second
 interval plus event boundaries, request exact-timestamp frames only when needed,
 then upload the approved proof media with `scripts/opencode_response_media.py`.
