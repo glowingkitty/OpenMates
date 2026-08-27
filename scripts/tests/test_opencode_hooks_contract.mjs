@@ -283,6 +283,24 @@ test("source code containing video HTML is not queued as response media", () => 
   );
 });
 
+test("optional hook queues require matching sessions.py subcommands", async () => {
+  const supports = pluginModule.OpenMatesHooks.test.sessionsCommandSupportedForTest;
+  const calls = [];
+  const run = async (_command, args) => {
+    calls.push(args);
+    return { status: args[1] === "restore" ? 0 : 2, stdout: "", stderr: "" };
+  };
+  assert.equal(await supports("continuation", run), false);
+  assert.equal(await supports("media", run), false);
+  assert.equal(await supports("restore", run), true);
+  assert.equal(await supports("../unsafe", run), false);
+  assert.deepEqual(calls, [
+    ["scripts/sessions.py", "continuation", "--help"],
+    ["scripts/sessions.py", "media", "--help"],
+    ["scripts/sessions.py", "restore", "--help"],
+  ]);
+});
+
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);

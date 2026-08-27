@@ -2223,6 +2223,16 @@ function runProcess(command, args, { cwd = PROJECT_ROOT, env = process.env, inpu
   });
 }
 
+async function sessionsCommandSupportedForTest(command, run = runProcess) {
+  if (!/^[a-z][a-z0-9-]*$/.test(String(command || ""))) return false;
+  const result = await run(
+    "python3",
+    ["scripts/sessions.py", command, "--help"],
+    { cwd: CURRENT_CONTROL_PLANE_ROOT, timeoutMs: 10_000 },
+  );
+  return result.status === 0;
+}
+
 async function runBridge(event, payload, sessionID, cwd = activeCwd()) {
   const result = await runProcess("bash", [BRIDGE, event], {
     cwd,
@@ -2595,6 +2605,13 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const recordedChildRoles = new Set();
   const pendingMediaBySession = new Map();
   const claimedMediaBySession = new Map();
+  // Queue automation and sessions.py are deployed independently. Feature-gate
+  // each optional queue by executing its help command once; unsupported
+  // argparse commands must not be retried from every lifecycle event.
+  const [continuationQueueEnabled, mediaQueueEnabled] = await Promise.all([
+    sessionsCommandSupportedForTest("continuation"),
+    sessionsCommandSupportedForTest("media"),
+  ]);
   const assistantTextParts = new Map();
   const presenceSourceID = randomUUID();
   const presenceGeneration = Date.now();
@@ -2693,6 +2710,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     recordedChildRoles.add(route.requestingOpenCodeSessionID);
   };
   const continuationCommand = async (action, sessionID, signal = null) => {
+    if (!continuationQueueEnabled) return null;
     const args = ["scripts/sessions.py", "continuation", action, "--session", sessionID];
     if (action === "record" && signal) {
       args.push(
@@ -2706,6 +2724,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     return JSON.parse(result.stdout || "{}").continuation || null;
   };
   const mediaCommand = async (action, sessionID, artifact = null) => {
+    if (!mediaQueueEnabled) return null;
     const args = ["scripts/sessions.py", "media", action, "--session", sessionID];
     if (action === "record" && artifact) {
       args.push(
@@ -2781,6 +2800,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     });
   };
   const deliverPendingMedia = async (sessionID) => {
+    if (!mediaQueueEnabled) return false;
     const current = currentPresence(sessionID);
     if (continuationSuppressedForTest(current) || automaticDeliverySessions.has(sessionID)) return false;
     automaticDeliverySessions.add(sessionID);
@@ -2815,6 +2835,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     }
   };
   const deliverReadyContinuation = async (sessionID) => {
+    if (!continuationQueueEnabled) return false;
     const current = currentPresence(sessionID);
     if (continuationSuppressedForTest(current) || automaticDeliverySessions.has(sessionID)) return false;
     automaticDeliverySessions.add(sessionID);
@@ -3171,6 +3192,7 @@ OpenMatesHooks.test = Object.freeze({
   resolveExistingFigmaExportPathForTest,
   responseMediaArtifactForTest,
   responseMediaVideoProducerCommandForTest,
+  sessionsCommandSupportedForTest,
   validResponseMediaVideoSnippetForTest,
   mediaDeliveryPromptForTest,
   responseContainsMediaForTest,
