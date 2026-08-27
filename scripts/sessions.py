@@ -7401,9 +7401,18 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
         ["git", "rev-parse", "refs/remotes/origin/dev"],
         cwd=worktree_path,
     )
-    if rc != 0 or current_head != upstream_head.strip():
+    if rc != 0:
         raise RuntimeError(
-            "Reason: managed worktree HEAD does not match origin/dev. "
+            "Reason: origin/dev could not be resolved while validating the managed worktree. "
+            f"Next: preserve the worktree and inspect its commits before repair. {stderr}".strip()
+        )
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", current_head, upstream_head.strip()],
+        cwd=worktree_path,
+    )
+    if rc != 0:
+        raise RuntimeError(
+            "Reason: managed worktree HEAD is not integrated in origin/dev. "
             f"Next: preserve the worktree and inspect its commits before repair. {stderr}".strip()
         )
     rc, _stdout, stderr = _run_cmd(
