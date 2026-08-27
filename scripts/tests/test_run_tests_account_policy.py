@@ -468,6 +468,17 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
 
 
+def test_single_spec_fallback_accounts_are_bounded():
+    run_tests = load_run_tests_module()
+
+    failed_account = run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
+    fallback_accounts = run_tests._single_spec_fallback_accounts(failed_account)
+
+    assert len(fallback_accounts) == run_tests.SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT
+    assert failed_account not in fallback_accounts
+    assert fallback_accounts == list(run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[1:4])
+
+
 def test_single_spec_reuses_wrapper_account_lease(monkeypatch):
     run_tests = load_run_tests_module()
     captured: dict[str, object] = {}

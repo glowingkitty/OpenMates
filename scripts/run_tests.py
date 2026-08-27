@@ -191,6 +191,7 @@ APPLE_REMOTE_TIMEOUT = 7200  # seconds — Xcode test/build runs can be slow on 
 ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS = 15 * 60
 ACCOUNT_PREFLIGHT_CACHE_PATH = CONTROL_PLANE_ROOT / "test-results" / "account-preflight-cache.json"
 ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH = Path("/tmp/openmates-account-preflight-cache.lock")
+SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT = 3
 MAX_ERROR_SNIPPET = 600
 GITHUB_DISPATCH_RATE_LIMIT_RESERVE = 25
 GITHUB_MUTATING_REQUEST_INTERVAL_SECONDS = 1.0
@@ -2282,6 +2283,15 @@ def _passed_normal_preflight_slots(results: list[SpecResult]) -> tuple[int, ...]
     """Return healthy normal account slots in stable dispatch order."""
     passed_slots = _passed_preflight_slots(results)
     return tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
+
+
+def _single_spec_fallback_accounts(failed_account: int) -> list[int]:
+    """Bound failover so one unhealthy slot cannot fan out to every account."""
+    return [
+        slot
+        for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+        if slot != failed_account
+    ][:SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT]
 
 
 def _apply_preflight_account_availability(
@@ -7826,10 +7836,7 @@ class TestOrchestrator:
                 if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                     return preflight
 
-                fallback_accounts = [
-                    slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
-                    if slot != account
-                ]
+                fallback_accounts = _single_spec_fallback_accounts(account)
                 fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
                 fallback_slots = _passed_normal_preflight_slots([
                     self._dict_to_spec_result(test)
@@ -7987,10 +7994,7 @@ class TestOrchestrator:
         preflight = self._run_account_preflight(client, accounts=[account])
         preflight_duration += preflight.duration_seconds
         if preflight.status == "failed":
-            fallback_accounts = [
-                slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
-                if slot != account
-            ]
+            fallback_accounts = _single_spec_fallback_accounts(account)
             fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
             preflight_duration += fallback_preflight.duration_seconds
             fallback_slots = _passed_normal_preflight_slots([
