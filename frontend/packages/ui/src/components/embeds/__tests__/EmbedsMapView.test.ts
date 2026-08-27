@@ -141,7 +141,7 @@ describe("EmbedsMapView", () => {
       if (embedId === "train-one-id") {
         return {
           embed_id: embedId,
-          type: "travel-connection",
+          type: "connection",
           status: "finished",
           content: "train-one-content",
           createdAt: 1,
@@ -151,7 +151,7 @@ describe("EmbedsMapView", () => {
       if (embedId === "train-two-id") {
         return {
           embed_id: embedId,
-          type: "travel-connection",
+          type: "connection",
           status: "finished",
           content: "train-two-content",
           createdAt: 1,
@@ -517,6 +517,9 @@ describe("EmbedsMapView", () => {
     expect(cards[0].textContent).toContain("Bonn Hbf");
     expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
+    expect(target.querySelectorAll('[data-testid="connection-preview-details"]')).toHaveLength(2);
+    expect(target.textContent).not.toContain("Search connections");
+    expect(target.textContent).not.toContain("0 connections");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("2");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
 

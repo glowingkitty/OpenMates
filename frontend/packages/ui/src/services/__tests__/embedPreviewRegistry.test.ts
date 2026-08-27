@@ -21,6 +21,7 @@ function metadataFor(decodedContent: Record<string, unknown>) {
 }
 
 describe('embedPreviewRegistry parent preview metadata', () => {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it('resolves Finance check_accounts app skill previews', () => {
     expect(embedPreviewRegistry.canResolve({
       embedId: 'finance-preview',
@@ -29,6 +30,7 @@ describe('embedPreviewRegistry parent preview metadata', () => {
     })).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it('forwards web search parent metadata', async () => {
     const metadata = metadataFor({
       preview_results: [{ title: 'OpenMates', url: 'https://openmates.org', favicon: 'https://openmates.org/favicon.svg' }],
@@ -41,6 +43,7 @@ describe('embedPreviewRegistry parent preview metadata', () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it('forwards image search parent preview JSON and children', async () => {
     const previewResults = [{ title: 'Image', thumbnail_url: 'https://example.com/thumb.jpg' }];
     const metadata = metadataFor({
@@ -56,6 +59,7 @@ describe('embedPreviewRegistry parent preview metadata', () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it('forwards news and videos search preview metadata instead of empty results', async () => {
     const newsMetadata = metadataFor({
       preview_results: [{ title: 'News', url: 'https://news.example', favicon: 'https://news.example/favicon.ico' }],
@@ -74,5 +78,43 @@ describe('embedPreviewRegistry parent preview metadata', () => {
       resultCount: 2,
       childEmbedIds: ['child-1', 'child-2'],
     });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
+  it('resolves raw travel connection children before their inherited parent skill', async () => {
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId: 'connection-child',
+      embedData: {
+        type: 'connection',
+        status: 'finished',
+        app_id: 'travel',
+        skill_id: 'search_connections',
+      },
+      decodedContent: {
+        type: 'connection',
+        app_id: 'travel',
+        skill_id: 'search_connections',
+        total_price: '636',
+        currency: 'EUR',
+        origin: 'Berlin (BER)',
+        destination: 'Bangkok (BKK)',
+        departure: '2026-04-14T10:00:00Z',
+        arrival: '2026-04-15T06:20:00Z',
+        duration: '15h 20m',
+        stops: 1,
+      },
+      onFullscreen: () => {},
+    });
+
+    expect(resolved?.props).toMatchObject({
+      price: '636',
+      currency: 'EUR',
+      origin: 'Berlin (BER)',
+      destination: 'Bangkok (BKK)',
+      duration: '15h 20m',
+      stops: 1,
+    });
+    expect(resolved?.props).not.toHaveProperty('resultCount');
+    expect(resolved?.props).not.toHaveProperty('childEmbedIds');
   });
 });
