@@ -26,8 +26,9 @@ test('exports the E2E server-content override gate helper', () => {
 	assert.match(source, /const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';/);
 	assert.match(source, /async function installE2EServerContentOverrideGate\(page: any, scope: string = 'local-e2e'\)/);
 	assert.match(source, /sessionStorage\.setItem\(key, JSON\.stringify\(\{ runId, token: 'local-e2e' \}\)\)/);
-	assert.match(source, /page\.addInitScript\(installGate, E2E_LOG_FORWARDING_SESSION_KEY, scope\)/);
-	assert.match(source, /page\.evaluate\(installGate, E2E_LOG_FORWARDING_SESSION_KEY, scope\)/);
+	assert.match(source, /const gateArgs = \{ key: E2E_LOG_FORWARDING_SESSION_KEY, runId: scope \};/);
+	assert.match(source, /page\.addInitScript\(installGate, gateArgs\)/);
+	assert.match(source, /page\.evaluate\(installGate, gateArgs\)/);
 	assert.match(source, /installE2EServerContentOverrideGate,/);
 });
 

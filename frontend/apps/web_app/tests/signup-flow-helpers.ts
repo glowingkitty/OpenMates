@@ -1143,12 +1143,13 @@ function getE2EDebugUrl(path: string = '/'): string {
 }
 
 async function installE2EServerContentOverrideGate(page: any, scope: string = 'local-e2e'): Promise<void> {
-	const installGate = (key: string, runId: string) => {
+	const gateArgs = { key: E2E_LOG_FORWARDING_SESSION_KEY, runId: scope };
+	const installGate = ({ key, runId }: { key: string; runId: string }) => {
 		if (sessionStorage.getItem(key)) return;
 		sessionStorage.setItem(key, JSON.stringify({ runId, token: 'local-e2e' }));
 	};
-	await page.addInitScript(installGate, E2E_LOG_FORWARDING_SESSION_KEY, scope);
-	await page.evaluate(installGate, E2E_LOG_FORWARDING_SESSION_KEY, scope);
+	await page.addInitScript(installGate, gateArgs);
+	await page.evaluate(installGate, gateArgs);
 }
 
 /**
