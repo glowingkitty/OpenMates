@@ -623,6 +623,50 @@ def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path
         tests_control.resolve_test_subject_commit("unrelated-commit")
 
 
+def test_post_run_subject_guard_rejects_relevant_daily_change(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    subject = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(tests_control, "git_is_ancestor", lambda base, head: (base, head) == (subject, current_dev))
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/packages/ui/src/components/ChatHeader.svelte"],
+    )
+
+    with pytest.raises(RuntimeError, match="relevant files changed during the run"):
+        tests_control.validate_test_subject_commit_after_run(subject, ["--daily"])
+
+
+def test_post_run_subject_guard_accepts_irrelevant_focused_spec_change(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    subject = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(tests_control, "git_is_ancestor", lambda base, head: (base, head) == (subject, current_dev))
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["docs/releases/daily/2026-08-27.md"],
+    )
+
+    assert tests_control.validate_test_subject_commit_after_run(
+        subject,
+        ["--spec", "shared-chat-embed-assets.spec.ts"],
+    ) == current_dev
+
+
+def test_post_run_subject_guard_exact_mode_rejects_any_advance(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    subject = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+
+    with pytest.raises(RuntimeError, match="exact-commit verification"):
+        tests_control.validate_test_subject_commit_after_run(subject, ["--spec", "chat-flow.spec.ts"], require_exact=True)
+
+
 def test_seeded_only_failed_files_from_non_spec_lease(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
 

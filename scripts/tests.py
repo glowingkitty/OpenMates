@@ -1592,6 +1592,39 @@ def resolve_test_subject_commit(
     )
 
 
+def validate_test_subject_commit_after_run(
+    subject_commit: str,
+    forwarded_args: list[str] | None = None,
+    *,
+    require_exact: bool = False,
+) -> str:
+    """Reject live-dev evidence when its deployed subject changed during a run."""
+    dev_commit = integrated_dev_sha()
+    if _matches_commit_prefix(dev_commit, subject_commit):
+        return dev_commit
+    if require_exact:
+        raise RuntimeError(
+            "Discarding exact-commit verification from a moving deployment: "
+            f"the run started against {subject_commit[:9]}, but origin/dev is now "
+            f"{dev_commit[:9] or 'unavailable'}"
+        )
+    if dev_commit and git_is_ancestor(subject_commit, dev_commit):
+        changed_files = git_changed_files_between(subject_commit, dev_commit)
+        relevant_changed = relevant_changed_files_for_run(forwarded_args or [], changed_files)
+        if not relevant_changed:
+            return dev_commit
+        raise RuntimeError(
+            "Discarding live-dev test evidence from a moving deployment: "
+            f"the run started against {subject_commit[:9]}, origin/dev advanced to {dev_commit[:9]}, "
+            "and relevant files changed during the run: " + ", ".join(relevant_changed[:8])
+        )
+    raise RuntimeError(
+        "Discarding live-dev test evidence from a moving deployment: "
+        f"the run started against {subject_commit[:9]}, but origin/dev is "
+        f"{dev_commit[:9] or 'unavailable'}"
+    )
+
+
 @dataclass(frozen=True)
 class ControlRunOptions:
     forwarded_args: list[str]
@@ -5992,6 +6025,19 @@ def command_run(runner_args: list[str]) -> int:
             mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
         result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
+        if resources and subject_commit:
+            try:
+                validate_test_subject_commit_after_run(
+                    subject_commit,
+                    options.forwarded_args,
+                    require_exact=options.require_exact_commit,
+                )
+            except RuntimeError as exc:
+                if dispatch_store and dispatch_key:
+                    dispatch_store.update_dispatch(dispatch_key, "failed", "deployment_subject_drift")
+                    dispatch_terminal = True
+                print(str(exc), file=sys.stderr)
+                return 2
         if dispatch_store and dispatch_key:
             dispatch_store.update_dispatch(
                 dispatch_key,
