@@ -1338,7 +1338,7 @@
   });
 </script>
 
-<section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} aria-label={title}>
+<section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
     {#if showVisualTabs}
@@ -1367,7 +1367,7 @@
           class="filter-button"
           data-testid="embeds-map-view-filter-button"
           aria-label={activeFilterCount === 0 ? 'Filter results' : `Filter results, ${activeFilterCount} active`}
-          aria-haspopup="dialog"
+          aria-controls={`${id}-filter-panel`}
           aria-expanded={filtersOpen}
           onclick={() => (filtersOpen = !filtersOpen)}
         >
@@ -1375,7 +1375,7 @@
           <span class="visually-hidden">{activeFilterCount === 0 ? 'Filter' : `Filter (${activeFilterCount})`}</span>
         </button>
         {#if filtersOpen}
-          <div class="filter-menu" data-testid="embeds-map-view-filter-menu" data-layout="results-panel" role="dialog" aria-label="Filter results">
+          <div id={`${id}-filter-panel`} class="filter-menu" data-testid="embeds-map-view-filter-menu" data-layout="results-panel" role="region" aria-label="Filter results">
             <div class="filter-menu-header">
               <strong>Filters</strong>
               {#if activeFilterCount > 0}
@@ -1650,13 +1650,14 @@
     container-type: inline-size;
     width: 100%;
     max-width: 652px;
+    margin-top: 20px;
     padding-top: 23px;
     box-sizing: border-box;
     border: 1px solid var(--color-grey-25, rgba(0, 0, 0, 0.08));
     border-radius: 23px;
-    background: var(--color-grey-0, #ffffff);
+    background: var(--color-grey-20, #f3f3f3);
     color: var(--color-font-primary, #222222);
-    overflow: hidden;
+    overflow: visible;
     box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 0, 0, 0.05));
   }
 
@@ -1700,11 +1701,11 @@
     height: 37px;
     padding: 0;
     box-sizing: border-box;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border: 0;
     border-radius: 999px;
-    background: var(--color-grey-10, #f9f9f9);
-    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
-    transform: translateX(-50%);
+    background: var(--color-grey-0, #ffffff);
+    box-shadow: var(--shadow-sm, 0 4px 10px rgba(0, 0, 0, 0.16));
+    transform: translate(-50%, -20px);
   }
 
   .results-view-tabs button {
@@ -1770,16 +1771,18 @@
     width: 42px;
     height: 42px;
     justify-content: center;
-    border: 1px solid var(--color-grey-30, #e3e3e3);
+    border: 0;
     border-radius: 999px;
-    background: var(--color-grey-10, #f9f9f9);
-    color: var(--color-font-primary, #222222);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-primary, #6c63ff);
     padding: 0;
     font: inherit;
     font-size: var(--font-size-xxs);
     line-height: 1;
     text-transform: capitalize;
     cursor: pointer;
+    box-shadow: var(--shadow-sm, 0 4px 10px rgba(0, 0, 0, 0.16));
+    transform: translateY(-10px);
   }
 
   .filter-icon {
@@ -1943,6 +1946,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     height: 535px;
+    overflow: hidden;
+    border-radius: 23px;
     background: var(--color-grey-20, #f3f3f3);
   }
 
@@ -1962,10 +1967,11 @@
   }
 
   .map-view-list {
+    position: relative;
     min-width: 0;
     height: 257px;
     border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
-    background: var(--color-grey-10, #f9f9f9);
+    background: var(--color-grey-20, #f3f3f3);
   }
 
   .map-view-carousel {
@@ -2066,10 +2072,14 @@
   }
 
   .show-all-results {
+    position: absolute;
+    z-index: 1;
+    right: 16px;
+    bottom: 10px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin: 0 16px 14px;
+    margin: 0;
     width: fit-content;
     border: 1px solid var(--color-grey-30, #e3e3e3);
     border-radius: 999px;
@@ -2277,7 +2287,7 @@
     .results-view-tabs {
       position: absolute;
       width: min(170px, calc(100% - 70px));
-      transform: translateX(-50%);
+      transform: translate(-50%, -20px);
     }
 
     .results-view-tabs button {
@@ -2395,7 +2405,8 @@
     }
 
     .calendar-week {
-      grid-template-columns: repeat(7, minmax(0, 1fr));
+      grid-template-columns: repeat(7, minmax(88px, 1fr));
+      min-width: 644px;
     }
 
     .calendar-item {

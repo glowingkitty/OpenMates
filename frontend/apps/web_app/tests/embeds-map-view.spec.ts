@@ -68,7 +68,7 @@ const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
 		},
 		{
 			id: 'local-route-filter',
-			text: 'The local filter menu narrows the grouped results to the route.',
+			text: 'Selecting Qatar Airways in the local filter narrows the view from five flights to two.',
 			checkpoint: 'local-route-filter',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -101,7 +101,7 @@ const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
 		{
 			id: 'local-route-filter',
 			checkpoint: 'local-route-filter',
-			visual: 'The filter state narrows the carousel to the Berlin Hbf route result.',
+			visual: 'The Qatar carrier chip is selected and the filter summary visibly shows two of five results remain.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -205,6 +205,13 @@ test.describe('Embeds map view preview', () => {
 		await expect(visualTabs).toContainText('Map');
 		await expect(visualTabs).toContainText('Calendar');
 		await expect(mapView.getByTestId('embeds-results-view-tab-list')).toHaveCount(0);
+		const mapViewBox = await mapView.boundingBox();
+		const visualTabsBox = await visualTabs.boundingBox();
+		expect(mapViewBox, 'map view box should exist').not.toBeNull();
+		expect(visualTabsBox, 'visual tabs box should exist').not.toBeNull();
+		expect(visualTabsBox!.y).toBeLessThan(mapViewBox!.y);
+		expect(visualTabsBox!.y + visualTabsBox!.height).toBeGreaterThan(mapViewBox!.y);
+		expect(await mapView.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(243, 243, 243)');
 		const calendarTab = mapView.getByTestId('embeds-results-view-tab-calendar');
 		if (proof) {
 			await proof.action('open-calendar-tab', async () => {
@@ -221,6 +228,12 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Apr 13');
 		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(5);
 		await expect(cards).toHaveCount(0);
+		if (PROOF_DEVICE === 'web-phone') {
+			const calendar = mapView.getByTestId('embeds-results-view-calendar');
+			const firstCalendarDayBox = await mapView.getByTestId('embeds-results-view-calendar-day').first().boundingBox();
+			expect(firstCalendarDayBox?.width).toBeGreaterThanOrEqual(88);
+			expect(await calendar.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+		}
 		if (proof) {
 			await proof.assert('calendar-tab-week', async () => {
 				await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
@@ -247,6 +260,11 @@ test.describe('Embeds map view preview', () => {
 
 		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
 		await expect(filterButton).toBeVisible();
+		const filterButtonBox = await filterButton.boundingBox();
+		expect(filterButtonBox, 'filter button box should exist').not.toBeNull();
+		expect(filterButtonBox!.y).toBeLessThan(mapViewBox!.y);
+		expect(filterButtonBox!.y + filterButtonBox!.height).toBeGreaterThan(mapViewBox!.y);
+		expect(await filterButton.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 255, 255)');
 		if (proof) {
 			await proof.action('open-filter-menu', async () => {
 				await filterButton.click();
@@ -260,7 +278,6 @@ test.describe('Embeds map view preview', () => {
 		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
 		await expect(filterMenu).toContainText('route');
 		await expect(filterMenu).toContainText('Price');
-		await expect(filterMenu).toContainText('Stops');
 		await expect(filterMenu).toContainText('Carrier');
 		const qatarCarrier = filterMenu.getByTestId('embeds-map-view-option-carrier-qr');
 		if (proof) {
@@ -271,9 +288,11 @@ test.describe('Embeds map view preview', () => {
 			await qatarCarrier.click();
 		}
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('2 of 5 results remain');
+		await expect(qatarCarrier).toHaveAttribute('aria-pressed', 'true');
 		if (proof) {
 			await proof.assert('local-route-filter', async () => {
 				await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('2 of 5 results remain');
+				await expect(qatarCarrier).toHaveAttribute('aria-pressed', 'true');
 			});
 			await proof.checkpoint('local-route-filter');
 		}

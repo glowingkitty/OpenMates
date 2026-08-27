@@ -46,13 +46,12 @@ vi.mock("../../../services/embedStore", () => ({
 }));
 vi.mock("../../../services/embedFullscreenController", () => fullscreenMocks);
 
-async function flush(): Promise<void> {
-  // Registry previews use dynamic imports, which settle across multiple turns.
-  for (let turn = 0; turn < 5; turn += 1) {
-    await Promise.resolve();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await tick();
-  }
+async function flush(target?: HTMLElement): Promise<void> {
+  await tick();
+  if (!target) return;
+  await vi.waitFor(() => {
+    expect(target.querySelector('[data-testid="embeds-map-view"]')?.getAttribute('data-loading')).toBe('false');
+  });
 }
 
 describe("EmbedsMapView", () => {
@@ -297,7 +296,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(2);
@@ -336,7 +335,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     const cards = Array.from(target.querySelectorAll<HTMLElement>('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(2);
@@ -370,7 +369,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
     expect(filterButton).not.toBeNull();
@@ -419,7 +418,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Map");
     expect(target.querySelector('[data-testid="embeds-results-view-tabs"]')?.textContent).toContain("Calendar");
@@ -462,7 +461,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
     expect(filterButton).not.toBeNull();
@@ -494,7 +493,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
     expect(target.textContent).toContain("Global AI Livestream");
@@ -521,7 +520,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
 
     const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(2);
@@ -563,7 +562,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
     const decodeCountAfterLoad = embedResolverMocks.decodeToonContent.mock.calls.length;
 
     const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
@@ -572,7 +571,7 @@ describe("EmbedsMapView", () => {
     await tick();
 
     const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
-    expect(filterMenu?.getAttribute("role")).toBe("dialog");
+    expect(filterMenu?.getAttribute("role")).toBe("region");
     expect(filterMenu?.textContent).toContain("Departure time");
     expect(filterMenu?.textContent).toContain("Duration");
     expect(filterMenu?.textContent).toContain("Transfer time");
@@ -630,13 +629,13 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
     const resolveCallsAfterLoad = embedResolverMocks.resolveEmbed.mock.calls.length;
     const emitRefIndex = (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex;
     expect(emitRefIndex).toBeTypeOf("function");
 
     emitRefIndex?.(1);
-    await flush();
+    await flush(target);
 
     expect(embedResolverMocks.resolveEmbed.mock.calls.length).toBe(resolveCallsAfterLoad);
 
@@ -679,7 +678,7 @@ describe("EmbedsMapView", () => {
 
     emitRefIndex?.(1);
     releaseFirstSourceResolution();
-    await flush();
+    await flush(target);
 
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
     expect(target.querySelector('[data-testid="embeds-map-view-count"]')?.textContent).toContain("2 shown");
@@ -712,14 +711,14 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
     expect(target.textContent).toContain("Waiting for source results");
 
     sourceAvailable = true;
     const emitAvailability = (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;
     expect(emitAvailability).toBeTypeOf("function");
     emitAvailability?.(1);
-    await flush();
+    await flush(target);
 
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"][data-entry-status="ready"]')).toHaveLength(2);
     expect(target.textContent).not.toContain("Waiting for source results");
@@ -750,7 +749,7 @@ describe("EmbedsMapView", () => {
       },
     });
 
-    await flush();
+    await flush(target);
     expect(requestIdleCallback).toHaveBeenCalledTimes(1);
     unmount(component);
     expect(cancelIdleCallback).toHaveBeenCalledWith(41);
