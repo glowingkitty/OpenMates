@@ -2575,7 +2575,7 @@ assertions:
       surface: rest_api
     - &id297
       path: backend/tests/test_storage_lifecycle_api_verifier.py
-      line: 41
+      line: 53
       name: test_public_ingress_connection_rejection_is_valid_when_health_is_reachable
       surface: rest_api
     tests:
@@ -3478,7 +3478,7 @@ assertions:
       surface: rest_api
     - &id406
       path: backend/tests/test_storage_lifecycle_api_verifier.py
-      line: 52
+      line: 64
       name: test_api_images_include_runtime_verifiers
       surface: rest_api
     - &id412

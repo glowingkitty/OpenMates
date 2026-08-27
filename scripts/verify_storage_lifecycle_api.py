@@ -37,9 +37,24 @@ def validate_health_payload(payload: dict[str, Any]) -> dict[str, Any]:
     configured = payload["configured_regions"]
     if not isinstance(configured, list) or not configured:
         raise RuntimeError("configured_regions_missing")
+    regions = payload["regions"]
+    if not isinstance(regions, list):
+        raise RuntimeError("regional_health_rows_invalid")
+    region_states = [
+        {
+            "region": str(row.get("region") or "unknown"),
+            "reconciled": bool(row.get("reconciled")),
+            "probe_succeeded": bool(row.get("probe_succeeded")),
+            "last_error_code": str(row.get("last_error_code") or ""),
+        }
+        for row in regions
+        if isinstance(row, dict)
+    ]
     return {
         "configured_region_count": len(configured),
-        "health_row_count": len(payload["regions"]),
+        "health_row_count": len(region_states),
+        "reconciled_region_count": sum(1 for row in region_states if row["reconciled"]),
+        "region_states": region_states,
         "pending_replication": int(payload["pending_replication"]),
         "pending_deletion": int(payload["pending_deletion"]),
         "result_truncated": bool(payload["result_truncated"]),

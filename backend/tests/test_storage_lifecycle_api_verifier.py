@@ -23,7 +23,12 @@ def test_health_verifier_accepts_only_required_aggregate_shape() -> None:
     assert validate_health_payload(
         {
             "configured_regions": ["nbg1", "fsn1", "hel1"],
-            "regions": [{"region": "nbg1", "reconciled": False}],
+            "regions": [{
+                "region": "nbg1",
+                "reconciled": False,
+                "probe_succeeded": True,
+                "last_error_code": "",
+            }],
             "pending_replication": 4,
             "pending_deletion": 2,
             "result_truncated": False,
@@ -31,6 +36,13 @@ def test_health_verifier_accepts_only_required_aggregate_shape() -> None:
     ) == {
         "configured_region_count": 3,
         "health_row_count": 1,
+        "reconciled_region_count": 0,
+        "region_states": [{
+            "region": "nbg1",
+            "reconciled": False,
+            "probe_succeeded": True,
+            "last_error_code": "",
+        }],
         "pending_replication": 4,
         "pending_deletion": 2,
         "result_truncated": False,
