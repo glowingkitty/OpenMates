@@ -134,7 +134,7 @@ WEB_PHONE_SAFARI_CHROME = {
     "kind": "iphone13-pro-safari",
     "tabGroupLabel": "Personal",
     "topInset": 128,
-    "bottomInset": 85,
+    "bottomInset": 86,
     "devicePixelRatio": 3,
 }
 DEVICE_PROFILES = {
@@ -143,7 +143,7 @@ DEVICE_PROFILES = {
         "width": 390,
         "height": 844,
         "source_width": 390,
-        "source_height": 631,
+        "source_height": 630,
         "surface": "web",
         "label": "phone web",
         "browser_chrome": WEB_PHONE_SAFARI_CHROME,

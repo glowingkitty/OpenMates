@@ -276,13 +276,13 @@ def test_web_phone_tutorial_plan_uses_iphone_safari_content_viewport(tmp_path: P
         narration_id="NARR-1",
     )
 
-    assert plan["request"]["viewport"] == {"width": 390, "height": 631}
+    assert plan["request"]["viewport"] == {"width": 390, "height": 630}
     assert plan["request"]["output"] == {"width": 390, "height": 844, "fps": 30}
     assert plan["request"]["browserChrome"] == {
         "kind": "iphone13-pro-safari",
         "tabGroupLabel": "Personal",
         "topInset": 128,
-        "bottomInset": 85,
+        "bottomInset": 86,
         "devicePixelRatio": 3,
     }
 
@@ -909,9 +909,9 @@ def test_web_phone_source_recording_uses_constrained_safari_viewport() -> None:
     module = load_module()
     profile = module.resolve_device_profile("web-phone")
 
-    module.assert_source_device_profile_dimensions({"width": 390, "height": 631}, profile)
+    module.assert_source_device_profile_dimensions({"width": 390, "height": 630}, profile)
     module.assert_device_profile_dimensions({"width": 390, "height": 844}, profile)
-    with pytest.raises(module.DemonstrationError, match="390x631"):
+    with pytest.raises(module.DemonstrationError, match="390x630"):
         module.assert_source_device_profile_dimensions({"width": 390, "height": 844}, profile)
 
 
@@ -952,7 +952,7 @@ def test_black_bar_scan_allows_dark_iphone_safari_top_and_bottom_chrome(tmp_path
             "-i",
             "color=white:s=390x844:r=10",
             "-vf",
-            "drawbox=x=0:y=0:w=390:h=128:color=black:t=fill,drawbox=x=0:y=759:w=390:h=85:color=black:t=fill",
+            "drawbox=x=0:y=0:w=390:h=128:color=black:t=fill,drawbox=x=0:y=758:w=390:h=86:color=black:t=fill",
             "-t",
             "1",
             str(video),

@@ -28,8 +28,6 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import threading
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -83,7 +81,6 @@ DEV_HEALTH_URLS = (
     "https://api.dev.openmates.org/health",
     "https://app.dev.openmates.org/",
 )
-PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 
 PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
 BLOCKED_BY_PARENT_STATUS = "blocked_by_parent"
@@ -445,7 +442,6 @@ class ControlPlaneTestControlStore(InMemoryTestControlStore):
         tests: list[str],
         profile: str,
         required_services: list[str],
-        account: str = "default",
     ) -> tuple[dict[str, Any], bool]:
         response = self._request(
             "POST",
@@ -455,7 +451,7 @@ class ControlPlaneTestControlStore(InMemoryTestControlStore):
                 "commit": commit,
                 "tests": tests,
                 "profile": profile,
-                "account": account,
+                "account": os.getenv("OPENMATES_TEST_ACCOUNT", "default"),
                 "mocks": {},
                 "required_services": required_services,
             },
@@ -1976,6 +1972,10 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         proof_timeline_path = Path(proof_timeline_value).resolve() if proof_timeline_value else None
         if proof_timeline_path is not None and not proof_timeline_path.is_file():
             proof_timeline_path = None
+        profile = str(test.get("proof_video_profile") or run_data.get("proof_video_profile") or "")
+        if not profile and proof_timeline_path is not None:
+            timeline_payload = read_json(proof_timeline_path, {})
+            profile = str(timeline_payload.get("device") or "")
         for artifact_path in unique_artifact_paths:
             proof_run_id = run_id
             if len(unique_artifact_paths) > 1:
@@ -2001,6 +2001,8 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
             if proof_timeline_path is not None:
                 record["proof_timeline_path"] = str(proof_timeline_path)
                 record["proof_timeline_sha256"] = _file_sha256(proof_timeline_path)
+            if profile:
+                record["proof_video_profile"] = profile
             record_path = PROOF_SOURCE_DIR / f"{identity}.json"
             record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             write_json(record_path, record)
@@ -5554,110 +5556,11 @@ def docker_resources_for_run(args: list[str]) -> set[str]:
 
 
 def acquire_docker_test_lease(lease_id: str, owner: str, resources: set[str]) -> None:
-    session_control.acquire_test_resource_lease(lease_id, owner, resources, mode="shared")
+    session_control.acquire_test_resource_lease(lease_id, owner, resources)
 
 
 def release_docker_test_lease(lease_id: str) -> None:
     session_control.release_test_resource_lease(lease_id)
-
-
-def run_with_resource_lease_heartbeats(
-    command: list[str],
-    *,
-    env: dict[str, str],
-    leases: list[tuple[str, str, set[str], str]],
-) -> int:
-    """Run a command while renewing each shared-runtime or exclusive-account lease."""
-    stopped = threading.Event()
-    renewal_error: list[RuntimeError] = []
-
-    def heartbeat() -> None:
-        while not stopped.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
-            for lease_id, owner, resources, mode in leases:
-                try:
-                    session_control.renew_test_resource_lease(
-                        lease_id,
-                        owner,
-                        resources,
-                        mode=mode,
-                    )
-                except RuntimeError as exc:
-                    renewal_error.append(exc)
-                    return
-
-    thread = threading.Thread(target=heartbeat, name="test-resource-lease-heartbeat", daemon=True)
-    thread.start()
-    try:
-        result = subprocess.run(command, cwd=PROJECT_ROOT, env=env)
-    finally:
-        stopped.set()
-        thread.join(timeout=1)
-    if renewal_error:
-        print(f"Docker test lease renewal failed: {renewal_error[0]}", file=sys.stderr)
-        return 2
-    return result.returncode
-
-
-PLAYWRIGHT_NORMAL_ACCOUNT_SLOTS = (21, 22, 23, 24, 25, 26, 27, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
-PLAYWRIGHT_RESERVED_ACCOUNTS_BY_SPEC = {
-    "account-recovery-flow.spec.ts": 14,
-    "backup-code-login-flow.spec.ts": 15,
-    "backup-codes-settings.spec.ts": 16,
-    "cli-created-account-login.spec.ts": 17,
-    "recovery-key-login-flow.spec.ts": 17,
-    "recovery-key-settings.spec.ts": 18,
-    "settings-change-email.spec.ts": 19,
-    "api-keys-flow.spec.ts": 20,
-}
-
-
-def _argument_value(args: list[str], name: str) -> str:
-    for index, value in enumerate(args):
-        if value == name and index + 1 < len(args):
-            return args[index + 1]
-        if value.startswith(f"{name}="):
-            return value.split("=", 1)[1]
-    return ""
-
-
-def acquire_standalone_playwright_account(
-    forwarded_args: list[str],
-    *,
-    owner: str,
-    timeout: int = session_control.DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
-) -> tuple[list[str], tuple[str, str, set[str], str] | None, int | None]:
-    """Claim one account lane for a standalone spec across all chat processes."""
-    spec = _argument_value(forwarded_args, "--spec")
-    if not spec or spec == "test-account-preflight.spec.ts":
-        return forwarded_args, None, None
-    explicit = _argument_value(forwarded_args, "--account")
-    required = PLAYWRIGHT_RESERVED_ACCOUNTS_BY_SPEC.get(spec)
-    candidates = [int(explicit)] if explicit else [required] if required is not None else list(PLAYWRIGHT_NORMAL_ACCOUNT_SLOTS)
-    deadline = time.monotonic() + max(0, timeout)
-    announced = False
-    while True:
-        for account in candidates:
-            lease_id = f"playwright-account-{account}-{uuid.uuid4().hex[:10]}"
-            resources = {f"playwright-account:{account}"}
-            try:
-                session_control.acquire_test_resource_lease(
-                    lease_id,
-                    owner,
-                    resources,
-                    timeout=0,
-                    poll=1,
-                    mode="exclusive",
-                )
-            except RuntimeError:
-                continue
-            updated = forwarded_args if explicit else [*forwarded_args, "--account", str(account)]
-            return updated, (lease_id, owner, resources, "exclusive"), account
-        if time.monotonic() >= deadline:
-            raise RuntimeError("Timed out waiting for a free Playwright test-account lane")
-        if not announced:
-            print("All eligible Playwright account lanes are busy; waiting for the next released lane...", file=sys.stderr)
-            announced = True
-        time.sleep(5)
 
 
 def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:
@@ -5831,7 +5734,6 @@ def begin_control_plane_dispatch(
     subject_commit: str,
     selected_test_keys: list[str],
     resources: set[str],
-    account: str = "default",
 ) -> tuple[ControlPlaneTestControlStore | None, str, bool]:
     """Fingerprint a run and suppress an equivalent live/successful dispatch."""
     store = get_store()
@@ -5844,7 +5746,6 @@ def begin_control_plane_dispatch(
         tests=selection,
         profile=suite,
         required_services=sorted(resources),
-        account=account,
     )
     dispatch_key = str(dispatch["dispatch_key"])
     if reused:
@@ -5919,15 +5820,26 @@ def command_run(runner_args: list[str]) -> int:
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
-    docker_lease_owner = os.environ.get("OPENCODE_SESSION_ID", "manual")
-    account_lease: tuple[str, str, set[str], str] | None = None
-    selected_account: int | None = None
+    resources = docker_resources_for_run(options.forwarded_args)
+    docker_lease_id = f"test-{uuid.uuid4().hex[:12]}" if resources else ""
+    if docker_lease_id:
+        try:
+            acquire_docker_test_lease(
+                docker_lease_id,
+                os.environ.get("OPENCODE_SESSION_ID", "manual"),
+                resources,
+            )
+        except RuntimeError as exc:
+            print(f"Test dispatch blocked by Docker restart coordination: {exc}", file=sys.stderr)
+            return 2
     deployment_verified = False
     if options.gate_deploy:
         try:
             deployment_verified = run_e2e_deploy_gate(options)
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
+            if docker_lease_id:
+                release_docker_test_lease(docker_lease_id)
             return 2
     try:
         preflight_test_control_plane()
@@ -5937,35 +5849,9 @@ def command_run(runner_args: list[str]) -> int:
             f"{exc}",
             file=sys.stderr,
         )
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
         return 2
-
-    try:
-        forwarded_args, account_lease, selected_account = acquire_standalone_playwright_account(
-            options.forwarded_args,
-            owner=docker_lease_owner,
-        )
-        if forwarded_args is not options.forwarded_args:
-            options = ControlRunOptions(
-                forwarded_args=forwarded_args,
-                expected_commit=options.expected_commit,
-                require_exact_commit=options.require_exact_commit,
-                gate_deploy=options.gate_deploy,
-                detach=options.detach,
-                lease_required=options.lease_required,
-                lease_id=options.lease_id,
-                campaign_key=options.campaign_key,
-                debug_group_key=options.debug_group_key,
-                proof_video_profile=options.proof_video_profile,
-            )
-    except RuntimeError as exc:
-        print(f"Playwright account allocation failed: {exc}", file=sys.stderr)
-        return 2
-
-    resources = docker_resources_for_run(options.forwarded_args)
-    # The execution engine acquires a shared dev-runtime lease only around the
-    # CLI/Playwright phase. Keep required services here for dispatch canaries,
-    # but do not hold the runtime across Vercel waits, unit suites, or Apple.
-    docker_lease_id = ""
 
     dispatch_store: ControlPlaneTestControlStore | None = None
     dispatch_key = ""
@@ -5976,26 +5862,16 @@ def command_run(runner_args: list[str]) -> int:
             subject_commit=subject_commit,
             selected_test_keys=selected_test_keys,
             resources=resources,
-            account=str(selected_account) if selected_account is not None else "default",
         )
     except RuntimeError as exc:
         print(f"Test dispatch rejected by the engineering control plane: {exc}", file=sys.stderr)
-        if account_lease:
-            release_docker_test_lease(account_lease[0])
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
         return 2
     if dispatch_reused:
-        if account_lease:
-            release_docker_test_lease(account_lease[0])
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
         return 0
-
-    if docker_lease_id:
-        try:
-            acquire_docker_test_lease(docker_lease_id, docker_lease_owner, resources)
-        except RuntimeError as exc:
-            if account_lease:
-                release_docker_test_lease(account_lease[0])
-            print(f"Test dispatch blocked by Docker restart coordination: {exc}", file=sys.stderr)
-            return 2
 
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
@@ -6003,10 +5879,6 @@ def command_run(runner_args: list[str]) -> int:
         run_env["OPENMATES_TEST_SUBJECT_COMMIT"] = subject_commit
     if docker_lease_id:
         run_env["OPENMATES_DOCKER_TEST_LEASE_HELD"] = "1"
-    if selected_account is not None:
-        run_env["OPENMATES_TEST_ACCOUNT"] = str(selected_account)
-    if account_lease:
-        run_env[PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV] = "1"
     seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
     if selected_test_labels:
         run_env["OPENMATES_CAMPAIGN_TEST_LABELS_JSON"] = json.dumps(selected_test_labels)
@@ -6021,24 +5893,12 @@ def command_run(runner_args: list[str]) -> int:
             suite, tests = infer_run_suite_and_tests(options.forwarded_args)
             mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
-        active_resource_leases: list[tuple[str, str, set[str], str]] = []
-        if docker_lease_id:
-            active_resource_leases.append((docker_lease_id, docker_lease_owner, resources, "shared"))
-        if account_lease:
-            active_resource_leases.append(account_lease)
-        if active_resource_leases:
-            returncode = run_with_resource_lease_heartbeats(
-                command,
-                env=run_env,
-                leases=active_resource_leases,
-            )
-        else:
-            returncode = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env).returncode
+        result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
         if dispatch_store and dispatch_key:
             dispatch_store.update_dispatch(
                 dispatch_key,
-                "succeeded" if returncode == 0 else "failed",
-                None if returncode == 0 else f"runner_exit:{returncode}",
+                "succeeded" if result.returncode == 0 else "failed",
+                None if result.returncode == 0 else f"runner_exit:{result.returncode}",
             )
             dispatch_terminal = True
         recorded_commit = record_latest_run_artifact(
@@ -6051,12 +5911,12 @@ def command_run(runner_args: list[str]) -> int:
             response_media_run_type=playwright_response_media_run_type(options),
         )
         if not recorded_commit:
-            return 2 if options.expected_commit else returncode
+            return 2 if options.expected_commit else result.returncode
         if options.campaign_key:
             artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
             if artifacts:
                 add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
-        return returncode
+        return result.returncode
     finally:
         if dispatch_store and dispatch_key and not dispatch_terminal:
             try:
@@ -6065,8 +5925,6 @@ def command_run(runner_args: list[str]) -> int:
                 print(f"Could not finalize interrupted dispatch {dispatch_key}: {exc}", file=sys.stderr)
         if docker_lease_id:
             release_docker_test_lease(docker_lease_id)
-        if account_lease:
-            release_docker_test_lease(account_lease[0])
 
 
 def _registry_option_name(action: argparse.Action) -> str:

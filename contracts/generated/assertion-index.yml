@@ -13984,7 +13984,7 @@ assertions:
       surface: gui.web
     - &id1595
       path: frontend/apps/web_app/tests/proof-video-architecture.spec.ts
-      line: 92
+      line: 84
       name: records a fast spec-owned welcome tutorial timeline
       surface: gui.web
     tests:
@@ -14190,7 +14190,7 @@ assertions:
       surface: gui.web
     - &id1618
       path: frontend/apps/web_app/tests/proof-video-architecture.spec.ts
-      line: 92
+      line: 84
       name: records a fast spec-owned welcome tutorial timeline
       surface: gui.web
     tests:
