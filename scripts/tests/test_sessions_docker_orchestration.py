@@ -209,10 +209,22 @@ def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, t
 
     monkeypatch.setattr(sessions, "update_docker_operation", update_operation)
     monkeypatch.setattr(sessions.time, "sleep", lambda _seconds: events.append(("sleep", "admission")))
-    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: events.append(("lock", "docker_rebuild")) or True)
+    monkeypatch.setattr(
+        sessions,
+        "_wait_and_acquire_session_lock",
+        lambda *_args, **_kwargs: pytest.fail("persistent Docker restarts must not use the legacy lock"),
+    )
     monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: events.append(("drain", "tests")) or [])
-    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
-    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        sessions,
+        "_acquire_session_lock",
+        lambda *_args, **_kwargs: pytest.fail("persistent Docker restarts must not acquire the legacy lock"),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_release_session_lock",
+        lambda *_args, **_kwargs: pytest.fail("persistent Docker restarts must not release the legacy lock"),
+    )
     monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
     monkeypatch.setattr(
         sessions,
@@ -235,8 +247,8 @@ def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, t
         ("sleep", "admission"),
         ("update", "admitted"),
     ]
-    assert events.index(("lock", "docker_rebuild")) > events.index(("update", "admitted"))
-    assert events.index(("compose", "restart")) > events.index(("lock", "docker_rebuild"))
+    assert events.index(("drain", "tests")) > events.index(("update", "admitted"))
+    assert events.index(("compose", "restart")) > events.index(("drain", "tests"))
 
 
 def test_docker_checkout_root_rejects_unknown_session(monkeypatch) -> None:

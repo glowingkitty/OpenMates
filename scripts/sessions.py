@@ -2232,6 +2232,33 @@ def _list_persistent_docker_operations(*, limit: int = DOCKER_OPERATION_HISTORY_
     return [_legacy_operation_record(operation) for operation in response.get("operations") or []]
 
 
+def _active_docker_operation_from_list(docker_operations: list[dict]) -> dict | None:
+    active_status_priority = {
+        "restarting": 0,
+        "verifying": 1,
+        "draining_tests": 2,
+        "admitted": 3,
+        "queued": 4,
+    }
+    active_candidates = [
+        operation
+        for operation in docker_operations
+        if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
+    ]
+    active_candidates.sort(
+        key=lambda operation: (
+            active_status_priority.get(str(operation.get("status") or ""), 99),
+            str(operation.get("requested_at") or ""),
+            str(operation.get("id") or ""),
+        )
+    )
+    return next(iter(active_candidates), None)
+
+
+def _persistent_active_docker_operation() -> dict | None:
+    return _active_docker_operation_from_list(_list_persistent_docker_operations(limit=50))
+
+
 def wait_for_docker_operation_admitted(
     operation_id: str,
     *,
@@ -8530,29 +8557,7 @@ def presence_status_view(
     persistent_docker_operations = _list_persistent_docker_operations()
     if persistent_docker_operations:
         docker_operations = persistent_docker_operations
-    active_status_priority = {
-        "restarting": 0,
-        "verifying": 1,
-        "draining_tests": 2,
-        "admitted": 3,
-        "queued": 4,
-    }
-    active_candidates = [
-        operation
-        for operation in docker_operations
-        if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
-    ]
-    active_candidates.sort(
-        key=lambda operation: (
-            active_status_priority.get(str(operation.get("status") or ""), 99),
-            str(operation.get("requested_at") or ""),
-            str(operation.get("id") or ""),
-        )
-    )
-    active_docker_operation = next(
-        iter(active_candidates),
-        None,
-    )
+    active_docker_operation = _active_docker_operation_from_list(docker_operations)
     view["infrastructure"] = {
         "active_docker_operation": active_docker_operation,
         "test_leases": list((infrastructure.get("test_leases") or {}).values()),
@@ -9718,20 +9723,23 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
 
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
     try:
         wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
-        _wait_and_acquire_session_lock(
-            "docker_rebuild",
-            args.session,
-            phase="draining_tests",
-            timeout=args.timeout,
-            poll=args.poll,
-            heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
-        )
-        lock_acquired = True
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock(
+                "docker_rebuild",
+                args.session,
+                phase="draining_tests",
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+            )
+            lock_acquired = True
 
         def heartbeat() -> None:
-            _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
             update_docker_operation(operation["id"], "draining_tests")
 
         wait_for_docker_test_leases(
@@ -9743,7 +9751,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
         if _docker_checkout_root(args.session) != checkout_root:
             raise RuntimeError("Docker restart session worktree changed while waiting for the lock")
         update_docker_operation(operation["id"], "restarting", waiting_for_tests=[])
-        _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
         compose_args = (
             ["up", "-d", "--build", *services]
             if getattr(args, "build", False)
@@ -9754,21 +9763,22 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             cwd=str(checkout_root),
             timeout=max(120, args.timeout),
             heartbeat=lambda: (
-                _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
                 update_docker_operation(operation["id"], "restarting"),
             ),
         )
         if rc != 0:
             raise RuntimeError((stderr or stdout or "Docker Compose restart failed").strip())
         update_docker_operation(operation["id"], "verifying")
-        _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
         health = wait_for_docker_services_healthy(
             services,
             timeout=args.health_timeout,
             poll=args.poll,
             checkout_root=checkout_root,
             heartbeat=lambda: (
-                _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
+                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
                 update_docker_operation(operation["id"], "verifying"),
             ),
         )
@@ -9801,6 +9811,18 @@ def cmd_docker(args: argparse.Namespace) -> None:
 
 def _active_lock_snapshot(lock_type: str) -> dict:
     """Return the active lock snapshot, or an empty dict when available/stale."""
+    if lock_type == "docker_rebuild" and _persistent_coordination_enabled():
+        operation = _persistent_active_docker_operation()
+        if operation:
+            return {
+                "status": "IN_PROGRESS",
+                "claimed_by": operation.get("session_id") or operation.get("id") or "persistent-docker",
+                "phase": operation.get("status") or "queued",
+                "since": operation.get("requested_at") or "",
+                "last_updated": operation.get("updated_at") or operation.get("started_at") or operation.get("requested_at") or "",
+                "commit_sha": "",
+            }
+        return {}
     data = _load_sessions()
     lock = data.get("locks", {}).get(lock_type, {})
     if _is_lock_active(lock, lock_type):
