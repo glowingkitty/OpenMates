@@ -53,10 +53,9 @@ run, use the helper's `--latest-run-type` path through `scripts/tests.py run` or
 `scripts/cli_video_capture.py`, then paste the emitted `<video>` HTML in the next
 assistant progress response after the tool returns. This is required even when
 the run failed, the proof is visually broken, or more debugging is still needed,
-because the operator needs to see visual progress over time. These latest-run
-uploads overwrite stable S3 keys under
-`opencode-responses/latest/` so only the latest video for each run type remains
-stored in response media.
+because the operator needs to see visual progress over time. These run-type
+uploads use content-addressed S3 keys under `opencode-responses/runs/`, so an
+artifact embedded in an earlier response cannot be replaced by a later run.
 Every implemented executable spec requires its success response to include the
 delivered `snippet_html` for every required CLI, web, and native proof video in
 that same task-closing response. Do not replace embedded `<video>` elements with

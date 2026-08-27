@@ -34,7 +34,7 @@ MAX_EXPIRES_SECONDS = DEFAULT_EXPIRES_SECONDS
 DEFAULT_CONTAINER = "api"
 CONTAINER_TMP_DIR = "/tmp/opencode-response-media"
 MAX_MEDIA_BYTES = 500 * 1024 * 1024
-LATEST_KEY_PREFIX = "opencode-responses/latest"
+RUN_KEY_PREFIX = "opencode-responses/runs"
 LATEST_RUN_TYPE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 WEBVTT_TIMESTAMP_RE = re.compile(
     r"^(\d{2}):(\d{2}):(\d{2})\.(\d{3}) --> (\d{2}):(\d{2}):(\d{2})\.(\d{3})$"
@@ -237,11 +237,15 @@ def object_key(path: Path, content: bytes, now: dt.datetime | None = None) -> st
     )
 
 
-def latest_run_object_key(path: Path, content_type: str, run_type: str) -> str:
+def run_object_prefix(run_type: str, content_sha256: str) -> str:
     if not LATEST_RUN_TYPE_RE.fullmatch(run_type):
         raise ValueError("--latest-run-type must be 1-80 chars of letters, numbers, dots, underscores, or hyphens")
+    return f"{RUN_KEY_PREFIX}/{run_type}/{content_sha256}"
+
+
+def latest_run_object_key(path: Path, content_type: str, run_type: str, content_sha256: str) -> str:
     stem = "video" if content_type.startswith("video/") else "image"
-    return f"{LATEST_KEY_PREFIX}/{run_type}/{stem}{path.suffix.lower()}"
+    return f"{run_object_prefix(run_type, content_sha256)}/{stem}{path.suffix.lower()}"
 
 
 def container_path_for(source: Path, key: str) -> str:
@@ -398,8 +402,12 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
     kind = media_kind(content_type)
     expires_in = ensure_expires(args.expires_in)
     latest_run_type = args.latest_run_type.strip()
-    key = latest_run_object_key(source, content_type, latest_run_type) if latest_run_type else object_key(source, content)
     sha256 = hashlib.sha256(content).hexdigest()
+    key = (
+        latest_run_object_key(source, content_type, latest_run_type, sha256)
+        if latest_run_type
+        else object_key(source, content)
+    )
     container_path = container_path_for(source, key)
     request = {
         "bucket": BUCKET_NAME,
@@ -433,8 +441,9 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         captions_content_type = guess_content_type(captions_source)
         if captions_content_type != "text/vtt":
             raise ValueError("--captions requires a WebVTT .vtt file")
+        captions_sha256 = hashlib.sha256(captions_content).hexdigest()
         captions_key = (
-            f"{LATEST_KEY_PREFIX}/{latest_run_type}/captions.vtt"
+            f"{run_object_prefix(latest_run_type, sha256)}/captions-{captions_sha256}.vtt"
             if latest_run_type
             else object_key(captions_source, captions_content)
         )
@@ -443,7 +452,7 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
             "container_path": container_path_for(captions_source, captions_key),
             "content_type": captions_content_type,
             "key": captions_key,
-            "sha256": hashlib.sha256(captions_content).hexdigest(),
+            "sha256": captions_sha256,
         }
     if not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", args.captions_language):
         raise ValueError("--captions-language must be a valid BCP-47 language tag")
@@ -529,7 +538,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--latest-run-type",
         default="",
-        help="Overwrite opencode-responses/latest/<type>/ media for the latest test or CLI run",
+        help="Group test or CLI response media by run type while keeping each emitted artifact immutable",
     )
     parser.add_argument(
         "--output",

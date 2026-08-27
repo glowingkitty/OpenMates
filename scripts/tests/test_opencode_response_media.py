@@ -90,7 +90,7 @@ def test_dry_run_video_with_captions_outputs_toggleable_track(tmp_path: Path, ca
     assert " default>" in html
 
 
-def test_latest_run_type_uses_stable_replacement_keys(tmp_path: Path, capsys) -> None:
+def test_latest_run_type_uses_content_addressed_immutable_keys(tmp_path: Path, capsys) -> None:
     video = tmp_path / "first-recording.webm"
     captions = tmp_path / "first-captions.vtt"
     video.write_bytes(b"fake webm bytes")
@@ -110,8 +110,25 @@ def test_latest_run_type_uses_stable_replacement_keys(tmp_path: Path, capsys) ->
     assert code == 0
     data = json.loads(capsys.readouterr().out)
     assert data["latest_run_type"] == "spec-ts-web-laptop"
-    assert data["key"] == "opencode-responses/latest/spec-ts-web-laptop/video.webm"
-    assert data["captions"]["key"] == "opencode-responses/latest/spec-ts-web-laptop/captions.vtt"
+    video_digest = media.hashlib.sha256(video.read_bytes()).hexdigest()
+    captions_digest = media.hashlib.sha256(captions.read_bytes()).hexdigest()
+    prefix = f"opencode-responses/runs/spec-ts-web-laptop/{video_digest}"
+    assert data["key"] == f"{prefix}/video.webm"
+    assert data["captions"]["key"] == f"{prefix}/captions-{captions_digest}.vtt"
+
+    second_video = tmp_path / "second-recording.webm"
+    second_video.write_bytes(b"different webm bytes")
+    assert media.main([
+        str(second_video),
+        "--latest-run-type",
+        "spec-ts-web-laptop",
+        "--dry-run",
+        "--output",
+        "json",
+    ]) == 0
+    second = json.loads(capsys.readouterr().out)
+    assert second["key"] != data["key"]
+    assert "/latest/" not in second["key"]
 
 
 def test_latest_run_type_rejects_unsafe_scope(tmp_path: Path, capsys) -> None:
