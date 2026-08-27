@@ -24,6 +24,7 @@ const TERMINAL_RUN_STATUS = /^(completed|failed|cancelled)$/;
 const TERMINAL_NODE_STATUS = /^(completed|failed|skipped)$/;
 const VISIBLE_RUN_DETAIL_STATUS = /^(queued|running|completed|failed|cancelled)$/;
 const VISIBLE_NODE_STATUS = /^(queued|running|completed|failed|skipped)$/;
+const PROOF_CAPTURE_HOLD_MS = 2_000;
 
 const READY_RUN_TASKS_PROOF = defineVideoProof({
 	id: 'workflows-ready-run-tasks',
@@ -115,6 +116,10 @@ async function expectNotCoveredByTaskComposer(page: any, target: any) {
 	expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(composerBox.y);
 }
 
+async function holdProofCheckpoint(page: any) {
+	if (IS_PROOF_CAPTURE) await page.waitForTimeout(PROOF_CAPTURE_HOLD_MS);
+}
+
 test.describe('Ready Workflow run Tasks projection', () => {
 	// contract-test: direct surface=gui.web assertions=workflows.activation.reachable-side-effect,workflows.execution.lifecycle-visible,tasks.workflow-projections.read-only,tasks.detail.embed-responsive
 	test('authors a ready Workflow and preserves the live projected run detail at proof viewports', async ({ page }: { page: any }, testInfo: any) => {
@@ -162,6 +167,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 						await expect(page.getByTestId('workflow-readiness-trigger-count')).toHaveText('0');
 					});
 					await proof.checkpoint('blank-draft-visible');
+					await holdProofCheckpoint(page);
 				}
 
 				await page.getByTestId('workflow-add-time-trigger').click();
@@ -190,6 +196,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 						await expect(page.getByTestId('workflow-run-started')).toHaveAttribute('data-run-id', run.id);
 					});
 					await proof.checkpoint('ready-run-visible');
+					await holdProofCheckpoint(page);
 				}
 
 				await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
@@ -227,6 +234,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 						await expect(runNodeStatus).toBeVisible();
 					});
 					await proof.checkpoint('projection-detail-visible');
+					await holdProofCheckpoint(page);
 				}
 
 				const initialStatus = await liveStatus.getAttribute('data-status');
@@ -259,6 +267,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(detailOpenBoardScrollLeft);
 					});
 					await proof.checkpoint('responsive-close-visible');
+					await holdProofCheckpoint(page);
 				}
 			}
 
