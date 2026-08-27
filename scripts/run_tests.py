@@ -192,6 +192,8 @@ ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS = 15 * 60
 ACCOUNT_PREFLIGHT_CACHE_PATH = CONTROL_PLANE_ROOT / "test-results" / "account-preflight-cache.json"
 ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH = Path("/tmp/openmates-account-preflight-cache.lock")
 MAX_ERROR_SNIPPET = 600
+GITHUB_DISPATCH_RATE_LIMIT_RESERVE = 25
+GITHUB_DISPATCH_INCIDENT_KEY = "infrastructure::github-actions-dispatch"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
 TEST_RECORDINGS_S3_PREFIX = "latest"
@@ -257,6 +259,151 @@ def discover_release_gate_specs() -> list[str]:
 
 
 RELEASE_GATE_SPECS = discover_release_gate_specs()
+
+CRITICAL_TEST_CATEGORIES = frozenset({"billing", "signup_auth", "core_chat"})
+CORE_CHAT_CRITICAL_SPEC_PATTERNS = ("*chat*.spec.ts",)
+CRITICAL_TEST_REGISTRY: tuple[dict[str, object], ...] = (
+    {"spec": "chat-flow.spec.ts", "category": "core_chat", "reason": "Primary authenticated chat journey.", "active": True},
+    {"spec": "anonymous-free-chat.spec.ts", "category": "core_chat", "reason": "Primary anonymous chat journey.", "active": True},
+    {"spec": "signup-2fa-reconnect-preview.spec.ts", "category": "signup_auth", "reason": "Signup reconnect and 2FA recovery.", "active": True},
+    {"spec": "signup-flow-bank-transfer.spec.ts", "category": "signup_auth", "reason": "Signup with bank-transfer billing setup.", "active": True},
+    {"spec": "signup-flow-passkey.spec.ts", "category": "signup_auth", "reason": "Passkey signup and authentication.", "active": True},
+    {"spec": "signup-flow-stripe-eu.spec.ts", "category": "signup_auth", "reason": "EU Stripe signup journey.", "active": True},
+    {"spec": "signup-flow-stripe-managed.spec.ts", "category": "signup_auth", "reason": "Managed Stripe signup journey.", "active": True},
+    {"spec": "signup-free-testing-credits.spec.ts", "category": "signup_auth", "reason": "Free-credit signup entitlement.", "active": True},
+    {"spec": "signup-skip-2fa-flow.spec.ts", "category": "signup_auth", "reason": "Signup path without optional 2FA.", "active": True},
+    {"spec": "buy-credits-flow.spec.ts", "category": "billing", "reason": "Primary credit purchase journey.", "active": True},
+    {"spec": "referral-signup-purchase.spec.ts", "category": "billing", "reason": "Referral attribution through purchase.", "active": True},
+    {"spec": "saved-payment-invoice-flow.spec.ts", "category": "billing", "reason": "Saved payment and invoice journey.", "active": True},
+    {"spec": "settings-buy-credits-bank-transfer.spec.ts", "category": "billing", "reason": "Settings bank-transfer purchase.", "active": True},
+    {"spec": "settings-buy-credits-stripe-eu.spec.ts", "category": "billing", "reason": "Settings EU Stripe purchase.", "active": True},
+    {"spec": "settings-buy-credits-stripe-managed.spec.ts", "category": "billing", "reason": "Settings managed Stripe purchase.", "active": True},
+    {"spec": "settings-gift-card-bank-transfer.spec.ts", "category": "billing", "reason": "Gift-card bank-transfer journey.", "active": True},
+    {"spec": "settings-gift-card-redemption.spec.ts", "category": "billing", "reason": "Gift-card redemption and credit application.", "active": True},
+    {"spec": "settings-support-bank-transfer.spec.ts", "category": "billing", "reason": "Support payment by bank transfer.", "active": True},
+    {"spec": "settings-support-stripe.spec.ts", "category": "billing", "reason": "Support payment by Stripe.", "active": True},
+    {"spec": "usage-token-breakdown.spec.ts", "category": "billing", "reason": "Usage and charged-token accounting.", "active": True},
+)
+
+REVIEWED_BROAD_CHAT_SPECS = frozenset({
+    "apple-chat-history-contracts.spec.ts",
+    "apple-chat-ui-contracts.spec.ts",
+    "apple-cross-client-chat.spec.ts",
+    "background-chat-notification.spec.ts",
+    "chat-error-report-consent.spec.ts",
+    "chat-header-navigation-order.spec.ts",
+    "chat-key-wrapper-migration.spec.ts",
+    "chat-management-flow.spec.ts",
+    "chat-rendering-parity-oracle.spec.ts",
+    "chat-replay-demo-mode.spec.ts",
+    "chat-response-processing-ui.spec.ts",
+    "chat-scroll-streaming.spec.ts",
+    "chat-search-flow.spec.ts",
+    "chat-settings-flow.spec.ts",
+    "chat-streaming-render-performance.spec.ts",
+    "chat-sync-empty-indexeddb-recovery.spec.ts",
+    "cli-workflows-ai-chat-real.spec.ts",
+    "daily-inspiration-chat-flow.spec.ts",
+    "demo-chat-embeds.spec.ts",
+    "example-chat-clone.spec.ts",
+    "example-chat-logout-preserve.spec.ts",
+    "example-chat-settings-usage.spec.ts",
+    "example-chats-load.spec.ts",
+    "explain-in-new-chat.spec.ts",
+    "focus-mode-example-chats.spec.ts",
+    "hidden-chats-flow.spec.ts",
+    "import-chats.spec.ts",
+    "long-chat-history.spec.ts",
+    "models3d-example-chat.spec.ts",
+    "new-chat-pinned-sort.spec.ts",
+    "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts",
+    "recent-chats-dedup.spec.ts",
+    "reminder-new-chat.spec.ts",
+    "reminder-same-chat.spec.ts",
+    "seo-demo-chat.spec.ts",
+    "share-chat-flow.spec.ts",
+    "shared-chat-embed-assets.spec.ts",
+    "shared-chat-open.spec.ts",
+    "show-more-chats-flow.spec.ts",
+    "stop-new-chat-draft.spec.ts",
+    "sub-chats-flow.spec.ts",
+    "sub-chats-real-inference.spec.ts",
+    "task-workflow-example-chats.spec.ts",
+    "tasks-chat-settings-parity.spec.ts",
+    "unauthenticated-chat-navigation.spec.ts",
+    "webhook-incoming-chat.spec.ts",
+})
+CRITICAL_TEST_REGISTRY = (
+    *CRITICAL_TEST_REGISTRY,
+    *tuple(
+        {
+            "spec": spec,
+            "category": "core_chat",
+            "reason": "Reviewed as specialized broad chat coverage rather than a primary critical journey.",
+            "active": False,
+        }
+        for spec in sorted(REVIEWED_BROAD_CHAT_SPECS)
+    ),
+)
+
+
+def audit_critical_test_registry() -> list[str]:
+    """Return deterministic registry defects without dispatching tests."""
+    issues: list[str] = []
+    seen: set[str] = set()
+    classified_specs: set[str] = set()
+    for entry in CRITICAL_TEST_REGISTRY:
+        spec = str(entry.get("spec") or "")
+        category = str(entry.get("category") or "")
+        reason = str(entry.get("reason") or "").strip()
+        if not isinstance(entry.get("active"), bool):
+            issues.append(f"invalid active flag for {spec}")
+        if not spec or spec in seen:
+            issues.append(f"duplicate or empty critical spec: {spec or '<empty>'}")
+        seen.add(spec)
+        classified_specs.add(spec)
+        if category not in CRITICAL_TEST_CATEGORIES:
+            issues.append(f"invalid critical category for {spec}: {category}")
+        if not reason:
+            issues.append(f"missing critical reason for {spec}")
+        if not (SPEC_DIR / spec).is_file():
+            issues.append(f"classified critical-candidate spec is missing: {spec}")
+
+    likely_critical = set(RELEASE_GATE_SPECS) - {"dev-smoke/dev-smoke-reachability.spec.ts"}
+    likely_critical.update(
+        path.relative_to(SPEC_DIR).as_posix()
+        for pattern in CORE_CHAT_CRITICAL_SPEC_PATTERNS
+        for path in SPEC_DIR.rglob(pattern)
+    )
+    for spec in sorted(likely_critical - classified_specs):
+        issues.append(f"likely critical spec is unclassified: {spec}")
+    return issues
+
+
+def daily_playwright_phases(all_specs: list[str]) -> dict[str, list[str]]:
+    """Partition a daily Playwright run into ordered critical and broad phases."""
+    available = set(all_specs)
+    critical = [
+        str(entry["spec"])
+        for entry in CRITICAL_TEST_REGISTRY
+        if entry.get("active") is True and entry["spec"] in available
+    ]
+    critical_set = set(critical)
+    return {
+        "critical": critical,
+        "broad": [spec for spec in all_specs if spec not in critical_set],
+    }
+
+
+def execute_daily_playwright_phases(
+    phases: dict[str, list[str]],
+    run_phase: Callable[[str, list[str]], SuiteResult],
+) -> dict[str, SuiteResult]:
+    """Execute both daily phases; product failures never suppress broad coverage."""
+    return {
+        "critical": run_phase("critical", phases["critical"]),
+        "broad": run_phase("broad", phases["broad"]),
+    }
 
 
 def print_core_journey_matrix() -> None:
@@ -325,6 +472,8 @@ class SpecResult:
     debug_artifacts: list[str] = field(default_factory=list)
     debug_output_summary: Optional[str] = None
     environment_blocker: Optional[str] = None
+    test_key: Optional[str] = None
+    parent_incident_key: Optional[str] = None
 
 
 @dataclass
@@ -357,11 +506,87 @@ class SeededGiftCard:
     credits_value: int
 
 
+@dataclass
+class DispatchCircuit:
+    """Thread-safe one-way circuit for a run-wide GitHub dispatch incident."""
+    is_open: bool = False
+    incident_code: str = ""
+    reset_at: Optional[int] = None
+    _incident_claimed: bool = False
+    _remaining_requests: Optional[int] = None
+    _budget_configured: bool = False
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def _open_locked(self, incident_code: str, reset_at: Optional[int]) -> bool:
+        if self.is_open:
+            return False
+        self.is_open = True
+        self.incident_code = incident_code
+        self.reset_at = reset_at
+        return True
+
+    def open_rate_limit(self, reset_at: Optional[int] = None) -> bool:
+        with self._lock:
+            return self._open_locked("github_actions_rate_limit", reset_at)
+
+    def open_budget_unknown(self) -> bool:
+        with self._lock:
+            if self._budget_configured:
+                return False
+            return self._open_locked("github_actions_budget_unknown", None)
+
+    def configure_budget(self, remaining: int, reset_at: Optional[int]) -> None:
+        with self._lock:
+            if self._budget_configured:
+                return
+            self._remaining_requests = remaining
+            self.reset_at = reset_at
+            self._budget_configured = True
+
+    def reserve_requests(self, count: int) -> bool:
+        """Atomically reserve dispatch calls while preserving the safety floor."""
+        with self._lock:
+            if self.is_open:
+                return False
+            if not self._budget_configured or self._remaining_requests is None:
+                self._open_locked("github_actions_budget_unknown", None)
+                return False
+            if self._remaining_requests - count < GITHUB_DISPATCH_RATE_LIMIT_RESERVE:
+                self._open_locked("github_actions_rate_limit", self.reset_at)
+                return False
+            self._remaining_requests -= count
+            return True
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "open": self.is_open,
+                "incident_code": self.incident_code,
+                "reset_at": self.reset_at,
+            }
+
+    def claim_incident(self) -> bool:
+        """Return True once so parallel suites emit one parent incident."""
+        with self._lock:
+            if not self.is_open or self._incident_claimed:
+                return False
+            self._incident_claimed = True
+            return True
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown", "not_started"}
+PROBLEM_STATUSES = {
+    "failed",
+    "dispatch_error",
+    "timeout",
+    "result_unknown",
+    "not_started",
+    "infrastructure_incident",
+    "blocked_by_parent",
+}
 
 
 def _is_problem_status(status: str) -> bool:
@@ -377,12 +602,33 @@ def _problem_count(summary: dict) -> int:
         + int(summary.get("timeout", 0))
         + int(summary.get("result_unknown", 0))
         + int(summary.get("not_started", 0))
+        + int(summary.get("infrastructure_incident", 0))
+        + int(summary.get("blocked_by_parent", 0))
     )
 
 
 def _exit_code_for_summary(summary: dict) -> int:
     """Fail the runner for every status that requires operator attention."""
     return 1 if _problem_count(summary) > 0 else 0
+
+
+def _is_github_rate_limit_error(detail: str) -> bool:
+    normalized = detail.lower()
+    return "rate limit" in normalized and ("403" in normalized or "exceeded" in normalized)
+
+
+def github_dispatch_error_category(detail: str) -> str:
+    """Reduce provider output to a stable category safe for logs and artifacts."""
+    normalized = detail.lower()
+    if _is_github_rate_limit_error(detail):
+        return "rate_limited"
+    if "401" in normalized or "unauthorized" in normalized or "authentication" in normalized:
+        return "authentication_failed"
+    if "403" in normalized or "permission" in normalized or "forbidden" in normalized:
+        return "permission_denied"
+    if "timeout" in normalized or "timed out" in normalized:
+        return "transport_timeout"
+    return "workflow_dispatch_failed"
 
 
 def _problem_summary_label(summary: dict) -> str:
@@ -1597,7 +1843,32 @@ class GitHubActionsClient:
     def __init__(self, git_sha: Optional[str] = None) -> None:
         self.last_dispatch_error: Optional[str] = None
         self.git_sha = git_sha
+        self.dispatch_circuit = DispatchCircuit()
         self._check_gh()
+
+    def refresh_dispatch_budget(self, required_requests: int) -> dict[str, object]:
+        """Open the circuit before bulk dispatch when GitHub core budget is insufficient."""
+        rc = subprocess.run(
+            ["gh", "api", "rate_limit", "--jq", ".resources.core"],
+            capture_output=True,
+            text=True,
+        )
+        if rc.returncode != 0:
+            self.dispatch_circuit.open_budget_unknown()
+            self.last_dispatch_error = "GitHub Actions request budget could not be verified"
+            return self.dispatch_circuit.snapshot()
+        try:
+            budget = json.loads(rc.stdout)
+            remaining = int(budget.get("remaining"))
+            reset_at = int(budget.get("reset"))
+        except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+            self.dispatch_circuit.open_budget_unknown()
+            self.last_dispatch_error = "GitHub Actions request budget metadata was invalid"
+            return self.dispatch_circuit.snapshot()
+        self.dispatch_circuit.configure_budget(remaining, reset_at)
+        if not self.dispatch_circuit.reserve_requests(required_requests):
+            self.last_dispatch_error = "GitHub Actions request budget is insufficient for this dispatch phase"
+        return {**self.dispatch_circuit.snapshot(), "remaining": remaining}
 
     def _check_gh(self) -> None:
         """Verify gh CLI is available and authenticated."""
@@ -1653,6 +1924,9 @@ class GitHubActionsClient:
     ) -> Optional[str]:
         """Submit a workflow without serially waiting for GitHub's run ID."""
         self.last_dispatch_error = None
+        if self.dispatch_circuit.is_open:
+            self.last_dispatch_error = "GitHub Actions dispatch circuit is open"
+            return None
         dispatch_token = f"rt-{os.getpid()}-{time.time_ns()}-{account}"
 
         # playwright-spec.yml: lightweight 1-job workflow per spec
@@ -1683,8 +1957,13 @@ class GitHubActionsClient:
         )
         if rc.returncode != 0:
             detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()
-            self.last_dispatch_error = f"Dispatch failed: {detail}"
-            _log(f"Dispatch failed for {spec}: {detail}", "ERROR")
+            if _is_github_rate_limit_error(detail):
+                self.dispatch_circuit.open_rate_limit()
+                self.last_dispatch_error = "GitHub Actions rate limit blocked workflow dispatch"
+            else:
+                category = github_dispatch_error_category(detail)
+                self.last_dispatch_error = f"GitHub Actions workflow dispatch failed ({category})"
+            _log(f"Dispatch failed for {spec}: {self.last_dispatch_error}", "ERROR")
             return None
         return dispatch_token
 
@@ -2091,6 +2370,36 @@ class BatchRunner:
         if self.progress_callback is not None:
             self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
 
+    def _dispatch_circuit_snapshot(self) -> dict[str, object]:
+        circuit = getattr(self.client, "dispatch_circuit", None)
+        return circuit.snapshot() if circuit is not None else {"open": False}
+
+    @staticmethod
+    def _dispatch_blocked_result(spec: str) -> SpecResult:
+        return SpecResult(
+            name=spec,
+            file=spec,
+            status="blocked_by_parent",
+            error="Blocked by GitHub Actions dispatch infrastructure incident",
+            parent_incident_key=GITHUB_DISPATCH_INCIDENT_KEY,
+        )
+
+    def _dispatch_incident_result(self) -> SpecResult:
+        snapshot = self._dispatch_circuit_snapshot()
+        return SpecResult(
+            name="github-actions-dispatch",
+            file="scripts/run_tests.py",
+            status="infrastructure_incident",
+            error=str(snapshot.get("incident_code") or "github_actions_dispatch_unavailable"),
+            test_key=GITHUB_DISPATCH_INCIDENT_KEY,
+        )
+
+    def _claim_dispatch_incident_result(self) -> list[SpecResult]:
+        circuit = getattr(self.client, "dispatch_circuit", None)
+        if circuit is None or not circuit.claim_incident():
+            return []
+        return [self._dispatch_incident_result()]
+
     def run_all_batches(self) -> SuiteResult:
         """Continuously refill independent account lanes until every spec finishes."""
         if not self.specs:
@@ -2101,6 +2410,14 @@ class BatchRunner:
         if effective_batch_size <= 0:
             return SuiteResult(status="failed", reason="no available normal Playwright account slots")
         suite_start = time.time()
+        refresh_budget = getattr(self.client, "refresh_dispatch_budget", None)
+        if callable(refresh_budget):
+            refresh_budget(len(self.specs))
+        if self._dispatch_circuit_snapshot().get("open"):
+            return self._suite_from_results(
+                [*self._claim_dispatch_incident_result(), *[self._dispatch_blocked_result(spec) for spec in self.specs]],
+                time.time() - suite_start,
+            )
         pending = deque(enumerate(self.specs))
         completed: dict[int, SpecResult] = {}
         state_lock = threading.Lock()
@@ -2112,6 +2429,9 @@ class BatchRunner:
         def worker(preferred_account: int) -> None:
             while not stop_dispatch.is_set():
                 with state_lock:
+                    if self._dispatch_circuit_snapshot().get("open"):
+                        stop_dispatch.set()
+                        return
                     if not pending:
                         return
                     spec_index, spec = pending.popleft()
@@ -2126,11 +2446,15 @@ class BatchRunner:
                     status="dispatch_error",
                     error="Dynamic worker returned no result",
                 )
+                if self._dispatch_circuit_snapshot().get("open") and result.status == "dispatch_error":
+                    result = self._dispatch_blocked_result(spec)
                 with state_lock:
                     completed[spec_index] = result
                     ordered_progress = [completed[index] for index in sorted(completed)]
                     self._emit_progress(ordered_progress, suite_start)
                     if self.fail_fast and result.status == "failed":
+                        stop_dispatch.set()
+                    if self._dispatch_circuit_snapshot().get("open"):
                         stop_dispatch.set()
 
         with ThreadPoolExecutor(max_workers=len(worker_slots), thread_name_prefix="playwright-account") as executor:
@@ -2140,13 +2464,19 @@ class BatchRunner:
 
         if pending:
             for spec_index, spec in pending:
-                completed[spec_index] = SpecResult(
-                    name=spec,
-                    file=spec,
-                    status="not_started",
-                    error="Skipped: fail-fast after an earlier dynamic account lane failed",
+                completed[spec_index] = (
+                    self._dispatch_blocked_result(spec)
+                    if self._dispatch_circuit_snapshot().get("open")
+                    else SpecResult(
+                        name=spec,
+                        file=spec,
+                        status="not_started",
+                        error="Skipped: fail-fast after an earlier dynamic account lane failed",
+                    )
                 )
         all_results = [completed[index] for index in sorted(completed)]
+        if self._dispatch_circuit_snapshot().get("open"):
+            all_results = [*self._claim_dispatch_incident_result(), *all_results]
         self._emit_progress(all_results, suite_start)
         return self._suite_from_results(all_results, time.time() - suite_start)
 
@@ -2246,7 +2576,15 @@ class BatchRunner:
                     proof_video_profile=self.proof_video_profile,
                 )
                 dispatch_token = f"immediate:{run_id}" if run_id is not None else None
-            if dispatch_token is None:
+            circuit = getattr(self.client, "dispatch_circuit", None)
+            retry_admitted = True
+            if dispatch_token is None and circuit is not None:
+                retry_admitted = circuit.reserve_requests(1)
+            if (
+                dispatch_token is None
+                and not self._dispatch_circuit_snapshot().get("open")
+                and retry_admitted
+            ):
                 # Retry once
                 time.sleep(5)
                 if hasattr(self.client, "request_spec_dispatch"):
@@ -3048,6 +3386,10 @@ class BatchRunner:
             d["debug_output_summary"] = r.debug_output_summary
         if r.environment_blocker:
             d["environment_blocker"] = r.environment_blocker
+        if r.test_key:
+            d["test_key"] = r.test_key
+        if r.parent_incident_key:
+            d["parent_incident_key"] = r.parent_incident_key
         return d
 
 
@@ -3083,6 +3425,7 @@ class ResultAggregator:
     ) -> RunResult:
         total = passed = failed = skipped = not_started = 0
         dispatch_error = timeout = result_unknown = 0
+        infrastructure_incident = blocked_by_parent = 0
         suites_dict = {}
 
         for name, suite in suites.items():
@@ -3110,6 +3453,10 @@ class ResultAggregator:
                     result_unknown += 1
                 elif st == "not_started":
                     not_started += 1
+                elif st == "infrastructure_incident":
+                    infrastructure_incident += 1
+                elif st == "blocked_by_parent":
+                    blocked_by_parent += 1
                 else:
                     skipped += 1
 
@@ -3126,6 +3473,9 @@ class ResultAggregator:
                 "dispatch_error": dispatch_error,
                 "timeout": timeout,
                 "result_unknown": result_unknown,
+                "executed_product_failed": failed + timeout + result_unknown,
+                "infrastructure_incident": infrastructure_incident,
+                "blocked_by_parent": blocked_by_parent,
                 "skipped": skipped,
                 "not_started": not_started,
             },
@@ -3254,19 +3604,14 @@ class NotificationService:
             f"Trigger: {'Scheduled (daily)' if os.environ.get('DAILY_RUN_ENVIRONMENT') else 'Manual'}"
         )
 
-        if self.brevo_api_key:
-            self._send_via_brevo(subject, body)
-        elif self.internal_token:
-            self._send_via_internal_api("dispatch-test-start-email", {
-                "recipient_email": self.admin_email,
-                "environment": environment,
-                "trigger_type": "Scheduled (daily)",
-                "git_sha": git_sha,
-                "git_branch": git_branch,
-                "started_at": started_at,
-            })
-        else:
-            _log("No email credentials available — skipping start email", "WARN")
+        self._send_email(subject, body, "dispatch-test-start-email", {
+            "recipient_email": self.admin_email,
+            "environment": environment,
+            "trigger_type": "Scheduled (daily)" if os.environ.get("DAILY_RUN_ENVIRONMENT") else "Manual",
+            "git_sha": git_sha,
+            "git_branch": git_branch,
+            "started_at": started_at,
+        })
 
     def send_daily_discord_status(
         self,
@@ -3378,7 +3723,7 @@ class NotificationService:
         status = "All tests passed" if problem_count == 0 else _problem_summary_label(s)
         subject = f"[OpenMates] {status} ({result.environment})"
 
-        # --- Email path (existing) ---
+        email_receipt = {"configured": False, "status": "unconfigured", "transport": "none"}
         if not self.admin_email:
             _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
         else:
@@ -3386,22 +3731,71 @@ class NotificationService:
             html = self._build_summary_html(result)
             text = self._build_summary_text(result)
 
+            payload = self._build_internal_api_payload(result)
             if self.brevo_api_key:
-                self._send_via_brevo(subject, text, html)
+                try:
+                    provider_accepted = bool(self._send_via_brevo(subject, text, html))
+                except Exception as exc:
+                    provider_accepted = False
+                    _log(f"Brevo summary notification failed: {type(exc).__name__}", "ERROR")
+                if provider_accepted:
+                    email_receipt = {"configured": True, "status": "provider_accepted", "transport": "brevo"}
+                elif self.internal_token:
+                    try:
+                        queued = bool(self._send_via_internal_api("dispatch-test-summary-email", payload))
+                    except Exception as exc:
+                        queued = False
+                        _log(f"Internal summary queue failed: {type(exc).__name__}", "WARN")
+                    email_receipt = {
+                        "configured": True,
+                        "status": "queued_unconfirmed" if queued else "failed",
+                        "transport": "internal_api",
+                    }
+                else:
+                    email_receipt = {"configured": True, "status": "failed", "transport": "brevo"}
             elif self.internal_token:
-                # Fall back to internal API
-                payload = self._build_internal_api_payload(result)
-                self._send_via_internal_api("dispatch-test-summary-email", payload)
+                try:
+                    queued = bool(self._send_via_internal_api("dispatch-test-summary-email", payload))
+                except Exception as exc:
+                    queued = False
+                    _log(f"Internal summary queue failed: {type(exc).__name__}", "WARN")
+                email_receipt = {
+                    "configured": True,
+                    "status": "queued_unconfirmed" if queued else "failed",
+                    "transport": "internal_api",
+                }
             else:
                 _log("No email credentials available — skipping summary email", "WARN")
 
-        # --- Discord fallback (OPE-76) ---
-        # Fires for EVERY run — nightly success gives a visible heartbeat so we
-        # notice if the whole pipeline goes quiet. Failures get a louder ping.
-        discord_delivered = self._send_summary_to_discord(result)
+        try:
+            discord_delivered = bool(self._send_summary_to_discord(result))
+        except Exception as exc:
+            discord_delivered = False
+            _log(f"Discord summary notification failed: {type(exc).__name__}", "ERROR")
+        discord_configured = bool(self.discord_webhook_url)
+        discord_receipt = {
+            "configured": discord_configured,
+            "status": "provider_accepted" if discord_delivered else "failed" if discord_configured else "unconfigured",
+            "transport": "webhook" if discord_configured else "none",
+        }
 
-        self.send_urgent_essential_failure_email(result)
-        return discord_delivered
+        result.flags["email_delivered"] = email_receipt["status"] == "provider_accepted"
+        result.flags["discord_delivered"] = discord_delivered
+        result.flags["notification_channels"] = {
+            "email": email_receipt,
+            "discord": discord_receipt,
+        }
+
+        try:
+            self.send_urgent_essential_failure_email(result)
+        except Exception as exc:
+            _log(f"Urgent essential-flow notification failed: {type(exc).__name__}", "ERROR")
+        configured_receipts = [email_receipt, discord_receipt]
+        return all(
+            receipt["status"] == "provider_accepted"
+            for receipt in configured_receipts
+            if receipt["configured"]
+        ) and any(receipt["configured"] for receipt in configured_receipts)
 
     def send_urgent_essential_failure_email(self, result: RunResult) -> None:
         """Send a separate admin email when signup, login, or chat flow fails."""
@@ -3504,7 +3898,16 @@ class NotificationService:
 
     # --- Private methods ---
 
-    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> None:
+    def _send_email(self, subject: str, text: str, endpoint: str, payload: dict) -> bool:
+        """Send a non-summary email through the best configured transport."""
+        if getattr(self, "brevo_api_key", ""):
+            return self._send_via_brevo(subject, text)
+        if getattr(self, "internal_token", ""):
+            return self._send_via_internal_api(endpoint, payload)
+        _log("No email credentials available — skipping email", "WARN")
+        return False
+
+    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> bool:
         """Send email directly via Brevo API."""
         payload = {
             "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
@@ -3529,11 +3932,13 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email sent via Brevo to {self.admin_email}")
+            return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
+        return False
 
     def _is_essential_test(self, test_entry: dict, suite_name: str = "") -> bool:
         searchable = " ".join(
@@ -4477,7 +4882,7 @@ class NotificationService:
             )
         return (posted, edited, recovered)
 
-    def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
+    def _send_via_internal_api(self, endpoint: str, payload: dict) -> bool:
         """Send via internal API as fallback."""
         url = f"{self.internal_api_url}/internal/{endpoint}"
         try:
@@ -4489,8 +4894,10 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email dispatched via internal API ({endpoint})")
+            return True
         except Exception as e:
             _log(f"Internal API email dispatch failed: {e}", "WARN")
+            return False
 
     def _build_summary_html(self, result: RunResult) -> str:
         """Build a simple HTML email for test results."""
@@ -6553,6 +6960,7 @@ class TestOrchestrator:
         self.suite = args.suite
         self.spec = args.spec
         self.core_journeys = args.core_journeys
+        self.critical_journeys = getattr(args, "critical_journeys", False)
         self.only_failed = args.only_failed
         self.daily = args.daily
         self.force = args.force
@@ -6584,6 +6992,18 @@ class TestOrchestrator:
         self._progress_start_time = 0.0
         self._daily_status_stop = threading.Event()
         self._daily_status_thread: Optional[threading.Thread] = None
+        self.github_dispatch_circuit = DispatchCircuit()
+
+    def _share_dispatch_circuit(self, client: object) -> DispatchCircuit:
+        circuit = getattr(self, "github_dispatch_circuit", None)
+        if circuit is None:
+            circuit = DispatchCircuit()
+            self.github_dispatch_circuit = circuit
+        try:
+            setattr(client, "dispatch_circuit", circuit)
+        except AttributeError:
+            pass
+        return circuit
 
     def _send_daily_status_updates(self, start_time: float) -> None:
         """Post Discord status every 30 minutes until the daily run finishes."""
@@ -6651,6 +7071,9 @@ class TestOrchestrator:
             flags["in_progress"] = True
         if progress_phase:
             flags["progress_phase"] = progress_phase
+        critical_phase = getattr(self, "critical_phase", None)
+        if critical_phase:
+            flags["critical_phase"] = critical_phase
         return flags
 
     def _save_progress_snapshot(
@@ -6955,6 +7378,29 @@ class TestOrchestrator:
         _log(f"  {suite_label}: dispatching to GitHub Actions...")
 
         client = GitHubActionsClient()
+        circuit = self._share_dispatch_circuit(client)
+        refresh_budget = getattr(client, "refresh_dispatch_budget", None)
+        if callable(refresh_budget):
+            refresh_budget(1)
+        if circuit.is_open:
+            tests = []
+            if circuit.claim_incident():
+                tests.append({
+                    "name": "github-actions-dispatch",
+                    "file": "scripts/run_tests.py",
+                    "status": "infrastructure_incident",
+                    "duration_seconds": 0,
+                    "error": circuit.incident_code,
+                    "test_key": GITHUB_DISPATCH_INCIDENT_KEY,
+                })
+            tests.append({
+                "name": f"{suite_label}-dispatch",
+                "status": "blocked_by_parent",
+                "duration_seconds": 0,
+                "error": "Blocked by GitHub Actions dispatch infrastructure incident",
+                "parent_incident_key": GITHUB_DISPATCH_INCIDENT_KEY,
+            })
+            return SuiteResult(status="failed", tests=tests)
 
         # Record pre-dispatch run IDs to find the new one
         pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
@@ -6974,11 +7420,34 @@ class TestOrchestrator:
         )
         if rc.returncode != 0:
             detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()[:500]
-            _log(f"  {suite_label}: dispatch failed: {detail[:200]}", "ERROR")
+            if _is_github_rate_limit_error(detail):
+                circuit.open_rate_limit()
+                tests = []
+                if circuit.claim_incident():
+                    tests.append({
+                        "name": "github-actions-dispatch",
+                        "file": "scripts/run_tests.py",
+                        "status": "infrastructure_incident",
+                        "duration_seconds": 0,
+                        "error": circuit.incident_code,
+                        "test_key": GITHUB_DISPATCH_INCIDENT_KEY,
+                    })
+                tests.append({
+                    "name": f"{suite_label}-dispatch",
+                    "status": "blocked_by_parent",
+                    "duration_seconds": 0,
+                    "error": "Blocked by GitHub Actions dispatch infrastructure incident",
+                    "parent_incident_key": GITHUB_DISPATCH_INCIDENT_KEY,
+                })
+                _log(f"  {suite_label}: GitHub Actions dispatch rate-limited", "ERROR")
+                return SuiteResult(status="failed", tests=tests)
+            category = github_dispatch_error_category(detail)
+            safe_error = f"GitHub Actions workflow dispatch failed ({category})"
+            _log(f"  {suite_label}: {safe_error}", "ERROR")
             return SuiteResult(
                 status="failed",
                 tests=[{"name": f"{suite_label}-dispatch", "status": "dispatch_error",
-                        "duration_seconds": 0, "error": f"Dispatch failed: {detail}"}],
+                        "duration_seconds": 0, "error": safe_error}],
             )
 
         # Find the new run ID
@@ -7304,6 +7773,7 @@ class TestOrchestrator:
         client = GitHubActionsClient(
             git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
         )
+        self._share_dispatch_circuit(client)
 
         blocked_preflight_results: list[SpecResult] = []
         preflight_reason: Optional[str] = None
@@ -7405,8 +7875,54 @@ class TestOrchestrator:
             proof_video_profile=self.proof_video_profile,
             progress_callback=self._save_playwright_progress_snapshot,
         )
+
         try:
-            result = runner.run_all_batches()
+            if getattr(self, "daily", False) and not self.spec:
+                registry_issues = audit_critical_test_registry()
+                if registry_issues:
+                    reason = "; ".join(registry_issues)
+                    result = SuiteResult(
+                        status="failed",
+                        tests=[{
+                            "name": "critical-test-registry",
+                            "file": "scripts/run_tests.py",
+                            "status": "infrastructure_incident",
+                            "error": reason,
+                        }, *_not_started_playwright_specs(specs, reason)],
+                        reason=reason,
+                    )
+                    self.critical_phase = {"status": "failed", "reason": "registry_audit_failed"}
+                else:
+                    phases = daily_playwright_phases(specs)
+                    def run_daily_phase(phase: str, phase_specs: list[str]) -> SuiteResult:
+                        self.current_phase = f"Playwright {phase}"
+                        runner.specs = phase_specs
+                        runner.fail_fast = False
+                        return runner.run_all_batches()
+
+                    phase_results = execute_daily_playwright_phases(phases, run_daily_phase)
+                    critical_result = phase_results["critical"]
+                    self.critical_phase = {
+                        "status": critical_result.status,
+                        "spec_count": len(phases["critical"]),
+                    }
+                    broad_result = phase_results["broad"]
+                    combined_tests = [*critical_result.tests, *broad_result.tests]
+                    incident_seen = False
+                    deduplicated_tests = []
+                    for test in combined_tests:
+                        if test.get("status") == "infrastructure_incident":
+                            if incident_seen:
+                                continue
+                            incident_seen = True
+                        deduplicated_tests.append(test)
+                    result = SuiteResult(
+                        status="failed" if any(_is_problem_status(str(test.get("status") or "")) for test in deduplicated_tests) else "passed",
+                        tests=deduplicated_tests,
+                        duration_seconds=round(critical_result.duration_seconds + broad_result.duration_seconds, 1),
+                    )
+            else:
+                result = runner.run_all_batches()
         finally:
             _cleanup_e2e_gift_cards(seeded_gift_cards)
 
@@ -7454,6 +7970,7 @@ class TestOrchestrator:
         client = GitHubActionsClient(
             git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
         )
+        self._share_dispatch_circuit(client)
         account = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
         preflight_reason: Optional[str] = None
         preflight_duration = 0.0
@@ -7795,6 +8312,12 @@ class TestOrchestrator:
         if self.core_journeys:
             return list(RELEASE_GATE_SPECS)
 
+        if self.critical_journeys:
+            issues = audit_critical_test_registry()
+            if issues:
+                raise RuntimeError("; ".join(issues))
+            return [str(entry["spec"]) for entry in CRITICAL_TEST_REGISTRY if entry.get("active") is True]
+
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()
             self.only_failed_synthetic_files = tuple(f for f in failed if not f.endswith(".spec.ts"))
@@ -7865,14 +8388,6 @@ class TestOrchestrator:
         _log("Pushing to OpenObserve...")
         self.notification.push_to_openobserve(result)
 
-        # Archive daily result
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        archive = RESULTS_DIR / f"daily-run-{today}.json"
-        last_run = RESULTS_DIR / "last-run.json"
-        if last_run.is_file():
-            shutil.copy2(str(last_run), str(archive))
-            _log(f"Archived to {archive.name}")
-
         # Bound daily JSON and screenshot growth to one week. The canonical
         # latest results remain separate from these dated archives.
         archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
@@ -7896,6 +8411,12 @@ class TestOrchestrator:
         _log("Sending summary email...")
         result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
         ResultAggregator.save(result)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        archive = RESULTS_DIR / f"daily-run-{today}.json"
+        last_run = RESULTS_DIR / "last-run.json"
+        if last_run.is_file():
+            shutil.copy2(str(last_run), str(archive))
+            _log(f"Archived to {archive.name}")
         if _problem_count(result.summary) > 0:
             _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
 
@@ -7979,6 +8500,8 @@ def main() -> int:
                              "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
     parser.add_argument("--core-journeys", action="store_true",
                         help="Run the canonical release core journeys through normal commit-pinned orchestration")
+    parser.add_argument("--critical-journeys", action="store_true",
+                        help="Run the audited daily critical billing, signup/auth, and core-chat registry")
     parser.add_argument("--hourly-prod", action="store_true",
                         help="Hourly PROD smoke (dispatches prod-smoke.yml, "
                              "free reachability suite; legacy alias for --prod-free-hourly).")
@@ -8044,16 +8567,20 @@ def main() -> int:
         args.prod_paid_chat,
         args.prod_app_skill,
         args.core_journeys,
+        args.critical_journeys,
     ))
     if mode_flags > 1:
         _log(
             "Pass at most one of: --daily, --hourly-dev, --hourly-prod, "
-            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill, --core-journeys",
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill, --core-journeys, --critical-journeys",
             "ERROR",
         )
         return 2
     if args.core_journeys and args.spec:
         _log("--core-journeys cannot be combined with --spec", "ERROR")
+        return 2
+    if args.critical_journeys and args.spec:
+        _log("--critical-journeys cannot be combined with --spec", "ERROR")
         return 2
     if args.account is not None and not args.spec:
         _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
@@ -8062,6 +8589,8 @@ def main() -> int:
         _log("--create-account-slot requires --spec cli-provision-auth-accounts.spec.ts", "ERROR")
         return 2
     if args.core_journeys:
+        args.suite = "playwright"
+    if args.critical_journeys:
         args.suite = "playwright"
     if args.no_mocks and args.record_live_fixtures:
         _log("--record-live-fixtures requires live-mock markers; do not combine it with --no-mocks", "ERROR")

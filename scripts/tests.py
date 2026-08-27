@@ -82,7 +82,7 @@ DEV_HEALTH_URLS = (
     "https://app.dev.openmates.org/",
 )
 
-PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
+PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown", "infrastructure_incident"}
 BLOCKED_BY_PARENT_STATUS = "blocked_by_parent"
 TEST_LANES = ("deterministic", "live_probe")
 LEASE_TTL_HOURS = 8
@@ -2357,7 +2357,7 @@ def test_label(suite: str, test: dict[str, Any]) -> str:
 
 
 def test_key(suite: str, test: dict[str, Any]) -> str:
-    return f"{suite}::{test_label(suite, test)}"
+    return str(test.get("test_key") or f"{suite}::{test_label(suite, test)}")
 
 
 def iter_tests(run_data: dict[str, Any]):
@@ -2717,6 +2717,7 @@ def _summarize_imported_tests(tests: list[dict[str, Any]]) -> dict[str, int]:
         "dispatch_error": 0,
         "timeout": 0,
         "result_unknown": 0,
+        "infrastructure_incident": 0,
         "skipped": 0,
         "not_started": 0,
     }
@@ -2787,6 +2788,7 @@ def _empty_status_summary() -> dict[str, int]:
         "dispatch_error": 0,
         "timeout": 0,
         "result_unknown": 0,
+        "infrastructure_incident": 0,
         "skipped": 0,
         "not_started": 0,
         "running": 0,
@@ -3619,6 +3621,7 @@ def start_debug_campaign(
     session_id: str,
     selected_test_keys: list[str] | None = None,
     campaign_key: str = "",
+    daily_recovery: bool = False,
 ) -> dict[str, Any]:
     if campaign_key:
         campaign = _debug_campaign(campaign_key)
@@ -3684,7 +3687,11 @@ def start_debug_campaign(
         "selected_test_keys": sorted({str(entry["key"]) for entry in entries}),
         "selected_group_keys": [],
         "current_group_key": None,
-        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": True},
+        "completion_policy": {
+            "group_members_must_pass": True,
+            "combined_final_run_required": True,
+            "daily_recovery_milestone": daily_recovery,
+        },
         "blocker": None,
         "metadata": {"scope_amendments": []},
         "created_at": now,
@@ -4521,7 +4528,10 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
     all_green = bool(groups) and all(group.get("status") == "green" for group in groups)
     final_run = (campaign.get("metadata") or {}).get("final_full_run") or {}
     requires_full_run = bool((campaign.get("completion_policy") or {}).get("combined_final_run_required"))
-    if blocked:
+    recovery_milestone = (campaign.get("metadata") or {}).get("daily_recovery_milestone") or {}
+    if campaign_allows_daily_recovery_milestone(campaign) and recovery_milestone.get("complete") is True:
+        status = "completed"
+    elif blocked:
         status = "blocked"
     elif all_green and requires_full_run and final_run.get("status") != "passed":
         status = "verification_pending"
@@ -4620,6 +4630,88 @@ def finalize_debug_campaign(campaign_key: str, run_key: str) -> dict[str, Any]:
         "status": "completed",
         "metadata": metadata,
         "completed_at": utc_now(),
+        "updated_at": utc_now(),
+    })
+    return debug_campaign_status(campaign_key)
+
+
+def evaluate_daily_recovery_milestone(
+    run_data: dict[str, Any],
+    *,
+    owned_failure_keys: set[str],
+) -> dict[str, Any]:
+    """Evaluate the approved bounded daily-recovery completion policy."""
+    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
+    summary = run_data.get("summary") if isinstance(run_data.get("summary"), dict) else {}
+    channels = flags.get("notification_channels") if isinstance(flags.get("notification_channels"), dict) else {}
+    remaining_failure_keys = {
+        test_key(suite, test)
+        for suite, test in iter_tests(run_data)
+        if str(test.get("status") or "") in PROBLEM_STATUSES
+    }
+    checks = {
+        "full_daily_run": flags.get("daily") is True and flags.get("suite") == "all" and flags.get("only_failed") is False,
+        "critical_green": (flags.get("critical_phase") or {}).get("status") == "passed",
+        "infrastructure_clear": all(
+            int(summary.get(status) or 0) == 0
+            for status in ("infrastructure_incident", "dispatch_error", BLOCKED_BY_PARENT_STATUS)
+        ),
+        "notifications_provider_accepted": all(
+            isinstance(channels.get(channel), dict)
+            and channels[channel].get("configured") is True
+            and channels[channel].get("status") == "provider_accepted"
+            for channel in ("email", "discord")
+        ),
+        "product_failure_budget": int(summary.get("executed_product_failed") or 0) <= 50,
+        "remaining_failures_owned": remaining_failure_keys <= owned_failure_keys,
+    }
+    return {
+        "complete": all(checks.values()),
+        "checks": checks,
+        "remaining_failure_keys": sorted(remaining_failure_keys),
+        "unowned_failure_keys": sorted(remaining_failure_keys - owned_failure_keys),
+    }
+
+
+def campaign_allows_daily_recovery_milestone(campaign: dict[str, Any]) -> bool:
+    """Return whether campaign creation explicitly selected bounded recovery."""
+    return (campaign.get("completion_policy") or {}).get("daily_recovery_milestone") is True
+
+
+def record_daily_recovery_milestone(campaign_key: str, run_key: str) -> dict[str, Any]:
+    """Persist milestone evidence without weakening normal campaign finalization."""
+    campaign = _debug_campaign(campaign_key)
+    if not campaign_allows_daily_recovery_milestone(campaign):
+        raise RuntimeError(
+            "Campaign milestone requires a campaign created with --daily-recovery"
+        )
+    _require_campaign_coordinator_for_campaign(
+        campaign_key,
+        os.environ.get("OPENCODE_SESSION_ID", ""),
+        "campaign milestone",
+    )
+    run = get_store().get_test_run(run_key)
+    run_data = run.get("record_json") if isinstance(run.get("record_json"), dict) else {}
+    groups = debug_groups_for_campaign(campaign_key)
+    owned_failure_keys = {
+        str(member)
+        for group in groups
+        for member in group.get("member_test_keys") or []
+    }
+    milestone = {
+        **evaluate_daily_recovery_milestone(
+            run_data,
+            owned_failure_keys=owned_failure_keys,
+        ),
+        "run_key": run_key,
+        "evaluated_at": utc_now(),
+    }
+    metadata = dict(campaign.get("metadata") or {})
+    metadata["daily_recovery_milestone"] = milestone
+    get_store().update_debug_campaign(campaign_key, {
+        "status": "completed" if milestone["complete"] else "active",
+        "metadata": metadata,
+        "completed_at": utc_now() if milestone["complete"] else None,
         "updated_at": utc_now(),
     })
     return debug_campaign_status(campaign_key)
@@ -5491,6 +5583,8 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
         suite = "hourly-dev"
     elif "--core-journeys" in args:
         suite = "core-journeys"
+    elif "--critical-journeys" in args:
+        suite = "critical-journeys"
     for index, arg in enumerate(args):
         if arg == "--suite" and index + 1 < len(args):
             suite = args[index + 1]
@@ -5542,7 +5636,7 @@ def seeded_only_failed_files_from_lease(lease: dict[str, Any] | None, args: list
 
 def run_targets_playwright(args: list[str]) -> bool:
     suite, tests = infer_run_suite_and_tests(args)
-    return suite in {"playwright", "hourly-dev", "core-journeys"} or any(
+    return suite in {"playwright", "hourly-dev", "core-journeys", "critical-journeys"} or any(
         test.endswith(".spec.ts") for test in tests
     )
 
@@ -6051,6 +6145,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_start.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
     campaign_start.add_argument("--campaign", default="")
     campaign_start.add_argument("--test-key", action="append", default=[])
+    campaign_start.add_argument("--daily-recovery", action="store_true")
     campaign_start.add_argument("--json", action="store_true")
     campaign_handoff = campaign_sub.add_parser("handoff", help="Rebind a campaign coordinator to the current visible chat")
     campaign_handoff.add_argument("--campaign", required=True)
@@ -6108,6 +6203,9 @@ def main(argv: list[str] | None = None) -> int:
     campaign_finalize = campaign_sub.add_parser("finalize", help="Complete a campaign from a full nightly-equivalent run")
     campaign_finalize.add_argument("--campaign", required=True)
     campaign_finalize.add_argument("--run", required=True)
+    campaign_milestone = campaign_sub.add_parser("milestone", help="Evaluate the bounded daily-recovery milestone")
+    campaign_milestone.add_argument("--campaign", required=True)
+    campaign_milestone.add_argument("--run", required=True)
     campaign_intent = campaign_sub.add_parser("intent", help="Record a worker fix intent before source edits")
     campaign_intent.add_argument("--group", required=True)
     campaign_intent.add_argument("--lease", required=True)
@@ -6248,7 +6346,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "campaign":
         try:
             if args.campaign_command == "start":
-                payload = start_debug_campaign(args.session, selected_test_keys=args.test_key or None, campaign_key=args.campaign)
+                payload = start_debug_campaign(
+                    args.session,
+                    selected_test_keys=args.test_key or None,
+                    campaign_key=args.campaign,
+                    daily_recovery=args.daily_recovery,
+                )
             elif args.campaign_command == "handoff":
                 payload = handoff_debug_campaign(
                     args.campaign,
@@ -6306,6 +6409,8 @@ def main(argv: list[str] | None = None) -> int:
                 payload = complete_debug_group(args.group, commit=args.commit)
             elif args.campaign_command == "finalize":
                 payload = finalize_debug_campaign(args.campaign, args.run)
+            elif args.campaign_command == "milestone":
+                payload = record_daily_recovery_milestone(args.campaign, args.run)
             elif args.campaign_command == "intent":
                 payload = submit_worker_fix_intent(
                     args.group,

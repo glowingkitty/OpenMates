@@ -417,8 +417,24 @@ tests:
       - test-orchestration.results.infrastructure-is-not-product-failure
       - test-orchestration.notifications.non-blocking-receipts
       - test-orchestration.evidence.privacy-boundary
-    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_daily_test_recovery.py -q
+        run_id: local-red-5-failed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:11:33Z
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_daily_test_recovery.py -q
+        run_id: local-green-9-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:52:00Z
   - id: T-NOTIFICATIONS
     type: pytest
     file: scripts/tests/test_run_tests_discord_summary.py
@@ -430,8 +446,25 @@ tests:
       - final and archived results retain channel receipts
       - channel failure does not alter test summary or prevent other channel attempts
     contract_assertions: [test-orchestration.notifications.non-blocking-receipts, test-orchestration.evidence.privacy-boundary]
-    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_run_tests_discord_summary.py scripts/tests/test_run_tests_progress_snapshots.py -q
+        run_id: local-red-6-failed-23-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:11:55Z
+        summary: Four receipt assertions failed as expected; two existing fixture/compatibility assertions also failed and must be green before completion.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_run_tests_discord_summary.py scripts/tests/test_run_tests_progress_snapshots.py -q
+        run_id: local-green-29-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:19:55Z
   - id: T-CONTROL-PLANE
     type: pytest
     file: scripts/tests/test_tests_control_campaigns.py
@@ -443,7 +476,15 @@ tests:
       - group priority and exact verification members persist
     contract_assertions: [test-orchestration.results.infrastructure-is-not-product-failure, test-orchestration.recovery.milestone]
     red_phase: {required: false, expected: not_applicable, evidence: {status: not_applicable, reason: Existing campaign behavior is inherited and receives supplemental milestone coverage.}}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control.py -q
+        run_id: local-green-130-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:54:59Z
 
 verifications:
   - id: V-CRITICAL-RUN
@@ -466,7 +507,7 @@ verifications:
     required_for_done: true
     covers: [AC-6]
     status: pending
-    evidence: {status: pending, command: "python3 scripts/tests.py campaign status --campaign <ID> --json", run_id: "", subject_commit: "", timestamp: ""}
+    evidence: {status: pending, command: "python3 scripts/tests.py campaign start --session <SESSION> --daily-recovery --json; python3 scripts/tests.py campaign milestone --campaign <ID> --run <RUN_ID>; python3 scripts/tests.py campaign status --campaign <ID> --json", run_id: "", subject_commit: "", timestamp: ""}
   - id: V-FULL-DAILY
     kind: automated_test
     phase: final
@@ -577,7 +618,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add red daily recovery contract tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8]}
     expected_files: [scripts/tests/test_daily_test_recovery.py, scripts/tests/test_run_tests_discord_summary.py, scripts/tests/test_run_tests_progress_snapshots.py]
@@ -592,7 +633,7 @@ tasks:
     canonical_surfaces: [cli]
   - id: TASK-2
     title: Implement critical registry and critical-first execution
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
     expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_daily_test_recovery.py]
@@ -607,7 +648,7 @@ tasks:
     canonical_surfaces: [cli]
   - id: TASK-3
     title: Implement quota circuit and truthful infrastructure results
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-3, S-4], acceptance_criteria: [AC-3, AC-4, AC-8]}
     expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_daily_test_recovery.py]
@@ -622,7 +663,7 @@ tasks:
     canonical_surfaces: [cli]
   - id: TASK-4
     title: Make scheduled notification receipts strict and non-blocking
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-5], acceptance_criteria: [AC-5, AC-8]}
     expected_files: [scripts/run_tests.py, scripts/tests/test_run_tests_discord_summary.py, scripts/tests/test_run_tests_progress_snapshots.py]
@@ -637,7 +678,7 @@ tasks:
     canonical_surfaces: [cli]
   - id: TASK-5
     title: Recover critical and high-fanout failure groups
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
     expected_files: [docs/specs/daily-test-recovery-reliability/spec.yml]

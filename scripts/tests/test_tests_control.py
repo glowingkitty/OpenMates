@@ -206,6 +206,7 @@ def test_status_summary_separates_deterministic_and_live_probe_health(tmp_path, 
     assert summary["global_zero_complete"] is False
 
 
+# contract-test: infrastructure
 def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     raw_report = {
@@ -261,6 +262,7 @@ def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
         "dispatch_error": 0,
         "timeout": 0,
         "result_unknown": 0,
+        "infrastructure_incident": 0,
         "skipped": 0,
         "not_started": 0,
     }
@@ -1661,7 +1663,8 @@ def test_docker_resources_only_cover_dev_stack_dependent_runs(tmp_path, monkeypa
     assert tests_control.docker_resources_for_run(["--suite", "vitest"]) == set()
 
 
-def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, monkeypatch):
+# contract-test: infrastructure
+def test_command_run_does_not_hold_dev_stack_lease_across_cli_runner(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
     monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
@@ -1682,9 +1685,8 @@ def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, m
     )
 
     assert tests_control.command_run(["--suite", "cli"]) == 1
-    assert len(acquired) == 1
-    assert acquired[0][2] == {"dev-stack"}
-    assert released == [acquired[0][0]]
+    assert acquired == []
+    assert released == []
 
 
 def test_command_run_marks_externally_held_playwright_account_lease(tmp_path, monkeypatch):

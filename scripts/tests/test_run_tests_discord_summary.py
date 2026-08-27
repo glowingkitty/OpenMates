@@ -625,6 +625,7 @@ def test_failed_unit_workflow_is_not_masked_by_passing_partial_artifact(monkeypa
     run_tests = load_run_tests_module()
     orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
     orchestrator.campaign_test_labels = []
+    orchestrator.git_sha = "abc123"
     recent_calls = 0
 
     class FakeClient:
