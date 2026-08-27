@@ -20,6 +20,10 @@ scope:
     - Ensure restore and child/reviewer flows keep using the parent session worktree or fail with a deterministic recovery action.
     - Deduplicate repeated OpenCode hook routing warnings for the same session, head, and reason.
     - Provide focused regression tests and operational checks before any stopped chats are resumed.
+    - Make queued-operation polling reconcile expired leases and missed admission signals transactionally.
+    - Report the exact lease or earlier runtime operation that blocks admission.
+    - Reuse the running OpenCode server for proof review and emit bounded progress and timeout cleanup.
+    - Keep deploy test discovery module-local when an exact sibling test or explicit test-file contract exists.
   out:
     - Rewriting the full engineering control-plane architecture.
     - Changing product-facing OpenMates behavior, self-hosting CLI behavior, or user-visible UI.
@@ -48,6 +52,9 @@ context_discovery:
     - A child/reviewer session ran relative commands from the root checkout instead of the parent worktree.
     - Hook routing warnings repeated for the same session/head/reason and obscured useful progress.
     - A proof run could become suspect when dev alias deployment moved while the proof was still running.
+    - A queued Docker operation remained queued after all visible blockers disappeared because polling did not rerun admission.
+    - Standalone proof reviewers each booted a full OpenCode and unrelated MCP stack, consumed roughly 600 MB, and stayed silent for up to ten minutes.
+    - The deploy gate mapped engineering_control_plane/api.py to unrelated product API-key tests and failed on dependencies outside the changed component.
   user_direction:
     - Create and execute a spec that resolves the remaining agentic coding flow issues.
     - Stop wasting tokens in the currently running chats until the orchestration flow is fixed.
@@ -134,6 +141,29 @@ scenarios:
       - If routing cannot be guaranteed, the hook blocks once with a deterministic recovery command.
       - The shared root checkout is not used as a fallback for source work.
 
+  - id: S-6
+    title: Queue polling heals missed admission signals and names blockers
+    given:
+      - A runtime operation is queued behind a lease or earlier operation.
+    when:
+      - The blocker expires or completes and the waiting client polls again.
+    then:
+      - Expiry and FIFO admission are reconciled in the same transaction.
+      - The waiter is admitted without manual database mutation.
+      - While still queued, status names the blocking lease or operation owner and phase.
+      - A terminal operation cannot be moved back into an active phase.
+
+  - id: S-7
+    title: Proof review reuses OpenCode and remains observable
+    given:
+      - Multiple chats need bounded frame review while the OpenCode server is running.
+    when:
+      - The proof workflow launches a reviewer.
+    then:
+      - The reviewer attaches to the existing server instead of starting another plugin and MCP stack.
+      - Progress is printed at least every 30 seconds.
+      - Timeout terminates the reviewer and preserves partial output for diagnosis.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -199,6 +229,27 @@ acceptance_criteria:
     verification_ids:
       - V-OPERATIONAL-READINESS
 
+  - id: AC-7
+    scenario: S-6
+    text: Runtime-operation polling transactionally reconciles admission, exposes exact blockers, and rejects terminal-state resurrection.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-CONTROL-PLANE
+      - T-SESSIONS-DOCKER
+
+  - id: AC-8
+    scenario: S-7
+    text: Proof review attaches to the shared OpenCode server, reports bounded progress, and cleans up a timed-out child.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PROOF-REVIEWER
+
 tests:
   - id: T-CONTROL-PLANE
     type: pytest
@@ -209,6 +260,7 @@ tests:
     covers:
       - AC-1
       - AC-2
+      - AC-7
     red_phase:
       required: true
       expected: fail_before_fix
@@ -240,6 +292,7 @@ tests:
       - AC-1
       - AC-2
       - AC-3
+      - AC-7
     red_phase:
       required: true
       expected: fail_before_fix
@@ -340,6 +393,33 @@ tests:
         subject_commit: 40f14fd489a4a0f00af633764d04478440b738d6
         summary: 34 passed in 18.58s.
 
+  - id: T-PROOF-REVIEWER
+    type: pytest
+    file: scripts/tests/test_proof_video_workflow.py
+    command: python3 -m pytest scripts/tests/test_proof_video_workflow.py
+    assertions:
+      - Reviewer invocation attaches to the configured OpenCode server and remains scoped to the proof bundle.
+      - A long-running reviewer reports progress, terminates at its bounded timeout, preserves output, and removes staging links.
+    covers:
+      - AC-8
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence:
+        status: skipped_with_reason
+        timestamp: "2026-08-27T11:00:00Z"
+        reason: Regression tests were added directly from two observed concurrent 600 MB reviewer processes and their silent ten-minute timeout behavior.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-08-27T11:00:00Z"
+        command: python3 -m pytest scripts/tests/test_proof_video_workflow.py -q
+        run_id: local-green-t-proof-reviewer-20260827
+        subject_commit: 40f14fd489a4a0f00af633764d04478440b738d6
+        summary: Included in the focused 149-test orchestration pass.
+
 verifications:
   - id: V-OPERATIONAL-READINESS
     kind: manual_check
@@ -403,6 +483,10 @@ implementation_plan:
       reason: Contract regression coverage for coordination semantics.
     - path: scripts/tests/test_sessions_docker_orchestration.py
       reason: sessions.py Docker coordination regression coverage.
+    - path: scripts/proof_video_workflow.py
+      reason: Shared-server reviewer execution, bounded progress, timeout cleanup, and preserved diagnostic output.
+    - path: scripts/tests/test_proof_video_workflow.py
+      reason: Reviewer process lifecycle and server-attachment regression coverage.
     - path: scripts/tests/test_sessions_native_worktree_lifecycle.py
       reason: Worktree restore/child routing regression coverage.
     - path: scripts/tests/test_opencode_hooks_contract.mjs
@@ -418,6 +502,7 @@ implementation_plan:
     - T-RUN-TESTS
     - T-SESSIONS-WORKTREE
     - T-OPENCODE-HOOKS
+    - T-PROOF-REVIEWER
     - V-OPERATIONAL-READINESS
 
 tasks:
@@ -567,6 +652,43 @@ tasks:
         - docs/specs/opencode-orchestration-remediation/spec.yml
       shared_files: []
 
+  - id: TASK-6
+    title: Make admission polling self-healing and proof review lightweight
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+    expected_files:
+      - backend/engineering_control_plane/coordination.py
+      - backend/engineering_control_plane/coordination_repository.py
+      - backend/engineering_control_plane/api.py
+      - scripts/sessions.py
+      - scripts/proof_video_workflow.py
+      - backend/engineering_control_plane/tests/test_coordination.py
+      - scripts/tests/test_sessions_docker_orchestration.py
+      - scripts/tests/test_proof_video_workflow.py
+    verification_ids:
+      - T-CONTROL-PLANE
+      - T-SESSIONS-DOCKER
+      - T-PROOF-REVIEWER
+    dependencies:
+      - TASK-2
+      - TASK-4
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/engineering_control_plane/coordination_repository.py
+        - backend/engineering_control_plane/api.py
+        - scripts/sessions.py
+        - scripts/proof_video_workflow.py
+      shared_files: []
+
 implementation_state:
   phase: implementation_validated
   subject_commit: 40f14fd489a4a0f00af633764d04478440b738d6
@@ -601,6 +723,16 @@ decisions:
     decision: Implement narrow deterministic guardrails rather than a full orchestration rewrite.
     reason: The current source already contains a separated control plane, shared leases, and managed worktrees; the failures are specific missing semantics.
     decided_at: "2026-08-27T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Treat every queue poll as an idempotent admission reconciliation point and never manually resurrect terminal operations.
+    reason: Release notifications can be interrupted; correctness must converge from durable state without operator mutation.
+    decided_at: "2026-08-27T11:00:00Z"
+  - id: D-5
+    status: active
+    decision: Run proof reviewers through the existing OpenCode server and preserve a pure standalone opt-out only when explicitly configured.
+    reason: Reviewer permissions are already bounded, while duplicate OpenCode and MCP startup wastes memory and time.
+    decided_at: "2026-08-27T11:00:00Z"
 
 attempts:
   - id: ATT-1
@@ -634,6 +766,9 @@ handoff:
 
 risks:
   - Runtime queue changes can accidentally serialize too much work if shared and exclusive resources are not differentiated.
+  - Queue reconciliation must lock FIFO rows in one order to avoid deadlocks between unrelated waiters.
+  - Attached proof review depends on the internal OpenCode server; standalone pure mode remains available by clearing OPENMATES_OPENCODE_SERVER_URL.
+  - Broad filename-substring test discovery can turn a focused deploy into an unrelated dependency gate; exact sibling tests and explicit test-file directives take precedence.
   - Reclaiming dead-owner leases must be limited to same-host PIDs so remote live work is not released incorrectly.
   - Hook dedupe must not hide new or changed failures.
   - Resuming chats before readiness checks pass can recreate the same blocking pattern.

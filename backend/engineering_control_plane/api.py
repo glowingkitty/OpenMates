@@ -316,7 +316,10 @@ def blocking_leases(
     repository: PostgresCoordinationRepository = Depends(get_coordination_repository),
 ) -> dict[str, Any]:
     require_scope(identity, "coordinate")
-    return {"leases": repository.blocking_leases(operation_key)}
+    try:
+        return repository.runtime_operation_blockers(operation_key)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"runtime operation not found: {operation_key}") from exc
 
 
 @router.get("/coordination/runtime-epoch")

@@ -107,6 +107,34 @@ def test_persistent_blocking_leases_reclaims_dead_same_host_owner(monkeypatch):
     assert ("DELETE", "/v1/coordination/leases/test-dead", None) in calls
 
 
+def test_persistent_operation_blockers_include_operation_owner_and_phase(monkeypatch):
+    monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
+    monkeypatch.setattr(sessions, "_process_is_alive", lambda _pid: True)
+    monkeypatch.setattr(
+        sessions,
+        "control_plane_api_request",
+        lambda *_args, **_kwargs: {
+            "leases": [],
+            "operations": [
+                {
+                    "operation_key": "docker-first",
+                    "status": "restarting",
+                    "resources": ["dev-stack"],
+                    "requested_at": "2026-08-27T00:00:00Z",
+                    "metadata": {"session_id": "abcd", "services": ["api"]},
+                }
+            ],
+        },
+    )
+
+    blockers = sessions._runtime_operation_blockers("docker-second")
+
+    assert blockers["leases"] == []
+    assert blockers["operations"][0]["id"] == "docker-first"
+    assert blockers["operations"][0]["session_id"] == "abcd"
+    assert blockers["operations"][0]["status"] == "restarting"
+
+
 def test_official_cloud_docker_command_includes_overlay(monkeypatch, tmp_path):
     env_file = tmp_path / ".env"
     env_file.write_text(
@@ -208,6 +236,7 @@ def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, t
         return {"id": operation_id, "status": status, **kwargs}
 
     monkeypatch.setattr(sessions, "update_docker_operation", update_operation)
+    monkeypatch.setattr(sessions, "_runtime_operation_blockers", lambda _operation_id: {"leases": [], "operations": []})
     monkeypatch.setattr(sessions.time, "sleep", lambda _seconds: events.append(("sleep", "admission")))
     monkeypatch.setattr(
         sessions,
@@ -240,9 +269,8 @@ def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, t
 
     sessions.cmd_docker_restart(args)
 
-    assert events[:5] == [
+    assert events[:4] == [
         ("update", "queued"),
-        ("sleep", "admission"),
         ("update", "queued"),
         ("sleep", "admission"),
         ("update", "admitted"),

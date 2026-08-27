@@ -5,6 +5,8 @@ database remains authoritative across client/process restarts, while explicit
 expiry, operation states, and runtime epochs make interruption recoverable.
 """
 
+# test-file: backend/engineering_control_plane/tests/test_coordination.py
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -21,6 +23,17 @@ OPERATION_TERMINAL_STATUSES = ("completed", "failed", "cancelled")
 
 class CoordinationConflict(RuntimeError):
     """Raised when an active lease or operation owns a requested resource."""
+
+
+def _validate_runtime_operation_transition(current_status: str, requested_status: str, operation_key: str) -> None:
+    """Reject transitions that can resurrect a completed/failed operation."""
+    if current_status in OPERATION_TERMINAL_STATUSES and requested_status != current_status:
+        raise ValueError(
+            f"runtime operation cannot transition from terminal status {current_status} "
+            f"to {requested_status}: {operation_key}"
+        )
+    if current_status == "queued" and requested_status not in {"queued", "failed", "cancelled"}:
+        raise ValueError(f"runtime operation is queued and not admitted: {operation_key}")
 
 
 def _utc_now() -> datetime:
@@ -295,6 +308,27 @@ class PostgresCoordinationRepository:
             raise ValueError(f"unsupported runtime operation status: {status}")
         now = _utc_now()
         with connect(self.database_url) as connection:
+            resources = [
+                row[0]
+                for row in connection.execute(
+                    "SELECT resource_key FROM control_plane_runtime_operation_resources WHERE operation_key = %s",
+                    (operation_key,),
+                ).fetchall()
+            ]
+            if not resources:
+                exists = connection.execute(
+                    "SELECT 1 FROM control_plane_runtime_operations WHERE operation_key = %s",
+                    (operation_key,),
+                ).fetchone()
+                if exists is None:
+                    raise KeyError(operation_key)
+            self._lock_resources(connection, resources)
+            if status == "queued":
+                # Reconcile before locking this operation row. Admission locks
+                # the FIFO queue in a single order; taking one row first could
+                # deadlock with an unrelated waiter doing the same thing.
+                self._expire_leases(connection, now)
+                self._admit_queued_operations(connection, now)
             current = connection.execute(
                 "SELECT status FROM control_plane_runtime_operations WHERE operation_key = %s FOR UPDATE",
                 (operation_key,),
@@ -302,8 +336,9 @@ class PostgresCoordinationRepository:
             if current is None:
                 raise KeyError(operation_key)
             current_status = str(current[0])
-            if current_status == "queued" and status not in {"queued", "failed", "cancelled"}:
-                raise ValueError(f"runtime operation is queued and not admitted: {operation_key}")
+            # A queued waiter heartbeat is a recovery point. Admission normally
+            # happens on release, but polling must heal a missed release signal.
+            _validate_runtime_operation_transition(current_status, status, operation_key)
             effective_status = current_status if status == "queued" and current_status != "queued" else status
             completed_epoch = None
             if effective_status == "completed" and current_status != "completed":
@@ -323,7 +358,10 @@ class PostgresCoordinationRepository:
                     admitted_at = CASE WHEN %s = 'admitted' AND admitted_at IS NULL THEN %s ELSE admitted_at END,
                     completed_at = CASE WHEN %s = ANY(%s) THEN %s ELSE completed_at END,
                     completed_runtime_epoch = COALESCE(%s, completed_runtime_epoch),
-                    metadata = metadata || %s
+                    metadata = CASE
+                        WHEN %s = 'completed' THEN (metadata || %s) - 'error'
+                        ELSE metadata || %s
+                    END
                 WHERE operation_key = %s
                 """,
                 (
@@ -334,6 +372,8 @@ class PostgresCoordinationRepository:
                     list(OPERATION_TERMINAL_STATUSES),
                     now,
                     completed_epoch,
+                    effective_status,
+                    self._jsonb(metadata_updates or {}),
                     self._jsonb(metadata_updates or {}),
                     operation_key,
                 ),
@@ -374,8 +414,19 @@ class PostgresCoordinationRepository:
             return [self._operation_row(connection, row[0]) for row in rows]
 
     def blocking_leases(self, operation_key: str) -> list[dict[str, Any]]:
+        return self.runtime_operation_blockers(operation_key)["leases"]
+
+    def runtime_operation_blockers(self, operation_key: str) -> dict[str, list[dict[str, Any]]]:
         with connect(self.database_url) as connection:
-            self._expire_leases(connection, _utc_now())
+            now = _utc_now()
+            operation = connection.execute(
+                "SELECT requested_at FROM control_plane_runtime_operations WHERE operation_key = %s",
+                (operation_key,),
+            ).fetchone()
+            if operation is None:
+                raise KeyError(operation_key)
+            self._expire_leases(connection, now)
+            self._admit_queued_operations(connection, now)
             from psycopg.rows import dict_row
 
             connection.row_factory = dict_row
@@ -386,12 +437,40 @@ class PostgresCoordinationRepository:
                 JOIN control_plane_resource_lease_items lease_resource ON lease_resource.lease_key = lease.lease_key
                 JOIN control_plane_runtime_operation_resources operation_resource
                   ON operation_resource.resource_key = lease_resource.resource_key
-                WHERE operation_resource.operation_key = %s AND lease.status = 'active'
+                WHERE operation_resource.operation_key = %s
+                  AND lease.status = 'active'
+                  AND lease_resource.status = 'active'
                 ORDER BY lease.acquired_at, lease.lease_key
                 """,
                 (operation_key,),
             ).fetchall()
-            return [self._normalize_lease(dict(row), connection) for row in rows]
+            leases = [self._normalize_lease(dict(row), connection) for row in rows]
+            operation_rows = connection.execute(
+                """
+                SELECT DISTINCT other_operation.operation_key
+                FROM control_plane_runtime_operations current_operation
+                JOIN control_plane_runtime_operation_resources current_resource
+                  ON current_resource.operation_key = current_operation.operation_key
+                JOIN control_plane_runtime_operation_resources other_resource
+                  ON other_resource.resource_key = current_resource.resource_key
+                JOIN control_plane_runtime_operations other_operation
+                  ON other_operation.operation_key = other_resource.operation_key
+                WHERE current_operation.operation_key = %s
+                  AND other_operation.operation_key <> current_operation.operation_key
+                  AND (
+                    other_operation.status = ANY(%s)
+                    OR (
+                      other_operation.status = 'queued'
+                      AND (other_operation.requested_at, other_operation.operation_key)
+                          < (current_operation.requested_at, current_operation.operation_key)
+                    )
+                  )
+                ORDER BY other_operation.operation_key
+                """,
+                (operation_key, ["admitted", "draining_tests", "restarting", "verifying"]),
+            ).fetchall()
+            operations = [self._operation_row(connection, row["operation_key"]) for row in operation_rows]
+            return {"leases": leases, "operations": operations}
 
     def runtime_epoch(self) -> int:
         with connect(self.database_url) as connection:

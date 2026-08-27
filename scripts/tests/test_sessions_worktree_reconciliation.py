@@ -301,6 +301,46 @@ def test_related_test_discovery_prunes_managed_worktree_copies(tmp_path):
     assert report["unit_tests"] == ["scripts/test_storage_guard.py"]
 
 
+def test_python_test_discovery_prefers_exact_sibling_over_global_stem_matches(tmp_path):
+    sessions = load_sessions_module()
+    source = tmp_path / "backend" / "engineering_control_plane" / "api.py"
+    exact = source.parent / "tests" / "test_api.py"
+    unrelated = tmp_path / "backend" / "tests" / "test_api_key_scopes.py"
+    source.parent.mkdir(parents=True)
+    exact.parent.mkdir(parents=True)
+    unrelated.parent.mkdir(parents=True)
+    source.write_text("pass\n", encoding="utf-8")
+    exact.write_text("def test_api(): pass\n", encoding="utf-8")
+    unrelated.write_text("def test_api_key_scopes(): pass\n", encoding="utf-8")
+
+    report = sessions._find_tests_for_file(
+        "backend/engineering_control_plane/api.py",
+        checkout_root=tmp_path,
+    )
+
+    assert report["unit_tests"] == ["backend/engineering_control_plane/tests/test_api.py"]
+
+
+def test_python_test_discovery_honors_bounded_source_test_directive(tmp_path):
+    sessions = load_sessions_module()
+    source = tmp_path / "backend" / "engineering_control_plane" / "coordination_repository.py"
+    contract_test = source.parent / "tests" / "test_coordination.py"
+    source.parent.mkdir(parents=True)
+    contract_test.parent.mkdir(parents=True)
+    source.write_text(
+        "# test-file: backend/engineering_control_plane/tests/test_coordination.py\n",
+        encoding="utf-8",
+    )
+    contract_test.write_text("def test_coordination(): pass\n", encoding="utf-8")
+
+    report = sessions._find_tests_for_file(
+        "backend/engineering_control_plane/coordination_repository.py",
+        checkout_root=tmp_path,
+    )
+
+    assert report["unit_tests"] == ["backend/engineering_control_plane/tests/test_coordination.py"]
+
+
 def test_cli_refuses_lower_idle_threshold_without_only_scope(monkeypatch, capsys):
     sessions = load_sessions_module()
     monkeypatch.setattr(

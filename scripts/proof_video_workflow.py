@@ -19,6 +19,7 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
+import time
 from typing import Any
 
 try:
@@ -65,6 +66,9 @@ MAX_CUMULATIVE_SUBMITTED_FRAMES = 48
 REVIEW_RESERVATION_LEASE_SECONDS = 900
 MAX_AUTOMATIC_CORRECTION_ROUNDS = 2
 MAX_PRODUCT_CODE_CORRECTION_ROUNDS = 1
+REVIEWER_TIMEOUT_SECONDS = int(os.environ.get("OPENMATES_PROOF_REVIEW_TIMEOUT_SECONDS", "600"))
+REVIEWER_PROGRESS_INTERVAL_SECONDS = 30
+REVIEWER_ATTACH_URL = os.environ.get("OPENMATES_OPENCODE_SERVER_URL", "http://127.0.0.1:4096").strip()
 MIN_PLAYBACK_RATE = 0.75
 MAX_PLAYBACK_RATE = 4.0
 READING_WORDS_PER_SECOND = 2.5
@@ -1369,6 +1373,7 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
         "json",
         "--agent",
         "proof-video-reviewer",
+        *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
         str(REPO_ROOT),
         f"Read {prompt_path.name} in full and return only the required JSON review receipt.",
@@ -1376,16 +1381,52 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
     try:
         staged_prompt.symlink_to(prompt_path.resolve())
         staged_frames.symlink_to((run_dir / "frames").resolve(), target_is_directory=True)
-        result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=600, check=False)
+        started_at = time.monotonic()
+        print(
+            f"Proof reviewer round {correction_round} started"
+            + (f" via {REVIEWER_ATTACH_URL}" if REVIEWER_ATTACH_URL else " in standalone pure mode")
+            + f"; timeout={REVIEWER_TIMEOUT_SECONDS}s.",
+            flush=True,
+        )
+        with output_path.open("w+", encoding="utf-8") as output_file:
+            output_path.chmod(0o600)
+            process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
+                command,
+                cwd=REPO_ROOT,
+                text=True,
+                stdout=output_file,
+                stderr=subprocess.STDOUT,
+            )
+            while True:
+                elapsed = time.monotonic() - started_at
+                remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
+                if remaining <= 0:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=5)
+                    raise WorkflowError(
+                        f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
+                    )
+                try:
+                    returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
+                    break
+                except subprocess.TimeoutExpired:
+                    print(
+                        f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
+                        flush=True,
+                    )
+            output_file.flush()
+            output_file.seek(0)
+            output = output_file.read().strip()
     finally:
         for staged in (staged_prompt, staged_frames):
             if staged.is_symlink():
                 staged.unlink()
-    output = (result.stdout + result.stderr).strip()
-    output_path.write_text(output + ("\n" if output else ""), encoding="utf-8")
-    output_path.chmod(0o600)
-    if result.returncode != 0:
-        raise WorkflowError(f"proof-video reviewer failed with exit code {result.returncode}")
+    if returncode != 0:
+        raise WorkflowError(f"proof-video reviewer failed with exit code {returncode}; output: {output_path}")
     session_id = ""
     for line in output.splitlines():
         try:

@@ -144,7 +144,7 @@ VERCEL_DEPLOY_LOCK_MINUTES = 90
 DOCKER_TEST_LEASE_TTL_SECONDS = 30 * 60
 DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS = 60
 DOCKER_OPERATION_HISTORY_LIMIT = 20
-DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "draining_tests", "restarting", "verifying"}
+DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "admitted", "draining_tests", "restarting", "verifying"}
 DOCKER_OPERATION_TERMINAL_STATUSES = {"completed", "failed"}
 DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
@@ -2287,34 +2287,63 @@ def wait_for_docker_operation_admitted(
         now = time.time()
         if now >= deadline:
             raise RuntimeError(f"Timed out after {timeout}s waiting for Docker operation admission: {operation_id}")
-        if last_report == 0.0 or now - last_report >= 60:
-            print(f"Waiting for Docker operation admission: {operation_id}...", flush=True)
+        if last_report == 0.0 or now - last_report >= 30:
+            blockers = _runtime_operation_blockers(operation_id)
+            lease_ids = [str(lease.get("lease_id") or "unknown") for lease in blockers["leases"]]
+            operation_labels = [
+                "/".join(
+                    filter(
+                        None,
+                        [
+                            str(item.get("id") or "unknown"),
+                            str(item.get("session_id") or ""),
+                            str(item.get("status") or ""),
+                        ],
+                    )
+                )
+                for item in blockers["operations"]
+            ]
+            update_docker_operation(
+                operation_id,
+                "queued",
+                waiting_for_tests=lease_ids,
+                waiting_for_operations=[str(item.get("id") or "unknown") for item in blockers["operations"]],
+            )
+            reasons = []
+            if lease_ids:
+                reasons.append(f"leases={','.join(lease_ids)}")
+            if operation_labels:
+                reasons.append(f"operations={','.join(operation_labels)}")
+            detail = "; ".join(reasons) if reasons else "no blocker after reconciliation; retrying admission"
+            print(f"Waiting for Docker operation admission: {operation_id} ({detail})", flush=True)
             last_report = now
         time.sleep(min(poll, max(1, int(deadline - now))))
 
 
-def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
+def _runtime_operation_blockers(operation_id: str) -> dict[str, list[dict]]:
     if _persistent_coordination_enabled():
         response = control_plane_api_request(
             "GET",
             f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
         )
         leases = [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+        operations = [_legacy_operation_record(operation) for operation in response.get("operations") or []]
         released = []
         for lease in leases:
             if not _lease_has_dead_local_owner(lease):
                 continue
             control_plane_api_request("DELETE", f"/v1/coordination/leases/{lease['lease_id']}")
             released.append(lease["lease_id"])
-        if not released:
-            return leases
-        response = control_plane_api_request(
-            "GET",
-            f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
-        )
-        return [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+        if released:
+            response = control_plane_api_request(
+                "GET",
+                f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
+            )
+            leases = [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+            operations = [_legacy_operation_record(operation) for operation in response.get("operations") or []]
+        return {"leases": leases, "operations": operations}
 
-    def mutate(data: dict) -> list[dict]:
+    def mutate(data: dict) -> dict[str, list[dict]]:
         _prune_stale_test_resource_leases(data)
         operations = _infrastructure_state(data)["docker_operations"]
         operation = next((item for item in operations if item.get("id") == operation_id), None)
@@ -2328,9 +2357,20 @@ def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
         ]
         operation["waiting_for_tests"] = sorted(str(lease.get("lease_id")) for lease in leases)
         operation["updated_at"] = _now_iso()
-        return leases
+        blockers = [
+            dict(item)
+            for item in operations
+            if item is not operation
+            and item.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
+            and resources.intersection(item.get("resources", []))
+        ]
+        return {"leases": leases, "operations": blockers}
 
     return _mutate_sessions(mutate)
+
+
+def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
+    return _runtime_operation_blockers(operation_id)["leases"]
 
 
 def wait_for_docker_test_leases(
@@ -12668,6 +12708,7 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
 _TEST_LOCATIONS = {
     # Python unit/integration tests
     ".py": [
+        "{parent}/tests/test_{stem}.py",
         "backend/tests/test_{stem}.py",
         "backend/tests/test_rest_api_{stem}.py",
         "backend/apps/{app}/tests/test_{stem}.py",
@@ -12737,6 +12778,22 @@ def _find_tests_for_file(filepath: str, *, checkout_root: Path | None = None) ->
         if full_path.exists():
             result["unit_tests"].append(candidate)
 
+    # Infrastructure modules sometimes share a behavioral contract test whose
+    # filename cannot be inferred from the source stem. Keep that relationship
+    # explicit and reviewable instead of falling back to a broad name match.
+    source_path = root / filepath
+    if suffix == ".py" and source_path.is_file():
+        try:
+            source_header = "\n".join(source_path.read_text(encoding="utf-8").splitlines()[:40])
+        except OSError:
+            source_header = ""
+        for declared in re.findall(r"^# test-file:\s*(\S+)\s*$", source_header, flags=re.MULTILINE):
+            declared_path = Path(declared)
+            if ".." in declared_path.parts or declared_path.is_absolute():
+                continue
+            if (root / declared_path).is_file() and declared not in result["unit_tests"]:
+                result["unit_tests"].append(declared)
+
     # Also search for any test file containing the stem name. Prune generated
     # and managed-worktree roots before descending: Path.glob("**/...") walks
     # every session checkout and made this deploy gate scale by worktree count.
@@ -12757,17 +12814,21 @@ def _find_tests_for_file(filepath: str, *, checkout_root: Path | None = None) ->
         "node_modules",
         "test-results",
     }
-    for current, directories, names in os.walk(root):
-        directories[:] = [name for name in directories if name not in excluded_test_roots]
-        current_path = Path(current)
-        for name in names:
-            match = current_path / name
-            relative = match.relative_to(root)
-            if not any(relative.match(pattern) for pattern in test_glob_patterns):
-                continue
-            rel = str(match.relative_to(root))
-            if rel not in result["unit_tests"]:
-                result["unit_tests"].append(rel)
+    # Exact sibling/directive matches are authoritative for Python. A global
+    # substring scan for generic stems such as api.py otherwise pulls unrelated
+    # product suites (for example api_key_scopes) into a control-plane deploy.
+    if suffix != ".py" or not result["unit_tests"]:
+        for current, directories, names in os.walk(root):
+            directories[:] = [name for name in directories if name not in excluded_test_roots]
+            current_path = Path(current)
+            for name in names:
+                match = current_path / name
+                relative = match.relative_to(root)
+                if not any(relative.match(pattern) for pattern in test_glob_patterns):
+                    continue
+                rel = str(match.relative_to(root))
+                if rel not in result["unit_tests"]:
+                    result["unit_tests"].append(rel)
 
     # --- Search for E2E tests referencing this file/component ---
     e2e_spec_dir = root / "frontend" / "apps" / "web_app" / "tests"

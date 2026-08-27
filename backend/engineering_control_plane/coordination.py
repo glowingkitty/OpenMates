@@ -268,6 +268,36 @@ class InMemoryCoordinationStore:
         with self._lock:
             return self._operations[operation_key]
 
+    def poll_runtime_operation(self, operation_key: str, *, now: datetime) -> RuntimeOperation:
+        """Reconcile expiry and queue admission while a client waits."""
+        with self._lock:
+            self._admit_queued_operations(now)
+            return self._operations[operation_key]
+
+    def runtime_operation_blockers(self, operation_key: str, *, now: datetime) -> dict[str, list[object]]:
+        with self._lock:
+            self._admit_queued_operations(now)
+            operation = self._operations[operation_key]
+            leases = [
+                lease
+                for lease in self._leases.values()
+                if lease.status == "active" and bool(lease.resources & operation.resources)
+            ]
+            operations = [
+                other
+                for other in self._operations.values()
+                if other.operation_key != operation.operation_key
+                and bool(other.resources & operation.resources)
+                and (
+                    other.status in {"admitted", "draining_tests", "restarting", "verifying"}
+                    or (
+                        other.status == "queued"
+                        and (other.requested_at, other.operation_key) < (operation.requested_at, operation.operation_key)
+                    )
+                )
+            ]
+            return {"leases": leases, "operations": operations}
+
     def complete_runtime_operation(self, operation_key: str, *, now: datetime) -> RuntimeOperation:
         with self._lock:
             operation = self._operations[operation_key]

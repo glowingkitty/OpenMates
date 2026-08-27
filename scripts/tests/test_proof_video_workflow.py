@@ -2332,11 +2332,20 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
     prompt.write_text("{}\n", encoding="utf-8")
     observed: dict[str, object] = {}
 
-    def run(command: list[str], **kwargs: object):
-        observed.update({"command": command, **kwargs})
-        return type("Result", (), {"returncode": 0, "stdout": '{"type":"text","part":{"text":"{}"}}\n', "stderr": ""})()
+    class Process:
+        returncode = 0
 
-    monkeypatch.setattr(workflow.subprocess, "run", run)
+        def __init__(self, command: list[str], **kwargs: object) -> None:
+            observed.update({"command": command, **kwargs})
+            kwargs["stdout"].write('{"type":"text","part":{"text":"{}"}}\n')
+
+        def wait(self, timeout: float) -> int:
+            return self.returncode
+
+    def popen(command: list[str], **kwargs: object):
+        return Process(command, **kwargs)
+
+    monkeypatch.setattr(workflow.subprocess, "Popen", popen)
     monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
     monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
     workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
@@ -2344,6 +2353,7 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
     assert observed["cwd"] == repo_root
     assert observed["command"][0] == "/test/opencode"
     assert "--dir" in observed["command"]
+    assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
     assert str(repo_root) in observed["command"]
     assert str(prompt.resolve()) not in " ".join(observed["command"])
     assert "review-prompt-round-0.json" in " ".join(observed["command"])
@@ -2358,6 +2368,50 @@ def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, mo
 
     with pytest.raises(workflow.WorkflowError, match="OPENCODE_BIN"):
         workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
+
+
+def test_default_reviewer_reports_progress_and_terminates_at_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "frames").mkdir()
+    prompt = run_dir / "review-prompt-round-0.json"
+    prompt.write_text("{}\n", encoding="utf-8")
+
+    class Process:
+        terminated = False
+
+        def wait(self, timeout: float) -> int:
+            if self.terminated:
+                return -15
+            raise workflow.subprocess.TimeoutExpired("opencode", timeout)
+
+        def terminate(self) -> None:
+            self.terminated = True
+
+        def kill(self) -> None:
+            self.terminated = True
+
+    process = Process()
+    monotonic_values = iter([0.0, 0.0, 31.0, 601.0])
+    monkeypatch.setattr(workflow.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(workflow.time, "monotonic", lambda: next(monotonic_values))
+    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
+    monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
+
+    with pytest.raises(workflow.WorkflowError, match="timed out after 600s"):
+        workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
+
+    output = capsys.readouterr().out
+    assert "still running (31s elapsed)" in output
+    assert process.terminated is True
+    assert not (repo_root / "review-prompt-round-0.json").exists()
+    assert not (repo_root / "frames").exists()
 
 
 def test_review_run_rejects_reviewer_frame_hash_replacement(

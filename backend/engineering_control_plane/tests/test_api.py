@@ -49,6 +49,14 @@ class FakeCoordinationRepository:
     def runtime_epoch(self):
         return 7
 
+    def runtime_operation_blockers(self, operation_key):
+        if operation_key == "missing":
+            raise KeyError(operation_key)
+        return {
+            "leases": [],
+            "operations": [{"operation_key": "restart-first", "status": "restarting"}],
+        }
+
     def request_dispatch(self, spec, *, requested_by):
         existing = self.dispatches.get(spec.fingerprint)
         if existing:
@@ -177,6 +185,20 @@ def test_dispatch_fingerprint_is_server_epoch_bound_and_reused(monkeypatch) -> N
     assert first.json()["dispatch"]["runtime_epoch"] == 7
     assert second.json()["reused"] is True
     assert second.json()["dispatch"]["dispatch_key"] == first.json()["dispatch"]["dispatch_key"]
+    app.dependency_overrides.clear()
+
+
+def test_runtime_operation_blockers_report_operations_and_missing_keys(monkeypatch) -> None:
+    client, _, headers = _client(monkeypatch, ["read", "coordinate"])
+    coordination = FakeCoordinationRepository()
+    app.dependency_overrides[get_coordination_repository] = lambda: coordination
+
+    response = client.get("/v1/coordination/runtime-operations/restart-next/blocking-leases", headers=headers)
+    missing = client.get("/v1/coordination/runtime-operations/missing/blocking-leases", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["operations"][0]["operation_key"] == "restart-first"
+    assert missing.status_code == 404
     app.dependency_overrides.clear()
 
 

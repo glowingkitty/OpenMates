@@ -21,6 +21,7 @@ from backend.engineering_control_plane.coordination import (
     LeaseMode,
     SessionEventType,
 )
+from backend.engineering_control_plane.coordination_repository import _validate_runtime_operation_transition
 
 
 def test_shared_leases_coexist_but_exclusive_lease_waits() -> None:
@@ -101,6 +102,68 @@ def test_runtime_operation_waits_for_conflicting_lease() -> None:
 
     store.complete_runtime_operation("restart-1", now=NOW + timedelta(seconds=2))
     assert store.runtime_epoch == 1
+
+
+def test_runtime_operation_poll_reconciles_expired_lease_without_release_signal() -> None:
+    store = InMemoryCoordinationStore()
+    store.acquire_lease(
+        lease_key="test-run",
+        owner="chat-a",
+        resources={"product-runtime"},
+        expires_at=NOW + timedelta(seconds=5),
+        now=NOW,
+    )
+    store.request_runtime_operation(
+        operation_key="restart-1",
+        requested_by="chat-b",
+        resources={"product-runtime"},
+        now=NOW,
+    )
+
+    operation = store.poll_runtime_operation("restart-1", now=NOW + timedelta(seconds=6))
+
+    assert operation.status == "admitted"
+    assert store.runtime_operation_blockers("restart-1", now=NOW + timedelta(seconds=6)) == {
+        "leases": [],
+        "operations": [],
+    }
+
+
+def test_runtime_operation_blockers_include_earlier_operation_and_active_lease() -> None:
+    store = InMemoryCoordinationStore()
+    store.acquire_lease(
+        lease_key="apple-test",
+        owner="chat-a",
+        resources={"apple-runner"},
+        expires_at=NOW + timedelta(minutes=5),
+        now=NOW,
+    )
+    first = store.request_runtime_operation(
+        operation_key="restart-1",
+        requested_by="chat-b",
+        resources={"product-runtime"},
+        now=NOW,
+    )
+    queued = store.request_runtime_operation(
+        operation_key="restart-2",
+        requested_by="chat-c",
+        resources={"product-runtime", "apple-runner"},
+        now=NOW + timedelta(seconds=1),
+    )
+
+    blockers = store.runtime_operation_blockers("restart-2", now=NOW + timedelta(seconds=2))
+
+    assert queued.status == "queued"
+    assert [lease.lease_key for lease in blockers["leases"]] == ["apple-test"]
+    assert [operation.operation_key for operation in blockers["operations"]] == [first.operation_key]
+
+
+@pytest.mark.parametrize("terminal", ["completed", "failed", "cancelled"])
+def test_terminal_runtime_operation_cannot_be_resurrected(terminal: str) -> None:
+    with pytest.raises(ValueError, match="cannot transition from terminal status"):
+        _validate_runtime_operation_transition(terminal, "restarting", "restart-1")
+
+    _validate_runtime_operation_transition(terminal, terminal, "restart-1")
 
 
 def test_runtime_operations_queue_fifo_for_the_same_resource() -> None:
