@@ -784,7 +784,7 @@ def test_review_budget_caps_calls_frames_and_correction_rounds() -> None:
         )
 
 
-def test_review_budget_retries_incomplete_reservation_within_global_limits() -> None:
+def test_review_budget_retries_incomplete_reservation_without_spending_global_limits() -> None:
     reservation = {
         "device": "web-laptop",
         "correction_round": 0,
@@ -812,8 +812,8 @@ def test_review_budget_retries_incomplete_reservation_within_global_limits() -> 
         now=first_retry_at,
     )
 
-    assert retried["ai_review_calls"] == 2
-    assert retried["submitted_frames"] == 24
+    assert retried["ai_review_calls"] == 1
+    assert retried["submitted_frames"] == 12
     assert retried["reservations"][0]["retry_count"] == 1
     retried_again = workflow.reserve_review_budget(
         retried,
@@ -827,8 +827,8 @@ def test_review_budget_retries_incomplete_reservation_within_global_limits() -> 
         now=first_retry_at + timedelta(seconds=workflow.REVIEW_RESERVATION_LEASE_SECONDS + 1),
     )
 
-    assert retried_again["ai_review_calls"] == 3
-    assert retried_again["submitted_frames"] == 36
+    assert retried_again["ai_review_calls"] == 1
+    assert retried_again["submitted_frames"] == 12
     assert retried_again["reservations"][0]["retry_count"] == 2
 
 
@@ -854,6 +854,43 @@ def test_persisted_review_budget_blocks_active_reservation_without_spending_budg
     assert persisted["ai_review_calls"] == 1
     assert persisted["submitted_frames"] == 12
     assert len(persisted["reservations"]) == 1
+
+
+def test_review_budget_retries_incomplete_exhausted_reservation_without_user_input() -> None:
+    budget = {
+        "ai_review_calls": 4,
+        "submitted_frames": workflow.MAX_CUMULATIVE_SUBMITTED_FRAMES,
+        "reservations": [
+            {
+                "device": "web-laptop",
+                "correction_round": 0,
+                "frame_index_hash": "sha256:frames",
+                "source_artifact_hash": "sha256:video",
+                "caption_artifact_hash": "sha256:captions",
+                "budget_epoch": 0,
+                "lease_expires_at": "2026-08-26T00:00:00+00:00",
+                "lease_owner_pid": 987654,
+                "retry_count": 3,
+            }
+        ],
+    }
+
+    retried = workflow.reserve_review_budget(
+        budget,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+        caption_artifact_hash="sha256:captions",
+        now=datetime(2026, 8, 26, 0, 10, tzinfo=timezone.utc),
+    )
+
+    assert retried["ai_review_calls"] == 4
+    assert retried["submitted_frames"] == workflow.MAX_CUMULATIVE_SUBMITTED_FRAMES
+    assert retried["reservations"][0]["retry_count"] == 4
+    assert retried["reservations"][0]["lease_owner_pid"] == workflow.os.getpid()
 
 
 def test_review_budget_reclaims_active_reservation_when_owner_pid_is_dead(
@@ -888,8 +925,8 @@ def test_review_budget_reclaims_active_reservation_when_owner_pid_is_dead(
         now=datetime(2026, 8, 26, 0, 10, tzinfo=timezone.utc),
     )
 
-    assert retried["ai_review_calls"] == 2
-    assert retried["submitted_frames"] == 24
+    assert retried["ai_review_calls"] == 1
+    assert retried["submitted_frames"] == 12
     assert retried["reservations"][0]["retry_count"] == 1
     assert retried["reservations"][0]["lease_owner_pid"] == workflow.os.getpid()
 

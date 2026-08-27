@@ -549,24 +549,8 @@ def reserve_review_budget(
 
     now = now or datetime.now(timezone.utc)
     result = json.loads(json.dumps(budget)) if budget else {}
-    calls = int(result.get("ai_review_calls", 0)) + 1
-    submitted = int(result.get("submitted_frames", 0)) + frame_count
-    if calls > MAX_AI_REVIEW_CALLS:
-        if not _roll_over_review_budget(result, device, source_artifact_hash, correction_round, correction_kind):
-            raise WorkflowError("AI review call budget is exhausted; ask the user what to do next")
-        calls = 1
-        submitted = frame_count
-    if submitted > MAX_CUMULATIVE_SUBMITTED_FRAMES:
-        if not _roll_over_review_budget(result, device, source_artifact_hash, correction_round, correction_kind):
-            raise WorkflowError("cumulative frame budget is exhausted; ask the user what to do next")
-        calls = 1
-        submitted = frame_count
 
     product_rounds = [int(value) for value in result.get("product_code_correction_rounds", [])]
-    if correction_kind == "product" and correction_round not in product_rounds:
-        if len(product_rounds) >= MAX_PRODUCT_CODE_CORRECTION_ROUNDS:
-            raise WorkflowError("product-code correction budget is exhausted; ask the user what to do next")
-        product_rounds.append(correction_round)
     reservations = result.setdefault("reservations", [])
     if frame_index_hash and source_artifact_hash and any(
         item.get("device") == device
@@ -578,7 +562,7 @@ def reserve_review_budget(
         if isinstance(item, dict)
     ):
         raise WorkflowError("unchanged device evidence is already reviewed; use its cached receipt")
-    reservation = {
+    reservation_key = {
         "device": device,
         "correction_round": correction_round,
         "frame_index_hash": frame_index_hash,
@@ -591,7 +575,7 @@ def reserve_review_budget(
             item
             for item in reservations
             if isinstance(item, dict)
-            and all(item.get(key) == value for key, value in reservation.items())
+            and all(item.get(key) == value for key, value in reservation_key.items())
         ),
         None,
     )
@@ -614,14 +598,29 @@ def reserve_review_budget(
             now + timedelta(seconds=REVIEW_RESERVATION_LEASE_SECONDS)
         ).isoformat()
         existing_reservation["lease_owner_pid"] = os.getpid()
-        result.update(
-            {
-                "ai_review_calls": calls,
-                "submitted_frames": submitted,
-                "product_code_correction_rounds": sorted(product_rounds),
-            }
-        )
         return result
+    calls = int(result.get("ai_review_calls", 0)) + 1
+    submitted = int(result.get("submitted_frames", 0)) + frame_count
+    if calls > MAX_AI_REVIEW_CALLS:
+        if not _roll_over_review_budget(result, device, source_artifact_hash, correction_round, correction_kind):
+            raise WorkflowError("AI review call budget is exhausted; ask the user what to do next")
+        calls = 1
+        submitted = frame_count
+    if submitted > MAX_CUMULATIVE_SUBMITTED_FRAMES:
+        if not _roll_over_review_budget(result, device, source_artifact_hash, correction_round, correction_kind):
+            raise WorkflowError("cumulative frame budget is exhausted; ask the user what to do next")
+        calls = 1
+        submitted = frame_count
+
+    product_rounds = [int(value) for value in result.get("product_code_correction_rounds", [])]
+    if correction_kind == "product" and correction_round not in product_rounds:
+        if len(product_rounds) >= MAX_PRODUCT_CODE_CORRECTION_ROUNDS:
+            raise WorkflowError("product-code correction budget is exhausted; ask the user what to do next")
+        product_rounds.append(correction_round)
+    reservation = {
+        **reservation_key,
+        "budget_epoch": int(result.get("active_epoch", 0)),
+    }
     reservation["lease_expires_at"] = (
         now + timedelta(seconds=REVIEW_RESERVATION_LEASE_SECONDS)
     ).isoformat()
