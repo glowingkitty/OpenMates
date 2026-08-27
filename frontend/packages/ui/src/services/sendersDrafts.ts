@@ -44,6 +44,7 @@ type DraftUpdateReceiptPayload = {
 	chat_id?: string;
 	draft_v?: number;
 	success?: boolean;
+	superseded?: boolean;
 };
 
 type DraftDeleteReceiptPayload = {

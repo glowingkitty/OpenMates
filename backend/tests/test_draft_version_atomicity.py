@@ -131,6 +131,26 @@ async def test_delayed_draft_write_cannot_replace_message_send_tombstone() -> No
 
 # contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
+async def test_draft_cache_update_reports_cache_failure_separately_from_superseded_write() -> None:
+    class BrokenRedis:
+        async def eval(self, *_args):
+            raise RuntimeError("redis unavailable")
+
+    cache = _Cache(BrokenRedis())
+
+    write_result = await cache.update_user_draft_in_cache(
+        "user-1",
+        "chat-1",
+        "encrypted-draft",
+        6,
+        "encrypted-preview",
+    )
+
+    assert write_result is None
+
+
+# contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+@pytest.mark.anyio
 async def test_newer_reserved_draft_can_replace_older_tombstone() -> None:
     redis = _AtomicRedis()
     cache = _Cache(redis)

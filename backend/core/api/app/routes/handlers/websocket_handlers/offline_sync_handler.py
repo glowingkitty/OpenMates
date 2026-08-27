@@ -324,7 +324,11 @@ async def handle_sync_offline_changes(
                         new_cache_version,
                         encrypted_draft_preview=change.get("encrypted_draft_preview"),
                     )
-                    if not update_success:
+                    if update_success is None:
+                        logger.error(f"Failed to update draft cache for offline change (chat {chat_id}).")
+                        error_count += 1
+                        continue
+                    if update_success is False:
                         logger.info(f"Skipped superseded offline draft update for user {user_id}, chat {chat_id}.")
                         processed_count += 1
                         continue

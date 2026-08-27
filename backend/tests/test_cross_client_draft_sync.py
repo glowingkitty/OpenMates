@@ -6,11 +6,16 @@ opaque ciphertext; no server-side test or implementation decrypts them.
 """
 
 import hashlib
+import importlib
+import re
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+from backend.tests.s3_service_test_support import ensure_s3_dependencies
 
 
 if "redis.asyncio" not in sys.modules:
@@ -26,30 +31,60 @@ if "redis.asyncio" not in sys.modules:
     sys.modules["redis"] = redis_module
     sys.modules["redis.asyncio"] = redis_asyncio_module
 
-from backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler import (
+if "aiohttp" not in sys.modules:
+    aiohttp_module = types.ModuleType("aiohttp")
+    aiohttp_module.ClientSession = object
+    sys.modules["aiohttp"] = aiohttp_module
+
+sys.modules.setdefault("regex", re)
+ensure_s3_dependencies()
+
+if "backend.core.api.app.tasks.celery_config" not in sys.modules:
+    tasks_package = types.ModuleType("backend.core.api.app.tasks")
+    tasks_package.__path__ = [str(Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "tasks")]
+
+    class _CeleryAppStub:
+        def send_task(self, *_args, **_kwargs):
+            return None
+
+        def task(self, *_args, **_kwargs):
+            return lambda func: func
+
+    async def _missing_worker_cache_service():
+        raise AssertionError("worker cache service is not used by these unit tests")
+
+    celery_config_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
+    celery_config_module.app = _CeleryAppStub()
+    celery_config_module.get_worker_cache_service = _missing_worker_cache_service
+    sys.modules.setdefault("backend.core.api.app.tasks", tasks_package)
+    sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
+    setattr(tasks_package, "celery_config", celery_config_module)
+    setattr(importlib.import_module("backend.core.api.app"), "tasks", tasks_package)
+
+from backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler import (  # noqa: E402
     handle_update_draft,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.delete_draft_handler import (
+from backend.core.api.app.routes.handlers.websocket_handlers.delete_draft_handler import (  # noqa: E402
     handle_delete_draft,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (
+from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_handler import (  # noqa: E402
     get_authoritative_user_draft,
     handle_get_draft_versions,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.offline_sync_handler import (
+from backend.core.api.app.routes.handlers.websocket_handlers.offline_sync_handler import (  # noqa: E402
     handle_sync_offline_changes,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
+from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (  # noqa: E402
     _apply_authoritative_draft_metadata,
     _authoritative_chat_reconciliation,
     _build_draft_only_phase2_wrapper,
     _handle_phase2_sync,
     _phase2_metadata_is_current,
 )
-from backend.core.api.app.routes.chats import get_draft
-from backend.core.api.app.schemas.chat import CachedChatVersions
-from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
-from backend.core.api.app.tasks.persistence_tasks import _async_persist_user_draft_task
+from backend.core.api.app.routes.chats import get_draft  # noqa: E402
+from backend.core.api.app.schemas.chat import CachedChatVersions  # noqa: E402
+from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin  # noqa: E402
+from backend.core.api.app.tasks.persistence_tasks import _async_persist_user_draft_task  # noqa: E402
 
 
 class _Manager:
@@ -176,6 +211,64 @@ async def test_update_draft_acknowledges_sender_and_broadcasts_only_ciphertext(m
         "queue": "persistence",
     }]
     assert "plaintext" not in str(websocket.sent + manager.broadcasts).lower()
+
+
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
+@pytest.mark.anyio
+async def test_superseded_update_draft_still_acknowledges_sender_without_publishing(monkeypatch) -> None:
+    manager = _Manager()
+    websocket = _WebSocket()
+    sent_tasks = []
+
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler.celery_app_instance",
+        SimpleNamespace(send_task=lambda **kwargs: sent_tasks.append(kwargs)),
+    )
+
+    class Cache:
+        async def increment_user_draft_version(self, user_id, chat_id):
+            return 6
+
+        async def update_user_draft_in_cache(self, user_id, chat_id, encrypted_md, draft_v, *, encrypted_draft_preview):
+            assert encrypted_md == "stale-cipher-md"
+            assert encrypted_draft_preview == "stale-cipher-preview"
+            assert draft_v == 6
+            return False
+
+    directus = SimpleNamespace(
+        chat=SimpleNamespace(
+            check_chat_ownership=lambda chat_id, user_id: _async(True),
+            get_chat_metadata=lambda chat_id: _async({"id": chat_id}),
+        )
+    )
+
+    await handle_update_draft(
+        websocket=websocket,
+        manager=manager,
+        cache_service=Cache(),
+        directus_service=directus,
+        encryption_service=None,
+        user_id="user-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "encrypted_draft_md": "stale-cipher-md",
+            "encrypted_draft_preview": "stale-cipher-preview",
+        },
+    )
+
+    assert websocket.sent == [{
+        "type": "draft_update_receipt",
+        "payload": {
+            "chat_id": "11111111-1111-4111-8111-111111111111",
+            "draft_v": 6,
+            "success": True,
+            "superseded": True,
+        },
+    }]
+    assert manager.sent == []
+    assert manager.broadcasts == []
+    assert sent_tasks == []
 
 
 # contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted

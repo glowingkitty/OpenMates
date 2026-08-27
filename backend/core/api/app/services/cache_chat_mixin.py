@@ -528,16 +528,20 @@ class ChatCacheMixin:
     async def update_user_draft_in_cache(
         self, user_id: str, chat_id: str, encrypted_draft_md: Optional[str],
         draft_version: int, encrypted_draft_preview: Optional[str] = None
-    ) -> bool:
+    ) -> Optional[bool]:
         """
         Updates the user's draft content, preview, and version in their dedicated draft cache key.
         The encrypted_draft_preview is stored alongside the draft so initial_sync can include it
         when syncing draft-only chats to other devices.
         Sets TTL for the draft key.
+
+        Returns True when the draft is written, False when a newer version or
+        tombstone already superseded it, and None when Redis could not complete
+        the operation.
         """
         client = await self.client
         if not client:
-            return False
+            return None
         key = self._get_user_chat_draft_key(user_id, chat_id)
         versions_key = self._get_chat_versions_key(user_id, chat_id)
         version_field = f"user_draft_v:{user_id}"
@@ -561,7 +565,7 @@ class ChatCacheMixin:
             return bool(was_written)
         except Exception as e:
             logger.error(f"Error updating draft for user {user_id}, chat {chat_id}: {e}")
-            return False
+            return None
 
     async def tombstone_user_draft_in_cache(self, user_id: str, chat_id: str, draft_version: int) -> bool:
         """Stores a versioned deletion marker for a user's draft."""
