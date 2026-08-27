@@ -160,10 +160,12 @@ jobs:
         with:
           ref: ${{ inputs.checkout_ref }}
           persist-credentials: false
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - uses: pnpm/action-setup@v4
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - name: Load selected test account credentials
         env:
           DIRECT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
@@ -393,6 +395,12 @@ jobs:
           OPENMATES_CLI_TEST_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
+        if: inputs.spec != '__cli_integration_code_docs__'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Ensure Playwright browser and system dependencies
         if: inputs.spec != '__cli_integration_code_docs__'
         run: |
           npx playwright install --with-deps chromium

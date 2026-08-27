@@ -42,16 +42,23 @@ jobs:
         with:
           ref: dev
 
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-
-      - uses: pnpm/action-setup@v4
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install frontend deps
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
+        if: ${{ inputs.suite == 'free-hourly' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Ensure Playwright browser and system dependencies
         if: ${{ inputs.suite == 'free-hourly' }}
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app

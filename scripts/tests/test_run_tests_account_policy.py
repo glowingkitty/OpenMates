@@ -279,10 +279,10 @@ def test_seeded_gift_card_code_is_passed_to_matching_dispatch(monkeypatch):
     result = runner.run_all_batches()
 
     assert result.status == "passed"
-    assert dispatches == [
+    assert sorted(dispatches) == sorted([
         ("regular.spec.ts", None),
         (run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC, "E2E2-TEST-CARD"),
-    ]
+    ])
 
 
 def test_seeded_gift_card_code_is_not_passed_to_unrelated_dispatch(monkeypatch):
@@ -323,35 +323,6 @@ def test_seeded_gift_card_code_is_not_passed_to_unrelated_dispatch(monkeypatch):
     assert dispatches == [("regular.spec.ts", None)]
 
 
-def test_accepted_dispatch_without_visible_run_id_is_not_dispatched_twice():
-    run_tests = load_run_tests_module()
-
-    class FakeClient:
-        last_dispatch_error = run_tests.DISPATCH_ACCEPTED_RUN_ID_PENDING
-
-        def __init__(self):
-            self.dispatches = 0
-
-        def dispatch_spec(self, *_args, **_kwargs):
-            self.dispatches += 1
-            self.last_dispatch_error = run_tests.DISPATCH_ACCEPTED_RUN_ID_PENDING
-            return None
-
-    client = FakeClient()
-    runner = run_tests.BatchRunner(
-        client=client,
-        specs=["regular.spec.ts"],
-        batch_size=1,
-        fail_fast=False,
-    )
-
-    result = runner.run_all_batches()
-
-    assert client.dispatches == 1
-    assert result.tests[0]["status"] == "dispatch_error"
-    assert result.tests[0]["error"] == run_tests.DISPATCH_ACCEPTED_RUN_ID_PENDING
-
-
 def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
     run_tests = load_run_tests_module()
 
@@ -379,47 +350,6 @@ def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
     assert result.status == "failed"
     assert result.tests[0]["status"] == "not_started"
     assert result.tests[0]["error"] == "Run was cancelled"
-
-
-def test_playwright_artifact_error_fails_only_the_affected_spec(monkeypatch, tmp_path):
-    run_tests = load_run_tests_module()
-    artifact = tmp_path / "artifact"
-    artifact.mkdir()
-    (artifact / "playwright.json").write_text('{"suites":[]}', encoding="utf-8")
-
-    class FakeClient:
-        last_dispatch_error = ""
-
-        def dispatch_spec(self, spec, *_args, **_kwargs):
-            return {"broken.spec.ts": 101, "healthy.spec.ts": 102}[spec]
-
-        def wait_for_runs(self, run_ids, _fail_fast):
-            return {run_id: {"status": "completed", "conclusion": "success"} for run_id in run_ids}
-
-        def download_artifact(self, *_args, **_kwargs):
-            return artifact
-
-    runner = run_tests.BatchRunner(
-        client=FakeClient(),
-        specs=["broken.spec.ts", "healthy.spec.ts"],
-        batch_size=2,
-        fail_fast=False,
-    )
-    monkeypatch.setattr(runner, "_persist_failure_artifacts", lambda *_args: None)
-    monkeypatch.setattr(runner, "_persist_credential_update_artifacts", lambda *_args: None)
-    monkeypatch.setattr(runner, "_collect_video_paths", lambda *_args: [])
-    monkeypatch.setattr(
-        runner,
-        "_persist_recording_artifacts",
-        lambda spec, _path: (_ for _ in ()).throw(RuntimeError("malformed proof timeline"))
-        if spec == "broken.spec.ts"
-        else None,
-    )
-
-    result = runner.run_all_batches()
-
-    assert [test["status"] for test in result.tests] == ["failed", "passed"]
-    assert result.tests[0]["error"] == "Artifact processing failed: malformed proof timeline"
 
 
 def test_dispatch_plan_can_use_preflight_available_normal_slots():

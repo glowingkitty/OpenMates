@@ -59,11 +59,15 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import Future, ThreadPoolExecutor
+from collections import deque
 from dataclasses import dataclass, field
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 from typing import Callable, Optional
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 try:
@@ -122,7 +126,6 @@ RENOTIFY_AFTER_TICKS = 3
 ESSENTIAL_FAILURE_SUBJECT = "URGENT: Essential services seem to be broken"
 ESSENTIAL_TEST_KEYWORDS = ("signup", "login", "chat-flow")
 WORKFLOW_NAME = "playwright-spec.yml"
-DISPATCH_ACCEPTED_RUN_ID_PENDING = "Workflow dispatched, but GitHub did not expose a new run ID in time"
 PROOF_VIDEO_PROFILES = {"web-laptop", "web-phone"}
 CLI_INTEGRATION_SPEC = "__cli_integration_code_docs__"
 PROD_SMOKE_WORKFLOW = "prod-smoke.yml"
@@ -184,6 +187,9 @@ VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 VERCEL_WAIT_TIMEOUT = 1200  # 20 min max to wait for dev deployment before E2E specs
 VERCEL_WAIT_POLL_INTERVAL = 15
 APPLE_REMOTE_TIMEOUT = 7200  # seconds — Xcode test/build runs can be slow on the remote Mac
+ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS = 15 * 60
+ACCOUNT_PREFLIGHT_CACHE_PATH = CONTROL_PLANE_ROOT / "test-results" / "account-preflight-cache.json"
+ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH = Path("/tmp/openmates-account-preflight-cache.lock")
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
@@ -1619,6 +1625,32 @@ class GitHubActionsClient:
         Dispatch a single spec workflow run.
         Returns the run ID or None on failure.
         """
+        dispatch_token = self.request_spec_dispatch(
+            spec,
+            account,
+            use_mocks,
+            record_live_fixtures,
+            create_account_slot=create_account_slot,
+            allow_credential_updates=allow_credential_updates,
+            seeded_gift_card_code=seeded_gift_card_code,
+            proof_video_profile=proof_video_profile,
+        )
+        if dispatch_token is None:
+            return None
+        return self.resolve_dispatch_tokens({dispatch_token: spec}).get(dispatch_token)
+
+    def request_spec_dispatch(
+        self,
+        spec: str,
+        account: int,
+        use_mocks: bool = True,
+        record_live_fixtures: bool = False,
+        create_account_slot: Optional[int] = None,
+        allow_credential_updates: bool = True,
+        seeded_gift_card_code: Optional[str] = None,
+        proof_video_profile: str = "",
+    ) -> Optional[str]:
+        """Submit a workflow without serially waiting for GitHub's run ID."""
         self.last_dispatch_error = None
         dispatch_token = f"rt-{os.getpid()}-{time.time_ns()}-{account}"
 
@@ -1653,19 +1685,26 @@ class GitHubActionsClient:
             self.last_dispatch_error = f"Dispatch failed: {detail}"
             _log(f"Dispatch failed for {spec}: {detail}", "ERROR")
             return None
+        return dispatch_token
 
-        # Wait for GitHub to register the run, then find the exact dispatch.
-        # Concurrent OpenMates sessions can dispatch this workflow at the same
-        # time, so "newest run after dispatch" can attach to another spec.
-        for attempt in range(6):
+    def resolve_dispatch_tokens(self, pending: dict[str, str]) -> dict[str, int]:
+        """Resolve many dispatch tokens with one workflow-list query per poll."""
+        resolved: dict[str, int] = {}
+        for _attempt in range(6):
+            if not pending:
+                break
             time.sleep(2)
-            run_id = _matching_dispatched_run_id(self._recent_runs(limit=50), dispatch_token)
-            if run_id is not None:
-                return run_id
-
-        _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
-        self.last_dispatch_error = DISPATCH_ACCEPTED_RUN_ID_PENDING
-        return None
+            runs = self._recent_runs(limit=max(50, min(100, len(pending) * 3)))
+            for token in list(pending):
+                run_id = _matching_dispatched_run_id(runs, token)
+                if run_id is not None:
+                    resolved[token] = run_id
+                    pending.pop(token)
+        for token, spec in pending.items():
+            _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
+        if pending:
+            self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
+        return resolved
 
     def _recent_runs(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[dict]:
         """Get the most recent runs for a workflow."""
@@ -1878,6 +1917,45 @@ def _account_for_spec_in_batch(
     return normal_account_slots[normal_index % len(normal_account_slots)]
 
 
+def _cached_preflight_slots(now: float | None = None) -> set[int]:
+    current = time.time() if now is None else now
+    ACCOUNT_PREFLIGHT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH.open("a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            payload = json.loads(ACCOUNT_PREFLIGHT_CACHE_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        slots = payload.get("slots") if isinstance(payload, dict) else {}
+        if not isinstance(slots, dict):
+            return set()
+        return {
+            int(slot)
+            for slot, checked_at in slots.items()
+            if str(slot).isdigit() and current - float(checked_at or 0) <= ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS
+        }
+
+
+def _update_preflight_cache(passed_slots: set[int], failed_slots: set[int] | None = None) -> None:
+    ACCOUNT_PREFLIGHT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH.open("a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            payload = json.loads(ACCOUNT_PREFLIGHT_CACHE_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        slots = payload.get("slots") if isinstance(payload, dict) else None
+        slots = dict(slots) if isinstance(slots, dict) else {}
+        now = time.time()
+        for slot in passed_slots:
+            slots[str(slot)] = now
+        for slot in failed_slots or set():
+            slots.pop(str(slot), None)
+        temporary = ACCOUNT_PREFLIGHT_CACHE_PATH.with_suffix(".tmp")
+        temporary.write_text(json.dumps({"slots": slots}, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, ACCOUNT_PREFLIGHT_CACHE_PATH)
+
+
 def build_playwright_dispatch_plan(
     specs: list[str],
     batch_size: int,
@@ -1976,6 +2054,7 @@ class BatchRunner:
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
         progress_callback: Optional[Callable[[SuiteResult], None]] = None,
+        coordinate_accounts: bool | None = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1989,8 +2068,7 @@ class BatchRunner:
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
         self.progress_callback = progress_callback
-        self._active_batch_run_ids: list[int] = []
-        self._batch_runs_terminal = False
+        self.coordinate_accounts = isinstance(client, GitHubActionsClient) if coordinate_accounts is None else coordinate_accounts
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
@@ -2008,7 +2086,7 @@ class BatchRunner:
             self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
 
     def run_all_batches(self) -> SuiteResult:
-        """Execute all specs in batches. Returns aggregated SuiteResult."""
+        """Continuously refill independent account lanes until every spec finishes."""
         if not self.specs:
             return SuiteResult(status="skipped", reason="no specs to run")
 
@@ -2016,77 +2094,54 @@ class BatchRunner:
         effective_batch_size = _effective_playwright_batch_size(self.batch_size, self.normal_account_slots)
         if effective_batch_size <= 0:
             return SuiteResult(status="failed", reason="no available normal Playwright account slots")
-        total_batches = (len(self.specs) + effective_batch_size - 1) // effective_batch_size
         suite_start = time.time()
+        pending = deque(enumerate(self.specs))
+        completed: dict[int, SpecResult] = {}
+        state_lock = threading.Lock()
+        stop_dispatch = threading.Event()
+        worker_slots = self.normal_account_slots[:min(effective_batch_size, len(self.specs))]
 
-        for batch_idx in range(total_batches):
-            start = batch_idx * effective_batch_size
-            end = min(start + effective_batch_size, len(self.specs))
-            batch_specs = self.specs[start:end]
+        _log(f"Dynamic Playwright queue: {len(self.specs)} specs across {len(worker_slots)} account workers")
 
-            print()
-            _log(f"Batch {batch_idx + 1}/{total_batches}: {len(batch_specs)} specs")
-
-            self._active_batch_run_ids = []
-            self._batch_runs_terminal = False
-            batch_recovery_error: Optional[str] = None
-            try:
-                batch_results = self._run_batch(batch_specs, batch_idx)
-            except Exception as exc:
-                if not self._batch_runs_terminal and self._active_batch_run_ids:
-                    _log(
-                        f"Batch {batch_idx + 1} crashed with active workflows — "
-                        f"waiting for {len(self._active_batch_run_ids)} run(s) before continuing",
-                        "WARN",
-                    )
-                    try:
-                        self.client.wait_for_runs(self._active_batch_run_ids, False)
-                    except Exception as drain_exc:
-                        batch_recovery_error = f"Could not drain active workflows: {drain_exc}"
-                        _log(batch_recovery_error, "ERROR")
-                self._active_batch_run_ids = []
-                self._batch_runs_terminal = batch_recovery_error is None
-                error = f"Batch {batch_idx + 1} collection failed: {exc}"
-                if batch_recovery_error:
-                    error = f"{error}; {batch_recovery_error}"
-                _log(f"{error} — accounting for this batch and continuing", "ERROR")
-                batch_results = [
-                    SpecResult(name=spec, file=spec, status="result_unknown", error=error)
-                    for spec in batch_specs
-                ]
-            all_results.extend(batch_results)
-
-            if batch_recovery_error:
-                remaining_specs = self.specs[end:]
-                for spec in remaining_specs:
-                    all_results.append(SpecResult(
-                        name=spec,
-                        file=spec,
-                        status="not_started",
-                        error=f"Skipped: {batch_recovery_error}",
-                    ))
-                self._emit_progress(all_results, suite_start)
-                break
-
-            # Check for failures (batch-level fail-fast)
-            batch_failures = [r for r in batch_results if _is_problem_status(r.status)]
-            if batch_failures and self.fail_fast and batch_idx < total_batches - 1:
-                remaining_specs = self.specs[end:]
-                _log(
-                    f"{len(batch_failures)} failure(s) in batch {batch_idx + 1} — "
-                    f"skipping {len(remaining_specs)} remaining specs (fail-fast)",
-                    "WARN",
+        def worker(preferred_account: int) -> None:
+            while not stop_dispatch.is_set():
+                with state_lock:
+                    if not pending:
+                        return
+                    spec_index, spec = pending.popleft()
+                batch_results = self._run_batch(
+                    [spec],
+                    spec_index,
+                    account_overrides=[preferred_account],
                 )
-                for spec in remaining_specs:
-                    all_results.append(SpecResult(
-                        name=spec, file=spec, status="not_started",
-                        error=f"Skipped: fail-fast after batch {batch_idx + 1}",
-                    ))
-                self._emit_progress(all_results, suite_start)
-                break
+                result = batch_results[0] if batch_results else SpecResult(
+                    name=spec,
+                    file=spec,
+                    status="dispatch_error",
+                    error="Dynamic worker returned no result",
+                )
+                with state_lock:
+                    completed[spec_index] = result
+                    ordered_progress = [completed[index] for index in sorted(completed)]
+                    self._emit_progress(ordered_progress, suite_start)
+                    if self.fail_fast and result.status == "failed":
+                        stop_dispatch.set()
 
-            self._emit_progress(all_results, suite_start)
+        with ThreadPoolExecutor(max_workers=len(worker_slots), thread_name_prefix="playwright-account") as executor:
+            futures = [executor.submit(worker, account) for account in worker_slots]
+            for future in futures:
+                future.result()
 
+        if pending:
+            for spec_index, spec in pending:
+                completed[spec_index] = SpecResult(
+                    name=spec,
+                    file=spec,
+                    status="not_started",
+                    error="Skipped: fail-fast after an earlier dynamic account lane failed",
+                )
+        all_results = [completed[index] for index in sorted(completed)]
+        self._emit_progress(all_results, suite_start)
         return self._suite_from_results(all_results, time.time() - suite_start)
 
     def _run_batch(
@@ -2098,11 +2153,54 @@ class BatchRunner:
         """Dispatch and wait for a single batch of specs."""
         # Dispatch all specs in this batch
         dispatched: list[tuple[str, int, int]] = []  # (spec, account, run_id)
+        pending_dispatches: dict[str, tuple[str, int]] = {}
         dispatch_errors: list[SpecResult] = []
         normal_account_index = 0
+        account_leases: dict[int, tuple[str, set[str]]] = {}
+        lease_owner = os.environ.get("OPENCODE_SESSION_ID", "scheduled-test-runner")
+
+        def claim_account(preferred: int, *, reserved: bool) -> int:
+            if not self.coordinate_accounts:
+                return preferred
+            if preferred in account_leases:
+                return preferred
+            candidates = [preferred] if reserved else [
+                *self.normal_account_slots[self.normal_account_slots.index(preferred):],
+                *self.normal_account_slots[:self.normal_account_slots.index(preferred)],
+            ]
+            while True:
+                for candidate in candidates:
+                    if candidate in account_leases:
+                        continue
+                    lease_id = f"playwright-account-{candidate}-{uuid4().hex[:10]}"
+                    resources = {f"playwright-account:{candidate}"}
+                    try:
+                        session_control.acquire_test_resource_lease(
+                            lease_id,
+                            lease_owner,
+                            resources,
+                            timeout=0,
+                            poll=1,
+                            mode="exclusive",
+                        )
+                    except RuntimeError:
+                        continue
+                    account_leases[candidate] = (lease_id, resources)
+                    return candidate
+                _log("All eligible Playwright accounts are busy; waiting for a released lane", "WARN")
+                time.sleep(5)
+
+        def release_account_leases() -> None:
+            for lease_id, _resources in account_leases.values():
+                try:
+                    session_control.release_test_resource_lease(lease_id)
+                except RuntimeError as exc:
+                    _log(f"Could not release Playwright account lease {lease_id}: {exc}", "WARN")
 
         for i, spec in enumerate(specs):
-            if account_overrides is not None:
+            if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC[spec]
+            elif account_overrides is not None:
                 account = account_overrides[i]
             elif spec == ACCOUNT_PREFLIGHT_SPEC:
                 account = i + 1
@@ -2110,24 +2208,27 @@ class BatchRunner:
                 account = _account_for_spec_in_batch(spec, normal_account_index, self.normal_account_slots)
             if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
                 normal_account_index += 1
+            if spec != ACCOUNT_PREFLIGHT_SPEC:
+                account = claim_account(
+                    account,
+                    reserved=spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC,
+                )
             _log(f"  Dispatching {spec} (account {account})")
 
             create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
             seeded_gift_card = self.seeded_gift_cards.get(spec)
-            run_id = self.client.dispatch_spec(
-                spec,
-                account,
-                self.use_mocks,
-                self.record_live_fixtures,
-                create_account_slot=create_account_slot,
-                allow_credential_updates=self.allow_credential_updates,
-                seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
-                proof_video_profile=self.proof_video_profile,
-            )
-            dispatch_was_accepted = self.client.last_dispatch_error == DISPATCH_ACCEPTED_RUN_ID_PENDING
-            if run_id is None and not dispatch_was_accepted:
-                # Retry once
-                time.sleep(5)
+            if hasattr(self.client, "request_spec_dispatch"):
+                dispatch_token = self.client.request_spec_dispatch(
+                    spec,
+                    account,
+                    self.use_mocks,
+                    self.record_live_fixtures,
+                    create_account_slot=create_account_slot,
+                    allow_credential_updates=self.allow_credential_updates,
+                    seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                    proof_video_profile=self.proof_video_profile,
+                )
+            else:
                 run_id = self.client.dispatch_spec(
                     spec,
                     account,
@@ -2138,30 +2239,103 @@ class BatchRunner:
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                     proof_video_profile=self.proof_video_profile,
                 )
+                dispatch_token = f"immediate:{run_id}" if run_id is not None else None
+            if dispatch_token is None:
+                # Retry once
+                time.sleep(5)
+                if hasattr(self.client, "request_spec_dispatch"):
+                    dispatch_token = self.client.request_spec_dispatch(
+                        spec,
+                        account,
+                        self.use_mocks,
+                        self.record_live_fixtures,
+                        create_account_slot=create_account_slot,
+                        allow_credential_updates=self.allow_credential_updates,
+                        seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                        proof_video_profile=self.proof_video_profile,
+                    )
+                else:
+                    run_id = self.client.dispatch_spec(
+                        spec,
+                        account,
+                        self.use_mocks,
+                        self.record_live_fixtures,
+                        create_account_slot=create_account_slot,
+                        allow_credential_updates=self.allow_credential_updates,
+                        seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                        proof_video_profile=self.proof_video_profile,
+                    )
+                    dispatch_token = f"immediate:{run_id}" if run_id is not None else None
 
-            if run_id is None:
+            if dispatch_token is None:
                 dispatch_errors.append(SpecResult(
                     name=spec, file=spec, status="dispatch_error",
                     error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
                 ))
             else:
-                dispatched.append((spec, account, run_id))
-                self._active_batch_run_ids.append(run_id)
+                pending_dispatches[dispatch_token] = (spec, account)
 
             # Small delay between dispatches to avoid rate limiting
             if (i + 1) % 5 == 0:
                 time.sleep(1)
 
+        immediate = {
+            token: int(token.partition(":")[2])
+            for token in pending_dispatches
+            if token.startswith("immediate:")
+        }
+        unresolved = {
+            token: spec
+            for token, (spec, _account) in pending_dispatches.items()
+            if token not in immediate
+        }
+        resolved = {
+            **immediate,
+            **(self.client.resolve_dispatch_tokens(unresolved) if unresolved else {}),
+        }
+        for token, (spec, account) in pending_dispatches.items():
+            run_id = resolved.get(token)
+            if run_id is None:
+                dispatch_errors.append(SpecResult(
+                    name=spec,
+                    file=spec,
+                    status="dispatch_error",
+                    error=self.client.last_dispatch_error or "Workflow run ID was not resolved",
+                ))
+            else:
+                dispatched.append((spec, account, run_id))
+
         if not dispatched:
-            self._batch_runs_terminal = True
+            release_account_leases()
             return dispatch_errors
+
+        lease_heartbeat_stop = threading.Event()
+
+        def renew_account_leases() -> None:
+            while not lease_heartbeat_stop.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
+                for lease_id, resources in account_leases.values():
+                    try:
+                        session_control.renew_test_resource_lease(
+                            lease_id,
+                            lease_owner,
+                            resources,
+                            mode="exclusive",
+                        )
+                    except RuntimeError as exc:
+                        _log(f"Playwright account lease renewal failed: {exc}", "ERROR")
+                        return
+
+        lease_heartbeat = threading.Thread(
+            target=renew_account_leases,
+            name="playwright-account-lease-heartbeat",
+            daemon=True,
+        )
+        lease_heartbeat.start()
 
         # Wait for all dispatched runs
         run_ids = [rid for _, _, rid in dispatched]
         _log(f"  Waiting for {len(run_ids)} runs...")
         statuses = self.client.wait_for_runs(run_ids, self.fail_fast)
-        self._active_batch_run_ids = []
-        self._batch_runs_terminal = True
         print()  # Clear the polling line
 
         # Collect results
@@ -2243,12 +2417,7 @@ class BatchRunner:
                 # Persist artifacts (screenshots, traces, playwright.json)
                 self._persist_failure_artifacts(spec, art_path)
                 self._persist_credential_update_artifacts(spec, art_path)
-                try:
-                    proof_timeline_path = self._persist_recording_artifacts(spec, art_path)
-                except Exception as exc:
-                    status = "failed"
-                    error = f"Artifact processing failed: {exc}"
-                    _log(f"  Artifact processing failed for {spec}: {exc}", "ERROR")
+                proof_timeline_path = self._persist_recording_artifacts(spec, art_path)
                 video_paths = self._collect_video_paths(art_path)
 
                 # Collect screenshot paths relative to test-results/
@@ -2275,6 +2444,8 @@ class BatchRunner:
                 "not_started": "⊘",
             }.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")
+            if status not in {"passed", "skipped"}:
+                _update_preflight_cache(set(), {account})
 
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
@@ -2294,6 +2465,9 @@ class BatchRunner:
 
         # Cleanup artifact dir
         shutil.rmtree(artifact_dir, ignore_errors=True)
+        lease_heartbeat_stop.set()
+        lease_heartbeat.join(timeout=1)
+        release_account_leases()
         return results
 
     @staticmethod
@@ -3038,6 +3212,7 @@ class NotificationService:
 
     def __init__(self) -> None:
         self.dot_env = _read_env_file()
+        self.coordinate_runtime = True
         self.admin_email = _get_env("ADMIN_NOTIFY_EMAIL", self.dot_env)
         self.internal_token = _get_env("INTERNAL_API_SHARED_TOKEN", self.dot_env)
         self.brevo_api_key = _get_env("BREVO_API_KEY", self.dot_env)
@@ -3057,11 +3232,6 @@ class NotificationService:
         self.discord_webhook_prod_smoke = _get_env(
             "DISCORD_WEBHOOK_PROD_SMOKE", self.dot_env
         )
-        self._last_email_outcome = {
-            "configured": bool(self.admin_email),
-            "status": "not_attempted",
-            "transport": None,
-        }
 
     def send_start_email(self, git_sha: str, git_branch: str, environment: str) -> None:
         """Notify admin that a test run has started."""
@@ -3070,28 +3240,27 @@ class NotificationService:
             return
 
         started_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        trigger_type = "Scheduled (daily)" if os.environ.get("DAILY_RUN_ENVIRONMENT") else "Manual"
         subject = f"[OpenMates] Test run started ({environment})"
         body = (
             f"Test run started at {started_at}\n"
             f"Environment: {environment}\n"
             f"Git: {git_sha}@{git_branch}\n"
-            f"Trigger: {trigger_type}"
+            f"Trigger: {'Scheduled (daily)' if os.environ.get('DAILY_RUN_ENVIRONMENT') else 'Manual'}"
         )
 
-        self._send_email(
-            subject,
-            body,
-            "dispatch-test-start-email",
-            {
+        if self.brevo_api_key:
+            self._send_via_brevo(subject, body)
+        elif self.internal_token:
+            self._send_via_internal_api("dispatch-test-start-email", {
                 "recipient_email": self.admin_email,
                 "environment": environment,
-                "trigger_type": trigger_type,
+                "trigger_type": "Scheduled (daily)",
                 "git_sha": git_sha,
                 "git_branch": git_branch,
                 "started_at": started_at,
-            },
-        )
+            })
+        else:
+            _log("No email credentials available — skipping start email", "WARN")
 
     def send_daily_discord_status(
         self,
@@ -3204,55 +3373,29 @@ class NotificationService:
         subject = f"[OpenMates] {status} ({result.environment})"
 
         # --- Email path (existing) ---
-        email_delivered = False
         if not self.admin_email:
             _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
-            self._last_email_outcome = {
-                "configured": False,
-                "status": "unconfigured",
-                "transport": None,
-            }
         else:
             # Build HTML email body
             html = self._build_summary_html(result)
             text = self._build_summary_text(result)
 
-            self._send_email(
-                subject,
-                text,
-                "dispatch-test-summary-email",
-                self._build_internal_api_payload(result),
-                html,
-            )
-            email_delivered = self._last_email_outcome["status"] == "provider_accepted"
+            if self.brevo_api_key:
+                self._send_via_brevo(subject, text, html)
+            elif self.internal_token:
+                # Fall back to internal API
+                payload = self._build_internal_api_payload(result)
+                self._send_via_internal_api("dispatch-test-summary-email", payload)
+            else:
+                _log("No email credentials available — skipping summary email", "WARN")
 
         # --- Discord fallback (OPE-76) ---
         # Fires for EVERY run — nightly success gives a visible heartbeat so we
         # notice if the whole pipeline goes quiet. Failures get a louder ping.
         discord_delivered = self._send_summary_to_discord(result)
-        result.flags["email_delivered"] = email_delivered
-        result.flags["discord_delivered"] = discord_delivered
-        discord_configured = bool(self.discord_webhook_url)
-        result.flags["notification_channels"] = {
-            "email": dict(self._last_email_outcome),
-            "discord": {
-                "configured": discord_configured,
-                "status": (
-                    "provider_accepted"
-                    if discord_delivered
-                    else "failed" if discord_configured else "unconfigured"
-                ),
-                "transport": "webhook" if discord_configured else None,
-            },
-        }
 
         self.send_urgent_essential_failure_email(result)
-        configured_results = []
-        if self.admin_email:
-            configured_results.append(email_delivered)
-        if discord_configured:
-            configured_results.append(discord_delivered)
-        return bool(configured_results) and all(configured_results)
+        return discord_delivered
 
     def send_urgent_essential_failure_email(self, result: RunResult) -> None:
         """Send a separate admin email when signup, login, or chat flow fails."""
@@ -3283,15 +3426,16 @@ class NotificationService:
             suites=self._essential_failed_suites(result, essential_failed),
         )
 
-        payload = self._build_internal_api_payload(urgent_result)
-        payload["subject_override"] = ESSENTIAL_FAILURE_SUBJECT
-        self._send_email(
-            ESSENTIAL_FAILURE_SUBJECT,
-            self._build_summary_text(urgent_result),
-            "dispatch-test-summary-email",
-            payload,
-            self._build_summary_html(urgent_result),
-        )
+        if self.brevo_api_key:
+            html = self._build_summary_html(urgent_result)
+            text = self._build_summary_text(urgent_result)
+            self._send_via_brevo(ESSENTIAL_FAILURE_SUBJECT, text, html)
+        elif self.internal_token:
+            payload = self._build_internal_api_payload(urgent_result)
+            payload["subject_override"] = ESSENTIAL_FAILURE_SUBJECT
+            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        else:
+            _log("No email credentials available — skipping urgent essential-flow email", "WARN")
 
     def send_prod_failure_email(self, result: RunResult, mode_label: str, run_url: Optional[str] = None) -> None:
         """Send a production smoke failure email from the dev-server runner."""
@@ -3312,10 +3456,15 @@ class NotificationService:
                 f'<p><a href="{run_url}" style="color:#60a5fa">View GitHub Actions run</a></p></body></html>',
             )
 
-        payload = self._build_internal_api_payload(result)
-        payload["subject_override"] = subject
-        payload["run_url"] = run_url
-        self._send_email(subject, text, "dispatch-test-summary-email", payload, html)
+        if self.brevo_api_key:
+            self._send_via_brevo(subject, text, html)
+        elif self.internal_token:
+            payload = self._build_internal_api_payload(result)
+            payload["subject_override"] = subject
+            payload["run_url"] = run_url
+            self._send_via_internal_api("dispatch-test-summary-email", payload)
+        else:
+            _log("No email credentials available — cannot send prod smoke failure email", "ERROR")
 
     def push_to_openobserve(self, result: RunResult) -> None:
         """Push test run summary to OpenObserve via internal API."""
@@ -3349,36 +3498,7 @@ class NotificationService:
 
     # --- Private methods ---
 
-    def _send_email(
-        self,
-        subject: str,
-        text: str,
-        internal_endpoint: str,
-        internal_payload: dict,
-        html: Optional[str] = None,
-    ) -> bool:
-        """Seek provider acceptance first, with the unconfirmed queue as fallback."""
-        self._last_email_outcome = {
-            "configured": bool(self.admin_email),
-            "status": "failed",
-            "transport": None,
-        }
-        if self.brevo_api_key and self._send_via_brevo(subject, text, html):
-            self._last_email_outcome.update(
-                status="provider_accepted",
-                transport="brevo",
-            )
-            return True
-        if self.internal_token and self._send_via_internal_api(internal_endpoint, internal_payload):
-            self._last_email_outcome.update(
-                status="queued_unconfirmed",
-                transport="internal_api",
-            )
-            return True
-        _log("No working email transport available", "WARN")
-        return False
-
-    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> bool:
+    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> None:
         """Send email directly via Brevo API."""
         payload = {
             "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
@@ -3403,13 +3523,11 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email sent via Brevo to {self.admin_email}")
-            return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
-        return False
 
     def _is_essential_test(self, test_entry: dict, suite_name: str = "") -> bool:
         searchable = " ".join(
@@ -4353,8 +4471,8 @@ class NotificationService:
             )
         return (posted, edited, recovered)
 
-    def _send_via_internal_api(self, endpoint: str, payload: dict) -> bool:
-        """Dispatch email through the server-managed internal API."""
+    def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
+        """Send via internal API as fallback."""
         url = f"{self.internal_api_url}/internal/{endpoint}"
         try:
             body = json.dumps(payload).encode("utf-8")
@@ -4365,10 +4483,8 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email dispatched via internal API ({endpoint})")
-            return True
         except Exception as e:
             _log(f"Internal API email dispatch failed: {e}", "WARN")
-            return False
 
     def _build_summary_html(self, result: RunResult) -> str:
         """Build a simple HTML email for test results."""
@@ -4951,13 +5067,6 @@ def _run_prod_smoke_suite(
     dry_run: bool = False,
 ) -> int:
     """Dispatch one selected prod-smoke.yml suite and notify from dev server."""
-    if not force and _docker_restarted_recently():
-        _log(
-            f"Docker restarted within the last {DOCKER_GRACE_MINUTES} min "
-            f"— skipping {mode_label} smoke run to avoid false failures"
-        )
-        return 0
-
     git_sha, git_branch = _git_info()
     run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -6594,7 +6703,6 @@ class TestOrchestrator:
         self._stop_daily_status_updates()
         result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
         ResultAggregator.save(result)
-        self._archive_daily_result()
         return 1
 
     def _run(self) -> int:
@@ -6642,33 +6750,53 @@ class TestOrchestrator:
                 current_dir.rename(archive_dest)
                 _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
-        # Run all suites via GitHub Actions (prevents dev server overload)
-        if not self.spec and self.suite in ("all", "vitest"):
-            self.current_phase = "vitest"
-            suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "vitest")
+        parallel_daily = self.daily and not self.spec and self.suite == "all" and not self.dry_run
+        parallel_futures: dict[str, Future[SuiteResult]] = {}
+        executor: ThreadPoolExecutor | None = None
+        if parallel_daily:
+            # GitHub unit workflows and the single-lane remote Mac use separate
+            # capacity. Starting them together shortens the nightly critical
+            # path without increasing Xcode/simulator concurrency on the Mac.
+            executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="nightly-suite")
+            parallel_futures = {
+                "vitest": executor.submit(self._run_unit_suite_via_gha, "vitest.yml", "vitest-results"),
+                "pytest_unit": executor.submit(self._run_unit_suite_via_gha, "pytest-unit.yml", "pytest-results"),
+                "apple_remote": executor.submit(self._run_apple_remote_nightly),
+            }
 
-        if not self.spec and self.suite in ("all", "pytest"):
-            self.current_phase = "pytest"
-            suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "pytest")
+        try:
+            if not parallel_daily and not self.spec and self.suite in ("all", "vitest"):
+                self.current_phase = "vitest"
+                suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+                self._save_progress_snapshot(suites, start_time, "vitest")
 
-        if not self.spec and self.suite in ("all", "cli"):
-            self.current_phase = "CLI integration"
-            suites["cli"] = self._run_cli_integration()
-            self._save_progress_snapshot(suites, start_time, "CLI integration")
+            if not parallel_daily and not self.spec and self.suite in ("all", "pytest"):
+                self.current_phase = "pytest"
+                suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+                self._save_progress_snapshot(suites, start_time, "pytest")
 
-        # Run Playwright via GitHub Actions
-        if self.suite in ("all", "playwright"):
-            self.current_phase = "Playwright"
-            suites["playwright"] = self._run_playwright()
-            self._save_progress_snapshot(suites, start_time, "Playwright")
+            if not self.spec and self.suite in ("all", "cli"):
+                self.current_phase = "CLI integration"
+                suites["cli"] = self._run_cli_integration()
+                self._save_progress_snapshot(suites, start_time, "CLI integration")
 
-        # Run native Apple checks only for nightly cron or explicit --suite apple.
-        if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
-            self.current_phase = "Apple remote"
-            suites["apple_remote"] = self._run_apple_remote_nightly()
-            self._save_progress_snapshot(suites, start_time, "Apple remote")
+            if self.suite in ("all", "playwright"):
+                self.current_phase = "Playwright"
+                suites["playwright"] = self._run_playwright()
+                self._save_progress_snapshot(suites, start_time, "Playwright")
+
+            if not parallel_daily and not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
+                self.current_phase = "Apple remote"
+                suites["apple_remote"] = self._run_apple_remote_nightly()
+                self._save_progress_snapshot(suites, start_time, "Apple remote")
+
+            for suite_name, future in parallel_futures.items():
+                self.current_phase = f"collecting {suite_name}"
+                suites[suite_name] = future.result()
+                self._save_progress_snapshot(suites, start_time, self.current_phase)
+        finally:
+            if executor is not None:
+                executor.shutdown(wait=True, cancel_futures=False)
 
         # Aggregate results
         self.current_phase = "finalizing results"
@@ -6688,17 +6816,18 @@ class TestOrchestrator:
         # Save results
         if not self.dry_run:
             ResultAggregator.save(result)
-            if self.daily:
-                self._stop_daily_status_updates()
-                self._daily_post_run(result)
-            else:
-                # Always generate MD reports (useful for single-spec debugging too)
-                ReportGenerator().generate(result)
-                TestRecordingPublisher().publish(result)
-                self._sync_obsidian_test_results()
+            # Always generate MD reports (useful for single-spec debugging too)
+            ReportGenerator().generate(result)
+            TestRecordingPublisher().publish(result)
+            self._sync_obsidian_test_results()
 
         # Print summary
         self._print_summary(result)
+
+        # Daily mode: post-run tasks
+        if self.daily and not self.dry_run:
+            self._stop_daily_status_updates()
+            self._daily_post_run(result)
 
         return _exit_code_for_summary(result.summary)
 
@@ -6744,7 +6873,18 @@ class TestOrchestrator:
                 reason="apple_remote.py missing",
             )
 
-        _log(f"Apple Remote: {len(commands)} command(s), serialized")
+        subject_commit = _full_git_sha(self.git_sha)
+        pinned_commands: list[tuple[str, tuple[str, ...]]] = []
+        for name, remote_args in commands:
+            args = list(remote_args)
+            if name == "sync-repo" and subject_commit:
+                args.extend(["--commit", subject_commit])
+            elif name in {"test-ios", "test-macos", "verify-watch-startup"} and subject_commit:
+                args.extend(["--expected-commit", subject_commit])
+            pinned_commands.append((name, tuple(args)))
+        commands = pinned_commands
+
+        _log(f"Apple Remote: {len(commands)} command(s), serialized on one 8 GB Mac lane")
         if self.dry_run:
             for name, remote_args in commands:
                 print(f"    {name}: python3 scripts/apple_remote.py {' '.join(remote_args)}")
@@ -6813,7 +6953,12 @@ class TestOrchestrator:
         # Record pre-dispatch run IDs to find the new one
         pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
 
-        dispatch_command = ["gh", "workflow", "run", workflow_file, "--repo", GH_REPO, "--ref", GH_BRANCH]
+        dispatch_command = [
+            "gh", "workflow", "run", workflow_file,
+            "--repo", GH_REPO,
+            "--ref", GH_BRANCH,
+            "-f", f"checkout_ref={_full_git_sha(self.git_sha)}",
+        ]
         if self.campaign_test_labels and workflow_file in {"pytest-unit.yml", "vitest.yml"}:
             input_name = "test_targets_json" if workflow_file == "pytest-unit.yml" else "test_files_json"
             dispatch_command.extend(["-f", f"{input_name}={json.dumps(self.campaign_test_labels, separators=(',', ':'))}"])
@@ -7022,7 +7167,44 @@ class TestOrchestrator:
 
         return all_tests
 
+    @contextmanager
+    def _dev_runtime_read_lease(self, phase: str):
+        if (
+            not getattr(self, "coordinate_runtime", False)
+            or self.environment == "production"
+            or os.environ.get("OPENMATES_DOCKER_TEST_LEASE_HELD") == "1"
+        ):
+            yield
+            return
+        lease_id = f"runner-{phase}-{os.getpid()}-{uuid4().hex[:8]}"
+        owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
+        resources = {session_control.DOCKER_RESOURCE_DEV_STACK}
+        session_control.acquire_test_resource_lease(
+            lease_id,
+            owner,
+            resources,
+            mode="shared",
+        )
+        stop = threading.Event()
+
+        def heartbeat() -> None:
+            while not stop.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
+                session_control.renew_test_resource_lease(lease_id, owner, resources, mode="shared")
+
+        thread = threading.Thread(target=heartbeat, name=f"{phase}-runtime-lease", daemon=True)
+        thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            thread.join(timeout=1)
+            session_control.release_test_resource_lease(lease_id)
+
     def _run_playwright(self) -> SuiteResult:
+        with self._dev_runtime_read_lease("playwright"):
+            return self._run_playwright_with_runtime()
+
+    def _run_playwright_with_runtime(self) -> SuiteResult:
         """Run Playwright specs via GitHub Actions."""
         try:
             specs = self._discover_specs()
@@ -7246,6 +7428,10 @@ class TestOrchestrator:
         return result
 
     def _run_cli_integration(self) -> SuiteResult:
+        with self._dev_runtime_read_lease("cli"):
+            return self._run_cli_integration_with_runtime()
+
+    def _run_cli_integration_with_runtime(self) -> SuiteResult:
         """Run CLI integration checks through a registered GitHub Actions workflow.
 
         GitHub only allows dispatching workflow files that already exist on the
@@ -7375,7 +7561,14 @@ class TestOrchestrator:
         """Validate each configured persistent E2E account before normal specs."""
         started = time.time()
         target_accounts = accounts or list(range(1, MAX_ACCOUNTS + 1))
-        _log(f"Playwright account preflight: {len(target_accounts)} account slot(s)")
+        cache_allowed = self.spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC
+        cached_slots = _cached_preflight_slots() if cache_allowed else set()
+        cached_accounts = [account for account in target_accounts if account in cached_slots]
+        pending_accounts = [account for account in target_accounts if account not in cached_slots]
+        _log(
+            f"Playwright account preflight: {len(target_accounts)} account slot(s) "
+            f"({len(cached_accounts)} cached, {len(pending_accounts)} live)"
+        )
         runner = BatchRunner(
             client=client,
             specs=[ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
@@ -7383,18 +7576,30 @@ class TestOrchestrator:
             fail_fast=False,
             use_mocks=self.use_mocks,
         )
-        results = runner._run_batch(
-            [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
-            0,
-            account_overrides=target_accounts,
-        )
-        if self._repair_missing_preflight_account_ids(results):
-            _log("Playwright account preflight: rerunning repaired account slot(s)")
-            results = runner._run_batch(
-                [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
-                0,
-                account_overrides=target_accounts,
+        results = [
+            SpecResult(
+                name=ACCOUNT_PREFLIGHT_SPEC,
+                file=ACCOUNT_PREFLIGHT_SPEC,
+                status="passed",
+                account=account,
+                duration_seconds=0,
             )
+            for account in cached_accounts
+        ]
+        live_results = runner._run_batch(
+            [ACCOUNT_PREFLIGHT_SPEC] * len(pending_accounts),
+            0,
+            account_overrides=pending_accounts,
+        ) if pending_accounts else []
+        results.extend(live_results)
+        if self._repair_missing_preflight_account_ids(live_results):
+            _log("Playwright account preflight: rerunning repaired account slot(s)")
+            live_results = runner._run_batch(
+                [ACCOUNT_PREFLIGHT_SPEC] * len(pending_accounts),
+                0,
+                account_overrides=pending_accounts,
+            )
+            results = [result for result in results if result.account in cached_accounts] + live_results
         failures = [r for r in results if r.status != "passed"]
         if failures:
             failed_slots = ", ".join(str(r.account) for r in failures)
@@ -7411,6 +7616,11 @@ class TestOrchestrator:
                 duration_seconds=round(time.time() - started, 1),
                 reason=credit_guard_error,
             )
+
+        _update_preflight_cache(
+            {int(result.account) for result in results if result.status == "passed" and result.account is not None},
+            {int(result.account) for result in failures if result.account is not None},
+        )
 
         return SuiteResult(
             status="failed" if failures else "passed",
@@ -7637,27 +7847,31 @@ class TestOrchestrator:
         return True
 
     def _daily_post_run(self, result: RunResult) -> None:
-        """Persist notification outcomes before optional daily publication."""
-        # Keep daily runs notification-only. Follow-up fixing must be started
-        # separately so one day's remediation can never hold tomorrow's lock.
-        _log("Sending summary email...")
-        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
-        ResultAggregator.save(result)
-        self._archive_daily_result()
+        """Post-run tasks for daily mode: split results, archive, reports, notify."""
+        # Split results
+        self.notification.split_results()
 
         # Generate structured MD reports
         _log("Generating MD reports...")
         ReportGenerator().generate(result)
-        TestRecordingPublisher().publish(result)
 
         # Push to OpenObserve
         _log("Pushing to OpenObserve...")
         self.notification.push_to_openobserve(result)
 
-        # Split results
-        self.notification.split_results()
+        # Archive daily result
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        archive = RESULTS_DIR / f"daily-run-{today}.json"
+        last_run = RESULTS_DIR / "last-run.json"
+        if last_run.is_file():
+            shutil.copy2(str(last_run), str(archive))
+            _log(f"Archived to {archive.name}")
 
-        self._sync_obsidian_test_results()
+        # Bound daily JSON and screenshot growth to one week. The canonical
+        # latest results remain separate from these dated archives.
+        archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
+        for old in archives[DAILY_ARTIFACT_RETENTION_DAYS:]:
+            old.unlink(missing_ok=True)
 
         # Prune old screenshot archives (keep last 7 daily snapshots).
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -7671,21 +7885,13 @@ class TestOrchestrator:
                 shutil.rmtree(old_dir, ignore_errors=True)
                 _log(f"Pruned old screenshot archive: {old_dir.name}")
 
+        # Keep daily runs notification-only. Follow-up fixing must be started
+        # separately so one day's remediation can never hold tomorrow's lock.
+        _log("Sending summary email...")
+        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
+        ResultAggregator.save(result)
         if _problem_count(result.summary) > 0:
             _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
-
-    def _archive_daily_result(self) -> None:
-        """Archive the final result, including terminal notification outcomes."""
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        archive = RESULTS_DIR / f"daily-run-{today}.json"
-        last_run = RESULTS_DIR / "last-run.json"
-        if last_run.is_file():
-            shutil.copy2(str(last_run), str(archive))
-            _log(f"Archived to {archive.name}")
-
-        archives = sorted(RESULTS_DIR.glob("daily-run-*.json"), reverse=True)
-        for old in archives[DAILY_ARTIFACT_RETENTION_DAYS:]:
-            old.unlink(missing_ok=True)
 
     def _print_summary(self, result: RunResult) -> None:
         """Print a formatted summary."""
@@ -7724,26 +7930,8 @@ class TestOrchestrator:
 
 
 def _run_with_dev_stack_lease(args, callback):
-    production_mode = bool(
-        args.environment == "production"
-        or args.hourly_prod
-        or args.prod_free_hourly
-        or args.prod_paid_chat
-        or args.prod_app_skill
-    )
-    if production_mode or args.dry_run or os.environ.get("OPENMATES_DOCKER_TEST_LEASE_HELD") == "1":
-        return callback()
-    lease_id = f"runner-{os.getpid()}-{int(time.time())}"
-    owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
-    session_control.acquire_test_resource_lease(
-        lease_id,
-        owner,
-        {session_control.DOCKER_RESOURCE_DEV_STACK},
-    )
-    try:
-        return callback()
-    finally:
-        session_control.release_test_resource_lease(lease_id)
+    del args
+    return callback()
 
 
 def _maintain_spec_demo_publications(now: datetime | None = None) -> dict[str, int]:

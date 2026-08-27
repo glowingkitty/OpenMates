@@ -37,7 +37,10 @@ REMOTE_LABEL = "macos-peer"
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
 DEFAULT_XCODE_DEVELOPER_DIR = "/Applications/Xcode.app/Contents/Developer"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
-SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-simulator.lock"
+# The registered Mac is intentionally a single native execution lane. It has
+# 8 GB RAM, so simulator, macOS, Watch, sync, and recorded proof commands must
+# never start concurrent Xcode workloads.
+SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-xcode.lock"
 DESTRUCTIVE_TOKENS = {
     "rm",
     "shutdown",
@@ -74,11 +77,6 @@ APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY = APPLE_PROOF_BROKER_LOCAL_ROOT / "relay-pub
 APPLE_PROOF_BROKER_POLL_SECONDS = 5
 APPLE_PROOF_BROKER_TIMEOUT_SECONDS = 300
 APPLE_PROOF_CREDENTIAL_TTL_SECONDS = 900
-APPLE_LIVE_CONTRACT_SCRIPTS = {
-    "auth": "scripts/apple_auth_contract_test.py",
-    "sync": "scripts/apple_cross_client_sync_test.py",
-    "notification": "scripts/apple_notification_contract_test.py",
-}
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
     "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
@@ -164,7 +162,6 @@ print("proof_broker_relay=verified")
 APPLE_PROOF_BROKER_DECRYPT_SCRIPT = r'''
 import os
 import pathlib
-import secrets
 import subprocess
 import sys
 import tempfile
@@ -214,15 +211,12 @@ try:
     if set(values) != expected:
         print("proof_credentials=unexpected_payload")
         sys.exit(7)
-    with temporary.open("a", encoding="utf-8") as handle:
-        handle.write(f"OPENMATES_CREDENTIAL_GENERATION={secrets.token_hex(16)}\n")
     os.chmod(temporary, 0o600)
     os.replace(temporary, credential_path)
-    credential_inode = str(credential_path.stat().st_ino)
-    expiry_script = "import pathlib,sys,time; time.sleep(int(sys.argv[2])); path=pathlib.Path(sys.argv[1]); path.unlink(missing_ok=True) if path.is_file() and path.stat().st_ino == int(sys.argv[3]) else None"
+    expiry_script = "import pathlib,sys,time; time.sleep(int(sys.argv[2])); pathlib.Path(sys.argv[1]).unlink(missing_ok=True)"
     try:
         subprocess.Popen(
-            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5], credential_inode],
+            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5]],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -259,70 +253,6 @@ if current_commit() != expected_commit:
 sys.exit(result.returncode)
 '''
 
-LIVE_CONTRACT_RUNNER_SCRIPT = r'''
-import os
-import pathlib
-import subprocess
-import sys
-
-expected_commit, credential_path_value, surface, slot_value = sys.argv[1:5]
-slot = int(slot_value)
-scripts = {
-    "auth": "scripts/apple_auth_contract_test.py",
-    "sync": "scripts/apple_cross_client_sync_test.py",
-    "notification": "scripts/apple_notification_contract_test.py",
-}
-if surface not in scripts or not 14 <= slot <= 20:
-    sys.exit(2)
-
-def current_commit():
-    return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-
-if current_commit() != expected_commit:
-    print("apple_remote_commit_mismatch", file=sys.stderr)
-    sys.exit(4)
-
-credential_path = pathlib.Path(credential_path_value)
-try:
-    values = {}
-    for raw_line in credential_path.read_text(encoding="utf-8").splitlines():
-        key, separator, value = raw_line.partition("=")
-        if not separator or not key or not value or "\r" in value or "\n" in value:
-            sys.exit(5)
-        values[key] = value
-except (OSError, UnicodeDecodeError):
-    sys.exit(5)
-
-prefix = f"OPENMATES_TEST_ACCOUNT_{slot}"
-account_keys = {f"{prefix}_EMAIL", f"{prefix}_PASSWORD", f"{prefix}_OTP_KEY"}
-if set(values) != account_keys | {"OPENMATES_CREDENTIAL_GENERATION"}:
-    sys.exit(5)
-
-# Deliberately parse the credential file in Python. The child receives only the
-# selected account variables, never the generation marker or parent environment.
-child_env = {key: values[key] for key in account_keys}
-result = subprocess.run([
-    sys.executable, scripts[surface], "--api", "https://api.dev.openmates.org",
-    "--slot", str(slot), "--json",
-], env=child_env)
-if current_commit() != expected_commit:
-    print("apple_remote_commit_changed_during_command", file=sys.stderr)
-    sys.exit(4)
-sys.exit(result.returncode)
-'''
-
-LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT = r'''
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-try:
-    path.unlink(missing_ok=True)
-except OSError:
-    sys.exit(1)
-sys.exit(0 if not path.exists() else 1)
-'''
-
 
 RECORDED_IOS_TEST_SCRIPT = r'''
 import fcntl
@@ -348,8 +278,6 @@ live_log = run_dir / "live-app.log"
 attachments = run_dir / "attachments"
 manifest_path = run_dir / "artifact-manifest.json"
 archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
-recording_epoch_file = pathlib.Path("/tmp/openmates-recording-started-unix-ms")
-proof_profile_file = pathlib.Path("/tmp/openmates-proof-device-profile")
 recorder = None
 log_stream = None
 log_handle = None
@@ -378,12 +306,14 @@ def simulator_udid():
     return matches[0]["udid"]
 
 
-lock_file = open("/tmp/openmates-apple-simulator.lock", "w", encoding="utf-8")
+lock_file = open("/tmp/openmates-apple-xcode.lock", "w", encoding="utf-8")
 fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
 try:
     udid = simulator_udid()
     subprocess.run(["xcrun", "simctl", "boot", udid], capture_output=True, text=True, check=False)
     subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], capture_output=True, text=True, check=True, timeout=180)
+    if profile == "apple-ipad-landscape":
+        subprocess.run(["xcrun", "simctl", "io", udid, "rotateLeft"], capture_output=True, text=True, check=True)
     recorder = subprocess.Popen(
         ["xcrun", "simctl", "io", udid, "recordVideo", "--codec=h264", "--force", str(raw_video)],
         stdout=subprocess.DEVNULL,
@@ -401,8 +331,6 @@ try:
         text=True,
     )
     recording_started_unix_ms = str(int(time.time() * 1000))
-    recording_epoch_file.write_text(recording_started_unix_ms, encoding="utf-8")
-    proof_profile_file.write_text(profile, encoding="utf-8")
     command = [
         "xcodebuild", "test", "-project", "apple/OpenMates.xcodeproj",
         "-scheme", scheme, "-destination", f"platform=iOS Simulator,id={udid}",
@@ -433,8 +361,6 @@ finally:
         except subprocess.TimeoutExpired:
             recorder.terminate()
             recorder.wait(timeout=10)
-    recording_epoch_file.unlink(missing_ok=True)
-    proof_profile_file.unlink(missing_ok=True)
     lock_file.close()
 
 attachments.mkdir(exist_ok=True)
@@ -463,10 +389,6 @@ for candidate in attachments.rglob("*.json"):
     if isinstance(payload, dict) and isinstance(payload.get("contract"), dict):
         timeline = candidate
         break
-
-if proof:
-    console_log.unlink(missing_ok=True)
-    live_log.unlink(missing_ok=True)
 
 status = "passed" if (
     xcode_exit == 0
@@ -3498,20 +3420,28 @@ def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
     return f"cd {shlex.quote(config.repo_path)} && {shell_join(parts)}"
 
 
-def sync_repo_command(branch: str) -> str:
+def sync_repo_command(branch: str, commit: str = "") -> str:
     if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch):
         raise AppleRemoteError(f"Invalid branch name for sync-repo: {branch}")
     quoted_branch = shlex.quote(branch)
-    return " && ".join([
+    commands = [
         f"git fetch origin {quoted_branch}",
         "git reset --hard",
         "git clean -fd",
         f"git checkout -B {quoted_branch} origin/{quoted_branch}",
         f"git reset --hard origin/{quoted_branch}",
         "git clean -fd",
-        "git status --short",
-        "git rev-parse --short HEAD",
-    ])
+    ]
+    if commit:
+        if not re.fullmatch(r"[0-9a-fA-F]{7,40}", commit):
+            raise AppleRemoteError("Invalid commit for sync-repo")
+        quoted_commit = shlex.quote(commit)
+        commands.extend([
+            f"git merge-base --is-ancestor {quoted_commit} origin/{quoted_branch}",
+            f"git checkout --detach {quoted_commit}",
+        ])
+    commands.extend(["git status --short", "git rev-parse --short HEAD"])
+    return " && ".join(commands)
 
 
 def simulator_locked_command(parts: Sequence[str]) -> str:
@@ -3795,7 +3725,6 @@ def proof_broker_relay_public_key(
 def _find_github_proof_broker_run(
     request_id: str,
     *,
-    slot: int,
     runner: CommandRunner,
 ) -> dict[str, Any] | None:
     result = runner([
@@ -3809,20 +3738,19 @@ def _find_github_proof_broker_run(
         runs = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise AppleRemoteError("Apple proof credential-broker run list is invalid JSON") from exc
-    title = f"Playwright: {APPLE_PROOF_BROKER_SPEC} account {slot} {request_id}"
+    title = f"Playwright: {APPLE_PROOF_BROKER_SPEC} account 14 {request_id}"
     return next((item for item in runs if item.get("displayTitle") == title), None)
 
 
 def _github_proof_broker_run(
     request_id: str,
     *,
-    slot: int,
     expected_commit: str,
     runner: CommandRunner,
 ) -> int:
     deadline = time.monotonic() + APPLE_PROOF_BROKER_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
-        run = _find_github_proof_broker_run(request_id, slot=slot, runner=runner)
+        run = _find_github_proof_broker_run(request_id, runner=runner)
         if run is None:
             time.sleep(APPLE_PROOF_BROKER_POLL_SECONDS)
             continue
@@ -3906,12 +3834,7 @@ def provision_github_proof_credentials(
         if dispatch.returncode != 0:
             raise AppleRemoteError("Could not dispatch the Apple proof credential broker")
         dispatched = True
-        run_id = _github_proof_broker_run(
-            request_id,
-            slot=slot,
-            expected_commit=expected_commit,
-            runner=runner,
-        )
+        run_id = _github_proof_broker_run(request_id, expected_commit=expected_commit, runner=runner)
         with tempfile.TemporaryDirectory(prefix="apple-proof-broker-") as temporary_value:
             temporary = Path(temporary_value)
             download = runner([
@@ -3953,7 +3876,7 @@ def provision_github_proof_credentials(
             cleanup_errors.append("registered Mac ciphertext cleanup failed")
         if dispatched and run_id is None:
             try:
-                run = _find_github_proof_broker_run(request_id, slot=slot, runner=runner)
+                run = _find_github_proof_broker_run(request_id, runner=runner)
                 run_id = int(run["databaseId"]) if run and run.get("databaseId") is not None else None
                 if run_id is not None and run.get("status") != "completed":
                     cancellation = runner([
@@ -3978,72 +3901,6 @@ def provision_github_proof_credentials(
         if cleanup_errors:
             raise AppleRemoteError("; ".join(cleanup_errors))
     return request_id
-
-
-def live_contract_command(
-    config: RemoteConfig,
-    *,
-    surface: str,
-    slot: int,
-    expected_commit: str,
-) -> str:
-    """Build the fixed, credential-isolated remote contract runner command."""
-    if surface not in APPLE_LIVE_CONTRACT_SCRIPTS:
-        raise AppleRemoteError("Live contract surface must be one of: auth, sync, notification")
-    if not 14 <= slot <= 20:
-        raise AppleRemoteError("Live contract requires a reserved slot 14-20")
-    if not re.fullmatch(r"[0-9a-f]{40}", expected_commit):
-        raise AppleRemoteError("Live contract requires one exact full commit")
-    return repo_command(config, [
-        "python3", "-c", LIVE_CONTRACT_RUNNER_SCRIPT,
-        expected_commit, LIVE_TEST_CREDENTIALS_PATH, surface, str(slot),
-    ])
-
-
-def live_contract_cleanup_command(config: RemoteConfig) -> str:
-    """Remove and confirm removal of brokered credentials on the registered Mac."""
-    return repo_command(config, [
-        "python3", "-c", LIVE_CONTRACT_CREDENTIAL_CLEANUP_SCRIPT,
-        LIVE_TEST_CREDENTIALS_PATH,
-    ])
-
-
-def run_live_contract(
-    config: RemoteConfig,
-    *,
-    surface: str,
-    slot: int,
-    expected_commit: str,
-    runner: CommandRunner = default_runner,
-) -> int:
-    """Broker one reserved account to the Mac and run a fixed live contract probe."""
-    command = live_contract_command(
-        config,
-        surface=surface,
-        slot=slot,
-        expected_commit=expected_commit,
-    )
-    provision_github_proof_credentials(
-        config,
-        slot=slot,
-        expected_commit=expected_commit,
-        runner=runner,
-    )
-    result: subprocess.CompletedProcess[str] | None = None
-    try:
-        result = runner(ssh_command(config, command))
-    finally:
-        cleanup = runner(ssh_command(config, live_contract_cleanup_command(config)))
-        if cleanup.returncode != 0:
-            raise AppleRemoteError("Could not confirm registered Mac live-contract credential cleanup")
-    assert result is not None
-    stdout = redact_output(result.stdout, config)
-    stderr = redact_output(result.stderr, config)
-    if stdout:
-        print(stdout, end="" if stdout.endswith("\n") else "\n")
-    if stderr:
-        print(stderr, end="" if stderr.endswith("\n") else "\n", file=sys.stderr)
-    return result.returncode
 
 
 def extract_and_validate_recording_archive(archive_path: Path, destination: Path) -> tuple[Path, dict[str, Any]]:
@@ -4128,20 +3985,15 @@ def normalize_apple_proof_video(
     source = run_dir / str(manifest.get("raw_video") or "")
     if not source.is_file():
         raise AppleRemoteError("Apple proof normalization requires the raw recording")
-    source_dimensions = dimensions_reader(source)
-    if source_dimensions == dimensions:
+    if dimensions_reader(source) == dimensions:
         manifest["proof_video"] = source.name
         return source
 
     output = run_dir / "proof-source.mp4"
     width, height = dimensions
-    video_filters = []
-    if profile == "apple-ipad-landscape" and source_dimensions[0] < source_dimensions[1]:
-        video_filters.append("transpose=2")
-    video_filters.extend([f"scale={width}:{height}:flags=lanczos", "setsar=1"])
     result = runner([
         "ffmpeg", "-y", "-i", str(source),
-        "-vf", ",".join(video_filters),
+        "-vf", f"scale={width}:{height}:flags=lanczos,setsar=1",
         "-c:v", "libx264", "-pix_fmt", "yuv444p", "-crf", "18",
         "-fps_mode", "passthrough", "-movflags", "+faststart", "-an", str(output),
     ])
@@ -4293,20 +4145,16 @@ def run_recorded_ios_test(
 
 
 def simulator_cleanup_command(simulator: str) -> str:
-    return with_xcode_developer_dir(
-        simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
-    )
+    return simulator_locked_command(["xcrun", "simctl", "shutdown", simulator])
 
 
 def simctl_remote_command(simctl_args: Sequence[str]) -> str:
-    return with_xcode_developer_dir(
-        simulator_locked_command(["xcrun", "simctl", *simctl_args])
-    )
+    return simulator_locked_command(["xcrun", "simctl", *simctl_args])
 
 
 def build_macos_command() -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = with_xcode_developer_dir(shell_join([
+    xcodebuild = simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -4314,13 +4162,12 @@ def build_macos_command() -> str:
         "OpenMates_macOS",
         "-destination",
         "platform=macOS",
-        "CODE_SIGNING_ALLOWED=NO",
         "build",
-    ]))
+    ])
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
-def test_macos_command(only_testing: str | None) -> str:
+def test_macos_command(only_testing: str | None, expected_commit: str = "") -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
     parts = [
         "xcodebuild",
@@ -4335,8 +4182,8 @@ def test_macos_command(only_testing: str | None) -> str:
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    xcodebuild = with_xcode_developer_dir(shell_join(parts))
-    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
+    locked_parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts] if expected_commit else parts
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {simulator_locked_command(locked_parts)}"
 
 
 def build_watch_command(simulator: str) -> str:
@@ -4368,10 +4215,13 @@ def test_watch_command(simulator: str, only_testing: str | None) -> str:
     return simulator_locked_command(parts)
 
 
-def verify_watch_startup_command(simulator: str, duration: int) -> str:
+def verify_watch_startup_command(simulator: str, duration: int, expected_commit: str = "") -> str:
     if duration < 5 or duration > 300:
         raise AppleRemoteError("verify-watch-startup duration must be between 5 and 300 seconds")
-    return simulator_locked_command(["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)])
+    parts = ["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)]
+    if expected_commit:
+        parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts]
+    return simulator_locked_command(parts)
 
 
 def apple_remote_doctor_command(repo_path: str | None) -> str:
@@ -4389,7 +4239,7 @@ def verify_ios_startup_command(simulator: str, duration: int, fresh_install: boo
 def verify_macos_startup_command(duration: int) -> str:
     if duration < 5 or duration > 300:
         raise AppleRemoteError("verify-macos-startup duration must be between 5 and 300 seconds")
-    return shell_join(["python3", "-c", MACOS_STARTUP_SCRIPT, str(duration)])
+    return simulator_locked_command(["python3", "-c", MACOS_STARTUP_SCRIPT, str(duration)])
 
 
 def device_status_command() -> str:
@@ -4717,6 +4567,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sync_parser = subparsers.add_parser("sync-repo", help="Force-sync the remote repo checkout to origin/<branch>")
     sync_parser.add_argument("--branch", default="dev")
+    sync_parser.add_argument("--commit", help="Optionally detach at this commit after verifying it belongs to the branch")
 
     build_parser_ = subparsers.add_parser("build-ios", help="Build OpenMates_iOS remotely")
     build_parser_.add_argument("--simulator", default="iPhone 17")
@@ -4738,14 +4589,6 @@ def build_parser() -> argparse.ArgumentParser:
         "init-proof-broker-recipient",
         help="Initialize the registered Mac proof-broker key and print only its public certificate",
     )
-
-    live_contract_parser = subparsers.add_parser(
-        "contract",
-        help="Run one allowlisted live API contract probe through the GitHub credential broker",
-    )
-    live_contract_parser.add_argument("surface", choices=sorted(APPLE_LIVE_CONTRACT_SCRIPTS))
-    live_contract_parser.add_argument("--slot", required=True, type=int, help="Reserved proof account slot (14-20)")
-    live_contract_parser.add_argument("--expected-commit", required=True, help="Exact 40-character remote repository commit")
 
     finalize_parser = subparsers.add_parser(
         "finalize-proof",
@@ -4770,6 +4613,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     test_macos_parser = subparsers.add_parser("test-macos", help="Run OpenMates_macOS tests remotely")
     test_macos_parser.add_argument("--only-testing")
+    test_macos_parser.add_argument("--expected-commit", help="Require the remote checkout to remain at this commit")
 
     verify_macos_parser = subparsers.add_parser(
         "verify-macos-startup",
@@ -4790,6 +4634,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
     verify_watch_parser.add_argument("--duration", type=int, default=60)
+    verify_watch_parser.add_argument("--expected-commit", help="Require the remote checkout to remain at this commit")
 
     device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
     device_parser.set_defaults(_uses_repo=True)
@@ -4956,13 +4801,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             proof_broker_relay_public_key(config)
             sys.stdout.write(certificate.decode("ascii"))
             return 0
-        if args.command == "contract":
-            return run_live_contract(
-                config,
-                surface=args.surface,
-                slot=args.slot,
-                expected_commit=args.expected_commit,
-            )
         if args.command == "status":
             return print_status(config)
         if args.command == "doctor":
@@ -4980,7 +4818,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "sync-repo":
             return run_remote(
                 config,
-                repo_command(config, ["bash", "-lc", sync_repo_command(args.branch)]),
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    simulator_locked_command(["bash", "-lc", sync_repo_command(args.branch, args.commit or "")]),
+                ]),
                 allow_destructive=True,
             )
         if args.command == "build-ios":
@@ -5017,7 +4859,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "build-macos":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_macos_command()]))
         if args.command == "test-macos":
-            return run_remote(config, repo_command(config, ["bash", "-lc", test_macos_command(args.only_testing)]))
+            return run_remote(config, repo_command(config, ["bash", "-lc", test_macos_command(args.only_testing, args.expected_commit or "")]))
         if args.command == "verify-macos-startup":
             return run_remote(config, repo_command(config, ["bash", "-lc", verify_macos_startup_command(args.duration)]))
         if args.command == "build-watch":
@@ -5025,7 +4867,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "test-watch":
             return run_remote(config, repo_command(config, ["bash", "-lc", test_watch_command(args.simulator, args.only_testing)]))
         if args.command == "verify-watch-startup":
-            return run_remote(config, repo_command(config, ["bash", "-lc", verify_watch_startup_command(args.simulator, args.duration)]))
+            return run_remote(config, repo_command(config, ["bash", "-lc", verify_watch_startup_command(args.simulator, args.duration, args.expected_commit or "")]))
         if args.command == "device-status":
             return run_remote(config, repo_command(config, ["bash", "-lc", device_status_command()]))
         if args.command == "install-ios-device":

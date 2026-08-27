@@ -15,6 +15,7 @@ scope:
     - API-key lifecycle cleanup that only deletes keys created by the lifecycle spec.
     - Local persistence of credential-update artifacts from GitHub Actions downloads.
     - Documentation of the reserved-account policy for future E2E specs.
+    - Atomic account-slot leases and a short-lived successful-preflight cache shared by concurrent orchestrators.
   out:
     - Creating, deleting, or provisioning real test accounts in Directus.
     - Rotating existing GitHub Actions secrets during implementation.
@@ -116,6 +117,17 @@ scenarios:
       - Screenshot/report persistence continues to work as before.
       - Credential-update files are not mixed into screenshot-only directories.
 
+  - id: "S-6"
+    title: Concurrent orchestrators do not share a persistent account
+    given:
+      - Multiple chats dispatch normal Playwright specs at the same time.
+    when:
+      - Each runner requests an account from the normal pool.
+    then:
+      - Each active spec owns a distinct exclusive account lease.
+      - A free normal slot is selected without waiting for an unrelated spec batch.
+      - Recently successful account preflights are reused for fifteen minutes and failures invalidate the cached slot.
+
 acceptance_criteria:
   - id: "AC-1"
     scenario: "S-1"
@@ -135,6 +147,9 @@ acceptance_criteria:
   - id: "AC-6"
     scenario: "S-1"
     text: The reserved-account policy is documented so future credential-mutating specs must declare an isolation policy before joining daily runs.
+  - id: "AC-7"
+    scenario: "S-6"
+    text: Concurrent runners atomically claim distinct persistent accounts and reuse only recent successful per-slot preflight results.
 
 contracts:
   api:
@@ -165,6 +180,7 @@ tests:
       - "AC-1"
       - "AC-2"
       - "AC-5"
+      - "AC-7"
     assertions:
       - reserved specs map to their configured reserved account for single-spec runs
       - normal suite account assignment skips reserved slots for regular specs

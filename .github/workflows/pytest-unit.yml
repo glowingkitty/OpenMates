@@ -25,6 +25,10 @@ on:
       - "packages/openmates-python/**"
   workflow_dispatch:
     inputs:
+      checkout_ref:
+        description: "Exact commit selected by the engineering test orchestrator"
+        required: false
+        default: "dev"
       test_targets_json:
         description: "Optional JSON array of exact pytest node IDs for campaign verification"
         required: false
@@ -39,10 +43,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name || 'dev' }}
+          ref: ${{ inputs.checkout_ref || github.head_ref || github.ref_name || 'dev' }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements-dev.txt
+            backend/core/api/requirements.txt
+            packages/openmates-python/pyproject.toml
       - name: Install dependencies
         run: |
           pip install -r backend/requirements-dev.txt
