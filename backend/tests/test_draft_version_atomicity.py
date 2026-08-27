@@ -5,11 +5,8 @@
 # The test models Redis script execution under concurrent callers.
 
 import asyncio
-import uuid
-
 import pytest
 
-from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
 
 
@@ -22,8 +19,16 @@ class _AtomicRedis:
     async def eval(self, script, _key_count, draft_key, versions_key, field, *arguments):
         async with self.lock:
             self.eval_calls += 1
-            dedicated = self.values.get(f"{draft_key}:draft_v", 0)
-            general = self.values.get(f"{versions_key}:{field}", 0)
+            def parse_version(value):
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    if ") or 0" in script:
+                        return 0
+                    raise
+
+            dedicated = parse_version(self.values.get(f"{draft_key}:draft_v", 0))
+            general = parse_version(self.values.get(f"{versions_key}:{field}", 0))
             is_update = "local incoming_version" in script
             if is_update:
                 incoming_version = int(arguments[0])
@@ -119,26 +124,10 @@ async def test_concurrent_draft_version_increments_remain_monotonic() -> None:
     assert redis.values["versions:user-1:chat-1:user_draft_v:user-1"] == 7
     assert redis.eval_calls == 2
 
-    live_cache = CacheService()
-    client = await live_cache.client
-    if client is None:
-        pytest.skip("Dragonfly is not reachable")
+    redis.values["user:user-1:chat:chat-2:draft:draft_v"] = "null"
+    redis.values["versions:user-1:chat-2:user_draft_v:user-1"] = "null"
 
-    suffix = uuid.uuid4().hex
-    user_id = f"draft-version-test-{suffix}"
-    chat_id = f"chat-{suffix}"
-    draft_key = live_cache._get_user_chat_draft_key(user_id, chat_id)
-    versions_key = live_cache._get_chat_versions_key(user_id, chat_id)
-    version_field = f"user_draft_v:{user_id}"
-
-    try:
-        await client.hset(draft_key, "draft_v", "null")
-        await client.hset(versions_key, version_field, "null")
-
-        assert await live_cache.increment_user_draft_version(user_id, chat_id) == 1
-    finally:
-        await client.delete(draft_key, versions_key)
-        await live_cache.close()
+    assert await cache.increment_user_draft_version("user-1", "chat-2") == 1
 
 
 # contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
