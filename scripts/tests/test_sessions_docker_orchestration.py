@@ -344,7 +344,7 @@ def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, t
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
     monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
-    configure_runtime_checkout(monkeypatch, checkout_root)
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: checkout_root)
     monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
     monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1", "status": "queued"})
     admission_statuses = iter(["queued", "queued", "admitted"])

@@ -143,7 +143,7 @@ CHECKPOINT_LOCK_RETENTION_HOURS = 24
 VERCEL_DEPLOY_LOCK_MINUTES = 90
 DOCKER_TEST_LEASE_TTL_SECONDS = 12 * 60 * 60
 DOCKER_OPERATION_HISTORY_LIMIT = 20
-DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "draining_tests", "restarting", "verifying"}
+DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "admitted", "draining_tests", "restarting", "verifying"}
 DOCKER_OPERATION_TERMINAL_STATUSES = {"completed", "failed"}
 DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
@@ -1944,6 +1944,7 @@ def acquire_test_resource_lease(
                 time.sleep(min(max(1, poll), max(1, int(deadline - time.time()))))
     deadline = time.time() + max(0, timeout)
     poll = max(1, poll)
+    last_report = 0.0
     while True:
         blocked_by = ""
 
@@ -2122,6 +2123,56 @@ def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
         return dict(operation)
 
     return _mutate_sessions(mutate)
+
+
+def wait_for_docker_operation_admitted(
+    operation_id: str,
+    *,
+    timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+    poll: int = 5,
+) -> dict:
+    """Wait for the persistent coordinator to admit a queued restart."""
+    if not _persistent_coordination_enabled():
+        return {"id": operation_id, "status": "admitted"}
+    deadline = time.time() + max(0, timeout)
+    poll = max(1, poll)
+    last_report = 0.0
+    while True:
+        operation = update_docker_operation(operation_id, "queued")
+        status = str(operation.get("status") or "")
+        if status == "admitted":
+            return operation
+        if status in DOCKER_OPERATION_TERMINAL_STATUSES:
+            raise RuntimeError(f"Docker operation {operation_id} ended before admission: {status}")
+        if status != "queued":
+            return operation
+        now = time.time()
+        if now >= deadline:
+            raise RuntimeError(f"Timed out after {timeout}s waiting for Docker operation admission: {operation_id}")
+        if last_report == 0.0 or now - last_report >= 30:
+            blockers = _runtime_operation_blockers(operation_id)
+            update_docker_operation(
+                operation_id,
+                "queued",
+                waiting_for_tests=[str(item.get("lease_id") or "unknown") for item in blockers["leases"]],
+                waiting_for_operations=[str(item.get("id") or "unknown") for item in blockers["operations"]],
+            )
+            last_report = now
+        time.sleep(min(poll, max(1, int(deadline - now))))
+
+
+def _runtime_operation_blockers(operation_id: str) -> dict[str, list[dict]]:
+    """Return persistent blockers for diagnostics and admission tests."""
+    if not _persistent_coordination_enabled():
+        return {"leases": [], "operations": []}
+    response = control_plane_api_request(
+        "GET",
+        f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
+    )
+    return {
+        "leases": [_legacy_lease_record(lease) for lease in response.get("leases") or []],
+        "operations": [_legacy_operation_record(operation) for operation in response.get("operations") or []],
+    }
 
 
 def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
@@ -9474,19 +9525,23 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
 
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
     try:
-        _wait_and_acquire_session_lock(
-            "docker_rebuild",
-            args.session,
-            phase="draining_tests",
-            timeout=args.timeout,
-            poll=args.poll,
-            heartbeat=lambda: update_docker_operation(operation["id"], "queued"),
-        )
-        lock_acquired = True
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock(
+                "docker_rebuild",
+                args.session,
+                phase="draining_tests",
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+            )
+            lock_acquired = True
 
         def heartbeat() -> None:
-            _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
             update_docker_operation(operation["id"], "draining_tests")
 
         wait_for_docker_test_leases(
@@ -9498,7 +9553,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
         if _docker_checkout_root(args.session) != checkout_root:
             raise RuntimeError("Docker restart session worktree changed while waiting for the lock")
         update_docker_operation(operation["id"], "restarting", waiting_for_tests=[])
-        _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
         compose_args = (
             ["up", "-d", "--build", *services]
             if getattr(args, "build", False)
@@ -9509,21 +9565,22 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             cwd=str(checkout_root),
             timeout=max(120, args.timeout),
             heartbeat=lambda: (
-                _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
                 update_docker_operation(operation["id"], "restarting"),
             ),
         )
         if rc != 0:
             raise RuntimeError((stderr or stdout or "Docker Compose restart failed").strip())
         update_docker_operation(operation["id"], "verifying")
-        _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
         health = wait_for_docker_services_healthy(
             services,
             timeout=args.health_timeout,
             poll=args.poll,
             checkout_root=checkout_root,
             heartbeat=lambda: (
-                _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
+                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
                 update_docker_operation(operation["id"], "verifying"),
             ),
         )
