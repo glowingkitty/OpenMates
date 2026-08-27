@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 process.env.OPENMATES_PROJECT_ROOT ||= "/home/superdev/projects/OpenMates";
@@ -11,6 +12,7 @@ const {
   responseContainsMediaForTest,
   responseMediaArtifactForTest,
 } = OpenMatesHooks.test;
+const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js", import.meta.url), "utf8");
 
 test("video output becomes one exact pending artifact", () => {
   const snippet = '<video controls src="https://media.example/proof.mp4"></video>';
@@ -58,4 +60,11 @@ test("assistant text parts are keyed for completion acknowledgement", () => {
   });
   assert.deepEqual(part, { messageID: "msg-1", partID: "part-1", text: "progress" });
   assert.equal(assistantTextPartForTest({ type: "message.part.updated", properties: { part: { type: "tool" } } }), null);
+});
+
+test("automatic media delivery is asynchronous and single-flight", () => {
+  assert.match(source, /automaticDeliverySessions\.has\(sessionID\)/);
+  assert.match(source, /client\.session\.promptAsync\(\{/);
+  assert.doesNotMatch(source, /client\.session\.prompt\(\{/);
+  assert.match(source, /automaticDeliverySessions\.delete\(sessionID\)/);
 });

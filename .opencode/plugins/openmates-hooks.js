@@ -2491,6 +2491,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const notifierLiveSessions = new Set();
   const routingBlockCounts = new Map();
   const readyContinuationSessions = new Set();
+  // OpenCode emits session.idle while a synchronous prompt submission is
+  // unwinding. Keep delivery single-flight per session even if an SDK or
+  // transport regression makes prompt_async behave synchronously again.
+  const automaticDeliverySessions = new Set();
   const recordedChildRoles = new Set();
   const pendingMediaBySession = new Map();
   const claimedMediaBySession = new Map();
@@ -2621,51 +2625,61 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   };
   const deliverPendingMedia = async (sessionID) => {
     const current = currentPresence(sessionID);
-    if (continuationSuppressedForTest(current)) return false;
-    const record = await mediaCommand("claim", sessionID);
-    if (!record) return false;
-    const prompt = mediaDeliveryPromptForTest(record);
-    if (!prompt) {
-      await mediaCommand("release", sessionID, record);
-      return false;
-    }
-    claimedMediaBySession.set(sessionID, record);
+    if (continuationSuppressedForTest(current) || automaticDeliverySessions.has(sessionID)) return false;
+    automaticDeliverySessions.add(sessionID);
+    let record = null;
     try {
-      await client.session.prompt({
+      record = await mediaCommand("claim", sessionID);
+      if (!record) return false;
+      const prompt = mediaDeliveryPromptForTest(record);
+      if (!prompt) {
+        await mediaCommand("release", sessionID, record);
+        return false;
+      }
+      claimedMediaBySession.set(sessionID, record);
+      const response = await client.session.promptAsync({
         path: { id: sessionID },
         body: {
           messageID: record.message_id,
           parts: [{ type: "text", text: prompt }],
         },
       });
+      if (response?.error) throw new Error(String(response.error?.message || response.error));
       return true;
     } catch (error) {
       claimedMediaBySession.delete(sessionID);
-      await mediaCommand("release", sessionID, record);
+      if (record) await mediaCommand("release", sessionID, record);
       console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
       return false;
+    } finally {
+      automaticDeliverySessions.delete(sessionID);
     }
   };
   const deliverReadyContinuation = async (sessionID) => {
     const current = currentPresence(sessionID);
-    if (continuationSuppressedForTest(current)) return false;
-    const record = await continuationCommand("claim", sessionID);
-    if (!record) return false;
-    readyContinuationSessions.delete(sessionID);
+    if (continuationSuppressedForTest(current) || automaticDeliverySessions.has(sessionID)) return false;
+    automaticDeliverySessions.add(sessionID);
+    let record = null;
     try {
-      await client.session.prompt({
+      record = await continuationCommand("claim", sessionID);
+      if (!record) return false;
+      readyContinuationSessions.delete(sessionID);
+      const response = await client.session.promptAsync({
         path: { id: sessionID },
         body: {
           messageID: record.message_id,
           parts: [{ type: "text", text: record.next_action }],
         },
       });
+      if (response?.error) throw new Error(String(response.error?.message || response.error));
       await continuationCommand("ack", sessionID);
       return true;
     } catch (error) {
-      await continuationCommand("release", sessionID);
+      if (record) await continuationCommand("release", sessionID);
       console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
       return false;
+    } finally {
+      automaticDeliverySessions.delete(sessionID);
     }
   };
   const reconcileAuthoritativePresence = async () => {

@@ -68,6 +68,9 @@ test("an older absent status snapshot cannot erase a fresh busy event", () => {
 test("idle delivery claims durable operation before prompting", () => {
   assert.match(source, /continuationCommand\("claim", sessionID\)/);
   assert.match(source, /messageID: record\.message_id/);
+  assert.match(source, /client\.session\.promptAsync\(/);
+  assert.doesNotMatch(source, /client\.session\.prompt\(\{/);
+  assert.match(source, /automaticDeliverySessions\.has\(sessionID\)/);
   assert.match(source, /continuationCommand\("ack", sessionID\)/);
   assert.match(source, /continuationCommand\("release", sessionID\)/);
 });

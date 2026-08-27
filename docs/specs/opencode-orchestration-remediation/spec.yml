@@ -34,6 +34,7 @@ scope:
     - Resume only allowlisted durable operations exactly once after a resource, deployment, dispatch, or compaction interruption becomes ready.
     - Provide lockfile-compatible prepared verification for dependency-light worktrees without per-chat package installation.
     - Persist pending response-media delivery so compaction cannot lose required video or Figma embeds.
+    - Prevent idle-event re-entrancy from submitting the same automatic continuation or media-delivery prompt more than once.
   out:
     - Rewriting the full engineering control-plane architecture.
     - Changing product-facing OpenMates behavior, self-hosting CLI behavior, or user-visible UI.
@@ -72,6 +73,7 @@ context_discovery:
     - AI Settings and Map stopped at deterministic post-validation or post-deploy waits and needed manual continuation messages.
     - The S3 chat could not execute its TypeScript regression because the managed worktree lacked jszip and tsc, then had to diagnose the installed CLI path manually.
     - Successful pushes were described as blocked because unrelated dirty files prevented only the local control-plane checkout from fast-forwarding.
+    - A completed S3 chat emitted repeated final responses every 8-10 seconds because the hook used the synchronous prompt SDK call and acknowledged its durable claim only after a re-entrant session.idle event.
   user_direction:
     - Create and execute a spec that resolves the remaining agentic coding flow issues.
     - Stop wasting tokens in the currently running chats until the orchestration flow is fixed.
@@ -237,6 +239,7 @@ scenarios:
       - Idle, stopped, failed, user-input, and active-generation states are distinguished correctly.
       - Only an allowlisted nonterminal operation with a stored next action can resume a chat.
       - Event delivery and continuation prompts are idempotent by session, operation, cursor, and generation.
+      - Automatic prompt delivery uses the asynchronous acceptance endpoint and remains single-flight across re-entrant idle events.
       - Manual stop, pending user input, terminal failure, and completion always suppress automatic continuation.
 
   - id: S-12
@@ -396,7 +399,7 @@ acceptance_criteria:
 
   - id: AC-12
     scenario: S-11
-    text: Presence is reconciled from authoritative OpenCode state and only allowlisted durable nonterminal operations can resume exactly once without overriding stop, failure, completion, permission, or user-input states.
+    text: Presence is reconciled from authoritative OpenCode state and only allowlisted durable nonterminal operations can resume exactly once through asynchronous single-flight delivery without overriding stop, failure, completion, permission, or user-input states.
     required: true
     status: satisfied
     coverage_status: covered
@@ -648,6 +651,7 @@ tests:
       - Presence heartbeat cannot renew stale busy state without authoritative activity.
       - Reconciliation handles missed idle events and restart snapshots.
       - Only durable allowlisted operations resume and duplicate events deliver one idempotent prompt.
+      - Re-entrant idle events cannot submit a second continuation or media prompt while the first delivery is in flight.
       - Manual stop, failure, completion, question, and permission states suppress continuation.
       - Generic idle spec auto-continuation remains prohibited.
     covers:
@@ -1290,11 +1294,33 @@ tasks:
         - scripts/tests/test_opencode_permission_watcher.py
       shared_files: []
 
+  - id: TASK-17
+    title: Make automatic continuation and media delivery asynchronous and single-flight
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-14]
+      acceptance_criteria: [AC-12, AC-15]
+    expected_files:
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/tests/test_opencode_operation_continuation.mjs
+      - scripts/tests/test_opencode_media_delivery.mjs
+    verification_ids: [T-OPENCODE-LIFECYCLE, T-MEDIA-DELIVERY, V-OPERATIONAL-READINESS]
+    dependencies: [TASK-16]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/tests/test_opencode_operation_continuation.mjs
+        - scripts/tests/test_opencode_media_delivery.mjs
+      shared_files: []
+
 implementation_state:
-  phase: complete
+  phase: implementation
   subject_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed
-  active_task: TASK-16
-  last_updated: "2026-08-27T14:30:30Z"
+  active_task: TASK-17
+  last_updated: "2026-08-27T14:54:00Z"
 
 approvals:
   product_contract:
@@ -1373,8 +1399,8 @@ attempts:
     recorded_at: "2026-08-27T01:06:45Z"
 
 handoff:
-  current_task_id: TASK-16
-  next_action: Reconcile active worktrees against the deployed orchestration commit, resume only unfinished chats, and observe their first minute for real workflow regressions.
+  current_task_id: TASK-17
+  next_action: Verify asynchronous single-flight automatic delivery against a re-entrant idle lifecycle, deploy the hook, and observe all unfinished chats.
   command: python3 scripts/spec_verify.py docs/specs/opencode-orchestration-remediation/spec.yml --phase complete --json
   expected_outcome: Spec evidence passes after TASK-8 through TASK-12 and final operational readiness are complete.
   last_verified_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed
