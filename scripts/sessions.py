@@ -8530,11 +8530,27 @@ def presence_status_view(
     persistent_docker_operations = _list_persistent_docker_operations()
     if persistent_docker_operations:
         docker_operations = persistent_docker_operations
+    active_status_priority = {
+        "restarting": 0,
+        "verifying": 1,
+        "draining_tests": 2,
+        "admitted": 3,
+        "queued": 4,
+    }
+    active_candidates = [
+        operation
+        for operation in docker_operations
+        if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
+    ]
+    active_candidates.sort(
+        key=lambda operation: (
+            active_status_priority.get(str(operation.get("status") or ""), 99),
+            str(operation.get("requested_at") or ""),
+            str(operation.get("id") or ""),
+        )
+    )
     active_docker_operation = next(
-        (
-            operation for operation in docker_operations
-            if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
-        ),
+        iter(active_candidates),
         None,
     )
     view["infrastructure"] = {
