@@ -1954,6 +1954,16 @@ function firstResponseMediaVideoSnippetForTest(text) {
   return match ? match[0] : "";
 }
 
+function responseMediaVideoProducerCommandForTest(command) {
+  const value = String(command || "");
+  if (/scripts\/(?:tests\.py\s+run|cli_video_capture\.py)\b/.test(value)) return true;
+  return /\b(?:python3?|uv\s+run\s+python3?)\s+scripts\/opencode_response_media\.py\b/.test(value);
+}
+
+function validResponseMediaVideoSnippetForTest(snippet) {
+  return /<source\b[^>]*\bsrc=(['"])https?:\/\/[^'"]+\1[^>]*>/i.test(String(snippet || ""));
+}
+
 function firstResponseMediaImageSnippetForTest(text) {
   const match = String(text || "").match(/!\[[^\]]*\]\(https?:\/\/[^\s)]+\)/i);
   return match ? match[0] : "";
@@ -2009,7 +2019,11 @@ function responseMediaArtifactForTest({
   requireExistingFigmaExport = false,
 } = {}) {
   const video = firstResponseMediaVideoSnippetForTest(output);
-  if (video) {
+  if (
+    video
+    && responseMediaVideoProducerCommandForTest(command)
+    && validResponseMediaVideoSnippetForTest(video)
+  ) {
     const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(video)).digest("hex").slice(0, 24);
     return { artifact_type: "video", artifact_key: key, snippet: video };
   }
@@ -3156,6 +3170,8 @@ OpenMatesHooks.test = Object.freeze({
   canonicalResponseMediaKeySourceForTest,
   resolveExistingFigmaExportPathForTest,
   responseMediaArtifactForTest,
+  responseMediaVideoProducerCommandForTest,
+  validResponseMediaVideoSnippetForTest,
   mediaDeliveryPromptForTest,
   responseContainsMediaForTest,
   assistantTextPartForTest,

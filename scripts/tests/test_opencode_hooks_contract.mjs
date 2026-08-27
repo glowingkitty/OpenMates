@@ -253,6 +253,36 @@ test("Figma image export output requires reference embed before implementation p
   );
 });
 
+test("source code containing video HTML is not queued as response media", () => {
+  const sourceListing = String.raw`359: return (
+360:     f'<video controls crossorigin="anonymous" style="{style}" preload="metadata" playsinline>\n'
+361:     f'  <source src="{escaped_url}" type="{content_type}">\n'
+362:     '  Video fallback text.\n'
+363:     '</video>'`;
+
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.responseMediaArtifactForTest({ output: sourceListing }),
+    null,
+  );
+  const snippet = '<video controls><source src="https://example.test/proof.webm" type="video/webm"></video>';
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.responseMediaArtifactForTest({ output: snippet }),
+    null,
+  );
+  const artifact = pluginModule.OpenMatesHooks.test.responseMediaArtifactForTest({
+    command: "python3 scripts/opencode_response_media.py proof.webm",
+    output: snippet,
+  });
+  assert.deepEqual(
+    artifact,
+    {
+      artifact_type: "video",
+      artifact_key: artifact.artifact_key,
+      snippet,
+    },
+  );
+});
+
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);
