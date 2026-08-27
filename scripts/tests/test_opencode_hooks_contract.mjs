@@ -85,7 +85,8 @@ test("merged worktree routing requires an existing Git worktree", () => {
 test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
   assert.match(source, /routeLocalToolArgsForTest\(tool/);
-  assert.match(source, /workdir: \(prodSshControlPlane \|\| staleCodeReportControlPlane \|\| improvementReviewControlPlane \|\| sessionsPyControlPlane\) \? PROJECT_ROOT : worktreePath/);
+  assert.match(source, /const controlPlaneWorkdir = sessionsPyRuntime \? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT/);
+  assert.match(source, /sessionsPyControlPlane \|\| sessionsPyRuntime/);
   assert.match(source, /Reason:/);
   assert.match(source, /Next:/);
   assert.match(source, /routedOpenCodeSessionID/);
