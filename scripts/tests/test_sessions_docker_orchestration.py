@@ -487,3 +487,61 @@ def test_waiting_for_docker_lock_heartbeats_queued_operation(monkeypatch):
         heartbeat=lambda: beats.append("beat"),
     ) is True
     assert beats == ["beat"]
+
+
+def test_api_health_incident_has_single_live_investigator(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+    probe = {"ok": False, "status_code": 502, "error": "Bad Gateway"}
+
+    first = sessions._claim_api_health_incident("a111", "https://api.dev.openmates.org/health", probe)
+    second = sessions._claim_api_health_incident("b222", "https://api.dev.openmates.org/health", probe)
+
+    assert first["owned"] is True
+    assert second["owned"] is False
+    assert second["incident"]["owner_session_id"] == "a111"
+
+    monkeypatch.setattr(sessions, "_minutes_since", lambda _value: 6)
+    takeover = sessions._claim_api_health_incident("b222", "https://api.dev.openmates.org/health", probe)
+
+    assert takeover["owned"] is True
+    assert takeover["incident"]["owner_session_id"] == "b222"
+
+
+def test_wait_health_returns_ready_signal(monkeypatch, tmp_path, capsys):
+    configure_state(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "_probe_health_url", lambda _url, *, timeout: {"ok": True, "status_code": 200, "error": ""})
+    monkeypatch.setattr(sessions, "_active_lock_snapshot", lambda _lock_type: {})
+
+    sessions.cmd_wait_health(
+        argparse.Namespace(
+            url="https://api.dev.openmates.org/health",
+            session="a111",
+            follow=False,
+            timeout=0,
+            poll=1,
+            probe_timeout=1,
+        )
+    )
+
+    assert "OPENMATES_HEALTH_READY" in capsys.readouterr().out
+
+
+def test_wait_health_elects_investigator_when_no_runtime_owner(monkeypatch, tmp_path, capsys):
+    configure_state(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "_probe_health_url", lambda _url, *, timeout: {"ok": False, "status_code": 502, "error": "Bad Gateway"})
+    monkeypatch.setattr(sessions, "_active_lock_snapshot", lambda _lock_type: {})
+
+    sessions.cmd_wait_health(
+        argparse.Namespace(
+            url="https://api.dev.openmates.org/health",
+            session="a111",
+            follow=False,
+            timeout=0,
+            poll=1,
+            probe_timeout=1,
+        )
+    )
+
+    output = capsys.readouterr().out
+    assert "OPENMATES_HEALTH_INVESTIGATE" in output
+    assert "single API-health investigator" in output

@@ -150,6 +150,9 @@ DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
+API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
+API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
 DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
 DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
@@ -9900,6 +9903,121 @@ def _prune_stale_resource_waits(data: dict) -> int:
     return removed
 
 
+def _health_url_key(url: str) -> str:
+    """Return a compact sessions.json key for a health URL."""
+    return hashlib.sha256(url.strip().encode("utf-8")).hexdigest()[:16]
+
+
+def _probe_health_url(url: str, *, timeout: int = API_HEALTH_PROBE_TIMEOUT_SECONDS) -> dict:
+    """Probe a shared runtime health URL without raising on 5xx/connection errors."""
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "OpenMates-sessions-health-wait/1.0"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=max(1, timeout)) as response:  # noqa: S310 - dev/runtime health URL
+            status_code = int(response.getcode() or 0)
+            return {
+                "ok": 200 <= status_code < 300,
+                "status_code": status_code,
+                "error": "",
+            }
+    except urllib.error.HTTPError as exc:
+        return {
+            "ok": False,
+            "status_code": int(exc.code or 0),
+            "error": str(exc.reason or exc),
+        }
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        reason = getattr(exc, "reason", None)
+        return {
+            "ok": False,
+            "status_code": 0,
+            "error": str(reason or exc),
+        }
+
+
+def _resource_wait_repository_session_id(data: dict, session_id: str) -> str:
+    """Resolve a repository session id for wait/incident status if possible."""
+    if not session_id:
+        return ""
+    sessions = data.setdefault("sessions", {})
+    if session_id in sessions:
+        return session_id
+    for candidate_id, candidate in sessions.items():
+        if isinstance(candidate, dict) and candidate.get("opencode_session_id") == session_id:
+            return candidate_id
+    return ""
+
+
+def _health_incident_live(incident: dict | None) -> bool:
+    """Return whether a health incident still has a live owner."""
+    if not isinstance(incident, dict) or incident.get("status") != "investigating":
+        return False
+    heartbeat_at = str(incident.get("heartbeat_at") or "")
+    heartbeat_stale = not heartbeat_at or (_minutes_since(heartbeat_at) * 60) > API_HEALTH_INCIDENT_STALE_SECONDS
+    try:
+        owner_pid = int(incident.get("owner_pid") or 0)
+    except (TypeError, ValueError):
+        owner_pid = 0
+    owner_dead = (
+        owner_pid > 0
+        and incident.get("owner_host") == socket.gethostname()
+        and not _process_is_alive(owner_pid)
+    )
+    return not heartbeat_stale and not owner_dead
+
+
+def _claim_api_health_incident(session_id: str, url: str, probe: dict) -> dict:
+    """Elect exactly one live chat to investigate a shared API health failure."""
+
+    def mutate(data: dict) -> dict:
+        incidents = _infrastructure_state(data).setdefault("health_incidents", {})
+        key = _health_url_key(url)
+        now = _now_iso()
+        owner_session_id = _resource_wait_repository_session_id(data, session_id) or session_id or "manual"
+        current = incidents.get(key)
+        current_owner = str(current.get("owner_session_id") or "") if isinstance(current, dict) else ""
+        same_owner = (
+            isinstance(current, dict)
+            and current_owner == owner_session_id
+            and current.get("owner_host") == socket.gethostname()
+        )
+        if _health_incident_live(current) and not same_owner:
+            current["last_observed_at"] = now
+            current["last_status_code"] = int(probe.get("status_code") or 0)
+            current["last_error"] = str(probe.get("error") or "")
+            return {"owned": False, "incident": dict(current)}
+
+        incident = {
+            "status": "investigating",
+            "url": url,
+            "key": key,
+            "owner_session_id": owner_session_id,
+            "owner_pid": os.getpid(),
+            "owner_host": socket.gethostname(),
+            "claimed_at": str(current.get("claimed_at") or now) if isinstance(current, dict) and same_owner else now,
+            "heartbeat_at": now,
+            "last_status_code": int(probe.get("status_code") or 0),
+            "last_error": str(probe.get("error") or ""),
+        }
+        incidents[key] = incident
+        return {"owned": True, "incident": dict(incident)}
+
+    return _mutate_sessions(mutate)
+
+
+def _clear_api_health_incident(url: str) -> None:
+    """Clear an API health incident once the shared health probe is green again."""
+
+    def mutate(data: dict) -> None:
+        incidents = _infrastructure_state(data).setdefault("health_incidents", {})
+        incidents.pop(_health_url_key(url), None)
+
+    _mutate_sessions(mutate)
+
+
 def cmd_wait_lock(args: argparse.Namespace) -> None:
     """Wait for a shared lock to become available instead of verbally pausing."""
     lock_type = _normalize_lock_type(args.type)
@@ -9951,6 +10069,105 @@ def cmd_wait_lock(args: argparse.Namespace) -> None:
             time.sleep(sleep_for)
     finally:
         _clear_session_resource_wait(args.session or "", lock_type)
+
+
+def cmd_wait_health(args: argparse.Namespace) -> None:
+    """Wait for shared API health or elect one chat to investigate a real incident."""
+    url = (args.url or API_HEALTH_DEFAULT_URL).strip()
+    follow = bool(getattr(args, "follow", False))
+    timeout = args.timeout
+    if timeout is None and not follow:
+        timeout = API_HEALTH_INCIDENT_STALE_SECONDS
+    poll = max(1, args.poll)
+    probe_timeout = max(1, args.probe_timeout)
+    deadline = None if timeout is None else time.time() + max(0, timeout)
+    last_report = 0.0
+    last_owner_signature: tuple[str, str] | None = None
+    health_resource = "api_health"
+
+    try:
+        while True:
+            probe = _probe_health_url(url, timeout=probe_timeout)
+            if probe.get("ok"):
+                _clear_api_health_incident(url)
+                print(json.dumps({"signal": "OPENMATES_HEALTH_READY", "url": url, "session_id": args.session or ""}, sort_keys=True))
+                print(f"Health URL {url} is ready; continue the interrupted operation in this chat.")
+                return
+
+            docker_lock = _active_lock_snapshot("docker_rebuild")
+            if docker_lock:
+                _set_session_resource_wait(args.session or "", health_resource, docker_lock)
+                owner_signature = (
+                    str(docker_lock.get("claimed_by") or ""),
+                    str(docker_lock.get("phase") or ""),
+                )
+                owner_text = str(docker_lock.get("claimed_by") or "?")
+                phase_text = str(docker_lock.get("phase") or "?")
+                waiting_text = (
+                    f"Waiting for API health {url}; Docker/runtime operation held by "
+                    f"{owner_text}, phase {phase_text}. "
+                    f"Last health status: {probe.get('status_code') or probe.get('error') or 'unavailable'}."
+                )
+            else:
+                claim = _claim_api_health_incident(args.session or "", url, probe)
+                incident = claim.get("incident") if isinstance(claim.get("incident"), dict) else {}
+                if claim.get("owned"):
+                    print(
+                        json.dumps(
+                            {
+                                "signal": "OPENMATES_HEALTH_INVESTIGATE",
+                                "url": url,
+                                "session_id": incident.get("owner_session_id") or args.session or "",
+                                "status_code": probe.get("status_code") or 0,
+                                "error": probe.get("error") or "",
+                            },
+                            sort_keys=True,
+                        )
+                    )
+                    print(
+                        "No active Docker/runtime operation owns this health failure. "
+                        "This chat is the single API-health investigator; diagnose or restart through "
+                        "python3 scripts/sessions.py docker restart --session "
+                        f"{args.session or '<repository-session-id>'} --service api [--build]. "
+                        "Other chats should keep waiting for OPENMATES_HEALTH_READY.",
+                    )
+                    return
+                _set_session_resource_wait(
+                    args.session or "",
+                    health_resource,
+                    {
+                        "claimed_by": incident.get("owner_session_id") or "api-health-investigator",
+                        "phase": "health_investigating",
+                    },
+                )
+                owner_signature = (
+                    str(incident.get("owner_session_id") or ""),
+                    "health_investigating",
+                )
+                waiting_text = (
+                    f"Waiting for API health {url}; incident investigator is "
+                    f"{incident.get('owner_session_id') or '?'}. "
+                    f"Last health status: {probe.get('status_code') or probe.get('error') or 'unavailable'}."
+                )
+
+            now = time.time()
+            if deadline is not None and now >= deadline:
+                print(
+                    f"Timed out after {timeout}s waiting for API health {url}. "
+                    "If no Docker operation or health investigator is live, rerun wait-health so one chat can take over.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+            if owner_signature != last_owner_signature or last_report == 0.0 or now - last_report >= 60:
+                print(waiting_text, flush=True)
+                last_report = now
+                last_owner_signature = owner_signature
+
+            sleep_for = poll if deadline is None else min(poll, max(1, int(deadline - now)))
+            time.sleep(sleep_for)
+    finally:
+        _clear_session_resource_wait(args.session or "", health_resource)
 
 
 def _wait_and_acquire_session_lock(
@@ -15182,6 +15399,42 @@ def main() -> None:
         help="Seconds between checks (default: 30)",
     )
 
+    # wait-health
+    p_wait_health = sub.add_parser(
+        "wait-health",
+        help="Wait for shared API health or elect one incident investigator",
+    )
+    p_wait_health.add_argument(
+        "--session", "-s", help="Session ID waiting for API health"
+    )
+    p_wait_health.add_argument(
+        "--url",
+        default=os.getenv("OPENMATES_API_HEALTH_URL", API_HEALTH_DEFAULT_URL),
+        help=f"Health URL to probe (default: {API_HEALTH_DEFAULT_URL})",
+    )
+    p_wait_health.add_argument(
+        "--timeout",
+        type=int,
+        help="Seconds to wait before failing (default: health incident stale timeout)",
+    )
+    p_wait_health.add_argument(
+        "--follow",
+        action="store_true",
+        help="Keep following Docker/incident owner transitions until health is ready",
+    )
+    p_wait_health.add_argument(
+        "--poll",
+        type=int,
+        default=30,
+        help="Seconds between checks (default: 30)",
+    )
+    p_wait_health.add_argument(
+        "--probe-timeout",
+        type=int,
+        default=API_HEALTH_PROBE_TIMEOUT_SECONDS,
+        help=f"Seconds for each HTTP health probe (default: {API_HEALTH_PROBE_TIMEOUT_SECONDS})",
+    )
+
     # prepare-deploy
     p_prep = sub.add_parser(
         "prepare-deploy", help="Show deployment plan"
@@ -15611,6 +15864,7 @@ def main() -> None:
         "lock": cmd_lock,
         "unlock": cmd_unlock,
         "wait-lock": cmd_wait_lock,
+        "wait-health": cmd_wait_health,
         "prepare-deploy": cmd_prepare_deploy,
         "deploy": cmd_deploy,
         "lint": cmd_lint,

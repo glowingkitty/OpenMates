@@ -167,6 +167,20 @@ test("temporary shared lock output forces same-turn deterministic continuation",
   );
 });
 
+test("dev API 502 output gets coordinated health waiter guidance", async () => {
+  const text = await runAfterShell(
+    "python3 scripts/verify_test_account_login.py",
+    "https://api.dev.openmates.org/health returned 502 Bad Gateway",
+  );
+  assert.match(text, /OpenMates API health coordination/);
+  assert.match(text, /wait-health --session \$\{OPENCODE_SESSION_ID:-manual\} --url https:\/\/api\.dev\.openmates\.org\/health --follow --poll 10/);
+  assert.match(text, /OPENMATES_HEALTH_INVESTIGATE/);
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.apiHealthWaitUrlForTest("api.dev.openmates.org health returned 502"),
+    "https://api.dev.openmates.org/health",
+  );
+});
+
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);

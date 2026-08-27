@@ -54,6 +54,7 @@ const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const TEMPORARY_LOCK_WAIT_MARKER = "[OpenMates temporary lock continuation]";
+const API_HEALTH_WAIT_MARKER = "[OpenMates API health coordination]";
 const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
@@ -1867,6 +1868,32 @@ Run the matching deterministic waiter with a sufficiently long Bash timeout, wai
 ${commands.join("\n")}`;
 }
 
+function apiHealthWaitUrlForTest(text) {
+  const value = String(text || "");
+  if (!/(?:\b502\b|Bad Gateway|health returned|health check|ECONNREFUSED|connection refused|upstream connect error)/i.test(value)) {
+    return "";
+  }
+  const match = value.match(/https:\/\/api\.dev\.openmates\.org\/health\b/i);
+  if (match) return match[0];
+  if (/api\.dev\.openmates\.org/i.test(value) && /health|502|Bad Gateway/i.test(value)) {
+    return "https://api.dev.openmates.org/health";
+  }
+  return "";
+}
+
+function appendApiHealthWaitHint(output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(API_HEALTH_WAIT_MARKER)) return;
+  const url = apiHealthWaitUrlForTest(output.output);
+  if (!url) return;
+  output.output += `
+
+${API_HEALTH_WAIT_MARKER}
+Shared dev API health is a coordinated runtime resource, not something every chat should investigate independently.
+Run the deterministic waiter with a sufficiently long Bash timeout:
+  python3 scripts/sessions.py wait-health --session \${OPENCODE_SESSION_ID:-manual} --url ${url} --follow --poll 10
+If it prints OPENMATES_HEALTH_READY, continue the interrupted proof/test. If it prints OPENMATES_HEALTH_INVESTIGATE, this chat is the single incident owner; diagnose/restart via sessions.py docker only. Other chats should keep waiting.`;
+}
+
 function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
@@ -2475,6 +2502,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
         appendTemporaryLockWaitHint(output);
+        appendApiHealthWaitHint(output);
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
           await recordWorktreeRouting(input.sessionID);
         }
@@ -2530,6 +2558,7 @@ OpenMatesHooks.test = Object.freeze({
   readConflictWarningForTest,
   repeatedRoutingFailureMessageForTest,
   completedAssistantMessageID,
+  apiHealthWaitUrlForTest,
   notifierEventArgsForTest,
   temporaryLockWaitTypesForTest,
   reducePresenceEventForTest,
