@@ -344,6 +344,101 @@ def test_merged_opencode_session_is_reused_for_start() -> None:
     assert sessions.opencode_session_reusable_for_start({})
 
 
+def test_stale_resource_waits_are_pruned(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "stale": {
+                "resource_wait": {
+                    "status": "waiting",
+                    "resource": "docker_rebuild",
+                    "heartbeat_at": "old",
+                    "waiter_pid": 12345,
+                }
+            },
+            "live": {
+                "resource_wait": {
+                    "status": "waiting",
+                    "resource": "docker_rebuild",
+                    "heartbeat_at": "recent",
+                    "waiter_pid": 23456,
+                }
+            },
+        }
+    }
+
+    monkeypatch.setattr(sessions, "_minutes_since", lambda value: 10 if value == "old" else 1)
+    monkeypatch.setattr(sessions, "_process_is_alive", lambda pid: pid == 23456)
+
+    assert sessions._prune_stale_resource_waits(data) == 1
+    assert "resource_wait" not in data["sessions"]["stale"]
+    assert data["sessions"]["live"]["resource_wait"]["waiter_pid"] == 23456
+
+
+def test_refresh_session_worktree_base_updates_safe_fast_forward(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    worktree_path = tmp_path / "agent-abcd"
+    worktree_path.mkdir()
+    data = {
+        "sessions": {
+            "abcd": {
+                "binding_mode": "legacy_grandfathered",
+                "worktree": {
+                    "path": str(worktree_path),
+                    "base_commit": "old",
+                    "status": "active",
+                }
+            }
+        }
+    }
+
+    def run_command(command, **_kwargs):
+        if command[1] == "rev-parse":
+            return 0, "new\n", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "new")
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
+
+    result = sessions.refresh_session_worktree_base("abcd")
+
+    assert result["previous_base"] == "old"
+    assert result["base_commit"] == "new"
+    assert result["binding_mode"] == "worktree_routed"
+    assert data["sessions"]["abcd"]["binding_mode"] == "worktree_routed"
+    assert data["sessions"]["abcd"]["worktree"]["base_commit"] == "new"
+    assert data["sessions"]["abcd"]["worktree"]["last_active"] == "now"
+
+
+def test_restore_routes_unmapped_child_session_through_parent_worktree(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    worktree_path = tmp_path / "agent-abcd"
+    worktree_path.mkdir()
+    data = {"sessions": {"abcd": {"opencode_session_id": "ses_parent", "worktree": {"path": str(worktree_path), "status": "active", "base_commit": "base"}}}}
+
+    def run_command(command, **_kwargs):
+        if command[1:3] == ["status", "--porcelain"]:
+            return 0, "", ""
+        if command[1] == "rev-parse":
+            return 0, "base", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_opencode_parent_chain", lambda session_id: ["ses_parent"] if session_id == "ses_child" else [])
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "base")
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+
+    result = sessions.prepare_opencode_restore("ses_child")
+
+    assert result == {"cwd": str(worktree_path), "repository_session_id": "abcd", "advanced": False}
+
+
 def test_restore_advances_clean_merged_worktree_and_routes_current_coordinator(monkeypatch, tmp_path: Path) -> None:
     sessions = load_sessions_module()
     worktree_path = tmp_path / "agent-abcd"

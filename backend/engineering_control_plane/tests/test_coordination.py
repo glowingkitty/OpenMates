@@ -103,6 +103,37 @@ def test_runtime_operation_waits_for_conflicting_lease() -> None:
     assert store.runtime_epoch == 1
 
 
+def test_runtime_operations_queue_fifo_for_the_same_resource() -> None:
+    store = InMemoryCoordinationStore()
+
+    first = store.request_runtime_operation(
+        operation_key="restart-1",
+        requested_by="chat-a",
+        resources={"product-runtime"},
+        now=NOW,
+    )
+    second = store.request_runtime_operation(
+        operation_key="restart-2",
+        requested_by="chat-b",
+        resources={"product-runtime"},
+        now=NOW + timedelta(seconds=1),
+    )
+    unrelated = store.request_runtime_operation(
+        operation_key="apple-1",
+        requested_by="chat-c",
+        resources={"apple-runner"},
+        now=NOW + timedelta(seconds=2),
+    )
+
+    assert first.status == "admitted"
+    assert second.status == "queued"
+    assert unrelated.status == "admitted"
+
+    store.complete_runtime_operation("restart-1", now=NOW + timedelta(seconds=3))
+
+    assert store.get_runtime_operation("restart-2").status == "admitted"
+
+
 def test_equivalent_dispatch_is_reused_until_runtime_epoch_changes() -> None:
     store = InMemoryCoordinationStore()
     spec = DispatchSpec.create(

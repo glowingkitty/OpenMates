@@ -121,6 +121,26 @@ test("blocking hook messages always explain reason and next action", async () =>
   }
 });
 
+test("hook routing warnings are deduplicated by session and reason", () => {
+  const warnings = [];
+  const { warnOnceForTest } = pluginModule.OpenMatesHooks.test;
+  const message = "[OpenMates worktree routing] Reason: sessions.py could not record worktree routing. Next: repair it.";
+
+  assert.equal(
+    warnOnceForTest(message, { sessionID: "ses_warn", now: 1_000_000, ttlMs: 60_000 }, (text) => warnings.push(text)),
+    true,
+  );
+  assert.equal(
+    warnOnceForTest(message, { sessionID: "ses_warn", now: 1_000_001, ttlMs: 60_000 }, (text) => warnings.push(text)),
+    false,
+  );
+  assert.equal(
+    warnOnceForTest(message, { sessionID: "ses_other", now: 1_000_002, ttlMs: 60_000 }, (text) => warnings.push(text)),
+    true,
+  );
+  assert.deepEqual(warnings, [message, message]);
+});
+
 test("GitHub MCP tools are rejected in favor of gh CLI", async () => {
   const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
   await assert.rejects(

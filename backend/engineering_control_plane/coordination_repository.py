@@ -199,9 +199,48 @@ class PostgresCoordinationRepository:
             ).fetchone()
             if existing is not None:
                 return self._operation_row(connection, operation_key)
+            metadata_session_id = str(metadata.get("session_id") or "")
+            metadata_services = metadata.get("services") if isinstance(metadata.get("services"), list) else []
+            if metadata_session_id:
+                reusable = connection.execute(
+                    """
+                    SELECT operation.operation_key
+                    FROM control_plane_runtime_operations operation
+                    WHERE operation.operation_type = %s
+                      AND operation.status = ANY(%s)
+                      AND operation.metadata->>'session_id' = %s
+                      AND operation.metadata->'services' = %s::jsonb
+                      AND NOT EXISTS (
+                          SELECT resource_key
+                          FROM control_plane_runtime_operation_resources
+                          WHERE operation_key = operation.operation_key
+                          EXCEPT
+                          SELECT unnest(%s::text[])
+                      )
+                      AND NOT EXISTS (
+                          SELECT unnest(%s::text[])
+                          EXCEPT
+                          SELECT resource_key
+                          FROM control_plane_runtime_operation_resources
+                          WHERE operation_key = operation.operation_key
+                      )
+                    ORDER BY operation.requested_at, operation.operation_key
+                    LIMIT 1
+                    """,
+                    (
+                        operation_type,
+                        list(OPERATION_ACTIVE_STATUSES),
+                        metadata_session_id,
+                        self._jsonb(metadata_services),
+                        normalized,
+                        normalized,
+                    ),
+                ).fetchone()
+                if reusable is not None:
+                    return self._operation_row(connection, reusable[0])
             other_operation = connection.execute(
                 """
-                SELECT operation.operation_key
+                SELECT 1
                 FROM control_plane_runtime_operations operation
                 JOIN control_plane_runtime_operation_resources resource
                   ON resource.operation_key = operation.operation_key
@@ -210,9 +249,7 @@ class PostgresCoordinationRepository:
                 """,
                 (list(OPERATION_ACTIVE_STATUSES), normalized),
             ).fetchone()
-            if other_operation is not None:
-                raise CoordinationConflict(f"conflicting runtime operation is active: {other_operation[0]}")
-            blocked = connection.execute(
+            blocked_by_lease = connection.execute(
                 """
                 SELECT 1 FROM control_plane_resource_lease_items
                 WHERE status = 'active' AND resource_key = ANY(%s)
@@ -233,10 +270,10 @@ class PostgresCoordinationRepository:
                     operation_key,
                     requested_by,
                     operation_type,
-                    "queued" if blocked else "admitted",
+                    "queued" if other_operation is not None or blocked_by_lease is not None else "admitted",
                     now,
-                    None if blocked else now,
-                    None if blocked else epoch,
+                    None if other_operation is not None or blocked_by_lease is not None else now,
+                    None if other_operation is not None or blocked_by_lease is not None else epoch,
                     self._jsonb(metadata),
                 ),
             )
@@ -297,6 +334,8 @@ class PostgresCoordinationRepository:
                     operation_key,
                 ),
             )
+            if status in OPERATION_TERMINAL_STATUSES:
+                self._admit_queued_operations(connection, now)
             return self._operation_row(connection, operation_key)
 
     def blocking_leases(self, operation_key: str) -> list[dict[str, Any]]:
@@ -550,10 +589,10 @@ class PostgresCoordinationRepository:
 
     def _admit_queued_operations(self, connection: Any, now: datetime) -> None:
         queued = connection.execute(
-            "SELECT operation_key FROM control_plane_runtime_operations WHERE status = 'queued' ORDER BY requested_at, operation_key FOR UPDATE"
+            "SELECT operation_key, requested_at FROM control_plane_runtime_operations WHERE status = 'queued' ORDER BY requested_at, operation_key FOR UPDATE"
         ).fetchall()
-        for (operation_key,) in queued:
-            blocked = connection.execute(
+        for operation_key, requested_at in queued:
+            blocked_by_lease = connection.execute(
                 """
                 SELECT 1
                 FROM control_plane_runtime_operation_resources operation_resource
@@ -564,7 +603,34 @@ class PostgresCoordinationRepository:
                 """,
                 (operation_key,),
             ).fetchone()
-            if blocked is None:
+            blocked_by_operation = connection.execute(
+                """
+                SELECT 1
+                FROM control_plane_runtime_operation_resources current_resource
+                JOIN control_plane_runtime_operation_resources other_resource
+                  ON other_resource.resource_key = current_resource.resource_key
+                JOIN control_plane_runtime_operations other_operation
+                  ON other_operation.operation_key = other_resource.operation_key
+                WHERE current_resource.operation_key = %s
+                  AND other_operation.operation_key <> %s
+                  AND (
+                    other_operation.status = ANY(%s)
+                    OR (
+                      other_operation.status = 'queued'
+                      AND (other_operation.requested_at, other_operation.operation_key) < (%s, %s)
+                    )
+                  )
+                LIMIT 1
+                """,
+                (
+                    operation_key,
+                    operation_key,
+                    ["admitted", "draining_tests", "restarting", "verifying"],
+                    requested_at,
+                    operation_key,
+                ),
+            ).fetchone()
+            if blocked_by_lease is None and blocked_by_operation is None:
                 epoch = connection.execute(
                     "SELECT runtime_epoch FROM control_plane_runtime_state WHERE singleton = true"
                 ).fetchone()[0]

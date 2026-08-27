@@ -81,9 +81,38 @@ function hashHookSource() {
 
 const HOOK_RUNTIME_HASH = hashHookSource();
 const GITHUB_MCP_TOOL_PATTERN = /^(?:github|mcp__github)(?:[_\-.]|$)/i;
+const HOOK_WARNING_DEDUPE_TTL_MS = Number(process.env.OPENMATES_HOOK_WARNING_DEDUPE_TTL_MS || 10 * 60 * 1000);
+const hookWarningDedupe = new Map();
 
 function actionable(marker, reason, next) {
   return `${marker} Reason: ${reason} Next: ${next}`;
+}
+
+function warningReasonForTest(message) {
+  const match = /Reason:\s*(.*?)(?:\s+Next:|$)/s.exec(String(message || ""));
+  return (match?.[1] || String(message || "")).trim();
+}
+
+function warnOnceForTest(
+  message,
+  { sessionID = "", head = "", now = Date.now(), ttlMs = HOOK_WARNING_DEDUPE_TTL_MS } = {},
+  warn = console.warn,
+) {
+  if (!message) return false;
+  const ttl = Number.isFinite(Number(ttlMs)) ? Number(ttlMs) : HOOK_WARNING_DEDUPE_TTL_MS;
+  if (ttl <= 0) {
+    warn(message);
+    return true;
+  }
+  const reason = warningReasonForTest(message);
+  const key = JSON.stringify([HOOK_RUNTIME_HASH, sessionID || "", head || "", reason]);
+  for (const [cachedKey, cachedAt] of hookWarningDedupe.entries()) {
+    if (now - cachedAt > ttl) hookWarningDedupe.delete(cachedKey);
+  }
+  if (hookWarningDedupe.has(key)) return false;
+  hookWarningDedupe.set(key, now);
+  warn(message);
+  return true;
 }
 
 function normalizeToolName(tool) {
@@ -1305,7 +1334,10 @@ async function recordWorktreeRouting(opencodeSessionID) {
   );
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "routing repair failed").trim();
-    console.warn(`${ROUTING_GUARD_MARKER} Reason: sessions.py could not record worktree routing. Next: run python3 scripts/sessions.py worktree repair --opencode-session ${opencodeSessionID}. Detail: ${detail}`);
+    warnOnceForTest(
+      `${ROUTING_GUARD_MARKER} Reason: sessions.py could not record worktree routing. Next: run python3 scripts/sessions.py worktree repair --opencode-session ${opencodeSessionID}. Detail: ${detail}`,
+      { sessionID: opencodeSessionID },
+    );
     return false;
   }
   return true;
@@ -1328,11 +1360,17 @@ function scheduleWorktreeCheckpoint(opencodeSessionID, event) {
     { cwd: PROJECT_ROOT, env: process.env, detached: true, stdio: "ignore" },
   );
   child.on("error", (error) => {
-    console.warn(`${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`);
+    warnOnceForTest(
+      `${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`,
+      { sessionID: opencodeSessionID },
+    );
   });
   child.on("close", (code) => {
     if (code !== 0) {
-      console.warn(`${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`);
+      warnOnceForTest(
+        `${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`,
+        { sessionID: opencodeSessionID },
+      );
     }
   });
   child.unref();
@@ -1904,7 +1942,7 @@ function guardRootEdit(files, sessionID, worktreePath = "") {
       worktreePath,
     });
     if (decision.decision === "block") throw new Error(decision.message);
-    if (decision.decision === "warn") console.warn(decision.message);
+    if (decision.decision === "warn") warnOnceForTest(decision.message, { sessionID });
   }
 }
 
@@ -2487,4 +2525,6 @@ OpenMatesHooks.test = Object.freeze({
   workerBashGateDecisionForTest,
   workerEditGateDecisionForTest,
   workerEditPathDecisionForTest,
+  warnOnceForTest,
+  warningReasonForTest,
 });

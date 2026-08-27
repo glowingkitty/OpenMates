@@ -61,6 +61,52 @@ def test_restart_request_blocks_new_dependent_tests(monkeypatch, tmp_path):
         sessions.acquire_test_resource_lease("run-1", "test-session", {"dev-stack"}, timeout=0)
 
 
+def test_restart_requests_queue_and_same_session_reattaches(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+
+    first = sessions.request_docker_restart("a111", ["api"])
+    repeated = sessions.request_docker_restart("a111", ["api"])
+    second = sessions.request_docker_restart("b222", ["api"])
+
+    assert repeated["id"] == first["id"]
+    assert second["id"] != first["id"]
+    assert second["status"] == "queued"
+    assert sessions._active_docker_operation(sessions._load_sessions())["id"] == first["id"]
+
+
+def test_persistent_blocking_leases_reclaims_dead_same_host_owner(monkeypatch):
+    monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
+    monkeypatch.setattr(sessions, "_process_is_alive", lambda _pid: False)
+    host = sessions.socket.gethostname()
+    calls = []
+
+    def api_request(method, path, *, data=None):
+        calls.append((method, path, data))
+        if method == "GET":
+            if any(call[0] == "DELETE" for call in calls):
+                return {"leases": []}
+            return {
+                "leases": [
+                    {
+                        "lease_key": "test-dead",
+                        "owner_key": f"{host}:999999",
+                        "resources": ["dev-stack"],
+                        "status": "active",
+                        "acquired_at": "2026-08-27T00:00:00Z",
+                        "expires_at": "2026-08-27T00:30:00Z",
+                    }
+                ]
+            }
+        if method == "DELETE":
+            return {"released": True}
+        raise AssertionError((method, path, data))
+
+    monkeypatch.setattr(sessions, "control_plane_api_request", api_request)
+
+    assert sessions._blocking_test_resource_leases("docker-1") == []
+    assert ("DELETE", "/v1/coordination/leases/test-dead", None) in calls
+
+
 def test_official_cloud_docker_command_includes_overlay(monkeypatch, tmp_path):
     env_file = tmp_path / ".env"
     env_file.write_text(

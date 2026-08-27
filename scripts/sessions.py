@@ -994,6 +994,38 @@ def _find_opencode_descendant_sessions(connection: sqlite3.Connection, session_i
     return discovered
 
 
+def _opencode_parent_chain(session_id: str, *, db_path: Path | None = None) -> list[str]:
+    """Return immediate-to-root OpenCode parents for a session, best-effort."""
+    if not session_id:
+        return []
+    try:
+        connection = _opencode_readonly_connection(db_path)
+    except (FileNotFoundError, sqlite3.Error):
+        return []
+    parents: list[str] = []
+    visited = {session_id}
+    current = session_id
+    try:
+        while current:
+            row = connection.execute(
+                "SELECT parent_id FROM session WHERE id = ?",
+                (current,),
+            ).fetchone()
+            if row is None:
+                break
+            parent_id = str(row["parent_id"] or "")
+            if not parent_id or parent_id in visited:
+                break
+            parents.append(parent_id)
+            visited.add(parent_id)
+            current = parent_id
+    except sqlite3.Error:
+        return parents
+    finally:
+        connection.close()
+    return parents
+
+
 def _load_opencode_session_rows(
     connection: sqlite3.Connection,
     session_id: str,
@@ -1822,6 +1854,15 @@ def _legacy_lease_record(lease: dict, *, owner: str = "") -> dict:
     }
 
 
+def _lease_has_dead_local_owner(lease: dict) -> bool:
+    owner_pid = int(lease.get("owner_pid") or 0)
+    return bool(
+        owner_pid
+        and lease.get("owner_host") == socket.gethostname()
+        and not _process_is_alive(owner_pid)
+    )
+
+
 def _legacy_operation_record(operation: dict) -> dict:
     metadata = operation.get("metadata") if isinstance(operation.get("metadata"), dict) else {}
     return {
@@ -1878,7 +1919,7 @@ def _active_docker_operation(data: dict) -> dict | None:
     return next(
         (
             operation
-            for operation in reversed(operations)
+            for operation in operations
             if operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
         ),
         None,
@@ -2082,6 +2123,7 @@ def test_resource_lease_owned_by(lease_id: str, *, owner_pid: int) -> bool:
 def request_docker_restart(session_id: str, services: list[str]) -> dict:
     """Atomically queue one restart, preventing new dependent test leases."""
     normalized_services = sorted(set(services))
+    resources = sorted(_docker_operation_resources(normalized_services))
     now = _now_iso()
     if _persistent_coordination_enabled():
         operation_id = f"docker-{secrets.token_hex(4)}"
@@ -2092,7 +2134,7 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
                 data={
                     "operation_key": operation_id,
                     "operation_type": "product_docker_restart",
-                    "resources": sorted(_docker_operation_resources(normalized_services)),
+                    "resources": resources,
                     "metadata": {
                         "session_id": session_id,
                         "services": normalized_services,
@@ -2109,17 +2151,22 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
     def mutate(data: dict) -> dict:
         _prune_stale_test_resource_leases(data)
         _prune_stale_docker_operations(data)
-        active = _active_docker_operation(data)
-        if active:
-            raise RuntimeError(
-                f"Docker restart {active.get('id')} is already {active.get('status')} "
-                f"for {', '.join(active.get('services', []))}"
-            )
+        operations = _infrastructure_state(data)["docker_operations"]
+        for active in operations:
+            if active.get("status") not in DOCKER_OPERATION_ACTIVE_STATUSES:
+                continue
+            if (
+                active.get("session_id") == session_id
+                and sorted(active.get("services", [])) == normalized_services
+                and sorted(active.get("resources", [])) == resources
+            ):
+                active["updated_at"] = now
+                return dict(active)
         operation = {
             "id": f"docker-{secrets.token_hex(4)}",
             "session_id": session_id,
             "services": normalized_services,
-            "resources": sorted(_docker_operation_resources(normalized_services)),
+            "resources": resources,
             "status": "queued",
             "owner_pid": os.getpid(),
             "owner_host": socket.gethostname(),
@@ -2169,6 +2216,19 @@ def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
 
 def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
     if _persistent_coordination_enabled():
+        response = control_plane_api_request(
+            "GET",
+            f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
+        )
+        leases = [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+        released = []
+        for lease in leases:
+            if not _lease_has_dead_local_owner(lease):
+                continue
+            control_plane_api_request("DELETE", f"/v1/coordination/leases/{lease['lease_id']}")
+            released.append(lease["lease_id"])
+        if not released:
+            return leases
         response = control_plane_api_request(
             "GET",
             f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
@@ -7208,6 +7268,31 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     return recorded_base
 
 
+def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
+    """Refresh one session's recorded base after a safe worktree fast-forward."""
+    def update(data: dict) -> dict[str, str]:
+        resolved_session_id = _resolve_session_id(data, session_id=session_id)
+        session = data["sessions"][resolved_session_id]
+        worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        previous_base = refresh_worktree_base_after_fast_forward(worktree)
+        if worktree.get("path") and _existing_direct_managed_worktree(worktree.get("path")):
+            session["binding_mode"] = "worktree_routed"
+            session["binding_updated_at"] = _now_iso()
+            session["binding_failure_reason"] = ""
+        if previous_base or session.get("binding_mode") == "worktree_routed":
+            session["last_active"] = _now_iso()
+            worktree["last_active"] = session["last_active"]
+        return {
+            "session_id": resolved_session_id,
+            "previous_base": previous_base,
+            "base_commit": str(worktree.get("base_commit") or ""),
+            "binding_mode": str(session.get("binding_mode") or ""),
+            "worktree_path": str(worktree.get("path") or ""),
+        }
+
+    return _mutate_sessions(update)
+
+
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
     initial = _mutate_sessions(lambda data: data)
@@ -8647,6 +8732,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     _prune_stale_locks(data)
     _prune_checkpoint_lock_files(data)
     _prune_stale_edit_leases(data)
+    _prune_stale_resource_waits(data)
     _save_sessions(data)
 
     sessions = data.get("sessions", {})
@@ -9700,6 +9786,28 @@ def _clear_session_resource_wait(session_id: str, lock_type: str) -> None:
             return
 
     _mutate_sessions(update)
+
+
+def _prune_stale_resource_waits(data: dict) -> int:
+    """Remove durable wait markers whose waiter died or stopped heartbeating."""
+    removed = 0
+    for session in data.get("sessions", {}).values():
+        if not isinstance(session, dict):
+            continue
+        wait = session.get("resource_wait")
+        if not isinstance(wait, dict) or wait.get("status") != "waiting":
+            continue
+        heartbeat_at = str(wait.get("heartbeat_at") or "")
+        try:
+            waiter_pid = int(wait.get("waiter_pid") or 0)
+        except (TypeError, ValueError):
+            waiter_pid = 0
+        heartbeat_stale = not heartbeat_at or _minutes_since(heartbeat_at) > 3
+        waiter_dead = waiter_pid > 0 and not _process_is_alive(waiter_pid)
+        if heartbeat_stale or waiter_dead:
+            session.pop("resource_wait", None)
+            removed += 1
+    return removed
 
 
 def cmd_wait_lock(args: argparse.Namespace) -> None:
@@ -11754,6 +11862,14 @@ def cmd_worktree(args: argparse.Namespace) -> None:
     if args.worktree_action == "repair":
         try:
             result = repair_worktree_routing(args.opencode_session)
+        except (RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
+        return
+    if args.worktree_action == "refresh-base":
+        try:
+            result = refresh_session_worktree_base(args.session)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
@@ -14055,11 +14171,19 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
 def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
     """Validate routing and safely advance a resumable worktree to origin/dev."""
     data = _load_sessions()
-    matches = [
-        (session_id, session)
-        for session_id, session in data.get("sessions", {}).items()
-        if isinstance(session, dict) and session.get("opencode_session_id") == opencode_session_id
-    ]
+    def matches_for(open_code_session_id: str) -> list[tuple[str, dict]]:
+        return [
+            (session_id, session)
+            for session_id, session in data.get("sessions", {}).items()
+            if isinstance(session, dict) and session.get("opencode_session_id") == open_code_session_id
+        ]
+
+    matches = matches_for(opencode_session_id)
+    if not matches:
+        for parent_opencode_session_id in _opencode_parent_chain(opencode_session_id):
+            matches = matches_for(parent_opencode_session_id)
+            if matches:
+                break
     if not matches:
         return {"cwd": str(CONTROL_PLANE_ROOT), "repository_session_id": "", "advanced": False}
     if len(matches) != 1:
@@ -14844,6 +14968,11 @@ def main() -> None:
     p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
     p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
     p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    p_worktree_refresh_base = p_worktree_sub.add_parser(
+        "refresh-base",
+        help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
+    )
+    p_worktree_refresh_base.add_argument("--session", "-s", required=True, help="Session ID")
     p_worktree_checkpoint = p_worktree_sub.add_parser("checkpoint", help="Checkpoint an idle or closed mutating OpenCode session")
     p_worktree_checkpoint.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_checkpoint.add_argument("--event", required=True, choices=["idle", "closed"])

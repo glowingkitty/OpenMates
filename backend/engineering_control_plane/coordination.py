@@ -246,15 +246,20 @@ class InMemoryCoordinationStore:
                 return existing
             self._expire_leases(now)
             normalized = frozenset(resources)
-            blocked = any(
+            blocked_by_lease = any(
                 lease.status == "active" and bool(lease.resources & normalized) for lease in self._leases.values()
+            )
+            blocked_by_operation = any(
+                operation.status in {"queued", "admitted", "draining_tests", "restarting", "verifying"}
+                and bool(operation.resources & normalized)
+                for operation in self._operations.values()
             )
             operation = RuntimeOperation(
                 operation_key=operation_key,
                 requested_by=requested_by,
                 resources=normalized,
                 requested_at=now,
-                status="queued" if blocked else "admitted",
+                status="queued" if blocked_by_lease or blocked_by_operation else "admitted",
             )
             self._operations[operation_key] = operation
             return operation
@@ -271,6 +276,7 @@ class InMemoryCoordinationStore:
             operation.status = "completed"
             operation.completed_at = now
             self._runtime_epoch += 1
+            self._admit_queued_operations(now)
             return operation
 
     def request_dispatch(
@@ -387,9 +393,16 @@ class InMemoryCoordinationStore:
         for operation in sorted(self._operations.values(), key=lambda item: (item.requested_at, item.operation_key)):
             if operation.status != "queued":
                 continue
-            blocked = any(
+            blocked_by_lease = any(
                 lease.status == "active" and bool(lease.resources & operation.resources)
                 for lease in self._leases.values()
             )
-            if not blocked:
+            blocked_by_operation = any(
+                other.operation_key != operation.operation_key
+                and other.status in {"queued", "admitted", "draining_tests", "restarting", "verifying"}
+                and bool(other.resources & operation.resources)
+                and (other.status != "queued" or (other.requested_at, other.operation_key) < (operation.requested_at, operation.operation_key))
+                for other in self._operations.values()
+            )
+            if not blocked_by_lease and not blocked_by_operation:
                 operation.status = "admitted"
