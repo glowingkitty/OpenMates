@@ -3,6 +3,13 @@
   "instructions": [
     "docs/contributing/guides/agent-workflow-core.md"
   ],
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 1,
+    "preserve_recent_tokens": 32000,
+    "reserved": 64000
+  },
   "permission": {
     "firecrawl_firecrawl_agent": "ask",
     "firecrawl_firecrawl_agent_status": "ask",
