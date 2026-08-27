@@ -121,6 +121,54 @@ class _StubClient:
         self.chat.completions = _CapturingCompletions()
 
 
+class _SplitToolCallCompletions:
+    async def create(self, **_payload: Any) -> Any:
+        async def _stream() -> Any:
+            yield types.SimpleNamespace(
+                choices=[
+                    types.SimpleNamespace(
+                        delta=types.SimpleNamespace(
+                            content=None,
+                            tool_calls=[
+                                types.SimpleNamespace(
+                                    id="call-weather",
+                                    index=0,
+                                    function=types.SimpleNamespace(name="get_weather", arguments=""),
+                                )
+                            ],
+                        ),
+                        finish_reason=None,
+                    )
+                ],
+                usage=None,
+            )
+            yield types.SimpleNamespace(
+                choices=[
+                    types.SimpleNamespace(
+                        delta=types.SimpleNamespace(
+                            content=None,
+                            tool_calls=[
+                                types.SimpleNamespace(
+                                    id=None,
+                                    index=0,
+                                    function=types.SimpleNamespace(name=None, arguments='{"city":"Berlin"}'),
+                                )
+                            ],
+                        ),
+                        finish_reason="tool_calls",
+                    )
+                ],
+                usage=types.SimpleNamespace(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+            )
+
+        return _stream()
+
+
+class _SplitToolCallClient:
+    def __init__(self) -> None:
+        self.chat = types.SimpleNamespace(completions=_SplitToolCallCompletions())
+
+
 def _load_openai_provider() -> Dict[str, Any]:
     return yaml.safe_load(OPENAI_PROVIDER_YAML.read_text(encoding="utf-8"))
 
@@ -301,7 +349,8 @@ def test_gpt56_catalog_entries_define_routing_pricing_and_capabilities() -> None
         assert model.get("reasoning_effort") == expected["reasoning_effort"]
 
 
-def test_openai_request_model_overrides_simple_and_complex_auto_selection() -> None:
+def test_openai_request_model_overrides_simple_and_complex_auto_selection(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "celery", types.SimpleNamespace(Celery=object))
     from backend.apps.ai.skills.ask_skill import AskSkill, OpenAICompletionRequest
 
     request = OpenAICompletionRequest(
@@ -400,6 +449,97 @@ def test_gpt56_stream_payload_uses_catalog_upstream_model_and_reasoning_effort(m
     assert captured["reasoning_effort"] == "max"
     assert "temperature" not in captured
     assert captured["max_completion_tokens"] == 16
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_gpt56_luna_tool_payload_disables_reasoning_effort(
+    monkeypatch: pytest.MonkeyPatch,
+    stream: bool,
+) -> None:
+    provider = _load_openai_provider()
+    model_by_id = {model["id"]: model for model in provider["models"] if isinstance(model, dict)}
+    stub = _StubClient()
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get weather for a city.",
+                "parameters": {"type": "object", "properties": {"city": {"type": "string"}}},
+            },
+        }
+    ]
+
+    monkeypatch.setattr(openai_client, "_openai_direct_client", stub)
+    monkeypatch.setattr(openai_client.config_manager, "get_model_pricing", lambda provider_id, model_id: model_by_id.get(model_id) if provider_id == "openai" else None)
+    monkeypatch.setattr(
+        openai_client,
+        "calculate_token_breakdown",
+        lambda *_a, **_k: {"user_input_tokens": 1, "system_prompt_tokens": 0},
+        raising=False,
+    )
+
+    async def invoke() -> None:
+        response = await openai_client._invoke_openai_direct_api(
+            task_id=f"t-luna-tools-{stream}",
+            model_id="gpt-5.6-luna",
+            messages=[{"role": "user", "content": "Weather in Berlin?"}],
+            temperature=0.7,
+            max_tokens=16,
+            tools=tools,
+            tool_choice="required",
+            stream=stream,
+            catalog_model_id="gpt-5.6-luna",
+        )
+        if stream:
+            async for _chunk in response:
+                pass
+
+    asyncio.run(invoke())
+
+    captured = stub.chat.completions.captured
+    assert captured["reasoning_effort"] == "none"
+    assert captured["tools"][0]["function"]["name"] == "get_weather"
+    assert captured["tool_choice"] == "required"
+
+
+def test_streamed_tool_call_deltas_keep_one_stable_call_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(openai_client, "_openai_direct_client", _SplitToolCallClient())
+    monkeypatch.setattr(openai_client.config_manager, "get_model_pricing", lambda *_args: None)
+    monkeypatch.setattr(
+        openai_client,
+        "calculate_token_breakdown",
+        lambda *_a, **_k: {"user_input_tokens": 1, "system_prompt_tokens": 0},
+        raising=False,
+    )
+
+    async def consume() -> list[Any]:
+        response = await openai_client._invoke_openai_direct_api(
+            task_id="t-split-tool-call",
+            model_id="gpt-5.6-luna",
+            messages=[{"role": "user", "content": "Weather in Berlin?"}],
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "description": "Get weather for a city.",
+                        "parameters": {"type": "object", "properties": {"city": {"type": "string"}}},
+                    },
+                }
+            ],
+            tool_choice="required",
+            stream=True,
+        )
+        return [chunk async for chunk in response]
+
+    chunks = asyncio.run(consume())
+    tool_calls = [chunk for chunk in chunks if isinstance(chunk, openai_client.ParsedOpenAIToolCall)]
+
+    assert len(tool_calls) == 1
+    assert tool_calls[0].tool_call_id == "call-weather"
+    assert tool_calls[0].function_name == "get_weather"
+    assert tool_calls[0].function_arguments_parsed == {"city": "Berlin"}
 
 
 def test_gpt56_config_lookup_errors_remain_visible(monkeypatch: pytest.MonkeyPatch) -> None:

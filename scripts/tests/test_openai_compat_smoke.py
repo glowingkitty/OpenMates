@@ -95,3 +95,27 @@ def test_missing_create_id_is_recovered_by_name_for_cleanup(monkeypatch: pytest.
 
     assert any("list" in command for command in commands)
     assert any("revoke" in command and "key-1" in command for command in commands)
+
+
+def test_ambiguous_name_recovery_does_not_revoke_preexisting_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run_cli_json(args: list[str], **_kwargs: object) -> dict[str, object]:
+        commands.append(args)
+        if "create" in args:
+            return {"api_key": "sk-api-test"}
+        if "list" in args:
+            return {"api_keys": [{"id": "old-1", "name": "test-key"}, {"id": "old-2", "name": "test-key"}]}
+        return {"success": True}
+
+    monkeypatch.setattr(openai_compat_smoke, "_run_cli_json", fake_run_cli_json)
+
+    with pytest.raises(RuntimeError, match="CLI did not return API key id"):
+        with openai_compat_smoke._api_key_from_cli_session(
+            "https://api.dev.openmates.org",
+            "test-key",
+        ):
+            pass
+
+    assert any("list" in command for command in commands)
+    assert not any("revoke" in command for command in commands)

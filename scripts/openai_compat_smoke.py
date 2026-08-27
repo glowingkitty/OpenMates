@@ -19,6 +19,7 @@ import sys
 import time
 from typing import Any
 import argparse
+import uuid
 from urllib import request as urllib_request
 from urllib.error import HTTPError
 
@@ -98,10 +99,11 @@ def _api_key_id(create_result: dict[str, Any]) -> str | None:
 
 def _find_api_key_id_by_name(*, api_url: str, env: dict[str, str], name: str) -> str | None:
     listed = _run_cli_json(["settings", "developers", "api-keys", "list"], api_url=api_url, env=env)
+    matching_ids = []
     for key in listed.get("api_keys", []):
         if isinstance(key, dict) and key.get("name") == name and isinstance(key.get("id"), str):
-            return key["id"]
-    return None
+            matching_ids.append(key["id"])
+    return matching_ids[0] if len(matching_ids) == 1 else None
 
 
 def _run_cli_json(args: list[str], *, api_url: str, env: dict[str, str]) -> dict[str, Any]:
@@ -328,8 +330,9 @@ def _run_smoke(args: argparse.Namespace, api_key: str | None = None) -> None:
         tool_choice={"type": "function", "function": {"name": "get_weather"}},
     )
     tool_calls = tool_response.choices[0].message.tool_calls or []
-    assert tool_calls, "Forced function tool call returned no tool_calls"
+    assert len(tool_calls) == 1, f"Forced function tool call returned {len(tool_calls)} tool_calls instead of one"
     assert tool_calls[0].function.name == "get_weather"
+    assert tool_calls[0].id, "Forced function tool call returned no tool_call id"
     _stage(f"tool_call={tool_calls[0].id}:{tool_calls[0].function.name}")
 
     _stage("creating tool-result follow-up completion")
@@ -355,7 +358,7 @@ def main() -> int:
     if args.create_api_key_from_cli_session:
         api_url = _api_url_from_base_url(args.base_url)
         _validate_cli_session_api_url(api_url)
-        name = f"openai-compat-smoke-{int(time.time())}"
+        name = f"openai-compat-smoke-{time.time_ns()}-{uuid.uuid4().hex}"
         with _api_key_from_cli_session(api_url, name) as (temporary_api_key, key_id):
             try:
                 _run_smoke(args, temporary_api_key)

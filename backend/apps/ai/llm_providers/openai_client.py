@@ -26,7 +26,8 @@ except Exception:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore
 
 logger = logging.getLogger(__name__)
-OPENAI_REASONING_EFFORTS = {"low", "medium", "high", "max"}
+OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "max"}
+OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS = {"gpt-5.6-luna"}
 
 # Global state
 _openai_client_initialized: bool = False
@@ -69,6 +70,18 @@ def _get_openai_reasoning_effort(model_id: str, catalog_model_id: Optional[str] 
     if reasoning_effort not in OPENAI_REASONING_EFFORTS:
         raise ValueError(f"Invalid OpenAI reasoning_effort for model '{model_config.get('id')}': {reasoning_effort!r}")
     return str(reasoning_effort)
+
+
+def _get_openai_request_reasoning_effort(
+    model_id: str,
+    catalog_model_id: Optional[str] = None,
+    *,
+    has_tools: bool = False,
+) -> Optional[str]:
+    lookup_model_id = _normalize_openai_model_id(catalog_model_id or model_id)
+    if has_tools and lookup_model_id in OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS:
+        return "none"
+    return _get_openai_reasoning_effort(model_id, catalog_model_id)
 
 
 def _is_reasoning_model(model_id: str) -> bool:
@@ -284,7 +297,11 @@ async def _invoke_openai_direct_api(
         collected_output_text_parts: List[str] = []
 
         request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
-        reasoning_effort = _get_openai_reasoning_effort(model_id, catalog_model_id)
+        reasoning_effort = _get_openai_request_reasoning_effort(
+            model_id,
+            catalog_model_id,
+            has_tools=bool(tools),
+        )
         is_reasoning = _is_reasoning_model(catalog_model_id or model_id)
 
         # Build payload with streaming enabled
@@ -347,30 +364,32 @@ async def _invoke_openai_direct_api(
                     # Handle tool call deltas
                     if delta is not None and getattr(delta, "tool_calls", None):
                         for tc_delta in delta.tool_calls:  # type: ignore[attr-defined]
-                            # Prefer stable id when present; otherwise fall back to index
-                            tc_id = getattr(tc_delta, "id", None) or str(getattr(tc_delta, "index", 0))
-                            if tc_id not in tool_calls_buffer:
-                                tool_calls_buffer[tc_id] = {
-                                    "id": tc_id,
+                            tc_index = str(getattr(tc_delta, "index", 0))
+                            tc_id = getattr(tc_delta, "id", None)
+                            if tc_index not in tool_calls_buffer:
+                                tool_calls_buffer[tc_index] = {
+                                    "id": tc_id or tc_index,
                                     "function": {"name": "", "arguments": ""},
                                 }
+                            elif tc_id:
+                                tool_calls_buffer[tc_index]["id"] = tc_id
 
                             # Update function name and arguments incrementally
                             function_obj = getattr(tc_delta, "function", None)
                             if function_obj is not None:
                                 fn_name = getattr(function_obj, "name", None)
                                 if fn_name:
-                                    tool_calls_buffer[tc_id]["function"]["name"] = fn_name
+                                    tool_calls_buffer[tc_index]["function"]["name"] = fn_name
 
                                 fn_args_part = getattr(function_obj, "arguments", None)
                                 if fn_args_part:
-                                    existing = tool_calls_buffer[tc_id]["function"].get("arguments", "")
-                                    tool_calls_buffer[tc_id]["function"]["arguments"] = existing + str(fn_args_part)
+                                    existing = tool_calls_buffer[tc_index]["function"].get("arguments", "")
+                                    tool_calls_buffer[tc_index]["function"]["arguments"] = existing + str(fn_args_part)
 
                     # If the current choice finished due to tool calls, emit completed calls
                     finish_reason = getattr(choice, "finish_reason", None)
                     if finish_reason == "tool_calls":
-                        for finished_id, finished_tc in list(tool_calls_buffer.items()):
+                        for finished_tc in tool_calls_buffer.values():
                             function_name = finished_tc["function"]["name"]
                             arguments_raw = finished_tc["function"]["arguments"]
 
@@ -385,7 +404,7 @@ async def _invoke_openai_direct_api(
                                 logger.error(f"{log_prefix} {parsing_error}")
 
                             yield ParsedOpenAIToolCall(
-                                tool_call_id=str(finished_id),
+                                tool_call_id=str(finished_tc["id"]),
                                 function_name=function_name or "",
                                 function_arguments_raw=str(arguments_raw or ""),
                                 function_arguments_parsed=parsed_args,
@@ -486,7 +505,11 @@ async def _invoke_openai_direct_api(
         return _iterate_openai_direct_stream()
 
     request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
-    reasoning_effort = _get_openai_reasoning_effort(model_id, catalog_model_id)
+    reasoning_effort = _get_openai_request_reasoning_effort(
+        model_id,
+        catalog_model_id,
+        has_tools=bool(tools),
+    )
     is_reasoning = _is_reasoning_model(catalog_model_id or model_id)
 
     payload: Dict[str, Any] = {
