@@ -191,15 +191,16 @@ async function navigateToChatById(page: any, chatId: string): Promise<void> {
  */
 async function attachFiles(
 	page: any,
-	filePaths: string[],
+	files: Array<string | { name: string; mimeType: string; buffer: Buffer }>,
 	logCheckpoint: (msg: string) => void
 ): Promise<void> {
 	// The general file input (not the camera one) has the `multiple` attribute.
 	const fileInput = page.locator('input[type="file"][multiple]');
 	await expect(fileInput).toBeAttached({ timeout: 10000 });
 
-	logCheckpoint(`Attaching ${filePaths.length} file(s): ${filePaths.join(', ')}`);
-	await fileInput.setInputFiles(filePaths);
+	const fileNames = files.map((file) => (typeof file === 'string' ? file : file.name));
+	logCheckpoint(`Attaching ${files.length} file(s): ${fileNames.join(', ')}`);
+	await fileInput.setInputFiles(files);
 	logCheckpoint('Files attached via setInputFiles().');
 }
 
@@ -207,6 +208,7 @@ async function attachFiles(
 // Test 1: Attach PNG image → verify embed in editor → send → verify in chat
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send
 test('attaches a PNG image, shows embed preview in editor, and appears in chat after send', async ({
 	page
 }: {
@@ -324,6 +326,7 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 // Test 2: Attach Python file → verify code embed in editor/chat → send
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send,message-input.send.ownership
 test('attaches a Python code file, renders a code embed, and sends without JSON leakage', async ({
 	page
 }: {
@@ -456,6 +459,7 @@ test('attaches a Python code file, renders a code embed, and sends without JSON 
 // Test 3: Attach multiple files → verify image embed + code reference in editor
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send
 test('attaches multiple files at once and shows image embed and code reference in editor', async ({
 	page
 }: {
@@ -641,6 +645,7 @@ async function assertImageEmbedsHealthy(
 	);
 }
 
+// contract-test: direct surface=gui.web assertions=message-input.embeds.gated-send,images-view.request.exact-embed-ref,images-view.output.valid-multimodal-result,images-view.response.post-tool-inference,images-view.surface.semantic-parity
 test('finance image: upload, AI views image, embeds persist through reload', async ({
 	page
 }: {
@@ -884,6 +889,7 @@ test('finance image: upload, AI views image, embeds persist through reload', asy
 // "San Francisco" proves the vision model never received the bytes.
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=images-view.request.exact-embed-ref,images-view.output.valid-multimodal-result,images-view.response.post-tool-inference,images-view.surface.semantic-parity
 test('golden gate bridge: AI correctly identifies the city from the landmark image', async ({
 	page
 }: {
@@ -931,7 +937,17 @@ test('golden gate bridge: AI correctly identifies the city from the landmark ima
 	await openNewChat(page, log);
 	await screenshot(page, '01-new-chat-ready');
 
-	await attachFiles(page, [GOLDEN_GATE_JPEG], log);
+	await attachFiles(
+		page,
+		[
+			{
+				name: 'landmark.jpg',
+				mimeType: 'image/jpeg',
+				buffer: fs.readFileSync(GOLDEN_GATE_JPEG)
+			}
+		],
+		log
+	);
 	await page.waitForTimeout(4000);
 	await screenshot(page, '02-after-golden-gate-attach');
 	saveWarnErrorLogs('golden-gate', 'after_file_attach');
