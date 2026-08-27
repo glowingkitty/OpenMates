@@ -26,7 +26,7 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "routeLocalToolArgsForTest",
         "workdir:",
         "worktreePath",
-        "sessionsPyControlPlane",
+        "sessionsPyRuntime",
         "Reason:",
         "Next:",
     ),

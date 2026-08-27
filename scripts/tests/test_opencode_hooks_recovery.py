@@ -302,7 +302,7 @@ def test_merged_managed_worktree_routes_when_path_exists() -> None:
         import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
 
         const { routingDecisionForTest } = OpenMatesHooks.test;
-        const worktreePath = `${process.cwd()}/.openmates-agent-worktrees/agent-test`;
+        const worktreePath = '/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-test';
         const result = routingDecisionForTest({
           session: { worktree: { status: 'merged', path: worktreePath, merged_commit: 'b2b533062cc16' } },
           pathExists: (path) => path === worktreePath || path === `${worktreePath}/.git`,
@@ -364,7 +364,7 @@ def test_openmatescloud_repo_root_routes_tools_to_sibling_checkout() -> None:
         );
         assert.equal(
           routeLocalToolArgsForTest('bash', { command: 'python3 scripts/sessions.py deploy --session abcd --title "x"' }, route.worktreePath).workdir,
-          '/home/superdev/projects/OpenMates',
+          '/home/superdev/projects/.openmates-runtime/opencode-server',
         );
         """
     )

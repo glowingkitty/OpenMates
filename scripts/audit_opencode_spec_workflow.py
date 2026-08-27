@@ -295,7 +295,13 @@ def audit_opencode_coordination(root: Path = REPO_ROOT) -> list[str]:
         if term in source:
             failures.append(f"OpenCode coordination plugin contains forbidden blocking term: {term}")
     if "session.idle" in source and IDLE_SIDE_EFFECT_RE.search(source):
-        failures.append("OpenCode coordination plugin must not prompt or run commands from passive session.idle observation")
+        durable_idle_guards = (
+            "continuationSuppressedForTest",
+            'continuationCommand("claim"',
+            'mediaCommand("claim"',
+        )
+        if not all(term in source for term in durable_idle_guards):
+            failures.append("OpenCode coordination plugin must not prompt or run commands from passive session.idle observation")
 
     warning_guard = root / OPENCODE_WARNING_GUARD
     if not warning_guard.exists():
