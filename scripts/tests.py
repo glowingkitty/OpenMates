@@ -5835,10 +5835,13 @@ def begin_control_plane_dispatch(
         return None, "", False
     suite, inferred_tests = infer_run_suite_and_tests(options.forwarded_args)
     selection = selected_test_keys or inferred_tests or [" ".join(options.forwarded_args) or f"suite:{suite}"]
+    dispatch_profile = suite
+    if options.proof_video_profile:
+        dispatch_profile = f"{suite}:{options.proof_video_profile}"
     dispatch, reused = store.request_dispatch(
         commit=subject_commit or current_git_sha(),
         tests=selection,
-        profile=suite,
+        profile=dispatch_profile,
         required_services=sorted(resources),
     )
     dispatch_key = str(dispatch["dispatch_key"])
@@ -5901,6 +5904,7 @@ def command_run(runner_args: list[str]) -> int:
                 lease_id=options.lease_id,
                 campaign_key=options.campaign_key,
                 debug_group_key=options.debug_group_key,
+                proof_video_profile=options.proof_video_profile,
             )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)

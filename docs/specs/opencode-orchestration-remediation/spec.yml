@@ -35,6 +35,7 @@ scope:
     - Provide lockfile-compatible prepared verification for dependency-light worktrees without per-chat package installation.
     - Persist pending response-media delivery so compaction cannot lose required video or Figma embeds.
     - Prevent idle-event re-entrancy from submitting the same automatic continuation or media-delivery prompt more than once.
+    - Include the requested proof device profile in dispatch identity so laptop and phone evidence cannot deduplicate each other.
   out:
     - Rewriting the full engineering control-plane architecture.
     - Changing product-facing OpenMates behavior, self-hosting CLI behavior, or user-visible UI.
@@ -74,6 +75,7 @@ context_discovery:
     - The S3 chat could not execute its TypeScript regression because the managed worktree lacked jszip and tsc, then had to diagnose the installed CLI path manually.
     - Successful pushes were described as blocked because unrelated dirty files prevented only the local control-plane checkout from fast-forwarding.
     - A completed S3 chat emitted repeated final responses every 8-10 seconds because the hook used the synchronous prompt SDK call and acknowledged its durable claim only after a re-entrant session.idle event.
+    - The Map chat's phone proof request reused the successful laptop dispatch because the control-plane fingerprint included suite and account but omitted proof_video_profile.
   user_direction:
     - Create and execute a spec that resolves the remaining agentic coding flow issues.
     - Stop wasting tokens in the currently running chats until the orchestration flow is fixed.
@@ -1296,8 +1298,8 @@ tasks:
 
   - id: TASK-17
     title: Make automatic continuation and media delivery asynchronous and single-flight
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-11, S-14]
       acceptance_criteria: [AC-12, AC-15]
@@ -1308,7 +1310,7 @@ tasks:
     verification_ids: [T-OPENCODE-LIFECYCLE, T-MEDIA-DELIVERY, V-OPERATIONAL-READINESS]
     dependencies: [TASK-16]
     blockers: []
-    follow_up_tasks: []
+    follow_up_tasks: [TASK-18]
     ownership:
       files:
         - .opencode/plugins/openmates-hooks.js
@@ -1316,11 +1318,31 @@ tasks:
         - scripts/tests/test_opencode_media_delivery.mjs
       shared_files: []
 
+  - id: TASK-18
+    title: Separate proof dispatch identity by device profile
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-14]
+      acceptance_criteria: [AC-3, AC-15]
+    expected_files:
+      - scripts/tests.py
+      - scripts/tests/test_tests_control.py
+    verification_ids: [T-RUN-TESTS, T-RESOURCE-PATHS]
+    dependencies: [TASK-17]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/tests.py
+        - scripts/tests/test_tests_control.py
+      shared_files: []
+
 implementation_state:
   phase: implementation
   subject_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed
-  active_task: TASK-17
-  last_updated: "2026-08-27T14:54:00Z"
+  active_task: TASK-18
+  last_updated: "2026-08-27T14:59:00Z"
 
 approvals:
   product_contract:
@@ -1399,8 +1421,8 @@ attempts:
     recorded_at: "2026-08-27T01:06:45Z"
 
 handoff:
-  current_task_id: TASK-17
-  next_action: Verify asynchronous single-flight automatic delivery against a re-entrant idle lifecycle, deploy the hook, and observe all unfinished chats.
+  current_task_id: TASK-18
+  next_action: Verify profile-aware proof dispatch identity, deploy the hook and controller, then observe all unfinished chats.
   command: python3 scripts/spec_verify.py docs/specs/opencode-orchestration-remediation/spec.yml --phase complete --json
   expected_outcome: Spec evidence passes after TASK-8 through TASK-12 and final operational readiness are complete.
   last_verified_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed

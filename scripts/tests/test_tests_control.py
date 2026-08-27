@@ -416,6 +416,38 @@ def test_run_options_forward_proof_video_profile(tmp_path, monkeypatch):
     assert tests_control.playwright_response_media_run_type(options) == "spec-ts-web-laptop"
 
 
+def test_proof_video_profile_is_part_of_dispatch_identity(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen = []
+
+    class FakeDispatchStore(tests_control.ControlPlaneTestControlStore):
+        def __init__(self):
+            pass
+
+        def request_dispatch(self, **kwargs):
+            seen.append(kwargs)
+            return {"dispatch_key": f"dispatch-{len(seen)}", "status": "queued"}, False
+
+        def record_dispatch_canary(self, dispatch_key, service, *, healthy):
+            return {"dispatch_key": dispatch_key}
+
+        def update_dispatch(self, dispatch_key, status, reason=None):
+            return {"dispatch_key": dispatch_key, "status": status}
+
+    monkeypatch.setattr(tests_control, "TEST_STORE", FakeDispatchStore())
+    laptop = tests_control.parse_control_run_options([
+        "--spec", "embeds-map-view.spec.ts", "--proof-video-profile", "web-laptop",
+    ])
+    phone = tests_control.parse_control_run_options([
+        "--spec", "embeds-map-view.spec.ts", "--proof-video-profile", "web-phone",
+    ])
+
+    tests_control.begin_control_plane_dispatch(laptop, subject_commit="abc123", selected_test_keys=[], resources=set())
+    tests_control.begin_control_plane_dispatch(phone, subject_commit="abc123", selected_test_keys=[], resources=set())
+
+    assert [call["profile"] for call in seen] == ["playwright:web-laptop", "playwright:web-phone"]
+
+
 def test_playwright_proof_video_size_also_sets_viewport() -> None:
     config = (PROJECT_ROOT / "frontend" / "apps" / "web_app" / "playwright.config.ts").read_text(encoding="utf-8")
 
