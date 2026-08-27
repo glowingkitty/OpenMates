@@ -18,30 +18,30 @@ The command resolves the current sessions.py session, subject commit, and matchi
 passing run. If evidence is missing or ambiguous, follow its single reported next
 action instead of searching artifacts manually.
 
-## Approval Boundary
+## Contract Authorization
 
-If `start --current --spec ...` returns `status: contract_approved` with
-`approval_source: spec_timeline`, the deployed spec already emitted its checked-in
-proof contract and passed every declared assertion. Do not ask for a second chat
-approval; continue directly to render/review/publish.
+For Playwright/spec proofs, the deployed spec and checked-in proof timeline are
+the contract authority. Do not ask the user for a separate pre-render proof
+contract approval; continue directly to render/review/publish from the
+tool-authorized contract.
 
-Only for legacy proofs without a spec-owned timeline, draft and show the user the
-complete proof contract before capture:
+Only for legacy proofs without a spec-owned timeline, draft the complete proof
+contract before capture:
 
 - Three to five short tutorial-style caption sentences.
 - One to five assertions describing what must be visibly or terminally true.
 - Required device profiles.
 - Every caption sentence and assertion lists the exact device profiles where it applies.
 
-For legacy proofs, save the canonical contract only after explicit approval, then
-persist the approval record before rendering:
+For legacy proofs, save the canonical contract as a tooling-authorized contract
+before rendering:
 
 ```bash
 python3 scripts/proof_video_workflow.py approve --session <short-session> --spec <name>.spec.ts --contract <contract.json>
 ```
 
-An unchanged already-approved contract may be reused. The spec-owned or approved
-transcript is canonical; audio is off by default and `--audio-path` is an explicit
+An unchanged already-authorized contract may be reused. The spec-owned or
+authorized transcript is canonical; audio is off by default and `--audio-path` is an explicit
 opt-in.
 
 ## Capture And Render

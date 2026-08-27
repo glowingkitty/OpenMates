@@ -50,8 +50,11 @@ Use only intentionally shareable screenshots, diagrams, or demo clips; do not us
 it for secrets, private user data, logs, raw production evidence, or durable docs.
 For the raw video from every `*.spec.ts` run and every real OpenMates CLI E2E
 run, use the helper's `--latest-run-type` path through `scripts/tests.py run` or
-`scripts/cli_video_capture.py`, then paste the emitted `<video>` HTML in the
-assistant response. These latest-run uploads overwrite stable S3 keys under
+`scripts/cli_video_capture.py`, then paste the emitted `<video>` HTML in the next
+assistant progress response after the tool returns. This is required even when
+the run failed, the proof is visually broken, or more debugging is still needed,
+because the operator needs to see visual progress over time. These latest-run
+uploads overwrite stable S3 keys under
 `opencode-responses/latest/` so only the latest video for each run type remains
 stored in response media.
 Every implemented executable spec requires its success response to include the

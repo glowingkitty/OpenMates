@@ -184,6 +184,7 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
+WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES = ("test-results/",)
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 DEFAULT_REPO_ID = "openmates"
@@ -2487,7 +2488,12 @@ def ensure_session_worktree(session_id: str) -> dict:
         return current
 
     _enforce_worktree_creation_capacity()
-    base_commit = _current_git_sha()
+    session_data = _load_sessions().get("sessions", {}).get(session_id, {})
+    base_commit = (
+        _fetch_origin_dev_commit()
+        if _session_is_control_plane_repo(session_data)
+        else _current_git_sha(_session_checkout_root(session_data))
+    )
     path = _session_worktree_path(session_id)
     if not is_valid_managed_worktree_path(path):
         raise RuntimeError(f"Refusing nested or unmanaged session worktree path: {path}")
@@ -2504,7 +2510,6 @@ def ensure_session_worktree(session_id: str) -> dict:
         "created_at": _now_iso(),
         "last_active": _now_iso(),
     }
-    session_data = _load_sessions().get("sessions", {}).get(session_id, {})
     if session_data.get("opencode_session_id"):
         metadata["bootstrap"] = bootstrap_session_worktree(path)
 
@@ -2632,10 +2637,13 @@ def _session_worktree_warnings(session_id: str, session: dict) -> list[str]:
 
 def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     """Return the deploy file set, preferring the isolated worktree diff."""
+    def deployable(relative_path: str) -> bool:
+        return not any(relative_path.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES)
+
     if not _session_is_control_plane_repo(session):
         dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
-        return sorted(f for f in tracked if f in dirty_files and f not in exclude)
+        return sorted(f for f in tracked if f in dirty_files and f not in exclude and deployable(f))
 
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
@@ -2662,9 +2670,28 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
             }
         if tracked:
             changed &= tracked
-        return sorted(f for f in changed if f not in exclude)
+        if changed:
+            target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+            try:
+                current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
+                target_states = _snapshot_worktree_base_states(
+                    {"path": metadata["path"], "merged_commit": target_ref},
+                    sorted(changed),
+                )
+                changed = {
+                    relative_path
+                    for relative_path in changed
+                    if current_states.get(relative_path) != target_states.get(relative_path)
+                }
+            except RuntimeError:
+                # A missing/stale remote-tracking ref must not hide real work.
+                pass
+        return sorted(f for f in changed if f not in exclude and deployable(f))
     dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
-    return sorted(f for f in session.get("modified_files", []) if f in dirty_files and f not in exclude)
+    return sorted(
+        f for f in session.get("modified_files", [])
+        if f in dirty_files and f not in exclude and deployable(f)
+    )
 
 
 def _relative_repo_path_for_session(path_value: str | Path, session: dict | None = None) -> str:

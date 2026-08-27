@@ -76,6 +76,23 @@ SUPPORTED_DEVICE_PROFILES = {
     "web-laptop",
     "web-phone",
 }
+
+
+def _process_is_alive(pid: object) -> bool:
+    """Return whether a host process id still appears alive."""
+    try:
+        value = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if value <= 0:
+        return False
+    try:
+        os.kill(value, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 SUBJECTIVE_FRAME_ONLY_CATEGORIES = {"color", "contrast"}
 SUBJECTIVE_APPROVABLE_QUALITY_CATEGORIES = {"consistency", "readability", "visual_assets"}
 
@@ -584,7 +601,8 @@ def reserve_review_budget(
             raise WorkflowError("stored review reservation has an invalid lease timestamp") from exc
         if lease_expires_at is not None and lease_expires_at.tzinfo is None:
             raise WorkflowError("stored review reservation has an invalid lease timestamp")
-        if lease_expires_at is not None and now < lease_expires_at:
+        owner_pid = existing_reservation.get("lease_owner_pid")
+        if lease_expires_at is not None and now < lease_expires_at and _process_is_alive(owner_pid):
             raise WorkflowError("proof-video review is already in progress for this device and correction round")
         retry_count = int(existing_reservation.get("retry_count", 0))
         existing_reservation["retry_count"] = retry_count + 1

@@ -181,6 +181,53 @@ test("dev API 502 output gets coordinated health waiter guidance", async () => {
   );
 });
 
+test("opaque long sleep commands are rejected with deterministic waiter guidance", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
+  await assert.rejects(
+    () => hooks["tool.execute.before"](
+      { tool: "bash", sessionID: "test-session" },
+      { args: { command: "sleep 90" } },
+    ),
+    /OpenMates opaque long sleep guard.*wait-lock.*wait-health.*sleep <= 30/s,
+  );
+  assert.equal(pluginModule.OpenMatesHooks.test.opaqueLongSleepDecisionForTest("sleep 30").decision, "allow");
+  assert.equal(pluginModule.OpenMatesHooks.test.sleepDurationSecondsForTest("2m"), 120);
+});
+
+test("Playwright response-media output requires next progress embed", async () => {
+  const snippet = '<video controls crossorigin="anonymous"><source src="https://example.test/latest.webm" type="video/webm"></video>';
+  const text = await runAfterShell(
+    "python3 scripts/tests.py run --spec chat-flow.spec.ts --proof-video-profile web-phone",
+    `OpenCode response-media video for latest Playwright spec run:\n${snippet}`,
+  );
+
+  assert.match(text, /OpenMates response-media embed required/);
+  assert.match(text, /next assistant progress response/);
+  assert.match(text, /even if the run\/proof is still broken/);
+  assert.match(text, /<video controls crossorigin="anonymous">/);
+  assert.equal(pluginModule.OpenMatesHooks.test.firstResponseMediaVideoSnippetForTest(`before ${snippet} after`), snippet);
+});
+
+test("Figma image export output requires reference embed before implementation progress", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({});
+  const output = {
+    args: {},
+    output: "download_figma_images saved test-results/figma/ai-settings/figma-default-models.png",
+  };
+  await hooks["tool.execute.after"](
+    { tool: "download_figma_images", args: {}, sessionID: "test-session" },
+    output,
+  );
+
+  assert.match(output.output, /OpenMates Figma reference embed required/);
+  assert.match(output.output, /opencode_response_media.py <exported-figma-png>/);
+  assert.match(output.output, /Detected reference export: test-results\/figma\/ai-settings\/figma-default-models\.png/);
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.figmaExportPathForTest("saved ./test-results/figma/x/figma-screen.png"),
+    "./test-results/figma/x/figma-screen.png",
+  );
+});
+
 test("Claude edit coordination stays warning-only while OpenCode uses edit leases", () => {
   assert.match(preEditGuard, /additionalContext/);
   assert.match(preEditGuard, /WARNING: File/);

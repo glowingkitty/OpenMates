@@ -43,11 +43,16 @@ private design JSON.
    or preview screenshots, and accepted differences in the final evidence. This
    is blocking when the task claims Figma/design alignment; do not record a pass
    from node JSON or DOM text alone.
-4. Inspect the current web implementation and its computed rendering before
+4. Upload the selected reference PNG with
+   `python3 scripts/opencode_response_media.py <path> --alt "Figma reference: <screen/frame>"`
+   and paste the returned image Markdown in the next assistant progress response
+   before editing or summarizing that screen. Repeat when switching target
+   frames.
+5. Inspect the current web implementation and its computed rendering before
    deciding what should change.
-5. For Apple UI, treat the rendered web app as the parity source of truth unless
+6. For Apple UI, treat the rendered web app as the parity source of truth unless
    the approved task explicitly changes both platforms toward the Figma concept.
-6. Load `docs/contributing/guides/figma-to-code.md` before implementation.
+7. Load `docs/contributing/guides/figma-to-code.md` before implementation.
 
 ## Interpretation Rules
 

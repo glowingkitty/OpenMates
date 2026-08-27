@@ -482,13 +482,14 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
             )
 
     monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "_single_spec_fallback_accounts", lambda _account: [2, 3, 4])
     monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
     monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
 
     result = orchestrator._run_playwright()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert preflight_calls == [[1], [2, 3, 4]]
     assert captured["normal_account_slots"] == (2,)
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
 
@@ -633,13 +634,14 @@ def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_p
 
     monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
     monkeypatch.setattr(run_tests, "_full_git_sha", lambda sha: f"full-{sha}")
+    monkeypatch.setattr(run_tests, "_single_spec_fallback_accounts", lambda _account: [2, 3, 4])
     monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
     monkeypatch.setattr(run_tests.tempfile, "mkdtemp", lambda prefix: str(tmp_path / prefix))
 
     result = orchestrator._run_cli_integration()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert preflight_calls == [[1], [2, 3, 4]]
     assert dispatch_accounts == [2]
     assert captured_git_sha == {"git_sha": "full-abc123"}
     assert result.tests[0] == {

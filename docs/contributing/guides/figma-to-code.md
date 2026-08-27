@@ -87,6 +87,13 @@ Use the **Figma MCP** to get structured design data from the provided Figma link
 2. Call download_figma_images to capture PNG screenshots of target frames
 ```
 
+After exporting a Figma reference PNG, upload it with
+`python3 scripts/opencode_response_media.py <path> --alt "Figma reference: <screen/frame>"`
+and paste the returned image Markdown in the next assistant progress response
+before editing or summarizing that screen. Repeat this whenever you switch to a
+different Figma frame/screen so the operator can see which design is currently
+being implemented.
+
 If structured node inspection returns `429 Too Many Requests`, do not invent
 layer details. Run `python3 scripts/figma_access_doctor.py --node-id <node-id>`,
 record the blocked endpoint and `Retry-After` value, and continue only from the
@@ -131,6 +138,7 @@ Before editing code, capture the design contract in the session, issue, or
   drift, current product behavior, unavailable states, and platform chrome.
 - Existing components to reuse or extend, with file paths.
 - Evidence paths for reference PNGs and planned rendered screenshots.
+- The response-media image embed already posted for the current Figma frame.
 
 For Figma-referenced UI work, final completion must cite the reference PNGs,
 rendered web screenshots or Playwright artifact, and accepted differences. This

@@ -54,7 +54,10 @@ const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const TEMPORARY_LOCK_WAIT_MARKER = "[OpenMates temporary lock continuation]";
+const OPAQUE_LONG_SLEEP_MARKER = "[OpenMates opaque long sleep guard]";
 const API_HEALTH_WAIT_MARKER = "[OpenMates API health coordination]";
+const RESPONSE_MEDIA_EMBED_MARKER = "[OpenMates response-media embed required]";
+const FIGMA_REFERENCE_EMBED_MARKER = "[OpenMates Figma reference embed required]";
 const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
@@ -1894,6 +1897,77 @@ Run the deterministic waiter with a sufficiently long Bash timeout:
 If it prints OPENMATES_HEALTH_READY, continue the interrupted proof/test. If it prints OPENMATES_HEALTH_INVESTIGATE, this chat is the single incident owner; diagnose/restart via sessions.py docker only. Other chats should keep waiting.`;
 }
 
+function sleepDurationSecondsForTest(value) {
+  const match = String(value || "").trim().match(/^(\d+(?:\.\d+)?)([smhd]?)$/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return null;
+  const unit = match[2].toLowerCase();
+  if (unit === "d") return amount * 86_400;
+  if (unit === "h") return amount * 3_600;
+  if (unit === "m") return amount * 60;
+  return amount;
+}
+
+function opaqueLongSleepDecisionForTest(command) {
+  const tokens = tokenizeCommand(command);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (basename(tokens[index]) !== "sleep") continue;
+    const durations = collectCommandArguments(tokens, index)
+      .filter((arg) => !isOption(arg))
+      .map((arg) => sleepDurationSecondsForTest(arg))
+      .filter((seconds) => seconds !== null);
+    if (durations.some((seconds) => seconds >= 60)) {
+      return {
+        decision: "block",
+        message: actionable(
+          OPAQUE_LONG_SLEEP_MARKER,
+          "sleep commands of 60 seconds or longer leave the UI stuck on an opaque Shell state and hide whether the agent is waiting for a lock, deploy, health, or async queue drain",
+          "use a deterministic waiter (`python3 scripts/sessions.py wait-lock ...`, `python3 scripts/sessions.py wait-health ...`) or a short poll loop (sleep <= 30) that prints the resource/status being watched before each wait",
+        ),
+      };
+    }
+  }
+  return { decision: "allow", message: "" };
+}
+
+function firstResponseMediaVideoSnippetForTest(text) {
+  const match = String(text || "").match(/<video\b[\s\S]*?<\/video>/i);
+  return match ? match[0] : "";
+}
+
+function appendResponseMediaEmbedHint(command, output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(RESPONSE_MEDIA_EMBED_MARKER)) return;
+  if (!/scripts\/(?:tests\.py\s+run|cli_video_capture\.py)\b/.test(command)) return;
+  const snippet = firstResponseMediaVideoSnippetForTest(output.output);
+  if (!snippet) return;
+  output.output += `
+
+${RESPONSE_MEDIA_EMBED_MARKER}
+This E2E run generated an OpenCode response-media video. Paste this exact <video> HTML in the next assistant progress response, even if the run/proof is still broken or still being debugged:
+${snippet}`;
+}
+
+function figmaExportPathForTest(text) {
+  const match = String(text || "").match(/(?:^|[\s"'])(\.?\/?(?:[\w.-]+\/)*test-results\/figma\/[^\s"'<>]+\.png)\b/i);
+  return match ? match[1] : "";
+}
+
+function appendFigmaReferenceEmbedHint({ tool = "", command = "" } = {}, output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(FIGMA_REFERENCE_EMBED_MARKER)) return;
+  const value = `${tool} ${command} ${output.output}`;
+  if (!/figma/i.test(value)) return;
+  if (!/download_figma_images|test-results\/figma\/[^\s"'<>]+\.png|figma-[^\s"'<>]+\.png/i.test(value)) return;
+  const exportPath = figmaExportPathForTest(output.output);
+  const pathHint = exportPath ? `\nDetected reference export: ${exportPath}` : "";
+  output.output += `
+
+${FIGMA_REFERENCE_EMBED_MARKER}
+For Figma-based UI work, embed the exported Figma screenshot for the screen/frame currently being implemented in the next assistant progress response, and repeat when switching target frames. Upload it with:
+  python3 scripts/opencode_response_media.py <exported-figma-png> --alt "Figma reference: <screen/frame>"
+Then paste the returned image Markdown before summarizing implementation progress.${pathHint}`;
+}
+
 function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
@@ -2394,7 +2468,12 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (githubMcpGuard.decision === "block") throw new Error(githubMcpGuard.message);
       if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !SEARCH_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
 
-      if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
+      if (BASH_TOOLS.has(tool)) {
+        const command = bashCommand(output?.args || input?.args);
+        guardBash(command, input.sessionID);
+        const longSleep = opaqueLongSleepDecisionForTest(command);
+        if (longSleep.decision === "block") throw new Error(longSleep.message);
+      }
       bindSessionStart(input, output);
 
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
@@ -2503,9 +2582,13 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         appendFailedTestLeaseHint(command, output);
         appendTemporaryLockWaitHint(output);
         appendApiHealthWaitHint(output);
+        appendResponseMediaEmbedHint(command, output);
+        appendFigmaReferenceEmbedHint({ tool, command }, output);
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
           await recordWorktreeRouting(input.sessionID);
         }
+      } else {
+        appendFigmaReferenceEmbedHint({ tool }, output);
       }
       if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) {
         const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
@@ -2554,11 +2637,17 @@ OpenMatesHooks.test = Object.freeze({
   isApprovedControlPlaneAuditCommand,
   isReadOnlyChildBash,
   isTodoWriteTool,
+  opaqueLongSleepDecisionForTest,
   presenceIsLive,
   readConflictWarningForTest,
   repeatedRoutingFailureMessageForTest,
   completedAssistantMessageID,
   apiHealthWaitUrlForTest,
+  appendFigmaReferenceEmbedHint,
+  appendResponseMediaEmbedHint,
+  figmaExportPathForTest,
+  firstResponseMediaVideoSnippetForTest,
+  sleepDurationSecondsForTest,
   notifierEventArgsForTest,
   temporaryLockWaitTypesForTest,
   reducePresenceEventForTest,

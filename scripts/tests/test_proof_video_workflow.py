@@ -856,6 +856,44 @@ def test_persisted_review_budget_blocks_active_reservation_without_spending_budg
     assert len(persisted["reservations"]) == 1
 
 
+def test_review_budget_reclaims_active_reservation_when_owner_pid_is_dead(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    reservation = {
+        "device": "web-laptop",
+        "correction_round": 0,
+        "frame_index_hash": "sha256:frames",
+        "source_artifact_hash": "sha256:video",
+        "caption_artifact_hash": "sha256:captions",
+        "budget_epoch": 0,
+        "lease_expires_at": "2026-08-26T00:15:00+00:00",
+        "lease_owner_pid": 987654,
+    }
+    budget = {
+        "ai_review_calls": 1,
+        "submitted_frames": 12,
+        "reservations": [reservation],
+    }
+
+    monkeypatch.setattr(workflow, "_process_is_alive", lambda _pid: False)
+    retried = workflow.reserve_review_budget(
+        budget,
+        device="web-laptop",
+        frame_count=12,
+        correction_round=0,
+        correction_kind="none",
+        frame_index_hash="sha256:frames",
+        source_artifact_hash="sha256:video",
+        caption_artifact_hash="sha256:captions",
+        now=datetime(2026, 8, 26, 0, 10, tzinfo=timezone.utc),
+    )
+
+    assert retried["ai_review_calls"] == 2
+    assert retried["submitted_frames"] == 24
+    assert retried["reservations"][0]["retry_count"] == 1
+    assert retried["reservations"][0]["lease_owner_pid"] == workflow.os.getpid()
+
+
 def test_review_budget_rejects_naive_reservation_lease() -> None:
     budget = {
         "ai_review_calls": 1,
