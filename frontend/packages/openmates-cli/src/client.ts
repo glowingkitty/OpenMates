@@ -83,7 +83,7 @@ import {
   toonEncodeContent,
 } from "./embedCreator.js";
 import { processFiles } from "./fileEmbed.js";
-import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
+import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile } from "./uploadService.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -4833,6 +4833,7 @@ export class OpenMatesClient {
 
     const session = this.getSession();
     const uploadResult = await uploadFile(audioEmbed.localPath, session);
+    adoptUploadEmbedId(audioEmbed.embed, uploadResult.embed_id);
     const embedRef = audioEmbed.embed.embedRef ?? createEmbedRef("audio-recording", `${audioEmbed.displayName}:${audioEmbed.embed.embedId}`);
     audioEmbed.embed.embedRef = embedRef;
     const transcription = await transcribeUploadedAudio(

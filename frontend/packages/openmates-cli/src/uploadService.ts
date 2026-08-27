@@ -51,6 +51,10 @@ export interface UploadFileResponse {
   page_count?: number;
 }
 
+export function adoptUploadEmbedId(embed: { embedId: string }, authoritativeEmbedId: string): void {
+  embed.embedId = authoritativeEmbedId;
+}
+
 export interface AudioTranscriptionData {
   transcript: string | null;
   transcript_original: string | null;

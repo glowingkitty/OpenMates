@@ -67,5 +67,24 @@ def test_cli_verifier_accepts_installed_cli_and_runtime_script(monkeypatch: pyte
         regions=("nbg1", "fsn1", "hel1"),
         expect_deleted=False,
         timeout=180,
+        wait_for_cleanup=True,
     )
     assert command[4] == "/tmp/storage-verifier.py"
+    assert command[-1] == "--wait-for-cleanup"
+
+
+# contract-test: supporting surface=cli assertions=storage.replication.active-write-durable-outbox,storage.privacy.ciphertext-boundary
+def test_cli_verifier_streams_durable_runtime_source_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _module()
+    monkeypatch.delenv("OPENMATES_STORAGE_RUNTIME_VERIFIER", raising=False)
+
+    command = module._runtime_command(
+        content_hash="a" * 64,
+        regions=("nbg1", "fsn1", "hel1"),
+        expect_deleted=False,
+        timeout=180,
+        wait_for_cleanup=True,
+    )
+
+    assert command[:6] == ["docker", "exec", "-i", "api", "python", "-"]
+    assert command[-1] == "--wait-for-cleanup"

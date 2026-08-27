@@ -77,7 +77,7 @@ import { OutputRedactor } from "./outputRedactor.js";
 import { processFilesAsync, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
-import { transcribeUploadedAudio, uploadFile, type UploadFileResponse } from "./uploadService.js";
+import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile, type UploadFileResponse } from "./uploadService.js";
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
@@ -10500,6 +10500,7 @@ async function sendMessageStreaming(
             try {
               const session = client.getSession();
               const uploadResult = await uploadFile(fe.localPath, session);
+              adoptUploadEmbedId(fe.embed, uploadResult.embed_id);
 
               const embedType = fe.embed.type;
               const audioTranscription =
