@@ -103,3 +103,33 @@ def test_receive_event_reports_unrelated_event_types_before_timeout() -> None:
 
     with pytest.raises(verifier.ContractFailure, match="seen event types: send_embed_data"):
         verifier._receive_event(EventThenTimeoutWebSocket(), "chat_model_preference_updated", timeout=1)
+
+
+def test_configured_api_key_prefers_requested_account_slot(monkeypatch) -> None:
+    monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_1_API_KEY", "slot-key")
+    monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_API_KEY", "shared-key")
+
+    assert verifier._configured_api_key(1) == "slot-key"
+
+
+def test_run_dispatches_cli_and_sdk_checks_without_session_login(monkeypatch) -> None:
+    args = verifier.parse_args(["--real-auth", "--check-cli", "--check-npm", "--check-pip"])
+    seen: list[str] = []
+
+    monkeypatch.setattr(verifier, "_login", lambda *_args, **_kwargs: pytest.fail("session login must not run"))
+    monkeypatch.setattr(verifier, "_configured_api_key", lambda _slot: "test-key")
+    monkeypatch.setattr(
+        verifier,
+        "run_cli_checks",
+        lambda *_args, **_kwargs: seen.append("cli") or ["cli_passed"],
+    )
+    monkeypatch.setattr(
+        verifier,
+        "run_sdk_checks_with_temporary_key",
+        lambda surface, *_args, **_kwargs: seen.append(surface) or [f"{surface}_passed"],
+    )
+
+    result = verifier.run(args)
+
+    assert seen == ["cli", "npm", "pip"]
+    assert result["checks"] == ["cli_passed", "npm_passed", "pip_passed"]

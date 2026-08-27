@@ -499,6 +499,9 @@ class UserDatabaseService {
         if ("default_ai_model_complex" in userData) {
           store.put(userData.default_ai_model_complex ?? null, "default_ai_model_complex");
         }
+        if ("default_ai_model_most_demanding" in userData) {
+          store.put(userData.default_ai_model_most_demanding ?? null, "default_ai_model_most_demanding");
+        }
         if ("default_app_skill_models" in userData) {
           store.put(
             JSON.stringify(userData.default_app_skill_models ?? {}),
@@ -664,6 +667,9 @@ class UserDatabaseService {
         }
         if ("default_ai_model_complex" in userData) {
           store.put(userData.default_ai_model_complex ?? null, "default_ai_model_complex");
+        }
+        if ("default_ai_model_most_demanding" in userData) {
+          store.put(userData.default_ai_model_most_demanding ?? null, "default_ai_model_most_demanding");
         }
         if ("default_app_skill_models" in userData) {
           store.put(
@@ -1450,6 +1456,12 @@ class UserDatabaseService {
         store.put(
           partialData.default_ai_model_complex,
           "default_ai_model_complex",
+        );
+      }
+      if (partialData.default_ai_model_most_demanding !== undefined) {
+        store.put(
+          partialData.default_ai_model_most_demanding,
+          "default_ai_model_most_demanding",
         );
       }
       if (partialData.default_app_skill_models !== undefined) {

@@ -568,7 +568,7 @@ async def _dispatch_sub_chat_parent_continuation(
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
         continuation_message_id=original_request.continuation_message_id,
-        recovery_inference_task_id=None,
+        recovery_inference_task_id=original_request.recovery_task_id or original_request.recovery_inference_task_id,
         recovery_preflight_id=original_request.recovery_preflight_id,
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,

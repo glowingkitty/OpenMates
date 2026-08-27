@@ -78,6 +78,7 @@ changes to the documentation (to keep the documentation up to date).
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects, SettingsTeams } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
+    import AiTierSettings from './settings/AiTierSettings.svelte';
     import ChatSettingsPage from './chats/ChatSettingsPage.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore, featureAvailabilityStore } from '../stores/appSkillsStore';
@@ -314,6 +315,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiModelDetailsWrapper;
             } else if (/^ai\/provider\//.test(route)) {
                 views[route] = AiProviderDetailsWrapper;
+            } else if (/^ai\/tier\//.test(route)) {
+                views[route] = AiTierSettings;
             } else if (/^chats\/[^/]+(?:\/[^/]+)?$/.test(route)) {
                 views[route] = ChatSettingsPage;
             } else if (/^projects\/[^/]+$/.test(route)) {
@@ -1558,6 +1561,12 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
+        const aiTierPattern = /^ai\/tier\/(simple|complex|most-demanding)(?:\/provider\/[^/]+)?$/;
+        if (aiTierPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         const projectSettingsPattern = /^projects\/[^/]+$/;
         if (projectSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
@@ -1722,6 +1731,12 @@ changes to the documentation (to keep the documentation up to date).
             // Prefer the title passed in from SettingsAI (already simplified) over
             // raw providersMetadata which has a different name for some ids.
             activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? aiProviderId);
+        } else if (/^ai\/tier\//.test(settingsPath)) {
+            const tierRouteParts = settingsPath.split('/');
+            activeSubMenuIcon = 'ai';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? tierRouteParts[tierRouteParts.length - 1];
         } else if (/^projects\/[^/]+$/.test(settingsPath)) {
             activeSubMenuIcon = 'project';
             activeSubMenuProviderIconSvg = '';

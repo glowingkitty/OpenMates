@@ -227,6 +227,12 @@ export interface ChatSendOptions extends ChatCreateOptions {
   teamMemberMentions?: string[];
 }
 
+export interface AiModelDefaults {
+  default_ai_model_simple?: string | null;
+  default_ai_model_complex?: string | null;
+  default_ai_model_most_demanding?: string | null;
+}
+
 export interface ConnectedAccountDirectoryEntry {
   connected_account_id: string;
   app_id: string;
@@ -514,6 +520,30 @@ export interface SdkSessionResponse {
 export interface ChatResponse {
   content?: string;
   [key: string]: unknown;
+}
+
+function appSkillChatContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.content === "string") return record.content;
+  if (typeof record.response === "string") return record.response;
+  if (typeof record.answer === "string") return record.answer;
+  const choices = record.choices;
+  if (Array.isArray(choices)) {
+    const first = choices[0] as Record<string, unknown> | undefined;
+    const message = first?.message as Record<string, unknown> | undefined;
+    if (typeof message?.content === "string") return message.content;
+    if (typeof first?.text === "string") return first.text;
+  }
+  return appSkillChatContent(record.data);
+}
+
+function sdkOrigin(apiUrl: string): string {
+  if (process.env.OPENMATES_APP_URL) return process.env.OPENMATES_APP_URL.replace(/\/$/, "");
+  const url = new URL(apiUrl);
+  if (url.hostname === "api.dev.openmates.org") return "https://app.dev.openmates.org";
+  if (url.hostname === "api.openmates.org") return "https://openmates.org";
+  return url.origin;
 }
 
 export interface ChatMessageRecord {
@@ -997,6 +1027,7 @@ export class OpenMates {
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${this.apiKey}`,
+      Origin: sdkOrigin(this.apiUrl),
       "X-OpenMates-SDK": this.sdkName,
       "X-OpenMates-Device-Identity": this.deviceId,
     };
@@ -2088,19 +2119,34 @@ export class OpenMatesChats {
     if (options.saveToAccount === true || goal || options.teamId) {
       return this.sendSaved(finalMessage, options);
     }
-    const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
-      message: finalMessage,
-      history,
-      save_to_account: false,
-      memory_ids: options.memoryIds ?? [],
-      model: options.model,
-      focus_mode: options.focusMode
-        ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
-        : undefined,
-      connected_account_directory: options.connectedAccountDirectory ?? [],
-      connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
-    });
-    return result.response ?? result;
+    try {
+      const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
+        message: finalMessage,
+        history,
+        save_to_account: false,
+        memory_ids: options.memoryIds ?? [],
+        model: options.model,
+        focus_mode: options.focusMode
+          ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
+          : undefined,
+        connected_account_directory: options.connectedAccountDirectory ?? [],
+        connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
+      });
+      const response: ChatResponse = result.response ?? result;
+      return options.model && response.modelName === undefined && response.model_name === undefined
+        ? { ...response, modelName: options.model }
+        : response;
+    } catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 401) throw error;
+      const result = await this.client.runAppSkill<Record<string, unknown>>("ai", "ask", {
+        messages: [...history, { role: "user", content: finalMessage }],
+        stream: false,
+        apps_enabled: true,
+        is_incognito: true,
+        model: options.model,
+      });
+      return { content: appSkillChatContent(result), modelName: options.model, raw: result };
+    }
   }
 
   private async sendSaved(message: string, options: ChatSendOptions): Promise<ChatResponse> {
@@ -3143,7 +3189,7 @@ export class OpenMatesSettings {
     return this.client.request<Record<string, unknown>>("/v1/sdk/settings/font", { font });
   }
 
-  async setModelDefaults(defaults: Record<string, string | null>): Promise<Record<string, unknown>> {
+  async setModelDefaults(defaults: AiModelDefaults): Promise<Record<string, unknown>> {
     return this.client.request<Record<string, unknown>>("/v1/sdk/settings/ai-model-defaults", defaults);
   }
 

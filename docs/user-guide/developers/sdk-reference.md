@@ -294,7 +294,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.settings.setDarkMode()` | `om.settings.set_dark_mode()` | `enabled` | `enabled` | `object` |
 | `om.settings.setFont()` | `om.settings.set_font()` | `font` | `font` | `object` |
 | `om.settings.setLanguage()` | `om.settings.set_language()` | `language` | `language` | `object` |
-| `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | `defaults` | `defaults` | `object` |
+| `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | `default_ai_model_simple, default_ai_model_complex, default_ai_model_most_demanding` | `default_ai_model_simple, default_ai_model_complex, default_ai_model_most_demanding` | `object` |
 | `om.settings.shareDebugLogs()` | `om.settings.share_debug_logs()` | `duration, confirmed` | `confirmed, duration` | `object` |
 
 ## `tasks`

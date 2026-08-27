@@ -3,17 +3,18 @@
   Action buttons rendered at the bottom of the message field.
 
   Normal state:
-    Left: [Files] [Maps]
+    Left: [Attachments] [Model]
     Right: [Camera] [Mic] [Send?]
 
   Audio recording starts on press/click. The recording overlay owns completion
   and cancellation through Finish/Cancel buttons plus Enter/Escape shortcuts.
 -->
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { fly } from 'svelte/transition';
     import { text } from '@repo/ui';
+    import ComposerModelSelector from './ComposerModelSelector.svelte';
 
     interface Props {
         showSendButton?: boolean;
@@ -30,14 +31,14 @@
         micPermissionState?: 'unknown' | 'granted' | 'prompt' | 'denied';
         /** Deprecated hold-reminder flag kept for call-site compatibility. */
         highlightPressHold?: boolean;
-        /** Whether the sketch overlay is currently open (highlights the sketch button). */
-        isSketchOpen?: boolean;
         /** Label for the unauthenticated CTA shown instead of the send button. */
         unauthenticatedCtaLabel?: string;
         /** Show the auth CTA even when the editor only has a blocked pending upload. */
         forceUnauthenticatedCta?: boolean;
         /** Reserve the bottom-right stop/pause slot so mic/camera do not sit under it. */
         reserveTrailingControlSpace?: boolean;
+        modelSelection?: string;
+        showModelSelector?: boolean;
     }
     let {
         showSendButton = false,
@@ -45,10 +46,11 @@
         isAuthenticated = true,
         allowAnonymousTextSend = false,
         hasNoCredits = false,
-        isSketchOpen = false,
         unauthenticatedCtaLabel = $text('signup.sign_up'),
         forceUnauthenticatedCta = false,
-        reserveTrailingControlSpace = false
+        reserveTrailingControlSpace = false,
+        modelSelection = 'auto',
+        showModelSelector = true
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -60,6 +62,32 @@
     function handleSendMessageClick() { dispatch('sendMessage'); }
     function handleSignUpClick() { dispatch('signUpClick'); }
     function handleBuyCreditsClick() { dispatch('buyCreditsClick'); }
+    function handleModelSelect(selection: string) { dispatch('modelSelect', { selection }); }
+    function handleModelDetails(modelId: string) { dispatch('modelDetails', { modelId }); }
+    let showAttachmentMenu = $state(false);
+    let attachmentMenuElement: HTMLDivElement;
+
+    onMount(() => {
+        const handlePointerDown = (event: PointerEvent) => {
+            if (!attachmentMenuElement.contains(event.target as Node)) closeAttachmentMenu();
+        };
+        document.addEventListener('pointerdown', handlePointerDown);
+        return () => document.removeEventListener('pointerdown', handlePointerDown);
+    });
+
+    function closeAttachmentMenu(): void {
+        showAttachmentMenu = false;
+    }
+
+    function handleAttachmentKeydown(event: KeyboardEvent): void {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeAttachmentMenu();
+        } else if (event.key === 'ArrowDown' && !showAttachmentMenu) {
+            event.preventDefault();
+            showAttachmentMenu = true;
+        }
+    }
 
     // --- Record Button Handlers ---
     function handleRecordMouseDown(event: MouseEvent) { dispatch('recordMouseDown', { originalEvent: event }); }
@@ -79,24 +107,28 @@
 
 <div class="action-buttons" data-testid="action-buttons">
     <div class="left-buttons">
-        <button
-            class="clickable-icon icon_files"
-            onclick={handleFileSelectClick}
-            aria-label={$text('enter_message.attachments.attach_files')}
-            use:tooltip
-        ></button>
-        <button
-            class="clickable-icon icon_maps"
-            onclick={handleLocationClick}
-            aria-label={$text('enter_message.attachments.share_location')}
-            use:tooltip
-        ></button>
-        <button
-            class="clickable-icon icon_sketch {isSketchOpen ? 'active' : ''}"
-            onclick={handleSketchClick}
-            aria-label={$text('enter_message.attachments.sketch')}
-            use:tooltip
-        ></button>
+        <div class="attachment-menu" bind:this={attachmentMenuElement}>
+            <button
+                class="clickable-icon icon_create"
+                data-testid="composer-attachment-menu-button"
+                onclick={() => showAttachmentMenu = !showAttachmentMenu}
+                aria-label={$text('enter_message.attachments.attach_files')}
+                aria-haspopup="menu"
+                aria-expanded={showAttachmentMenu}
+                onkeydown={handleAttachmentKeydown}
+                use:tooltip
+            ></button>
+            {#if showAttachmentMenu}
+                <div class="attachment-menu-popover" data-testid="composer-attachment-menu" role="menu" tabindex="-1" onkeydown={handleAttachmentKeydown}>
+                    <button role="menuitem" onclick={() => { handleSketchClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_sketch"></span>{$text('enter_message.attachments.sketch')}</button>
+                    <button role="menuitem" onclick={() => { handleLocationClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_maps"></span>{$text('enter_message.attachments.share_location')}</button>
+                    <button role="menuitem" onclick={() => { handleFileSelectClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_files"></span>{$text('enter_message.attachments.attach_files')}</button>
+                </div>
+            {/if}
+        </div>
+        {#if showModelSelector}
+            <ComposerModelSelector selection={modelSelection} onSelect={handleModelSelect} onOpenDetails={handleModelDetails} />
+        {/if}
     </div>
     <div class="right-buttons {reserveTrailingControlSpace ? 'reserve-trailing-control-space' : ''}">
         <button
@@ -193,10 +225,10 @@
         padding-right: 48px;
     }
 
-    /* Highlight sketch button when the sketch overlay is open */
-    .icon_sketch.active {
-        color: var(--color-accent, #007AFF);
-    }
+    .attachment-menu { position: relative; }
+    .attachment-menu-popover { position: absolute; z-index: var(--z-index-dropdown); bottom: calc(100% + var(--spacing-4)); left: 0; min-width: 10rem; padding: var(--spacing-4); background: var(--color-grey-0); border-radius: var(--radius-8); box-shadow: var(--shadow-lg); }
+    .attachment-menu-popover button { display: flex; align-items: center; gap: var(--spacing-4); width: 100%; padding: var(--spacing-4); border: 0; border-radius: var(--radius-3); color: var(--color-font-primary); text-align: start; background: transparent; cursor: pointer; }
+    .attachment-menu-popover button:hover { background: var(--color-grey-10); }
 
     /* Prevent page scroll during the recording start gesture.
        We rely on CSS instead of event.preventDefault() so that Firefox iOS

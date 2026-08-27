@@ -418,6 +418,8 @@ export async function login(
                 data.user.default_ai_model_simple ?? null,
               default_ai_model_complex:
                 data.user.default_ai_model_complex ?? null,
+              default_ai_model_most_demanding:
+                data.user.default_ai_model_most_demanding ?? null,
               default_app_skill_models:
                 data.user.default_app_skill_models ?? {},
               follow_up_suggestions_enabled:

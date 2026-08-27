@@ -66,6 +66,7 @@ from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
 from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
+from backend.apps.ai.processing.model_routing import explicit_api_model_override
 
 # Import embed service for cleanup on task failure
 from backend.core.api.app.services.embed_service import EmbedService
@@ -1143,6 +1144,19 @@ async def _async_process_ai_skill_ask_task(
                     f"skills={user_overrides.skills}, "
                     f"focus_modes={user_overrides.focus_modes}"
                 )
+
+        explicit_override = explicit_api_model_override(
+            request_data.user_preferences,
+            user_overrides.model_id if user_overrides else None,
+        )
+        if explicit_override:
+            user_overrides = user_overrides or UserOverrides()
+            user_overrides.model_id, user_overrides.model_provider = explicit_override
+            user_overrides.has_overrides = True
+            logger.info(
+                f"[Task ID: {task_id}] USER_OVERRIDE: Applied explicit API model parameter. "
+                f"model_id={user_overrides.model_id}, provider={user_overrides.model_provider}"
+            )
     except Exception as e_override:
         logger.warning(
             f"[Task ID: {task_id}] Failed to parse user overrides (non-fatal): {e_override}. "

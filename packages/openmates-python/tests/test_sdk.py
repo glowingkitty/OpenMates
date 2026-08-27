@@ -1857,6 +1857,11 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     client.chats.search("Madrid", limit=5)
     client.chats.load(CHAT_ID)
     client.settings.set_dark_mode(True)
+    client.settings.set_model_defaults(
+        default_ai_model_simple="google/gemini-3.5-flash-lite",
+        default_ai_model_complex="google/gemini-3.7-flash",
+        default_ai_model_most_demanding="google/gemini-3.7-flash-high",
+    )
     client.billing.list_invoices()
     client.docs.search("sdk")
     client.embeds.versions("embed-1")
@@ -1874,6 +1879,7 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats?limit=0&offset=0"},
         {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/settings/dark-mode"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/settings/ai-model-defaults"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/invoices"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/docs/search?q=sdk"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/embeds/embed-1/versions"},

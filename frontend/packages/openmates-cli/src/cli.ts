@@ -5178,10 +5178,11 @@ async function sendApiKeyChatNew(
   try {
     response = await sdk.chats.send(message, {
       saveToAccount: false,
+      model: typeof flags.model === "string" ? flags.model : undefined,
       recoveryTimeoutMs: parseResponseTimeoutMs(flags),
     });
   } catch (err) {
-    if (!isSdkChatScopeDenied(err)) throw err;
+    if (!isSdkChatUnavailableForApiKey(err)) throw err;
     const aiAskResult = await client.runSkill({
       app: "ai",
       skill: "ask",
@@ -5190,11 +5191,13 @@ async function sendApiKeyChatNew(
         stream: false,
         apps_enabled: true,
         is_incognito: true,
+        model: typeof flags.model === "string" ? flags.model : undefined,
       },
       apiKey,
     });
     response = {
       content: extractAiAskContent(aiAskResult),
+      modelName: typeof flags.model === "string" ? flags.model : undefined,
       raw: aiAskResult,
     };
   }
@@ -5221,8 +5224,10 @@ async function sendApiKeyChatNew(
   return result;
 }
 
-function isSdkChatScopeDenied(err: unknown): boolean {
-	if (!(err instanceof OpenMatesApiError) || err.status !== 403) return false;
+function isSdkChatUnavailableForApiKey(err: unknown): boolean {
+	if (!(err instanceof OpenMatesApiError)) return false;
+	if (err.status === 401) return true;
+	if (err.status !== 403) return false;
 	const data = err.data;
 	const detail = data && typeof data === "object"
 		? (data as Record<string, unknown>).detail
@@ -7585,7 +7590,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
   { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
   { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
-  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506", "openmates settings ai models set-defaults --simple auto"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506 --complex auto --most-demanding google/gemini-3.7-flash-high", "openmates settings ai models set-defaults --simple auto --complex auto --most-demanding auto"] },
   { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
@@ -9291,8 +9296,16 @@ async function handleSettings(
     if (flags.complex !== undefined) {
       body.default_ai_model_complex = parseModelDefaultFlag(flags.complex, "--complex");
     }
+    if (flags["most-demanding"] !== undefined) {
+      body.default_ai_model_most_demanding = parseModelDefaultFlag(
+        flags["most-demanding"],
+        "--most-demanding",
+      );
+    }
     if (Object.keys(body).length === 0) {
-      throw new Error("Provide --simple <model-id|auto> and/or --complex <model-id|auto>.");
+      throw new Error(
+        "Provide --simple, --complex, and/or --most-demanding <model-id|auto>.",
+      );
     }
     await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body, apiKey), flags);
     return;

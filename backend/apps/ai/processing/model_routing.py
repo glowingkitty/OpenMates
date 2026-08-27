@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Mapping
+from typing import Any, Callable, Mapping
 
 
 RequestTier = str
@@ -70,6 +70,22 @@ def default_profile_for_tier(tier: RequestTier) -> dict[str, str]:
     """Return the approved default model profile for a normalized tier."""
 
     return DEFAULT_TIER_MODEL_PROFILES[normalize_request_tier(tier)]
+
+
+def explicit_api_model_override(
+    user_preferences: Mapping[str, Any] | None,
+    existing_model_override: str | None,
+) -> tuple[str, str | None] | None:
+    """Resolve an explicit API model without replacing an in-message override."""
+
+    if existing_model_override:
+        return None
+    explicit_model = (user_preferences or {}).get("model")
+    if not isinstance(explicit_model, str) or not explicit_model.strip():
+        return None
+    provider = (user_preferences or {}).get("provider")
+    normalized_provider = provider.strip() if isinstance(provider, str) and provider.strip() else None
+    return explicit_model.strip(), normalized_provider
 
 
 def _is_exact_model_preference(value: str | None) -> bool:

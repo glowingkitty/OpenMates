@@ -22,7 +22,7 @@ import re
 import secrets
 import string
 import time
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 import unicodedata
 from urllib.parse import quote, urlencode, urlparse, urlunparse
 import uuid
@@ -43,6 +43,14 @@ DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
 SKILL_TASK_POLL_INTERVAL_SECONDS = 2.0
 SKILL_TASK_POLL_TIMEOUT_SECONDS = 1200.0
+
+
+class AiModelDefaults(TypedDict):
+    """Three-tier default model settings; omitted fields remain unchanged."""
+
+    default_ai_model_simple: NotRequired[str | None]
+    default_ai_model_complex: NotRequired[str | None]
+    default_ai_model_most_demanding: NotRequired[str | None]
 SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500
 CODE_RUN_POLL_INTERVAL_SECONDS = 1.0
 CODE_RUN_POLL_TIMEOUT_SECONDS = 1200.0
@@ -131,6 +139,23 @@ class ChatResponse:
     content: str | None = None
     raw: dict[str, Any] | None = None
     plan: dict[str, Any] | None = None
+
+
+def _app_skill_chat_content(value: Any) -> str:
+    if not isinstance(value, dict):
+        return ""
+    for key in ("content", "response", "answer"):
+        if isinstance(value.get(key), str):
+            return value[key]
+    choices = value.get("choices")
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        first = choices[0]
+        message = first.get("message")
+        if isinstance(message, dict) and isinstance(message.get("content"), str):
+            return message["content"]
+        if isinstance(first.get("text"), str):
+            return first["text"]
+    return _app_skill_chat_content(value.get("data"))
 
 
 def _normalize_optional_goal(value: str | None) -> str | None:
@@ -449,9 +474,18 @@ class OpenMates:
         }
 
     def _headers(self, *, has_body: bool = True) -> dict[str, str]:
+        parsed_api_url = urlparse(self._api_url)
+        origin = os.getenv("OPENMATES_APP_URL", "").rstrip("/")
+        if not origin and parsed_api_url.hostname == "api.dev.openmates.org":
+            origin = "https://app.dev.openmates.org"
+        elif not origin and parsed_api_url.hostname == "api.openmates.org":
+            origin = "https://openmates.org"
+        elif not origin:
+            origin = f"{parsed_api_url.scheme}://{parsed_api_url.netloc}"
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self._api_key}",
+            "Origin": origin,
             "X-OpenMates-SDK": "pip",
             "X-OpenMates-Device-Identity": self._device_id,
         }
@@ -2813,21 +2847,42 @@ class OpenMatesChats:
                 recovery_poll_interval_seconds=recovery_poll_interval_seconds,
                 recovery_timeout_seconds=recovery_timeout_seconds,
             )
-        data = self._client._post(
-            "/v1/sdk/chats",
-            {
-                "message": final_message,
-                "history": normalized_history,
-                "save_to_account": bool(save_to_account),
-                "focus_mode": focus_mode,
-                "memory_ids": memory_ids or [],
-                "model": model,
-                "connected_account_directory": connected_account_directory or [],
-                "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
-            },
-        )
-        response = data.get("response") or {}
-        return ChatResponse(content=response.get("content"), raw=data)
+        try:
+            data = self._client._post(
+                "/v1/sdk/chats",
+                {
+                    "message": final_message,
+                    "history": normalized_history,
+                    "save_to_account": bool(save_to_account),
+                    "focus_mode": focus_mode,
+                    "memory_ids": memory_ids or [],
+                    "model": model,
+                    "connected_account_directory": connected_account_directory or [],
+                    "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
+                },
+            )
+            response = data.get("response") or {}
+            if model and "model_name" not in data and "modelName" not in data:
+                data = {**data, "model_name": model}
+            return ChatResponse(content=response.get("content"), raw=data)
+        except OpenMatesApiError as error:
+            if error.status_code != 401:
+                raise
+            result = self._client._run_app_skill(
+                "ai",
+                "ask",
+                {
+                    "messages": [*normalized_history, {"role": "user", "content": final_message}],
+                    "stream": False,
+                    "apps_enabled": True,
+                    "is_incognito": True,
+                    "model": model,
+                },
+            )
+            return ChatResponse(
+                content=_app_skill_chat_content(result),
+                raw={"model_name": model, "result": result},
+            )
 
     def _send_saved(
         self,
@@ -5236,7 +5291,18 @@ class OpenMatesSettings:
     def set_font(self, font: str) -> dict[str, Any]:
         return self._client._post("/v1/sdk/settings/font", {"font": font})
 
-    def set_model_defaults(self, defaults: dict[str, Any]) -> dict[str, Any]:
+    def set_model_defaults(
+        self,
+        *,
+        default_ai_model_simple: str | None = None,
+        default_ai_model_complex: str | None = None,
+        default_ai_model_most_demanding: str | None = None,
+    ) -> dict[str, Any]:
+        defaults: AiModelDefaults = {
+            "default_ai_model_simple": default_ai_model_simple,
+            "default_ai_model_complex": default_ai_model_complex,
+            "default_ai_model_most_demanding": default_ai_model_most_demanding,
+        }
         return self._client._post("/v1/sdk/settings/ai-model-defaults", defaults)
 
     def set_chat_auto_delete(self, period: str) -> dict[str, Any]:

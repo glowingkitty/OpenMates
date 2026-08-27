@@ -626,6 +626,206 @@ ai_ask_settings.complex_requests:
   he: בקשות מורכבות
   verified_by_human: []
 
+ai_ask_settings.most_demanding_requests:
+  context: Label for the default model used for exceptionally demanding AI requests
+  en: Most demanding requests
+  de: Anspruchsvollste Anfragen
+  zh: 要求最高的请求
+  es: Solicitudes más exigentes
+  fr: Requêtes les plus exigeantes
+  pt: Solicitações mais exigentes
+  ru: Самые сложные запросы
+  ja: 最も高度なリクエスト
+  ko: 가장 까다로운 요청
+  it: Richieste più impegnative
+  tr: En zorlu istekler
+  vi: Yêu cầu đòi hỏi cao nhất
+  id: Permintaan paling menantang
+  pl: Najbardziej wymagające zapytania
+  nl: Meest veeleisende verzoeken
+  ar: الطلبات الأكثر تطلبًا
+  hi: सबसे अधिक मांग वाले अनुरोध
+  th: คำขอที่ต้องการความสามารถสูงสุด
+  cs: Nejnáročnější dotazy
+  sv: Mest krävande förfrågningar
+  he: הבקשות התובעניות ביותר
+  verified_by_human: []
+
+ai_ask_settings.models_and_accounts:
+  context: Section heading for AI model provider families and connected accounts
+  en: Models & Accounts
+  de: Modelle & Konten
+  zh: 模型和账户
+  es: Modelos y cuentas
+  fr: Modèles et comptes
+  pt: Modelos e contas
+  ru: Модели и аккаунты
+  ja: モデルとアカウント
+  ko: 모델 및 계정
+  it: Modelli e account
+  tr: Modeller ve hesaplar
+  vi: Mô hình và tài khoản
+  id: Model dan akun
+  pl: Modele i konta
+  nl: Modellen en accounts
+  ar: النماذج والحسابات
+  hi: मॉडल और खाते
+  th: โมเดลและบัญชี
+  cs: Modely a účty
+  sv: Modeller och konton
+  he: מודלים וחשבונות
+  verified_by_human: []
+
+ai_ask_settings.response_settings:
+  context: Section heading for AI response behavior settings
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Ajustes
+  fr: Paramètres
+  pt: Configurações
+  ru: Настройки
+  ja: 設定
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
+  ar: الإعدادات
+  hi: सेटिंग्स
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
+  he: הגדרות
+  verified_by_human: []
+
+ai_ask_settings.recommended:
+  context: Label for the recommended AI model option
+  en: Recommended
+  de: Empfohlen
+  zh: 推荐
+  es: Recomendado
+  fr: Recommandé
+  pt: Recomendado
+  ru: Рекомендуется
+  ja: おすすめ
+  ko: 권장
+  it: Consigliato
+  tr: Önerilen
+  vi: Được đề xuất
+  id: Direkomendasikan
+  pl: Zalecane
+  nl: Aanbevolen
+  ar: موصى به
+  hi: अनुशंसित
+  th: แนะนำ
+  cs: Doporučeno
+  sv: Rekommenderas
+  he: מומלץ
+  verified_by_human: []
+
+ai_ask_settings.auto_description:
+  context: Description for automatic AI model routing
+  en: Automatically choose the best model for each request
+  de: Automatisch das beste Modell für jede Anfrage auswählen
+  zh: 自动为每个请求选择最佳模型
+  es: Elegir automáticamente el mejor modelo para cada solicitud
+  fr: Choisir automatiquement le meilleur modèle pour chaque requête
+  pt: Escolher automaticamente o melhor modelo para cada solicitação
+  ru: Автоматически выбирать лучшую модель для каждого запроса
+  ja: リクエストごとに最適なモデルを自動選択
+  ko: 각 요청에 가장 적합한 모델 자동 선택
+  it: Scegli automaticamente il modello migliore per ogni richiesta
+  tr: Her istek için en iyi modeli otomatik seç
+  vi: Tự động chọn mô hình tốt nhất cho từng yêu cầu
+  id: Pilih model terbaik secara otomatis untuk setiap permintaan
+  pl: Automatycznie wybieraj najlepszy model dla każdego zapytania
+  nl: Kies automatisch het beste model voor elk verzoek
+  ar: اختيار أفضل نموذج تلقائيًا لكل طلب
+  hi: हर अनुरोध के लिए सर्वोत्तम मॉडल स्वचालित रूप से चुनें
+  th: เลือกโมเดลที่ดีที่สุดสำหรับแต่ละคำขอโดยอัตโนมัติ
+  cs: Automaticky vybrat nejlepší model pro každý dotaz
+  sv: Välj automatiskt den bästa modellen för varje förfrågan
+  he: בחירה אוטומטית של המודל הטוב ביותר לכל בקשה
+  verified_by_human: []
+
+ai_ask_settings.choose_exact_model:
+  context: Guidance shown above a provider's exact AI models
+  en: Choose Auto or an exact model for this request tier.
+  de: Wähle Auto oder ein bestimmtes Modell für diese Anfragestufe.
+  zh: 为此请求级别选择“自动”或具体模型。
+  es: Elige Auto o un modelo exacto para este nivel de solicitud.
+  fr: Choisissez Auto ou un modèle précis pour ce niveau de requête.
+  pt: Escolha Auto ou um modelo específico para este nível de solicitação.
+  ru: Выберите Auto или конкретную модель для этого уровня запросов.
+  ja: このリクエスト階層でAutoまたは特定のモデルを選択します。
+  ko: 이 요청 단계에 Auto 또는 특정 모델을 선택하세요.
+  it: Scegli Auto o un modello specifico per questo livello di richiesta.
+  tr: Bu istek düzeyi için Auto veya belirli bir model seçin.
+  vi: Chọn Auto hoặc một mô hình cụ thể cho cấp yêu cầu này.
+  id: Pilih Auto atau model tertentu untuk tingkat permintaan ini.
+  pl: Wybierz Auto lub konkretny model dla tego poziomu zapytań.
+  nl: Kies Auto of een specifiek model voor dit aanvraagniveau.
+  ar: اختر Auto أو نموذجًا محددًا لمستوى الطلب هذا.
+  hi: इस अनुरोध स्तर के लिए Auto या कोई विशिष्ट मॉडल चुनें।
+  th: เลือก Auto หรือโมเดลเฉพาะสำหรับระดับคำขอนี้
+  cs: Vyberte Auto nebo konkrétní model pro tuto úroveň dotazů.
+  sv: Välj Auto eller en specifik modell för denna nivå.
+  he: בחרו Auto או מודל מסוים לרמת הבקשה הזו.
+  verified_by_human: []
+
+ai_ask_settings.choose_tier_provider:
+  context: Guidance shown before choosing an AI provider family for a request tier
+  en: Keep automatic routing or browse a provider to choose an exact model.
+  de: Behalte die automatische Auswahl bei oder wähle ein bestimmtes Modell über einen Anbieter.
+  zh: 保持自动路由，或浏览提供商以选择具体模型。
+  es: Mantén el enrutamiento automático o explora un proveedor para elegir un modelo exacto.
+  fr: Gardez le routage automatique ou parcourez un fournisseur pour choisir un modèle précis.
+  pt: Mantenha o roteamento automático ou explore um provedor para escolher um modelo específico.
+  ru: Оставьте автоматический выбор или откройте провайдера для выбора конкретной модели.
+  ja: 自動ルーティングを維持するか、プロバイダーから特定のモデルを選択します。
+  ko: 자동 라우팅을 유지하거나 제공업체를 탐색해 특정 모델을 선택하세요.
+  it: Mantieni l'instradamento automatico o esplora un provider per scegliere un modello specifico.
+  tr: Otomatik yönlendirmeyi koruyun veya belirli bir model seçmek için sağlayıcıya göz atın.
+  vi: Giữ định tuyến tự động hoặc duyệt nhà cung cấp để chọn mô hình cụ thể.
+  id: Pertahankan perutean otomatis atau telusuri penyedia untuk memilih model tertentu.
+  pl: Zachowaj automatyczny wybór lub przejrzyj dostawcę, aby wybrać konkretny model.
+  nl: Behoud automatische routering of bekijk een provider om een specifiek model te kiezen.
+  ar: احتفظ بالتوجيه التلقائي أو تصفح مزودًا لاختيار نموذج محدد.
+  hi: स्वचालित रूटिंग रखें या विशिष्ट मॉडल चुनने के लिए प्रदाता देखें।
+  th: ใช้การกำหนดเส้นทางอัตโนมัติหรือดูผู้ให้บริการเพื่อเลือกโมเดลเฉพาะ
+  cs: Ponechte automatický výběr nebo otevřete poskytovatele a vyberte konkrétní model.
+  sv: Behåll automatisk dirigering eller välj en leverantör för att välja en specifik modell.
+  he: השאירו ניתוב אוטומטי או עיינו בספק כדי לבחור מודל מסוים.
+  verified_by_human: []
+
+ai_ask_settings.view_provider_models:
+  context: Subtitle on an AI provider row that opens its models
+  en: View models
+  de: Modelle anzeigen
+  zh: 查看模型
+  es: Ver modelos
+  fr: Voir les modèles
+  pt: Ver modelos
+  ru: Показать модели
+  ja: モデルを表示
+  ko: 모델 보기
+  it: Visualizza modelli
+  tr: Modelleri görüntüle
+  vi: Xem mô hình
+  id: Lihat model
+  pl: Zobacz modele
+  nl: Modellen bekijken
+  ar: عرض النماذج
+  hi: मॉडल देखें
+  th: ดูโมเดล
+  cs: Zobrazit modely
+  sv: Visa modeller
+  he: הצגת מודלים
+  verified_by_human: []
+
 ai_ask_settings.model_auto:
   context: Option label meaning "let the system auto-select the best model" shown first in the default model dropdowns
   en: Auto

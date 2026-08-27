@@ -182,7 +182,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `settings` | `om.settings.setDarkMode()` | `om.settings.set_dark_mode()` | direct | direct |
 | `settings` | `om.settings.setFont()` | `om.settings.set_font()` | namespace smoke: sdk.test.ts | namespace smoke: test_sdk.py |
 | `settings` | `om.settings.setLanguage()` | `om.settings.set_language()` | namespace smoke: sdk.test.ts | namespace smoke: test_sdk.py |
-| `settings` | `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | namespace smoke: sdk.test.ts | namespace smoke: test_sdk.py |
+| `settings` | `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | direct | direct |
 | `settings` | `om.settings.shareDebugLogs()` | `om.settings.share_debug_logs()` | direct | direct |
 | `tasks` | `om.tasks.addToProject()` | `om.tasks.add_to_project()` | direct | direct |
 | `tasks` | `om.tasks.ask()` | `om.tasks.ask()` | direct | direct |

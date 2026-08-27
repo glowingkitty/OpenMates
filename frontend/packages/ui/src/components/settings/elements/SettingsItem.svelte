@@ -14,6 +14,8 @@
     let {
         type = 'submenu',
         icon = '',
+        iconSrc = '',
+        iconAlt = '',
         title,
         subtitleTop = '',
         hasToggle = false,
@@ -24,6 +26,8 @@
     }: {
         type?: string;
         icon?: string;
+        iconSrc?: string;
+        iconAlt?: string;
         title: string;
         subtitleTop?: string;
         hasToggle?: boolean;
@@ -52,7 +56,9 @@
 </script>
 
 {#snippet itemContent()}
-    {#if icon}
+    {#if iconSrc}
+        <span class="item-image"><img src={iconSrc} alt={iconAlt} /></span>
+    {:else if icon}
         <span class={itemIconClass}></span>
     {/if}
     <div class="item-text">
@@ -124,6 +130,26 @@
         height: 2rem;
         min-width: 2rem;
         flex-shrink: 0;
+    }
+
+    .item-image {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        min-width: 2rem;
+        padding: 0.25rem;
+        overflow: hidden;
+        background: var(--color-grey-10);
+        border-radius: var(--radius-3);
+        box-sizing: border-box;
+    }
+
+    .item-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
 
     .item-text {

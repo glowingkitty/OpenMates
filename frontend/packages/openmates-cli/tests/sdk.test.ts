@@ -1242,6 +1242,11 @@ describe("OpenMates SDK", () => {
       await client.chats.search("Madrid", { limit: 5 });
       await client.chats.load(CHAT_ID);
       await client.settings.setDarkMode(true);
+      await client.settings.setModelDefaults({
+        default_ai_model_simple: "google/gemini-3.5-flash-lite",
+        default_ai_model_complex: "google/gemini-3.7-flash",
+        default_ai_model_most_demanding: "google/gemini-3.7-flash-high",
+      });
       await client.billing.listInvoices();
       await client.docs.search("sdk");
       await client.embeds.versions("embed-1");
@@ -1260,6 +1265,7 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: "/v1/sdk/chats?limit=0" },
       { method: "GET", url: `/v1/sdk/chats/${CHAT_ID}` },
       { method: "POST", url: "/v1/sdk/settings/dark-mode" },
+      { method: "POST", url: "/v1/sdk/settings/ai-model-defaults" },
       { method: "GET", url: "/v1/sdk/billing/invoices" },
       { method: "GET", url: "/v1/sdk/docs/search?q=sdk" },
       { method: "GET", url: "/v1/sdk/embeds/embed-1/versions" },

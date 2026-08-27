@@ -8,6 +8,11 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import {
+        chatModelSelectionService,
+        registerChatModelSelectionSync,
+        type ChatModelSelection
+    } from '../../services/chatModelSelection';
     import { chatDB } from '../../services/db';
     import { isTeamAIInvocation } from '../../services/teamService';
     import { activeTeamId } from '../../stores/teamStore';
@@ -29,11 +34,13 @@
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+    import { isProviderHealthy } from '../../stores/appHealthStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+    import { notificationStore } from '../../stores/notificationStore';
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
@@ -138,6 +145,8 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
+    import { modelsMetadata } from '../../data/modelsMetadata';
+    import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
     interface UnclosedBlock {
@@ -252,6 +261,97 @@
     let showCamera = $state(false);
     let showMaps = $state(false);
     let showSketch = $state(false);
+    let modelSelection = $state<ChatModelSelection>('auto');
+    let modelSelectionReady = $state(true);
+    let modelSelectionChatId = $state<string | undefined>(undefined);
+    let modelSelectionUserId = $state<string | null>(null);
+    let pendingNewChatModelSelection = $state<ChatModelSelection | null>(null);
+
+    function isModelSelectionUsable(selection: string): boolean {
+        const separator = selection.indexOf('/');
+        if (separator <= 0) return false;
+        const serverId = selection.slice(0, separator);
+        const modelId = selection.slice(separator + 1);
+        const model = modelsMetadata.find((candidate) => candidate.id === modelId && candidate.for_app_skill === 'ai.ask');
+        return !!model
+            && !!model.servers?.some((server) => server.id === serverId)
+            && !get(userProfile).disabled_ai_models?.includes(modelId)
+            && get(isProviderHealthy)(serverId);
+    }
+
+    async function recoverModelSelection(
+        phase: UnavailableModelRecoveryPhase,
+        selection: ChatModelSelection,
+        userId: string,
+        chatId: string
+    ): Promise<ChatModelSelection> {
+        return await recoverUnavailableModelSelection({
+            phase,
+            selection,
+            isUsable: isModelSelectionUsable,
+            notify: () => notificationStore.error($text('enter_message.model_selector.unavailable_reset')),
+            persistSelection: async () => {
+                await chatModelSelectionService.select({ userId, chatId, selection: 'auto' });
+            }
+        });
+    }
+
+    $effect(() => {
+        const userId = $userProfile.user_id;
+        const chatId = currentChatId;
+        const pendingSelection = pendingNewChatModelSelection;
+        let cancelled = false;
+
+        if (!userId || !chatId) {
+            modelSelectionUserId = userId;
+            modelSelectionChatId = chatId;
+            modelSelectionReady = true;
+            if (!chatId && !pendingSelection) modelSelection = 'auto';
+            return;
+        }
+        if (chatId === modelSelectionChatId && userId === modelSelectionUserId) return;
+
+        modelSelectionUserId = userId;
+        modelSelectionChatId = chatId;
+        modelSelectionReady = false;
+        if (pendingSelection) {
+            modelSelection = pendingSelection;
+            pendingNewChatModelSelection = null;
+            void chatModelSelectionService
+                .select({ userId, chatId, selection: pendingSelection })
+                .catch((error) => {
+                    console.error('[MessageInput] Failed to persist new-chat model selection:', error);
+                    notificationStore.error($text('common.try_again'));
+                })
+                .finally(() => {
+                    if (!cancelled) modelSelectionReady = true;
+                });
+        } else {
+            modelSelection = 'auto';
+            void chatModelSelectionService
+                .restore({ userId, chatId })
+                .then((selection) => recoverModelSelection('load', selection, userId, chatId))
+                .then((selection) => {
+                    if (!cancelled) modelSelection = selection;
+                })
+                .catch((error) => {
+                    console.error('[MessageInput] Failed to restore chat model selection:', error);
+                    notificationStore.error($text('common.try_again'));
+                })
+                .finally(() => {
+                    if (!cancelled) modelSelectionReady = true;
+                });
+        }
+
+        return () => { cancelled = true; };
+    });
+    $effect(() => {
+        const userId = $userProfile.user_id;
+        if (!userId) return;
+        return registerChatModelSelectionSync(userId, (chatId, selection) => {
+            if (chatId === currentChatId) modelSelection = selection;
+        });
+    });
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
     // the parent (ActiveChat) can react to the map overlay opening/closing.
     $effect(() => { isMapsOpen = showMaps; });
@@ -2656,24 +2756,13 @@
                 .insertContent(' ')
                 .run();
         } else if (result.type === 'model') {
-            // Use the custom AI model mention node for visual display
-            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id:provider
+            const modelResult = result as import('./services/mentionSearchService').ModelMentionResult;
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
-                .setAIModelMention({
-                    modelId: result.id,
-                    modelProvider: (result as import('./services/mentionSearchService').ModelMentionResult).providerId,
-                    displayName: result.mentionDisplayName
-                })
-                .insertContent(' ')
                 .run();
-            
-            // Debug: Log the editor state after insertion
-            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
-                JSON.stringify(editor.getJSON(), null, 2)
-            );
+            void persistModelSelection(`${modelResult.providerId}/${modelResult.id}`);
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
@@ -4873,6 +4962,19 @@
             }
         }
 
+        if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:')) {
+            const userId = $userProfile.user_id;
+            if (userId && currentChatId) {
+                modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
+            }
+            const separator = modelSelection.indexOf('/');
+            if (separator > 0) {
+                const provider = modelSelection.slice(0, separator);
+                const modelId = modelSelection.slice(separator + 1);
+                editor.commands.insertContentAt(0, `@ai-model:${modelId}:${provider} `);
+            }
+        }
+
         void handleSend(
             editor,
             dispatch,
@@ -4907,6 +5009,35 @@
     function handleBuyCreditsClick() {
         console.info('[MessageInput] User clicked Buy credits — opening billing/buy-credits settings');
         settingsDeepLink.set('billing/buy-credits');
+        panelState.openSettings();
+    }
+
+    async function persistModelSelection(selection: ChatModelSelection): Promise<void> {
+        modelSelection = selection;
+        const userId = $userProfile.user_id;
+        if (!userId || !currentChatId) {
+            pendingNewChatModelSelection = currentChatId ? null : selection;
+            return;
+        }
+
+        try {
+            modelSelection = await chatModelSelectionService.select({
+                userId,
+                chatId: currentChatId,
+                selection
+            });
+        } catch (error) {
+            console.error('[MessageInput] Failed to persist chat model selection:', error);
+            notificationStore.error($text('common.try_again'));
+        }
+    }
+
+    function handleModelSelect(event: CustomEvent<{ selection: string }>): void {
+        void persistModelSelection(event.detail.selection);
+    }
+
+    function handleModelDetails(event: CustomEvent<{ modelId: string }>): void {
+        settingsDeepLink.set(`ai/model/${event.detail.modelId}`);
         panelState.openSettings();
     }
 
@@ -6031,11 +6162,14 @@
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
-                    isSketchOpen={showSketch}
+                    {modelSelection}
+                    showModelSelector={modelSelectionReady}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sketchClick={handleSketchClick}
+                    on:modelSelect={handleModelSelect}
+                    on:modelDetails={handleModelDetails}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
                     on:buyCreditsClick={handleBuyCreditsClick}

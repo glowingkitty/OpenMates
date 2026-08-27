@@ -16,7 +16,9 @@ import base64
 import http.cookiejar
 import json
 import os
+import re
 import socket
+import subprocess
 import sys
 import time
 import urllib.request
@@ -42,6 +44,11 @@ from verify_test_account_login import (  # noqa: E402
     load_test_account,
     post_json,
 )
+from verify_usage_overview_cli_sdk import (  # noqa: E402
+    _approve_pending_key_devices,
+    _create_api_key,
+    _revoke_api_key,
+)
 
 
 DEFAULT_API = "https://api.dev.openmates.org"
@@ -58,6 +65,13 @@ FORBIDDEN_PLAINTEXT_RECORD_KEYS = {
     "selection",
     "mode",
 }
+SDK_TEST_MODEL = "mistral/mistral-small-2506"
+SDK_TEST_MODEL_NAME_FRAGMENT = "mistral small"
+REPO_ROOT = SCRIPTS_DIR.parent
+CLI_PACKAGE_DIR = REPO_ROOT / "frontend" / "packages" / "openmates-cli"
+CLI_ENTRYPOINT = CLI_PACKAGE_DIR / "dist" / "cli.js"
+NPM_SDK_ENTRYPOINT = CLI_PACKAGE_DIR / "dist" / "index.js"
+PIP_PACKAGE_DIR = REPO_ROOT / "packages" / "openmates-python"
 
 
 def _control_plane_root(repo_root: Path) -> Path:
@@ -94,6 +108,233 @@ class AuthSession:
 
 def _format_d_ciphertext(byte_value: int) -> str:
     return base64.b64encode(bytes([byte_value]) * 28).decode("ascii")
+
+
+def _configured_api_key(slot: int) -> str:
+    for key in (
+        f"OPENMATES_TEST_ACCOUNT_{slot}_API_KEY",
+        "OPENMATES_TEST_ACCOUNT_API_KEY",
+        "OPENMATES_API_KEY",
+    ):
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    raise ContractFailure("configured test-account API key is required for CLI/SDK parity checks")
+
+
+def _run_subprocess(command: list[str], *, env: dict[str, str], timeout: float, label: str) -> str:
+    result = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        diagnostic_lines = [
+            line for line in detail
+            if "error" in line.lower() or "status" in line.lower() or "detail" in line.lower()
+        ]
+        sanitized_detail = " | ".join((diagnostic_lines or detail)[-6:]) if detail else "no diagnostic output"
+        for key in ("OPENMATES_API_KEY", "OPENMATES_TEST_ACCOUNT_API_KEY"):
+            secret = env.get(key, "")
+            if secret:
+                sanitized_detail = sanitized_detail.replace(secret, "<REDACTED>")
+        sanitized_detail = re.sub(r"Bearer\s+\S+", "Bearer <REDACTED>", sanitized_detail, flags=re.IGNORECASE)
+        raise ContractFailure(
+            f"{label} failed with exit code {result.returncode}: {sanitized_detail[:1000]}"
+        )
+    return result.stdout
+
+
+def _build_cli(*, timeout: float) -> None:
+    _run_subprocess(
+        ["npm", "--prefix", str(CLI_PACKAGE_DIR), "run", "build"],
+        env=os.environ.copy(),
+        timeout=timeout,
+        label="CLI/npm SDK build",
+    )
+    if not CLI_ENTRYPOINT.is_file() or not NPM_SDK_ENTRYPOINT.is_file():
+        raise ContractFailure("CLI/npm SDK build did not produce expected entrypoints")
+
+
+def _sdk_env(api_url: str, api_key: str) -> dict[str, str]:
+    env = os.environ.copy()
+    env.update(
+        {
+            "OPENMATES_API_URL": api_url,
+            "OPENMATES_API_KEY": api_key,
+        }
+    )
+    return env
+
+
+def _default_settings_payload() -> dict[str, str]:
+    return {
+        "default_ai_model_simple": SDK_TEST_MODEL,
+        "default_ai_model_complex": SDK_TEST_MODEL,
+        "default_ai_model_most_demanding": SDK_TEST_MODEL,
+    }
+
+
+def _reset_settings_payload() -> dict[str, None]:
+    return {
+        "default_ai_model_simple": None,
+        "default_ai_model_complex": None,
+        "default_ai_model_most_demanding": None,
+    }
+
+
+def _identifies_sdk_test_model(value: str) -> bool:
+    normalized = value.lower()
+    return SDK_TEST_MODEL in normalized or SDK_TEST_MODEL_NAME_FRAGMENT in normalized
+
+
+def run_cli_checks(api_url: str, *, api_key: str, timeout: float) -> list[str]:
+    _build_cli(timeout=timeout)
+    env = _sdk_env(api_url, api_key)
+    set_defaults = [
+        "node",
+        str(CLI_ENTRYPOINT),
+        "settings",
+        "ai",
+        "models",
+        "set-defaults",
+        "--simple",
+        SDK_TEST_MODEL,
+        "--complex",
+        SDK_TEST_MODEL,
+        "--most-demanding",
+        SDK_TEST_MODEL,
+        "--json",
+    ]
+    reset_defaults = [
+        "node",
+        str(CLI_ENTRYPOINT),
+        "settings",
+        "ai",
+        "models",
+        "set-defaults",
+        "--simple",
+        "auto",
+        "--complex",
+        "auto",
+        "--most-demanding",
+        "auto",
+        "--json",
+    ]
+    try:
+        _run_subprocess(set_defaults, env=env, timeout=timeout, label="CLI three-tier defaults")
+        output = _run_subprocess(
+            [
+                "node",
+                str(CLI_ENTRYPOINT),
+                "chats",
+                "new",
+                "Reply with OK.",
+                "--model",
+                SDK_TEST_MODEL,
+                "--json",
+            ],
+            env=env,
+            timeout=timeout,
+            label="CLI explicit model routing",
+        )
+        if not _identifies_sdk_test_model(output):
+            try:
+                payload = json.loads(output)
+                observed = {
+                    key: payload.get(key)
+                    for key in ("model", "modelName", "model_name")
+                    if isinstance(payload, dict) and key in payload
+                }
+            except json.JSONDecodeError:
+                observed = {"output": "non-JSON"}
+            raise ContractFailure(
+                f"CLI explicit model response did not identify the selected model: {observed}"
+            )
+    finally:
+        _run_subprocess(reset_defaults, env=env, timeout=timeout, label="CLI defaults cleanup")
+    return ["cli_three_tier_defaults_accepted", "cli_explicit_model_routing_accepted", "cli_defaults_cleanup"]
+
+
+def run_npm_checks(api_url: str, *, api_key: str, timeout: float) -> list[str]:
+    _build_cli(timeout=timeout)
+    script = f"""
+import {{ OpenMates }} from {json.dumps(NPM_SDK_ENTRYPOINT.as_uri())};
+const client = new OpenMates({{ apiKey: process.env.OPENMATES_API_KEY, apiUrl: process.env.OPENMATES_API_URL, deviceId: 'ai-model-routing-npm' }});
+const selected = {json.dumps(_default_settings_payload())};
+const reset = {json.dumps(_reset_settings_payload())};
+try {{
+  await client.settings.setModelDefaults(selected);
+  const response = await client.chats.send('Reply with OK.', {{ saveToAccount: false, model: {json.dumps(SDK_TEST_MODEL)} }});
+  const serialized = JSON.stringify(response).toLowerCase();
+  if (!serialized.includes({json.dumps(SDK_TEST_MODEL)}) && !serialized.includes({json.dumps(SDK_TEST_MODEL_NAME_FRAGMENT)})) {{
+    console.error(JSON.stringify({{ keys: Object.keys(response), modelName: response.modelName ?? null, model_name: response.model_name ?? null }}));
+    process.exit(3);
+  }}
+}} finally {{
+  await client.settings.setModelDefaults(reset);
+}}
+"""
+    _run_subprocess(
+        ["node", "--input-type=module", "--eval", script],
+        env=_sdk_env(api_url, api_key),
+        timeout=timeout,
+        label="npm SDK routing parity",
+    )
+    return ["npm_three_tier_defaults_accepted", "npm_explicit_model_routing_accepted", "npm_defaults_cleanup"]
+
+
+def run_pip_checks(api_url: str, *, api_key: str, timeout: float) -> list[str]:
+    script = f"""
+import json
+import os
+from openmates import OpenMates
+client = OpenMates(api_key=os.environ['OPENMATES_API_KEY'], api_url=os.environ['OPENMATES_API_URL'], device_id='ai-model-routing-pip')
+selected = {repr(_default_settings_payload())}
+reset = {repr(_reset_settings_payload())}
+try:
+    client.settings.set_model_defaults(**selected)
+    response = client.chats.send('Reply with OK.', save_to_account=False, model={SDK_TEST_MODEL!r})
+    serialized = json.dumps(response.raw).lower()
+    if {SDK_TEST_MODEL!r} not in serialized and {SDK_TEST_MODEL_NAME_FRAGMENT!r} not in serialized:
+        raise SystemExit(3)
+finally:
+    client.settings.set_model_defaults(**reset)
+"""
+    env = _sdk_env(api_url, api_key)
+    env["PYTHONPATH"] = str(PIP_PACKAGE_DIR)
+    _run_subprocess(
+        [sys.executable, "-c", script],
+        env=env,
+        timeout=timeout,
+        label="pip SDK routing parity",
+    )
+    return ["pip_three_tier_defaults_accepted", "pip_explicit_model_routing_accepted", "pip_defaults_cleanup"]
+
+
+def run_sdk_checks_with_temporary_key(surface: str, api_url: str, *, timeout: float) -> list[str]:
+    _build_cli(timeout=timeout)
+    env = os.environ.copy()
+    key_id, api_key = _create_api_key(api_url, env=env)
+    run_checks = run_npm_checks if surface == "npm" else run_pip_checks
+    try:
+        try:
+            return run_checks(api_url, api_key=api_key, timeout=timeout)
+        except ContractFailure as exc:
+            failure = str(exc).lower()
+            if "not approved" not in failure and "http 403" not in failure:
+                raise
+            approved = _approve_pending_key_devices(api_url, key_id, {surface}, env=env)
+            if not approved:
+                raise ContractFailure(f"no pending {surface} SDK device was available to approve") from exc
+            return run_checks(api_url, api_key=api_key, timeout=timeout)
+    finally:
+        _revoke_api_key(key_id, api_url, env=env)
 
 
 def _login(
@@ -536,18 +777,14 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         raise ContractFailure("--real-auth is required; mocked API calls do not satisfy this verifier")
     if not (args.check_rest or args.check_websocket or args.check_cli or args.check_npm or args.check_pip):
         raise ContractFailure("at least one --check-* flag is required")
-    unsupported = []
-    for enabled, name in ((args.check_cli, "cli"), (args.check_npm, "npm"), (args.check_pip, "pip")):
-        if enabled:
-            unsupported.append(name)
-    if unsupported:
-        raise ContractFailure(f"checks not implemented in TASK-3 verifier yet: {', '.join(unsupported)}")
-
-    auth = _login(api_url, origin=origin, slot=args.slot, timeout=args.timeout)
+    needs_session_auth = args.check_rest or args.check_websocket
+    auth = _login(api_url, origin=origin, slot=args.slot, timeout=args.timeout) if needs_session_auth else None
     checks: list[str] = []
     if args.check_rest:
+        assert auth is not None
         checks.extend(run_rest_checks(api_url, origin=origin, auth=auth, timeout=args.timeout))
     if args.check_websocket:
+        assert auth is not None
         checks.extend(
             run_websocket_checks(
                 api_url,
@@ -558,11 +795,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 timeout=args.timeout,
             )
         )
+    if args.check_cli:
+        api_key = _configured_api_key(args.slot)
+        checks.extend(run_cli_checks(api_url, api_key=api_key, timeout=args.timeout))
+    if args.check_npm:
+        checks.extend(run_sdk_checks_with_temporary_key("npm", api_url, timeout=args.timeout))
+    if args.check_pip:
+        checks.extend(run_sdk_checks_with_temporary_key("pip", api_url, timeout=args.timeout))
     return {
         "status": "passed",
         "target": api_url,
         "access_model": "first-party client surface only",
-        "auth": "real configured test-account session",
+        "auth": "real configured test-account session and/or approved API key",
         "checks": checks,
         "checks_passed": len(checks),
     }

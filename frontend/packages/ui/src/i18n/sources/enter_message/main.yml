@@ -22,6 +22,78 @@ enter_your_message:
   sv: "Ange ditt meddelande"
   he: הקלד את ההודעה שלך
   verified_by_human: []
+model_selector.model_selection:
+  context: Heading for the message composer AI model picker
+  en: Model selection
+  de: Modellauswahl
+  zh: 模型选择
+  es: Selección de modelo
+  fr: Sélection du modèle
+  pt: Seleção de modelo
+  ru: Выбор модели
+  ja: モデル選択
+  ko: 모델 선택
+  it: Selezione modello
+  tr: Model seçimi
+  vi: Chọn mô hình
+  id: Pilihan model
+  pl: Wybór modelu
+  nl: Modelselectie
+  ar: اختيار النموذج
+  hi: मॉडल चयन
+  th: การเลือกโมเดล
+  cs: Výběr modelu
+  sv: Modellval
+  he: בחירת מודל
+  verified_by_human: []
+model_selector.model_details:
+  context: Accessible label for opening details about an AI model
+  en: Open model details
+  de: Modelldetails öffnen
+  zh: 打开模型详情
+  es: Abrir detalles del modelo
+  fr: Ouvrir les détails du modèle
+  pt: Abrir detalhes do modelo
+  ru: Открыть сведения о модели
+  ja: モデルの詳細を開く
+  ko: 모델 세부정보 열기
+  it: Apri dettagli modello
+  tr: Model ayrıntılarını aç
+  vi: Mở chi tiết mô hình
+  id: Buka detail model
+  pl: Otwórz szczegóły modelu
+  nl: Modeldetails openen
+  ar: فتح تفاصيل النموذج
+  hi: मॉडल विवरण खोलें
+  th: เปิดรายละเอียดโมเดล
+  cs: Otevřít podrobnosti modelu
+  sv: Öppna modelldetaljer
+  he: פתיחת פרטי המודל
+  verified_by_human: []
+model_selector.unavailable_reset:
+  context: Error shown when a chat's saved exact AI model is unavailable and the composer resets to Auto
+  en: The selected model is unavailable. This chat now uses Auto.
+  de: Das ausgewählte Modell ist nicht verfügbar. Dieser Chat verwendet jetzt Auto.
+  zh: 所选模型不可用。此聊天现在使用自动模式。
+  es: El modelo seleccionado no está disponible. Este chat ahora usa Automático.
+  fr: Le modèle sélectionné est indisponible. Cette discussion utilise maintenant Auto.
+  pt: O modelo selecionado não está disponível. Este chat agora usa Automático.
+  ru: Выбранная модель недоступна. Теперь в этом чате используется Авто.
+  ja: 選択したモデルは利用できません。このチャットでは自動が使用されます。
+  ko: 선택한 모델을 사용할 수 없습니다. 이제 이 채팅은 자동을 사용합니다.
+  it: Il modello selezionato non è disponibile. Questa chat ora usa Auto.
+  tr: Seçilen model kullanılamıyor. Bu sohbet artık Otomatik kullanıyor.
+  vi: Mô hình đã chọn không khả dụng. Cuộc trò chuyện này hiện dùng Tự động.
+  id: Model yang dipilih tidak tersedia. Chat ini sekarang menggunakan Otomatis.
+  pl: Wybrany model jest niedostępny. Ten czat używa teraz trybu Auto.
+  nl: Het geselecteerde model is niet beschikbaar. Deze chat gebruikt nu Automatisch.
+  ar: النموذج المحدد غير متاح. تستخدم هذه المحادثة الآن الوضع التلقائي.
+  hi: चुना गया मॉडल उपलब्ध नहीं है। यह चैट अब ऑटो का उपयोग करती है।
+  th: โมเดลที่เลือกไม่พร้อมใช้งาน แชทนี้ใช้โหมดอัตโนมัติแล้ว
+  cs: Vybraný model není k dispozici. Tento chat nyní používá automatický režim.
+  sv: Den valda modellen är inte tillgänglig. Chatten använder nu Auto.
+  he: המודל שנבחר אינו זמין. הצ'אט משתמש כעת במצב אוטומטי.
+  verified_by_human: []
 click_to_enter_message:
   context: Placeholder text shown when message field is not focused
   en: Click here to ask anything

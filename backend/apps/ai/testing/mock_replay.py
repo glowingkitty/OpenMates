@@ -407,14 +407,16 @@ async def replay_fixture(
     total_chunks = len(cumulative_chunks)
     model_name = usage.get("model_name") or preprocessing_result.selected_main_llm_model_name
     category = preprocessing_result.category
-    recovery_job = await _persist_mock_replay_recovery_job(
-        directus_service=directus_service,
-        request_data=request_data,
-        task_id=task_id,
-        content=full_response,
-        category=category or "general_knowledge",
-        model_name=model_name,
-    )
+    recovery_job = None
+    if not _contains_focus_mode_activation_embed(full_response):
+        recovery_job = await _persist_mock_replay_recovery_job(
+            directus_service=directus_service,
+            request_data=request_data,
+            task_id=task_id,
+            content=full_response,
+            category=category or "general_knowledge",
+            model_name=model_name,
+        )
 
     for i, content_so_far in enumerate(cumulative_chunks):
         sequence = i + 1
