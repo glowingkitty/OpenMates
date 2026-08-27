@@ -14,6 +14,7 @@ import asyncio
 import json
 from pathlib import Path
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import uuid
@@ -35,6 +36,20 @@ PROBE_BUCKET_PREFIX = "dev-openmates-region-probe"
 MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
 SHA256_METADATA_KEY = "openmates-sha256"
 MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
+
+
+def runtime_inventory_command(arguments: list[str]) -> list[str]:
+    """Run networked inventory inside the API boundary where Vault is available."""
+    forwarded = [argument for argument in arguments if argument != "--runtime"]
+    return [
+        "docker",
+        "exec",
+        "api",
+        "python",
+        "/app/scripts/audit_object_storage_inventory.py",
+        *forwarded,
+        "--runtime",
+    ]
 
 
 def sanitized_provider_error(error: Exception) -> dict[str, object]:
@@ -622,6 +637,7 @@ def main() -> int:
     parser.add_argument("--provision-regions", action="store_true")
     parser.add_argument("--source-region", default="nbg1")
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--runtime", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     selected_modes = sum((
@@ -636,6 +652,22 @@ def main() -> int:
             "Choose exactly one of --dry-run, --probe-regions, --verify-replicas, "
             "--backfill-recovered-source, or --provision-regions"
         )
+
+    if not args.dry_run and not args.runtime:
+        completed = subprocess.run(
+            runtime_inventory_command(sys.argv[1:]),
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=900,
+        )
+        if completed.returncode != 0:
+            if completed.stdout:
+                print(completed.stdout.strip())
+            return completed.returncode
+        print(completed.stdout.strip())
+        return 0
 
     regions = parse_storage_regions(args.regions)
     if args.dry_run:

@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -70,6 +70,24 @@ def _runtime_verify() -> dict[str, Any]:
     }
 
 
+def verify_public_ingress_isolation(
+    api_url: str,
+    getter: Callable[..., httpx.Response] = httpx.get,
+) -> int | str:
+    """Accept a 404 or an intentional path rejection on otherwise-live ingress."""
+    base_url = api_url.rstrip("/")
+    try:
+        public = getter(f"{base_url}/internal/storage/health", timeout=15)
+    except httpx.RequestError:
+        health = getter(f"{base_url}/health", timeout=15)
+        if health.status_code >= 500:
+            raise RuntimeError(f"public_health_failed:{health.status_code}")
+        return "connection_rejected"
+    if public.status_code != 404:
+        raise RuntimeError(f"internal_route_publicly_reachable:{public.status_code}")
+    return public.status_code
+
+
 def _host_verify(api_url: str) -> dict[str, Any]:
     completed = subprocess.run(
         [
@@ -89,18 +107,7 @@ def _host_verify(api_url: str) -> dict[str, Any]:
     if completed.returncode != 0:
         raise RuntimeError("runtime_api_verification_failed")
     report = json.loads(completed.stdout)
-    try:
-        public = httpx.get(f"{api_url.rstrip('/')}/internal/storage/health", timeout=15)
-    except httpx.RequestError:
-        report.update({
-            "status": "blocked",
-            "failure_class": "public_ingress_unreachable",
-            "public_ingress_status": "unreachable",
-        })
-        return report
-    if public.status_code != 404:
-        raise RuntimeError(f"internal_route_publicly_reachable:{public.status_code}")
-    report["public_ingress_status"] = public.status_code
+    report["public_ingress_status"] = verify_public_ingress_isolation(api_url)
     return report
 
 

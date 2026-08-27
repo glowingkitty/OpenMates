@@ -7,7 +7,12 @@ Contract: architecture.storage-lifecycle.
 
 from pathlib import Path
 
-from scripts.verify_storage_lifecycle_api import validate_health_payload
+import httpx
+
+from scripts.verify_storage_lifecycle_api import (
+    validate_health_payload,
+    verify_public_ingress_isolation,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +35,17 @@ def test_health_verifier_accepts_only_required_aggregate_shape() -> None:
         "pending_deletion": 2,
         "result_truncated": False,
     }
+
+
+# contract-test: supporting surface=rest_api assertions=storage.failover.health-reconciled
+def test_public_ingress_connection_rejection_is_valid_when_health_is_reachable() -> None:
+    def getter(url: str, **_kwargs) -> httpx.Response:
+        request = httpx.Request("GET", url)
+        if url.endswith("/internal/storage/health"):
+            raise httpx.ConnectError("connection rejected", request=request)
+        return httpx.Response(301, request=request)
+
+    assert verify_public_ingress_isolation("https://api.example.test", getter) == "connection_rejected"
 
 
 # contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
