@@ -189,16 +189,17 @@ def test_browser_tutorial_plan_preserves_source_and_inserts_checkpoint_holds(tmp
     assert plan["request"]["sourceHash"] == module.sha256_file(source)
     assert plan["request"]["segments"] == [
         {"kind": "freeze", "source_image": str(first), "source_sha256": module.sha256_file(first), "duration_ms": 1000, "cue_id": "first"},
+        {"kind": "freeze", "source_image": str(first), "source_sha256": module.sha256_file(first), "duration_ms": 100, "cue_id": "first-boundary"},
         {"kind": "video", "source_from_ms": 1000, "source_to_ms": 3000, "duration_ms": 2000},
         {"kind": "freeze", "source_image": str(second), "source_sha256": module.sha256_file(second), "duration_ms": 1500, "cue_id": "second"},
         {"kind": "video", "source_from_ms": 3000, "source_to_ms": 4000, "duration_ms": 1000},
     ]
     assert plan["caption_segments"] == [
         {"id": "CAP-1", "narration_id": "NARR-1", "text": "First state.", "start": 0.0, "end": 1.0, "claim_ids": ["first.visible"]},
-        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Second stable state.", "start": 3.0, "end": 4.5, "claim_ids": ["second.visible"]},
+        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Second stable state.", "start": 3.1, "end": 4.6, "claim_ids": ["second.visible"]},
     ]
-    assert plan["claim_anchor_times"] == {"first.visible": 0.0, "second.visible": 3.0}
-    assert plan["duration_seconds"] == 5.5
+    assert plan["claim_anchor_times"] == {"first.visible": 0.0, "second.visible": 3.1}
+    assert plan["duration_seconds"] == 5.6
 
     timeline["contract"]["assertions"][1]["checkpoint"] = "missing"
     with pytest.raises(module.DemonstrationError, match="must map to one captured transcript checkpoint"):
@@ -241,6 +242,88 @@ def test_browser_tutorial_plan_preserves_source_and_inserts_checkpoint_holds(tmp
     first.write_bytes(b"changed-frame")
     with pytest.raises(module.DemonstrationError, match="checkpoint frame is missing or changed"):
         module.render_browser_tutorial(plan["request"], tmp_path / "output.mp4")
+
+
+def test_browser_tutorial_plan_uses_post_action_assertion_frame_for_hold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    source_dir = tmp_path / "recording" / "videos"
+    source_dir.mkdir(parents=True)
+    source = source_dir / "source.webm"
+    source.write_bytes(b"video")
+    first = tmp_path / "first.png"
+    late_second = tmp_path / "late-second.png"
+    first.write_bytes(b"first")
+    late_second.write_bytes(b"late-second")
+    extracted_paths: list[Path] = []
+
+    def extract_source_frame(_video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, object]:
+        assert timestamp_seconds == 1.2
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"post-action-assertion-frame")
+        extracted_paths.append(output_path)
+        return {
+            "timestamp_seconds": timestamp_seconds,
+            "path": str(output_path),
+            "sha256": module.sha256_file(output_path),
+        }
+
+    monkeypatch.setattr(module, "extract_frame", extract_source_frame)
+    timeline = {
+        "contract": {
+            "surface": "web",
+            "domain": "app.dev.openmates.org",
+            "devices": ["web-laptop"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [
+                {"id": "first", "text": "First state.", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second", "text": "Second stable state.", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+            "assertions": [
+                {"id": "first.visible", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second.visible", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+        },
+        "events": [
+            {"kind": "checkpoint", "id": "first-ready", "at_ms": 1000},
+            {"kind": "action", "id": "open-second", "start_ms": 1000, "end_ms": 1200},
+            {"kind": "assertion", "id": "second.visible", "at_ms": 1200, "status": "passed"},
+            {"kind": "checkpoint", "id": "second-ready", "at_ms": 3000},
+        ],
+        "checkpoint_frames": [
+            {"checkpoint": "first-ready", "path": str(first), "sha256": module.sha256_file(first)},
+            {"checkpoint": "second-ready", "path": str(late_second), "sha256": module.sha256_file(late_second)},
+        ],
+    }
+
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=4.0,
+        device_profile_name="web-laptop",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+
+    assert len(extracted_paths) == 1
+    assert plan["request"]["segments"] == [
+        {"kind": "freeze", "source_image": str(first), "source_sha256": module.sha256_file(first), "duration_ms": 1000, "cue_id": "first"},
+        {"kind": "freeze", "source_image": str(first), "source_sha256": module.sha256_file(first), "duration_ms": 100, "cue_id": "first-boundary"},
+        {"kind": "video", "source_from_ms": 1000, "source_to_ms": 1200, "duration_ms": 200},
+        {
+            "kind": "freeze",
+            "source_image": str(extracted_paths[0]),
+            "source_sha256": module.sha256_file(extracted_paths[0]),
+            "duration_ms": 1500,
+            "cue_id": "second",
+        },
+        {"kind": "video", "source_from_ms": 3000, "source_to_ms": 4000, "duration_ms": 1000},
+    ]
+    assert plan["caption_segments"][1]["start"] == 1.1
+    assert plan["claim_anchor_times"]["second.visible"] == 1.1
 
 
 def test_web_phone_tutorial_plan_uses_iphone_safari_content_viewport(tmp_path: Path) -> None:
@@ -741,7 +824,7 @@ def test_prepare_review_artifacts_maps_ordered_claim_intervals_to_action_boundar
     ]
     assert manifest["captions"][2]["end"] == 12.0
     assert manifest["captions"][3]["start"] == 12.0
-    assert manifest["expected_proof"][2]["evidence_intervals"] == [[8.0, 12.0]]
+    assert manifest["expected_proof"][2]["evidence_intervals"] == [[8.0, 11.9]]
     assert manifest["expected_proof"][3]["evidence_intervals"] == [[12.0, 16.0]]
 
 
@@ -813,8 +896,8 @@ def test_prepare_review_artifacts_preserves_explicit_caption_claim_intervals(
         ["processing", "composer"],
         ["chunk"],
     ]
-    assert manifest["expected_proof"][1]["evidence_intervals"] == [[3.0, 7.0]]
-    assert manifest["expected_proof"][2]["evidence_intervals"] == [[3.0, 7.0]]
+    assert manifest["expected_proof"][1]["evidence_intervals"] == [[3.0, 6.9]]
+    assert manifest["expected_proof"][2]["evidence_intervals"] == [[3.0, 6.9]]
 
 
 def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

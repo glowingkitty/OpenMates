@@ -60,7 +60,7 @@ const proofContract = defineVideoProof({
 		{
 			id: 'welcome.shell.visible',
 			checkpoint: 'welcome-visible',
-			visual: 'The OpenMates welcome interface is fully visible with its intentional neighboring carousel-card preview and no loading errors.',
+			visual: 'The OpenMates welcome interface is fully visible in the expanded browser welcome card with no loading errors.',
 			devices: PROOF_DEVICES
 		},
 		{

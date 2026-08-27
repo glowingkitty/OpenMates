@@ -110,6 +110,14 @@ def test_playwright_workflow_uses_encoded_phone_content_viewport() -> None:
     assert "inputs.proof_video_profile == 'web-phone' && '630'" in workflow
 
 
+def test_initial_welcome_proof_claim_matches_expanded_intro_state() -> None:
+    spec = (PROJECT_ROOT / "frontend/apps/web_app/tests/proof-video-architecture.spec.ts").read_text(encoding="utf-8")
+
+    assert "welcome interface is fully visible in the expanded browser welcome card" in spec
+    assert "welcome interface is fully visible with its intentional neighboring" not in spec
+    assert "Privacy and safety story is visible while the intentional neighboring card preview" in spec
+
+
 def test_playwright_config_uses_phone_profile_for_mobile_touch_viewport(tmp_path: Path) -> None:
     config_url = (PROJECT_ROOT / "frontend/apps/web_app/playwright.config.ts").as_uri()
     loader = tmp_path / "load-playwright-config.mjs"
