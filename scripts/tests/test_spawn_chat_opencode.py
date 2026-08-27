@@ -129,7 +129,7 @@ def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkey
     assert request.method == "POST"
     assert "/session/ses_existing/prompt_async?" in request.full_url
     assert urllib.parse.parse_qs(urllib.parse.urlparse(request.full_url).query) == {
-        "directory": [str(tmp_path)],
+        "directory": [_zellij_utils.OPENCODE_CONTROL_PLANE_RUNTIME],
     }
     assert json.loads(request.data) == {
         "agent": "plan",

@@ -30,6 +30,10 @@ from typing import Dict, List, Optional
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
 OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
+OPENCODE_CONTROL_PLANE_RUNTIME = os.environ.get(
+    "OPENMATES_CONTROL_PLANE_RUNTIME",
+    str(Path(__file__).resolve().parent.parent),
+)
 OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.5")
 OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "xhigh")
 OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
@@ -696,7 +700,11 @@ def resume_opencode_session(
     if permission_mode != "plan":
         body["model"] = {"providerID": provider_id, "modelID": model_id}
         body["variant"] = OPENCODE_EXECUTE_VARIANT
-    query = urllib.parse.urlencode({"directory": cwd})
+    # The server selects project-local plugins from this directory. Always
+    # start resumed generations from the clean deployed runtime so old source
+    # worktrees cannot load stale orchestration code; the hook routes product
+    # tools back to ``cwd`` using the durable session mapping.
+    query = urllib.parse.urlencode({"directory": OPENCODE_CONTROL_PLANE_RUNTIME})
     request = urllib.request.Request(
         f"{OPENCODE_SERVER_URL}/session/{urllib.parse.quote(opencode_session_id, safe='')}/prompt_async?{query}",
         data=json.dumps(body).encode("utf-8"),
