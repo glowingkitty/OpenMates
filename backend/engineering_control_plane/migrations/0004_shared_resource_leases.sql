@@ -7,7 +7,7 @@ ALTER TABLE control_plane_resource_leases
     CHECK (mode IN ('shared', 'exclusive'));
 
 ALTER TABLE control_plane_resource_lease_items
-    DROP CONSTRAINT control_plane_resource_lease_items_resource_key_active_window_excl;
+    DROP CONSTRAINT control_plane_resource_lease_it_resource_key_active_window_excl;
 
 CREATE INDEX control_plane_resource_lease_items_active_window_idx
     ON control_plane_resource_lease_items USING gist (resource_key, active_window)

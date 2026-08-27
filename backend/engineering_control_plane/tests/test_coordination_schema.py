@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 MIGRATION = Path(__file__).parents[1] / "migrations" / "0001_coordination.sql"
+SHARED_LEASE_MIGRATION = Path(__file__).parents[1] / "migrations" / "0004_shared_resource_leases.sql"
 
 
 def test_migration_enforces_lease_exclusion_and_dispatch_reuse() -> None:
@@ -32,3 +33,9 @@ def test_migration_persists_runtime_epoch_and_event_cursor() -> None:
     assert "cursor bigint GENERATED ALWAYS AS IDENTITY" in sql
     assert "control_plane_session_event_acknowledgements" in sql
     assert "interval '7 days'" in sql
+
+
+def test_shared_lease_migration_uses_the_postgres_generated_constraint_name() -> None:
+    sql = SHARED_LEASE_MIGRATION.read_text(encoding="utf-8")
+
+    assert "control_plane_resource_lease_it_resource_key_active_window_excl" in sql
