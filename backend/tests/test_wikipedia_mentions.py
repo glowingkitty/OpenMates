@@ -16,6 +16,7 @@ import types
 
 import httpx
 import pytest
+from fastapi import HTTPException
 
 from backend.apps.ai.processing.wikipedia_context import (
     WikipediaSafetyUnavailableError,
@@ -55,7 +56,13 @@ def _import_wikipedia_proxy():
         async def _charge_credits_via_internal_api(*_args, **_kwargs) -> None:
             return None
 
+        async def _get_session_or_api_key_info(*_args, **_kwargs) -> None:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=401, detail="unauthenticated")
+
         apps_api_module.charge_credits_via_internal_api = _charge_credits_via_internal_api
+        apps_api_module.get_session_or_api_key_info = _get_session_or_api_key_info
         sys.modules["backend.core.api.app.routes.apps_api"] = apps_api_module
     from backend.core.api.app.routes import wikipedia_proxy
 
@@ -292,7 +299,7 @@ async def test_proxy_search_returns_ordered_results_without_wikidata(
         ]),
     )
 
-    response = await wikipedia_proxy.wikipedia_search(SimpleNamespace(), query="AlbertEinstein", language="en", limit=2)
+    response = await wikipedia_proxy.wikipedia_search(SimpleNamespace(), SimpleNamespace(), query="AlbertEinstein", language="en", limit=2)
     payload = json.loads(response.body.decode("utf-8"))
 
     assert payload["results"][0]["title"] == "Albert Einstein"
@@ -323,10 +330,30 @@ async def test_proxy_summary_returns_summary_only_payload(
         }),
     )
 
-    response = await wikipedia_proxy.wikipedia_summary(SimpleNamespace(), title="Albert_Einstein", language="en")
+    response = await wikipedia_proxy.wikipedia_summary(SimpleNamespace(), SimpleNamespace(), title="Albert_Einstein", language="en")
     payload = json.loads(response.body.decode("utf-8"))
 
     assert payload["canonical_title"] == "Albert_Einstein"
     assert payload["extract"]
     assert "originalimage" not in payload
     assert "wikibase_item" not in payload
+
+
+# contract-test: direct surface=rest_api assertions=wikipedia-mentions.provider.bounded-access
+async def test_proxy_search_rejects_unauthenticated_before_upstream_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wikipedia_proxy = _import_wikipedia_proxy()
+    fetch = AsyncMock()
+    monkeypatch.setattr(
+        wikipedia_proxy,
+        "_authorize_request",
+        AsyncMock(side_effect=HTTPException(status_code=401, detail="unauthenticated")),
+    )
+    monkeypatch.setattr(wikipedia_proxy, "_fetch_cached_wikipedia_payload", fetch)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await wikipedia_proxy.wikipedia_search(SimpleNamespace(), SimpleNamespace(), query="AlbertEinstein", language="en", limit=2)
+
+    assert getattr(exc_info.value, "status_code", None) == 401
+    fetch.assert_not_awaited()

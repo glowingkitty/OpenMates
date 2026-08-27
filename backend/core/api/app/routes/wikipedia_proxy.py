@@ -25,7 +25,7 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from backend.core.api.app.routes.apps_api import charge_credits_via_internal_api
@@ -176,6 +176,7 @@ async def _check_anon_rate_limit(request: Request) -> None:
 @limiter.limit("60/minute")
 async def wikipedia_search(
     request: Request,
+    response: Response,
     query: str = Query(..., min_length=1, max_length=300, description="Wikipedia title search query"),
     language: str = Query("en", min_length=2, max_length=10, description="Wikipedia language code or locale"),
     limit: int = Query(5, ge=1, le=10, description="Maximum number of title results"),
@@ -186,7 +187,7 @@ async def wikipedia_search(
     if not normalized_query:
         raise HTTPException(status_code=400, detail="Search query is required")
 
-    auth_info = await _authorize_request(request)
+    auth_info = await _authorize_request(request, response)
     await _check_anon_rate_limit(request)
     cache_key = _wikipedia_cache_key("search", language, normalized_query, limit)
 
@@ -209,7 +210,7 @@ async def wikipedia_search(
     return JSONResponse(content={"results": response_results})
 
 
-async def _authorize_request(request: Request) -> Dict[str, Any]:
+async def _authorize_request(request: Request, response: Response) -> Dict[str, Any]:
     """
     Allow the request if ANY of the following is true, else raise 401:
       1. Origin header matches an allowed web-app origin (free, used for unauth
@@ -240,6 +241,7 @@ async def _authorize_request(request: Request) -> Dict[str, Any]:
 
         auth_info = await get_session_or_api_key_info(
             request=request,
+            response=response,
             cache_service=cache_service,
             directus_service=directus_service,
             refresh_token=refresh_token,
@@ -276,6 +278,7 @@ async def _charge_if_api_key(auth_info: Dict[str, Any], skill_id: str) -> None:
 @limiter.limit("60/minute")
 async def wikipedia_summary(
     request: Request,
+    response: Response,
     title: str = Query(..., min_length=1, max_length=300, description="Canonical Wikipedia article title"),
     language: str = Query("en", min_length=2, max_length=5, description="Wikipedia language code"),
 ) -> JSONResponse:
@@ -287,7 +290,7 @@ async def wikipedia_summary(
     """
     language = normalize_wikipedia_language(language)
 
-    auth_info = await _authorize_request(request)
+    auth_info = await _authorize_request(request, response)
     await _check_anon_rate_limit(request)
     cache_key = _wikipedia_cache_key("summary", language, title)
 
@@ -311,7 +314,7 @@ async def wikipedia_summary(
 
 @router.get("/wikidata/{qid}")
 @limiter.limit("60/minute")
-async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
+async def wikidata_entity(request: Request, response: Response, qid: str) -> JSONResponse:
     """
     Proxy a Wikidata entity lookup (structured claims, labels, descriptions).
     QID must match the Wikidata format (Q followed by digits).
@@ -321,7 +324,7 @@ async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
     if not qid.startswith("Q") or not qid[1:].isdigit() or len(qid) > 20:
         raise HTTPException(status_code=400, detail="Invalid QID")
 
-    auth_info = await _authorize_request(request)
+    auth_info = await _authorize_request(request, response)
     await _check_anon_rate_limit(request)
 
     try:
