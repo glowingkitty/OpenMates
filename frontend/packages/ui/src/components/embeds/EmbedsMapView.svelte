@@ -2288,6 +2288,7 @@
     color: var(--color-font-primary, #222222);
     font-size: var(--font-size-xxs, 0.75rem);
     font-weight: 650;
+    min-width: max-content;
     overflow: hidden;
     text-align: center;
     text-overflow: ellipsis;

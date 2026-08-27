@@ -400,6 +400,12 @@ test.describe('Embeds map view preview', () => {
 				await proof.checkpoint('mobile-carousel-map-layout');
 			}
 		}
+		if (!proof) {
+			await calendarTab.click();
+			const mobileWeekLabel = mapView.getByTestId('embeds-results-view-calendar-week-label');
+			await expect(mobileWeekLabel).toContainText('Week 16 2026');
+			expect(await mobileWeekLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+		}
 
 		expect(forbiddenApiCalls).toEqual([]);
 		if (proof) await proof.attach();
