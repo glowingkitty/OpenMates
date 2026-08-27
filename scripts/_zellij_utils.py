@@ -713,7 +713,25 @@ def resume_opencode_session(
     )
     try:
         with urllib.request.urlopen(request, timeout=15) as response:
-            return 200 <= int(response.status) < 300
+            accepted = 200 <= int(response.status) < 300
+        if accepted and permission_mode != "plan":
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve().parent / "opencode_permission_watcher.py"),
+                    "--server-url",
+                    OPENCODE_SERVER_URL,
+                    "--cwd",
+                    cwd,
+                    "--session",
+                    opencode_session_id,
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        return accepted
     except (OSError, urllib.error.URLError) as exc:
         print(f"Warning: OpenCode continuation request failed: {exc}", file=sys.stderr)
         return False
