@@ -1149,7 +1149,10 @@ async function installE2EServerContentOverrideGate(page: any, scope: string = 'l
 		sessionStorage.setItem(key, JSON.stringify({ runId, token: 'local-e2e' }));
 	};
 	await page.addInitScript(installGate, gateArgs);
-	await page.evaluate(installGate, gateArgs);
+	await page.evaluate(installGate, gateArgs).catch((error: Error) => {
+		if (String(error).includes('sessionStorage') || String(error).includes('SecurityError')) return;
+		throw error;
+	});
 }
 
 /**

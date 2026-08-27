@@ -626,10 +626,6 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 			captureFrame: () => page.screenshot({ type: 'png' })
 		})
 		: null;
-	if (process.env.E2E_USE_MOCKS) {
-		await installE2EServerContentOverrideGate(page, 'chat-flow-mock-marker');
-	}
-
 	await archiveExistingScreenshots(logChatCheckpoint);
 	logChatCheckpoint('Starting chat flow test.', { email: TEST_EMAIL });
 
@@ -637,6 +633,9 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	// PHASE 1: Login + send message
 	// =========================================================================
 	await performLogin(page, logChatCheckpoint, takeStepScreenshot, '01');
+	if (process.env.E2E_USE_MOCKS) {
+		await installE2EServerContentOverrideGate(page, 'chat-flow-mock-marker');
+	}
 
 	// Inject OTel span capture — wraps fetch() to intercept OTLP exports
 	// and store span data in window.__otelCapturedSpans for profiling.

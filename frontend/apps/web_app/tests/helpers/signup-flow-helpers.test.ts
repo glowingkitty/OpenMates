@@ -29,6 +29,7 @@ test('exports the E2E server-content override gate helper', () => {
 	assert.match(source, /const gateArgs = \{ key: E2E_LOG_FORWARDING_SESSION_KEY, runId: scope \};/);
 	assert.match(source, /page\.addInitScript\(installGate, gateArgs\)/);
 	assert.match(source, /page\.evaluate\(installGate, gateArgs\)/);
+	assert.match(source, /String\(error\)\.includes\('SecurityError'\)/);
 	assert.match(source, /installE2EServerContentOverrideGate,/);
 });
 
