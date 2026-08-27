@@ -8395,6 +8395,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             from scripts.proof_video_workflow import (
                 WorkflowError,
                 approved_render_claims,
+                record_contract_authorization,
                 require_recorded_approval,
                 resolve_deployed_run,
             )
@@ -8402,10 +8403,16 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             from proof_video_workflow import (
                 WorkflowError,
                 approved_render_claims,
+                record_contract_authorization,
                 require_recorded_approval,
                 resolve_deployed_run,
             )
         try:
+            record_contract_authorization(
+                session_id=args.session,
+                spec_name=args.spec_name,
+                contract_path=args.contract_path,
+            )
             approved_contract = require_recorded_approval(session_id=args.session, spec_name=args.spec_name, contract_path=args.contract_path)
             approved_claims = approved_render_claims(approved_contract, device_profile=args.device_profile)
             deployed_run = resolve_deployed_run(

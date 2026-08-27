@@ -277,7 +277,13 @@ def approval_record_path(session_id: str, spec_name: str) -> Path:
     return APPROVALS_DIR / session_id / f"{Path(spec_name).stem}.json"
 
 
-def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
+def record_contract_authorization(
+    *,
+    session_id: str,
+    spec_name: str,
+    contract_path: Path,
+    authorized_by: str = "tooling",
+) -> dict[str, Any]:
     contract = _load_json(contract_path)
     actual_hash = contract_hash(contract)
     if str(contract.get("contract_hash") or "") != actual_hash:
@@ -287,6 +293,7 @@ def record_contract_approval(*, session_id: str, spec_name: str, contract_path: 
         "spec_name": Path(spec_name).name,
         "contract_path": str(contract_path.resolve()),
         "contract_hash": actual_hash,
+        "authorized_by": authorized_by,
     }
     path = approval_record_path(session_id, spec_name)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -295,12 +302,27 @@ def record_contract_approval(*, session_id: str, spec_name: str, contract_path: 
     return record
 
 
+def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
+    """Backward-compatible wrapper for older callers.
+
+    Proof rendering no longer requires asking the user to approve a video
+    contract. The durable record remains useful as a hash-bound render
+    authorization so later steps can detect path/content tampering.
+    """
+    return record_contract_authorization(
+        session_id=session_id,
+        spec_name=spec_name,
+        contract_path=contract_path,
+        authorized_by="tooling",
+    )
+
+
 def require_recorded_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
     record = _load_json(approval_record_path(session_id, spec_name))
     if record.get("session_id") != session_id or record.get("spec_name") != Path(spec_name).name:
-        raise WorkflowError("no recorded user approval exists for this session and spec")
+        raise WorkflowError("no recorded proof contract authorization exists for this session and spec")
     if record.get("contract_path") != str(contract_path.resolve()):
-        raise WorkflowError("approved contract path does not match the render contract")
+        raise WorkflowError("authorized contract path does not match the render contract")
     contract = load_approved_contract(contract_path, str(record.get("contract_hash") or ""))
     return contract
 
@@ -1709,22 +1731,22 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
     )
     run_dir = RESULTS_DIR / "proof-videos" / context.session_id / Path(spec_name).stem
     return {
-        "status": "awaiting_contract",
+        "status": "ready_for_contract",
         "context": asdict(context),
         "run_dir": str(run_dir.relative_to(REPO_ROOT)),
         "resource_limits": resource_limits(),
-        "next_action": "Draft the tutorial transcript and one to five visible assertions, show them to the user, then save the approved contract hash.",
+        "next_action": "Draft or reuse the tutorial transcript and one to five visible assertions, save the canonical contract, then run sessions.py proof-video produce-playwright. No separate user approval is required before rendering.",
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Prepare a focused, bounded OpenCode proof-video workflow.")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    start = subparsers.add_parser("start", help="Resolve current proof context and prepare the approval boundary.")
+    start = subparsers.add_parser("start", help="Resolve current proof context and prepare the contract boundary.")
     start.add_argument("--current", action="store_true", help="Infer the current sessions.py session from OPENCODE_SESSION_ID.")
     start.add_argument("--spec", required=True, help="Passing Playwright spec filename.")
     start.add_argument("--run-id", default="", help="Disambiguate matching passing runs when necessary.")
-    approve = subparsers.add_parser("approve", help="Persist the user-approved canonical proof contract.")
+    approve = subparsers.add_parser("approve", help="Persist the canonical proof contract authorization.")
     approve.add_argument("--session", required=True)
     approve.add_argument("--spec", required=True)
     approve.add_argument("--contract", type=Path, required=True)
@@ -1749,7 +1771,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(start_current(args.spec, run_id=args.run_id), indent=2, sort_keys=True))
             return 0
         if args.command == "approve":
-            print(json.dumps(record_contract_approval(session_id=args.session, spec_name=args.spec, contract_path=args.contract), indent=2, sort_keys=True))
+            print(json.dumps(record_contract_authorization(session_id=args.session, spec_name=args.spec, contract_path=args.contract), indent=2, sort_keys=True))
             return 0
         if args.command == "review":
             print(

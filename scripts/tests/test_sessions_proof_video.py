@@ -52,6 +52,7 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
             "contract_hash": "sha256:" + "a" * 64,
         },
     )
+    module.record_contract_authorization = functions.get("record_contract_authorization", lambda **_kwargs: {})
     module.require_clean_worktree = functions.get("require_clean_worktree", lambda *_args: None)
     module.require_recorded_approval = functions.get("require_recorded_approval", lambda **_kwargs: {})
     module.resolve_deployed_run = functions.get("resolve_deployed_run", lambda **_kwargs: {})
@@ -193,11 +194,6 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
     monkeypatch.setattr(proof_video_workflow, "APPROVALS_DIR", results_dir / "proof-video-approvals")
     monkeypatch.setattr(proof_video_workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(proof_video_workflow, "_tracked_worktree_changes", lambda: [])
-    proof_video_workflow.record_contract_approval(
-        session_id="abcd",
-        spec_name="signup-flow-passkey.spec.ts",
-        contract_path=contract_path,
-    )
     monkeypatch.setitem(
         sys.modules,
         "spec_demo",
@@ -268,6 +264,11 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
     assert observed["hold_last_frame_seconds"] == 2.0
     assert observed["ready_timestamp_seconds"] == 4.2
     assert observed["demo_audio_path"] == tmp_path / "product-audio.mp3"
+    authorization = json.loads(
+        proof_video_workflow.approval_record_path("abcd", "signup-flow-passkey.spec.ts").read_text(encoding="utf-8")
+    )
+    assert authorization["authorized_by"] == "tooling"
+    assert authorization["contract_hash"] == observed["proof_contract_hash"]
 
 
 def test_proof_video_playwright_uses_passed_run_when_session_worktree_is_stale(

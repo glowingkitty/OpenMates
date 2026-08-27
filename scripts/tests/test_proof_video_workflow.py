@@ -465,7 +465,7 @@ def test_clean_worktree_guard_compares_session_owned_blobs(
     workflow.require_clean_worktree("a" * 40, ["created-after-worktree.py"])
 
 
-def test_recorded_contract_approval_is_bound_to_session_spec_path_and_content(
+def test_recorded_contract_authorization_is_bound_to_session_spec_path_and_content(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -480,7 +480,12 @@ def test_recorded_contract_approval_is_bound_to_session_spec_path_and_content(
             "devices": ["web-phone"],
         },
     )
-    workflow.record_contract_approval(session_id="abcd", spec_name="example.spec.ts", contract_path=contract_path)
+    authorization = workflow.record_contract_authorization(
+        session_id="abcd",
+        spec_name="example.spec.ts",
+        contract_path=contract_path,
+    )
+    assert authorization["authorized_by"] == "tooling"
 
     approved = workflow.require_recorded_approval(
         session_id="abcd",
