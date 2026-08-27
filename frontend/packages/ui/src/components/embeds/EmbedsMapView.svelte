@@ -869,6 +869,20 @@
     }).format(new Date(value * 86400000));
   }
 
+  function calendarIsoWeekInfo(value: number): { week: number; year: number } {
+    const date = new Date(value * 86400000);
+    const day = date.getUTCDay() || CALENDAR_WEEK_DAYS;
+    date.setUTCDate(date.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const week = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / CALENDAR_WEEK_DAYS);
+    return { week, year: date.getUTCFullYear() };
+  }
+
+  function formatCalendarWeekTitle(weekStart: number): string {
+    const { week, year } = calendarIsoWeekInfo(weekStart);
+    return `Week ${week} ${year}`;
+  }
+
   function formatCalendarWeekLabel(weekStart: number): string {
     const weekEnd = weekStart + CALENDAR_WEEK_DAYS - 1;
     return `${formatCalendarDayNumber(weekStart)} - ${formatCalendarDayNumber(weekEnd)}`;
@@ -1653,7 +1667,10 @@
           {#if activeCalendarWeekStart != null}
             <header class="calendar-week-toolbar">
               <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
-              <strong data-testid="embeds-results-view-calendar-week-label">{formatCalendarWeekLabel(activeCalendarWeekStart)}</strong>
+              <strong data-testid="embeds-results-view-calendar-week-label">
+                {formatCalendarWeekTitle(activeCalendarWeekStart)}
+                <span class="visually-hidden"> {formatCalendarWeekLabel(activeCalendarWeekStart)}</span>
+              </strong>
               <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
             </header>
             <div class="calendar-week" data-testid="embeds-results-view-calendar-week">
