@@ -196,6 +196,7 @@ def test_session_deploy_files_exclude_runtime_proof_artifacts(monkeypatch, tmp_p
     session = {
         "modified_files": [
             "frontend/apps/web_app/tests/example.spec.ts",
+            "scripts/.tmp/query_control_plane_runtime.py",
             "test-results/proof-videos/abcd/example.spec/approved-contract.json",
             "test-results/proof-video-sources/source.json",
         ],

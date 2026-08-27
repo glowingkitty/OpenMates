@@ -180,6 +180,7 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
+WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES = ("scripts/.tmp/", "test-results/")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 DEFAULT_REPO_ID = "openmates"
@@ -1944,7 +1945,6 @@ def acquire_test_resource_lease(
                 time.sleep(min(max(1, poll), max(1, int(deadline - time.time()))))
     deadline = time.time() + max(0, timeout)
     poll = max(1, poll)
-    last_report = 0.0
     while True:
         blocked_by = ""
 
@@ -2502,10 +2502,13 @@ def _session_worktree_warnings(session_id: str, session: dict) -> list[str]:
 
 def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     """Return the deploy file set, preferring the isolated worktree diff."""
+    def deployable(relative_path: str) -> bool:
+        return not any(relative_path.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES)
+
     if not _session_is_control_plane_repo(session):
         dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
-        return sorted(f for f in tracked if f in dirty_files and f not in exclude)
+        return sorted(f for f in tracked if f in dirty_files and f not in exclude and deployable(f))
 
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
@@ -2532,9 +2535,12 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
             }
         if tracked:
             changed &= tracked
-        return sorted(f for f in changed if f not in exclude)
+        return sorted(f for f in changed if f not in exclude and deployable(f))
     dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
-    return sorted(f for f in session.get("modified_files", []) if f in dirty_files and f not in exclude)
+    return sorted(
+        f for f in session.get("modified_files", [])
+        if f in dirty_files and f not in exclude and deployable(f)
+    )
 
 
 def _relative_repo_path_for_session(path_value: str | Path, session: dict | None = None) -> str:
