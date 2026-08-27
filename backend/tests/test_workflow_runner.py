@@ -137,6 +137,7 @@ def news_graph() -> dict:
     }
 
 
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_rain_workflow_runs_server_side_and_records_node_history() -> None:
     service = workflow_service()
@@ -156,6 +157,7 @@ async def test_rain_workflow_runs_server_side_and_records_node_history() -> None
     assert service.get_run(workflow.id, run.id, "alice").id == run.id
 
 
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_decision_node_records_unmatched_branch_without_silent_failure() -> None:
     service = workflow_service()
@@ -168,6 +170,7 @@ async def test_decision_node_records_unmatched_branch_without_silent_failure() -
     assert decision.output_summary == {"matched": False, "branch": "no"}
 
 
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_ai_news_brief_runs_news_action_report_and_notifications() -> None:
     service = workflow_service()
@@ -187,10 +190,13 @@ async def test_ai_news_brief_runs_news_action_report_and_notifications() -> None
     assert service.list_runs(workflow.id, "alice")[0].id == run.id
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
-async def test_real_adapter_records_a_typed_visible_error_for_an_unavailable_chat_report_action() -> None:
+async def test_real_adapter_records_a_typed_visible_error_for_invalid_chat_report_action() -> None:
     service = workflow_service()
-    workflow = service.create_workflow("alice", "AI news brief", news_graph(), enabled=True)
+    graph = news_graph()
+    graph["nodes"][2]["config"] = {}
+    workflow = service.create_workflow("alice", "AI news brief", graph, enabled=True)
 
     run = await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter()).run_workflow(
         workflow,
@@ -200,12 +206,13 @@ async def test_real_adapter_records_a_typed_visible_error_for_an_unavailable_cha
 
     assert run.status == "failed"
     assert run.node_runs[-1].node_id == "report"
-    assert run.node_runs[-1].error_code == "WORKFLOW_ACTION_UNAVAILABLE"
+    assert run.node_runs[-1].error_code == "WORKFLOW_ACTION_INVALID_CONFIG"
     assert run.node_runs[-1].error_summary == (
-        "Create chat report cannot run because no safe server-side chat/report service is available."
+        "Create chat report actions require non-empty title and summary values."
     )
 
 
+# contract-test: direct surface=rest_api assertions=workflows.content.encrypted-retained
 @pytest.mark.asyncio
 async def test_run_content_rows_store_node_outputs_as_encrypted_blob_refs() -> None:
     repository = InMemoryWorkflowRepository()
@@ -225,6 +232,7 @@ async def test_run_content_rows_store_node_outputs_as_encrypted_blob_refs() -> N
     assert "rain_probability" not in raw_blob_rows
 
 
+# contract-test: direct surface=rest_api assertions=workflows.content.encrypted-retained
 @pytest.mark.asyncio
 async def test_default_run_content_retention_keeps_latest_five_durable_blobs() -> None:
     repository = InMemoryWorkflowRepository()
@@ -244,6 +252,7 @@ async def test_default_run_content_retention_keeps_latest_five_durable_blobs() -
     assert len([blob for blob in repository.encrypted_blobs.values() if blob["kind"] == "workflow_run_content"]) == 5
 
 
+# contract-test: direct surface=rest_api assertions=workflows.content.encrypted-retained
 @pytest.mark.asyncio
 async def test_none_retention_keeps_only_latest_ephemeral_run_content() -> None:
     repository = InMemoryWorkflowRepository()
@@ -272,6 +281,7 @@ async def test_none_retention_keeps_only_latest_ephemeral_run_content() -> None:
     assert len([blob for blob in repository.encrypted_blobs.values() if blob["kind"] == "workflow_run_content_ephemeral"]) == 1
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_temporary_workflow_remains_after_run_until_cleanup() -> None:
     repository = InMemoryWorkflowRepository()
@@ -287,6 +297,7 @@ async def test_temporary_workflow_remains_after_run_until_cleanup() -> None:
         service.get_workflow(workflow.id, "alice")
 
 
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained
 @pytest.mark.asyncio
 async def test_provider_binding_revalidation_fails_before_app_skill_execution() -> None:
     service = workflow_service()
