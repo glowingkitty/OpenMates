@@ -778,11 +778,11 @@ verifications:
       status: passed
       timestamp: "2026-08-27T14:27:44Z"
       actor: Codex
-      command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_sync_opencode_runtime_hook.py -q && node --test scripts/tests/test_opencode_hooks_contract.mjs && python3 scripts/verify_opencode_presence_live.py --isolated && python3 scripts/engineering_control_plane.py verify
+      command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_sync_opencode_runtime_hook.py scripts/tests/test_opencode_permission_watcher.py -q && node --test scripts/tests/test_opencode_hooks_contract.mjs && python3 scripts/verify_opencode_presence_live.py --isolated && python3 scripts/engineering_control_plane.py verify
       run_id: live-green-operational-readiness-20260827
-      subject_commit: a92b65c6151763dba54f41e7113d1a21d295d29c
+      subject_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed
       reason: Focused resume/mirror/hook tests, live persistent-control-plane checks, and isolated OpenCode checks passed. The normal zellij-hosted server and every resumed target chat report the same deployed hook hash.
-      summary: Resume now submits directly to prompt_async instead of parking an attach client. Startup atomically mirrors the clean runtime hook into the shared project before OpenCode loads existing sessions. The 41-test hook suite verifies every canonical sessions.py command uses the deployed runtime. Isolated OpenCode 1.17.20 passed busy/idle/abort, permission, collision, and read-only child behavior with equal hook runtime/source hashes. All five resumed chats reported busy/streaming with hook hash 1a6e7a2100870d84d0fca997133a7033067e591266222ad362491c4aa56057f3.
+      summary: Resume now submits directly to prompt_async instead of parking an attach client, and a single-instance loopback watcher preserves execute-mode one-time permission replies. Startup atomically mirrors the clean runtime hook into the shared project before OpenCode loads existing sessions. The 41-test hook suite verifies every canonical sessions.py command uses the deployed runtime. Isolated OpenCode 1.17.20 passed busy/idle/abort, permission, collision, and read-only child behavior with equal hook runtime/source hashes. All five resumed chats reported busy/streaming with hook hash 1a6e7a2100870d84d0fca997133a7033067e591266222ad362491c4aa56057f3 and empty permission queues.
       next_action: Reconcile and resume eligible product chats from their existing managed worktrees.
 
 assumptions:
@@ -1268,11 +1268,33 @@ tasks:
         - scripts/tests/test_sync_opencode_runtime_hook.py
       shared_files: []
 
+  - id: TASK-16
+    title: Preserve execute-mode permission handling after API resume
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - scripts/_zellij_utils.py
+      - scripts/opencode_permission_watcher.py
+      - scripts/tests/test_opencode_permission_watcher.py
+    verification_ids: [T-SESSIONS-WORKTREE, V-OPERATIONAL-READINESS]
+    dependencies: [TASK-15]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/_zellij_utils.py
+        - scripts/opencode_permission_watcher.py
+        - scripts/tests/test_opencode_permission_watcher.py
+      shared_files: []
+
 implementation_state:
   phase: complete
-  subject_commit: a92b65c6151763dba54f41e7113d1a21d295d29c
-  active_task: TASK-15
-  last_updated: "2026-08-27T14:27:44Z"
+  subject_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed
+  active_task: TASK-16
+  last_updated: "2026-08-27T14:30:30Z"
 
 approvals:
   product_contract:
@@ -1351,11 +1373,11 @@ attempts:
     recorded_at: "2026-08-27T01:06:45Z"
 
 handoff:
-  current_task_id: TASK-15
+  current_task_id: TASK-16
   next_action: Reconcile active worktrees against the deployed orchestration commit, resume only unfinished chats, and observe their first minute for real workflow regressions.
   command: python3 scripts/spec_verify.py docs/specs/opencode-orchestration-remediation/spec.yml --phase complete --json
   expected_outcome: Spec evidence passes after TASK-8 through TASK-12 and final operational readiness are complete.
-  last_verified_commit: a92b65c6151763dba54f41e7113d1a21d295d29c
+  last_verified_commit: 32a076c591ab7f21a93153ab62e4002e6119c1ed
   blocker: null
 
 risks:
