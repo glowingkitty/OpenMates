@@ -20,6 +20,10 @@ const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 1
 const PROOF_VIEWPORT = PROOF_DEVICE === 'web-phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
 const VIEWPORTS = IS_PROOF_CAPTURE ? [PROOF_VIEWPORT] : [{ width: 1440, height: 900 }, { width: 390, height: 844 }];
 const PRESERVED_BOARD_SCROLL_LEFT = 72;
+const TERMINAL_RUN_STATUS = /^(completed|failed|cancelled)$/;
+const TERMINAL_NODE_STATUS = /^(completed|failed|skipped)$/;
+const VISIBLE_RUN_DETAIL_STATUS = /^(queued|running|completed|failed|cancelled)$/;
+const VISIBLE_NODE_STATUS = /^(queued|running|completed|failed|skipped)$/;
 
 const READY_RUN_TASKS_PROOF = defineVideoProof({
 	id: 'workflows-ready-run-tasks',
@@ -42,7 +46,7 @@ const READY_RUN_TASKS_PROOF = defineVideoProof({
 		},
 		{
 			id: 'projection-detail-visible',
-			text: 'Tasks shows one in-progress read-only projection for this run. Its detail shows the exact run identifier and live node status.',
+			text: 'Tasks shows one read-only projection for this run. Its detail shows the exact run identifier and live node status, even when the run completes quickly.',
 			checkpoint: 'projection-detail-visible',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -69,7 +73,7 @@ const READY_RUN_TASKS_PROOF = defineVideoProof({
 		{
 			id: 'projection-detail-visible.assertion',
 			checkpoint: 'projection-detail-visible',
-			visual: 'One in-progress projection and its exact live run detail are visible without node task cards or raw protocol text.',
+			visual: 'One active or just-completed projection and its exact run detail are visible without node task cards or raw protocol text.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -97,7 +101,7 @@ function deriveApiUrl(baseUrl: string): string {
 async function expectExactRunProjection(page: any, runId: string) {
 	const projection = page.locator(`[data-testid="workflow-run-projection"][data-workflow-run-id="${runId}"]`);
 	await expect(projection).toHaveCount(1);
-	await expect(projection).toHaveAttribute('data-status', 'in_progress');
+	await expect(projection).toHaveAttribute('data-status', /^(in_progress|done)$/);
 	await expect(page.getByTestId('workflow-run-node-task')).toHaveCount(0);
 	return projection;
 }
@@ -196,9 +200,11 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				const detail = page.getByTestId('workflow-run-projection-detail');
 				await expect(detail).toBeVisible();
 				await expect(page.getByTestId('workflow-run-detail-id')).toHaveText(run.id);
-				await expect(page.getByTestId('workflow-run-detail-live-status')).toHaveAttribute('data-live', 'true');
+				const liveStatus = page.getByTestId('workflow-run-detail-live-status');
+				await expect(liveStatus).toHaveAttribute('data-live', /^(true|false)$/);
+				await expect(liveStatus).toHaveAttribute('data-status', VISIBLE_RUN_DETAIL_STATUS);
 				const runNodeStatus = page.getByTestId('workflow-run-detail-node-status').first();
-				await expect(runNodeStatus).toContainText(/queued|running|completed|failed/i);
+				await expect(runNodeStatus).toHaveAttribute('data-status', VISIBLE_NODE_STATUS);
 				if (viewport.width === 1440) {
 					await expect(detail).toHaveAttribute('data-presentation', 'split');
 				} else {
@@ -212,16 +218,22 @@ test.describe('Ready Workflow run Tasks projection', () => {
 					await proof.checkpoint('projection-detail-visible');
 				}
 
-				const initialStatus = await page.getByTestId('workflow-run-detail-live-status').getAttribute('data-status');
+				const initialStatus = await liveStatus.getAttribute('data-status');
 				const initialNodeStatus = await runNodeStatus.getAttribute('data-status');
-				await expect.poll(async () => {
-					const status = await page.getByTestId('workflow-run-detail-live-status').getAttribute('data-status');
-					return status !== initialStatus && /completed|failed|cancelled/.test(status || '');
-				}, { timeout: 60_000 }).toBe(true);
-				await expect.poll(async () => {
-					const status = await runNodeStatus.getAttribute('data-status');
-					return status !== initialNodeStatus && /completed|failed|cancelled|skipped/.test(status || '');
-				}, { timeout: 60_000 }).toBe(true);
+				if (!TERMINAL_RUN_STATUS.test(initialStatus || '')) {
+					await expect.poll(async () => {
+						const status = await liveStatus.getAttribute('data-status');
+						return status !== initialStatus && TERMINAL_RUN_STATUS.test(status || '');
+					}, { timeout: 60_000 }).toBe(true);
+				}
+				await expect(liveStatus).toHaveAttribute('data-status', 'completed');
+				if (!TERMINAL_NODE_STATUS.test(initialNodeStatus || '')) {
+					await expect.poll(async () => {
+						const status = await runNodeStatus.getAttribute('data-status');
+						return status !== initialNodeStatus && TERMINAL_NODE_STATUS.test(status || '');
+					}, { timeout: 60_000 }).toBe(true);
+				}
+				await expect(runNodeStatus).toHaveAttribute('data-status', 'completed');
 
 				await page.getByTestId('task-detail-close').click();
 				await expect(detail).toHaveCount(0);

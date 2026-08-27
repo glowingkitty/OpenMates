@@ -18024,7 +18024,7 @@ assertions:
       surface: rest_api
     - &id2037
       path: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
-      line: 107
+      line: 111
       name: authors a ready Workflow and preserves the live projected run detail at
         proof viewports
       surface: gui.web
@@ -18100,7 +18100,7 @@ assertions:
     direct_tests:
     - &id2042
       path: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
-      line: 107
+      line: 111
       name: authors a ready Workflow and preserves the live projected run detail at
         proof viewports
       surface: gui.web
@@ -20167,7 +20167,7 @@ assertions:
     direct_tests:
     - &id2308
       path: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
-      line: 107
+      line: 111
       name: authors a ready Workflow and preserves the live projected run detail at
         proof viewports
       surface: gui.web
@@ -20316,7 +20316,7 @@ assertions:
       surface: rest_api
     - &id2353
       path: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
-      line: 107
+      line: 111
       name: authors a ready Workflow and preserves the live projected run detail at
         proof viewports
       surface: gui.web
