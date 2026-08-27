@@ -291,6 +291,24 @@ def update_runtime_operation(
     return {"operation": operation}
 
 
+@router.get("/coordination/runtime-operations")
+def list_runtime_operations(
+    operation_type: str | None = Query(default=None, max_length=80),
+    status: list[str] | None = Query(default=None, max_length=80),
+    limit: int = Query(default=20, ge=1, le=100),
+    identity: Identity = Depends(request_identity),
+    repository: PostgresCoordinationRepository = Depends(get_coordination_repository),
+) -> dict[str, Any]:
+    require_scope(identity, "coordinate")
+    return {
+        "operations": repository.list_runtime_operations(
+            operation_type=operation_type,
+            statuses=status or None,
+            limit=limit,
+        )
+    }
+
+
 @router.get("/coordination/runtime-operations/{operation_key}/blocking-leases")
 def blocking_leases(
     operation_key: str,

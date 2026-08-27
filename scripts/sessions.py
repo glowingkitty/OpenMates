@@ -2214,6 +2214,54 @@ def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
     return _mutate_sessions(mutate)
 
 
+def _list_persistent_docker_operations(*, limit: int = DOCKER_OPERATION_HISTORY_LIMIT) -> list[dict]:
+    if not _persistent_coordination_enabled():
+        return []
+    statuses = sorted(DOCKER_OPERATION_ACTIVE_STATUSES | DOCKER_OPERATION_TERMINAL_STATUSES)
+    query = urllib.parse.urlencode(
+        [
+            ("operation_type", "product_docker_restart"),
+            ("limit", str(max(1, min(limit, 100)))),
+            *[("status", status) for status in statuses],
+        ]
+    )
+    try:
+        response = control_plane_api_request("GET", f"/v1/coordination/runtime-operations?{query}")
+    except ControlPlaneApiError:
+        return []
+    return [_legacy_operation_record(operation) for operation in response.get("operations") or []]
+
+
+def wait_for_docker_operation_admitted(
+    operation_id: str,
+    *,
+    timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+    poll: int = 5,
+) -> dict:
+    """Wait until the persistent runtime-operation queue admits this restart."""
+    if not _persistent_coordination_enabled():
+        return {"id": operation_id, "status": "admitted"}
+    deadline = time.time() + max(0, timeout)
+    poll = max(1, poll)
+    last_report = 0.0
+    while True:
+        operation = update_docker_operation(operation_id, "queued")
+        status = str(operation.get("status") or "")
+        if status == "admitted":
+            return operation
+        if status in DOCKER_OPERATION_TERMINAL_STATUSES:
+            raise RuntimeError(f"Docker operation {operation_id} ended before admission: {status}")
+        if status != "queued":
+            return operation
+        now = time.time()
+        if now >= deadline:
+            raise RuntimeError(f"Timed out after {timeout}s waiting for Docker operation admission: {operation_id}")
+        if last_report == 0.0 or now - last_report >= 60:
+            print(f"Waiting for Docker operation admission: {operation_id}...", flush=True)
+            last_report = now
+        time.sleep(min(poll, max(1, int(deadline - now))))
+
+
 def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
     if _persistent_coordination_enabled():
         response = control_plane_api_request(
@@ -8479,6 +8527,9 @@ def presence_status_view(
     }
     infrastructure = durable.get("infrastructure", {}) if isinstance(durable.get("infrastructure"), dict) else {}
     docker_operations = list(infrastructure.get("docker_operations") or [])
+    persistent_docker_operations = _list_persistent_docker_operations()
+    if persistent_docker_operations:
+        docker_operations = persistent_docker_operations
     active_docker_operation = next(
         (
             operation for operation in docker_operations
@@ -9652,13 +9703,14 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
     try:
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
         _wait_and_acquire_session_lock(
             "docker_rebuild",
             args.session,
             phase="draining_tests",
             timeout=args.timeout,
             poll=args.poll,
-            heartbeat=lambda: update_docker_operation(operation["id"], "queued"),
+            heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
         )
         lock_acquired = True
 

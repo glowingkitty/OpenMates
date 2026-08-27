@@ -301,8 +301,12 @@ class PostgresCoordinationRepository:
             ).fetchone()
             if current is None:
                 raise KeyError(operation_key)
+            current_status = str(current[0])
+            if current_status == "queued" and status not in {"queued", "failed", "cancelled"}:
+                raise ValueError(f"runtime operation is queued and not admitted: {operation_key}")
+            effective_status = current_status if status == "queued" and current_status != "queued" else status
             completed_epoch = None
-            if status == "completed" and current[0] != "completed":
+            if effective_status == "completed" and current_status != "completed":
                 completed_epoch = connection.execute(
                     """
                     UPDATE control_plane_runtime_state
@@ -323,10 +327,10 @@ class PostgresCoordinationRepository:
                 WHERE operation_key = %s
                 """,
                 (
-                    status,
-                    status,
+                    effective_status,
+                    effective_status,
                     now,
-                    status,
+                    effective_status,
                     list(OPERATION_TERMINAL_STATUSES),
                     now,
                     completed_epoch,
@@ -334,9 +338,40 @@ class PostgresCoordinationRepository:
                     operation_key,
                 ),
             )
-            if status in OPERATION_TERMINAL_STATUSES:
+            if effective_status in OPERATION_TERMINAL_STATUSES:
                 self._admit_queued_operations(connection, now)
             return self._operation_row(connection, operation_key)
+
+    def list_runtime_operations(
+        self,
+        *,
+        operation_type: str | None = None,
+        statuses: Iterable[str] | None = None,
+        limit: int = 20,
+    ) -> list[dict[str, Any]]:
+        normalized_statuses = [status for status in (statuses or []) if status]
+        safe_limit = max(1, min(int(limit), 100))
+        clauses = []
+        parameters: list[Any] = []
+        if operation_type:
+            clauses.append("operation_type = %s")
+            parameters.append(operation_type)
+        if normalized_statuses:
+            clauses.append("status = ANY(%s)")
+            parameters.append(normalized_statuses)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with connect(self.database_url) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT operation_key
+                FROM control_plane_runtime_operations
+                {where}
+                ORDER BY requested_at DESC, operation_key DESC
+                LIMIT %s
+                """,
+                (*parameters, safe_limit),
+            ).fetchall()
+            return [self._operation_row(connection, row[0]) for row in rows]
 
     def blocking_leases(self, operation_key: str) -> list[dict[str, Any]]:
         with connect(self.database_url) as connection:

@@ -191,6 +191,54 @@ def test_restart_command_routes_all_compose_operations_through_worktree(monkeypa
     ]
 
 
+def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: checkout_root)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1", "status": "queued"})
+    admission_statuses = iter(["queued", "queued", "admitted"])
+    events = []
+
+    def update_operation(operation_id, status, **kwargs):
+        if status == "queued":
+            status = next(admission_statuses)
+        events.append(("update", status))
+        return {"id": operation_id, "status": status, **kwargs}
+
+    monkeypatch.setattr(sessions, "update_docker_operation", update_operation)
+    monkeypatch.setattr(sessions.time, "sleep", lambda _seconds: events.append(("sleep", "admission")))
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: events.append(("lock", "docker_rebuild")) or True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: events.append(("drain", "tests")) or [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(
+        sessions,
+        "_run_cmd_with_heartbeat",
+        lambda *_args, **_kwargs: events.append(("compose", "restart")) or (0, "", ""),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "wait_for_docker_services_healthy",
+        lambda *_services, **_kwargs: events.append(("health", "verify")) or {"api": {"running": True}},
+    )
+    args = argparse.Namespace(session="abcd", service=["api"], timeout=10, poll=1, health_timeout=1, build=True)
+
+    sessions.cmd_docker_restart(args)
+
+    assert events[:5] == [
+        ("update", "queued"),
+        ("sleep", "admission"),
+        ("update", "queued"),
+        ("sleep", "admission"),
+        ("update", "admitted"),
+    ]
+    assert events.index(("lock", "docker_rebuild")) > events.index(("update", "admitted"))
+    assert events.index(("compose", "restart")) > events.index(("lock", "docker_rebuild"))
+
+
 def test_docker_checkout_root_rejects_unknown_session(monkeypatch) -> None:
     monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
 
