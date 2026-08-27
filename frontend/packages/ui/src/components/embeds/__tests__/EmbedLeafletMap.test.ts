@@ -191,7 +191,7 @@ describe("EmbedLeafletMap theme selection", () => {
       html: expect.stringContaining('<img'),
     }));
     expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
-      html: expect.stringContaining('/icons/maps.svg'),
+      html: expect.stringMatching(/maps[^"']*\.svg/),
     }));
     expect(leafletMocks.markerInstances[1].bindTooltip).toHaveBeenCalledWith("Mainz Hbf", expect.objectContaining({
       permanent: true,

@@ -8,7 +8,7 @@
   Features:
   - Dynamic Leaflet import (SSR-safe)
   - OpenStreetMap tiles with automatic dark mode support
-  - Custom pin markers via CSS mask-image
+  - Custom pin markers using the bundled shared Maps SVG asset
   - ResizeObserver for animation-safe invalidateSize()
   - Configurable center, zoom, markers, and optional polyline path
   - Exposes the Leaflet map instance via onMapReady callback for advanced use
@@ -21,6 +21,7 @@
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import mapsMarkerIconUrl from '../../../static/icons/maps.svg?url';
   import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
   /** A single marker on the map */
@@ -164,6 +165,7 @@
   let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
+  const markerIconHtml = `<img class="marker-icon" src="${mapsMarkerIconUrl}" alt="" aria-hidden="true">`;
 
   function applyTileTheme(isDarkMode: boolean) {
     const container = tileLayer?.getContainer?.();
@@ -222,7 +224,7 @@
     for (const marker of markers) {
       const customIcon = L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<img class="marker-icon" src="/icons/maps.svg" alt="" aria-hidden="true">',
+        html: markerIconHtml,
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       });
@@ -308,7 +310,7 @@
       markerLayer.setOpacity?.(marker.opacity ?? 1);
       markerLayer.setIcon?.(L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<img class="marker-icon" src="/icons/maps.svg" alt="" aria-hidden="true">',
+        html: markerIconHtml,
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       }));
