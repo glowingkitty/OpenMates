@@ -45,7 +45,7 @@ const config: PlaywrightTestConfig = {
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
 		...(videoSize ? { viewport: videoSize } : {}),
-		...(isPhoneProofProfile ? { hasTouch: true, isMobile: true } : {}),
+		...(isPhoneProofProfile ? { hasTouch: true } : {}),
 		...(browserChannel ? { channel: browserChannel } : {}),
 		// Capture artifacts for all tests — used by MD report generator
 		// (test-results/reports/) to show inline screenshots per step.
