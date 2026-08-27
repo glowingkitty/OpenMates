@@ -345,6 +345,7 @@ scenarios:
     when:
       - Alice opens the top-right filter button.
     then:
+      - The filter trigger replaces the funnel icon with a close icon while the panel is open.
       - The filter panel shows only facets that have usable data in the current map-view entries.
       - Time-like fields use range sliders with histogram bars showing entry distribution across the available spectrum.
       - Date-like fields use start/end date controls.
@@ -440,9 +441,11 @@ scenarios:
       - Alice stops moving the map or selects a pin.
     then:
       - The carousel refreshes only when the set of filtered entries intersecting the settled map viewport changes.
-      - Selecting a pin focuses its preview and visually dims other pins without deleting them from the filtered map data.
-      - A Show all results action clears pin or stop selection and restores the filtered result set.
-      - Travel route selection keeps all filtered route geometry visible while dimming non-selected paths.
+      - Map pins use the shared Maps SVG asset instead of a generic location-pin glyph.
+      - Selecting a pin keeps its airport, station, city, or place label visible above the selected pin and visually dims other pins without deleting them from the filtered map data.
+      - Selecting a shared travel stop scopes the carousel to every filtered route that passes through that stop, not just one arbitrary route.
+      - A Show all results action clears pin or stop selection and restores the filtered result set without clearing applied facet filters.
+      - Travel route selection keeps all filtered route geometry visible while dimming non-selected paths; shared-stop selection keeps every matching path active.
 
   - id: S-15
     title: Calendar defaults to the first populated week
@@ -600,7 +603,7 @@ acceptance_criteria:
 
   - id: AC-14
     scenario: S-14
-    text: 'Settled map bounds and pin or route selection coordinate the visible preview set, dim non-selected geometry, and provide a Show all results reset without provider calls.'
+    text: 'Settled map bounds and Maps-SVG pin or route selection coordinate the visible preview set, keep the selected location label visible, retain every route through a selected shared stop, dim non-selected geometry, and provide a Show all results reset that preserves applied filters without provider calls.'
     required: true
     status: pending
     coverage_status: covered
@@ -1099,7 +1102,9 @@ tests:
     assertions:
       - Ready child entries resolve through embedPreviewRegistry and render UnifiedEmbedPreview roots inside the horizontal carousel.
       - The custom ready result-card title/subtitle/category implementation is absent.
-      - Pin selection narrows the carousel, exposes Show all results, and restores the filtered set without re-decoding entries.
+      - The open filter control uses a close icon and one filtered result set drives carousel entries, markers, and route paths.
+      - Pins use the shared Maps SVG; selecting a shared stop keeps its location label visible and narrows the carousel to every matching route.
+      - Show all results clears only map selection and restores the applied-filter result set without re-decoding entries.
       - Calendar starts on the first populated Monday-first week and week navigation preserves filters.
     red_phase:
       required: true

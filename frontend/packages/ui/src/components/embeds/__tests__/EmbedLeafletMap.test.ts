@@ -14,6 +14,7 @@ const leafletMocks = vi.hoisted(() => {
     addTo: ReturnType<typeof vi.fn>;
     setOpacity: ReturnType<typeof vi.fn>;
     bindTooltip: ReturnType<typeof vi.fn>;
+    eventHandlers: Record<string, () => void>;
     elementSetAttribute: ReturnType<typeof vi.fn>;
   }> = [];
   const mapInstance = {
@@ -51,11 +52,17 @@ const leafletMocks = vi.hoisted(() => {
     }),
     marker: vi.fn(() => {
       const elementSetAttribute = vi.fn();
+      const eventHandlers: Record<string, () => void> = {};
       const markerInstance = {
         addTo: vi.fn(() => markerInstance),
         setOpacity: vi.fn(),
         bindTooltip: vi.fn(),
+        on: vi.fn((event: string, callback: () => void) => {
+          eventHandlers[event] = callback;
+          return markerInstance;
+        }),
         getElement: vi.fn(() => ({ setAttribute: elementSetAttribute })),
+        eventHandlers,
         elementSetAttribute,
       };
       markerInstances.push(markerInstance);
@@ -133,6 +140,7 @@ describe("EmbedLeafletMap theme selection", () => {
   // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it("passes marker and path opacity to Leaflet while fitting geometry once on mount", async () => {
     mockOsDarkMode(false);
+    const onMarkerSelect = vi.fn();
     const target = document.createElement("div");
     document.body.appendChild(target);
 
@@ -144,7 +152,17 @@ describe("EmbedLeafletMap theme selection", () => {
         zoomControlPosition: "topleft",
         markers: [
           { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5, testId: "endpoint-marker" },
-          { lat: 52.53, lon: 13.41, label: "Active marker", opacity: 1, testId: "stop-marker" },
+          {
+            lat: 52.53,
+            lon: 13.41,
+            label: "Mainz Hbf",
+            opacity: 1,
+            testId: "stop-marker",
+            ref: "route-one",
+            relatedRefs: ["route-one", "route-two"],
+            selectionKey: "52.530000:13.410000",
+            selected: true,
+          },
         ],
         paths: [
           {
@@ -155,6 +173,7 @@ describe("EmbedLeafletMap theme selection", () => {
             ],
           },
         ],
+        onMarkerSelect,
       },
     });
 
@@ -168,6 +187,19 @@ describe("EmbedLeafletMap theme selection", () => {
     ]);
     expect(leafletMocks.markerInstances[0].elementSetAttribute).toHaveBeenCalledWith("data-testid", "endpoint-marker");
     expect(leafletMocks.markerInstances[1].elementSetAttribute).toHaveBeenCalledWith("data-testid", "stop-marker");
+    expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
+      html: expect.stringContaining('/icons/maps.svg'),
+    }));
+    expect(leafletMocks.markerInstances[1].bindTooltip).toHaveBeenCalledWith("Mainz Hbf", expect.objectContaining({
+      permanent: true,
+      direction: "top",
+    }));
+    leafletMocks.markerInstances[1].eventHandlers.click();
+    expect(onMarkerSelect).toHaveBeenCalledWith(
+      "route-one",
+      ["route-one", "route-two"],
+      "52.530000:13.410000",
+    );
     expect(leafletMocks.polyline).toHaveBeenCalledWith(
       [
         [52.52, 13.405],

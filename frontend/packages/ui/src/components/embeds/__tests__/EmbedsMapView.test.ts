@@ -408,10 +408,12 @@ describe("EmbedsMapView", () => {
 
     const filterButton = target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-filter-button"]');
     expect(filterButton).not.toBeNull();
+    expect(filterButton?.dataset.icon).toBe("filter");
     filterButton!.click();
     await tick();
 
     const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
+    expect(filterButton?.dataset.icon).toBe("close");
     expect(filterMenu?.getAttribute("data-layout")).toBe("results-panel");
     expect(filterMenu?.textContent).toContain("All results");
     expect(filterMenu?.textContent).toContain("event");
@@ -421,6 +423,7 @@ describe("EmbedsMapView", () => {
 
     filterButton!.click();
     await tick();
+    expect(filterButton?.dataset.icon).toBe("filter");
 
     const cards = Array.from(target.querySelectorAll<HTMLButtonElement>('[data-testid="embeds-map-view-card"]'));
     cards[1].dispatchEvent(new Event("pointerenter"));

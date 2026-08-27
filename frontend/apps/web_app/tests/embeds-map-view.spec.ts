@@ -73,6 +73,12 @@ const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
+			id: 'shared-stop-selection',
+			text: 'Selecting Hamad International Airport keeps both filtered Qatar routes and shows the selected stop label.',
+			checkpoint: 'shared-stop-selection',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
 			id: 'local-filter-reset',
 			text: 'The filter can return the view to all five results.',
 			checkpoint: 'local-filter-reset',
@@ -102,6 +108,12 @@ const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
 			id: 'local-route-filter',
 			checkpoint: 'local-route-filter',
 			visual: 'The Qatar carrier chip is selected and the filter summary visibly shows two of five results remain.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'shared-stop-selection',
+			checkpoint: 'shared-stop-selection',
+			visual: 'The selected Hamad International Airport pin keeps its label visible while both Qatar route previews and both matching paths remain present.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -264,6 +276,7 @@ test.describe('Embeds map view preview', () => {
 
 		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
 		await expect(filterButton).toBeVisible();
+		await expect(filterButton).toHaveAttribute('data-icon', 'filter');
 		const filterButtonBox = await filterButton.boundingBox();
 		expect(filterButtonBox, 'filter button box should exist').not.toBeNull();
 		expect(filterButtonBox!.y).toBeLessThan(mapViewBox!.y);
@@ -279,6 +292,7 @@ test.describe('Embeds map view preview', () => {
 			await filterButton.click();
 		}
 		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterButton).toHaveAttribute('data-icon', 'close');
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-controls')).toBeVisible();
 		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
@@ -302,6 +316,35 @@ test.describe('Embeds map view preview', () => {
 			});
 			await proof.checkpoint('local-route-filter');
 		}
+		await filterButton.click();
+		await expect(filterButton).toHaveAttribute('data-icon', 'filter');
+		await expect(cards).toHaveCount(2);
+		await expect(mapPane).toHaveAttribute('data-route-count', '2');
+		await expect(mapPane).toHaveAttribute('data-marker-count', '3');
+
+		const sharedStop = mapPane.locator('[data-marker-label="Hamad International Airport (DOH)"]');
+		await expect(sharedStop).toHaveCount(1);
+		if (proof) {
+			await proof.action('select-shared-stop', async () => {
+				await sharedStop.click();
+			});
+		} else {
+			await sharedStop.click();
+		}
+		await expect(cards).toHaveCount(2);
+		await expect(mapPane).toContainText('Hamad International Airport (DOH)');
+		await expect(mapPane).toHaveAttribute('data-route-count', '2');
+		if (proof) {
+			await proof.assert('shared-stop-selection', async () => {
+				await expect(cards).toHaveCount(2);
+				await expect(mapPane).toContainText('Hamad International Airport (DOH)');
+			});
+			await proof.checkpoint('shared-stop-selection');
+		}
+		await mapView.getByTestId('embeds-map-view-show-all-results').click();
+		await expect(cards).toHaveCount(2);
+
+		await filterButton.click();
 		const resetMenu = mapView.getByTestId('embeds-map-view-filter-menu');
 		if (proof) {
 			await proof.action('select-all-results', async () => {
@@ -318,6 +361,7 @@ test.describe('Embeds map view preview', () => {
 			await proof.checkpoint('local-filter-reset');
 		}
 		await filterButton.click();
+		await expect(filterButton).toHaveAttribute('data-icon', 'filter');
 		await expect(cards).toHaveCount(5);
 
 		await cards.nth(1).hover();
