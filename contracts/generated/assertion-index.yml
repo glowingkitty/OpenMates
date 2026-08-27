@@ -16285,7 +16285,7 @@ assertions:
       surface: gui.web
     - &id1814
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
-      line: 845
+      line: 855
       name: sidebar example chats show newest first and append older results after
         show more
       surface: gui.web
@@ -16451,7 +16451,7 @@ assertions:
       surface: gui.web
     - &id1858
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
-      line: 901
+      line: 911
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
     - &id1859
@@ -16763,17 +16763,17 @@ assertions:
     direct_tests:
     - &id1873
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
-      line: 886
+      line: 896
       name: example chat SSR pages are accessible
       surface: gui.web
     - &id1874
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
-      line: 901
+      line: 911
       name: every example chat SSR page has complete crawlable SEO HTML
       surface: gui.web
     - &id1875
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
-      line: 995
+      line: 1005
       name: production sitemap includes every example chat with lastmod
       surface: gui.web
     supporting_tests: []
@@ -16926,7 +16926,7 @@ assertions:
       surface: gui.web
     - &id1920
       path: frontend/apps/web_app/tests/example-chats-load.spec.ts
-      line: 845
+      line: 855
       name: sidebar example chats show newest first and append older results after
         show more
       surface: gui.web

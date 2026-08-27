@@ -784,6 +784,9 @@ test.describe('Example chats loading for new users', () => {
 			message: 'grouped Deutschlandticket map should render all route polylines',
 			timeout: 15000
 		}).toBeGreaterThanOrEqual(5);
+		const initialRouteCount = Number(
+			await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')
+		);
 		await expect.poll(async () => mapView.getByTestId('embeds-map-view-map').getAttribute('data-map-hydrated'), {
 			message: 'grouped Deutschlandticket map should lazy-hydrate once visible',
 			timeout: 15000
@@ -810,10 +813,17 @@ test.describe('Example chats loading for new users', () => {
 		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
 		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');
+		await filterButton.click();
+		await expect(filterMenu).toBeHidden();
+		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
+			message: 'train-line filtering should keep matching route polylines after returning to the map',
+			timeout: 15000
+		}).toBeGreaterThan(0);
 		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
 			message: 'train-line filtering should reduce visible route polylines without reloading the chat',
 			timeout: 15000
-		}).toBeGreaterThan(0);
+		}).toBeLessThan(initialRouteCount);
+		await filterButton.click();
 		await mapView.getByTestId('embeds-map-view-clear-filters').click();
 
 		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);
