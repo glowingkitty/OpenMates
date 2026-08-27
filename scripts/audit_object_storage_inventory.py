@@ -721,7 +721,7 @@ def main() -> int:
         except Exception as exc:
             report = {
                 "status": "blocked",
-                "failure_class": type(exc).__name__,
+                **sanitized_provider_error(exc),
                 "object_keys_in_output": False,
             }
     elif args.backfill_recovered_source:
@@ -738,7 +738,7 @@ def main() -> int:
         except Exception as exc:
             report = {
                 "status": "blocked",
-                "failure_class": type(exc).__name__,
+                **sanitized_provider_error(exc),
                 "object_keys_in_output": False,
             }
     else:
