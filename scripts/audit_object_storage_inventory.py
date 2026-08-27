@@ -35,6 +35,7 @@ from backend.shared.python_utils.object_storage_regions import (  # noqa: E402
 PROBE_BUCKET_PREFIX = "dev-openmates-region-probe"
 MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
 SHA256_METADATA_KEY = "openmates-sha256"
+EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
 
 
@@ -493,8 +494,31 @@ def classify_inventory(
     }
 
 
-async def probe_region_capabilities(regions: tuple[str, ...]) -> list[dict[str, str]]:
-    """Create, access, and remove one temporary empty bucket in each region."""
+def probe_managed_bucket(client: object, bucket: str, object_key: str) -> None:
+    """Verify required data-plane operations and always remove the probe object."""
+    written = False
+    try:
+        client.head_bucket(Bucket=bucket)
+        client.put_object(
+            Bucket=bucket,
+            Key=object_key,
+            Body=b"",
+            Metadata={SHA256_METADATA_KEY: EMPTY_SHA256},
+        )
+        written = True
+        response = client.head_object(Bucket=bucket, Key=object_key)
+        if int(response.get("ContentLength", -1)) != 0:
+            raise RuntimeError("Capability probe object size mismatch")
+    finally:
+        if written:
+            client.delete_object(Bucket=bucket, Key=object_key)
+
+
+async def probe_region_capabilities(
+    environment: str,
+    regions: tuple[str, ...],
+) -> list[dict[str, object]]:
+    """Probe read/write/delete against one existing managed bucket per region."""
     import boto3
     from botocore.config import Config
 
@@ -509,7 +533,7 @@ async def probe_region_capabilities(regions: tuple[str, ...]) -> list[dict[str, 
             raise RuntimeError("Object-storage credentials are unavailable")
 
         results = []
-        probe_suffix = uuid.uuid4().hex[:12]
+        probe_suffix = uuid.uuid4().hex
         for region in regions:
             client = boto3.client(
                 "s3",
@@ -519,25 +543,21 @@ async def probe_region_capabilities(regions: tuple[str, ...]) -> list[dict[str, 
                 aws_secret_access_key=secret_key,
                 config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
             )
-            bucket_name = f"{PROBE_BUCKET_PREFIX}-{region}-{probe_suffix}"
-            created = False
+            bucket_name = resolve_regional_bucket_name(
+                get_bucket_name("chatfiles", environment),
+                region,
+            )
+            object_key = f".openmates-region-probe/{probe_suffix}"
             try:
-                await asyncio.to_thread(client.create_bucket, Bucket=bucket_name)
-                created = True
-                await asyncio.to_thread(client.head_bucket, Bucket=bucket_name)
+                await asyncio.to_thread(
+                    probe_managed_bucket,
+                    client,
+                    bucket_name,
+                    object_key,
+                )
                 results.append({"region": region, "status": "passed"})
             except Exception as exc:
                 results.append({"region": region, "status": "failed", **sanitized_provider_error(exc)})
-            finally:
-                if created:
-                    try:
-                        await asyncio.to_thread(client.delete_bucket, Bucket=bucket_name)
-                    except Exception as exc:
-                        results.append({
-                            "region": region,
-                            "status": "cleanup_failed",
-                            "error_class": type(exc).__name__,
-                        })
         return results
     finally:
         await secrets.aclose()
@@ -670,19 +690,19 @@ def main() -> int:
         return 0
 
     regions = parse_storage_regions(args.regions)
+    environment = "development" if args.env == "dev" else "production"
     if args.dry_run:
         report = build_dry_run_report(args.env, regions)
     elif args.probe_regions:
         report = {
             "status": "capability_probe",
             "environment": args.env,
-            "results": asyncio.run(probe_region_capabilities(regions)),
+            "results": asyncio.run(probe_region_capabilities(environment, regions)),
             "object_keys_in_output": False,
         }
     elif args.verify_replicas:
         if args.source_region not in regions:
             parser.error("--source-region must be included in configured regions")
-        environment = "development" if args.env == "dev" else "production"
         try:
             report = asyncio.run(
                 verify_replica_inventory(
@@ -701,7 +721,6 @@ def main() -> int:
     elif args.backfill_recovered_source:
         if args.source_region not in regions:
             parser.error("--source-region must be included in configured regions")
-        environment = "development" if args.env == "dev" else "production"
         try:
             report = asyncio.run(
                 schedule_recovered_source_backfill(
@@ -717,7 +736,6 @@ def main() -> int:
                 "object_keys_in_output": False,
             }
     else:
-        environment = "development" if args.env == "dev" else "production"
         try:
             report = asyncio.run(
                 provision_regional_buckets(
