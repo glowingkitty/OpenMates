@@ -2245,7 +2245,9 @@
     min-height: 535px;
     max-height: 535px;
     box-sizing: border-box;
-    overflow: hidden;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
     padding: 14px 14px 18px;
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--color-primary, #6c63ff) 8%, transparent), transparent 160px),
@@ -2257,14 +2259,22 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 8px;
+    justify-self: start;
+    inline-size: min(100%, calc(100cqw - 28px));
     min-height: 36px;
+    position: sticky;
+    left: 0;
+    z-index: 1;
   }
 
   .calendar-week-toolbar strong {
     color: var(--color-font-primary, #222222);
     font-size: var(--font-size-xxs, 0.75rem);
     font-weight: 650;
+    overflow: hidden;
     text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .calendar-week-toolbar button {
@@ -2300,8 +2310,9 @@
     display: grid;
     grid-template-columns: 44px repeat(7, minmax(0, 1fr));
     gap: 0;
+    justify-self: start;
     min-width: 620px;
-    overflow: auto;
+    overflow: hidden;
     border-radius: var(--radius-6, 14px);
     background: var(--color-grey-0, #ffffff);
     box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
