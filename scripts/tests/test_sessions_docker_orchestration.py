@@ -267,7 +267,16 @@ def test_runtime_provenance_rejects_healthy_container_on_wrong_mount(monkeypatch
         sessions._record_product_runtime_services(["api"], checkout_root, "commit", "tree")
 
 
-def test_restart_command_routes_all_compose_operations_through_shared_runtime(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    ("build", "expected_compose_args"),
+    [
+        (False, ["up", "-d", "--no-deps", "--force-recreate", "api"]),
+        (True, ["up", "-d", "--no-deps", "--build", "api"]),
+    ],
+)
+def test_restart_command_routes_all_compose_operations_through_shared_runtime(
+    monkeypatch, tmp_path, build, expected_compose_args
+):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
     monkeypatch.setattr(
@@ -296,13 +305,13 @@ def test_restart_command_routes_all_compose_operations_through_shared_runtime(mo
         "wait_for_docker_services_healthy",
         lambda _services, *, checkout_root, **_kwargs: roots.append(("health", checkout_root)) or {"api": {"running": True}},
     )
-    args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=False)
+    args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=build)
 
     sessions.cmd_docker_restart(args)
 
     assert roots == [
         ("available", checkout_root),
-        ("restart", checkout_root, [str(checkout_root), "up", "-d", "--force-recreate", "api"]),
+        ("restart", checkout_root, [str(checkout_root), *expected_compose_args]),
         ("health", checkout_root),
     ]
 

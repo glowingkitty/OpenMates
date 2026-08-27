@@ -10014,9 +10014,9 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
         if not persistent_coordination:
             _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
         if getattr(args, "build", False):
-            compose_args = ["up", "-d", "--build", *services]
+            compose_args = ["up", "-d", "--no-deps", "--build", *services]
         elif incoherent_services:
-            compose_args = ["up", "-d", "--force-recreate", *services]
+            compose_args = ["up", "-d", "--no-deps", "--force-recreate", *services]
         else:
             compose_args = ["restart", *services]
         rc, stdout, stderr = _run_cmd_with_heartbeat(
