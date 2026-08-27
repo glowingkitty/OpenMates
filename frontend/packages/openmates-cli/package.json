@@ -18,7 +18,7 @@
     "dev": "tsup src/index.ts src/cli.ts src/remoteAccessCrypto.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test:unit:crypto": "node --test --experimental-strip-types tests/crypto.test.ts",
-    "test:unit:storage": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/storage.test.ts",
+    "test:unit:storage": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/storage.test.ts tests/uploadService.test.ts",
     "test:unit:keychain": "node --test --experimental-strip-types tests/keychain.test.ts",
     "test:unit:signup": "node --test tests/signup.test.ts",
     "test:unit:security-setup": "node --test tests/security-setup.test.ts",
