@@ -1925,6 +1925,7 @@ def acquire_test_resource_lease(
     *,
     timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
     poll: int = 5,
+    mode: str = "shared",
 ) -> dict:
     """Acquire a shared test lease after any conflicting restart completes."""
     if not resources:
@@ -1933,16 +1934,32 @@ def acquire_test_resource_lease(
         deadline = time.time() + max(0, timeout)
         while True:
             try:
-                response = control_plane_api_request(
-                    "POST",
-                    "/v1/coordination/leases",
-                    data={
-                        "lease_key": lease_id,
-                        "owner_key": _coordination_owner_key(),
-                        "resources": sorted(resources),
-                        "ttl_seconds": DOCKER_TEST_LEASE_TTL_SECONDS,
-                    },
-                )
+                lease_payload = {
+                    "lease_key": lease_id,
+                    "owner_key": _coordination_owner_key(),
+                    "resources": sorted(resources),
+                    "ttl_seconds": DOCKER_TEST_LEASE_TTL_SECONDS,
+                    "mode": mode,
+                }
+                try:
+                    response = control_plane_api_request(
+                        "POST",
+                        "/v1/coordination/leases",
+                        data=lease_payload,
+                    )
+                except ControlPlaneApiError as compatibility_exc:
+                    if compatibility_exc.status != 422 or '"mode"' not in compatibility_exc.detail:
+                        raise
+                    # Rolling upgrade compatibility: the previous private API
+                    # understood only exclusive leases. Retry once without mode;
+                    # shared concurrency becomes active immediately after the
+                    # independent control-plane deployment is upgraded.
+                    lease_payload.pop("mode")
+                    response = control_plane_api_request(
+                        "POST",
+                        "/v1/coordination/leases",
+                        data=lease_payload,
+                    )
                 return _legacy_lease_record(response["lease"], owner=owner)
             except ControlPlaneApiError as exc:
                 if exc.status != 409 or time.time() >= deadline:
@@ -1961,6 +1978,14 @@ def acquire_test_resource_lease(
             if operation and resources.intersection(operation.get("resources", [])):
                 blocked_by = str(operation.get("id") or "unknown")
                 return None
+            for active_lease in _infrastructure_state(data)["test_leases"].values():
+                if not isinstance(active_lease, dict) or active_lease.get("lease_id") == lease_id:
+                    continue
+                overlap = resources.intersection(active_lease.get("resources", []))
+                active_mode = str(active_lease.get("mode") or "shared")
+                if overlap and (mode == "exclusive" or active_mode == "exclusive"):
+                    blocked_by = str(active_lease.get("lease_id") or "unknown")
+                    return None
             now = _now_iso()
             lease = {
                 "lease_id": lease_id,
@@ -1968,6 +1993,7 @@ def acquire_test_resource_lease(
                 "owner_pid": os.getpid(),
                 "owner_host": socket.gethostname(),
                 "resources": sorted(resources),
+                "mode": mode,
                 "acquired_at": now,
                 "updated_at": now,
             }
@@ -1984,9 +2010,15 @@ def acquire_test_resource_lease(
         time.sleep(min(poll, max(1, int(deadline - time.time()))))
 
 
-def renew_test_resource_lease(lease_id: str, owner: str, resources: set[str]) -> dict:
+def renew_test_resource_lease(
+    lease_id: str,
+    owner: str,
+    resources: set[str],
+    *,
+    mode: str = "shared",
+) -> dict:
     """Renew a lease held by this process without waiting behind other work."""
-    return acquire_test_resource_lease(lease_id, owner, resources, timeout=0, poll=1)
+    return acquire_test_resource_lease(lease_id, owner, resources, timeout=0, poll=1, mode=mode)
 
 
 def release_test_resource_lease(lease_id: str) -> bool:

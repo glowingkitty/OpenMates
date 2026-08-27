@@ -31,7 +31,7 @@ def test_docker_lease_heartbeat_renews_until_runner_finishes(monkeypatch) -> Non
     monkeypatch.setattr(
         control.session_control,
         "renew_test_resource_lease",
-        lambda lease_id, owner, resources: renewed.append((lease_id, owner, resources)),
+        lambda lease_id, owner, resources, *, mode: renewed.append((lease_id, owner, resources, mode)),
     )
 
     def slow_run(command, **_kwargs):
@@ -40,10 +40,12 @@ def test_docker_lease_heartbeat_renews_until_runner_finishes(monkeypatch) -> Non
 
     monkeypatch.setattr(control.subprocess, "run", slow_run)
 
-    result = control.run_with_docker_lease_heartbeat(
-        ["runner"], env={}, lease_id="test-123", owner="session-1", resources={"dev-stack"}
+    result = control.run_with_resource_lease_heartbeats(
+        ["runner"],
+        env={},
+        leases=[("test-123", "session-1", {"dev-stack"}, "shared")],
     )
 
     assert result == 0
     assert renewed
-    assert renewed[0] == ("test-123", "session-1", {"dev-stack"})
+    assert renewed[0] == ("test-123", "session-1", {"dev-stack"}, "shared")

@@ -24,6 +24,8 @@ scope:
     - Inventory and classify every current Directus, JSON-artifact, status, admin, UI, cron, and runner consumer before cutover.
     - Make test dispatches, runtime mutations, resource leases, and cross-session coordination durable and atomic so no supported command can bypass an active lease.
     - Deduplicate equivalent test dispatches and expose typed, cursor-based session events so chats wait on state changes instead of polling and sleeping.
+    - Model test resources with shared reader leases and exclusive writer leases, and allocate persistent test accounts atomically so independent GitHub jobs can run concurrently.
+    - Keep the resource-constrained Apple host on one deterministic native-test lane while parallelizing Linux and GitHub-hosted work around it.
   out:
     - Moving product users, authentication, chats, messages, tasks, workflows, billing, safety, or compliance data.
     - Replacing GitHub Actions, Playwright, pytest, Vitest, CLI, or Apple test execution engines.
@@ -218,6 +220,19 @@ scenarios:
       - A changed runtime epoch permits a new dispatch after an environmental interruption.
       - Typed targeted events let waiting chats resume from a durable cursor without fixed sleeps or loss across process restarts.
       - A chat that observes temporary contention enters a renewable waiting state, follows lock-owner transitions, receives an explicit ready signal, and continues in the same response instead of returning a terminal blocker.
+  - id: S-12
+    title: Independent tests use available capacity without overloading shared hosts
+    given:
+      - Multiple chats request browser, unit, product-runtime, and Apple verification for exact commits.
+      - Normal Playwright account slots are available and the Apple host has limited memory and disk.
+    when:
+      - The orchestrator admits and schedules the work.
+    then:
+      - Browser readers share the stable dev runtime while each claims one exclusive persistent account.
+      - A Docker mutation waits for all overlapping runtime readers and blocks new readers until it completes.
+      - Playwright work advances through a dynamic account queue without batch-wide barriers.
+      - Independent GitHub unit suites run in parallel with browser work and check out the exact requested commit.
+      - Apple sync, build, test, and startup verification share one host-wide lane with no parallel simulators, duplicate worktrees, or per-chat DerivedData trees.
 
 acceptance_criteria:
   - id: AC-1
@@ -324,6 +339,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-COORDINATION-CORE, T-CHAT-RESOURCE-WAIT, T-LIFECYCLE-INDEPENDENCE]
+  - id: AC-14
+    scenario: S-12
+    text: Shared runtime readers, exclusive runtime writers, and exclusive account leases are admitted atomically; Playwright uses a dynamic account queue; exact-commit GitHub suites may overlap; and every Apple-native command remains serialized on one resource-bounded host lane.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-COORDINATION-CORE]
 
 assumptions:
   - id: A-1
@@ -588,9 +611,9 @@ tests:
     type: pytest
     file: backend/engineering_control_plane/tests/test_coordination.py
     command: python3 -m pytest backend/engineering_control_plane/tests/test_coordination.py -q
-    covers: [AC-13]
+    covers: [AC-13, AC-14]
     assertions:
-      - Overlapping exclusive resource leases conflict atomically while disjoint leases can coexist.
+      - Shared leases for the same resource coexist, while an overlapping exclusive lease conflicts atomically and disjoint leases can coexist.
       - Runtime operations remain queued until every conflicting lease is released or expires.
       - Equivalent active or successful dispatches reuse one durable request, while a changed runtime epoch creates a new request.
       - Dispatch starts only after its declared service canary succeeds and records a stable prevented reason when it cannot start.

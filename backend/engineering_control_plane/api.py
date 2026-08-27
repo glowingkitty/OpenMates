@@ -51,6 +51,7 @@ class LeaseAcquireRequest(BaseModel):
     owner_key: str = Field(min_length=1, max_length=512)
     resources: list[str] = Field(min_length=1, max_length=64)
     ttl_seconds: int = Field(default=900, ge=30, le=86_400)
+    mode: str = Field(default="exclusive", pattern="^(shared|exclusive)$")
 
 
 class LeaseTransferRequest(BaseModel):
@@ -198,6 +199,7 @@ def acquire_lease(
             owner_key=request.owner_key,
             resources=request.resources,
             ttl_seconds=request.ttl_seconds,
+            mode=request.mode,
         )
     except CoordinationConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

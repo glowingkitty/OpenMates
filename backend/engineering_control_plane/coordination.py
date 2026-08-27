@@ -38,6 +38,13 @@ class LeaseConflict(RuntimeError):
     """Raised when requested resources overlap an active exclusive lease."""
 
 
+class LeaseMode(StrEnum):
+    """Compatibility mode for a resource lease."""
+
+    SHARED = "shared"
+    EXCLUSIVE = "exclusive"
+
+
 class SessionEventType(StrEnum):
     """Allowlisted event kinds understood by coordination clients."""
 
@@ -107,6 +114,7 @@ class ResourceLease:
     owner: str
     resources: frozenset[str]
     expires_at: datetime
+    mode: LeaseMode = LeaseMode.EXCLUSIVE
     status: str = "active"
 
 
@@ -186,6 +194,7 @@ class InMemoryCoordinationStore:
         resources: set[str],
         expires_at: datetime,
         now: datetime,
+        mode: LeaseMode = LeaseMode.EXCLUSIVE,
     ) -> ResourceLease:
         if not resources:
             raise ValueError("resources must not be empty")
@@ -196,15 +205,19 @@ class InMemoryCoordinationStore:
             self._expire_leases(now)
             existing = self._leases.get(lease_key)
             if existing and existing.status == "active":
-                if existing.owner == owner and existing.resources == normalized:
+                if existing.owner == owner and existing.resources == normalized and existing.mode == mode:
                     existing.expires_at = expires_at
                     return existing
                 raise LeaseConflict(f"lease key already active: {lease_key}")
             for lease in self._leases.values():
-                if lease.status == "active" and lease.resources & normalized:
+                if (
+                    lease.status == "active"
+                    and lease.resources & normalized
+                    and (lease.mode == LeaseMode.EXCLUSIVE or mode == LeaseMode.EXCLUSIVE)
+                ):
                     overlap = ",".join(sorted(lease.resources & normalized))
                     raise LeaseConflict(f"resources already leased: {overlap}")
-            lease = ResourceLease(lease_key, owner, normalized, expires_at)
+            lease = ResourceLease(lease_key, owner, normalized, expires_at, mode)
             self._leases[lease_key] = lease
             return lease
 

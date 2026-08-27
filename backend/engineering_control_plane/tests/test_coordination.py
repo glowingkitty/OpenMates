@@ -18,8 +18,32 @@ from backend.engineering_control_plane.coordination import (
     DispatchSpec,
     InMemoryCoordinationStore,
     LeaseConflict,
+    LeaseMode,
     SessionEventType,
 )
+
+
+def test_shared_leases_coexist_but_exclusive_lease_waits() -> None:
+    store = InMemoryCoordinationStore()
+    for lease_key in ("reader-a", "reader-b"):
+        store.acquire_lease(
+            lease_key=lease_key,
+            owner=lease_key,
+            resources={"product-runtime"},
+            expires_at=NOW + timedelta(minutes=10),
+            now=NOW,
+            mode=LeaseMode.SHARED,
+        )
+
+    with pytest.raises(LeaseConflict):
+        store.acquire_lease(
+            lease_key="writer",
+            owner="restart",
+            resources={"product-runtime"},
+            expires_at=NOW + timedelta(minutes=10),
+            now=NOW,
+            mode=LeaseMode.EXCLUSIVE,
+        )
 
 
 NOW = datetime(2026, 8, 26, 12, 0, tzinfo=timezone.utc)

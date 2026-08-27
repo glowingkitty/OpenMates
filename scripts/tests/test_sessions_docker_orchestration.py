@@ -210,7 +210,7 @@ def test_official_cloud_docker_command_fails_closed_without_compose_file(monkeyp
         sessions._docker_compose_command("restart", "api")
 
 
-def test_direct_dev_runner_holds_docker_resource_lease(monkeypatch):
+def test_direct_dev_runner_does_not_hold_a_suite_wide_docker_resource_lease(monkeypatch):
     run_tests = load_run_tests_module()
     args = SimpleNamespace(
         environment="development",
@@ -235,8 +235,8 @@ def test_direct_dev_runner_holds_docker_resource_lease(monkeypatch):
     )
 
     assert run_tests._run_with_dev_stack_lease(args, lambda: 7) == 7
-    assert acquired[0][2] == {"dev-stack"}
-    assert released == [acquired[0][0]]
+    assert acquired == []
+    assert released == []
 
 
 def test_restart_waits_for_existing_dependent_test(monkeypatch, tmp_path):

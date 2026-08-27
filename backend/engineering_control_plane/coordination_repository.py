@@ -40,17 +40,20 @@ class PostgresCoordinationRepository:
         owner_key: str,
         resources: Iterable[str],
         ttl_seconds: int,
+        mode: str = "exclusive",
     ) -> dict[str, Any]:
         normalized = sorted({resource.strip() for resource in resources if resource.strip()})
         if not normalized:
             raise ValueError("resources must not be empty")
+        if mode not in {"shared", "exclusive"}:
+            raise ValueError(f"unsupported lease mode: {mode}")
         now = _utc_now()
         expires_at = now + timedelta(seconds=ttl_seconds)
         with connect(self.database_url) as connection:
             self._lock_resources(connection, normalized)
             self._expire_leases(connection, now)
             existing = connection.execute(
-                "SELECT owner_key, status FROM control_plane_resource_leases WHERE lease_key = %s FOR UPDATE",
+                "SELECT owner_key, status, mode FROM control_plane_resource_leases WHERE lease_key = %s FOR UPDATE",
                 (lease_key,),
             ).fetchone()
             if existing is not None:
@@ -65,6 +68,8 @@ class PostgresCoordinationRepository:
                 }
                 if existing_resources != set(normalized):
                     raise CoordinationConflict(f"lease resources cannot change during renewal: {lease_key}")
+                if existing[2] != mode:
+                    raise CoordinationConflict(f"lease mode cannot change during renewal: {lease_key}")
                 connection.execute(
                     "UPDATE control_plane_resource_leases SET expires_at = %s WHERE lease_key = %s",
                     (expires_at, lease_key),
@@ -88,14 +93,30 @@ class PostgresCoordinationRepository:
             ).fetchone()
             if operation is not None:
                 raise CoordinationConflict(f"runtime operation owns requested resources: {operation[0]}")
+            conflicting_lease = connection.execute(
+                """
+                SELECT lease.lease_key
+                FROM control_plane_resource_leases lease
+                JOIN control_plane_resource_lease_items item ON item.lease_key = lease.lease_key
+                WHERE lease.status = 'active'
+                  AND item.status = 'active'
+                  AND item.resource_key = ANY(%s)
+                  AND (lease.mode = 'exclusive' OR %s = 'exclusive')
+                ORDER BY lease.acquired_at, lease.lease_key
+                LIMIT 1
+                """,
+                (normalized, mode),
+            ).fetchone()
+            if conflicting_lease is not None:
+                raise CoordinationConflict(f"requested resources are already leased: {conflicting_lease[0]}")
             try:
                 connection.execute(
                     """
                     INSERT INTO control_plane_resource_leases
-                        (lease_key, owner_key, status, acquired_at, expires_at)
-                    VALUES (%s, %s, 'active', %s, %s)
+                        (lease_key, owner_key, status, acquired_at, expires_at, mode)
+                    VALUES (%s, %s, 'active', %s, %s, %s)
                     """,
-                    (lease_key, owner_key, now, expires_at),
+                    (lease_key, owner_key, now, expires_at, mode),
                 )
                 with connection.cursor() as cursor:
                     cursor.executemany(
