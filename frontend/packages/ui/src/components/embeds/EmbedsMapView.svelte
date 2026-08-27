@@ -1717,8 +1717,11 @@
     background: transparent;
     color: var(--color-font-secondary, #666666);
     flex: 1 1 0;
+    min-width: 0;
     height: 100%;
+    margin-right: 0;
     padding: 0;
+    filter: none;
     font: inherit;
     font-size: var(--font-size-xxs, 0.75rem);
     font-weight: 650;
@@ -1769,13 +1772,18 @@
     display: inline-flex;
     align-items: center;
     width: 42px;
+    min-width: 42px;
+    max-width: 42px;
     height: 42px;
+    flex: 0 0 42px;
     justify-content: center;
     border: 0;
     border-radius: 999px;
     background: var(--color-grey-0, #ffffff);
-    color: var(--color-primary, #6c63ff);
+    color: var(--color-font-primary, #222222);
     padding: 0;
+    margin-right: 0;
+    filter: none;
     font: inherit;
     font-size: var(--font-size-xxs);
     line-height: 1;
@@ -1788,7 +1796,7 @@
   .filter-icon {
     width: 22px;
     height: 22px;
-    background: currentColor;
+    background: var(--gradient-primary);
     -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
     mask-image: url('@openmates/ui/static/icons/filter.svg');
     -webkit-mask-size: contain;
@@ -1797,6 +1805,13 @@
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
+  }
+
+  .filter-button:hover,
+  .filter-button:active {
+    background: var(--color-grey-0, #ffffff);
+    filter: none;
+    scale: 1;
   }
 
   .filter-menu {

@@ -211,6 +211,10 @@ test.describe('Embeds map view preview', () => {
 		expect(visualTabsBox, 'visual tabs box should exist').not.toBeNull();
 		expect(visualTabsBox!.y).toBeLessThan(mapViewBox!.y);
 		expect(visualTabsBox!.y + visualTabsBox!.height).toBeGreaterThan(mapViewBox!.y);
+		expect(visualTabsBox!.width).toBeCloseTo(170, 0);
+		const tabButtons = visualTabs.getByRole('tab');
+		expect((await tabButtons.first().boundingBox())?.width).toBeCloseTo(85, 0);
+		expect((await tabButtons.last().boundingBox())?.width).toBeCloseTo(85, 0);
 		expect(await mapView.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(243, 243, 243)');
 		const calendarTab = mapView.getByTestId('embeds-results-view-tab-calendar');
 		if (proof) {
@@ -264,6 +268,8 @@ test.describe('Embeds map view preview', () => {
 		expect(filterButtonBox, 'filter button box should exist').not.toBeNull();
 		expect(filterButtonBox!.y).toBeLessThan(mapViewBox!.y);
 		expect(filterButtonBox!.y + filterButtonBox!.height).toBeGreaterThan(mapViewBox!.y);
+		expect(filterButtonBox!.width).toBeCloseTo(42, 0);
+		expect(filterButtonBox!.height).toBeCloseTo(42, 0);
 		expect(await filterButton.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 255, 255)');
 		if (proof) {
 			await proof.action('open-filter-menu', async () => {
