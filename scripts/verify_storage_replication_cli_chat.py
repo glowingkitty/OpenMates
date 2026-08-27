@@ -22,13 +22,11 @@ import time
 from typing import Any
 import uuid
 
-from botocore.exceptions import ClientError
-
-
 ROOT = Path(__file__).resolve().parents[1]
 CLI_DIR = ROOT / "frontend/packages/openmates-cli"
 CLI_DIST = CLI_DIR / "dist/cli.js"
 LOGIN_HELPER = ROOT / "scripts/openmates_cli_test_account.mjs"
+DEFAULT_RUNTIME_VERIFIER = "/app/scripts/verify_storage_replication_cli_chat.py"
 POLL_INTERVAL_SECONDS = 5
 DEFAULT_TIMEOUT_SECONDS = 180
 REPORT_FIELDS = (
@@ -117,7 +115,7 @@ def _runtime_command(
         "exec",
         "api",
         "python",
-        "/app/scripts/verify_storage_replication_cli_chat.py",
+        os.getenv("OPENMATES_STORAGE_RUNTIME_VERIFIER", DEFAULT_RUNTIME_VERIFIER),
         "--runtime-content-hash",
         content_hash,
         "--verify-regions",
@@ -130,12 +128,20 @@ def _runtime_command(
     return command
 
 
+def _cli_command(*args: str) -> list[str]:
+    executable = os.getenv("OPENMATES_CLI")
+    if executable:
+        return [executable, *args]
+    return ["node", str(CLI_DIST), *args]
+
+
 def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
     if args.scenario != "image-question":
         raise RuntimeError("unsupported_scenario")
     if not args.cleanup:
         raise RuntimeError("cleanup_is_required")
-    _run(["npm", "run", "build"], cwd=CLI_DIR, timeout=300)
+    if os.getenv("OPENMATES_CLI_SKIP_BUILD") != "1":
+        _run(["npm", "run", "build"], cwd=CLI_DIR, timeout=300)
     with tempfile.TemporaryDirectory(prefix="openmates-regional-cli-") as temporary:
         home = Path(temporary)
         (home / "backend").symlink_to(ROOT / "backend", target_is_directory=True)
@@ -162,9 +168,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                 f"Inspect @{image_path} and reply with exactly the large token visible in the image."
             )
             chat = _run(
-                [
-                    "node",
-                    str(CLI_DIST),
+                _cli_command(
                     "--api-url",
                     args.api_url,
                     "chats",
@@ -173,7 +177,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                     "--json",
                     "--response-timeout-seconds",
                     str(args.timeout_seconds),
-                ],
+                ),
                 cwd=CLI_DIR,
                 env=env,
                 timeout=args.timeout_seconds + 120,
@@ -197,9 +201,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                 raise RuntimeError("regional_replica_verification_failed")
             if args.cleanup:
                 _run(
-                    [
-                        "node",
-                        str(CLI_DIST),
+                    _cli_command(
                         "--api-url",
                         args.api_url,
                         "chats",
@@ -207,7 +209,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                         chat_id,
                         "--yes",
                         "--json",
-                    ],
+                    ),
                     cwd=CLI_DIR,
                     env=env,
                 )
@@ -237,9 +239,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
             if chat_id and not cleanup_verified:
                 try:
                     _run(
-                        [
-                            "node",
-                            str(CLI_DIST),
+                        _cli_command(
                             "--api-url",
                             args.api_url,
                             "chats",
@@ -247,7 +247,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                             chat_id,
                             "--yes",
                             "--json",
-                        ],
+                        ),
                         cwd=CLI_DIR,
                         env=env,
                     )
@@ -266,7 +266,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                 if not cleanup_verified:
                     raise RuntimeError("mandatory_cleanup_failed")
             subprocess.run(
-                ["node", str(CLI_DIST), "--api-url", args.api_url, "logout", "--yes"],
+                _cli_command("--api-url", args.api_url, "logout", "--yes"),
                 cwd=CLI_DIR,
                 env=env,
                 text=True,
@@ -300,6 +300,8 @@ async def _load_runtime_services() -> tuple[Any, Any, Any]:
 
 
 async def _runtime_verify(args: argparse.Namespace) -> dict[str, Any]:
+    from botocore.exceptions import ClientError
+
     from backend.core.api.app.services.s3.config import get_bucket_name
     from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
 

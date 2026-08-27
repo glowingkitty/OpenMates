@@ -53,3 +53,19 @@ def test_cli_verifier_sanitizes_runtime_replica_evidence() -> None:
         "verified_region_count": 3,
         "deleted_region_count": 0,
     }
+
+
+# contract-test: supporting surface=cli assertions=storage.replication.active-write-durable-outbox,storage.privacy.ciphertext-boundary
+def test_cli_verifier_accepts_installed_cli_and_runtime_script(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _module()
+    monkeypatch.setenv("OPENMATES_CLI", "/usr/local/bin/openmates")
+    monkeypatch.setenv("OPENMATES_STORAGE_RUNTIME_VERIFIER", "/tmp/storage-verifier.py")
+
+    assert module._cli_command("chats", "new") == ["/usr/local/bin/openmates", "chats", "new"]
+    command = module._runtime_command(
+        content_hash="a" * 64,
+        regions=("nbg1", "fsn1", "hel1"),
+        expect_deleted=False,
+        timeout=180,
+    )
+    assert command[4] == "/tmp/storage-verifier.py"
