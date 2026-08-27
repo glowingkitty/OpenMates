@@ -77,6 +77,18 @@ contracts:
     fingerprint: 13274281876467bef228a64fcda9096a91f061becdc56b57f716f83ac77b0819
     required_surfaces:
     - cli
+  feature.account-import:
+    version: 1
+    status: draft
+    path: features/account-import
+    fingerprint: 1e5d758369e8d183090e17cb667b32d283c90a75b2b9f6e90c00de4dd0370718
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.ai-model-routing:
     version: 1
     status: draft
@@ -1112,6 +1124,42 @@ assertions:
     fingerprint: af4ea0302ef1bf4826389deb3d5d95d3eed1bf82aee4d952a333b8a4f6331f22
     required_surfaces:
     - cli
+  account-import.source.explicit-selection:
+    contract: feature.account-import@1
+    contract_id: feature.account-import
+    type: behavior
+    fingerprint: 267c9afc2c3ca3ab6adf1323622fa4a19397948a947d635586055fb8e7346366
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  account-import.review.confirmed-results:
+    contract: feature.account-import@1
+    contract_id: feature.account-import
+    type: behavior
+    fingerprint: acadbec4f4f9d4d1e231b5134c00e8e8d9e13afa8bc80124be6bc5faf164ca97
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  account-import.persistence.client-encrypted:
+    contract: feature.account-import@1
+    contract_id: feature.account-import
+    type: privacy
+    fingerprint: f15949274792724ac5296ae9953e178f6cadb6e68281e352ac38ab4e3505478a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   ai-model-routing.tiers.conservative-three-way:
     contract: feature.ai-model-routing@1
     contract_id: feature.ai-model-routing
