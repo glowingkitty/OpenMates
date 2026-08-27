@@ -13,6 +13,7 @@ import re
 from subprocess import CompletedProcess
 import sys
 from types import SimpleNamespace
+import urllib.parse
 
 import pytest
 
@@ -101,13 +102,21 @@ def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, m
 def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkeypatch) -> None:
     captured = {}
 
-    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    class Response:
+        status = 204
 
-    def capture_popen(command, **kwargs):
-        captured["command"] = command
-        return FakeProcess()
+        def __enter__(self):
+            return self
 
-    monkeypatch.setattr(_zellij_utils.subprocess, "Popen", capture_popen)
+        def __exit__(self, *_args):
+            return False
+
+    def capture_urlopen(request, timeout):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", capture_urlopen)
 
     assert _zellij_utils.resume_opencode_session(
         "resume-example",
@@ -116,12 +125,17 @@ def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkey
         "Continue the interrupted review.",
     )
 
-    command = captured["command"]
-    assert command[command.index("--session") + 1] == "ses_existing"
-    assert "--title" not in command
-    assert command[command.index("--agent") + 1] == "plan"
-    assert "--auto" not in command
-    assert "claude" not in " ".join(command).lower()
+    request = captured["request"]
+    assert request.method == "POST"
+    assert "/session/ses_existing/prompt_async?" in request.full_url
+    assert urllib.parse.parse_qs(urllib.parse.urlparse(request.full_url).query) == {
+        "directory": [str(tmp_path)],
+    }
+    assert json.loads(request.data) == {
+        "agent": "plan",
+        "parts": [{"type": "text", "text": "Continue the interrupted review."}],
+    }
+    assert captured["timeout"] == 15
 
 
 def test_find_opencode_session_id_ignores_older_same_title(tmp_path: Path, monkeypatch) -> None:

@@ -671,14 +671,44 @@ def resume_opencode_session(
     prompt: str = "The server restarted and this session was interrupted. Continue where you left off.",
     permission_mode: str = "plan",
 ) -> bool:
-    """Send a continuation prompt to an existing OpenCode session."""
-    return spawn_opencode_session(
-        session_name=session_name,
-        prompt=prompt,
-        cwd=cwd,
-        permission_mode=permission_mode,
-        opencode_session_id=opencode_session_id,
+    """Send a continuation directly through the existing OpenCode Web API.
+
+    ``opencode run --attach --session`` can attach to the event stream without
+    ever submitting its positional prompt. The asynchronous prompt endpoint is
+    the server's deterministic resume primitive and returns as soon as the
+    generation has been accepted.
+    """
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    if permission_mode not in {"plan", "execute", "execute-readonly"}:
+        print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
+        return False
+    provider_id, separator, model_id = OPENCODE_EXECUTE_MODEL.partition("/")
+    if permission_mode != "plan" and (not separator or not provider_id or not model_id):
+        print(f"Warning: invalid OpenCode execute model '{OPENCODE_EXECUTE_MODEL}'.", file=sys.stderr)
+        return False
+    body: dict[str, object] = {
+        "agent": "plan" if permission_mode == "plan" else "build",
+        "parts": [{"type": "text", "text": prompt}],
+    }
+    if permission_mode != "plan":
+        body["model"] = {"providerID": provider_id, "modelID": model_id}
+        body["variant"] = OPENCODE_EXECUTE_VARIANT
+    query = urllib.parse.urlencode({"directory": cwd})
+    request = urllib.request.Request(
+        f"{OPENCODE_SERVER_URL}/session/{urllib.parse.quote(opencode_session_id, safe='')}/prompt_async?{query}",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            return 200 <= int(response.status) < 300
+    except (OSError, urllib.error.URLError) as exc:
+        print(f"Warning: OpenCode continuation request failed: {exc}", file=sys.stderr)
+        return False
 
 
 def find_opencode_session_id(
