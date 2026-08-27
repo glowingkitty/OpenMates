@@ -1210,6 +1210,7 @@ if target_platform == "ios":
         "org.openmates.app.watch",
     }
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+    REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS = {"org.openmates.app"}
 elif target_platform == "macos":
     scheme_name = "OpenMates_macOS"
     archive_filename = "OpenMatesMac.xcarchive"
@@ -1225,6 +1226,7 @@ elif target_platform == "macos":
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+    REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS = set()
 elif target_platform == "watchos":
     scheme_name = "OpenMatesWatch"
     archive_filename = "OpenMatesWatch.xcarchive"
@@ -1239,6 +1241,7 @@ elif target_platform == "watchos":
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set()
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+    REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS = set()
 else:
     print(f"unsupported_target_platform={target_platform}")
     sys.exit(2)
@@ -1673,6 +1676,9 @@ def sync_bundle_capabilities():
         if identifier == "org.openmates.app":
             enable_bundle_capability(bundle_id, "ASSOCIATED_DOMAINS")
             print(f"capability_sync=passed:{identifier}:ASSOCIATED_DOMAINS")
+        if identifier in REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS:
+            enable_bundle_capability(bundle_id, "PUSH_NOTIFICATIONS")
+            print(f"capability_sync=passed:{identifier}:PUSH_NOTIFICATIONS")
 
 
 def existing_profile(profile_name):
@@ -1722,6 +1728,11 @@ def assert_profile_supports_required_entitlements(identifier, profile_path):
             print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > Keychain Sharing")
             sys.exit(1)
         print(f"profile_keychain_group=passed:{identifier}")
+    if identifier in REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS:
+        if entitlements.get("aps-environment") not in {"development", "production"}:
+            print(f"profile_push_notifications=missing:{identifier}")
+            sys.exit(1)
+        print(f"profile_push_notifications=passed:{identifier}")
 
 
 def create_or_download_app_store_profiles():
