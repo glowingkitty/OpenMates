@@ -28,6 +28,11 @@
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
   const HISTOGRAM_BUCKETS = 12;
   const CALENDAR_WEEK_DAYS = 7;
+  const CALENDAR_VISIBLE_HOURS = 8;
+  const CALENDAR_MINUTES_PER_HOUR = 60;
+  const CALENDAR_MIN_EVENT_MINUTES = 38;
+  const CALENDAR_DEFAULT_EVENT_MINUTES = 45;
+  const CALENDAR_EVENT_STACK_MINUTES = 45;
 
   interface Props {
     id: string;
@@ -233,6 +238,12 @@
   const firstCalendarWeekStart = $derived(calendarEntries.length > 0 ? weekStartOrdinal(calendarEntries[0].dateOrdinal) : null);
   const activeCalendarWeekStart = $derived(calendarWeekStartOrdinal ?? firstCalendarWeekStart);
   const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
+  const calendarTimelineStartMinutes = $derived.by(() => {
+    if (calendarEntries.length === 0) return 0;
+    const earliestStart = Math.min(...calendarEntries.map((entry) => entry.startMinutes));
+    return Math.floor(earliestStart / CALENDAR_MINUTES_PER_HOUR) * CALENDAR_MINUTES_PER_HOUR;
+  });
+  const calendarHourLabels = $derived(Array.from({ length: CALENDAR_VISIBLE_HOURS }, (_, index) => calendarTimelineStartMinutes + (index * CALENDAR_MINUTES_PER_HOUR)));
   const mapCenter = $derived.by(() => {
     const points = [
       ...mapMarkers.map((marker) => ({ lat: marker.lat, lon: marker.lon })),
@@ -818,6 +829,29 @@
   function formatCalendarTime(item: CalendarEntry): string {
     if (item.endMinutes == null) return formatTimeMinutes(item.startMinutes);
     return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
+  }
+
+  function formatCalendarHour(value: number): string {
+    return `${Math.floor(value / CALENDAR_MINUTES_PER_HOUR).toString().padStart(2, '0')}:00`;
+  }
+
+  function calendarItemStyle(item: CalendarEntry, dayItemIndex: number): string {
+    const visibleRangeMinutes = CALENDAR_VISIBLE_HOURS * CALENDAR_MINUTES_PER_HOUR;
+    const scheduledTopMinutes = Math.max(0, item.startMinutes - calendarTimelineStartMinutes);
+    const stackedTopMinutes = dayItemIndex * CALENDAR_EVENT_STACK_MINUTES;
+    const topMinutes = Math.min(
+      Math.max(scheduledTopMinutes, stackedTopMinutes),
+      visibleRangeMinutes - CALENDAR_MIN_EVENT_MINUTES,
+    );
+    const rawEndMinutes = item.endMinutes != null && item.endMinutes > item.startMinutes
+      ? item.endMinutes
+      : item.startMinutes + CALENDAR_DEFAULT_EVENT_MINUTES;
+    const heightMinutes = Math.min(
+      Math.max(rawEndMinutes - item.startMinutes, CALENDAR_MIN_EVENT_MINUTES),
+      CALENDAR_EVENT_STACK_MINUTES - 4,
+    );
+
+    return `--calendar-item-top-hours: ${topMinutes / CALENDAR_MINUTES_PER_HOUR}; --calendar-item-height-hours: ${heightMinutes / CALENDAR_MINUTES_PER_HOUR};`;
   }
 
   function formatCalendarDayLabel(value: number): string {
@@ -1618,11 +1652,19 @@
         <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
           {#if activeCalendarWeekStart != null}
             <header class="calendar-week-toolbar">
-              <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}>Previous</button>
+              <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}><span aria-hidden="true">&lt;</span></button>
               <strong data-testid="embeds-results-view-calendar-week-label">{formatCalendarWeekLabel(activeCalendarWeekStart)}</strong>
-              <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}>Next</button>
+              <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
             </header>
             <div class="calendar-week" data-testid="embeds-results-view-calendar-week">
+              <div class="calendar-time-column" aria-hidden="true">
+                <span class="calendar-time-column-spacer"></span>
+                <div class="calendar-time-slots">
+                  {#each calendarHourLabels as hour}
+                    <span>{formatCalendarHour(hour)}</span>
+                  {/each}
+                </div>
+              </div>
               {#each calendarWeekDays as day}
                 <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day">
                   <header class="calendar-day-header">
@@ -1630,7 +1672,7 @@
                     <strong>{formatCalendarDayNumber(day.dateOrdinal)}</strong>
                   </header>
                   <div class="calendar-items">
-                    {#each day.entries as item}
+                    {#each day.entries as item, itemIndex}
                       <button
                         type="button"
                         class="calendar-item"
@@ -1640,6 +1682,7 @@
                         data-testid="embeds-results-view-calendar-item"
                         data-entry-category={item.entry.category}
                         data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
+                        style={calendarItemStyle(item, itemIndex)}
                         onclick={() => openEntry(item.entry)}
                         onpointerenter={() => (hoveredRef = item.entry.ref)}
                         onpointerleave={() => handleEntryPointerLeave(item.entry.ref)}
@@ -1648,7 +1691,6 @@
                       >
                         <span class="calendar-time">{formatCalendarTime(item)}</span>
                         <span class="calendar-copy">
-                          <span class="category-pill">{item.entry.category}</span>
                           <strong>{item.entry.title}</strong>
                           <span>{item.entry.subtitle}</span>
                         </span>
@@ -2198,13 +2240,13 @@
   .results-view-calendar {
     display: grid;
     align-content: start;
-    gap: 12px;
+    gap: 8px;
     height: 535px;
     min-height: 535px;
     max-height: 535px;
     box-sizing: border-box;
-    overflow: auto;
-    padding: 14px;
+    overflow: hidden;
+    padding: 14px 14px 18px;
     background:
       linear-gradient(180deg, color-mix(in srgb, var(--color-primary, #6c63ff) 8%, transparent), transparent 160px),
       var(--color-grey-20, #f3f3f3);
@@ -2212,85 +2254,150 @@
 
   .calendar-week-toolbar {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    min-height: 36px;
   }
 
   .calendar-week-toolbar strong {
     color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-small, 0.875rem);
+    font-size: var(--font-size-xxs, 0.75rem);
+    font-weight: 650;
     text-align: center;
   }
 
   .calendar-week-toolbar button {
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: 999px;
-    background: var(--color-grey-0, #ffffff);
+    display: inline-grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border: 0;
+    border-radius: var(--radius-4, 10px);
+    background: transparent;
     color: var(--color-font-primary, #222222);
-    padding: 7px 10px;
+    padding: 0;
     font: inherit;
-    font-size: var(--font-size-xxs, 0.75rem);
+    font-size: var(--font-size-large, 1.125rem);
+    line-height: 1;
     cursor: pointer;
   }
 
+  .calendar-week-toolbar button:first-child {
+    justify-self: end;
+  }
+
+  .calendar-week-toolbar button:last-child {
+    justify-self: start;
+  }
+
+  .calendar-week-toolbar button:hover {
+    background: var(--color-grey-10, #f9f9f9);
+  }
+
   .calendar-week {
+    --calendar-hour-height: 46px;
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 5px;
-    min-width: 0;
+    grid-template-columns: 44px repeat(7, minmax(0, 1fr));
+    gap: 0;
+    min-width: 620px;
+    overflow: auto;
+    border-radius: var(--radius-6, 14px);
+    background: var(--color-grey-0, #ffffff);
+    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
+  }
+
+  .calendar-time-column,
+  .calendar-day {
+    display: grid;
+    grid-template-rows: 42px calc(var(--calendar-hour-height) * 8);
+    min-height: 0;
+  }
+
+  .calendar-time-column {
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-tiny, 0.6875rem);
+    font-weight: 650;
+  }
+
+  .calendar-time-column-spacer {
+    border-right: 1px solid var(--color-grey-20, #f3f3f3);
+    border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
+  }
+
+  .calendar-time-slots {
+    display: grid;
+    grid-template-rows: repeat(8, var(--calendar-hour-height));
+    border-right: 1px solid var(--color-grey-20, #f3f3f3);
+    background: var(--color-grey-0, #ffffff);
+  }
+
+  .calendar-time-slots span {
+    align-self: start;
+    justify-self: end;
+    padding: 0 6px 0 0;
+    transform: translateY(-0.55em);
   }
 
   .calendar-day {
-    display: grid;
-    grid-template-rows: auto 1fr;
-    gap: 8px;
-    min-height: 300px;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: var(--radius-5, 12px);
-    background: color-mix(in srgb, var(--color-grey-0, #ffffff) 88%, transparent);
-    padding: 8px;
+    gap: 0;
+    border-left: 1px solid var(--color-grey-20, #f3f3f3);
+    background: var(--color-grey-0, #ffffff);
+    padding: 0;
   }
 
   .calendar-day.today {
-    border-color: var(--color-primary, #6c63ff);
+    background: var(--color-grey-10, #f9f9f9);
   }
 
   .calendar-day-header {
     display: grid;
     align-items: center;
-    gap: 2px;
-    color: var(--color-font-secondary, #666666);
+    align-content: center;
+    gap: 1px;
+    min-height: 42px;
+    border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
+    color: var(--color-font-primary, #222222);
     font-size: var(--font-size-xxs, 0.75rem);
+    font-weight: 650;
     text-align: center;
   }
 
   .calendar-day-header strong {
     color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-small, 0.875rem);
+    font-size: var(--font-size-xxs, 0.75rem);
   }
 
   .calendar-items {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-height: 220px;
-    overflow-y: auto;
+    min-height: calc(var(--calendar-hour-height) * 8);
+    overflow: hidden;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent calc(var(--calendar-hour-height) - 1px),
+        var(--color-grey-20, #f3f3f3) calc(var(--calendar-hour-height) - 1px),
+        var(--color-grey-20, #f3f3f3) var(--calendar-hour-height)
+      );
   }
 
   .calendar-item {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 6px;
-    width: 100%;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: var(--radius-5, 12px);
-    background: var(--color-grey-0, #ffffff);
+    position: absolute;
+    top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height));
+    right: 6px;
+    left: 6px;
+    display: block;
+    height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height));
+    overflow: hidden;
+    border: 0;
+    border-left: 3px solid var(--color-error, #e74c3c);
+    border-radius: var(--radius-3, 8px);
+    background: color-mix(in srgb, var(--color-error, #e74c3c) 16%, var(--color-grey-0, #ffffff));
     color: var(--color-font-primary, #222222);
-    padding: 10px;
+    padding: 5px 6px;
     text-align: left;
-    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
+    box-shadow: none;
     cursor: pointer;
     transition: border-color var(--duration-fast, 0.15s) ease, transform var(--duration-fast, 0.15s) ease;
   }
@@ -2305,39 +2412,42 @@
   }
 
   .calendar-time {
-    align-self: start;
-    border-radius: 999px;
-    background: var(--color-grey-blue, #e6eaff);
+    display: block;
+    overflow: hidden;
+    border-radius: 0;
+    background: transparent;
     color: var(--color-font-primary, #222222);
-    padding: 5px 7px;
+    padding: 0;
     font-size: var(--font-size-tiny, 0.6875rem);
     font-weight: 700;
-    line-height: 1.1;
+    line-height: 1;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .calendar-copy {
-    display: grid;
-    gap: 4px;
+    display: block;
     min-width: 0;
   }
 
   .calendar-copy strong {
+    display: -webkit-box;
     overflow: hidden;
     color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-small, 0.875rem);
-    line-height: 1.25;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: var(--font-size-tiny, 0.6875rem);
+    line-height: 1.1;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   .calendar-copy > span:last-child {
     display: -webkit-box;
     overflow: hidden;
     color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-xxs, 0.75rem);
-    line-height: 1.3;
-    -webkit-line-clamp: 2;
+    font-size: 0.625rem;
+    line-height: 1.1;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
   }
 
@@ -2499,12 +2609,8 @@
     }
 
     .calendar-week {
-      grid-template-columns: repeat(7, minmax(88px, 1fr));
-      min-width: 644px;
-    }
-
-    .calendar-item {
-      grid-template-columns: 1fr;
+      grid-template-columns: 42px repeat(7, minmax(88px, 1fr));
+      min-width: 658px;
     }
 
     .calendar-copy strong {
