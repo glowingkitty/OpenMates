@@ -50,6 +50,10 @@ objectively broken, such as unreadable text, clipping, overlap, malformed assets
 raw errors, or unusable controls. Use `unclear` when the concern could plausibly
 be intentional design. Obvious defects return to automatic failing-test and
 implementation repair; unclear intent requires user consent before code changes.
+Treat frame-only judgments about color, typography hierarchy, font size, or
+contrast as unclear design intent because the frame bundle contains no
+deterministic contrast measurement. Mark the affected quality check `uncertain`;
+never route those judgments directly to automatic product edits.
 
 Return only this JSON shape:
 

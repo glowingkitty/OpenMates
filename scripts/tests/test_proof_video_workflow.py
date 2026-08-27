@@ -1112,11 +1112,11 @@ def test_obvious_product_defect_routes_to_automatic_implementation_repair() -> N
             "incidental_findings": [
                 {
                     "id": "UI-1",
-                    "category": "contrast",
+                    "category": "clipping",
                     "severity": "blocking",
                     "confidence": 0.98,
                     "intent": "obvious",
-                    "quality_categories": ["readability"],
+                    "quality_categories": ["layout"],
                     "frames": ["frames/frame-0001.png"],
                     "observation": "Text is unreadable against the menu background.",
                 }
@@ -1132,6 +1132,38 @@ def test_obvious_product_defect_routes_to_automatic_implementation_repair() -> N
     assert result["disposition"] == "auto_fix"
     assert result["return_stage"] == "implementation"
     assert "failing test" in result["next_action"]
+
+
+def test_frame_only_contrast_finding_requires_user_intent() -> None:
+    review = {
+        "status": "product_defect",
+        "confidence": 0.98,
+        "assertions": [
+            {"id": "heading.visible", "verdict": "supported", "frames": ["frames/frame.png"]}
+        ],
+        "frame_reviews": [frame_quality_review("frames/frame.png", readability="fail")],
+        "incidental_findings": [
+            {
+                "id": "UI-1",
+                "category": "contrast",
+                "severity": "blocking",
+                "confidence": 0.98,
+                "intent": "obvious",
+                "quality_categories": ["readability"],
+                "frames": ["frames/frame.png"],
+                "observation": "The intentionally subdued heading appears pale.",
+            }
+        ],
+        "return_stage": "implementation",
+        "next_action": "Change the product colors.",
+    }
+
+    assert workflow.require_user_intent_for_subjective_visual_findings(review) is True
+    assert review["status"] == "uncertain"
+    assert review["return_stage"] == "review"
+    assert review["assertions"][0]["verdict"] == "supported"
+    assert review["frame_reviews"][0]["checks"]["readability"] == "uncertain"
+    assert review["incidental_findings"][0]["intent"] == "unclear"
 
 
 def test_unclear_product_intent_requires_user_consent_before_code_changes() -> None:
@@ -1326,6 +1358,60 @@ def test_review_run_recovers_receipt_written_before_cache_attachment(
     assert recovered["cached"] is True
     assert recovered["status"] == "passed"
     assert recovered["budget"]["ai_review_calls"] == 1
+
+
+def test_review_run_rolls_back_persistence_when_cache_attachment_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "review-rollback")
+    original_manifest = (run_dir / "manifest.json").read_bytes()
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "capture_defect",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", proof_alignment="fail")],
+                "assertions": [
+                    {"id": "visible", "verdict": "not_visible", "frames": ["frames/frame.png"], "observation": "Not visible."}
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "loading",
+                        "severity": "warning",
+                        "confidence": 0.96,
+                        "intent": "obvious",
+                        "quality_categories": ["proof_alignment"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The expected state is not visible.",
+                    }
+                ],
+                "return_stage": "capture",
+                "next_action": "Capture the expected state.",
+            },
+            "ses_reviewer",
+        )
+
+    monkeypatch.setattr(
+        workflow,
+        "record_cached_review",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(workflow.WorkflowError("cache attachment failed")),
+    )
+
+    with pytest.raises(workflow.WorkflowError, match="cache attachment failed"):
+        workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+
+    budget = json.loads(next((tmp_path / "budgets").glob("*.json")).read_text(encoding="utf-8"))
+    assert (run_dir / "manifest.json").read_bytes() == original_manifest
+    assert not (run_dir / "review-receipt.json").exists()
+    assert budget.get("defect_fingerprints", []) == []
+    assert "receipt_path" not in budget["reservations"][0]
 
 
 @pytest.mark.parametrize("status", ["uncertain", "capture_defect", "render_defect", "product_defect"])
@@ -1553,7 +1639,8 @@ def test_cached_failed_review_preserves_representative_frame(tmp_path: Path, mon
         "load_cached_review",
         lambda *_args, **_kwargs: {"status": "capture_defect", "receipt": receipt, "budget": {}, "cached": True},
     )
-    monkeypatch.setattr(spec_demo, "record_review_receipt", lambda _run_dir, _receipt: {"review": {"status": "failed"}})
+    monkeypatch.setattr(spec_demo, "record_review_receipt", lambda _run_dir, _receipt, **_kwargs: {"review": {"status": "failed"}})
+    monkeypatch.setattr(workflow, "record_cached_review", lambda *_args, **_kwargs: {})
 
     result = workflow.review_run(
         run_dir=run_dir,
@@ -1581,20 +1668,20 @@ def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
                 "confidence": 0.9,
                 "frame_index_hash": request["frame_index_hash"],
                 "reviewed_frames": ["frames/frame.png"],
-                "frame_reviews": [frame_quality_review("frames/frame.png", layout="uncertain", geometry="uncertain")],
+                "frame_reviews": [frame_quality_review("frames/frame.png", readability="uncertain")],
                 "assertions": [
                     {"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}
                 ],
                 "incidental_findings": [
                     {
                         "id": "UI-1",
-                        "category": "geometry",
+                        "category": "contrast",
                         "severity": "warning",
                         "confidence": 0.9,
                         "intent": "unclear",
-                        "quality_categories": ["layout", "geometry"],
+                        "quality_categories": ["readability"],
                         "frames": ["frames/frame.png"],
-                        "observation": "Partial adjacent item may be intentional.",
+                        "observation": "The intentionally subdued heading appears pale.",
                     }
                 ],
                 "return_stage": "review",
@@ -1616,7 +1703,7 @@ def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
     result = workflow.approve_visual_intent(
         run_dir=run_dir,
         finding_id="UI-1",
-        reason="User confirmed the partial item is an intentional carousel affordance.",
+        reason="User confirmed the pale heading is intentional visual hierarchy.",
         approved_at="2026-08-25T23:43:00Z",
     )
 
@@ -1624,8 +1711,7 @@ def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
     assert result["approval"]["original_receipt_sha256"] == original_hash
     receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
     assert receipt["status"] == "passed"
-    assert receipt["frame_reviews"][0]["checks"]["layout"] == "pass"
-    assert receipt["frame_reviews"][0]["checks"]["geometry"] == "pass"
+    assert receipt["frame_reviews"][0]["checks"]["readability"] == "pass"
     assert receipt["incidental_findings"] == []
     assert receipt["approved_visual_intents"][0]["finding_id"] == "UI-1"
     assert result["manifest"]["review"]["attempt_count"] == 2
@@ -1640,6 +1726,408 @@ def test_user_approved_visual_intent_resolves_only_cited_uncertainty(
     )
     assert cached["cached"] is True
     assert cached["status"] == "passed"
+
+
+def test_cached_subjective_normalization_replaces_latest_attempt_when_budget_is_full(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import spec_demo
+
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "normalize-full-budget")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "product_defect",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", readability="fail")],
+                "assertions": [
+                    {"id": "visible", "verdict": "contradicted", "frames": ["frames/frame.png"], "observation": "The heading is too pale."}
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "contrast",
+                        "severity": "blocking",
+                        "confidence": 0.96,
+                        "intent": "obvious",
+                        "quality_categories": ["readability"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The intentionally subdued heading appears pale.",
+                    }
+                ],
+                "return_stage": "implementation",
+                "next_action": "Change the product colors.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
+    receipt_without_attempt = {key: value for key, value in receipt.items() if key != "attempt_number"}
+    spec_demo.record_review_receipt(run_dir, receipt_without_attempt)
+    spec_demo.record_review_receipt(run_dir, receipt_without_attempt)
+    budget_path = next((tmp_path / "budgets").glob("*.json"))
+    workflow.record_cached_review(
+        budget_path,
+        device="web-phone",
+        correction_round=0,
+        frame_index_hash=request["frame_index_hash"],
+        source_artifact_hash=request["video_metadata"]["sha256"],
+        caption_artifact_hash=str(request["video_metadata"].get("captions_sha256") or ""),
+        run_dir=run_dir,
+        status="uncertain",
+    )
+
+    cached = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must use cache")),
+    )
+
+    assert cached["cached"] is True
+    assert cached["status"] == "uncertain"
+    assert cached["manifest"]["review"]["attempt_count"] == 3
+    assert len(cached["manifest"]["review"]["attempts"]) == 3
+
+
+def test_user_approved_visual_intent_replaces_latest_duplicate_when_budget_is_full(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import spec_demo
+
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "approve-full-budget")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "uncertain",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", readability="uncertain")],
+                "assertions": [
+                    {"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "The heading is visible."}
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "contrast",
+                        "severity": "blocking",
+                        "confidence": 0.96,
+                        "intent": "unclear",
+                        "quality_categories": ["readability"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The intentionally subdued heading appears pale.",
+                    }
+                ],
+                "return_stage": "review",
+                "next_action": "Ask the user.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
+    receipt_without_attempt = {key: value for key, value in receipt.items() if key != "attempt_number"}
+    spec_demo.record_review_receipt(run_dir, receipt_without_attempt)
+    spec_demo.record_review_receipt(run_dir, receipt_without_attempt)
+    manifest_before = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    retained_original = spec_demo.review_attempt_sha256(manifest_before["review"]["attempts"][1])
+    current_receipt_hash = workflow._file_sha256(run_dir / "review-receipt.json")
+
+    result = workflow.approve_visual_intent(
+        run_dir=run_dir,
+        finding_id="UI-1",
+        reason="User confirmed the pale heading is intentional visual hierarchy.",
+        approved_at="2026-08-27T00:20:00Z",
+    )
+
+    receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
+    attempts = result["manifest"]["review"]["attempts"]
+    approval_receipt_hash = workflow._file_sha256(run_dir / "review-receipt.json")
+    assert result["status"] == "passed"
+    assert result["manifest"]["review"]["attempt_count"] == 3
+    assert len(attempts) == 3
+    assert receipt["attempt_number"] == 3
+    assert receipt["assertions"][0]["verdict"] == "supported"
+    assert receipt["approved_visual_intents"][0]["original_receipt_sha256"] == retained_original
+    assert receipt["approved_visual_intents"][0]["original_receipt_sha256"] != current_receipt_hash
+    assert result["budget"]["reservations"][0]["receipt_sha256"] == approval_receipt_hash
+    spec_demo.require_review_receipt_integrity(run_dir, result["manifest"], verify_video=False)
+
+
+def test_user_approved_visual_intent_rejects_unrelated_same_frame_assertion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "approval-unrelated-assertion")
+    request["expected_proof"] = [
+        {"claim_id": "heading.intentional", "text": "Heading visual hierarchy is visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]},
+        {"claim_id": "cta.visible", "text": "The primary CTA is visible.", "acceptance_criteria": ["AC-2"], "evidence_intervals": [[0.0, 1.0]]},
+    ]
+    request["captions"][0]["claim_ids"] = ["heading.intentional", "cta.visible"]
+    (run_dir / "review-request.json").write_text(json.dumps(request), encoding="utf-8")
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["expected_proof"] = request["expected_proof"]
+    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "uncertain",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", readability="uncertain")],
+                "assertions": [
+                    {
+                        "id": "heading.intentional",
+                        "verdict": "ambiguous",
+                        "frames": ["frames/frame.png"],
+                        "observation": "The heading may be too pale.",
+                    },
+                    {
+                        "id": "cta.visible",
+                        "verdict": "contradicted",
+                        "frames": ["frames/frame.png"],
+                        "observation": "The primary CTA is missing from the captured state.",
+                    },
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "contrast",
+                        "severity": "blocking",
+                        "confidence": 0.96,
+                        "intent": "unclear",
+                        "quality_categories": ["readability"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The intentionally subdued heading appears pale.",
+                    }
+                ],
+                "return_stage": "review",
+                "next_action": "Ask the user.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+
+    with pytest.raises(workflow.WorkflowError, match="unsupported proof assertion"):
+        workflow.approve_visual_intent(
+            run_dir=run_dir,
+            finding_id="UI-1",
+            reason="User confirmed the pale heading is intentional visual hierarchy.",
+            approved_at="2026-08-27T00:20:00Z",
+        )
+
+    receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["status"] == "uncertain"
+    assert receipt["assertions"][0]["verdict"] == "ambiguous"
+    assert receipt["assertions"][1]["verdict"] == "contradicted"
+
+
+def test_user_approved_visual_intent_requires_full_prior_finding_identity_when_budget_is_full(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scripts import spec_demo
+
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "approval-finding-identity")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "uncertain",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", readability="uncertain")],
+                "assertions": [
+                    {
+                        "id": "visible",
+                        "verdict": "supported",
+                        "frames": ["frames/frame.png"],
+                        "observation": "The heading is visible.",
+                    }
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "contrast",
+                        "severity": "blocking",
+                        "confidence": 0.96,
+                        "intent": "unclear",
+                        "quality_categories": ["readability"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The intentionally subdued heading appears pale.",
+                    }
+                ],
+                "return_stage": "review",
+                "next_action": "Ask the user.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    receipt = json.loads((run_dir / "review-receipt.json").read_text(encoding="utf-8"))
+    receipt_without_attempt = {key: value for key, value in receipt.items() if key != "attempt_number"}
+    spec_demo.record_review_receipt(run_dir, receipt_without_attempt)
+    spec_demo.record_review_receipt(run_dir, receipt_without_attempt)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    for attempt in manifest["review"]["attempts"][:-1]:
+        attempt["incidental_findings"][0]["observation"] = "A different same-frame contrast concern."
+    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(workflow.WorkflowError, match="no prior matching unclear receipt"):
+        workflow.approve_visual_intent(
+            run_dir=run_dir,
+            finding_id="UI-1",
+            reason="User confirmed the pale heading is intentional visual hierarchy.",
+            approved_at="2026-08-27T00:20:00Z",
+        )
+
+
+@pytest.mark.parametrize(
+    ("finding_category", "quality_category", "error"),
+    [
+        ("geometry", "geometry", "color or contrast finding"),
+        ("contrast", "proof_alignment", "proof-alignment or structural quality categories"),
+    ],
+)
+def test_user_approved_visual_intent_rejects_non_subjective_scope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    finding_category: str,
+    quality_category: str,
+    error: str,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / f"approval-{finding_category}-{quality_category}")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "uncertain",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", **{quality_category: "uncertain"})],
+                "assertions": [
+                    {"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": finding_category,
+                        "severity": "blocking",
+                        "confidence": 0.96,
+                        "intent": "unclear",
+                        "quality_categories": [quality_category],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The visual treatment may be intentional.",
+                    }
+                ],
+                "return_stage": "review",
+                "next_action": "Ask the user.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+
+    with pytest.raises(workflow.WorkflowError, match=error):
+        workflow.approve_visual_intent(
+            run_dir=run_dir,
+            finding_id="UI-1",
+            reason="User confirmed this treatment is intentional.",
+            approved_at="2026-08-27T00:20:00Z",
+        )
+
+
+def test_user_approved_visual_intent_rolls_back_when_cache_attachment_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(tmp_path / "proof-videos" / "approval-rollback")
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "uncertain",
+                "confidence": 0.96,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png", readability="uncertain")],
+                "assertions": [
+                    {"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}
+                ],
+                "incidental_findings": [
+                    {
+                        "id": "UI-1",
+                        "category": "contrast",
+                        "severity": "blocking",
+                        "confidence": 0.96,
+                        "intent": "unclear",
+                        "quality_categories": ["readability"],
+                        "frames": ["frames/frame.png"],
+                        "observation": "The intentionally subdued heading appears pale.",
+                    }
+                ],
+                "return_stage": "review",
+                "next_action": "Ask the user.",
+            },
+            "ses_reviewer",
+        )
+
+    workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
+    budget_path = next((tmp_path / "budgets").glob("*.json"))
+    original_files = {
+        run_dir / "review-receipt.json": (run_dir / "review-receipt.json").read_bytes(),
+        run_dir / "manifest.json": (run_dir / "manifest.json").read_bytes(),
+        budget_path: budget_path.read_bytes(),
+    }
+    with pytest.raises(workflow.WorkflowError, match="valid timezone-aware approved_at timestamp"):
+        workflow.approve_visual_intent(
+            run_dir=run_dir,
+            finding_id="UI-1",
+            reason="User confirmed the pale heading is intentional visual hierarchy.",
+            approved_at="2026-08-27T00:20:00",
+        )
+    assert {path: path.read_bytes() for path in original_files} == original_files
+
+    monkeypatch.setattr(
+        workflow,
+        "record_cached_review",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(workflow.WorkflowError("cache attachment failed")),
+    )
+
+    with pytest.raises(workflow.WorkflowError, match="cache attachment failed"):
+        workflow.approve_visual_intent(
+            run_dir=run_dir,
+            finding_id="UI-1",
+            reason="User confirmed the pale heading is intentional visual hierarchy.",
+            approved_at="2026-08-27T00:20:00Z",
+        )
+
+    assert {path: path.read_bytes() for path in original_files} == original_files
 
 
 def test_review_publication_integrity_rejects_empty_self_consistent_quality_receipt(

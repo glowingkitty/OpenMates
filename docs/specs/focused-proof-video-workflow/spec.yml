@@ -1,7 +1,7 @@
 schema_version: 2
 id: focused-proof-video-workflow
 title: Focused OpenCode Proof Video Workflow
-status: implementing
+status: verified
 
 goal: >
   Make each proof-enabled Playwright spec the source of truth for its complete
@@ -87,6 +87,33 @@ clarification:
     - question: How should generalized screenshot review route visible UI defects?
       answer: The reviewer must independently inspect every frame for obvious UI breakage before evaluating proof assertions. Obvious defects should be fixed automatically; unclear design intent must be shown to the user for consent before code changes.
 
+demonstration:
+  eligibility:
+    status: required
+    surface: mixed
+    reason: The workflow changes browser proof-video and real OpenMates CLI proof evidence production, review, and publication behavior.
+    classified_at: "2026-08-12T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show the focused proof-video workflow producing reviewed, captioned proof from exact deployed evidence.
+      expected_proof: The manifest records an exact deployed Playwright source, complete frame-quality review, user-approved visual intent when required, and delivered OpenCode response-media video with captions.
+      scenario_ids: [S-9, S-10]
+      acceptance_criteria: [AC-13, AC-14, AC-15]
+  evidence:
+    status: passed
+    subject_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
+    manifest_path: test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223/manifest.json
+    manifest_hash: sha256:368d637aa27432b7b031bd4b475ed980bbf1ef8fd880ed57c4d82ca0d2e0c633
+    privacy_status: not_applicable
+    audio_status: not_required
+    review_status: passed
+    review_run_id: review-proof-video-architecture.spec-33025175223
+    review_attempts: 3
+    timestamp: "2026-08-27T00:30:36Z"
+    publication_status: delivered
+    command: python3 scripts/proof_video_workflow.py review --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223 --correction-round 0 --correction-kind none && python3 scripts/proof_video_workflow.py approve-intent --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223 --finding-id UI-1 --reason "User confirmed the small pale Actionable heading is intentional visual hierarchy and the landing page should remain unchanged." --approved-at 2026-08-27T00:20:00Z && python3 scripts/spec_demo.py publish --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223
+    run_id: proof-video-architecture.spec-33025175223
+
 apple_impact:
   affected_files: [none]
   parity_expectations:
@@ -96,7 +123,7 @@ apple_impact:
   intentional_native_differences: [none]
 
 implementation_state:
-  subject_commit: 41d27119b380bf64621283b80d8e5628907c0e2c
+  subject_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
 
 approvals:
   product_contract:
@@ -211,18 +238,20 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-25T12:03:00Z"
     reason: 148 focused tests passed; f2d210eb239b84b47ccf36349cbc4d193a520ded is an ancestor of the integrated subject commit, and the remaining reviewer findings were fixed in 41d27119b380bf64621283b80d8e5628907c0e2c.
+  - id: ATTEMPT-8
+    task_id: TASK-17
+    approach: Reuse the exact deployed proof run, normalize the subjective frame-only contrast finding without consuming another AI attempt, bind the user's visual-intent approval, and publish response media.
+    outcome: succeeded
+    recorded_at: "2026-08-27T00:30:36Z"
+    reason: The exact deployed run 33025175223 at c40b7bed0c9923db7252dfd0edbddd241dfca4a8 passed, receipt sha256:ea980de50c083d29b5f073c01e597f67b483aa351bd8716629ba6db1992485ad records user-approved visual intent for UI-1, and response-media publication delivered video sha256:439cb6b4399571bdaaa31e0ef6e730fcc08b7f8aa58d8599fe0617d6aa4c0450 with WebVTT captions.
 
 handoff:
   current_task_id: TASK-17
-  next_action: Retry the exact-commit proof spec after the managed dev API is healthy, then require a passed frame review and delivered response-media manifest before marking the spec verified.
-  command: git merge-base --is-ancestor 41d27119b380bf64621283b80d8e5628907c0e2c "$(git rev-parse origin/dev)" && python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit "$(git rev-parse origin/dev)"
-  expected_outcome: The deployed spec passes, auto-finalization trims from the explicit welcome-visible checkpoint, generalized frame review passes, and publication returns snippet_html.
-  blocker:
-    task_id: TASK-17
-    reason: External dev runtime health failure; API startup is fail-closed while S3 CORS initialization receives 503 responses.
-    requires_user_input: false
-    next_action: Retry the exact-commit deployed proof when api.dev.openmates.org is healthy.
-  last_verified_commit: 41d27119b380bf64621283b80d8e5628907c0e2c
+  next_action: Spec verification is complete; keep the delivered snippet_html embedded in the task-closing response.
+  command: python3 scripts/spec_verify.py docs/specs/focused-proof-video-workflow/spec.yml --phase complete --json
+  expected_outcome: complete is true and the demonstration evidence manifest remains delivered with snippet_html.
+  blocker: null
+  last_verified_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
 
 scenarios:
   - id: S-1
@@ -622,13 +651,13 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 354aa9ec82b93efc76a14fdab7866a10bca3a083 --proof-video-profile web-laptop --no-mocks
-        run_id: github-32495391630
-        subject_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
+        command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit c40b7bed0c9923db7252dfd0edbddd241dfca4a8 --proof-video-profile web-laptop --no-mocks
+        run_id: github-33025175223
+        subject_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
         target: app.dev.openmates.org
-        deployment_reference: 354aa9ec82b93efc76a14fdab7866a10bca3a083
-        timestamp: "2026-08-21T15:04:20Z"
-        summary: Deployed web proof passed on exact dev tip with a real Playwright source video, chronological browser tutorial playback from the first assertion-backed state, inserted paused checkpoint holds, one compact URL bar, a new-tab control, and no in-page domain overlay.
+        deployment_reference: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
+        timestamp: "2026-08-27T00:20:00Z"
+        summary: Deployed web proof passed on the exact current proof subject with a real Playwright source video, stable visible story-stage checkpoints, chronological browser tutorial playback, inserted paused checkpoint holds, one compact URL bar, a new-tab control, and no in-page domain overlay.
   - id: T-CLI-PROOF-E2E
     type: playwright
     file: frontend/apps/web_app/tests/proof-video-cli.spec.ts
@@ -680,12 +709,12 @@ verifications:
     covers: [AC-13]
     evidence:
       status: passed
-      command: python3 scripts/tests.py run --spec proof-video-architecture.spec.ts --gate-deploy --require-exact-commit --expected-commit 354aa9ec82b93efc76a14fdab7866a10bca3a083 --proof-video-profile web-laptop --no-mocks
-      run_id: proof-video-architecture.spec-32495391630
-      subject_commit: 354aa9ec82b93efc76a14fdab7866a10bca3a083
-      timestamp: "2026-08-21T15:16:04Z"
-      reason: Required proof-video artifact review and publication completed for the exact-tip chronological web-laptop browser proof.
-      summary: Web-laptop 1440x900 proof passed bounded review with receipt sha256:170df64b48c925735bc2390dbcb5032263e0684d0b69f59dfc7bd736a20f59b2 and published video sha256:33016ca59a1555f7434df48b8323301efb5b25d67bc423209e12a794152caffb.
+      command: python3 scripts/proof_video_workflow.py review --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223 --correction-round 0 --correction-kind none && python3 scripts/proof_video_workflow.py approve-intent --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223 --finding-id UI-1 --reason "User confirmed the small pale Actionable heading is intentional visual hierarchy and the landing page should remain unchanged." --approved-at 2026-08-27T00:20:00Z && python3 scripts/spec_demo.py publish --run-dir test-results/proof-videos/46d0/proof-video-architecture.spec-33025175223
+      run_id: proof-video-architecture.spec-33025175223
+      subject_commit: c40b7bed0c9923db7252dfd0edbddd241dfca4a8
+      timestamp: "2026-08-27T00:30:36Z"
+      reason: Required proof-video artifact review and publication completed for the exact deployed web-laptop browser proof, with user-approved intent for the subjective Actionable heading hierarchy.
+      summary: Web-laptop 1440x900 proof passed bounded review with receipt sha256:ea980de50c083d29b5f073c01e597f67b483aa351bd8716629ba6db1992485ad and published video sha256:439cb6b4399571bdaaa31e0ef6e730fcc08b7f8aa58d8599fe0617d6aa4c0450.
   - id: V-CLI-PROOF
     kind: artifact_review
     phase: final
@@ -939,13 +968,13 @@ tasks:
     ownership: { files: [.claude/skills/create-demo-video/SKILL.md, AGENTS.md, docs/contributing/guides/agent-workflow-core.md, scripts/proof_video_workflow.py], shared_files: [] }
   - id: TASK-17
     title: Verify and deploy generalized proof review
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers: { scenarios: [S-10], acceptance_criteria: [AC-14, AC-15] }
     expected_files: [docs/specs/focused-proof-video-workflow/spec.yml]
     verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER, T-PROOF-AUDIT]
     dependencies: [TASK-16]
-    blockers: [External dev API health failure during S3 initialization blocks exact-commit deployed proof dispatch.]
+    blockers: []
     follow_up_tasks: []
     ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
 

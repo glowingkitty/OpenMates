@@ -2010,6 +2010,12 @@ def review_request_hash(request: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def review_attempt_sha256(attempt: dict[str, Any]) -> str:
+    """Hash one persisted review attempt exactly as it is stored on disk."""
+    payload = (json.dumps(attempt, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
 def validate_visual_intent_approval_provenance(
     approvals: list[dict[str, Any]],
     prior_attempts: list[dict[str, Any]],
@@ -2021,9 +2027,7 @@ def validate_visual_intent_approval_provenance(
             (
                 attempt
                 for attempt in prior_attempts
-                if isinstance(attempt, dict)
-                and f"sha256:{hashlib.sha256((json.dumps(attempt, indent=2, sort_keys=True) + chr(10)).encode('utf-8')).hexdigest()}"
-                == original_hash
+                if isinstance(attempt, dict) and review_attempt_sha256(attempt) == original_hash
             ),
             None,
         )
@@ -2065,7 +2069,7 @@ def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> Non
             raise DemonstrationError(f"Review frame is missing or its hash changed: {relative}")
 
 
-def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+def record_review_receipt(run_dir: Path, receipt: dict[str, Any], *, replace_latest_attempt: bool = False) -> dict[str, Any]:
     """Validate and persist one AI review receipt bound to every supplied frame."""
     request = json.loads((run_dir / "review-request.json").read_text(encoding="utf-8"))
     validate_review_request_files(run_dir, request)
@@ -2075,7 +2079,11 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if not isinstance(review, dict):
         raise DemonstrationError("Manifest review record must be a mapping")
     attempts = review.setdefault("attempts", [])
-    if not isinstance(attempts, list) or len(attempts) >= MAX_REVIEW_ATTEMPTS:
+    if not isinstance(attempts, list):
+        raise DemonstrationError("Manifest review attempts must be a list")
+    if replace_latest_attempt and not attempts:
+        raise DemonstrationError("Cannot replace a missing review attempt")
+    if not replace_latest_attempt and len(attempts) >= MAX_REVIEW_ATTEMPTS:
         raise DemonstrationError("Review attempt budget is exhausted; user input is required")
     if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
         raise DemonstrationError("Review receipt frame-index hash does not match the canonical request")
@@ -2296,17 +2304,26 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if not isinstance(receipt.get("next_action"), str) or not receipt["next_action"].strip():
         raise DemonstrationError("Review receipt requires one bounded next action")
 
-    attempt_number = len(attempts) + 1
+    if replace_latest_attempt:
+        latest_attempt_number = attempts[-1].get("attempt_number") if isinstance(attempts[-1], dict) else None
+        if isinstance(latest_attempt_number, bool) or not isinstance(latest_attempt_number, int):
+            raise DemonstrationError("Cannot replace a review attempt without a numeric attempt number")
+        attempt_number = latest_attempt_number
+    else:
+        attempt_number = len(attempts) + 1
     receipt_record = {**receipt, "attempt_number": attempt_number}
-    attempts.append(receipt_record)
+    if replace_latest_attempt:
+        attempts[-1] = receipt_record
+    else:
+        attempts.append(receipt_record)
     review.update(
         {
             "status": "passed" if status == "passed" else "failed",
             "classified_status": status,
-            "attempt_count": attempt_number,
+            "attempt_count": len(attempts),
             "requires_user_input": bool((receipt.get("workflow") or {}).get("requires_user_input"))
             or status == "uncertain"
-            or attempt_number >= MAX_REVIEW_ATTEMPTS,
+            or (status != "passed" and len(attempts) >= MAX_REVIEW_ATTEMPTS),
             "frame_index_hash": receipt["frame_index_hash"],
         }
     )

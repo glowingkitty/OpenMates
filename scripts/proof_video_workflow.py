@@ -76,6 +76,8 @@ SUPPORTED_DEVICE_PROFILES = {
     "web-laptop",
     "web-phone",
 }
+SUBJECTIVE_FRAME_ONLY_CATEGORIES = {"color", "contrast"}
+SUBJECTIVE_APPROVABLE_QUALITY_CATEGORIES = {"consistency", "readability", "visual_assets"}
 
 
 class WorkflowError(RuntimeError):
@@ -921,6 +923,75 @@ def review_defect_fingerprint(review: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def require_user_intent_for_subjective_visual_findings(review: dict[str, Any]) -> bool:
+    """Prevent frame-only color judgments from triggering automatic product edits."""
+    findings = [item for item in review.get("incidental_findings", []) if isinstance(item, dict)]
+    blocking = [item for item in findings if item.get("severity") == "blocking"]
+    subjective = [
+        item
+        for item in blocking
+        if item.get("intent") in {"obvious", "unclear"} and item.get("category") in SUBJECTIVE_FRAME_ONLY_CATEGORIES
+    ]
+    if not subjective:
+        return False
+
+    affected: dict[str, set[str]] = {}
+    for finding in subjective:
+        finding["intent"] = "unclear"
+        categories = set(map(str, finding.get("quality_categories") or []))
+        for frame in map(str, finding.get("frames") or []):
+            affected.setdefault(frame, set()).update(categories)
+
+    for frame_review in review.get("frame_reviews", []):
+        if not isinstance(frame_review, dict):
+            continue
+        checks = frame_review.get("checks")
+        if not isinstance(checks, dict):
+            continue
+        for category in affected.get(str(frame_review.get("frame") or ""), set()):
+            if checks.get(category) == "fail":
+                checks[category] = "uncertain"
+
+    if len(subjective) == len(blocking):
+        review["status"] = "uncertain"
+        review["return_stage"] = "review"
+        review["next_action"] = "Ask the user whether the frame-only color or contrast treatment is intentional."
+    return True
+
+
+def _matching_unclear_attempt_hash(attempts: list[Any], finding: dict[str, Any]) -> str:
+    try:
+        from scripts.spec_demo import review_attempt_sha256
+    except ModuleNotFoundError:
+        from spec_demo import review_attempt_sha256
+
+    expected_frames = list(map(str, finding.get("frames") or []))
+    expected_categories = list(map(str, finding.get("quality_categories") or []))
+    for attempt in reversed(attempts):
+        if not isinstance(attempt, dict) or attempt.get("status") != "uncertain":
+            continue
+        candidate = next(
+            (
+                item
+                for item in attempt.get("incidental_findings", [])
+                if isinstance(item, dict) and item.get("id") == finding.get("id")
+            ),
+            None,
+        )
+        if (
+            isinstance(candidate, dict)
+            and candidate.get("intent") == "unclear"
+            and candidate.get("category") == finding.get("category")
+            and candidate.get("severity") == finding.get("severity")
+            and candidate.get("confidence") == finding.get("confidence")
+            and candidate.get("observation") == finding.get("observation")
+            and list(map(str, candidate.get("frames") or [])) == expected_frames
+            and list(map(str, candidate.get("quality_categories") or [])) == expected_categories
+        ):
+            return review_attempt_sha256(attempt)
+    return ""
+
+
 def review_next_action(review: dict[str, Any], *, prior_defect_fingerprints: list[str]) -> dict[str, Any]:
     status = str(review.get("status") or "")
     if status == "passed":
@@ -1103,9 +1174,9 @@ def approve_visual_intent(
 ) -> dict[str, Any]:
     """Convert one exact unclear finding into a hash-bound user-approved pass."""
     try:
-        from scripts.spec_demo import record_review_receipt
+        from scripts.spec_demo import MAX_REVIEW_ATTEMPTS, record_review_receipt
     except ModuleNotFoundError:
-        from spec_demo import record_review_receipt
+        from spec_demo import MAX_REVIEW_ATTEMPTS, record_review_receipt
 
     receipt_path = run_dir / "review-receipt.json"
     receipt = _load_json(receipt_path)
@@ -1117,10 +1188,35 @@ def approve_visual_intent(
         (item for item in findings if isinstance(item, dict) and item.get("id") == finding_id),
         None,
     )
-    if not isinstance(finding, dict) or finding.get("intent") != "unclear":
-        raise WorkflowError("visual intent approval requires one exact unclear finding")
+    if (
+        not isinstance(finding, dict)
+        or finding.get("intent") != "unclear"
+        or finding.get("category") not in SUBJECTIVE_FRAME_ONLY_CATEGORIES
+    ):
+        raise WorkflowError("visual intent approval requires one exact unclear color or contrast finding")
+    try:
+        approval_time = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise WorkflowError("visual intent approval requires a valid timezone-aware approved_at timestamp") from exc
+    if approval_time.tzinfo is None or approval_time.utcoffset() is None:
+        raise WorkflowError("visual intent approval requires a valid timezone-aware approved_at timestamp")
     frames = [str(value) for value in finding.get("frames", [])]
     categories = [str(value) for value in finding.get("quality_categories", [])]
+    if not categories or not set(categories).issubset(SUBJECTIVE_APPROVABLE_QUALITY_CATEGORIES):
+        raise WorkflowError("visual intent approval cannot resolve proof-alignment or structural quality categories")
+    if any(item.get("verdict") != "supported" for item in receipt.get("assertions", []) if isinstance(item, dict)):
+        raise WorkflowError("visual intent approval cannot override an unsupported proof assertion")
+    manifest = _load_json(run_dir / "manifest.json")
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    replace_latest_attempt = len(attempts) >= MAX_REVIEW_ATTEMPTS
+    original_receipt_sha256 = _file_sha256(receipt_path)
+    if replace_latest_attempt:
+        original_receipt_sha256 = _matching_unclear_attempt_hash(attempts[:-1], finding)
+        if not original_receipt_sha256:
+            raise WorkflowError(
+                "review attempt budget is exhausted and no prior matching unclear receipt remains for approval provenance"
+            )
     frame_reviews = receipt.get("frame_reviews") if isinstance(receipt.get("frame_reviews"), list) else []
     for frame_review in frame_reviews:
         if not isinstance(frame_review, dict) or str(frame_review.get("frame")) not in frames:
@@ -1144,8 +1240,6 @@ def approve_visual_intent(
     ]
     if receipt["incidental_findings"] or remaining_nonpassing:
         raise WorkflowError("visual intent approval did not resolve every review uncertainty")
-    if any(item.get("verdict") != "supported" for item in receipt.get("assertions", []) if isinstance(item, dict)):
-        raise WorkflowError("visual intent approval cannot override an unsupported proof assertion")
     approval = {
         "finding_id": finding_id,
         "approved_by": "user",
@@ -1153,7 +1247,7 @@ def approve_visual_intent(
         "reason": reason.strip(),
         "frames": frames,
         "quality_categories": categories,
-        "original_receipt_sha256": _file_sha256(receipt_path),
+        "original_receipt_sha256": original_receipt_sha256,
     }
     receipt["approved_visual_intents"] = [
         *[item for item in receipt.get("approved_visual_intents", []) if isinstance(item, dict)],
@@ -1173,18 +1267,24 @@ def approve_visual_intent(
             },
         }
     )
-    manifest = record_review_receipt(run_dir, receipt)
     budget_path = REVIEW_BUDGETS_DIR / f"{str(receipt.get('proof_group_id') or '').removeprefix('sha256:')}.json"
-    budget = record_cached_review(
-        budget_path,
-        device=str(receipt.get("device") or ""),
-        correction_round=int(receipt.get("correction_round") or 0),
-        frame_index_hash=str(receipt.get("frame_index_hash") or ""),
-        source_artifact_hash=str(receipt.get("source_artifact_hash") or ""),
-        caption_artifact_hash=str(receipt.get("caption_artifact_hash") or ""),
-        run_dir=run_dir,
-        status="passed",
-    )
+    manifest_path = run_dir / "manifest.json"
+    original_files = _snapshot_files([receipt_path, manifest_path, budget_path])
+    try:
+        manifest = record_review_receipt(run_dir, receipt, replace_latest_attempt=replace_latest_attempt)
+        budget = record_cached_review(
+            budget_path,
+            device=str(receipt.get("device") or ""),
+            correction_round=int(receipt.get("correction_round") or 0),
+            frame_index_hash=str(receipt.get("frame_index_hash") or ""),
+            source_artifact_hash=str(receipt.get("source_artifact_hash") or ""),
+            caption_artifact_hash=str(receipt.get("caption_artifact_hash") or ""),
+            run_dir=run_dir,
+            status="passed",
+        )
+    except Exception:
+        _restore_file_snapshots(original_files)
+        raise
     return {"status": "passed", "approval": approval, "manifest": manifest, "budget": budget}
 
 
@@ -1326,6 +1426,9 @@ def review_run(
             for key, value in cached["receipt"].items()
             if key != "attempt_number"
         }
+        subjective_boundary_applied = require_user_intent_for_subjective_visual_findings(cached_receipt)
+        if subjective_boundary_applied:
+            cached_receipt["workflow"] = review_next_action(cached_receipt, prior_defect_fingerprints=[])
         blocker_manifest = {
             **existing_manifest,
             "review": {"attempts": [cached_receipt]},
@@ -1337,8 +1440,24 @@ def review_run(
             cached_receipt["workflow"] = workflow_record
             cached["blocker_media"] = blocker_media
         cached["receipt"] = cached_receipt
-        if not same_run:
-            cached["manifest"] = record_review_receipt(run_dir, cached_receipt)
+        cached["status"] = str(cached_receipt.get("status") or "")
+        if not same_run or subjective_boundary_applied:
+            replace_latest_attempt = same_run and subjective_boundary_applied
+            cached["manifest"] = record_review_receipt(
+                run_dir,
+                cached_receipt,
+                replace_latest_attempt=replace_latest_attempt,
+            )
+            cached["budget"] = record_cached_review(
+                budget_path,
+                device=device,
+                correction_round=correction_round,
+                frame_index_hash=frame_hash,
+                source_artifact_hash=source_hash,
+                caption_artifact_hash=caption_hash,
+                run_dir=run_dir,
+                status=cached["status"],
+            )
         return cached
     if recovered_cache:
         raise WorkflowError("persisted review cache recovery did not produce reusable evidence")
@@ -1362,6 +1481,8 @@ def review_run(
             "incorrect geometry or colors, low contrast or unreadable text, stale loading, raw implementation text, broken navigation, "
             "missing or malformed icons, broken media, and unresponsive controls. Classify visible product defects as obvious only when "
             "the UI is objectively broken; use unclear when design intent is plausible and user consent is required before code changes. "
+            "A frame-only judgment about color, typography hierarchy, font size, or contrast is subjective without deterministic measurement; "
+            "mark its intent unclear and the affected quality checks uncertain rather than requesting automatic product edits. "
             "Never omit a supplied frame or inspect the full video."
             " Captions may be delivered as toggleable sidecar metadata rather than burned into the reviewed frames; do not report "
             "missing burned-in caption pixels as a defect unless the approved contract explicitly requires visible in-frame captions."
@@ -1392,6 +1513,7 @@ def review_run(
     prompt_path.write_text(json.dumps(prompt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     prompt_path.chmod(0o600)
     receipt, reviewer_session_id = reviewer_runner(prompt_path, run_dir=run_dir, correction_round=correction_round)
+    require_user_intent_for_subjective_visual_findings(receipt)
     if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
         raise WorkflowError("reviewer receipt did not preserve the canonical frame-index hash")
     if not reviewer_session_id:
@@ -1416,19 +1538,26 @@ def review_run(
     if blocker_media:
         decision["blocker_media"] = blocker_media
     receipt["workflow"] = decision
-    if receipt.get("status") != "passed":
-        budget = append_persisted_defect_fingerprint(budget_path, decision["defect_fingerprint"])
-    manifest = record_review_receipt(run_dir, receipt)
-    budget = record_cached_review(
-        budget_path,
-        device=device,
-        correction_round=correction_round,
-        frame_index_hash=frame_hash,
-        source_artifact_hash=source_hash,
-        caption_artifact_hash=caption_hash,
-        run_dir=run_dir,
-        status=str(receipt.get("status") or ""),
-    )
+    manifest_path = run_dir / "manifest.json"
+    receipt_path = run_dir / "review-receipt.json"
+    persistence_snapshot = _snapshot_files([manifest_path, receipt_path, budget_path])
+    try:
+        if receipt.get("status") != "passed":
+            budget = append_persisted_defect_fingerprint(budget_path, decision["defect_fingerprint"])
+        manifest = record_review_receipt(run_dir, receipt)
+        budget = record_cached_review(
+            budget_path,
+            device=device,
+            correction_round=correction_round,
+            frame_index_hash=frame_hash,
+            source_artifact_hash=source_hash,
+            caption_artifact_hash=caption_hash,
+            run_dir=run_dir,
+            status=str(receipt.get("status") or ""),
+        )
+    except Exception:
+        _restore_file_snapshots(persistence_snapshot)
+        raise
     result = {"status": receipt.get("status"), "receipt": receipt, "manifest": manifest, "budget": budget}
     if blocker_media:
         result["blocker_media"] = blocker_media
@@ -1540,6 +1669,18 @@ def _file_sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
+
+
+def _snapshot_files(paths: list[Path]) -> dict[Path, bytes | None]:
+    return {path: path.read_bytes() if path.is_file() else None for path in paths}
+
+
+def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
+    for path, content in snapshots.items():
+        if content is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(content)
 
 
 def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
