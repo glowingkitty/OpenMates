@@ -1935,13 +1935,13 @@ function opaqueLongSleepDecisionForTest(command) {
       .filter((arg) => !isOption(arg))
       .map((arg) => sleepDurationSecondsForTest(arg))
       .filter((seconds) => seconds !== null);
-    if (durations.some((seconds) => seconds >= 60)) {
+    if (durations.some((seconds) => seconds >= 10)) {
       return {
         decision: "block",
         message: actionable(
           OPAQUE_LONG_SLEEP_MARKER,
-          "sleep commands of 60 seconds or longer leave the UI stuck on an opaque Shell state and hide whether the agent is waiting for a lock, deploy, health, or async queue drain",
-          "use a deterministic waiter (`python3 scripts/sessions.py wait-lock ...`, `python3 scripts/sessions.py wait-health ...`) or a short poll loop (sleep <= 30) that prints the resource/status being watched before each wait",
+          "direct sleep commands of 10 seconds or longer create redundant assistant-side polling even when the real test, deploy, lock, health, or detached process already has a deterministic completion signal",
+          "block on the real operation with a long tool timeout: use `python3 scripts/sessions.py wait-lock ...`, `python3 scripts/sessions.py wait-health ...`, `gh run watch <id> --exit-status`, or `tail --pid=<pid> -f /dev/null`; then read the final result once",
         ),
       };
     }

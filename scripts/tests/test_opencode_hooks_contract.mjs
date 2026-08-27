@@ -205,16 +205,17 @@ test("dev API 502 output gets coordinated health waiter guidance", async () => {
   );
 });
 
-test("opaque long sleep commands are rejected with deterministic waiter guidance", async () => {
+test("assistant-side sleep polling is rejected in favor of the real completion signal", async () => {
   const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
   await assert.rejects(
     () => hooks["tool.execute.before"](
       { tool: "bash", sessionID: "test-session" },
-      { args: { command: "sleep 90" } },
+      { args: { command: "sleep 30" } },
     ),
-    /OpenMates opaque long sleep guard.*wait-lock.*wait-health.*sleep <= 30/s,
+    /OpenMates opaque long sleep guard.*wait-lock.*wait-health.*gh run watch.*tail --pid/s,
   );
-  assert.equal(pluginModule.OpenMatesHooks.test.opaqueLongSleepDecisionForTest("sleep 30").decision, "allow");
+  assert.equal(pluginModule.OpenMatesHooks.test.opaqueLongSleepDecisionForTest("sleep 9").decision, "allow");
+  assert.equal(pluginModule.OpenMatesHooks.test.opaqueLongSleepDecisionForTest("sleep 10").decision, "block");
   assert.equal(pluginModule.OpenMatesHooks.test.sleepDurationSecondsForTest("2m"), 120);
 });
 
