@@ -2354,18 +2354,6 @@
     filter: drop-shadow(0 0 5px var(--color-primary));
   }
 
-  :global(.embeds-map-view-marker .marker-icon) {
-    background: var(--color-app-travel);
-  }
-
-  :global(.embeds-map-view-marker-stop .marker-icon) {
-    background: var(--color-error);
-  }
-
-  :global(.embeds-map-view-marker-location .marker-icon) {
-    background: var(--color-primary);
-  }
-
   @container (max-width: 720px) {
     .results-view-tabs {
       position: absolute;

@@ -222,7 +222,7 @@
     for (const marker of markers) {
       const customIcon = L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<span class="marker-icon" style="-webkit-mask-image:url(\'/icons/maps.svg\');mask-image:url(\'/icons/maps.svg\')" aria-hidden="true"></span>',
+        html: '<img class="marker-icon" src="/icons/maps.svg" alt="" aria-hidden="true">',
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       });
@@ -308,7 +308,7 @@
       markerLayer.setOpacity?.(marker.opacity ?? 1);
       markerLayer.setIcon?.(L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<span class="marker-icon" style="-webkit-mask-image:url(\'/icons/maps.svg\');mask-image:url(\'/icons/maps.svg\')" aria-hidden="true"></span>',
+        html: '<img class="marker-icon" src="/icons/maps.svg" alt="" aria-hidden="true">',
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       }));
@@ -490,12 +490,6 @@
     display: block;
     width: 40px;
     height: 40px;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
     transition: opacity var(--duration-fast, 0.15s) ease;
   }
 
