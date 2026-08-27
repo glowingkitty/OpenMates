@@ -4610,7 +4610,7 @@ assertions:
     direct_tests:
     - &id521
       path: frontend/apps/web_app/tests/ai-model-settings.spec.ts
-      line: 132
+      line: 135
       name: AI settings overview, tier, provider, and model detail match the approved
         hierarchy
       surface: gui.web
@@ -4865,7 +4865,7 @@ assertions:
     direct_tests:
     - &id546
       path: frontend/apps/web_app/tests/ai-model-settings.spec.ts
-      line: 132
+      line: 135
       name: AI settings overview, tier, provider, and model detail match the approved
         hierarchy
       surface: gui.web

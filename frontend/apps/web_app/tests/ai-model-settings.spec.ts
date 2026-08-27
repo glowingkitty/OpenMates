@@ -21,7 +21,10 @@ const {
 	createStepScreenshotter,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const {
+	dismissSecurityReminderIfPresent,
+	loginToTestAccount
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -145,6 +148,7 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 	attachNetworkListeners(page, logCheckpoint);
 	await archiveExistingScreenshots(logCheckpoint);
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+	await dismissSecurityReminderIfPresent(page, logCheckpoint);
 	await openAiSettings(page);
 
 	const settingsMenu = page.locator('[data-testid="settings-menu"].visible');
