@@ -110,6 +110,32 @@ wikipedia_stub = types.ModuleType("backend.shared.providers.wikipedia.wikipedia_
 wikipedia_stub.normalize_wikipedia_language = lambda language: language
 _install_stub("backend.shared.providers.wikipedia.wikipedia_api", wikipedia_stub)
 
+wikipedia_context_stub = types.ModuleType("backend.apps.ai.processing.wikipedia_context")
+wikipedia_context_stub.WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER = "__wikipedia_context_unavailable__"
+wikipedia_context_stub.WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE = "Wikipedia unavailable."
+wikipedia_context_stub.WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON = "wikipedia_context_unavailable"
+wikipedia_context_stub.WikipediaSafetyUnavailableError = RuntimeError
+wikipedia_context_stub.format_wikipedia_reference_context = lambda references: ""
+
+async def _resolve_wikipedia_reference_context(*_args, **_kwargs):
+    return []
+
+wikipedia_context_stub.resolve_wikipedia_reference_context = _resolve_wikipedia_reference_context
+_install_stub("backend.apps.ai.processing.wikipedia_context", wikipedia_context_stub)
+
+tracing_stub = types.ModuleType("backend.shared.python_utils.tracing.ai_observability")
+
+class _SpanStub:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+tracing_stub.ai_phase_span = lambda *_args, **_kwargs: _SpanStub()
+tracing_stub.observe_ai_stream = lambda *_args, **_kwargs: _SpanStub()
+_install_stub("backend.shared.python_utils.tracing.ai_observability", tracing_stub)
+
 secrets_stub = types.ModuleType("backend.core.api.app.utils.secrets_manager")
 secrets_stub.SecretsManager = object
 _install_stub("backend.core.api.app.utils.secrets_manager", secrets_stub)

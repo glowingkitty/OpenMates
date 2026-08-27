@@ -4,10 +4,12 @@
 # Used by the AI post-processor to validate LLM-generated topic candidates against
 # real Wikipedia articles, and by the frontend fullscreen view to fetch rich summaries.
 #
-# No API key required. Rate limit ~200 req/s per IP.
+# No API key required. Unauthenticated identified clients are currently limited
+# to 200 requests/minute across Wikimedia APIs.
 # Must set User-Agent header per Wikimedia policy:
 # https://meta.wikimedia.org/wiki/User-Agent_policy
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -21,10 +23,11 @@ logger = logging.getLogger(__name__)
 # Wikimedia API base URLs (language-parameterized)
 WIKIPEDIA_ACTION_API_TEMPLATE = "https://{lang}.wikipedia.org/w/api.php"
 WIKIPEDIA_REST_API_TEMPLATE = "https://{lang}.wikipedia.org/api/rest_v1"
+WIKIPEDIA_MEDIAWIKI_REST_API_TEMPLATE = "https://{lang}.wikipedia.org/w/rest.php/v1"
 WIKIDATA_API_URL = "https://www.wikidata.org/w/api.php"
 
 # Required by Wikimedia User-Agent policy
-USER_AGENT = "OpenMates/1.0 (https://<PLACEHOLDER>; contact@<PLACEHOLDER>)"
+USER_AGENT = "OpenMatesWikipedia/1.0 (https://github.com/glowingkitty/OpenMates)"
 
 # Limits
 MAX_TOPICS_PER_BATCH = 20
@@ -62,6 +65,65 @@ class WikipediaTopic(BaseModel):
     wikidata_id: Optional[str] = None # Wikidata QID, e.g. "Q42"
     thumbnail_url: Optional[str] = None
     description: Optional[str] = None # Short Wikidata description
+
+
+class WikipediaSearchResult(BaseModel):
+    """A title-autocomplete result returned by a language Wikipedia."""
+
+    page_id: int
+    key: str
+    title: str
+    language: str
+    description: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    disambiguation: bool = False
+
+
+async def search_wikipedia_titles(
+    query: str,
+    language: str = DEFAULT_WIKIPEDIA_LANGUAGE,
+    limit: int = 5,
+) -> list[WikipediaSearchResult]:
+    """Return ordered Wikipedia title-autocomplete results without Wikidata calls."""
+    normalized_query = query.strip()
+    if not normalized_query:
+        return []
+
+    language = normalize_wikipedia_language(language)
+    limit = max(1, min(limit, 10))
+    url = f"{WIKIPEDIA_MEDIAWIKI_REST_API_TEMPLATE.format(lang=language)}/search/title"
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
+
+    async with create_http_client("wikipedia", timeout=REQUEST_TIMEOUT) as client:
+        response = await _request_with_retry(
+            client,
+            url,
+            {"q": normalized_query, "limit": limit},
+            headers,
+        )
+        pages = response.json().get("pages", [])
+
+    results: list[WikipediaSearchResult] = []
+    for page in pages:
+        thumbnail_url = (page.get("thumbnail") or {}).get("url")
+        if thumbnail_url and thumbnail_url.startswith("//"):
+            thumbnail_url = f"https:{thumbnail_url}"
+        description = page.get("description")
+        results.append(
+            WikipediaSearchResult(
+                page_id=page.get("id", 0),
+                key=page.get("key") or page.get("title", "").replace(" ", "_"),
+                title=page.get("title", ""),
+                language=language,
+                description=description,
+                thumbnail_url=thumbnail_url,
+                disambiguation=(
+                    page.get("type") == "disambiguation"
+                    or description == "Topics referred to by the same term"
+                ),
+            )
+        )
+    return results
 
 
 async def batch_validate_topics(
@@ -290,24 +352,22 @@ async def _request_with_retry(
     Wikipedia's rate limits are generous (~200 req/s) so 429s are rare,
     but we handle them gracefully with exponential backoff.
     """
-    import asyncio
-
     for attempt in range(1, MAX_429_RETRIES + 1):
         response = await client.get(url, params=params, headers=headers)
 
-        if response.status_code != 429:
+        if response.status_code not in (429, 503):
             response.raise_for_status()
             return response
 
         if attempt >= MAX_429_RETRIES:
-            logger.warning(f"Wikipedia rate limit: exhausted {MAX_429_RETRIES} retries for {url}")
+            logger.warning(f"Wikipedia throttle: exhausted {MAX_429_RETRIES} retries for {url}")
             response.raise_for_status()
 
         retry_after = response.headers.get("Retry-After")
         wait = float(retry_after) if retry_after else DEFAULT_RETRY_DELAY * attempt
 
         logger.info(
-            f"Wikipedia rate limited (429), attempt {attempt}/{MAX_429_RETRIES}. "
+            f"Wikipedia unavailable ({response.status_code}), attempt {attempt}/{MAX_429_RETRIES}. "
             f"Waiting {wait:.1f}s..."
         )
         await asyncio.sleep(wait)

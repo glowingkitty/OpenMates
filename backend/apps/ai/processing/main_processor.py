@@ -62,6 +62,14 @@ from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, Op
 from backend.apps.ai.llm_providers.types import UnifiedStreamChunk, StreamChunkType
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 from backend.shared.providers.wikipedia.wikipedia_api import normalize_wikipedia_language
+from backend.apps.ai.processing.wikipedia_context import (
+    WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER,
+    WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE,
+    WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON,
+    WikipediaSafetyUnavailableError,
+    format_wikipedia_reference_context,
+    resolve_wikipedia_reference_context,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
@@ -2716,6 +2724,34 @@ async def handle_main_processing(
         preprocessing_results.selected_main_llm_model_name = IMAGE_CHAT_SAFE_MODEL_NAME
         preprocessing_results.selected_secondary_model_id = None
 
+    wikipedia_reference_context = ""
+    wikipedia_references = getattr(user_overrides, "wikipedia_references", None) or []
+    if wikipedia_references:
+        try:
+            prepared_wikipedia_references = await resolve_wikipedia_reference_context(
+                wikipedia_references,
+                task_id=task_id,
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+            )
+            wikipedia_reference_context = format_wikipedia_reference_context(prepared_wikipedia_references)
+        except WikipediaSafetyUnavailableError as exc:
+            logger.warning("%s Wikipedia reference rejected before inference: %s", log_prefix, exc)
+            yield {
+                WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER: True,
+                "rejection_reason": WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON,
+                "message": WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE,
+            }
+            return
+        except Exception as exc:
+            logger.warning("%s Wikipedia reference unavailable before inference: %s", log_prefix, exc, exc_info=True)
+            yield {
+                WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER: True,
+                "rejection_reason": WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON,
+                "message": WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE,
+            }
+            return
+
     prompt_parts = []
     now_utc = datetime.datetime.now(datetime.timezone.utc)
 
@@ -2814,7 +2850,9 @@ async def handle_main_processing(
         f"For all `wiki:` inline links, use article titles from {wikipedia_language}.wikipedia.org "
         f"only. Do not use English Wikipedia titles unless the user's UI language is English."
     )
-    
+    if wikipedia_reference_context:
+        prompt_parts.append(wikipedia_reference_context)
+     
     # Add app deep linking instruction so the AI uses correct relative hash links
     # Only include when apps are available (no point linking to apps that don't exist)
     if discovered_apps_metadata:

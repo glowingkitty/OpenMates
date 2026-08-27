@@ -370,6 +370,17 @@ contracts:
     - sdks.npm
     - sdks.pip
     - gui.web
+  feature.wikipedia-mentions:
+    version: 1
+    status: draft
+    path: features/wikipedia-mentions
+    fingerprint: ce085a047134f0909d968cd019b3e7ab0bf69637967893242054b232f16b418e
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.workflows:
     version: 2
     status: draft
@@ -3614,6 +3625,127 @@ assertions:
     contract_id: feature.teams
     type: parity
     fingerprint: 1800548e8c51c0177a5063a03e7177eed8ff2a7bffeb4692955e70b132edfcd3
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.syntax.explicit-trigger:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: 638af34ad0cab2ef46f3daf0037e5daa26b849089be4ca586a80f9c56914ee42
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.discovery.web-menu:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: 44e705b6563af502b892f2d68ea1d17625bb869da32831ee57339d7a27a3027e
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.resolution.first-result:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: fc6ce8fe1eb7ce0689c668dc9c5c7aeb2757af53cae4fb000bef6a021d4f9c4a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.resolution.disambiguation-visible:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: d2e73715c85708c7909f05873de9e08a7b33848aa98b79be6eed55824b91b844
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.references.maximum-three:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: invariant
+    fingerprint: cc1d370d6f1d13c773a6b5a0a25edc6e463c8018fd4ee885c196091f9b16a489
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.context.summary-only:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: privacy
+    fingerprint: 5fc2e55525c6118a9c1d7011c3ee9d11dbacf1227dedb0e97bac623bf583eecc
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.safety.fail-closed:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: security
+    fingerprint: a0e9dbcaf0812c131c9b2ae1fec74dd78fabaaefa32650353bee5f8d25ddb5fc
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.ai.source-aware-intent:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: behavior
+    fingerprint: 3ce3ed6779378a1bd9dda8ad054d0d6410f3ac4c40bfc7b1905b28f878afbc4a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.provider.bounded-access:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: invariant
+    fingerprint: bad17cee1bbb0ebe740020c3460023ce9e4a03683113fa0b78e0c8e98b4b945b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.privacy.explicit-third-party-query:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: privacy
+    fingerprint: b733ade0daadea6148a800bbe50f063b981444526326c408d9594585bd626832
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  wikipedia-mentions.surfaces.semantic-parity:
+    contract: feature.wikipedia-mentions@1
+    contract_id: feature.wikipedia-mentions
+    type: parity
+    fingerprint: fdcd48a193ae82fd6f1a875c89e1bca3f4dda0bd7023f14df93418b600420db2
     required_surfaces:
     - rest_api
     - cli

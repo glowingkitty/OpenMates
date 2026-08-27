@@ -4,6 +4,18 @@
 # Provides topic validation, page summaries, and structured entity data
 # from the Wikimedia APIs. No API key required — public endpoints.
 
-from .wikipedia_api import batch_validate_topics, fetch_page_summary, fetch_wikidata_entity
+from .wikipedia_api import (
+    WikipediaSearchResult,
+    batch_validate_topics,
+    fetch_page_summary,
+    fetch_wikidata_entity,
+    search_wikipedia_titles,
+)
 
-__all__ = ['batch_validate_topics', 'fetch_page_summary', 'fetch_wikidata_entity']
+__all__ = [
+    'WikipediaSearchResult',
+    'batch_validate_topics',
+    'fetch_page_summary',
+    'fetch_wikidata_entity',
+    'search_wikipedia_titles',
+]
