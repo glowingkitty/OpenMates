@@ -6731,7 +6731,7 @@ class TestOrchestrator:
 
         start_time = time.time()
         status_start_time = time.monotonic()
-        if self.daily:
+        if self.daily and not self.dry_run:
             self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
         self._progress_suites = suites
