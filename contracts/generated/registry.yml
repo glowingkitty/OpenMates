@@ -70,6 +70,13 @@ contracts:
     - cli
     - gui.web
     - gui.apple
+  architecture.test-orchestration:
+    version: 1
+    status: draft
+    path: architecture/test-orchestration
+    fingerprint: 13274281876467bef228a64fcda9096a91f061becdc56b57f716f83ac77b0819
+    required_surfaces:
+    - cli
   feature.ai-model-routing:
     version: 1
     status: draft
@@ -1056,6 +1063,55 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  test-orchestration.daily.critical-first-broad-continues:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: invariant
+    fingerprint: 57f932c0064621194f05d129e8bca779d871517f676c834536e3d95253f7a99f
+    required_surfaces:
+    - cli
+  test-orchestration.critical.registry-audited:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: invariant
+    fingerprint: 5d09481db89a01e1b43258277794db08240eaa98cce8848d2ba416cae218dfad
+    required_surfaces:
+    - cli
+  test-orchestration.dispatch.quota-aware-circuit-breaker:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: failure
+    fingerprint: a837b1e1bdec8bbdf470bb5165334874e1e787d86e3d79f3c25e7745117d1ba6
+    required_surfaces:
+    - cli
+  test-orchestration.results.infrastructure-is-not-product-failure:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: invariant
+    fingerprint: bc76fcf792594e7754f4a020b31b1fe35d433e8714670c7bb419dab85790d306
+    required_surfaces:
+    - cli
+  test-orchestration.notifications.non-blocking-receipts:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: invariant
+    fingerprint: c45f36af3471b41866679040c6f7bff0ca719fb7e3bbf7dda229f4b052025e7a
+    required_surfaces:
+    - cli
+  test-orchestration.recovery.milestone:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: behavior
+    fingerprint: 089d32d7b92c9140a336c2cfecb7091041bd15956ff12e89722dee09919e676d
+    required_surfaces:
+    - cli
+  test-orchestration.evidence.privacy-boundary:
+    contract: architecture.test-orchestration@1
+    contract_id: architecture.test-orchestration
+    type: privacy
+    fingerprint: af4ea0302ef1bf4826389deb3d5d95d3eed1bf82aee4d952a333b8a4f6331f22
+    required_surfaces:
+    - cli
   ai-model-routing.tiers.conservative-three-way:
     contract: feature.ai-model-routing@1
     contract_id: feature.ai-model-routing

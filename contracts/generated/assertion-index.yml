@@ -4244,6 +4244,62 @@ assertions:
         supporting_tests:
         - *id486
     current_direct_proof: false
+  test-orchestration.daily.critical-first-broad-continues:
+    contract: architecture.test-orchestration@1
+    fingerprint: 57f932c0064621194f05d129e8bca779d871517f676c834536e3d95253f7a99f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  test-orchestration.critical.registry-audited:
+    contract: architecture.test-orchestration@1
+    fingerprint: 5d09481db89a01e1b43258277794db08240eaa98cce8848d2ba416cae218dfad
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  test-orchestration.dispatch.quota-aware-circuit-breaker:
+    contract: architecture.test-orchestration@1
+    fingerprint: a837b1e1bdec8bbdf470bb5165334874e1e787d86e3d79f3c25e7745117d1ba6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  test-orchestration.results.infrastructure-is-not-product-failure:
+    contract: architecture.test-orchestration@1
+    fingerprint: bc76fcf792594e7754f4a020b31b1fe35d433e8714670c7bb419dab85790d306
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  test-orchestration.notifications.non-blocking-receipts:
+    contract: architecture.test-orchestration@1
+    fingerprint: c45f36af3471b41866679040c6f7bff0ca719fb7e3bbf7dda229f4b052025e7a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  test-orchestration.recovery.milestone:
+    contract: architecture.test-orchestration@1
+    fingerprint: 089d32d7b92c9140a336c2cfecb7091041bd15956ff12e89722dee09919e676d
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  test-orchestration.evidence.privacy-boundary:
+    contract: architecture.test-orchestration@1
+    fingerprint: af4ea0302ef1bf4826389deb3d5d95d3eed1bf82aee4d952a333b8a4f6331f22
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   ai-model-routing.tiers.conservative-three-way:
     contract: feature.ai-model-routing@1
     fingerprint: 517eda4eb2523577439ab57b4dbd1a011d4190168e0bef99182bc21c0ac5c59f
