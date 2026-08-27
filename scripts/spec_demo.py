@@ -110,10 +110,14 @@ REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
 REVIEW_METADATA_REQUIRED_FIELDS = {"duration_seconds", "sha256", "width", "height"}
 REVIEW_METADATA_OPTIONAL_FIELDS = {
     "black_bar_scan_status",
+    "browser_chrome",
+    "browser_tab_group",
     "demo_audio_mixed",
     "device_profile",
     "hold_last_frame_seconds",
     "playback_rate",
+    "source_viewport_height",
+    "source_viewport_width",
     "target_height",
     "target_width",
     "captions_sha256",
@@ -126,9 +130,24 @@ PROOF_PRIVACY_SCAN_DISABLED = {
     "reason": "proof_video_pii_detection_disabled",
 }
 PROOF_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
+WEB_PHONE_SAFARI_CHROME = {
+    "kind": "iphone13-pro-safari",
+    "tabGroupLabel": "Personal",
+    "topInset": 128,
+    "bottomInset": 85,
+    "devicePixelRatio": 3,
+}
 DEVICE_PROFILES = {
     "cli-terminal": {"width": 1280, "height": 720, "surface": "cli", "label": "CLI terminal"},
-    "web-phone": {"width": 390, "height": 844, "surface": "web", "label": "phone web"},
+    "web-phone": {
+        "width": 390,
+        "height": 844,
+        "source_width": 390,
+        "source_height": 631,
+        "surface": "web",
+        "label": "phone web",
+        "browser_chrome": WEB_PHONE_SAFARI_CHROME,
+    },
     "web-laptop": {"width": 1440, "height": 900, "surface": "web", "label": "laptop web"},
     "apple-iphone-portrait": {"width": 393, "height": 852, "surface": "apple", "label": "iPhone portrait"},
     "apple-ipad-landscape": {"width": 1366, "height": 1024, "surface": "apple", "label": "iPad landscape"},
@@ -408,6 +427,21 @@ def assert_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str
         raise DemonstrationError(f"Proof-video aspect ratio does not match device profile {profile['id']}")
 
 
+def source_device_profile_dimensions(profile: dict[str, Any]) -> tuple[int, int]:
+    return int(profile.get("source_width") or profile["width"]), int(profile.get("source_height") or profile["height"])
+
+
+def assert_source_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str, Any] | None) -> None:
+    if profile is None:
+        return
+    width, height = source_device_profile_dimensions(profile)
+    if metadata.get("width") != width or metadata.get("height") != height:
+        actual = f"{metadata.get('width')}x{metadata.get('height')}"
+        expected = f"{width}x{height}"
+        label = str(profile.get("label") or profile["id"])
+        raise DemonstrationError(f"{label} source recording must be {expected}, got {actual}")
+
+
 def _proof_renderer_hash() -> str:
     renderer_root = REPO_ROOT / "tooling/proof-video-remotion/src"
     renderer_files = [
@@ -572,6 +606,8 @@ def build_browser_tutorial_plan(
         )
         output_cursor_ms += duration_ms
     renderer_hash = _proof_renderer_hash()
+    source_width, source_height = source_device_profile_dimensions(profile)
+    browser_chrome = profile.get("browser_chrome") if isinstance(profile.get("browser_chrome"), dict) else {"kind": "desktop-browser"}
     request = {
         "schemaVersion": 1,
         "renderer": "openmates-remotion-browser-v1",
@@ -580,7 +616,8 @@ def build_browser_tutorial_plan(
         "sourceHash": sha256_file(source_video),
         "domain": str(contract["domain"]),
         "deviceProfile": str(profile["id"]),
-        "viewport": {"width": int(profile["width"]), "height": int(profile["height"])},
+        "viewport": {"width": source_width, "height": source_height},
+        "browserChrome": browser_chrome,
         "output": {"width": int(profile["width"]), "height": int(profile["height"]), "fps": 30},
         "segments": segments,
         "contractHash": contract_hash,
@@ -686,9 +723,19 @@ def _center_dark_ratio(frame_path: Path) -> float:
     return _crop_dark_ratio(frame_path, crop="iw/2:ih/2:iw/4:ih/4")
 
 
-def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+def assert_no_letterbox_or_pillarbox(
+    video_path: Path,
+    metadata: dict[str, Any],
+    *,
+    device_profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     width = int(metadata["width"])
     height = int(metadata["height"])
+    browser_chrome = device_profile.get("browser_chrome") if isinstance(device_profile, dict) else None
+    ignore_dark_horizontal_edges = (
+        isinstance(browser_chrome, dict)
+        and browser_chrome.get("kind") == "iphone13-pro-safari"
+    )
     edge_pixels = max(
         BLACK_BAR_MIN_PIXELS,
         min(int(min(width, height) * BLACK_BAR_MIN_FRACTION), int(min(width, height) * BLACK_BAR_MAX_EDGE_FRACTION)),
@@ -707,7 +754,8 @@ def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any])
             }
             center_ratio = _center_dark_ratio(frame_path)
             if (
-                ratios["top"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                not ignore_dark_horizontal_edges
+                and ratios["top"] >= BLACK_BAR_DARK_PIXEL_RATIO
                 and ratios["bottom"] >= BLACK_BAR_DARK_PIXEL_RATIO
                 and center_ratio < BLACK_BAR_CENTER_DARK_PIXEL_RATIO
             ):
@@ -729,6 +777,7 @@ def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any])
         "status": "passed",
         "edge_pixels": edge_pixels,
         "probes": len(_black_bar_probe_times(float(metadata["duration_seconds"]))),
+        "ignored_dark_horizontal_edges": ignore_dark_horizontal_edges,
     }
 
 
@@ -1080,7 +1129,8 @@ def trim_source_to_ready_marker(
     if ready_timestamp_seconds < 0 or lead_seconds < 0:
         raise DemonstrationError("Capture-ready marker and trim lead must be non-negative")
     trim_start = round(max(0.0, ready_timestamp_seconds - lead_seconds), 3)
-    duration = media_duration_seconds(source_path)
+    source_metadata = video_metadata(source_path)
+    duration = float(source_metadata["duration_seconds"])
     if trim_start >= duration:
         raise DemonstrationError("Capture-ready marker is outside the source video")
     trim_end = duration
@@ -1100,6 +1150,7 @@ def trim_source_to_ready_marker(
     ]
     if trim_duration < duration - trim_start:
         command.extend(["-t", str(trim_duration)])
+    pixel_format = "yuv444p" if int(source_metadata["width"]) % 2 or int(source_metadata["height"]) % 2 else "yuv420p"
     command.extend(
         [
             "-c:v",
@@ -1107,7 +1158,7 @@ def trim_source_to_ready_marker(
             "-preset",
             "veryfast",
             "-pix_fmt",
-            "yuv420p",
+            pixel_format,
             "-c:a",
             "aac",
             "-map_metadata",
@@ -1441,7 +1492,11 @@ def prepare_review_artifacts(
                 "device_profile": device_profile["id"],
                 "target_width": int(device_profile["width"]),
                 "target_height": int(device_profile["height"]),
-                "black_bar_scan_status": assert_no_letterbox_or_pillarbox(video_path, metadata),
+                "black_bar_scan_status": assert_no_letterbox_or_pillarbox(
+                    video_path,
+                    metadata,
+                    device_profile=device_profile,
+                ),
             }
         )
     if render_metadata:
@@ -1704,7 +1759,7 @@ def _produce_browser_tutorial_demonstration(
     profile = resolve_device_profile(device_profile_name)
     if profile is None:
         raise DemonstrationError("Browser tutorial requires an exact device profile")
-    assert_device_profile_dimensions(video_metadata(source_video), profile)
+    assert_source_device_profile_dimensions(video_metadata(source_video), profile)
     output_duration = float(browser_tutorial_plan.get("duration_seconds") or 0)
     if not 0 < output_duration <= MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Browser tutorial output must be between zero and 35 seconds")
@@ -1746,6 +1801,7 @@ def _produce_browser_tutorial_demonstration(
             demo_audio_path=demo_audio_path,
         )
     rendered_metadata = video_metadata(video_path)
+    assert_device_profile_dimensions(rendered_metadata, profile)
     if abs(float(rendered_metadata["duration_seconds"]) - output_duration) > 0.1:
         raise DemonstrationError("Rendered browser tutorial duration does not match its canonical segment plan")
     claim_anchor_times = browser_tutorial_plan.get("claim_anchor_times")
@@ -1778,6 +1834,10 @@ def _produce_browser_tutorial_demonstration(
             "render_input_hash": str(browser_tutorial_plan.get("input_hash") or ""),
             "edit_segments": request.get("segments"),
             "browser_domain": str(request.get("domain") or ""),
+            "browser_chrome": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("kind") or ""),
+            "browser_tab_group": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("tabGroupLabel") or ""),
+            "source_viewport_width": int((request.get("viewport") or {}).get("width") or 0),
+            "source_viewport_height": int((request.get("viewport") or {}).get("height") or 0),
         },
         scene_times=detect_scene_change_times(video_path),
         action_times=transition_times,

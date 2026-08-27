@@ -18,6 +18,13 @@ export interface BrowserTutorialProps extends Record<string, unknown> {
 	domain: string;
 	deviceProfile: string;
 	viewport: {width: number; height: number};
+	browserChrome?: {
+		kind: string;
+		tabGroupLabel?: string;
+		topInset?: number;
+		bottomInset?: number;
+		devicePixelRatio?: number;
+	};
 	output: {width: number; height: number; fps: number};
 	segments: TutorialSegment[];
 	contractHash: string;

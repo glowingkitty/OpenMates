@@ -243,6 +243,50 @@ def test_browser_tutorial_plan_preserves_source_and_inserts_checkpoint_holds(tmp
         module.render_browser_tutorial(plan["request"], tmp_path / "output.mp4")
 
 
+def test_web_phone_tutorial_plan_uses_iphone_safari_content_viewport(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    frame = tmp_path / "ready.png"
+    source.write_bytes(b"video")
+    frame.write_bytes(b"frame")
+    timeline = {
+        "contract": {
+            "surface": "web",
+            "domain": "app.dev.openmates.org",
+            "devices": ["web-phone"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [
+                {"id": "ready", "text": "The phone page is visible.", "checkpoint": "ready", "devices": ["web-phone"]},
+            ],
+            "assertions": [
+                {"id": "phone.visible", "checkpoint": "ready", "devices": ["web-phone"]},
+            ],
+        },
+        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 1000}],
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": module.sha256_file(frame)}],
+    }
+
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=2.0,
+        device_profile_name="web-phone",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+
+    assert plan["request"]["viewport"] == {"width": 390, "height": 631}
+    assert plan["request"]["output"] == {"width": 390, "height": 844, "fps": 30}
+    assert plan["request"]["browserChrome"] == {
+        "kind": "iphone13-pro-safari",
+        "tabGroupLabel": "Personal",
+        "topInset": 128,
+        "bottomInset": 85,
+        "devicePixelRatio": 3,
+    }
+
+
 def test_node_remotion_renderer_rejects_tampered_browser_inputs(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.webm"
@@ -861,6 +905,16 @@ def test_device_profile_dimensions_reject_landscape_mobile_wrapper() -> None:
         module.assert_device_profile_dimensions({"width": 800, "height": 450}, profile)
 
 
+def test_web_phone_source_recording_uses_constrained_safari_viewport() -> None:
+    module = load_module()
+    profile = module.resolve_device_profile("web-phone")
+
+    module.assert_source_device_profile_dimensions({"width": 390, "height": 631}, profile)
+    module.assert_device_profile_dimensions({"width": 390, "height": 844}, profile)
+    with pytest.raises(module.DemonstrationError, match="390x631"):
+        module.assert_source_device_profile_dimensions({"width": 390, "height": 844}, profile)
+
+
 def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
     module = load_module()
     video = tmp_path / "letterbox.mp4"
@@ -884,6 +938,39 @@ def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
 
     with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
         module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
+
+
+def test_black_bar_scan_allows_dark_iphone_safari_top_and_bottom_chrome(tmp_path: Path) -> None:
+    module = load_module()
+    video = tmp_path / "safari-chrome.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=white:s=390x844:r=10",
+            "-vf",
+            "drawbox=x=0:y=0:w=390:h=128:color=black:t=fill,drawbox=x=0:y=759:w=390:h=85:color=black:t=fill",
+            "-t",
+            "1",
+            str(video),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    metadata = module.video_metadata(video)
+
+    with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
+        module.assert_no_letterbox_or_pillarbox(video, metadata)
+    result = module.assert_no_letterbox_or_pillarbox(
+        video,
+        metadata,
+        device_profile=module.resolve_device_profile("web-phone"),
+    )
+
+    assert result["ignored_dark_horizontal_edges"] is True
 
 
 @pytest.mark.parametrize("suffix", ["_", "-", "=", "/"])

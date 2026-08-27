@@ -316,9 +316,10 @@ scenarios:
     then:
       - The proof-relevant source recording plays chronologically from the first assertion-backed checkpoint through the explicit capture end, with no skipped intervals inside that bounded range, and transcript-derived holds freeze reached checkpoints.
       - Freeze holds are visibly marked as paused review moments without replacing the toggleable WebVTT captions.
-      - The full real viewport is shown inside a deterministic browser frame with a compact attested-domain address bar and new-tab control.
+      - Laptop web proof keeps the existing exact 1440x900 Playwright source and final canvas while rendering deterministic desktop browser chrome.
+      - Phone web proof records only the constrained iPhone 13 Pro Safari content viewport at 390x631, then renders a final 390x844 iPhone 13 Pro Safari frame with status chrome, a top tab-group control named Personal, and the attested domain in the bottom Safari address bar.
       - The page pixels contain no proof-only domain overlay; the domain appears only in the browser address bar.
-      - The output and WebVTT sidecar are reproducible from source, contract, timeline, profile, and renderer hashes.
+      - The output and WebVTT sidecar are reproducible from source, contract, timeline, source viewport, final device canvas, browser chrome profile, and renderer hashes.
   - id: S-7
     title: Real CLI terminal recording
     given:
@@ -368,8 +369,8 @@ acceptance_criteria:
   - { id: AC-5, scenario: S-4, text: "The review request contains an immutable hash-bound index of one-to-twelve periodic and event frames per device, the approved contract and metadata, but no full video content; every assertion and incidental visual-integrity finding is reviewed.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW, T-PROOF-RENDER] }
   - { id: AC-6, scenario: S-4, text: "One proof contract is capped at six AI calls, forty-eight cumulative frames, two automatic correction rounds, and one high-confidence product-code correction; uncertain, repeated, forged, or stale results cannot complete the session or publication.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-PROOF-WORKFLOW] }
   - { id: AC-7, scenario: S-5, text: "A proof-enabled `.spec.ts` owns the complete transcript, devices, domain, checkpoints, and paired executable plus visual assertions, and its attached canonical timeline contains no presentation wait requirement.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-SPEC-PROOF-CONTRACT, T-WEB-PROOF-E2E] }
-  - { id: AC-8, scenario: S-6, text: "Remotion renders the proof-relevant real Playwright recording chronologically from the first assertion-backed checkpoint through explicit capture end with no skipped intervals inside that bounded range, inserts visibly paused transcript-derived checkpoint freezes inside authentic deterministic browser chrome with one compact attested-domain address bar, a new-tab control, no in-page domain overlay, and no cropped viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
-  - { id: AC-9, scenario: S-6, text: "The browser tutorial, WebVTT, manifest, and cache identity are reproducibly bound to source video, spec contract, timeline, profile, deployed domain, and renderer hashes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF] }
+  - { id: AC-8, scenario: S-6, text: "Remotion renders the proof-relevant real Playwright recording chronologically from the first assertion-backed checkpoint through explicit capture end with no skipped intervals inside that bounded range, inserts visibly paused transcript-derived checkpoint freezes inside authentic deterministic browser chrome, keeps laptop proof at a 1440x900 source/final canvas, and renders phone proof from a 390x631 source viewport into a 390x844 iPhone 13 Pro Safari frame with Personal tab group, bottom attested-domain address bar, no in-page domain overlay, and no cropped viewport.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E] }
+  - { id: AC-9, scenario: S-6, text: "The browser tutorial, WebVTT, manifest, and cache identity are reproducibly bound to source video, spec contract, timeline, profile, deployed domain, source viewport, final device canvas, browser chrome profile, and renderer hashes.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-REMOTION-PROOF] }
   - { id: AC-10, scenario: S-7, text: "A real OpenMates CLI E2E journey records 1280x720 pixels from a graphical terminal displaying the tested PTY, visibly types the command character by character before execution, and retains transcript and exit provenance as hash-bound sidecars rather than reconstructed video input.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
   - { id: AC-11, scenario: S-8, text: "A deterministic audit covers all real CLI E2E entry points and rejects unclassified direct CLI spawning that bypasses the shared recorder.", required: true, status: satisfied, coverage_status: covered, verification_scope: custom, verification_ids: [T-CLI-RECORDING-AUDIT] }
   - { id: AC-12, scenario: S-8, text: "Passed and failed CLI E2E attempts retain real terminal recordings with status and attempt metadata, while proof publication accepts only passed current-commit evidence.", required: true, status: satisfied, coverage_status: covered, verification_scope: cli, verification_ids: [T-CLI-CAPTURE, T-CLI-PROOF-E2E] }
@@ -977,6 +978,17 @@ tasks:
     blockers: []
     follow_up_tasks: []
     ownership: { files: [docs/specs/focused-proof-video-workflow/spec.yml], shared_files: [] }
+  - id: TASK-18
+    title: Render phone web proof as iPhone 13 Pro Safari
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-6], acceptance_criteria: [AC-8, AC-9] }
+    expected_files: [.github/workflows/playwright-spec.yml, frontend/apps/web_app/playwright.config.ts, scripts/spec_demo.py, scripts/tests.py, scripts/tests/test_run_tests_account_policy.py, scripts/tests/test_spec_demonstration_pipeline.py, scripts/tests/test_tests_control.py, tooling/proof-video-remotion/src/BrowserTutorial.tsx, tooling/proof-video-remotion/src/types.ts]
+    verification_ids: [T-REMOTION-PROOF, T-WEB-PROOF-E2E]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: []
+    ownership: { files: [tooling/proof-video-remotion/src/BrowserTutorial.tsx, tooling/proof-video-remotion/src/types.ts, scripts/spec_demo.py, .github/workflows/playwright-spec.yml, frontend/apps/web_app/playwright.config.ts], shared_files: [scripts/tests.py] }
 
 risks:
   - risk: Metadata inference may select stale or ambiguous test evidence.

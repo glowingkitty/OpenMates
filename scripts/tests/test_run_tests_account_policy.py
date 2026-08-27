@@ -1118,19 +1118,27 @@ def test_proof_video_size_also_sets_browser_viewport(tmp_path):
     loader = tmp_path / "load-playwright-config.mjs"
     loader.write_text(
         f"const config = (await import('{config_url}')).default;\n"
-        "console.log(JSON.stringify({ viewport: config.use.viewport ?? null, video: config.use.video }));\n",
+        "console.log(JSON.stringify({ viewport: config.use.viewport ?? null, video: config.use.video, isMobile: config.use.isMobile ?? false, hasTouch: config.use.hasTouch ?? false }));\n",
         encoding="utf-8",
     )
 
-    for width, height, expected in (("1440", "900", {"width": 1440, "height": 900}), ("390", "844", {"width": 390, "height": 844}), (None, None, None)):
+    cases = (
+        ("web-laptop", "1440", "900", {"width": 1440, "height": 900}, False),
+        ("web-phone", "390", "631", {"width": 390, "height": 631}, True),
+        (None, None, None, None, False),
+    )
+    for profile, width, height, expected, expected_mobile in cases:
         env = os.environ.copy()
         env["PLAYWRIGHT_TEST_BASE_URL"] = "https://example.invalid"
+        env.pop("PLAYWRIGHT_PROOF_VIDEO_PROFILE", None)
         if width is None:
             env.pop("PLAYWRIGHT_VIDEO_WIDTH", None)
             env.pop("PLAYWRIGHT_VIDEO_HEIGHT", None)
         else:
             env["PLAYWRIGHT_VIDEO_WIDTH"] = width
             env["PLAYWRIGHT_VIDEO_HEIGHT"] = height
+        if profile:
+            env["PLAYWRIGHT_PROOF_VIDEO_PROFILE"] = profile
         result = subprocess.run(
             ["node", "--experimental-strip-types", str(loader)],
             cwd=PROJECT_ROOT,
@@ -1143,6 +1151,16 @@ def test_proof_video_size_also_sets_browser_viewport(tmp_path):
         assert loaded["viewport"] == expected
         if expected is not None:
             assert loaded["video"]["size"] == expected
+        assert loaded["isMobile"] is expected_mobile
+        assert loaded["hasTouch"] is expected_mobile
+
+
+def test_playwright_workflow_uses_constrained_phone_proof_viewport() -> None:
+    workflow = (PROJECT_ROOT / ".github/workflows/playwright-spec.yml").read_text(encoding="utf-8")
+
+    assert "PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}" in workflow
+    assert "inputs.proof_video_profile == 'web-phone' && '390'" in workflow
+    assert "inputs.proof_video_profile == 'web-phone' && '631'" in workflow
 
 
 def test_prod_smoke_dispatch_matches_unique_token(monkeypatch, tmp_path):
