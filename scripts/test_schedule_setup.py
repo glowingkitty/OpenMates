@@ -76,13 +76,22 @@ def current_crontab() -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Install or audit the managed OpenMates test schedule")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=PROJECT_ROOT,
+        help="Canonical checkout path written into cron commands",
+    )
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--check", action="store_true")
     action.add_argument("--install", action="store_true")
     args = parser.parse_args()
 
     current = current_crontab()
-    desired = replace_managed_schedule(current)
+    root = args.root.resolve()
+    if not (root / ".git").exists():
+        parser.error(f"--root is not a Git checkout: {root}")
+    desired = replace_managed_schedule(current, root)
     if args.check:
         if current.rstrip() == desired.rstrip():
             print("test_schedule=ok")

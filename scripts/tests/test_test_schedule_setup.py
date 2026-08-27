@@ -30,3 +30,12 @@ def test_replacement_removes_legacy_commands_and_is_idempotent() -> None:
     assert first == second
     assert "keep-me" in first
     assert "scripts/run_tests.py --hourly-dev" not in first
+
+
+def test_replacement_can_target_the_canonical_checkout() -> None:
+    canonical = Path("/srv/OpenMates")
+
+    rendered = replace_managed_schedule("", canonical)
+
+    assert f"cd {canonical}" in rendered
+    assert ".openmates-agent-worktrees" not in rendered
