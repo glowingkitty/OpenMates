@@ -278,7 +278,7 @@
   function buildMapMarkers(sourceEntries: MapViewEntry[], activeRefs: Set<string>, selectedMarkerKey: string | null): MapMarker[] {
     const markers = new Map<string, {
       point: MapPathPoint;
-      role: 'endpoint' | 'stop' | 'location';
+      role: 'endpoint-start' | 'endpoint-end' | 'stop' | 'location';
       ref: string;
       refs: Set<string>;
       label: string;
@@ -287,7 +287,7 @@
     const addMarker = (
       entry: MapViewEntry,
       point: MapPathPoint,
-      role: 'endpoint' | 'stop' | 'location',
+      role: 'endpoint-start' | 'endpoint-end' | 'stop' | 'location',
       label: string,
     ) => {
       const key = markerCoordinateKey(point);
@@ -297,7 +297,7 @@
         return;
       }
       existing.refs.add(entry.ref);
-      if (role === 'endpoint' && existing.role === 'stop') {
+      if (role.startsWith('endpoint-') && existing.role === 'stop') {
         existing.role = 'endpoint';
         existing.ref = entry.ref;
         existing.label = label;
@@ -311,7 +311,7 @@
           addMarker(
             entry,
             point,
-            isEndpoint ? 'endpoint' : 'stop',
+            isEndpoint ? (index === 0 ? 'endpoint-start' : 'endpoint-end') : 'stop',
             point.label || `${entry.title} ${isEndpoint ? (index === 0 ? 'start' : 'end') : 'stop'}`,
           );
         });
@@ -333,7 +333,7 @@
         selectionKey: key,
         selected: selectedMarkerKey === key,
         testId: marker.role === 'stop' ? 'embeds-map-view-stop-marker' : 'embeds-map-view-endpoint-marker',
-        iconClass: `embeds-map-view-marker embeds-map-view-marker-${marker.role}${isActive ? ' embeds-map-view-marker-active' : ''}`,
+        iconClass: `embeds-map-view-marker embeds-map-view-marker-${marker.role}${isActive ? ' embeds-map-view-marker-active' : ''}${selectedMarkerKey === key ? ' embeds-map-view-marker-selected' : ''}`,
         opacity: activeRefs.size > 0 && !isActive ? 0.5 : 1,
       };
     });
@@ -2352,6 +2352,27 @@
 
   :global(.embeds-map-view-marker-active .marker-icon) {
     filter: drop-shadow(0 0 5px var(--color-primary));
+  }
+
+  :global(.embeds-map-view-marker-endpoint-start .marker-icon) {
+    color: var(--color-app-travel-start, #059db3);
+  }
+
+  :global(.embeds-map-view-marker-endpoint-end .marker-icon) {
+    color: var(--color-app-travel-end, #13daf5);
+  }
+
+  :global(.embeds-map-view-marker-stop .marker-icon),
+  :global(.embeds-map-view-marker-selected .marker-icon) {
+    color: var(--color-error, #e74c3c);
+  }
+
+  :global(.embeds-map-view-marker-location .marker-icon) {
+    color: var(--color-grey-50, #a6a6a6);
+  }
+
+  :global(.embeds-map-view-marker-location.embeds-map-view-marker-selected .marker-icon) {
+    color: var(--color-error, #e74c3c);
   }
 
   @container (max-width: 720px) {

@@ -165,7 +165,7 @@
   let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
-  const markerIconHtml = `<img class="marker-icon" src="${mapsMarkerIconUrl}" alt="" aria-hidden="true">`;
+  const markerIconHtml = `<span class="marker-icon" aria-hidden="true" style="--marker-icon-url: url('${mapsMarkerIconUrl}')"></span>`;
 
   function applyTileTheme(isDarkMode: boolean) {
     const container = tileLayer?.getContainer?.();
@@ -492,6 +492,9 @@
     display: block;
     width: 40px;
     height: 40px;
+    background: currentColor;
+    -webkit-mask: var(--marker-icon-url) center / contain no-repeat;
+    mask: var(--marker-icon-url) center / contain no-repeat;
     transition: opacity var(--duration-fast, 0.15s) ease;
   }
 
