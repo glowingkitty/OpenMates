@@ -2298,6 +2298,8 @@
   .calendar-week-toolbar button {
     display: inline-grid;
     width: 28px;
+    min-width: 28px;
+    max-width: 28px;
     height: 28px;
     place-items: center;
     border: 0;

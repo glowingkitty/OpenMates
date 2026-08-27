@@ -405,6 +405,14 @@ test.describe('Embeds map view preview', () => {
 			const mobileWeekLabel = mapView.getByTestId('embeds-results-view-calendar-week-label');
 			await expect(mobileWeekLabel).toContainText('Week 16 2026');
 			expect(await mobileWeekLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+			const mobileMapViewBox = await mapView.boundingBox();
+			const previousWeekBox = await mapView.getByRole('button', { name: 'Previous week' }).boundingBox();
+			const nextWeekBox = await mapView.getByRole('button', { name: 'Next week' }).boundingBox();
+			expect(mobileMapViewBox, 'mobile map view box should exist').not.toBeNull();
+			expect(previousWeekBox, 'previous week button box should exist').not.toBeNull();
+			expect(nextWeekBox, 'next week button box should exist').not.toBeNull();
+			expect(previousWeekBox!.x).toBeGreaterThanOrEqual(mobileMapViewBox!.x);
+			expect(nextWeekBox!.x + nextWeekBox!.width).toBeLessThanOrEqual(mobileMapViewBox!.x + mobileMapViewBox!.width);
 		}
 
 		expect(forbiddenApiCalls).toEqual([]);
