@@ -122,7 +122,9 @@ def test_parent_continuation_ai_reservation_is_guarded_before_orchestration_call
         source.index("async def _fail_reserved_operation(")
     ]
 
-    continuation_guard = function_source.index("if is_sub_chat_continuation(request_data):")
+    continuation_guard = function_source.index(
+        "if is_sub_chat_continuation(request_data) and not is_anonymous:"
+    )
     orchestration_call = function_source.index("SubChatOrchestrationService(directus_service).execute")
 
     assert continuation_guard < orchestration_call
