@@ -16,3 +16,9 @@ def test_compaction_keeps_a_bounded_recent_tail_before_auto_continuation() -> No
         "preserve_recent_tokens": 32_000,
         "reserved": 64_000,
     }
+
+
+def test_primary_build_turn_has_a_bounded_tool_loop() -> None:
+    config = json.loads((ROOT / "opencode.json").read_text(encoding="utf-8"))
+
+    assert config["agent"]["build"]["steps"] == 8

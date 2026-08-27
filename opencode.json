@@ -54,6 +54,9 @@
     }
   },
   "agent": {
+    "build": {
+      "steps": 8
+    },
     "explore": {
       "model": "openai/gpt-5.6-terra",
       "options": {
