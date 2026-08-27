@@ -300,7 +300,14 @@ test("bash guard allows source file references that are not writes", async () =>
 test("bash guard blocks direct Docker Compose lifecycle mutations", async () => {
   await assert.rejects(
     () => runBeforeShell("docker compose -f backend/core/docker-compose.yml restart api"),
-    /Reason: Direct Docker Compose lifecycle mutations bypass.*Next: use openmates server/,
+    /Reason: Direct Docker Compose lifecycle mutations bypass.*Next: use python3 scripts\/sessions\.py docker restart/s,
+  );
+});
+
+test("bash guard blocks OpenMates CLI server lifecycle mutations", async () => {
+  await assert.rejects(
+    () => runBeforeShell("openmates server restart --rebuild --services api"),
+    /Reason: OpenMates server lifecycle commands spawn Docker Compose.*Next: use python3 scripts\/sessions\.py docker restart/s,
   );
 });
 
@@ -315,7 +322,7 @@ test("Docker mutation decision rejects direct Compose even with a Docker lock", 
       data,
     });
   assert.equal(decision.decision, "block");
-  assert.match(decision.message, /openmates server restart --rebuild/);
+  assert.match(decision.message, /scripts\/sessions\.py docker restart/);
 });
 
 test("bash guard blocks nested interpreter source reads", async () => {

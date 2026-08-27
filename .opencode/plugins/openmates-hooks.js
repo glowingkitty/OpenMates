@@ -1465,14 +1465,35 @@ function dockerComposeMutation(command) {
   return false;
 }
 
+function openMatesServerLifecycleMutation(command) {
+  for (const tokens of commandSegmentTokens(command.replace(/\\\s*\n/g, " "))) {
+    const invocation = normalizedInvocation(tokens);
+    const { command: commandName, args } = invocation;
+    if (commandName !== "openmates") continue;
+    if (args[0] !== "server") continue;
+    if (["restart", "start", "stop", "update"].includes(args[1])) return true;
+  }
+  return false;
+}
+
 function dockerMutationDecisionForTest({ command = "" } = {}) {
-  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
+  if (openMatesServerLifecycleMutation(command)) {
+    return {
+      decision: "block",
+      message: actionable(
+        DOCKER_LIFECYCLE_MARKER,
+        "OpenMates server lifecycle commands spawn Docker Compose and bypass the shared restart coordinator in agent sessions.",
+        "use python3 scripts/sessions.py docker restart --session <repository-session-id> --service <service> [--build], or wait with python3 scripts/sessions.py wait-lock --session <repository-session-id> --type docker --follow --poll 10.",
+      ),
+    };
+  }
+  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker lifecycle mutation" };
   return {
     decision: "block",
     message: actionable(
       DOCKER_LIFECYCLE_MARKER,
       "Direct Docker Compose lifecycle mutations bypass the registered OpenMates source and service policy.",
-      "use openmates server start, stop, restart, or update; use openmates server restart --rebuild [--services <service>] for rebuilds.",
+      "use python3 scripts/sessions.py docker restart --session <repository-session-id> --service <service> [--build], or wait with python3 scripts/sessions.py wait-lock --session <repository-session-id> --type docker --follow --poll 10.",
     ),
   };
 }
