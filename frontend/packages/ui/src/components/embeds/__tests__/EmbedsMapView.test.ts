@@ -47,9 +47,12 @@ vi.mock("../../../services/embedStore", () => ({
 vi.mock("../../../services/embedFullscreenController", () => fullscreenMocks);
 
 async function flush(): Promise<void> {
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await tick();
+  // Registry previews use dynamic imports, which settle across multiple turns.
+  for (let turn = 0; turn < 5; turn += 1) {
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await tick();
+  }
 }
 
 describe("EmbedsMapView", () => {
