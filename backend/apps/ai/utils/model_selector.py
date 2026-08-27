@@ -257,7 +257,7 @@ class ModelSelector:
 
         Args:
             task_area: The type of task (code, math, creative, instruction, general)
-            complexity: Task complexity (simple, complex)
+            complexity: Task complexity (simple, complex, most_demanding)
             china_related: If True, exclude CN-origin models
             user_unhappy: If True, use premium models to improve response quality
             required_input_type: Required input type (e.g., "image" for vision)
@@ -314,7 +314,7 @@ class ModelSelector:
 
         # Step 4: Determine selection strategy based on complexity and user satisfaction
         prefer_economical = complexity == "simple" and not user_unhappy
-        prefer_premium = complexity == "complex" or user_unhappy
+        prefer_premium = complexity in {"complex", "most_demanding"} or user_unhappy
 
         if prefer_premium:
             reasons.append("Premium model preferred (complex task or user unhappy)")

@@ -25,6 +25,7 @@ from backend.core.api.app.services.directus.gift_card_methods import (
 )
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
 from backend.core.api.app.services.directus.chat_key_wrapper_methods import ChatKeyWrapperMethods
+from backend.core.api.app.services.directus.chat_model_preference_methods import ChatModelPreferenceMethods
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
@@ -102,6 +103,7 @@ class DirectusService:
         self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
         self.chat_key_wrapper = ChatKeyWrapperMethods(self) # Initialize chat key wrapper migration/read helpers
+        self.chat_model_preference = ChatModelPreferenceMethods(self) # Encrypted owner/chat model selector
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.project = ProjectMethods(self) # Initialize ProjectMethods
         self.team = TeamMethods(self) # Initialize Teams V1 team/membership methods

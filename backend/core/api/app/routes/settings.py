@@ -5282,6 +5282,7 @@ async def update_ai_model_defaults(
     for field_name, value in [
         ("default_ai_model_simple", request_data.default_ai_model_simple),
         ("default_ai_model_complex", request_data.default_ai_model_complex),
+        ("default_ai_model_most_demanding", request_data.default_ai_model_most_demanding),
     ]:
         if value is not None and "/" not in value:
             raise HTTPException(
@@ -5302,6 +5303,8 @@ async def update_ai_model_defaults(
         update_data['default_ai_model_simple'] = request_data.default_ai_model_simple
     if "default_ai_model_complex" in provided_fields:
         update_data['default_ai_model_complex'] = request_data.default_ai_model_complex
+    if "default_ai_model_most_demanding" in provided_fields:
+        update_data['default_ai_model_most_demanding'] = request_data.default_ai_model_most_demanding
     if "default_app_skill_models" in provided_fields:
         update_data['default_app_skill_models'] = cleaned_app_skill_models
     if "follow_up_suggestions_enabled" in provided_fields and request_data.follow_up_suggestions_enabled is not None:
@@ -5313,6 +5316,7 @@ async def update_ai_model_defaults(
         f"[AiModelDefaults] Updating default models for user {user_id}: "
         f"simple={request_data.default_ai_model_simple!r}, "
         f"complex={request_data.default_ai_model_complex!r}, "
+        f"most_demanding={request_data.default_ai_model_most_demanding!r}, "
         f"app_skill_models={cleaned_app_skill_models!r}, "
         f"follow_up_suggestions_enabled={request_data.follow_up_suggestions_enabled!r}, "
         f"quick_tips_enabled={request_data.quick_tips_enabled!r}"

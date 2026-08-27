@@ -10,6 +10,7 @@ from __future__ import annotations
 # contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated,sync.startup.bounded-phases,sync.phase2.metadata-only
 
 import importlib.util
+import socket
 import sys
 from pathlib import Path
 import base64
@@ -130,6 +131,9 @@ def test_websocket_handshake_requires_the_rfc_accept_value(monkeypatch):
     expected = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode("ascii")).digest()).decode("ascii")
 
     class Socket:
+        def settimeout(self, _timeout):
+            return None
+
         def sendall(self, _data):
             return None
 
@@ -149,6 +153,59 @@ def test_websocket_handshake_requires_the_rfc_accept_value(monkeypatch):
     monkeypatch.setattr(invalid, "_read_http_headers", lambda: "HTTP/1.1 101 Switching Protocols\r\nSec-WebSocket-Accept: invalid\r\n\r\n")
     with pytest.raises(module.ContractFailure, match="Sec-WebSocket-Accept"):
         invalid.connect()
+
+
+# contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated
+def test_websocket_ping_frames_are_answered_with_masked_pong(monkeypatch):
+    module = load_module()
+    event_payload = b'{"type":"ready"}'
+    incoming = bytearray(b"\x89\x02hi" + bytes([0x81, len(event_payload)]) + event_payload)
+
+    class Socket:
+        def __init__(self):
+            self.sent = bytearray()
+
+        def settimeout(self, _timeout):
+            return None
+
+        def recv(self, count):
+            chunk = incoming[:count]
+            del incoming[:count]
+            return bytes(chunk)
+
+        def sendall(self, data):
+            self.sent.extend(data)
+
+    sock = Socket()
+    monkeypatch.setattr(module.secrets, "token_bytes", lambda _size: b"\x00\x00\x00\x00")
+    ws = module.WireWebSocket("https://api.dev.openmates.org", query={})
+    ws.sock = sock
+
+    assert ws.receive_json(1.0) == {"type": "ready"}
+    assert bytes(sock.sent) == b"\x8a\x82\x00\x00\x00\x00hi"
+
+
+# contract-test: supporting surface=rest_api assertions=sync.access.first-party-authenticated
+def test_websocket_receive_json_enforces_absolute_frame_deadline(monkeypatch):
+    module = load_module()
+    incoming = bytearray(b"\x81\x03{")
+    times = iter([0.0, 0.0, 0.0, 2.0])
+
+    class Socket:
+        def settimeout(self, _timeout):
+            return None
+
+        def recv(self, count):
+            chunk = incoming[:count]
+            del incoming[:count]
+            return bytes(chunk)
+
+    monkeypatch.setattr(module.time, "monotonic", lambda: next(times, 2.0))
+    ws = module.WireWebSocket("https://api.dev.openmates.org", query={})
+    ws.sock = Socket()
+
+    with pytest.raises(socket.timeout):
+        ws.receive_json(1.0)
 
 
 # contract-test: supporting surface=rest_api assertions=sync.startup.bounded-phases,sync.phase2.metadata-only

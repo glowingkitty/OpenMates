@@ -70,6 +70,18 @@ contracts:
     - cli
     - gui.web
     - gui.apple
+  feature.ai-model-routing:
+    version: 1
+    status: draft
+    path: features/ai-model-routing
+    fingerprint: bedc508fe88efc9ca0193efb841b7b9c0fa05e679b2bc000a61f5cf7c24d7325
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-memories:
     version: 1
     status: draft
@@ -1042,6 +1054,138 @@ assertions:
     fingerprint: d7ddd8d27c9e31d4887984b09553c6e9e84cb883212f71beda0967bb39a33da0
     required_surfaces:
     - cli
+    - gui.web
+    - gui.apple
+  ai-model-routing.tiers.conservative-three-way:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: 517eda4eb2523577439ab57b4dbd1a011d4190168e0bef99182bc21c0ac5c59f
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.preferences.exclusive-tier-defaults:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: invariant
+    fingerprint: ca1780cc1ffd196f40882d131e75df1b30a36153dfa80c07076df32ce010da58
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.catalog.capability-recommendation-variants:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: bf4abc3e6ca29206760657f47e8d748b481cee71f671eafac5e57abb21ebe291
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.defaults.google-tier-profiles:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: da11e75ba975dec468971b768e613af14c2de1857067b6929534ee3de754790b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.chat-selection.encrypted-user-chat-scope:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: privacy
+    fingerprint: 3b1fe8326b1e4fe38b2dd71db60adeb9cbbaadadaaedd92b1522fc1bc961098a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.precedence.chat-over-tier-over-auto:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: invariant
+    fingerprint: 7ff7bb266bc14ccaa57f987e1ac381b6a7865eb352bf7306609573e807e3acd3
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.composer.mention-to-exact-selection:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: 1588ae8feecbfe893795d7b358c3a58f30c824fde2baa790a137f770891ad24c
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.unavailable.notify-reset-auto:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: failure
+    fingerprint: e4b0ca6b9f2635f0f8e9ce522121e6530cc2f832194f8d2a7acc716f676fdb36
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.settings.hierarchy-canonical:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: behavior
+    fingerprint: df1f591c577d1c1c1d8cdfb2891e7c80ad770a5bfbaa2b9b360024d82a0355d2
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.composer.responsive-actions:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: parity
+    fingerprint: cde79da48264deaf3f06d90a3d15e897b3f0aac4a69b42a91fe93b4cf23a84a6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.surface.semantic-parity:
+    contract: feature.ai-model-routing@1
+    contract_id: feature.ai-model-routing
+    type: parity
+    fingerprint: 4f9a5580f2c6dd1da453e3eb3da2b8b05ccba2396e3d326d12b8199158408394
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
     - gui.web
     - gui.apple
   app-memories.catalog.declared-types-only:

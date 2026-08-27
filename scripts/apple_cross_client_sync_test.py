@@ -65,18 +65,27 @@ def require_https(api_url: str) -> None:
 class WireWebSocket:
     """Minimal masked client WebSocket implementation for the live contract only."""
 
-    def __init__(self, api_url: str, *, query: dict[str, str], cookie: str = "") -> None:
+    def __init__(
+        self,
+        api_url: str,
+        *,
+        query: dict[str, str],
+        cookie: str = "",
+        handshake_timeout: float = 20,
+    ) -> None:
         require_https(api_url)
         parsed = urllib.parse.urlparse(api_url)
         self.host = parsed.hostname or ""
         self.port = parsed.port or (443 if parsed.scheme == "https" else 80)
         self.path = (parsed.path.rstrip("/") or "") + "/v1/ws?" + urllib.parse.urlencode(query)
         self.cookie = cookie
+        self.handshake_timeout = handshake_timeout
         self.sock: socket.socket | ssl.SSLSocket | None = None
 
     def connect(self) -> int:
-        raw = socket.create_connection((self.host, self.port), timeout=20)
+        raw = socket.create_connection((self.host, self.port), timeout=self.handshake_timeout)
         self.sock = ssl.create_default_context().wrap_socket(raw, server_hostname=self.host)
+        self.sock.settimeout(self.handshake_timeout)
         key = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
         headers = [
             f"GET {self.path} HTTP/1.1",
@@ -123,37 +132,45 @@ class WireWebSocket:
 
     def send_json(self, value: dict[str, Any]) -> None:
         payload = json.dumps(value, separators=(",", ":")).encode("utf-8")
+        self._send_frame(0x1, payload)
+
+    def _send_frame(self, opcode: int, payload: bytes) -> None:
         mask = secrets.token_bytes(4)
         length = len(payload)
         if length < 126:
-            header = bytes((0x81, 0x80 | length))
+            header = bytes((0x80 | opcode, 0x80 | length))
         elif length < 65536:
-            header = bytes((0x81, 0xFE)) + struct.pack("!H", length)
+            header = bytes((0x80 | opcode, 0xFE)) + struct.pack("!H", length)
         else:
-            header = bytes((0x81, 0xFF)) + struct.pack("!Q", length)
+            header = bytes((0x80 | opcode, 0xFF)) + struct.pack("!Q", length)
         masked = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
         assert self.sock is not None
         self.sock.sendall(header + mask + masked)
 
     def receive_json(self, timeout: float) -> dict[str, Any]:
         assert self.sock is not None
+        deadline = time.monotonic() + timeout
         self.sock.settimeout(timeout)
-        first, second = self._read_exact(2)
+        first, second = self._read_exact(2, deadline=deadline)
         opcode = first & 0x0F
         length = second & 0x7F
         if length == 126:
-            length = struct.unpack("!H", self._read_exact(2))[0]
+            length = struct.unpack("!H", self._read_exact(2, deadline=deadline))[0]
         elif length == 127:
-            length = struct.unpack("!Q", self._read_exact(8))[0]
+            length = struct.unpack("!Q", self._read_exact(8, deadline=deadline))[0]
         masked = bool(second & 0x80)
-        mask = self._read_exact(4) if masked else b""
-        payload = self._read_exact(length)
+        mask = self._read_exact(4, deadline=deadline) if masked else b""
+        payload = self._read_exact(length, deadline=deadline)
         if masked:
             payload = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
         if opcode == 0x8:
             raise ContractFailure("WebSocket closed before the expected response")
         if opcode == 0x9:
-            return self.receive_json(timeout)
+            self._send_frame(0xA, payload)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise socket.timeout("timed out")
+            return self.receive_json(remaining)
         try:
             decoded = json.loads(payload.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -162,10 +179,15 @@ class WireWebSocket:
             raise ContractFailure("WebSocket returned a non-object event")
         return decoded
 
-    def _read_exact(self, length: int) -> bytes:
+    def _read_exact(self, length: int, *, deadline: float | None = None) -> bytes:
         assert self.sock is not None
         chunks = bytearray()
         while len(chunks) < length:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise socket.timeout("timed out")
+                self.sock.settimeout(remaining)
             chunk = self.sock.recv(length - len(chunks))
             if not chunk:
                 raise ContractFailure("WebSocket closed during a response frame")

@@ -44,6 +44,13 @@ from backend.apps.ai.processing.audio_recording_guard import (
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
+from backend.apps.ai.processing.model_routing import (
+    MOST_DEMANDING_TIER,
+    APPROVED_REQUEST_TIERS,
+    default_profile_for_tier,
+    normalize_request_tier,
+    tier_preference_key,
+)
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -1142,7 +1149,7 @@ class PreprocessingResult(BaseModel):
     topic_area: Optional[str] = Field(None, description="Granular topic area used for deterministic mate routing.")
     topic_shift: Optional[str] = Field(None, description="Whether the latest message continues or changes the chat topic.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
-    complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
+    complexity: Optional[str] = Field(None, description="Assessed complexity of the request (simple, complex, or most_demanding).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app memories keys to load (e.g., ['app_id:item_key']).")
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
@@ -2363,16 +2370,16 @@ async def handle_preprocessing(
     else:
         logger.info(f"{log_prefix} Request passed harmful content and misuse risk checks. Scores: Harmful={harmful_or_illegal_val}, Misuse={misuse_risk_val}.")
     
-    # --- Validate complexity field (enum: ["simple", "complex"]) ---
+    # --- Validate complexity field (enum: ["simple", "complex", "most_demanding"]) ---
     # CRITICAL: Invalid complexity values could break model selection logic
     complexity_val = llm_analysis_args.get("complexity", "simple")
-    valid_complexity_values = ["simple", "complex"]
+    valid_complexity_values = list(APPROVED_REQUEST_TIERS)
     if complexity_val not in valid_complexity_values:
         logger.warning(
             f"{log_prefix} LLM returned invalid complexity value '{complexity_val}'. "
             f"Valid values are: {valid_complexity_values}. Defaulting to 'complex' (safer default)."
         )
-        complexity_val = "complex"  # Use 'complex' as safer default (better model, more capable)
+        complexity_val = normalize_request_tier(complexity_val)
         # Update llm_analysis_args for consistency
         llm_analysis_args["complexity"] = complexity_val
     
@@ -2403,8 +2410,8 @@ async def handle_preprocessing(
     # Validate enable_subchats (boolean)
     enable_subchats_val = llm_analysis_args.get("enable_subchats")
     if enable_subchats_val is None:
-        # Default to True if complexity is complex as an intelligent heuristic
-        enable_subchats_val = (complexity_val == "complex")
+        # Default to True if complexity needs stronger multi-step planning.
+        enable_subchats_val = (complexity_val in {"complex", MOST_DEMANDING_TIER})
     elif not isinstance(enable_subchats_val, bool):
         enable_subchats_val = bool(enable_subchats_val)
     llm_analysis_args["enable_subchats"] = enable_subchats_val
@@ -2594,7 +2601,7 @@ async def handle_preprocessing(
     # This runs after @mention override check but before ModelSelector auto-selection.
     # Priority: @mention override > user default model > auto-selection via ModelSelector.
     if not model_override_applied:
-        user_default_key = "default_ai_model_complex" if complexity_val == "complex" else "default_ai_model_simple"
+        user_default_key = tier_preference_key(complexity_val)
         user_default_model = (request_data.user_preferences or {}).get(user_default_key)
         if user_default_model and "/" in user_default_model:
             # Resolve human-readable display name from provider config
@@ -2677,7 +2684,12 @@ async def handle_preprocessing(
                     f"Falling back to skill_config defaults."
                 )
                 # Use skill_config defaults as fallback
-                if complexity_val == "complex":
+                if complexity_val == MOST_DEMANDING_TIER:
+                    profile = default_profile_for_tier(MOST_DEMANDING_TIER)
+                    selected_llm_for_main_id = profile["model"]
+                    provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                    selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
+                elif complexity_val == "complex":
                     selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                     selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
                 else:
@@ -2695,7 +2707,12 @@ async def handle_preprocessing(
                 f"{log_prefix} MODEL_SELECTION: Auto-selection disabled (enable_auto_model_selection=false). "
                 f"Using hardcoded models from skill_config."
             )
-            if complexity_val == "complex":
+            if complexity_val == MOST_DEMANDING_TIER:
+                profile = default_profile_for_tier(MOST_DEMANDING_TIER)
+                selected_llm_for_main_id = profile["model"]
+                provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
+            elif complexity_val == "complex":
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
             else:
@@ -3556,7 +3573,7 @@ async def handle_preprocessing(
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
-        complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
+        complexity=complexity_val,  # Use validated complexity (enum: approved request tiers)
         misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=load_app_settings_and_memories_val,  # Use validated keys (filtered against available metadata)
         relevant_embedded_previews=relevant_embedded_previews_val,  # Use relevant embedded preview types for main LLM instruction

@@ -67,6 +67,7 @@ AI_USER_PREFERENCE_FIELDS = [
     "language",
     "default_ai_model_simple",
     "default_ai_model_complex",
+    "default_ai_model_most_demanding",
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
     "quick_tips_enabled",
@@ -1934,6 +1935,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if default_model_complex:
                 user_preferences_dict["default_ai_model_complex"] = default_model_complex
                 logger.debug(f"Including default complex model '{default_model_complex}' in AI request for user {user_id}")
+            default_model_most_demanding = user_data_for_prefs.get("default_ai_model_most_demanding")
+            if default_model_most_demanding:
+                user_preferences_dict["default_ai_model_most_demanding"] = default_model_most_demanding
+                logger.debug(f"Including default most-demanding model '{default_model_most_demanding}' in AI request for user {user_id}")
             default_app_skill_models = user_data_for_prefs.get("default_app_skill_models")
             if isinstance(default_app_skill_models, dict):
                 user_preferences_dict["default_app_skill_models"] = default_app_skill_models
