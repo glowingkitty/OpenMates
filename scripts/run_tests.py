@@ -193,6 +193,7 @@ ACCOUNT_PREFLIGHT_CACHE_PATH = CONTROL_PLANE_ROOT / "test-results" / "account-pr
 ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH = Path("/tmp/openmates-account-preflight-cache.lock")
 MAX_ERROR_SNIPPET = 600
 GITHUB_DISPATCH_RATE_LIMIT_RESERVE = 25
+GITHUB_MUTATING_REQUEST_INTERVAL_SECONDS = 1.0
 GITHUB_DISPATCH_INCIDENT_KEY = "infrastructure::github-actions-dispatch"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
@@ -515,7 +516,18 @@ class DispatchCircuit:
     _incident_claimed: bool = False
     _remaining_requests: Optional[int] = None
     _budget_configured: bool = False
+    _next_mutating_request_at: float = 0.0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def wait_for_mutating_request_slot(self) -> None:
+        """Globally serialize GitHub workflow dispatches across worker threads."""
+        with self._lock:
+            now = time.monotonic()
+            scheduled_at = max(now, self._next_mutating_request_at)
+            self._next_mutating_request_at = scheduled_at + GITHUB_MUTATING_REQUEST_INTERVAL_SECONDS
+        delay = scheduled_at - now
+        if delay > 0:
+            time.sleep(delay)
 
     def _open_locked(self, incident_code: str, reset_at: Optional[int]) -> bool:
         if self.is_open:
@@ -1951,6 +1963,7 @@ class GitHubActionsClient:
         if proof_video_profile:
             command.extend(["-f", f"proof_video_profile={proof_video_profile}"])
 
+        self.dispatch_circuit.wait_for_mutating_request_slot()
         rc = subprocess.run(
             command,
             capture_output=True, text=True,
@@ -2618,10 +2631,6 @@ class BatchRunner:
                 ))
             else:
                 pending_dispatches[dispatch_token] = (spec, account)
-
-            # Small delay between dispatches to avoid rate limiting
-            if (i + 1) % 5 == 0:
-                time.sleep(1)
 
         immediate = {
             token: int(token.partition(":")[2])
@@ -7414,6 +7423,7 @@ class TestOrchestrator:
         if self.campaign_test_labels and workflow_file in {"pytest-unit.yml", "vitest.yml"}:
             input_name = "test_targets_json" if workflow_file == "pytest-unit.yml" else "test_files_json"
             dispatch_command.extend(["-f", f"{input_name}={json.dumps(self.campaign_test_labels, separators=(',', ':'))}"])
+        circuit.wait_for_mutating_request_slot()
         rc = subprocess.run(
             dispatch_command,
             capture_output=True, text=True,

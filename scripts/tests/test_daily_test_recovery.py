@@ -87,6 +87,22 @@ def test_parallel_dispatch_reservations_are_atomic() -> None:
     assert circuit.snapshot()["open"] is True
 
 
+# contract-test: direct surface=cli assertions=test-orchestration.dispatch.quota-aware-circuit-breaker
+def test_mutating_dispatch_slots_are_globally_paced(monkeypatch) -> None:
+    run_tests = load_module("daily_recovery_dispatch_pacing", ROOT / "scripts" / "run_tests.py")
+    circuit = run_tests.DispatchCircuit()
+    sleeps = []
+    monkeypatch.setattr(run_tests.time, "monotonic", lambda: 100.0)
+    monkeypatch.setattr(run_tests.time, "sleep", sleeps.append)
+
+    circuit.wait_for_mutating_request_slot()
+    circuit.wait_for_mutating_request_slot()
+    circuit.wait_for_mutating_request_slot()
+
+    assert sleeps == [1.0, 2.0]
+    assert circuit._next_mutating_request_at == 103.0
+
+
 # contract-test: direct surface=cli assertions=test-orchestration.dispatch.quota-aware-circuit-breaker,test-orchestration.results.infrastructure-is-not-product-failure
 def test_rate_limit_emits_one_parent_and_blocks_all_dependants(monkeypatch) -> None:
     run_tests = load_module("daily_recovery_rate_limit", ROOT / "scripts" / "run_tests.py")
