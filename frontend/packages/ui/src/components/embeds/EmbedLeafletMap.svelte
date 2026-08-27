@@ -21,7 +21,7 @@
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import mapsMarkerIconUrl from '../../../static/icons/maps.svg?url';
+  import mapsMarkerIconSvg from '../../../static/icons/maps.svg?raw';
   import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
   /** A single marker on the map */
@@ -165,7 +165,9 @@
   let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
-  const markerIconHtml = `<span class="marker-icon" aria-hidden="true" style="--marker-icon-url: url('${mapsMarkerIconUrl}')"></span>`;
+  const markerIconHtml = mapsMarkerIconSvg
+    .replace('<svg ', '<svg class="marker-icon" aria-hidden="true" ')
+    .replace('fill="#000"', 'fill="currentColor"');
 
   function applyTileTheme(isDarkMode: boolean) {
     const container = tileLayer?.getContainer?.();
@@ -492,9 +494,6 @@
     display: block;
     width: 40px;
     height: 40px;
-    background: currentColor;
-    -webkit-mask: var(--marker-icon-url) center / contain no-repeat;
-    mask: var(--marker-icon-url) center / contain no-repeat;
     transition: opacity var(--duration-fast, 0.15s) ease;
   }
 

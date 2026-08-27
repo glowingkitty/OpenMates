@@ -28,7 +28,6 @@
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
   const HISTOGRAM_BUCKETS = 12;
   const CALENDAR_WEEK_DAYS = 7;
-  const MINUTES_PER_DAY = 24 * 60;
 
   interface Props {
     id: string;
@@ -821,10 +820,6 @@
     return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
   }
 
-  function calendarItemOffsetPx(item: CalendarEntry): number {
-    return Math.round((item.startMinutes / MINUTES_PER_DAY) * 72);
-  }
-
   function formatCalendarDayLabel(value: number): string {
     return new Intl.DateTimeFormat('en-US', {
       timeZone: 'UTC',
@@ -1558,8 +1553,7 @@
     {/if}
   </header>
 
-  {#if !filtersOpen}
-    <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'}>
+  <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'} aria-hidden={filtersOpen}>
     {#if selectedVisualTab === 'map'}
       <div class="map-view-list" data-testid="embeds-map-view-list">
       <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
@@ -1615,8 +1609,7 @@
     {/if}
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
-      {#if selectedVisualTab === 'calendar'}
-        <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
+      <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results" hidden={selectedVisualTab !== 'calendar'}>
           {#if activeCalendarWeekStart != null}
             <header class="calendar-week-toolbar">
               <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}>Previous</button>
@@ -1641,7 +1634,6 @@
                         data-testid="embeds-results-view-calendar-item"
                         data-entry-category={item.entry.category}
                         data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
-                        style={`--calendar-start-offset: ${calendarItemOffsetPx(item)}px;`}
                         onclick={() => openEntry(item.entry)}
                         onpointerenter={() => (hoveredRef = item.entry.ref)}
                         onpointerleave={() => handleEntryPointerLeave(item.entry.ref)}
@@ -1663,8 +1655,7 @@
           {:else}
             <div class="empty-map">Referenced embeds do not expose date and time yet.</div>
           {/if}
-        </div>
-      {:else}
+      </div>
         <div
           class="map-view-map"
           data-testid="embeds-map-view-map"
@@ -1676,6 +1667,7 @@
           id="embeds-results-view-panel-map"
           role="tabpanel"
           aria-label="Mapped results"
+          hidden={selectedVisualTab !== 'map'}
           bind:this={mapShellElement}
         >
           {#if mapCenter}
@@ -1701,12 +1693,8 @@
             <div class="empty-map">Referenced embeds do not expose coordinates yet.</div>
           {/if}
         </div>
-      {/if}
     </div>
-    </div>
-  {:else}
-    <div class="filter-view-spacer" aria-hidden="true"></div>
-  {/if}
+  </div>
 </section>
 
 <style>
@@ -1945,8 +1933,10 @@
     display: grid;
     gap: 10px;
     min-height: 0;
-    overflow: auto;
-    padding-right: 4px;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding: 0 4px 18px 0;
   }
 
   .filter-menu-header strong,
@@ -1986,11 +1976,20 @@
     cursor: pointer;
   }
 
-  .filter-menu button.active,
-  .filter-menu button[aria-pressed='true'],
   .filter-menu button:hover {
     background: var(--color-grey-blue, #e6eaff);
     color: var(--color-font-primary, #222222);
+  }
+
+  .filter-menu button.active,
+  .filter-menu button[aria-pressed='true'] {
+    border-color: transparent;
+    background: var(--gradient-primary);
+    color: var(--color-text-on-primary, #ffffff);
+  }
+
+  .filter-menu button[aria-pressed='true'] span {
+    color: inherit;
   }
 
   .option-chips button span {
@@ -2047,10 +2046,6 @@
 
   .map-view-body.calendar-active {
     display: block;
-  }
-
-  .filter-view-spacer {
-    height: 535px;
   }
 
   .results-view-pane {
@@ -2274,6 +2269,7 @@
     flex-direction: column;
     gap: 8px;
     min-height: 220px;
+    overflow-y: auto;
   }
 
   .calendar-item {
@@ -2281,7 +2277,6 @@
     grid-template-columns: 1fr;
     gap: 6px;
     width: 100%;
-    margin-top: var(--calendar-start-offset, 0px);
     border: 1px solid var(--color-grey-25, #e8e8e8);
     border-radius: var(--radius-5, 12px);
     background: var(--color-grey-0, #ffffff);
