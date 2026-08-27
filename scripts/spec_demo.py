@@ -1469,7 +1469,13 @@ def prepare_review_artifacts(
         action_times=action_time_values,
         duration_seconds=float(metadata["duration_seconds"]),
     )
-    captions = assign_ordered_caption_claims(captions, claim_ids=claim_ids)
+    caption_claim_ids = {
+        str(value)
+        for caption in captions
+        for value in (caption.get("claim_ids") if isinstance(caption.get("claim_ids"), list) else [])
+    }
+    if claim_ids and (not caption_claim_ids or not caption_claim_ids.issubset(set(claim_ids))):
+        captions = assign_ordered_caption_claims(captions, claim_ids=claim_ids)
     captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
     write_webvtt_segments(captions_path, captions)
     validate_webvtt_matches_segments(captions_path, captions)

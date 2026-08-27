@@ -701,6 +701,78 @@ def test_prepare_review_artifacts_maps_ordered_claim_intervals_to_action_boundar
     assert manifest["expected_proof"][3]["evidence_intervals"] == [[12.0, 16.0]]
 
 
+def test_prepare_review_artifacts_preserves_explicit_caption_claim_intervals(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:12.000\nVisible.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        module,
+        "video_metadata",
+        lambda _path: {
+            "duration_seconds": 12.0,
+            "width": 390,
+            "height": 844,
+            "sha256": "sha256:" + "b" * 64,
+            "has_audio": False,
+            "tags": {},
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "extract_frame",
+        lambda _video_path, *, timestamp_seconds, output_path: {
+            "timestamp_seconds": round(timestamp_seconds, 3),
+            "path": str(output_path),
+            "sha256": "sha256:" + "c" * 64,
+        },
+    )
+
+    manifest = module.prepare_review_artifacts(
+        run_dir=tmp_path,
+        video_path=video,
+        spec_id="chat-streaming-phone-parity",
+        subject_commit="abc1234",
+        narration_id="NARR-1",
+        caption_text="Request visible. Processing visible. Response chunk visible.",
+        captions_path=captions,
+        expected_proof="Chat streaming proof.",
+        acceptance_criteria=["request", "processing", "composer", "chunk"],
+        source={"kind": "playwright"},
+        narration_audio=module.narration_audio_not_required(),
+        caption_segments=[
+            {"id": "CAP-1", "narration_id": "NARR-1", "text": "Request visible.", "start": 0.0, "end": 3.0, "claim_ids": ["request"]},
+            {
+                "id": "CAP-2",
+                "narration_id": "NARR-1",
+                "text": "Processing visible.",
+                "start": 3.0,
+                "end": 7.0,
+                "claim_ids": ["processing", "composer"],
+            },
+            {"id": "CAP-3", "narration_id": "NARR-1", "text": "Response chunk visible.", "start": 7.0, "end": 12.0, "claim_ids": ["chunk"]},
+        ],
+        proof_assertions=[
+            {"id": "request", "description": "The request is visible."},
+            {"id": "processing", "description": "The processing state is visible."},
+            {"id": "composer", "description": "The composer is visible."},
+            {"id": "chunk", "description": "The response chunk is visible."},
+        ],
+    )
+
+    assert [caption["claim_ids"] for caption in manifest["captions"]] == [
+        ["request"],
+        ["processing", "composer"],
+        ["chunk"],
+    ]
+    assert manifest["expected_proof"][1]["evidence_intervals"] == [[3.0, 7.0]]
+    assert manifest["expected_proof"][2]["evidence_intervals"] == [[3.0, 7.0]]
+
+
 def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_module()
     video = tmp_path / "demo.mp4"
