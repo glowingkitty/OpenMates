@@ -60,6 +60,7 @@ def configure_runtime_checkout(monkeypatch, checkout_root: Path) -> None:
         "_coherent_docker_services",
         lambda requested, _root, _commit: sorted(requested),
     )
+    monkeypatch.setattr(sessions, "_incoherent_docker_services", lambda _root, _tree: set())
     monkeypatch.setattr(sessions, "_record_product_runtime_services", lambda *_args: None)
     monkeypatch.setattr(
         sessions,
@@ -253,6 +254,19 @@ def test_runtime_coherence_keeps_matching_services_parallel_and_scoped(monkeypat
     assert sessions._coherent_docker_services(["api"], checkout_root, "new") == ["api"]
 
 
+def test_runtime_provenance_rejects_healthy_container_on_wrong_mount(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "runtime"
+    (checkout_root / "backend").mkdir(parents=True)
+    monkeypatch.setattr(
+        sessions,
+        "_running_backend_mounts",
+        lambda _root: {"api": {"source": "/old/session/backend", "container_id": "api-old"}},
+    )
+
+    with pytest.raises(RuntimeError, match="mount coherence failed for: api"):
+        sessions._record_product_runtime_services(["api"], checkout_root, "commit", "tree")
+
+
 def test_restart_command_routes_all_compose_operations_through_shared_runtime(monkeypatch, tmp_path):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
@@ -262,6 +276,7 @@ def test_restart_command_routes_all_compose_operations_through_shared_runtime(mo
         lambda: {"sessions": {"abcd": {"worktree": {"path": str(checkout_root), "status": "active"}}}},
     )
     configure_runtime_checkout(monkeypatch, checkout_root)
+    monkeypatch.setattr(sessions, "_incoherent_docker_services", lambda _root, _tree: {"api"})
     roots = []
     monkeypatch.setattr(sessions, "available_docker_services", lambda root: roots.append(("available", root)) or {"api"})
     monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
@@ -281,13 +296,13 @@ def test_restart_command_routes_all_compose_operations_through_shared_runtime(mo
         "wait_for_docker_services_healthy",
         lambda _services, *, checkout_root, **_kwargs: roots.append(("health", checkout_root)) or {"api": {"running": True}},
     )
-    args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=True)
+    args = argparse.Namespace(session="abcd", service=["api"], timeout=1, poll=1, health_timeout=1, build=False)
 
     sessions.cmd_docker_restart(args)
 
     assert roots == [
         ("available", checkout_root),
-        ("restart", checkout_root, [str(checkout_root), "up", "-d", "--build", "api"]),
+        ("restart", checkout_root, [str(checkout_root), "up", "-d", "--force-recreate", "api"]),
         ("health", checkout_root),
     ]
 

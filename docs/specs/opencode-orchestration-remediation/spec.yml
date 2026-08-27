@@ -177,6 +177,8 @@ scenarios:
       - The operation refreshes one clean product-runtime checkout only after dependent tests drain.
       - Every recreated code-mounted service uses that checkout and records its exact commit and container ID.
       - Existing services with another mount, commit, or unrecorded container generation are included in the coherence restart.
+      - Incoherent containers are force-recreated; a health-only restart cannot preserve an old bind mount and still complete.
+      - Exact mount and source-tree provenance is recorded before the runtime operation becomes completed.
       - Already coherent services are not restarted unnecessarily.
 
 acceptance_criteria:

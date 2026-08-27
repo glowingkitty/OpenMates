@@ -9792,11 +9792,10 @@ def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
     return mounted
 
 
-def _coherent_docker_services(requested: list[str], checkout_root: Path, backend_tree: str) -> list[str]:
-    """Expand a restart only when needed to eliminate mixed source generations."""
+def _incoherent_docker_services(checkout_root: Path, backend_tree: str) -> set[str]:
     state = _load_product_runtime_state().get("services") or {}
     expected_source = str((checkout_root / "backend").resolve())
-    services = set(requested)
+    incoherent: set[str] = set()
     for service, live in _running_backend_mounts(checkout_root).items():
         recorded = state.get(service) if isinstance(state.get(service), dict) else {}
         if (
@@ -9804,8 +9803,13 @@ def _coherent_docker_services(requested: list[str], checkout_root: Path, backend
             or recorded.get("backend_tree") != backend_tree
             or recorded.get("container_id") != live.get("container_id")
         ):
-            services.add(service)
-    return sorted(services)
+            incoherent.add(service)
+    return incoherent
+
+
+def _coherent_docker_services(requested: list[str], checkout_root: Path, backend_tree: str) -> list[str]:
+    """Expand a restart only when needed to eliminate mixed source generations."""
+    return sorted(set(requested) | _incoherent_docker_services(checkout_root, backend_tree))
 
 
 def _record_product_runtime_services(
@@ -9815,6 +9819,16 @@ def _record_product_runtime_services(
     backend_tree: str,
 ) -> None:
     live = _running_backend_mounts(checkout_root)
+    expected_source = (checkout_root / "backend").resolve()
+    invalid = [
+        service
+        for service in services
+        if service not in live or Path(str(live[service].get("source") or "")).resolve() != expected_source
+    ]
+    if invalid:
+        raise RuntimeError(
+            "Docker runtime mount coherence failed for: " + ", ".join(sorted(invalid))
+        )
     with PRODUCT_RUNTIME_STATE_LOCK_FILE.open("a+") as lock_handle:
         fcntl.flock(lock_handle, fcntl.LOCK_EX)
         try:
@@ -9977,7 +9991,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
         if rc != 0 or not backend_tree.strip():
             raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
         backend_tree = backend_tree.strip()
-        coherent_services = _coherent_docker_services(services, checkout_root, backend_tree)
+        incoherent_services = _incoherent_docker_services(checkout_root, backend_tree)
+        coherent_services = sorted(set(services) | incoherent_services)
         added_services = sorted(set(coherent_services) - set(services))
         if added_services:
             print(
@@ -9998,11 +10013,12 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
         )
         if not persistent_coordination:
             _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
-        compose_args = (
-            ["up", "-d", "--build", *services]
-            if getattr(args, "build", False)
-            else ["restart", *services]
-        )
+        if getattr(args, "build", False):
+            compose_args = ["up", "-d", "--build", *services]
+        elif incoherent_services:
+            compose_args = ["up", "-d", "--force-recreate", *services]
+        else:
+            compose_args = ["restart", *services]
         rc, stdout, stderr = _run_cmd_with_heartbeat(
             _docker_compose_command(*compose_args, checkout_root=checkout_root),
             cwd=str(checkout_root),
@@ -10027,8 +10043,8 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
                 update_docker_operation(operation["id"], "verifying"),
             ),
         )
-        completed = update_docker_operation(operation["id"], "completed", health=health)
         _record_product_runtime_services(services, checkout_root, source_commit, backend_tree)
+        completed = update_docker_operation(operation["id"], "completed", health=health)
         print(
             f"Docker restart {completed['id']} completed for {', '.join(services)}; "
             "all services are running and healthy."
