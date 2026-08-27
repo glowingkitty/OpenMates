@@ -42,6 +42,9 @@ const requestSegments = Array.isArray(request.segments) ? request.segments : [];
 if (request.renderer !== 'openmates-remotion-terminal-v1' && requestSegments.some((segment) => segment?.kind !== 'video')) {
 	throw new Error('Browser tutorial rendering accepts only real source-video segments');
 }
+if (request.renderer !== 'openmates-remotion-terminal-v1' && (!Number.isFinite(request.sourceFrameRate) || request.sourceFrameRate <= 0)) {
+	throw new Error('Browser tutorial source frame rate is missing from the canonical request');
+}
 const inputProps = request.renderer === 'openmates-remotion-terminal-v1'
 	? {...request, sourceVideo: sourceName}
 	: {...request, sourceVideo: sourceName, segments: requestSegments};

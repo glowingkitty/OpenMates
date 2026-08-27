@@ -11,6 +11,8 @@ import {AbsoluteFill, OffthreadVideo, Sequence, staticFile} from 'remotion';
 import type {BrowserTutorialProps, TutorialSegment} from './types';
 
 const frames = (milliseconds: number, fps: number) => Math.max(1, Math.round(milliseconds * fps / 1000));
+const DEFAULT_PHONE_BACKGROUND = '#242424';
+const hexColor = (value: unknown, fallback: string) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
 
 const Segment: React.FC<{segment: TutorialSegment; source: string; fps: number}> = ({segment, source, fps}) => {
 	return (
@@ -91,7 +93,7 @@ const PhoneBattery: React.FC = () => (
 );
 
 const PhoneStatusBar: React.FC = () => (
-	<div style={{alignItems: 'center', color: '#fff', display: 'flex', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 18, fontWeight: 700, height: PHONE_STATUS_HEIGHT, justifyContent: 'space-between', padding: '10px 29px 0 32px'}}>
+	<div style={{alignItems: 'center', boxSizing: 'border-box', color: '#fff', display: 'flex', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 18, fontWeight: 700, height: PHONE_STATUS_HEIGHT, justifyContent: 'space-between', padding: '10px 29px 0 32px'}}>
 		<div style={{alignItems: 'center', display: 'flex'}}>13:47<PhoneMoon /></div>
 		<div style={{alignItems: 'center', display: 'flex', gap: 9}}><PhoneSignal /><PhoneWifi /><PhoneBattery /></div>
 	</div>
@@ -106,8 +108,8 @@ const PhoneTabGroupBar: React.FC<{label: string}> = ({label}) => (
 	</div>
 );
 
-const PhoneBottomBar: React.FC<{domain: string}> = ({domain}) => (
-	<div style={{alignItems: 'center', background: 'linear-gradient(180deg, rgba(34, 34, 35, 0.96) 0%, #19191a 100%)', display: 'flex', gap: 9, height: PHONE_BOTTOM_CHROME_HEIGHT, padding: '10px 33px 13px'}}>
+const PhoneBottomBar: React.FC<{domain: string; backgroundColor: string}> = ({domain, backgroundColor}) => (
+	<div style={{alignItems: 'center', backgroundColor, boxSizing: 'border-box', display: 'flex', gap: 9, height: PHONE_BOTTOM_CHROME_HEIGHT, padding: '10px 33px 13px'}}>
 		<div aria-label="Back" style={{alignItems: 'center', backgroundColor: '#0b0b0c', border: '1px solid rgba(255, 255, 255, 0.10)', borderRadius: '50%', color: '#fff', display: 'flex', flex: '0 0 49px', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 38, fontWeight: 300, height: 49, justifyContent: 'center', lineHeight: 1}}>&lt;</div>
 		<div style={{alignItems: 'center', backgroundColor: '#121213', border: '1px solid rgba(255, 255, 255, 0.10)', borderRadius: 28, color: '#f3f4f6', display: 'flex', flex: 1, fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 17, fontWeight: 650, height: 49, minWidth: 0, padding: '0 15px'}}>
 			<div style={{border: '2px solid #fff', borderRadius: 4, height: 13, marginRight: 11, position: 'relative', width: 17}}><span style={{backgroundColor: '#fff', bottom: -6, height: 2, left: 2, position: 'absolute', width: 13}} /></div>
@@ -120,15 +122,16 @@ const PhoneBottomBar: React.FC<{domain: string}> = ({domain}) => (
 
 const PhoneSafariTutorial: React.FC<BrowserTutorialProps & {source: string}> = (props) => {
 	const tabGroupLabel = props.browserChrome?.tabGroupLabel?.trim() || 'Personal';
+	const backgroundColor = hexColor(props.browserChrome?.backgroundColor, DEFAULT_PHONE_BACKGROUND);
 	return (
-		<AbsoluteFill style={{backgroundColor: '#242424', color: '#fff', overflow: 'hidden'}}>
+		<AbsoluteFill style={{backgroundColor, color: '#fff', overflow: 'hidden'}}>
 			<PhoneStatusBar />
 			<PhoneTabGroupBar label={tabGroupLabel} />
 			<div style={{backgroundColor: '#fff', height: props.viewport.height, overflow: 'hidden', position: 'absolute', top: PHONE_TOP_CHROME_HEIGHT, width: props.viewport.width}}>
 				<Segments segments={props.segments} source={props.source} fps={props.output.fps} />
 			</div>
 			<div style={{bottom: 0, left: 0, position: 'absolute', right: 0}}>
-				<PhoneBottomBar domain={props.domain} />
+				<PhoneBottomBar domain={props.domain} backgroundColor={backgroundColor} />
 			</div>
 		</AbsoluteFill>
 	);

@@ -13,12 +13,15 @@ export interface BrowserTutorialProps extends Record<string, unknown> {
 	presentationMode: 'browser-frame-scaled-full-viewport';
 	sourceVideo: string;
 	sourceHash: string;
+	sourceFrameRate?: number;
+	sourceClockOffsetMs?: number;
 	domain: string;
 	deviceProfile: string;
 	viewport: {width: number; height: number};
 	browserChrome?: {
 		kind: string;
 		tabGroupLabel?: string;
+		backgroundColor?: string;
 		topInset?: number;
 		bottomInset?: number;
 		devicePixelRatio?: number;

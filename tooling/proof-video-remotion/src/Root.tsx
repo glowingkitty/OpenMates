@@ -18,6 +18,7 @@ const defaults: BrowserTutorialProps = {
 	presentationMode: 'browser-frame-scaled-full-viewport',
 	sourceVideo: 'source.webm',
 	sourceHash: 'sha256:default',
+	sourceFrameRate: 30,
 	domain: 'app.dev.openmates.org',
 	deviceProfile: 'web-laptop',
 	viewport: {width: 1440, height: 900},

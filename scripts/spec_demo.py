@@ -112,12 +112,15 @@ REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
 REVIEW_METADATA_REQUIRED_FIELDS = {"duration_seconds", "sha256", "width", "height"}
 REVIEW_METADATA_OPTIONAL_FIELDS = {
     "black_bar_scan_status",
+    "browser_background_color",
     "browser_chrome",
     "browser_tab_group",
     "demo_audio_mixed",
     "device_profile",
     "hold_last_frame_seconds",
     "playback_rate",
+    "source_frame_rate",
+    "source_clock_offset_ms",
     "source_viewport_height",
     "source_viewport_width",
     "target_height",
@@ -201,6 +204,28 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
+
+
+def _parse_frame_rate(value: Any) -> float | None:
+    text = str(value or "").strip()
+    if not text or text == "0/0":
+        return None
+    try:
+        if "/" in text:
+            numerator, denominator = text.split("/", 1)
+            rate = float(numerator) / float(denominator)
+        else:
+            rate = float(text)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return rate if math.isfinite(rate) and rate > 0 else None
+
+
+def _require_source_frame_rate(metadata: dict[str, Any]) -> float:
+    rate = _parse_frame_rate(metadata.get("frame_rate") or metadata.get("avg_frame_rate") or metadata.get("r_frame_rate"))
+    if rate is None:
+        raise DemonstrationError("Browser tutorial source video is missing a valid frame rate")
+    return round(rate, 6)
 
 
 def _write_private(path: Path, content: str) -> None:
@@ -462,6 +487,66 @@ def _proof_renderer_hash() -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
+def estimate_video_clock_offset_ms(
+    source_video: Path,
+    checkpoint_frame: Path,
+    *,
+    checkpoint_ms: int,
+    frame_rate: float,
+) -> int:
+    """Align proof-runtime timestamps to the Playwright recording clock."""
+    from PIL import Image
+
+    if checkpoint_ms < 0 or frame_rate <= 0:
+        raise DemonstrationError("Video clock alignment requires a valid checkpoint time and frame rate")
+    if checkpoint_ms == 0:
+        return 0
+    sample_width = 64
+    sample_height = 64
+    frame_bytes = sample_width * sample_height
+    with Image.open(checkpoint_frame) as image:
+        reference = image.convert("L").resize((sample_width, sample_height), Image.Resampling.LANCZOS).tobytes()
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(source_video),
+            "-t",
+            str(checkpoint_ms / 1000),
+            "-vf",
+            f"fps={frame_rate:g},scale={sample_width}:{sample_height}:flags=area,format=gray",
+            "-an",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 or len(result.stdout) < frame_bytes:
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        raise DemonstrationError(f"FFmpeg video clock alignment failed: {stderr[-500:]}")
+    candidates = [
+        result.stdout[offset : offset + frame_bytes]
+        for offset in range(0, len(result.stdout) - frame_bytes + 1, frame_bytes)
+    ]
+    best_index, best_error = min(
+        enumerate(sum(abs(left - right) for left, right in zip(reference, candidate, strict=True)) / frame_bytes for candidate in candidates),
+        key=lambda item: item[1],
+    )
+    if best_error > 24:
+        raise DemonstrationError("First proof checkpoint does not visually match the Playwright recording")
+    matched_ms = round(best_index * 1000 / frame_rate)
+    offset_ms = checkpoint_ms - matched_ms
+    if offset_ms < 0:
+        raise DemonstrationError("Proof-runtime clock starts before the Playwright recording clock")
+    return offset_ms
+
+
 def build_browser_tutorial_plan(
     timeline: dict[str, Any],
     *,
@@ -471,6 +556,8 @@ def build_browser_tutorial_plan(
     contract_hash: str,
     timeline_hash: str,
     narration_id: str,
+    source_metadata: dict[str, Any] | None = None,
+    source_edge_color: str | None = None,
 ) -> dict[str, Any]:
     """Compile one chronological Playwright video with timeline-bound captions."""
     contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
@@ -479,6 +566,10 @@ def build_browser_tutorial_plan(
     profile = resolve_device_profile(device_profile_name)
     if profile is None or not str(profile["id"]).startswith("web-"):
         raise DemonstrationError("Browser tutorial requires an exact web device profile")
+    align_video_clock = source_metadata is None
+    source_metadata = dict(source_metadata) if source_metadata is not None else video_metadata(source_video)
+    assert_source_device_profile_dimensions(source_metadata, profile)
+    source_frame_rate = _require_source_frame_rate(source_metadata)
     transcript = [
         item
         for item in (contract.get("transcript") if isinstance(contract.get("transcript"), list) else [])
@@ -500,6 +591,21 @@ def build_browser_tutorial_plan(
         for item in (timeline.get("checkpoint_frames") if isinstance(timeline.get("checkpoint_frames"), list) else [])
         if isinstance(item, dict) and item.get("checkpoint")
     }
+    source_clock_offset_ms = 0
+    if align_video_clock and transcript:
+        first_checkpoint_id = str(transcript[0].get("checkpoint") or "")
+        first_checkpoint_ms = checkpoint_times.get(first_checkpoint_id)
+        first_checkpoint_frame = checkpoint_frames.get(first_checkpoint_id)
+        first_checkpoint_path = Path(str(first_checkpoint_frame.get("path") or "")) if isinstance(first_checkpoint_frame, dict) else Path()
+        if first_checkpoint_ms is None or not first_checkpoint_path.is_file():
+            raise DemonstrationError(f"Browser tutorial checkpoint evidence is missing: {first_checkpoint_id}")
+        source_clock_offset_ms = estimate_video_clock_offset_ms(
+            source_video,
+            first_checkpoint_path,
+            checkpoint_ms=first_checkpoint_ms,
+            frame_rate=source_frame_rate,
+        )
+        checkpoint_times = {key: value - source_clock_offset_ms for key, value in checkpoint_times.items()}
     selected_assertions = [
         assertion
         for assertion in (contract.get("assertions") if isinstance(contract.get("assertions"), list) else [])
@@ -527,7 +633,10 @@ def build_browser_tutorial_plan(
     timeline_events = timeline.get("events") if isinstance(timeline.get("events"), list) else []
     action_ranges = sorted(
         [
-            (int(round(float(item["start_ms"]))), int(round(float(item["end_ms"]))))
+            (
+                int(round(float(item["start_ms"]))) - source_clock_offset_ms,
+                int(round(float(item["end_ms"]))) - source_clock_offset_ms,
+            )
             for item in timeline_events
             if isinstance(item, dict)
             and item.get("kind") == "action"
@@ -540,7 +649,7 @@ def build_browser_tutorial_plan(
     if len(action_ranges) != len(transcript) - 1:
         raise DemonstrationError("Browser tutorial requires exactly one source action between transcript states")
     stable_assertion_times = {
-        str(item.get("id")): int(round(float(item["at_ms"])))
+        str(item.get("id")): int(round(float(item["at_ms"]))) - source_clock_offset_ms
         for item in (timeline.get("assertion_results") if isinstance(timeline.get("assertion_results"), list) else [])
         if isinstance(item, dict)
         and item.get("id")
@@ -555,14 +664,17 @@ def build_browser_tutorial_plan(
             and item.get("id")
             and isinstance(item.get("at_ms"), (int, float))
         ):
-            stable_assertion_times.setdefault(str(item["id"]), int(round(float(item["at_ms"]))))
+            stable_assertion_times.setdefault(
+                str(item["id"]),
+                int(round(float(item["at_ms"]))) - source_clock_offset_ms,
+            )
     tutorial = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
     words_per_second = float(tutorial.get("readingWordsPerSecond") or 0)
     minimum_hold_ms = int(tutorial.get("minimumHoldMs") or 0)
     maximum_hold_ms = int(tutorial.get("maximumHoldMs") or 0)
     if words_per_second <= 0 or not 0 < minimum_hold_ms <= maximum_hold_ms:
         raise DemonstrationError("Browser tutorial policy has invalid reading or hold bounds")
-    source_end_ms = round(float(source_end_seconds) * 1000)
+    source_end_ms = round(float(source_end_seconds) * 1000) - source_clock_offset_ms
     previous_checkpoint_ms: int | None = None
     for cue in transcript:
         checkpoint_id = str(cue.get("checkpoint") or "")
@@ -638,13 +750,23 @@ def build_browser_tutorial_plan(
     ]
     renderer_hash = _proof_renderer_hash()
     source_width, source_height = source_device_profile_dimensions(profile)
-    browser_chrome = profile.get("browser_chrome") if isinstance(profile.get("browser_chrome"), dict) else {"kind": "desktop-browser"}
+    browser_chrome = dict(profile.get("browser_chrome")) if isinstance(profile.get("browser_chrome"), dict) else {"kind": "desktop-browser"}
+    if browser_chrome.get("kind") == "iphone13-pro-safari":
+        background_color = source_edge_color or sample_video_edge_color(
+            source_video,
+            timestamp_seconds=source_start_ms / 1000,
+        )
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", background_color):
+            raise DemonstrationError("Browser tutorial sampled Safari background color must be a CSS hex color")
+        browser_chrome["backgroundColor"] = background_color.lower()
     request = {
         "schemaVersion": 1,
         "renderer": "openmates-remotion-browser-v1",
         "presentationMode": "browser-frame-scaled-full-viewport",
         "sourceVideo": str(source_video.resolve()),
         "sourceHash": sha256_file(source_video),
+        "sourceFrameRate": source_frame_rate,
+        "sourceClockOffsetMs": source_clock_offset_ms,
         "domain": str(contract["domain"]),
         "deviceProfile": str(profile["id"]),
         "viewport": {"width": source_width, "height": source_height},
@@ -1089,7 +1211,7 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
             "-v",
             "error",
             "-show_entries",
-            "format=duration:format_tags:stream=codec_type,width,height,codec_name:stream_tags",
+            "format=duration:format_tags:stream=codec_type,width,height,codec_name,avg_frame_rate,r_frame_rate:stream_tags",
             "-of",
             "json",
             str(video_path),
@@ -1119,11 +1241,45 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
         "width": int(stream["width"]),
         "height": int(stream["height"]),
         "codec": str(stream.get("codec_name") or "unknown"),
+        "frame_rate": _require_source_frame_rate(stream),
         "has_audio": audio_stream is not None,
         "audio_codec": str(audio_stream.get("codec_name") or "unknown") if audio_stream else "",
         "sha256": sha256_file(video_path),
         "tags": tags,
     }
+
+
+def sample_video_edge_color(video_path: Path, *, timestamp_seconds: float) -> str:
+    """Return the source recording's top-left edge pixel as a CSS hex color."""
+    if timestamp_seconds < 0:
+        raise DemonstrationError("Edge-color timestamp must be non-negative")
+    duration_seconds = video_metadata(video_path)["duration_seconds"]
+    seek_seconds = min(timestamp_seconds, max(0.0, float(duration_seconds) - 0.001))
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-ss",
+            str(seek_seconds),
+            "-i",
+            str(video_path),
+            "-vf",
+            "crop=1:1:0:0,format=rgb24",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 or len(result.stdout) < 3:
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        raise DemonstrationError(f"FFmpeg edge-color sampling failed: {stderr[-500:]}")
+    red, green, blue = result.stdout[:3]
+    return f"#{red:02x}{green:02x}{blue:02x}"
 
 
 def media_duration_seconds(path: Path) -> float:
@@ -1877,6 +2033,9 @@ def _produce_browser_tutorial_demonstration(
             "browser_domain": str(request.get("domain") or ""),
             "browser_chrome": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("kind") or ""),
             "browser_tab_group": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("tabGroupLabel") or ""),
+            "browser_background_color": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("backgroundColor") or ""),
+            "source_frame_rate": float(request.get("sourceFrameRate") or 0),
+            "source_clock_offset_ms": int(request.get("sourceClockOffsetMs") or 0),
             "source_viewport_width": int((request.get("viewport") or {}).get("width") or 0),
             "source_viewport_height": int((request.get("viewport") or {}).get("height") or 0),
         },
@@ -2337,6 +2496,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any], *, replace_lat
         "geometry",
         "color",
         "contrast",
+        "typography",
         "icon",
         "loading",
         "raw_text",
@@ -2361,6 +2521,10 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any], *, replace_lat
             or not 0 <= finding_confidence <= 1
         ):
             raise DemonstrationError("Review receipt contains an invalid incidental finding")
+        if finding.get("category") in {"contrast", "typography"} and (
+            finding.get("severity") != "warning" or finding.get("intent") != "unclear"
+        ):
+            raise DemonstrationError("Contrast and typography findings must remain unclear advisory warnings")
     reviewed_frames = receipt.get("reviewed_frames")
     if (
         not isinstance(reviewed_frames, list)
@@ -2720,8 +2884,12 @@ def detect_scene_change_times(video_path: Path) -> list[float]:
 def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, Any]:
     if timestamp_seconds < 0:
         raise DemonstrationError("Frame timestamp must be non-negative")
-    duration_seconds = video_metadata(video_path)["duration_seconds"]
-    seek_seconds = min(timestamp_seconds, max(0.0, duration_seconds - END_FRAME_OFFSET_SECONDS))
+    metadata = video_metadata(video_path)
+    duration_seconds = metadata["duration_seconds"]
+    frame_offset = 1 / float(metadata.get("frame_rate") or 30)
+    tail_guard = min(END_FRAME_OFFSET_SECONDS, frame_offset * 3)
+    latest_seek_seconds = max(0.0, duration_seconds - tail_guard)
+    seek_seconds = min(timestamp_seconds, latest_seek_seconds)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
         [
