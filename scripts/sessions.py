@@ -9795,10 +9795,17 @@ def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
 def _incoherent_docker_services(checkout_root: Path, backend_tree: str) -> set[str]:
     state = _load_product_runtime_state().get("services") or {}
     expected_source = str((checkout_root / "backend").resolve())
+    live_services = _running_backend_mounts(checkout_root)
     incoherent: set[str] = set()
-    for service, live in _running_backend_mounts(checkout_root).items():
+    # A service previously managed by this runtime is incoherent when it is no
+    # longer running too. This makes an interrupted Compose recreation
+    # self-healing instead of silently accepting Created/stopped containers.
+    for service in set(live_services) | set(state):
+        live = live_services.get(service) or {}
         recorded = state.get(service) if isinstance(state.get(service), dict) else {}
         if (
+            not live
+            or
             Path(str(live.get("source") or "")).resolve() != Path(expected_source)
             or recorded.get("backend_tree") != backend_tree
             or recorded.get("container_id") != live.get("container_id")
@@ -10049,9 +10056,13 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             f"Docker restart {completed['id']} completed for {', '.join(services)}; "
             "all services are running and healthy."
         )
-    except Exception as exc:
+    except BaseException as exc:
         try:
-            update_docker_operation(operation["id"], "failed", error=str(exc))
+            update_docker_operation(
+                operation["id"],
+                "failed",
+                error=str(exc) or type(exc).__name__,
+            )
         except Exception:
             pass
         raise

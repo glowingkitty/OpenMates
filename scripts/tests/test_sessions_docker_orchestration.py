@@ -254,6 +254,30 @@ def test_runtime_coherence_keeps_matching_services_parallel_and_scoped(monkeypat
     assert sessions._coherent_docker_services(["api"], checkout_root, "new") == ["api"]
 
 
+def test_runtime_coherence_restores_previously_managed_stopped_service(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "runtime"
+    (checkout_root / "backend").mkdir(parents=True)
+    monkeypatch.setattr(
+        sessions,
+        "_running_backend_mounts",
+        lambda _root: {
+            "api": {"source": str(checkout_root / "backend"), "container_id": "api-current"},
+        },
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_load_product_runtime_state",
+        lambda: {
+            "services": {
+                "api": {"backend_tree": "new", "container_id": "api-current"},
+                "core-worker": {"backend_tree": "new", "container_id": "worker-stopped"},
+            }
+        },
+    )
+
+    assert sessions._coherent_docker_services(["api"], checkout_root, "new") == ["api", "core-worker"]
+
+
 def test_runtime_provenance_rejects_healthy_container_on_wrong_mount(monkeypatch, tmp_path):
     checkout_root = tmp_path / "runtime"
     (checkout_root / "backend").mkdir(parents=True)
@@ -567,6 +591,24 @@ def test_restart_command_records_failure_and_releases_lock(monkeypatch, tmp_path
     operation = sessions._load_sessions()["infrastructure"]["docker_operations"][-1]
     assert operation["status"] == "failed"
     assert released == ["a111"]
+
+
+def test_restart_command_records_keyboard_interrupt(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+    configure_runtime_checkout(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _checkout_root: {"api"})
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (_ for _ in ()).throw(KeyboardInterrupt()))
+    args = argparse.Namespace(session="a111", service=["api"], timeout=1, poll=1, health_timeout=1)
+
+    with pytest.raises(KeyboardInterrupt):
+        sessions.cmd_docker_restart(args)
+
+    operation = sessions._load_sessions()["infrastructure"]["docker_operations"][-1]
+    assert operation["status"] == "failed"
+    assert operation["error"] == "KeyboardInterrupt"
 
 
 def test_long_docker_command_heartbeats_lock(monkeypatch):

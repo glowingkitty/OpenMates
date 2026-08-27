@@ -179,6 +179,8 @@ scenarios:
       - Existing services with another mount, commit, or unrecorded container generation are included in the coherence restart.
       - Incoherent containers are force-recreated; a health-only restart cannot preserve an old bind mount and still complete.
       - Code-service recreation does not traverse or recreate infrastructure dependencies outside the admitted service set.
+      - A previously managed service that is missing or stopped is restored by the next coordinated runtime operation.
+      - Interrupted commands record a terminal failed operation before propagating the interruption.
       - Exact mount and source-tree provenance is recorded before the runtime operation becomes completed.
       - Already coherent services are not restarted unnecessarily.
 
