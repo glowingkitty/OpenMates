@@ -19,6 +19,7 @@ const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.e
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_VIEWPORT = PROOF_DEVICE === 'web-phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
 const VIEWPORTS = IS_PROOF_CAPTURE ? [PROOF_VIEWPORT] : [{ width: 1440, height: 900 }, { width: 390, height: 844 }];
+const PRESERVED_BOARD_SCROLL_LEFT = 72;
 
 const READY_RUN_TASKS_PROOF = defineVideoProof({
 	id: 'workflows-ready-run-tasks',
@@ -182,7 +183,11 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
 				const taskBoard = page.getByTestId('task-board');
 				await expect(taskBoard).toBeVisible();
-				await taskBoard.evaluate((board: HTMLElement) => { board.scrollTop = 72; });
+				const preservedBoardScrollLeft = await taskBoard.evaluate((board: HTMLElement, target: number) => {
+					board.scrollLeft = Math.min(target, board.scrollWidth - board.clientWidth);
+					return board.scrollLeft;
+				}, PRESERVED_BOARD_SCROLL_LEFT);
+				expect(preservedBoardScrollLeft).toBeGreaterThan(0);
 				const boardNode = await taskBoard.elementHandle();
 				const boardState = await taskBoard.getAttribute('data-board-state');
 				const projection = await expectExactRunProjection(page, run.id);
@@ -222,12 +227,12 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(detail).toHaveCount(0);
 				await expect(taskBoard).toBeVisible();
 				expect(await taskBoard.evaluate((node: HTMLElement, original: HTMLElement | null) => node === original, boardNode)).toBe(true);
-				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollTop)).toBe(72);
+				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(preservedBoardScrollLeft);
 				await expect(taskBoard).toHaveAttribute('data-board-state', boardState);
 				if (proof) {
 					await proof.assert('responsive-close-visible.assertion', async () => {
 						await expect(taskBoard).toBeVisible();
-						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollTop)).toBe(72);
+						expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(preservedBoardScrollLeft);
 					});
 					await proof.checkpoint('responsive-close-visible');
 				}
