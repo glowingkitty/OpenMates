@@ -127,7 +127,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc
+  subject_commit: 61b951564d5646fe46efaefe917814587ac91cd4
 
 approvals:
   product_contract:
@@ -185,14 +185,58 @@ attempts:
     outcome: rejected
     recorded_at: "2026-08-27T00:00:00Z"
     note: Hard 403 retries amplified quota exhaustion and masked late billing and signup specs.
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Run the complete critical registry at normal and bounded concurrency after the billing profile fallback.
+    outcome: rejected
+    recorded_at: "2026-08-27T19:42:08Z"
+    note: >
+      Runs 2026-08-27T18:32:48Z and 2026-08-27T19:11:26Z retained purchase-confirmation
+      failures. Email-worker logs showed S3UploadService reused a closed Directus HTTP client
+      during the replication-outbox tombstone lookup, raising storage_temporarily_unavailable
+      after PDF upload and before purchase-confirmation email delivery.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Invalidate the task S3 service whenever cleanup closes its Directus dependency, rebuild the email worker, and rerun affected and critical Playwright coverage.
+    outcome: succeeded
+    recorded_at: "2026-08-27T20:32:45Z"
+    note: >
+      Fix commit 153af255fb2c3898d99bd19599ed9890b4963eeb made signup-flow-stripe-eu
+      and settings-buy-credits-stripe-managed pass individually. The exact-head critical run
+      2026-08-27T20:18:32Z then passed all 20 registered specs at normal concurrency on
+      93135ad4c874673e24c91ad23a2f7b544f32a512.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Reconcile existing campaign ownership through a read-only daily umbrella and directly group every unclaimed or regressed canonical failure.
+    outcome: succeeded
+    recorded_at: "2026-08-27T21:37:50Z"
+    note: >
+      Campaign debug-campaign-8d2273d766a0 retained the existing coordinators for
+      debug-campaign-5129821264fe and debug-campaign-7ef556a2fbbe, created direct groups
+      only where needed, and reported remaining_failures_owned=true with no unowned keys.
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Evaluate the bounded recovery milestone against full daily run 2026-08-27T20:36:14Z.
+    outcome: blocked
+    recorded_at: "2026-08-27T21:38:03Z"
+    note: >
+      Critical ordering, full-run shape, and remainder ownership passed. Infrastructure
+      clearance failed with one incident and 171 blocked dependants, scheduled notification
+      receipts were incomplete after Brevo rejected the start email, and 104 product failures
+      exceeded the approved budget of fifty.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Add and run the focused red orchestration contract tests.
-  command: python3 -m pytest scripts/tests/test_daily_test_recovery.py scripts/tests/test_run_tests_discord_summary.py scripts/tests/test_run_tests_progress_snapshots.py -q
-  expected_outcome: New critical-order, rate-limit, classification, milestone, and notification assertions fail before implementation.
-  blocker: null
-  last_verified_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc
+  current_task_id: TASK-6
+  next_action: Work the next high-priority campaign group, clear the GitHub dispatch incident and Brevo authorization blocker, then rerun the full daily milestone.
+  command: python3 scripts/tests.py run --campaign debug-campaign-8d2273d766a0 --group debug-group-71c9030050b0
+  expected_outcome: Product failures fall toward fifty while every unresolved remainder stays durably owned.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: false
+    reason: Full daily completion still requires zero infrastructure incidents, provider-accepted scheduled email and Discord receipts, and at most fifty product failures.
+    question: null
+    next_action: Work the durable campaign and rerun the full daily milestone after infrastructure and notification health recover.
+  last_verified_commit: 61b951564d5646fe46efaefe917814587ac91cd4
 
 scenarios:
   - id: S-1
@@ -322,7 +366,7 @@ acceptance_criteria:
     scenario: S-6
     text: Every remaining failed test belongs to one durable campaign group whose expected behavior, attempts, exact members, priority, and verification evidence are persisted before completion.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-CONTROL-PLANE, V-CAMPAIGN-OWNERSHIP]
@@ -375,8 +419,10 @@ assumptions:
     text: Direct Brevo and Discord transports can provide provider-acceptance evidence independently of product test execution.
     category: external_dependency
     required_before: completion
-    status: checking
-    blocker: The August 27 artifact persisted only a combined Discord-derived completion flag.
+    status: confirmed
+    evidence:
+      - source: openmates server notifications test --channel all --json
+        summary: The labeled check recorded provider-delivered email and Discord independently after one attempt each.
     waiver_path: No waiver for the final milestone; run the labeled notification delivery check and full daily proof.
 
 contracts:
@@ -492,29 +538,53 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-2]
-    status: pending
-    evidence: {status: pending, command: "python3 scripts/tests.py run --critical-journeys --gate-deploy --expected-commit <SHA>", run_id: "", subject_commit: "", timestamp: ""}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/tests.py run --critical-journeys --gate-deploy --require-exact-commit --expected-commit 93135ad4c874673e24c91ad23a2f7b544f32a512
+      run_id: 2026-08-27T20:18:32Z
+      subject_commit: 93135ad4c874673e24c91ad23a2f7b544f32a512
+      timestamp: 2026-08-27T20:32:45Z
+      summary: 20 passed, 0 failed, 0 dispatch errors, 0 skipped, and 0 not started.
   - id: V-NOTIFICATION-DELIVERY
     kind: automated_test
     phase: green
     required_for_done: true
     covers: [AC-5]
-    status: pending
-    evidence: {status: pending, command: "openmates server notifications test --channel all --json", run_id: "", subject_commit: "", timestamp: ""}
+    status: passed
+    evidence:
+      status: passed
+      command: openmates server notifications test --channel all --json
+      run_id: labeled-delivery-email-discord
+      subject_commit: 93135ad4c874673e24c91ad23a2f7b544f32a512
+      timestamp: 2026-08-27T20:35:45Z
+      summary: Email and Discord each reported delivered after one provider attempt.
   - id: V-CAMPAIGN-OWNERSHIP
     kind: deterministic_check
     phase: final
     required_for_done: true
     covers: [AC-6]
-    status: pending
-    evidence: {status: pending, command: "python3 scripts/tests.py campaign start --session <SESSION> --daily-recovery --json; python3 scripts/tests.py campaign milestone --campaign <ID> --run <RUN_ID>; python3 scripts/tests.py campaign status --campaign <ID> --json", run_id: "", subject_commit: "", timestamp: ""}
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/tests.py campaign milestone --campaign debug-campaign-8d2273d766a0 --run 2026-08-27T20:36:14Z
+      run_id: debug-campaign-8d2273d766a0
+      subject_commit: 61b951564d5646fe46efaefe917814587ac91cd4
+      timestamp: 2026-08-27T21:47:56Z
+      summary: All 104 canonical failures from the full daily run have durable ownership; unowned_failure_keys is empty.
   - id: V-FULL-DAILY
     kind: automated_test
     phase: final
     required_for_done: true
     covers: [AC-7]
-    status: pending
-    evidence: {status: pending, command: "python3 scripts/tests.py run --daily --no-fail-fast", run_id: "", subject_commit: "", timestamp: ""}
+    status: failed
+    evidence:
+      status: failed
+      command: python3 scripts/tests.py run --daily --no-fail-fast
+      run_id: 2026-08-27T20:36:14Z
+      subject_commit: 73b586770
+      timestamp: 2026-08-27T21:38:03Z
+      summary: 5316 passed, 104 failed, 1 infrastructure incident, 171 blocked dependants, 1 timeout; ownership and critical checks passed but infrastructure, scheduled notifications, and the fifty-failure budget did not.
 
 implementation_plan:
   spec_path: docs/specs/daily-test-recovery-reliability/spec.yml
@@ -678,7 +748,7 @@ tasks:
     canonical_surfaces: [cli]
   - id: TASK-5
     title: Recover critical and high-fanout failure groups
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
     expected_files: [docs/specs/daily-test-recovery-reliability/spec.yml]
@@ -693,7 +763,7 @@ tasks:
     canonical_surfaces: [cli]
   - id: TASK-6
     title: Verify critical gate and full recovery milestone
-    status: pending
+    status: in_progress
     phase: running_checks
     covers: {scenarios: [S-7], acceptance_criteria: [AC-2, AC-5, AC-6, AC-7]}
     expected_files: [docs/specs/daily-test-recovery-reliability/spec.yml]
@@ -701,7 +771,10 @@ tasks:
     verification_ids: [V-CRITICAL-RUN, V-NOTIFICATION-DELIVERY, V-CAMPAIGN-OWNERSHIP, V-FULL-DAILY]
     dependencies: [TASK-5]
     ownership: {files: [docs/specs/daily-test-recovery-reliability/spec.yml], shared_files: []}
-    blockers: []
+    blockers:
+      - Full daily run has 104 product failures; the milestone permits at most 50.
+      - GitHub dispatch exhaustion remains one infrastructure incident with 171 blocked dependants.
+      - Scheduled Brevo email was rejected because the dev server IP is not authorized; the standalone labeled delivery check passed.
     follow_up_tasks: []
     independently_deployable: false
     contract_assertions: [test-orchestration.daily.critical-first-broad-continues, test-orchestration.notifications.non-blocking-receipts, test-orchestration.recovery.milestone]
