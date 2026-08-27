@@ -494,11 +494,15 @@ async def _store_record_via_api(
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if resp.status_code not in (200, 201):
-            logger.warning(
+            logger.error(
                 f"[Upload Store] Failed to store upload record: {resp.status_code} {resp.text[:200]}"
             )
+            raise RuntimeError(f"Upload record registration failed: HTTP {resp.status_code}")
+    except RuntimeError:
+        raise
     except Exception as e:
-        logger.warning(f"[Upload Store] Failed to store upload record (non-fatal): {e}")
+        logger.error(f"[Upload Store] Failed to store upload record: {e}", exc_info=True)
+        raise RuntimeError(f"Upload record registration failed: {e}") from e
 
 
 async def _report_content_safety_rejection_via_api(

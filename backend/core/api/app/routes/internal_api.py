@@ -1595,6 +1595,7 @@ class UploadStoreRecordRequest(BaseModel):
 async def store_upload_record(
     payload: UploadStoreRecordRequest,
     directus_service: DirectusService = Depends(get_directus_service),
+    s3_service: S3UploadService = Depends(get_s3_service),
 ) -> Dict[str, Any]:
     """
     Store an upload record in Directus for future deduplication.
@@ -1614,6 +1615,20 @@ async def store_upload_record(
 
     try:
         record = payload.model_dump(exclude_none=True)
+        replicated_keys: set[str] = set()
+        for variant in payload.files_metadata.values():
+            if not isinstance(variant, dict):
+                raise ValueError("Upload variant metadata must be an object")
+            object_key = variant.get("s3_key")
+            if not isinstance(object_key, str) or not object_key:
+                raise ValueError("Upload variant metadata requires an S3 key")
+            if object_key in replicated_keys:
+                continue
+            await s3_service.persist_external_upload_replication(
+                logical_bucket="chatfiles",
+                object_key=object_key,
+            )
+            replicated_keys.add(object_key)
         await directus_service.create_item("upload_files", record)
         logger.info(f"{log_prefix} Upload record stored successfully")
 
@@ -1644,8 +1659,6 @@ async def store_upload_record(
         return {"status": "success", "embed_id": payload.embed_id}
 
     except Exception as e:
-        # Non-fatal: upload already succeeded (files in S3). Dedup just won't work
-        # for this file. Log the error but don't fail the upload.
         logger.error(f"{log_prefix} Failed to store upload record: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
 

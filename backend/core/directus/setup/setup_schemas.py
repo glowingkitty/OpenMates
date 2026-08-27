@@ -140,10 +140,6 @@ SUB_CHAT_ORCHESTRATION_MIGRATION_PATH = os.getenv(
     'SUB_CHAT_ORCHESTRATION_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql',
 )
-USER_CHAT_PREFERENCE_MIGRATION_PATH = os.getenv(
-    'USER_CHAT_PREFERENCE_MIGRATION_PATH',
-    '/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql',
-)
 AI_MEMORY_REMOVAL_MIGRATION_PATH = os.getenv(
     'AI_MEMORY_REMOVAL_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_remove_ai_memories.sql',
@@ -171,10 +167,6 @@ SUB_CHAT_ORCHESTRATION_INDEXES = (
     'team_usage_events_event_uq',
 )
 EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
-USER_CHAT_PREFERENCE_INDEXES = (
-    'user_chat_preferences_owner_chat_uq',
-    'user_chat_preferences_owner_updated_idx',
-)
 EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
 BACKEND_PERMISSION_COLLECTIONS = (
@@ -185,7 +177,6 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'free_testing_credits_budget',
     'user_plan_key_wrappers',
     'user_task_key_wrappers',
-    'user_chat_preferences',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -1353,39 +1344,6 @@ def apply_and_verify_sub_chat_orchestration_indexes():
     print(f"Verified {len(SUB_CHAT_ORCHESTRATION_INDEXES)} sub-chat orchestration indexes")
 
 
-def apply_and_verify_user_chat_preference_indexes():
-    """Apply unique owner/chat indexes for encrypted AI model preferences."""
-    if not os.path.isfile(USER_CHAT_PREFERENCE_MIGRATION_PATH):
-        raise RuntimeError(
-            f"Required user chat preference migration is missing: {USER_CHAT_PREFERENCE_MIGRATION_PATH}"
-        )
-
-    with open(USER_CHAT_PREFERENCE_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
-        migration_sql = migration_file.read()
-
-    with connect_database() as connection:
-        connection.autocommit = True
-        with connection.cursor() as cursor:
-            cursor.execute(migration_sql)
-            cursor.execute(
-                """
-                SELECT indexname
-                FROM pg_indexes
-                WHERE schemaname = 'public' AND indexname = ANY(%s)
-                """,
-                (list(USER_CHAT_PREFERENCE_INDEXES),),
-            )
-            installed_indexes = {row[0] for row in cursor.fetchall()}
-
-    missing_indexes = set(USER_CHAT_PREFERENCE_INDEXES) - installed_indexes
-    if missing_indexes:
-        raise RuntimeError(
-            "User chat preference index verification failed: "
-            + ", ".join(sorted(missing_indexes))
-        )
-    print(f"Verified {len(USER_CHAT_PREFERENCE_INDEXES)} user chat preference indexes")
-
-
 def apply_and_verify_ai_memory_removal():
     """Delete only obsolete AI-owned memory rows and verify none remain."""
     if not os.path.isfile(AI_MEMORY_REMOVAL_MIGRATION_PATH):
@@ -1580,9 +1538,6 @@ def setup_schemas():
 
         print("\n--- Applying sub-chat orchestration database indexes ---")
         apply_and_verify_sub_chat_orchestration_indexes()
-
-        print("\n--- Applying user chat preference database indexes ---")
-        apply_and_verify_user_chat_preference_indexes()
 
         print("\n--- Removing obsolete AI-owned memories ---")
         apply_and_verify_ai_memory_removal()

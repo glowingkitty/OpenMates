@@ -239,6 +239,31 @@ class S3UploadService:
             job=job,
         )
 
+    async def persist_external_upload_replication(
+        self,
+        *,
+        logical_bucket: str,
+        object_key: str,
+    ) -> None:
+        """Persist replica intent for ciphertext written by the upload service."""
+        active_region = str(self.region_name)
+        legacy_bucket = get_bucket_name(logical_bucket, self.environment)
+        bucket_name = resolve_regional_bucket_name(legacy_bucket, active_region)
+        head = await asyncio.to_thread(
+            self.region_clients[active_region].head_object,
+            Bucket=bucket_name,
+            Key=object_key,
+        )
+        checksum = str((head.get("Metadata") or {}).get("openmates-sha256") or "").lower()
+        if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
+            raise RuntimeError("External upload checksum metadata is unavailable")
+        await self._persist_replication_outbox(
+            logical_bucket=logical_bucket,
+            object_key=object_key,
+            checksum=checksum,
+            active_region=active_region,
+        )
+
     async def initialize(self, *, configure_buckets: bool = True):
         """
         Asynchronously fetch secrets and initialize S3 clients.
