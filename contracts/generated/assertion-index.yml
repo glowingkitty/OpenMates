@@ -777,37 +777,37 @@ assertions:
       surface: gui.web
     - &id114
       path: backend/tests/test_draft_version_atomicity.py
-      line: 87
+      line: 89
       name: test_concrete_cache_service_uses_version_authoritative_draft_script
       surface: gui.web
     - &id115
       path: backend/tests/test_draft_version_atomicity.py
-      line: 106
+      line: 108
       name: test_concurrent_draft_version_increments_remain_monotonic
       surface: gui.web
     - &id116
       path: backend/tests/test_draft_version_atomicity.py
-      line: 123
+      line: 146
       name: test_message_send_tombstone_reserves_and_deletes_in_one_operation
       surface: gui.web
     - &id117
       path: backend/tests/test_draft_version_atomicity.py
-      line: 137
+      line: 160
       name: test_delayed_draft_write_cannot_replace_message_send_tombstone
       surface: gui.web
     - &id118
       path: backend/tests/test_draft_version_atomicity.py
-      line: 161
+      line: 184
       name: test_draft_cache_update_reports_cache_failure_separately_from_superseded_write
       surface: gui.web
     - &id119
       path: backend/tests/test_draft_version_atomicity.py
-      line: 181
+      line: 204
       name: test_newer_reserved_draft_can_replace_older_tombstone
       surface: gui.web
     - &id120
       path: backend/tests/test_draft_version_atomicity.py
-      line: 205
+      line: 228
       name: test_delayed_explicit_tombstone_cannot_clear_newer_reserved_draft
       surface: gui.web
     - &id129
