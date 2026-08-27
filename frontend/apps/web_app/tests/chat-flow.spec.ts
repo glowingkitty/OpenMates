@@ -788,6 +788,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	const sentUserMessage = page.getByTestId('message-user').last();
 	await expect(sentUserMessage).toBeVisible({ timeout: 15000 });
 	await expect(sentUserMessage).not.toContainText('<<<TEST_MOCK');
+	await expect(sentUserMessage.getByText('Sending...')).not.toBeVisible({ timeout: 15000 });
 	if (proof) {
 		await proof.assert('chat.request_visible', async () => {
 			await expect(sentUserMessage).toBeVisible();
