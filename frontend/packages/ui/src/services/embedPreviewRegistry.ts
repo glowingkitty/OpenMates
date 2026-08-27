@@ -643,6 +643,7 @@ const travelConnectionResolver: PreviewResolver = async ({
 };
 resolvers.set("travel-connection", travelConnectionResolver);
 resolvers.set("travel-route", travelConnectionResolver);
+resolvers.set("connection", travelConnectionResolver);
 
 // ── Direct / child: health appointment ───────────────────────────────────────
 

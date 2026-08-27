@@ -79,6 +79,8 @@
     status?: 'processing' | 'finished' | 'error';
     /** Whether to use mobile layout */
     isMobile?: boolean;
+    /** Optional fixed desktop height for constrained preview surfaces */
+    customHeight?: number;
     /** Click handler for fullscreen */
     onFullscreen: () => void;
   }
@@ -109,6 +111,7 @@
     isCheapest: _isCheapest = false,
     status = 'finished',
     isMobile = false,
+    customHeight = 250,
     onFullscreen
   }: Props = $props();
   
@@ -266,7 +269,7 @@
   onStop={handleStop}
   showStatus={false}
   showSkillIcon={false}
-  customHeight={250}
+  {customHeight}
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="connection-details" class:mobile={isMobileLayout} data-testid="connection-preview-details">

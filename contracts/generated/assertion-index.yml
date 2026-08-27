@@ -8909,12 +8909,12 @@ assertions:
       surface: rest_api
     - &id965
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 635
+      line: 645
       name: retries source refs when the ref index changes during the initial load
       surface: gui.web
     - &id966
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 681
+      line: 691
       name: retries unresolved source refs when synced embeds become available
       surface: gui.web
     - &id967
@@ -16134,7 +16134,7 @@ assertions:
       surface: gui.web
     - &id1821
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 45
+      line: 148
       name: renders source-backed refs responsively without app-skill or embed API
         calls
       surface: gui.web
@@ -16307,7 +16307,7 @@ assertions:
       surface: gui.web
     - &id1822
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 140
+      line: 340
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id1836
@@ -16327,38 +16327,38 @@ assertions:
       surface: gui.web
     - &id1839
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 401
-      name: switches map and calendar visual tabs while keeping the result list
+      line: 404
+      name: switches from the map state to the full weekly calendar state
       surface: gui.web
     - &id1840
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 444
+      line: 447
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
     - &id1841
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 476
+      line: 479
       name: does not map online event placeholder coordinates
       surface: gui.web
     - &id1842
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 503
+      line: 506
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
     - &id1843
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 540
+      line: 548
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
     - &id1844
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 605
+      line: 615
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
     - &id1845
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 720
+      line: 730
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     tests:
@@ -16593,7 +16593,7 @@ assertions:
       surface: gui.web
     - &id1880
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 45
+      line: 148
       name: renders source-backed refs responsively without app-skill or embed API
         calls
       surface: gui.web
@@ -16793,17 +16793,17 @@ assertions:
       surface: gui.web
     - &id1881
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 140
+      line: 340
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id1899
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
-      line: 104
+      line: 108
       name: uses manual light theme for tiles when the OS is dark
       surface: gui.web
     - &id1900
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
-      line: 130
+      line: 134
       name: passes marker and path opacity to Leaflet while fitting geometry once
         on mount
       surface: gui.web
@@ -16824,38 +16824,38 @@ assertions:
       surface: gui.web
     - &id1904
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 401
-      name: switches map and calendar visual tabs while keeping the result list
+      line: 404
+      name: switches from the map state to the full weekly calendar state
       surface: gui.web
     - &id1905
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 444
+      line: 447
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
     - &id1906
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 476
+      line: 479
       name: does not map online event placeholder coordinates
       surface: gui.web
     - &id1907
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 503
+      line: 506
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
     - &id1908
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 540
+      line: 548
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
     - &id1909
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 605
+      line: 615
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
     - &id1910
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 720
+      line: 730
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     - &id1911

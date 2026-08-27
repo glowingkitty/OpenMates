@@ -14,6 +14,7 @@ const leafletMocks = vi.hoisted(() => {
     addTo: ReturnType<typeof vi.fn>;
     setOpacity: ReturnType<typeof vi.fn>;
     bindTooltip: ReturnType<typeof vi.fn>;
+    elementSetAttribute: ReturnType<typeof vi.fn>;
   }> = [];
   const mapInstance = {
     fitBounds: vi.fn(),
@@ -38,7 +39,7 @@ const leafletMocks = vi.hoisted(() => {
     }),
     map: vi.fn(() => mapInstance),
     control: {
-      zoom: vi.fn(() => ({ addTo: vi.fn() })),
+      zoom: vi.fn(() => ({ addTo: vi.fn(), getContainer: vi.fn(() => ({ setAttribute: vi.fn() })) })),
     },
     divIcon: vi.fn(() => ({})),
     layerGroup: vi.fn(() => {
@@ -49,10 +50,13 @@ const leafletMocks = vi.hoisted(() => {
       return layerGroup;
     }),
     marker: vi.fn(() => {
+      const elementSetAttribute = vi.fn();
       const markerInstance = {
         addTo: vi.fn(() => markerInstance),
         setOpacity: vi.fn(),
         bindTooltip: vi.fn(),
+        getElement: vi.fn(() => ({ setAttribute: elementSetAttribute })),
+        elementSetAttribute,
       };
       markerInstances.push(markerInstance);
       return markerInstance;
@@ -139,8 +143,8 @@ describe("EmbedLeafletMap theme selection", () => {
         fitBounds: true,
         zoomControlPosition: "topleft",
         markers: [
-          { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5 },
-          { lat: 52.53, lon: 13.41, label: "Active marker", opacity: 1 },
+          { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5, testId: "endpoint-marker" },
+          { lat: 52.53, lon: 13.41, label: "Active marker", opacity: 1, testId: "stop-marker" },
         ],
         paths: [
           {
@@ -162,6 +166,8 @@ describe("EmbedLeafletMap theme selection", () => {
       0.5,
       1,
     ]);
+    expect(leafletMocks.markerInstances[0].elementSetAttribute).toHaveBeenCalledWith("data-testid", "endpoint-marker");
+    expect(leafletMocks.markerInstances[1].elementSetAttribute).toHaveBeenCalledWith("data-testid", "stop-marker");
     expect(leafletMocks.polyline).toHaveBeenCalledWith(
       [
         [52.52, 13.405],

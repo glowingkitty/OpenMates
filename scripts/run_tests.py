@@ -137,7 +137,6 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
-PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
 E2E_GIFT_CARD_SEED_RETRIES = 5
@@ -2080,12 +2079,7 @@ class BatchRunner:
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
         self.progress_callback = progress_callback
-        external_account_lease_held = os.environ.get(PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV) == "1"
-        self.coordinate_accounts = (
-            isinstance(client, GitHubActionsClient) and not external_account_lease_held
-            if coordinate_accounts is None
-            else coordinate_accounts
-        )
+        self.coordinate_accounts = isinstance(client, GitHubActionsClient) if coordinate_accounts is None else coordinate_accounts
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
@@ -7399,6 +7393,8 @@ class TestOrchestrator:
                 reason=fixture_error,
             )
 
+        wrapper_account = os.environ.get("OPENMATES_TEST_ACCOUNT", "").strip()
+        coordinate_accounts = not (self.account is not None and wrapper_account == str(self.account))
         runner = BatchRunner(
             client=client,
             specs=specs,
@@ -7412,6 +7408,7 @@ class TestOrchestrator:
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
             progress_callback=self._save_playwright_progress_snapshot,
+            coordinate_accounts=coordinate_accounts,
         )
         try:
             result = runner.run_all_batches()

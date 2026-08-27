@@ -21,8 +21,10 @@
   const MAX_VISIBLE_ENTRIES = 40;
   const MAX_TRAVEL_LEGS = 8;
   const MAX_TRAVEL_SEGMENTS_PER_LEG = 32;
-  const DEFAULT_ROUTE_COLOR = '#8a92a6';
-  const ACTIVE_ROUTE_COLOR = '#6c63ff';
+  const DEFAULT_ROUTE_COLOR = 'var(--color-app-travel-start)';
+  const ACTIVE_ROUTE_COLOR = 'var(--color-app-travel-end)';
+  const INACTIVE_ROUTE_COLOR = 'var(--color-grey-50)';
+  const ROUTE_DASH_ARRAY = '10 10';
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
   const HISTOGRAM_BUCKETS = 12;
   const CALENDAR_WEEK_DAYS = 7;
@@ -202,24 +204,20 @@
     return visibleEntries;
   });
   const isCarouselScoped = $derived(carouselEntries.length < visibleEntries.length || mapSelectionRef !== null);
-  const mapEntries = $derived(visibleEntries.filter((entry) => entry.lat != null && entry.lon != null));
   const activeGeometryRef = $derived(mapSelectionRef ?? hoveredRef ?? selectedRef);
-  const mapMarkers = $derived<MapMarker[]>(mapEntries.map((entry) => ({
-    lat: entry.lat!,
-    lon: entry.lon!,
-    label: entry.title,
-    ref: entry.ref,
-    testId: 'embeds-map-view-marker',
-    iconClass: entry.ref === activeGeometryRef ? 'embeds-map-view-marker-active' : 'default-map-marker',
-    opacity: activeGeometryRef && entry.ref !== activeGeometryRef ? 0.5 : 1,
-  })));
+  const mapMarkers = $derived<MapMarker[]>(buildMapMarkers(visibleEntries, activeGeometryRef));
+  const endpointMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-endpoint')).length);
+  const stopMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-stop')).length);
   const routePaths = $derived<MapRoutePath[]>(visibleEntries
     .filter((entry) => entry.route && entry.route.length > 1)
     .map((entry) => ({
       points: entry.route!,
-      color: entry.ref === activeGeometryRef ? ACTIVE_ROUTE_COLOR : DEFAULT_ROUTE_COLOR,
-      weight: 3,
+      color: activeGeometryRef == null
+        ? DEFAULT_ROUTE_COLOR
+        : entry.ref === activeGeometryRef ? ACTIVE_ROUTE_COLOR : INACTIVE_ROUTE_COLOR,
+      weight: 5,
       opacity: activeGeometryRef && entry.ref !== activeGeometryRef ? 0.5 : 0.8,
+      dashArray: ROUTE_DASH_ARRAY,
       ref: entry.ref,
       testId: 'embeds-map-view-route-path',
     })));
@@ -232,7 +230,7 @@
   const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
   const mapCenter = $derived.by(() => {
     const points = [
-      ...mapEntries.map((entry) => ({ lat: entry.lat!, lon: entry.lon! })),
+      ...mapMarkers.map((marker) => ({ lat: marker.lat, lon: marker.lon })),
       ...routePaths.flatMap((routePath) => routePath.points),
     ];
     if (points.length === 0) return null;
@@ -265,6 +263,64 @@
       output.push(trimmed);
     }
     return output;
+  }
+
+  function markerCoordinateKey(point: MapPathPoint): string {
+    return `${point.lat.toFixed(6)}:${point.lon.toFixed(6)}`;
+  }
+
+  function buildMapMarkers(sourceEntries: MapViewEntry[], activeRef: string | null): MapMarker[] {
+    const markers = new Map<string, {
+      point: MapPathPoint;
+      role: 'endpoint' | 'stop' | 'location';
+      ref: string;
+      refs: Set<string>;
+      label: string;
+    }>();
+
+    const addMarker = (
+      entry: MapViewEntry,
+      point: MapPathPoint,
+      role: 'endpoint' | 'stop' | 'location',
+      label: string,
+    ) => {
+      const key = markerCoordinateKey(point);
+      const existing = markers.get(key);
+      if (!existing) {
+        markers.set(key, { point, role, ref: entry.ref, refs: new Set([entry.ref]), label });
+        return;
+      }
+      existing.refs.add(entry.ref);
+      if (role === 'endpoint' && existing.role === 'stop') {
+        existing.role = 'endpoint';
+        existing.ref = entry.ref;
+        existing.label = label;
+      }
+    };
+
+    for (const entry of sourceEntries) {
+      if (entry.route && entry.route.length > 1) {
+        entry.route.forEach((point, index) => {
+          const isEndpoint = index === 0 || index === entry.route!.length - 1;
+          addMarker(entry, point, isEndpoint ? 'endpoint' : 'stop', `${entry.title} ${isEndpoint ? (index === 0 ? 'start' : 'end') : 'stop'}`);
+        });
+      } else if (entry.lat != null && entry.lon != null) {
+        addMarker(entry, { lat: entry.lat, lon: entry.lon }, 'location', entry.title);
+      }
+    }
+
+    return Array.from(markers.values()).map((marker) => {
+      const isActive = activeRef != null && marker.refs.has(activeRef);
+      return {
+        lat: marker.point.lat,
+        lon: marker.point.lon,
+        label: marker.label,
+        ref: isActive ? activeRef : marker.ref,
+        testId: marker.role === 'stop' ? 'embeds-map-view-stop-marker' : 'embeds-map-view-endpoint-marker',
+        iconClass: `embeds-map-view-marker embeds-map-view-marker-${marker.role}${isActive ? ' embeds-map-view-marker-active' : ''}`,
+        opacity: activeRef && !marker.refs.has(activeRef) ? 0.5 : 1,
+      };
+    });
   }
 
   function firstString(...values: unknown[]): string {
@@ -326,13 +382,15 @@
   }
 
   function contentSignature(embedId: string, embedData: EmbedData): string {
-    const content = typeof embedData.content === 'string' ? embedData.content : '';
+    const content = typeof embedData.content === 'string'
+      ? embedData.content
+      : JSON.stringify(embedData.content ?? null);
     return [
       embedId,
       embedData.type ?? '',
       embedData.updatedAt ?? '',
-      content.length,
-      content.slice(0, 48),
+      content,
+      JSON.stringify(embedData.embed_ids ?? []),
     ].join(':');
   }
 
@@ -415,7 +473,7 @@
 
   function minutesFromIsoLike(value: unknown): number | undefined {
     if (typeof value !== 'string') return undefined;
-    const match = value.match(/(?:T|^)(\d{1,2}):(\d{2})/);
+    const match = value.match(/(?:T|\s|^)(\d{1,2}):(\d{2})/);
     if (!match) return undefined;
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
@@ -1010,7 +1068,7 @@
 
   async function resolveEntryPreview(entry: MapViewEntry): Promise<EntryPreview | null> {
     if (!entry.embedId || !entry.embedData || !entry.decodedContent) return null;
-    return await embedPreviewRegistry.resolve({
+    const preview = await embedPreviewRegistry.resolve({
       embedId: entry.embedId,
       embedData: {
         ...entry.embedData,
@@ -1020,6 +1078,10 @@
       decodedContent: entry.decodedContent,
       onFullscreen: () => openEntry(entry),
     });
+    if (preview && ['connection', 'travel-connection', 'travel-route'].includes(entry.embedType ?? '')) {
+      preview.props.customHeight = 200;
+    }
+    return preview;
   }
 
   async function resolveEntry(ref: string): Promise<MapViewEntry> {
@@ -1287,11 +1349,13 @@
             class:active={selectedVisualTab === tab.id}
             data-testid={`embeds-results-view-tab-${tab.id}`}
             role="tab"
+            aria-label={tab.label}
             aria-selected={selectedVisualTab === tab.id}
             aria-controls={`embeds-results-view-panel-${tab.id}`}
             onclick={() => (activeVisualTab = tab.id)}
           >
-            {tab.label}
+            <span class={`results-view-tab-icon results-view-tab-icon-${tab.id}`} data-testid={`embeds-results-view-tab-${tab.id}-icon`} aria-hidden="true"></span>
+            <span class="visually-hidden">{tab.label}</span>
           </button>
         {/each}
       </div>
@@ -1302,15 +1366,16 @@
           type="button"
           class="filter-button"
           data-testid="embeds-map-view-filter-button"
-          aria-haspopup="menu"
+          aria-label={activeFilterCount === 0 ? 'Filter results' : `Filter results, ${activeFilterCount} active`}
+          aria-haspopup="dialog"
           aria-expanded={filtersOpen}
           onclick={() => (filtersOpen = !filtersOpen)}
         >
           <span class="filter-icon" aria-hidden="true"></span>
-          <span>{activeFilterCount === 0 ? 'Filter' : `Filter (${activeFilterCount})`}</span>
+          <span class="visually-hidden">{activeFilterCount === 0 ? 'Filter' : `Filter (${activeFilterCount})`}</span>
         </button>
         {#if filtersOpen}
-          <div class="filter-menu" data-testid="embeds-map-view-filter-menu" role="menu">
+          <div class="filter-menu" data-testid="embeds-map-view-filter-menu" data-layout="results-panel" role="dialog" aria-label="Filter results">
             <div class="filter-menu-header">
               <strong>Filters</strong>
               {#if activeFilterCount > 0}
@@ -1329,13 +1394,11 @@
                     {#each categories as category}
                       <button
                         type="button"
-                        role="menuitemradio"
-                        aria-checked={category === activeCategory}
+                        aria-pressed={category === activeCategory}
                         class:active={category === activeCategory}
                         onclick={() => {
                           activeCategory = category;
                           clearMapViewportScope();
-                          filtersOpen = false;
                         }}
                       >
                         {category === 'all' ? 'All results' : category}
@@ -1363,6 +1426,7 @@
                     {#if control.type === 'date'}
                       <input
                         data-testid={`embeds-map-view-filter-${control.key}-min`}
+                        aria-label={`${control.label} minimum`}
                         type="date"
                         min={dateFromOrdinal(control.min)}
                         max={dateFromOrdinal(control.max)}
@@ -1371,6 +1435,7 @@
                       />
                       <input
                         data-testid={`embeds-map-view-filter-${control.key}-max`}
+                        aria-label={`${control.label} maximum`}
                         type="date"
                         min={dateFromOrdinal(control.min)}
                         max={dateFromOrdinal(control.max)}
@@ -1380,6 +1445,7 @@
                     {:else}
                       <input
                         data-testid={`embeds-map-view-filter-${control.key}-min`}
+                        aria-label={`${control.label} minimum`}
                         type="range"
                         min={control.min}
                         max={control.max}
@@ -1389,6 +1455,7 @@
                       />
                       <input
                         data-testid={`embeds-map-view-filter-${control.key}-max`}
+                        aria-label={`${control.label} maximum`}
                         type="range"
                         min={control.min}
                         max={control.max}
@@ -1426,8 +1493,10 @@
     {/if}
   </header>
 
-  <div class="map-view-body">
-    <div class="map-view-list" data-testid="embeds-map-view-list">
+  {#if !filtersOpen}
+    <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'}>
+    {#if selectedVisualTab === 'map'}
+      <div class="map-view-list" data-testid="embeds-map-view-list">
       <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
         {#if isLoading && carouselEntries.length === 0}
           <div class="empty-state">Loading referenced embeds...</div>
@@ -1477,7 +1546,8 @@
           Show all results
         </button>
       {/if}
-    </div>
+      </div>
+    {/if}
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
       {#if selectedVisualTab === 'calendar'}
@@ -1534,6 +1604,8 @@
           class="map-view-map"
           data-testid="embeds-map-view-map"
           data-marker-count={mapMarkers.length}
+          data-endpoint-marker-count={endpointMarkerCount}
+          data-stop-marker-count={stopMarkerCount}
           data-route-count={routePaths.length}
           data-map-hydrated={shouldHydrateMap ? 'true' : 'false'}
           id="embeds-results-view-panel-map"
@@ -1549,9 +1621,10 @@
                 markers={mapMarkers}
                 paths={routePaths}
                 height="100%"
-                minHeight="260px"
+                minHeight="278px"
                 fitBounds={true}
                 scrollWheelZoom={false}
+                zoomControlPosition="topleft"
                 onMarkerSelect={selectMapEntry}
                 onRouteSelect={selectMapEntry}
                 onBoundsChange={handleMapBoundsChange}
@@ -1565,15 +1638,22 @@
         </div>
       {/if}
     </div>
-  </div>
+    </div>
+  {:else}
+    <div class="filter-view-spacer" aria-hidden="true"></div>
+  {/if}
 </section>
 
 <style>
   .embeds-map-view {
+    position: relative;
     container-type: inline-size;
     width: 100%;
+    max-width: 652px;
+    padding-top: 23px;
+    box-sizing: border-box;
     border: 1px solid var(--color-grey-25, rgba(0, 0, 0, 0.08));
-    border-radius: 18px;
+    border-radius: 23px;
     background: var(--color-grey-0, #ffffff);
     color: var(--color-font-primary, #222222);
     overflow: hidden;
@@ -1581,17 +1661,34 @@
   }
 
   .map-view-toolbar {
-    position: relative;
+    position: absolute;
+    z-index: var(--z-index-dropdown-1, 10);
+    top: 0;
+    right: 0;
+    left: 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    padding: 12px 14px;
+    height: 42px;
+    padding: 0 10px;
+    box-sizing: border-box;
   }
 
   .entry-count {
-    color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-xxs);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
     white-space: nowrap;
   }
 
@@ -1599,8 +1696,10 @@
     position: absolute;
     left: 50%;
     display: inline-flex;
-    gap: 2px;
-    padding: 3px;
+    width: 170px;
+    height: 37px;
+    padding: 0;
+    box-sizing: border-box;
     border: 1px solid var(--color-grey-25, #e8e8e8);
     border-radius: 999px;
     background: var(--color-grey-10, #f9f9f9);
@@ -1616,13 +1715,37 @@
     border-radius: 999px;
     background: transparent;
     color: var(--color-font-secondary, #666666);
-    padding: 6px 12px;
+    flex: 1 1 0;
+    height: 100%;
+    padding: 0;
     font: inherit;
     font-size: var(--font-size-xxs, 0.75rem);
     font-weight: 650;
     line-height: 1;
     cursor: pointer;
     transition: background var(--duration-fast, 0.15s) ease, color var(--duration-fast, 0.15s) ease;
+  }
+
+  .results-view-tab-icon {
+    width: 20px;
+    height: 20px;
+    background: currentColor;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  .results-view-tab-icon-map {
+    -webkit-mask-image: url('@openmates/ui/static/icons/maps.svg');
+    mask-image: url('@openmates/ui/static/icons/maps.svg');
+  }
+
+  .results-view-tab-icon-calendar {
+    -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
+    mask-image: url('@openmates/ui/static/icons/calendar.svg');
   }
 
   .results-view-tabs button.active,
@@ -1637,19 +1760,21 @@
   }
 
   .filter-menu-wrapper {
-    position: relative;
-    z-index: var(--z-index-dropdown-1, 10);
+    position: static;
+    margin-left: auto;
   }
 
   .filter-button {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    width: 42px;
+    height: 42px;
+    justify-content: center;
     border: 1px solid var(--color-grey-30, #e3e3e3);
     border-radius: 999px;
     background: var(--color-grey-10, #f9f9f9);
     color: var(--color-font-primary, #222222);
-    padding: 7px 10px;
+    padding: 0;
     font: inherit;
     font-size: var(--font-size-xxs);
     line-height: 1;
@@ -1658,8 +1783,8 @@
   }
 
   .filter-icon {
-    width: 14px;
-    height: 14px;
+    width: 22px;
+    height: 22px;
     background: currentColor;
     -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
     mask-image: url('@openmates/ui/static/icons/filter.svg');
@@ -1673,19 +1798,30 @@
 
   .filter-menu {
     position: absolute;
-    top: calc(100% + 8px);
+    top: 23px;
     right: 0;
     display: grid;
-    gap: 10px;
-    width: min(360px, calc(100vw - 32px));
-    max-height: min(70vh, 560px);
-    overflow: auto;
+    grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.5fr);
+    grid-template-rows: auto 1fr;
+    gap: 16px 24px;
+    width: 100%;
+    height: 535px;
+    overflow: hidden;
     box-sizing: border-box;
     border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: var(--radius-5, 12px);
-    background: var(--color-grey-0, #ffffff);
-    box-shadow: var(--shadow-lg, 0 4px 16px rgba(0, 0, 0, 0.15));
-    padding: 12px;
+    border-radius: 23px;
+    background: var(--color-grey-10, #f9f9f9);
+    box-shadow: none;
+    padding: 32px 18px 18px;
+  }
+
+  .filter-menu-header {
+    grid-column: 1;
+    grid-row: 1;
+    display: grid;
+    align-content: start;
+    justify-items: start;
+    gap: 16px;
   }
 
   .filter-menu-header,
@@ -1697,15 +1833,23 @@
   }
 
   .filter-summary {
+    grid-column: 1;
+    grid-row: 2;
     margin: 0;
     color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-xxs, 0.75rem);
+    font-size: var(--font-size-h3, 1.25rem);
+    font-weight: 700;
     line-height: 1.4;
   }
 
   .filter-controls {
+    grid-column: 2;
+    grid-row: 1 / span 2;
     display: grid;
     gap: 10px;
+    min-height: 0;
+    overflow: auto;
+    padding-right: 4px;
   }
 
   .filter-menu-header strong,
@@ -1795,55 +1939,60 @@
     font-size: var(--font-size-xxs, 0.75rem);
   }
 
-  .filter-menu button[aria-checked='true']::after {
-    content: '';
-    float: right;
-    width: 6px;
-    height: 6px;
-    margin-top: 5px;
-    border-radius: 999px;
-    background: currentColor;
-  }
-
   .map-view-body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    border-top: 1px solid var(--color-grey-20, #f3f3f3);
+    height: 535px;
     background: var(--color-grey-20, #f3f3f3);
+  }
+
+  .map-view-body.calendar-active {
+    display: block;
+  }
+
+  .filter-view-spacer {
+    height: 535px;
   }
 
   .results-view-pane {
     min-width: 0;
-    min-height: 360px;
+    height: 278px;
+    min-height: 278px;
     background: var(--color-grey-20, #f3f3f3);
   }
 
   .map-view-list {
     min-width: 0;
+    height: 257px;
     border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
     background: var(--color-grey-10, #f9f9f9);
   }
 
   .map-view-carousel {
     display: flex;
-    gap: 14px;
+    gap: 12px;
+    height: 257px;
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 16px;
-    scroll-padding: 16px;
+    padding: 8px 14px 26px;
+    box-sizing: border-box;
+    scroll-padding: 14px;
     scroll-snap-type: x mandatory;
     scrollbar-width: thin;
   }
 
   .map-view-card {
     display: block;
-    flex: 0 0 auto;
-    border: 2px solid transparent;
-    border-radius: 32px;
+    flex: 0 0 300px;
+    width: 300px;
+    height: 200px;
+    border: 0;
+    border-radius: 30px;
     background: transparent;
     color: var(--color-font-primary, #222222);
-    padding: 3px;
+    padding: 0;
+    overflow: hidden;
     text-align: left;
     cursor: pointer;
     opacity: 1;
@@ -1858,7 +2007,7 @@
   .map-view-card.highlighted,
   .map-view-card.hovered,
   .map-view-card.selected {
-    border-color: var(--color-primary, #6c63ff);
+    box-shadow: inset 0 0 0 3px var(--color-primary);
   }
 
   .map-view-card:focus-visible {
@@ -1935,8 +2084,8 @@
 
   .map-view-map {
     min-width: 0;
-    min-height: 360px;
-    height: 100%;
+    min-height: 278px;
+    height: 278px;
     background: var(--color-grey-20, #f3f3f3);
   }
 
@@ -1944,8 +2093,10 @@
     display: grid;
     align-content: start;
     gap: 12px;
-    min-height: 360px;
-    max-height: 520px;
+    height: 535px;
+    min-height: 535px;
+    max-height: 535px;
+    box-sizing: border-box;
     overflow: auto;
     padding: 14px;
     background:
@@ -1979,8 +2130,8 @@
 
   .calendar-week {
     display: grid;
-    grid-template-columns: repeat(7, minmax(112px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 5px;
     min-width: 0;
   }
 
@@ -2095,10 +2246,10 @@
     text-align: center;
   }
 
-  :global(.embeds-map-view-marker-active .marker-icon) {
+  :global(.embeds-map-view-marker .marker-icon) {
     width: 40px;
     height: 40px;
-    background-color: var(--color-primary, #6c63ff);
+    background: var(--color-app-travel);
     -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
     mask-image: url('@openmates/ui/static/icons/pin.svg');
     -webkit-mask-size: contain;
@@ -2110,25 +2261,23 @@
     transition: opacity var(--duration-fast, 0.15s) ease;
   }
 
+  :global(.embeds-map-view-marker-stop .marker-icon) {
+    background: var(--color-error);
+  }
+
+  :global(.embeds-map-view-marker-location .marker-icon) {
+    background: var(--color-primary);
+  }
+
+  :global(.embeds-map-view-marker-active .marker-icon) {
+    filter: drop-shadow(0 0 5px var(--color-primary));
+  }
+
   @container (max-width: 720px) {
-    .embeds-map-view {
-      margin-top: 42px;
-    }
-
-    .map-view-toolbar {
-      align-items: stretch;
-      flex-wrap: wrap;
-    }
-
-    .entry-count {
-      order: 1;
-    }
-
     .results-view-tabs {
-      position: static;
-      order: 3;
-      width: 100%;
-      transform: none;
+      position: absolute;
+      width: min(170px, calc(100% - 70px));
+      transform: translateX(-50%);
     }
 
     .results-view-tabs button {
@@ -2137,23 +2286,39 @@
     }
 
     .filter-menu-wrapper {
-      display: grid;
-      justify-items: end;
-      width: 100%;
-      order: 2;
       position: static;
-      z-index: auto;
     }
 
     .filter-menu {
-      position: static;
-      justify-self: stretch;
+      position: absolute;
+      top: 23px;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
       width: 100%;
-      max-height: min(42vh, 320px);
-      margin-top: 8px;
-      border-radius: var(--radius-5, 12px);
+      height: 535px;
+      max-height: none;
+      margin: 0;
+      border-radius: 23px;
       box-shadow: none;
+      padding: 54px 14px 14px;
       overscroll-behavior: contain;
+    }
+
+    .filter-menu-header {
+      grid-column: 1;
+      grid-row: 2;
+      display: flex;
+    }
+
+    .filter-summary {
+      grid-column: 1;
+      grid-row: 1;
+      font-size: var(--font-size-small, 0.875rem);
+    }
+
+    .filter-controls {
+      grid-column: 1;
+      grid-row: 3;
     }
 
     .filter-menu-header,
@@ -2188,20 +2353,16 @@
       gap: 4px;
     }
 
-    .map-view-body {
-      display: flex;
-      flex-direction: column;
-    }
-
     .map-view-list {
-      max-height: none;
+      height: 257px;
       border-right: 0;
       border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
     }
 
     .map-view-carousel {
       gap: 12px;
-      padding: 14px;
+      height: 257px;
+      padding: 8px 14px 26px;
       scroll-padding: 14px;
     }
 
@@ -2219,20 +2380,22 @@
     }
 
     .map-view-map {
-      min-height: 280px;
+      min-height: 278px;
+      height: 278px;
     }
 
     .results-view-pane,
     .results-view-calendar {
-      min-height: 280px;
+      min-height: 535px;
     }
 
     .results-view-calendar {
-      max-height: 360px;
+      height: 535px;
+      max-height: 535px;
     }
 
     .calendar-week {
-      grid-template-columns: repeat(7, minmax(104px, 1fr));
+      grid-template-columns: repeat(7, minmax(0, 1fr));
     }
 
     .calendar-item {

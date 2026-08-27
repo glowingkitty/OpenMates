@@ -51,6 +51,7 @@
     color?: string;
     weight?: number;
     opacity?: number;
+    dashArray?: string;
     ref?: string;
     testId?: string;
   }
@@ -87,6 +88,8 @@
     minHeight?: string;
     /** Whether scroll wheel zoom is enabled (default: true) */
     scrollWheelZoom?: boolean;
+    /** Leaflet corner used for the zoom control (default: top-right) */
+    zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
     /** Called when a marker with a ref is clicked */
@@ -112,6 +115,7 @@
     height = '100%',
     minHeight = '220px',
     scrollWheelZoom = true,
+    zoomControlPosition = 'topright',
     onMapReady,
     onMarkerSelect,
     onRouteSelect,
@@ -176,6 +180,7 @@
         routePath.color,
         routePath.weight,
         routePath.opacity,
+        routePath.dashArray,
         routePath.ref,
         routePath.testId,
         routePath.points.map((point) => [point.lat, point.lon]),
@@ -225,6 +230,7 @@
           color: routePath.color || pathColor,
           weight: routePath.weight || pathWeight,
           opacity: routePath.opacity ?? 0.8,
+          dashArray: routePath.dashArray,
         }
       ).addTo(pathLayerGroup);
       const element = line.getElement();
@@ -287,6 +293,7 @@
         color: routePath.color || pathColor,
         weight: routePath.weight || pathWeight,
         opacity: routePath.opacity ?? 0.8,
+        dashArray: routePath.dashArray,
       });
     });
     lastLayerSignature = layerSignature();
@@ -338,8 +345,9 @@
       });
       leafletMap.on('moveend zoomend', emitBoundsChange);
 
-      // Add zoom control on the right side
-      L.control.zoom({ position: 'topright' }).addTo(leafletMap);
+      const zoomControl = L.control.zoom({ position: zoomControlPosition });
+      zoomControl.addTo(leafletMap);
+      zoomControl.getContainer?.()?.setAttribute('data-testid', 'embed-map-zoom-controls');
 
       tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -472,6 +480,14 @@
     transform: none;
   }
 
+  :global(.embed-leaflet-map .leaflet-top.leaflet-left) {
+    top: 50% !important;
+    left: 14px !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateY(-50%);
+  }
+
   @media (min-width: 601px) {
     :global(.embed-leaflet-map .leaflet-top.leaflet-right) {
       top: 50% !important;
@@ -485,5 +501,25 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border-radius: var(--radius-3);
     overflow: hidden;
+  }
+
+  :global(.embed-leaflet-map .leaflet-top.leaflet-left .leaflet-control-zoom) {
+    margin: 0 !important;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+    border: 0;
+    border-radius: var(--radius-full, 9999px);
+    overflow: hidden;
+  }
+
+  :global(.embed-leaflet-map .leaflet-top.leaflet-left .leaflet-control-zoom a) {
+    display: grid;
+    width: 57px;
+    height: 50px;
+    place-items: center;
+    border-color: var(--color-grey-25);
+    background: var(--color-grey-0);
+    color: var(--color-primary);
+    font-size: 1.75rem;
+    line-height: 1;
   }
 </style>

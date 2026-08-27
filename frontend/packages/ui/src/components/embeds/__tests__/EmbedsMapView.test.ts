@@ -214,8 +214,8 @@ describe("EmbedsMapView", () => {
           source_provider: "deutsche_bahn",
           origin: "Bonn Hbf",
           destination: "Muenchen Hbf",
-          departure: "2026-08-12T08:27:00+02:00",
-          arrival: "2026-08-12T17:56:00+02:00",
+          departure: "2026-08-12 08:27",
+          arrival: "2026-08-12 17:56",
           duration: "9h 29m",
           stops: 5,
           legs: [{
@@ -382,6 +382,9 @@ describe("EmbedsMapView", () => {
     expect(target.querySelector('[data-testid="embeds-map-view-list"]')).toBeNull();
     expect(target.querySelector('[data-testid="embeds-results-view-pane"]')).toBeNull();
 
+    filterButton!.click();
+    await tick();
+
     const cards = Array.from(target.querySelectorAll<HTMLButtonElement>('[data-testid="embeds-map-view-card"]'));
     cards[1].dispatchEvent(new Event("pointerenter"));
     await tick();
@@ -398,7 +401,7 @@ describe("EmbedsMapView", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
-  it("switches map and calendar visual tabs while keeping the result list", async () => {
+  it("switches from the map state to the full weekly calendar state", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);
 
@@ -427,7 +430,7 @@ describe("EmbedsMapView", () => {
     await tick();
 
     expect(target.querySelector('[data-testid="embeds-results-view-pane"]')?.getAttribute("data-active-tab")).toBe("calendar");
-    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(0);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
     expect(target.querySelector('[data-testid="embeds-results-view-calendar-week"]')).not.toBeNull();
     expect(target.querySelectorAll('[data-testid="embeds-results-view-calendar-day"]')).toHaveLength(7);
@@ -523,6 +526,7 @@ describe("EmbedsMapView", () => {
     expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
     expect(target.querySelectorAll('[data-testid="connection-preview-details"]')).toHaveLength(2);
+    expect(cards[0].querySelector('[data-testid="embed-preview"]')?.getAttribute("style")).toContain("height: 200px");
     expect(target.textContent).not.toContain("Search connections");
     expect(target.textContent).not.toContain("0 connections");
     const map = target.querySelector('[data-testid="embeds-map-view-map"]');
@@ -531,6 +535,10 @@ describe("EmbedsMapView", () => {
     expect(map?.getAttribute("data-endpoint-marker-count")).toBe("3");
     expect(map?.getAttribute("data-stop-marker-count")).toBe("2");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
+
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-results-view-tab-calendar"]')?.click();
+    await tick();
+    expect(target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]')).toHaveLength(2);
 
     unmount(component);
     target.remove();
@@ -561,6 +569,7 @@ describe("EmbedsMapView", () => {
     await tick();
 
     const filterMenu = target.querySelector('[data-testid="embeds-map-view-filter-menu"]');
+    expect(filterMenu?.getAttribute("role")).toBe("dialog");
     expect(filterMenu?.textContent).toContain("Departure time");
     expect(filterMenu?.textContent).toContain("Duration");
     expect(filterMenu?.textContent).toContain("Transfer time");
@@ -570,6 +579,7 @@ describe("EmbedsMapView", () => {
 
     const transferMin = target.querySelector<HTMLInputElement>('[data-testid="embeds-map-view-filter-transferMinutes-min"]');
     expect(transferMin).not.toBeNull();
+    expect(transferMin?.getAttribute("aria-label")).toBe("Transfer time minimum");
     transferMin!.value = "15";
     transferMin!.dispatchEvent(new Event("input", { bubbles: true }));
     await tick();
