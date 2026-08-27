@@ -1365,7 +1365,12 @@
   });
 
   $effect(() => {
-    if (mapShellElement && mapCenter && !shouldHydrateMap) setupMapHydrationObserver();
+    if (!mapShellElement || !mapCenter || shouldHydrateMap) return;
+    if (selectedVisualTab === 'map') {
+      scheduleMapHydration();
+      return;
+    }
+    setupMapHydrationObserver();
   });
 
   $effect(() => {
