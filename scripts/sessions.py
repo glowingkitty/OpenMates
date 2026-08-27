@@ -14534,7 +14534,7 @@ def _print_deployed_commit_handoff(commit_sha: str) -> None:
     print(f"Full commit: {commit_sha}")
     print(
         "Verify deployed spec: python3 scripts/tests.py run --spec <name>.spec.ts "
-        f"--gate-deploy --require-exact-commit --expected-commit {commit_sha}"
+        f"--gate-deploy --expected-commit {commit_sha}"
     )
 
 

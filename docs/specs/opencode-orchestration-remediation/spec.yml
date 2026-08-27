@@ -184,7 +184,28 @@ scenarios:
       - Exact mount and source-tree provenance is recorded before the runtime operation becomes completed.
       - Already coherent services are not restarted unnecessarily.
 
+  - id: S-9
+    title: Parallel deploys do not invalidate unrelated proof runs
+    given:
+      - A deployed feature commit is followed by another chat's unrelated commit on dev.
+    when:
+      - The deploy handoff runs a gated spec with the original expected commit.
+    then:
+      - The gate may use the newer deployed dev subject only when the original commit is its ancestor and no known input of the requested spec changed.
+      - Relevant changes still reject the run as a moving target.
+      - Strict exact-HEAD mode remains available when explicitly requested.
+
 acceptance_criteria:
+  - id: AC-10
+    scenario: S-9
+    text: Default deploy handoffs remain commit-aware without serializing proof behind unrelated dev commits.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-RUN-TESTS
+      - T-OPENCODE-HOOKS
   - id: AC-1
     scenario: S-1
     text: Same-host dead-owner leases are released before they block Docker/test coordination, while live and foreign-host leases remain protected.
