@@ -88,10 +88,10 @@ def _target_matches(client: Any, bucket: str, object_key: str, checksum: str) ->
     return hmac.compare_digest(actual, checksum)
 
 
-async def _has_newer_or_conflicting_authority(
+async def _classify_existing_authority(
     directus_service: Any,
     reference: dict[str, Any],
-) -> bool:
+) -> str:
     rows = await directus_service.get_items(
         "storage_replication_jobs",
         params={
@@ -108,14 +108,17 @@ async def _has_newer_or_conflicting_authority(
     )
     generation = int(reference["generation"])
     expected = _normalise_checksum(reference.get("checksum"))
+    matching_generation_exists = False
     for row in rows or []:
         existing_generation = int(row.get("generation", 0))
         existing_checksum = _normalise_checksum(row.get("checksum"))
         if existing_generation > generation:
-            return True
+            return "blocked"
         if existing_generation == generation and expected and existing_checksum and existing_checksum != expected:
-            return True
-    return False
+            return "blocked"
+        if existing_generation == generation and expected and existing_checksum == expected:
+            matching_generation_exists = True
+    return "matching" if matching_generation_exists else "clear"
 
 
 async def backfill_recovered_page(
@@ -167,8 +170,12 @@ async def backfill_recovered_page(
         ):
             counts["skipped_tombstoned"] += 1
             continue
-        if await _has_newer_or_conflicting_authority(directus_service, reference):
+        authority_state = await _classify_existing_authority(directus_service, reference)
+        if authority_state == "blocked":
             counts["skipped_newer_authority"] += 1
+            continue
+        if authority_state == "matching":
+            counts["scheduled"] += 1
             continue
 
         legacy_bucket = get_bucket_name(logical_bucket, environment)

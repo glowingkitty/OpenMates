@@ -165,6 +165,38 @@ async def test_backfill_uses_sha_metadata_before_downloading_ciphertext() -> Non
     assert clients["nbg1"].get_calls == 0
 
 
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_backfill_rerun_reuses_existing_matching_job_without_duplicate_create() -> None:
+    module = _module()
+    checksum = "c" * 64
+    directus = _Directus(jobs=[{
+        "logical_bucket": "chatfiles",
+        "object_key": "historic.bin",
+        "generation": 1,
+        "checksum": checksum,
+    }])
+
+    result = await module.backfill_recovered_page(
+        references=[{
+            "logical_bucket": "chatfiles",
+            "object_key": "historic.bin",
+            "generation": 1,
+            "checksum": checksum,
+        }],
+        source_region="nbg1",
+        configured_regions=("nbg1", "fsn1", "hel1"),
+        s3_clients=_s3({}),
+        directus_service=directus,
+        environment="development",
+        now=datetime(2026, 8, 26, tzinfo=timezone.utc),
+    )
+
+    assert result["scheduled"] == 1
+    assert result["skipped_newer_authority"] == 0
+    assert directus.created == []
+
+
 # contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
 def test_inventory_fingerprint_uses_metadata_or_etag_without_body_download() -> None:
     from scripts import audit_object_storage_inventory as module
