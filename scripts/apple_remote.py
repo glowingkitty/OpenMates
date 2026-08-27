@@ -4292,7 +4292,7 @@ def release_archive_preflight_command(platform: str) -> str:
 
 def release_preflight_then_upload_command(preflight_command: str, upload_command: str) -> str:
     """Require the non-mutating archive check immediately before an upload."""
-    return f"{preflight_command} && {upload_command}"
+    return f"{with_xcode_developer_dir(preflight_command)} && {upload_command}"
 
 
 def upload_testflight_ios_command(
