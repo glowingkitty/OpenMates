@@ -970,11 +970,12 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        command: python3 scripts/tests.py run --suite vitest
-        run_id: ""
-        subject_commit: ""
-        timestamp: ""
+        status: failed_as_expected
+        command: gh workflow run vitest.yml --ref dev -f checkout_ref=0286315fb68662153e5f9eb914aac36cba20144d -f test_files_json=<focused-map-view-tests>
+        run_id: "GitHub Actions 33088837090"
+        subject_commit: 0286315fb68662153e5f9eb914aac36cba20144d
+        timestamp: "2026-08-27T15:37:39Z"
+        summary: Focused tests failed on the missing filter/close state and generic marker HTML before the product fix.
     green_phase:
       required: true
       expected: pass

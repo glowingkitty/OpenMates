@@ -37,12 +37,19 @@
     testId?: string;
     /** Visual opacity, used for list-hover focus without refitting the map */
     opacity?: number;
+    /** Every result ref represented by this coordinate (for shared stops) */
+    relatedRefs?: string[];
+    /** Stable coordinate key used to preserve explicit marker selection */
+    selectionKey?: string;
+    /** Keep the marker label visible while this marker is selected */
+    selected?: boolean;
   }
 
   /** A point in a polyline path */
   export interface MapPathPoint {
     lat: number;
     lon: number;
+    label?: string;
   }
 
   /** A route polyline rendered on the map */
@@ -93,7 +100,7 @@
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
     /** Called when a marker with a ref is clicked */
-    onMarkerSelect?: (ref: string) => void;
+    onMarkerSelect?: (ref: string, relatedRefs?: string[], selectionKey?: string) => void;
     /** Called when a route path with a ref is clicked */
     onRouteSelect?: (ref: string) => void;
     /** Called after Leaflet settles its current viewport */
@@ -175,7 +182,18 @@
 
   function layerSignature(): string {
     return JSON.stringify({
-      markers: markers.map((marker) => [marker.lat, marker.lon, marker.ref, marker.testId, marker.iconClass, marker.opacity, marker.label]),
+      markers: markers.map((marker) => [
+        marker.lat,
+        marker.lon,
+        marker.ref,
+        marker.relatedRefs,
+        marker.selectionKey,
+        marker.selected,
+        marker.testId,
+        marker.iconClass,
+        marker.opacity,
+        marker.label,
+      ]),
       paths: normalizedPaths.map((routePath) => [
         routePath.color,
         routePath.weight,
@@ -204,7 +222,7 @@
     for (const marker of markers) {
       const customIcon = L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<div class="marker-icon"></div>',
+        html: '<span class="marker-icon" style="-webkit-mask-image:url(\'/icons/maps.svg\');mask-image:url(\'/icons/maps.svg\')" aria-hidden="true"></span>',
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       });
@@ -213,12 +231,19 @@
       m.setOpacity(marker.opacity ?? 1);
       const element = m.getElement?.();
       if (marker.testId) element?.setAttribute('data-testid', marker.testId);
+      if (marker.label) element?.setAttribute('data-marker-label', marker.label);
+      if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
       if (marker.ref) {
         element?.setAttribute('data-marker-ref', marker.ref);
-        m.on('click', () => onMarkerSelect?.(marker.ref!));
+        m.on('click', () => onMarkerSelect?.(marker.ref!, marker.relatedRefs, marker.selectionKey));
       }
       if (marker.label) {
-        m.bindTooltip(marker.label, { permanent: false });
+        m.bindTooltip(marker.label, {
+          permanent: marker.selected === true,
+          direction: 'top',
+          offset: [0, -34],
+          className: 'embed-map-marker-label',
+        });
       }
       markerLayers.push(m);
     }
@@ -283,10 +308,23 @@
       markerLayer.setOpacity?.(marker.opacity ?? 1);
       markerLayer.setIcon?.(L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<div class="marker-icon"></div>',
+        html: '<span class="marker-icon" style="-webkit-mask-image:url(\'/icons/maps.svg\');mask-image:url(\'/icons/maps.svg\')" aria-hidden="true"></span>',
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       }));
+      const element = markerLayer.getElement?.();
+      if (marker.testId) element?.setAttribute('data-testid', marker.testId);
+      if (marker.label) element?.setAttribute('data-marker-label', marker.label);
+      if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
+      markerLayer.unbindTooltip?.();
+      if (marker.label) {
+        markerLayer.bindTooltip?.(marker.label, {
+          permanent: marker.selected === true,
+          direction: 'top',
+          offset: [0, -34],
+          className: 'embed-map-marker-label',
+        });
+      }
     });
     normalizedPaths.forEach((routePath, index) => {
       pathLayers[index]?.setStyle?.({
@@ -448,12 +486,10 @@
     border: none;
   }
 
-  :global(.embed-leaflet-map .default-map-marker .marker-icon) {
+  :global(.embed-leaflet-map .marker-icon) {
+    display: block;
     width: 40px;
     height: 40px;
-    background-color: var(--color-primary, #6c63ff);
-    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-    mask-image: url('@openmates/ui/static/icons/pin.svg');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -461,6 +497,16 @@
     -webkit-mask-position: center;
     mask-position: center;
     transition: opacity var(--duration-fast, 0.15s) ease;
+  }
+
+  :global(.embed-leaflet-map .embed-map-marker-label) {
+    border: 0;
+    border-radius: var(--radius-3, 8px);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+    font-family: inherit;
+    font-weight: 650;
   }
 
   :global(.embed-leaflet-map .embeds-map-view-marker-active) {

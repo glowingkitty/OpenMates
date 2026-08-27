@@ -150,7 +150,8 @@
   let shouldHydrateMap = $state(false);
   let mapShellElement = $state<HTMLDivElement | null>(null);
   let mapViewportEntryRefs = $state<string[] | null>(null);
-  let mapSelectionRef = $state<string | null>(null);
+  let mapSelectionRefs = $state<string[]>([]);
+  let mapSelectionKey = $state<string | null>(null);
   let calendarWeekStartOrdinal = $state<number | null>(null);
   let unsubscribeRefIndex: (() => void) | null = null;
   let unsubscribeEmbedAvailability: (() => void) | null = null;
@@ -195,7 +196,10 @@
       .slice(0, MAX_VISIBLE_ENTRIES);
   });
   const carouselEntries = $derived.by(() => {
-    if (mapSelectionRef) return visibleEntries.filter((entry) => entry.ref === mapSelectionRef);
+    if (mapSelectionRefs.length > 0) {
+      const selectionSet = new Set(mapSelectionRefs);
+      return visibleEntries.filter((entry) => selectionSet.has(entry.ref));
+    }
     if (mapViewportEntryRefs && mapViewportEntryRefs.length > 0) {
       const viewportSet = new Set(mapViewportEntryRefs);
       const viewportEntries = visibleEntries.filter((entry) => viewportSet.has(entry.ref));
@@ -203,20 +207,22 @@
     }
     return visibleEntries;
   });
-  const isCarouselScoped = $derived(carouselEntries.length < visibleEntries.length || mapSelectionRef !== null);
-  const activeGeometryRef = $derived(mapSelectionRef ?? hoveredRef ?? selectedRef);
-  const mapMarkers = $derived<MapMarker[]>(buildMapMarkers(visibleEntries, activeGeometryRef));
+  const isCarouselScoped = $derived(carouselEntries.length < visibleEntries.length || mapSelectionRefs.length > 0);
+  const activeGeometryRefs = $derived(mapSelectionRefs.length > 0
+    ? new Set(mapSelectionRefs)
+    : new Set([hoveredRef ?? selectedRef].filter((ref): ref is string => ref != null)));
+  const mapMarkers = $derived<MapMarker[]>(buildMapMarkers(visibleEntries, activeGeometryRefs, mapSelectionKey));
   const endpointMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-endpoint')).length);
   const stopMarkerCount = $derived(mapMarkers.filter((marker) => marker.iconClass?.includes('marker-stop')).length);
   const routePaths = $derived<MapRoutePath[]>(visibleEntries
     .filter((entry) => entry.route && entry.route.length > 1)
     .map((entry) => ({
       points: entry.route!,
-      color: activeGeometryRef == null
+      color: activeGeometryRefs.size === 0
         ? DEFAULT_ROUTE_COLOR
-        : entry.ref === activeGeometryRef ? ACTIVE_ROUTE_COLOR : INACTIVE_ROUTE_COLOR,
+        : activeGeometryRefs.has(entry.ref) ? ACTIVE_ROUTE_COLOR : INACTIVE_ROUTE_COLOR,
       weight: 5,
-      opacity: activeGeometryRef && entry.ref !== activeGeometryRef ? 0.5 : 0.8,
+      opacity: activeGeometryRefs.size > 0 && !activeGeometryRefs.has(entry.ref) ? 0.5 : 0.8,
       dashArray: ROUTE_DASH_ARRAY,
       ref: entry.ref,
       testId: 'embeds-map-view-route-path',
@@ -269,7 +275,7 @@
     return `${point.lat.toFixed(6)}:${point.lon.toFixed(6)}`;
   }
 
-  function buildMapMarkers(sourceEntries: MapViewEntry[], activeRef: string | null): MapMarker[] {
+  function buildMapMarkers(sourceEntries: MapViewEntry[], activeRefs: Set<string>, selectedMarkerKey: string | null): MapMarker[] {
     const markers = new Map<string, {
       point: MapPathPoint;
       role: 'endpoint' | 'stop' | 'location';
@@ -302,7 +308,12 @@
       if (entry.route && entry.route.length > 1) {
         entry.route.forEach((point, index) => {
           const isEndpoint = index === 0 || index === entry.route!.length - 1;
-          addMarker(entry, point, isEndpoint ? 'endpoint' : 'stop', `${entry.title} ${isEndpoint ? (index === 0 ? 'start' : 'end') : 'stop'}`);
+          addMarker(
+            entry,
+            point,
+            isEndpoint ? 'endpoint' : 'stop',
+            point.label || `${entry.title} ${isEndpoint ? (index === 0 ? 'start' : 'end') : 'stop'}`,
+          );
         });
       } else if (entry.lat != null && entry.lon != null) {
         addMarker(entry, { lat: entry.lat, lon: entry.lon }, 'location', entry.title);
@@ -310,15 +321,20 @@
     }
 
     return Array.from(markers.values()).map((marker) => {
-      const isActive = activeRef != null && marker.refs.has(activeRef);
+      const key = markerCoordinateKey(marker.point);
+      const relatedRefs = Array.from(marker.refs);
+      const isActive = relatedRefs.some((ref) => activeRefs.has(ref));
       return {
         lat: marker.point.lat,
         lon: marker.point.lon,
         label: marker.label,
-        ref: isActive ? activeRef : marker.ref,
+        ref: isActive ? relatedRefs.find((ref) => activeRefs.has(ref)) ?? marker.ref : marker.ref,
+        relatedRefs,
+        selectionKey: key,
+        selected: selectedMarkerKey === key,
         testId: marker.role === 'stop' ? 'embeds-map-view-stop-marker' : 'embeds-map-view-endpoint-marker',
         iconClass: `embeds-map-view-marker embeds-map-view-marker-${marker.role}${isActive ? ' embeds-map-view-marker-active' : ''}`,
-        opacity: activeRef && !marker.refs.has(activeRef) ? 0.5 : 1,
+        opacity: activeRefs.size > 0 && !isActive ? 0.5 : 1,
       };
     });
   }
@@ -678,7 +694,8 @@
 
   function clearMapViewportScope(): void {
     mapViewportEntryRefs = null;
-    mapSelectionRef = null;
+    mapSelectionRefs = [];
+    mapSelectionKey = null;
     hoveredRef = null;
   }
 
@@ -919,14 +936,46 @@
     return point ?? {};
   }
 
-  function addRoutePoint(points: MapPathPoint[], lat: number | undefined, lon: number | undefined): void {
+  function addRoutePoint(points: MapPathPoint[], lat: number | undefined, lon: number | undefined, label = ''): void {
     if (lat == null || lon == null) return;
     const lastPoint = points.at(-1);
-    if (lastPoint && lastPoint.lat === lat && lastPoint.lon === lon) return;
-    points.push({ lat, lon });
+    if (lastPoint && lastPoint.lat === lat && lastPoint.lon === lon) {
+      if (!lastPoint.label && label) lastPoint.label = label;
+      return;
+    }
+    points.push({ lat, lon, ...(label ? { label } : {}) });
   }
 
-  function extractRouteFromSegmentRecords(segments: unknown[]): MapPathPoint[] {
+  function travelLocationLabels(content: Record<string, unknown> | null): Map<string, string> {
+    const labels = new Map<string, string>();
+    const addLabel = (codeValue: unknown, nameValue: unknown) => {
+      const code = firstString(codeValue);
+      const name = firstString(nameValue);
+      if (!code || !name) return;
+      labels.set(code, name.includes(code) ? name : `${name} (${code})`);
+    };
+    for (const leg of extractArrayRecords(content?.legs)) {
+      for (const layover of extractArrayRecords(leg.layovers)) {
+        addLabel(layover.airport_code ?? layover.station_code ?? layover.code, layover.airport ?? layover.station ?? layover.name);
+      }
+    }
+    if (!content) return labels;
+    for (let legIndex = 0; legIndex < MAX_TRAVEL_LEGS; legIndex += 1) {
+      for (let layoverIndex = 0; layoverIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; layoverIndex += 1) {
+        const prefix = `legs_${legIndex}_layovers_${layoverIndex}`;
+        const code = content[`${prefix}_airport_code`] ?? content[`${prefix}_station_code`] ?? content[`${prefix}_code`];
+        const name = content[`${prefix}_airport`] ?? content[`${prefix}_station`] ?? content[`${prefix}_name`];
+        if (code == null && name == null) {
+          if (layoverIndex === 0) break;
+          continue;
+        }
+        addLabel(code, name);
+      }
+    }
+    return labels;
+  }
+
+  function extractRouteFromSegmentRecords(segments: unknown[], locationLabels: Map<string, string>): MapPathPoint[] {
     const points: MapPathPoint[] = [];
     for (const segment of segments) {
       if (!segment || typeof segment !== 'object' || Array.isArray(segment)) continue;
@@ -935,11 +984,13 @@
         points,
         firstNumber(record.departure_latitude, record.departure_lat),
         firstNumber(record.departure_longitude, record.departure_lng, record.departure_lon),
+        locationLabels.get(firstString(record.departure_station)) ?? firstString(record.departure_station),
       );
       addRoutePoint(
         points,
         firstNumber(record.arrival_latitude, record.arrival_lat),
         firstNumber(record.arrival_longitude, record.arrival_lng, record.arrival_lon),
+        locationLabels.get(firstString(record.arrival_station)) ?? firstString(record.arrival_station),
       );
     }
     return points;
@@ -952,7 +1003,7 @@
       const legRecord = leg as Record<string, unknown>;
       return Array.isArray(legRecord.segments) ? legRecord.segments : [];
     });
-    return extractRouteFromSegmentRecords(segments);
+    return extractRouteFromSegmentRecords(segments, travelLocationLabels(content));
   }
 
   function extractRouteFromFlatTravelSegments(content: Record<string, unknown> | null): MapPathPoint[] {
@@ -963,8 +1014,10 @@
       for (let segmentIndex = 0; segmentIndex < MAX_TRAVEL_SEGMENTS_PER_LEG; segmentIndex += 1) {
         const prefix = `legs_${legIndex}_segments_${segmentIndex}`;
         const record = {
+          departure_station: content[`${prefix}_departure_station`],
           departure_latitude: content[`${prefix}_departure_latitude`],
           departure_longitude: content[`${prefix}_departure_longitude`],
+          arrival_station: content[`${prefix}_arrival_station`],
           arrival_latitude: content[`${prefix}_arrival_latitude`],
           arrival_longitude: content[`${prefix}_arrival_longitude`],
         };
@@ -977,7 +1030,7 @@
       }
     }
 
-    return extractRouteFromSegmentRecords(segments);
+    return extractRouteFromSegmentRecords(segments, travelLocationLabels(content));
   }
 
   function extractRouteFromFlightTrack(content: Record<string, unknown> | null): MapPathPoint[] {
@@ -1004,7 +1057,8 @@
           const record = point as Record<string, unknown>;
           const lat = firstNumber(record.lat, record.latitude);
           const lon = firstNumber(record.lon, record.lng, record.longitude);
-          return lat != null && lon != null ? { lat, lon } : null;
+          const label = firstString(record.label, record.name, record.station, record.city);
+          return lat != null && lon != null ? { lat, lon, ...(label ? { label } : {}) } : null;
         })
         .filter((point): point is MapPathPoint => point != null);
     }
@@ -1025,7 +1079,10 @@
     const destinationLat = firstNumber(content?.destination_lat, content?.destination_latitude, destination?.lat, destination?.latitude);
     const destinationLon = firstNumber(content?.destination_lon, content?.destination_lng, content?.destination_longitude, destination?.lon, destination?.lng, destination?.longitude);
     if (originLat != null && originLon != null && destinationLat != null && destinationLon != null) {
-      return [{ lat: originLat, lon: originLon }, { lat: destinationLat, lon: destinationLon }];
+      return [
+        { lat: originLat, lon: originLon, ...(firstString(content?.origin_name, content?.origin) ? { label: firstString(content?.origin_name, content?.origin) } : {}) },
+        { lat: destinationLat, lon: destinationLon, ...(firstString(content?.destination_name, content?.destination) ? { label: firstString(content?.destination_name, content?.destination) } : {}) },
+      ];
     }
     return [];
   }
@@ -1187,16 +1244,20 @@
     });
   }
 
-  function selectMapEntry(ref: string): void {
-    if (!visibleEntries.some((entry) => entry.ref === ref)) return;
-    selectedRef = ref;
-    mapSelectionRef = ref;
+  function selectMapEntry(ref: string, relatedRefs = [ref], selectionKey?: string): void {
+    const visibleRefSet = new Set(visibleEntries.map((entry) => entry.ref));
+    const matchingRefs = relatedRefs.filter((candidate) => visibleRefSet.has(candidate));
+    if (matchingRefs.length === 0) return;
+    selectedRef = matchingRefs[0];
+    mapSelectionRefs = matchingRefs;
+    mapSelectionKey = selectionKey ?? null;
     hoveredRef = null;
   }
 
   function showAllResults(): void {
     mapViewportEntryRefs = null;
-    mapSelectionRef = null;
+    mapSelectionRefs = [];
+    mapSelectionKey = null;
     selectedRef = null;
     hoveredRef = null;
   }
@@ -1219,7 +1280,7 @@
   }
 
   function handleMapBoundsChange(bounds: MapViewportBounds): void {
-    if (mapSelectionRef) return;
+    if (mapSelectionRefs.length > 0) return;
     const refsInBounds = visibleEntries
       .filter((entry) => entryIntersectsBounds(entry, bounds))
       .map((entry) => entry.ref);
@@ -1329,8 +1390,11 @@
   });
 
   $effect(() => {
-    if (mapSelectionRef && !visibleEntries.some((entry) => entry.ref === mapSelectionRef)) {
-      mapSelectionRef = null;
+    if (mapSelectionRefs.length > 0) {
+      const visibleRefSet = new Set(visibleEntries.map((entry) => entry.ref));
+      const nextSelectionRefs = mapSelectionRefs.filter((ref) => visibleRefSet.has(ref));
+      if (nextSelectionRefs.length !== mapSelectionRefs.length) mapSelectionRefs = nextSelectionRefs;
+      if (nextSelectionRefs.length === 0) mapSelectionKey = null;
     }
     if (selectedRef && !visibleEntries.some((entry) => entry.ref === selectedRef)) {
       selectedRef = null;
@@ -1366,12 +1430,13 @@
           type="button"
           class="filter-button"
           data-testid="embeds-map-view-filter-button"
+          data-icon={filtersOpen ? 'close' : 'filter'}
           aria-label={activeFilterCount === 0 ? 'Filter results' : `Filter results, ${activeFilterCount} active`}
           aria-controls={`${id}-filter-panel`}
           aria-expanded={filtersOpen}
           onclick={() => (filtersOpen = !filtersOpen)}
         >
-          <span class="filter-icon" aria-hidden="true"></span>
+          <span class:filter-icon={!filtersOpen} class:close-icon={filtersOpen} aria-hidden="true"></span>
           <span class="visually-hidden">{activeFilterCount === 0 ? 'Filter' : `Filter (${activeFilterCount})`}</span>
         </button>
         {#if filtersOpen}
@@ -1509,14 +1574,14 @@
               class:highlighted={entry.highlighted}
               class:selected={selectedRef === entry.ref}
               class:hovered={entry.ref === hoveredRef}
-              class:dimmed={activeGeometryRef != null && entry.ref !== activeGeometryRef}
+              class:dimmed={activeGeometryRefs.size > 0 && !activeGeometryRefs.has(entry.ref)}
               data-testid="embeds-map-view-card"
               data-entry-status={entry.status}
               data-entry-category={entry.category}
               data-highlighted={entry.highlighted ? 'true' : 'false'}
               data-selected={selectedRef === entry.ref ? 'true' : 'false'}
               data-hovered={entry.ref === hoveredRef ? 'true' : 'false'}
-              data-dimmed={activeGeometryRef != null && entry.ref !== activeGeometryRef ? 'true' : 'false'}
+              data-dimmed={activeGeometryRefs.size > 0 && !activeGeometryRefs.has(entry.ref) ? 'true' : 'false'}
               role="group"
               aria-label={entry.title}
               onpointerenter={() => (hoveredRef = entry.ref)}
@@ -1799,6 +1864,20 @@
     background: var(--gradient-primary);
     -webkit-mask-image: url('@openmates/ui/static/icons/filter.svg');
     mask-image: url('@openmates/ui/static/icons/filter.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+
+  .close-icon {
+    width: 22px;
+    height: 22px;
+    background: var(--gradient-primary);
+    -webkit-mask-image: url('@openmates/ui/static/icons/close.svg');
+    mask-image: url('@openmates/ui/static/icons/close.svg');
     -webkit-mask-size: contain;
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
@@ -2271,19 +2350,12 @@
     text-align: center;
   }
 
+  :global(.embeds-map-view-marker-active .marker-icon) {
+    filter: drop-shadow(0 0 5px var(--color-primary));
+  }
+
   :global(.embeds-map-view-marker .marker-icon) {
-    width: 40px;
-    height: 40px;
     background: var(--color-app-travel);
-    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-    mask-image: url('@openmates/ui/static/icons/pin.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    transition: opacity var(--duration-fast, 0.15s) ease;
   }
 
   :global(.embeds-map-view-marker-stop .marker-icon) {
@@ -2292,10 +2364,6 @@
 
   :global(.embeds-map-view-marker-location .marker-icon) {
     background: var(--color-primary);
-  }
-
-  :global(.embeds-map-view-marker-active .marker-icon) {
-    filter: drop-shadow(0 0 5px var(--color-primary));
   }
 
   @container (max-width: 720px) {
