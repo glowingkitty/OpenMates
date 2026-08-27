@@ -63,8 +63,11 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView).toHaveAttribute('aria-label', 'Berlin AI events and routes');
 		await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true', { timeout: 15_000 });
 
+		const carousel = mapView.getByTestId('embeds-map-view-carousel');
+		await expect(carousel).toBeVisible();
 		const cards = mapView.getByTestId('embeds-map-view-card');
 		await expect(cards).toHaveCount(5, { timeout: 15_000 });
+		await expect(cards.getByTestId('embed-preview')).toHaveCount(5);
 		await expect(cards.first()).toContainText('Factory Berlin');
 		await expect(cards.first()).toHaveAttribute('data-highlighted', 'true');
 		await expect(cards.first()).toHaveAttribute('data-entry-category', 'place');
@@ -80,6 +83,9 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
 		await expect(calendarItems).toHaveCount(4);
+		await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
+		await expect(mapView.getByTestId('embeds-results-view-calendar-day')).toHaveCount(7);
+		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Jul 27');
 		await expect(calendarItems.filter({ hasText: 'Morning Yoga Flow' })).toBeVisible();
 		await expect(calendarItems.filter({ hasText: 'Dr. Meyer' })).toBeVisible();
 		await expect(calendarItems.filter({ hasText: 'AI Founders Meetup' })).toBeVisible();
@@ -93,6 +99,8 @@ test.describe('Embeds map view preview', () => {
 		await expect(filterButton).toBeVisible();
 		await filterButton.click();
 		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
+		await expect(filterMenu.getByTestId('embeds-map-view-filter-controls')).toBeVisible();
 		await expect(filterMenu).toContainText('event');
 		await expect(filterMenu).toContainText('place');
 		await expect(filterMenu).toContainText('route');
@@ -109,16 +117,16 @@ test.describe('Embeds map view preview', () => {
 		await cards.nth(1).hover();
 		await expect(cards.nth(1)).toHaveAttribute('data-hovered', 'true');
 
-		const desktopListBox = await mapView.getByTestId('embeds-map-view-list').boundingBox();
+		const desktopListBox = await carousel.boundingBox();
 		const desktopMapBox = await mapView.getByTestId('embeds-map-view-map').boundingBox();
 		expect(desktopListBox, 'desktop list box should exist').not.toBeNull();
 		expect(desktopMapBox, 'desktop map box should exist').not.toBeNull();
-		expect(desktopMapBox!.x).toBeGreaterThan(desktopListBox!.x);
-		expect(desktopMapBox!.width).toBeGreaterThan(desktopListBox!.width);
+		expect(desktopMapBox!.y).toBeGreaterThan(desktopListBox!.y);
+		expect(desktopListBox!.width).toBeGreaterThanOrEqual(desktopMapBox!.width - 2);
 
 		await page.getByRole('button', { name: /Mobile\s+375px/ }).click();
 		await expect(page.getByTestId('preview-status-bar')).toContainText('375px');
-		const mobileListBox = await mapView.getByTestId('embeds-map-view-list').boundingBox();
+		const mobileListBox = await carousel.boundingBox();
 		const mobileMapBox = await mapView.getByTestId('embeds-map-view-map').boundingBox();
 		expect(mobileListBox, 'mobile list box should exist').not.toBeNull();
 		expect(mobileMapBox, 'mobile map box should exist').not.toBeNull();

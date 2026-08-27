@@ -27,10 +27,14 @@
   export interface MapMarker {
     lat: number;
     lon: number;
+    /** Optional ref for selection callbacks */
+    ref?: string;
     /** Optional label (used as tooltip) */
     label?: string;
     /** Optional custom CSS class for the marker icon */
     iconClass?: string;
+    /** Optional test ID for the marker element */
+    testId?: string;
     /** Visual opacity, used for list-hover focus without refitting the map */
     opacity?: number;
   }
@@ -49,6 +53,13 @@
     opacity?: number;
     ref?: string;
     testId?: string;
+  }
+
+  export interface MapBounds {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
   }
 
   interface Props {
@@ -78,6 +89,12 @@
     scrollWheelZoom?: boolean;
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
+    /** Called when a marker with a ref is clicked */
+    onMarkerSelect?: (ref: string) => void;
+    /** Called when a route path with a ref is clicked */
+    onRouteSelect?: (ref: string) => void;
+    /** Called after Leaflet settles its current viewport */
+    onBoundsChange?: (bounds: MapBounds) => void;
     /** Horizontal visual offset in pixels for center/fit (used when a left detail panel overlaps map) */
     centerOffsetX?: number;
   }
@@ -96,6 +113,9 @@
     minHeight = '220px',
     scrollWheelZoom = true,
     onMapReady,
+    onMarkerSelect,
+    onRouteSelect,
+    onBoundsChange,
     centerOffsetX = 0,
   }: Props = $props();
 
@@ -151,11 +171,13 @@
 
   function layerSignature(): string {
     return JSON.stringify({
-      markers: markers.map((marker) => [marker.lat, marker.lon, marker.iconClass, marker.opacity, marker.label]),
+      markers: markers.map((marker) => [marker.lat, marker.lon, marker.ref, marker.testId, marker.iconClass, marker.opacity, marker.label]),
       paths: normalizedPaths.map((routePath) => [
         routePath.color,
         routePath.weight,
         routePath.opacity,
+        routePath.ref,
+        routePath.testId,
         routePath.points.map((point) => [point.lat, point.lon]),
       ]),
       pathColor,
@@ -184,6 +206,12 @@
 
       const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
       m.setOpacity(marker.opacity ?? 1);
+      const element = m.getElement?.();
+      if (marker.testId) element?.setAttribute('data-testid', marker.testId);
+      if (marker.ref) {
+        element?.setAttribute('data-marker-ref', marker.ref);
+        m.on('click', () => onMarkerSelect?.(marker.ref!));
+      }
       if (marker.label) {
         m.bindTooltip(marker.label, { permanent: false });
       }
@@ -201,7 +229,10 @@
       ).addTo(pathLayerGroup);
       const element = line.getElement();
       if (routePath.testId) element?.setAttribute('data-testid', routePath.testId);
-      if (routePath.ref) element?.setAttribute('data-route-ref', routePath.ref);
+      if (routePath.ref) {
+        element?.setAttribute('data-route-ref', routePath.ref);
+        line.on('click', () => onRouteSelect?.(routePath.ref!));
+      }
       pathLayers.push(line);
     }
 
@@ -221,7 +252,20 @@
       }
     }
     applyCenterOffset();
+    emitBoundsChange();
     lastLayerSignature = layerSignature();
+  }
+
+  function emitBoundsChange() {
+    if (!leafletMap || !onBoundsChange) return;
+    const bounds = leafletMap.getBounds?.();
+    if (!bounds) return;
+    onBoundsChange({
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest(),
+    });
   }
 
   function updateLeafletLayerStyles() {
@@ -292,6 +336,7 @@
         attributionControl: true,
         scrollWheelZoom,
       });
+      leafletMap.on('moveend zoomend', emitBoundsChange);
 
       // Add zoom control on the right side
       L.control.zoom({ position: 'topright' }).addTo(leafletMap);
@@ -311,6 +356,7 @@
       renderLeafletLayers({ fitBoundsToGeometry: true });
       lastFitGeometrySignature = geometrySignature();
       leafletReady = true;
+      emitBoundsChange();
 
       if (typeof ResizeObserver !== 'undefined') {
         mapResizeObserver = new ResizeObserver(() => {

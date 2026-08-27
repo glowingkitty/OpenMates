@@ -298,6 +298,10 @@ describe("EmbedsMapView", () => {
 
     const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(2);
+    expect(target.querySelector('[data-testid="embeds-map-view-carousel"]')).not.toBeNull();
+    expect(target.querySelectorAll('[data-testid="embed-preview"]')).toHaveLength(2);
+    expect(cards[0].querySelector('[data-testid="embed-preview"]')).not.toBeNull();
+    expect(cards[1].querySelector('[data-testid="embed-preview"]')).not.toBeNull();
     expect(cards[0].textContent).toContain("Factory Berlin");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
@@ -331,11 +335,13 @@ describe("EmbedsMapView", () => {
 
     await flush();
 
-    const cards = Array.from(target.querySelectorAll<HTMLButtonElement>('[data-testid="embeds-map-view-card"]'));
+    const cards = Array.from(target.querySelectorAll<HTMLElement>('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(2);
     expect(cards[0].dataset.selected).toBe("false");
 
-    cards[0].click();
+    const firstInteractiveCard = cards[0].querySelector<HTMLElement>('[data-testid="embed-preview"], [data-testid="embeds-map-view-fallback-card"]');
+    expect(firstInteractiveCard).not.toBeNull();
+    firstInteractiveCard!.click();
     await tick();
 
     expect(cards[0].dataset.selected).toBe("true");
@@ -418,6 +424,9 @@ describe("EmbedsMapView", () => {
     expect(target.querySelector('[data-testid="embeds-results-view-pane"]')?.getAttribute("data-active-tab")).toBe("calendar");
     expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar-week"]')).not.toBeNull();
+    expect(target.querySelectorAll('[data-testid="embeds-results-view-calendar-day"]')).toHaveLength(7);
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar-week-label"]')?.textContent).toContain("Jul 27");
     const calendarItems = target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]');
     expect(calendarItems).toHaveLength(1);
     expect(calendarItems[0].textContent).toContain("AI Founders Meetup");
@@ -505,7 +514,8 @@ describe("EmbedsMapView", () => {
 
     const cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(2);
-    expect(cards[0].textContent).toContain("Bonn Hbf -> Muenchen Hbf");
+    expect(cards[0].textContent).toContain("Bonn Hbf");
+    expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("2");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
@@ -554,7 +564,8 @@ describe("EmbedsMapView", () => {
 
     let cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
-    expect(cards[0].textContent).toContain("Bonn Hbf -> Muenchen Hbf");
+    expect(cards[0].textContent).toContain("Bonn Hbf");
+    expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
 
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
@@ -565,7 +576,8 @@ describe("EmbedsMapView", () => {
 
     cards = Array.from(target.querySelectorAll('[data-testid="embeds-map-view-card"]'));
     expect(cards).toHaveLength(1);
-    expect(cards[0].textContent).toContain("Bonn Hbf -> Muenchen Hbf");
+    expect(cards[0].textContent).toContain("Bonn Hbf");
+    expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-route-count")).toBe("1");
     expect(embedResolverMocks.decodeToonContent.mock.calls.length).toBe(decodeCountAfterLoad);
 

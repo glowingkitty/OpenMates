@@ -9,10 +9,12 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import type { Component } from 'svelte';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
   import { embedAvailabilityVersion, embedRefIndexVersion, embedStore } from '../../services/embedStore';
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
+  import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
   import { incrementStreamingRenderMetric } from '../../message_parsing/streamingRenderMetrics';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
 
@@ -23,6 +25,8 @@
   const ACTIVE_ROUTE_COLOR = '#6c63ff';
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
   const HISTOGRAM_BUCKETS = 12;
+  const CALENDAR_WEEK_DAYS = 7;
+  const MINUTES_PER_DAY = 24 * 60;
 
   interface Props {
     id: string;
@@ -47,7 +51,20 @@
     route?: MapPathPoint[];
     embedData?: EmbedData;
     decodedContent?: Record<string, unknown> | null;
+    preview?: EntryPreview | null;
     facets: EntryFacets;
+  }
+
+  interface EntryPreview {
+    component: unknown;
+    props: Record<string, unknown>;
+  }
+
+  interface MapViewportBounds {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
   }
 
   interface CoordinatePair {
@@ -105,9 +122,10 @@
     endMinutes?: number;
   }
 
-  interface CalendarDayGroup {
+  interface CalendarWeekDay {
     dateOrdinal: number;
     entries: CalendarEntry[];
+    isToday: boolean;
   }
 
   let {
@@ -129,6 +147,9 @@
   let filtersOpen = $state(false);
   let shouldHydrateMap = $state(false);
   let mapShellElement = $state<HTMLDivElement | null>(null);
+  let mapViewportEntryRefs = $state<string[] | null>(null);
+  let mapSelectionRef = $state<string | null>(null);
+  let calendarWeekStartOrdinal = $state<number | null>(null);
   let unsubscribeRefIndex: (() => void) | null = null;
   let unsubscribeEmbedAvailability: (() => void) | null = null;
   let mapHydrationObserver: IntersectionObserver | null = null;
@@ -171,21 +192,34 @@
       .sort((a, b) => Number(b.highlighted) - Number(a.highlighted))
       .slice(0, MAX_VISIBLE_ENTRIES);
   });
+  const carouselEntries = $derived.by(() => {
+    if (mapSelectionRef) return visibleEntries.filter((entry) => entry.ref === mapSelectionRef);
+    if (mapViewportEntryRefs && mapViewportEntryRefs.length > 0) {
+      const viewportSet = new Set(mapViewportEntryRefs);
+      const viewportEntries = visibleEntries.filter((entry) => viewportSet.has(entry.ref));
+      if (viewportEntries.length > 0 && viewportEntries.length < visibleEntries.length) return viewportEntries;
+    }
+    return visibleEntries;
+  });
+  const isCarouselScoped = $derived(carouselEntries.length < visibleEntries.length || mapSelectionRef !== null);
   const mapEntries = $derived(visibleEntries.filter((entry) => entry.lat != null && entry.lon != null));
+  const activeGeometryRef = $derived(mapSelectionRef ?? hoveredRef ?? selectedRef);
   const mapMarkers = $derived<MapMarker[]>(mapEntries.map((entry) => ({
     lat: entry.lat!,
     lon: entry.lon!,
     label: entry.title,
-    iconClass: entry.ref === hoveredRef ? 'embeds-map-view-marker-active' : 'default-map-marker',
-    opacity: hoveredRef && entry.ref !== hoveredRef ? 0.5 : 1,
+    ref: entry.ref,
+    testId: 'embeds-map-view-marker',
+    iconClass: entry.ref === activeGeometryRef ? 'embeds-map-view-marker-active' : 'default-map-marker',
+    opacity: activeGeometryRef && entry.ref !== activeGeometryRef ? 0.5 : 1,
   })));
   const routePaths = $derived<MapRoutePath[]>(visibleEntries
     .filter((entry) => entry.route && entry.route.length > 1)
     .map((entry) => ({
       points: entry.route!,
-      color: entry.ref === hoveredRef ? ACTIVE_ROUTE_COLOR : DEFAULT_ROUTE_COLOR,
+      color: entry.ref === activeGeometryRef ? ACTIVE_ROUTE_COLOR : DEFAULT_ROUTE_COLOR,
       weight: 3,
-      opacity: hoveredRef && entry.ref !== hoveredRef ? 0.5 : 0.8,
+      opacity: activeGeometryRef && entry.ref !== activeGeometryRef ? 0.5 : 0.8,
       ref: entry.ref,
       testId: 'embeds-map-view-route-path',
     })));
@@ -193,7 +227,9 @@
     .map(calendarEntryFromMapEntry)
     .filter((entry): entry is CalendarEntry => entry != null)
     .sort((a, b) => a.dateOrdinal - b.dateOrdinal || a.startMinutes - b.startMinutes || a.entry.title.localeCompare(b.entry.title)));
-  const calendarDayGroups = $derived<CalendarDayGroup[]>(groupCalendarEntries(calendarEntries));
+  const firstCalendarWeekStart = $derived(calendarEntries.length > 0 ? weekStartOrdinal(calendarEntries[0].dateOrdinal) : null);
+  const activeCalendarWeekStart = $derived(calendarWeekStartOrdinal ?? firstCalendarWeekStart);
+  const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
   const mapCenter = $derived.by(() => {
     const points = [
       ...mapEntries.map((entry) => ({ lat: entry.lat!, lon: entry.lon! })),
@@ -582,6 +618,12 @@
     return rangeFilters[control.key] ?? { min: control.min, max: control.max };
   }
 
+  function clearMapViewportScope(): void {
+    mapViewportEntryRefs = null;
+    mapSelectionRef = null;
+    hoveredRef = null;
+  }
+
   function isRangeFilterActive(control: RangeFilterControl): boolean {
     const value = rangeFilters[control.key];
     if (!value) return false;
@@ -621,7 +663,7 @@
       else next.min = next.max;
     }
     rangeFilters = { ...rangeFilters, [key]: next };
-    hoveredRef = null;
+    clearMapViewportScope();
   }
 
   function toggleOptionFilter(key: string, value: string): void {
@@ -630,14 +672,14 @@
       ? current.filter((item) => item !== value)
       : [...current, value];
     optionFilters = { ...optionFilters, [key]: next };
-    hoveredRef = null;
+    clearMapViewportScope();
   }
 
   function clearFilters(): void {
     activeCategory = 'all';
     rangeFilters = {};
     optionFilters = {};
-    hoveredRef = null;
+    clearMapViewportScope();
   }
 
   function deriveVisualTabs(hasMap: boolean, hasCalendar: boolean): VisualTab[] {
@@ -657,14 +699,26 @@
     return { entry, dateOrdinal, startMinutes, endMinutes };
   }
 
-  function groupCalendarEntries(items: CalendarEntry[]): CalendarDayGroup[] {
-    const groups = new Map<number, CalendarEntry[]>();
-    for (const item of items) {
-      groups.set(item.dateOrdinal, [...(groups.get(item.dateOrdinal) ?? []), item]);
-    }
-    return Array.from(groups.entries())
-      .sort(([a], [b]) => a - b)
-      .map(([dateOrdinal, entriesForDay]) => ({ dateOrdinal, entries: entriesForDay }));
+  function weekStartOrdinal(dateOrdinal: number): number {
+    const day = new Date(dateOrdinal * 86400000).getUTCDay();
+    return dateOrdinal - ((day + 6) % CALENDAR_WEEK_DAYS);
+  }
+
+  function todayOrdinal(): number {
+    const now = new Date();
+    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86400000;
+  }
+
+  function buildCalendarWeekDays(weekStart: number, items: CalendarEntry[]): CalendarWeekDay[] {
+    const today = todayOrdinal();
+    return Array.from({ length: CALENDAR_WEEK_DAYS }, (_, index) => {
+      const dateOrdinal = weekStart + index;
+      return {
+        dateOrdinal,
+        entries: items.filter((item) => item.dateOrdinal === dateOrdinal),
+        isToday: dateOrdinal === today,
+      };
+    });
   }
 
   function formatOptionLabel(value: string): string {
@@ -692,13 +746,28 @@
     return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
   }
 
-  function formatCalendarDate(value: number): string {
+  function calendarItemOffsetPx(item: CalendarEntry): number {
+    return Math.round((item.startMinutes / MINUTES_PER_DAY) * 72);
+  }
+
+  function formatCalendarDayLabel(value: number): string {
     return new Intl.DateTimeFormat('en-US', {
       timeZone: 'UTC',
       weekday: 'short',
+    }).format(new Date(value * 86400000));
+  }
+
+  function formatCalendarDayNumber(value: number): string {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'UTC',
       month: 'short',
       day: 'numeric',
     }).format(new Date(value * 86400000));
+  }
+
+  function formatCalendarWeekLabel(weekStart: number): string {
+    const weekEnd = weekStart + CALENDAR_WEEK_DAYS - 1;
+    return `${formatCalendarDayNumber(weekStart)} - ${formatCalendarDayNumber(weekEnd)}`;
   }
 
   function formatProviderLabel(value: string): string {
@@ -939,6 +1008,20 @@
     return indexed || normalizedRef;
   }
 
+  async function resolveEntryPreview(entry: MapViewEntry): Promise<EntryPreview | null> {
+    if (!entry.embedId || !entry.embedData || !entry.decodedContent) return null;
+    return await embedPreviewRegistry.resolve({
+      embedId: entry.embedId,
+      embedData: {
+        ...entry.embedData,
+        app_id: entry.decodedContent.app_id ?? entry.embedData.app_id,
+        skill_id: entry.decodedContent.skill_id ?? entry.embedData.skill_id,
+      },
+      decodedContent: entry.decodedContent,
+      onFullscreen: () => openEntry(entry),
+    });
+  }
+
   async function resolveEntry(ref: string): Promise<MapViewEntry> {
     const embedId = await resolveRefToId(ref);
     if (!embedId) {
@@ -977,8 +1060,10 @@
       route,
       embedData,
       decodedContent,
+      preview: null,
       facets: extractFacets(category, decodedContent),
     } satisfies MapViewEntry;
+    entry.preview = await resolveEntryPreview(entry);
     entryCache.set(ref, { signature, entry });
     return entry;
   }
@@ -1038,6 +1123,58 @@
       embedData: entry.embedData,
       decodedContent: entry.decodedContent,
     });
+  }
+
+  function selectMapEntry(ref: string): void {
+    if (!visibleEntries.some((entry) => entry.ref === ref)) return;
+    selectedRef = ref;
+    mapSelectionRef = ref;
+    hoveredRef = null;
+  }
+
+  function showAllResults(): void {
+    mapViewportEntryRefs = null;
+    mapSelectionRef = null;
+    selectedRef = null;
+    hoveredRef = null;
+  }
+
+  function handleEntryPointerLeave(ref: string): void {
+    if (hoveredRef === ref) hoveredRef = null;
+  }
+
+  function pointIsInBounds(point: MapPathPoint, bounds: MapViewportBounds): boolean {
+    const inLatitude = point.lat >= bounds.south && point.lat <= bounds.north;
+    const inLongitude = bounds.west <= bounds.east
+      ? point.lon >= bounds.west && point.lon <= bounds.east
+      : point.lon >= bounds.west || point.lon <= bounds.east;
+    return inLatitude && inLongitude;
+  }
+
+  function entryIntersectsBounds(entry: MapViewEntry, bounds: MapViewportBounds): boolean {
+    if (entry.lat != null && entry.lon != null && pointIsInBounds({ lat: entry.lat, lon: entry.lon }, bounds)) return true;
+    return entry.route?.some((point) => pointIsInBounds(point, bounds)) ?? false;
+  }
+
+  function handleMapBoundsChange(bounds: MapViewportBounds): void {
+    if (mapSelectionRef) return;
+    const refsInBounds = visibleEntries
+      .filter((entry) => entryIntersectsBounds(entry, bounds))
+      .map((entry) => entry.ref);
+    mapViewportEntryRefs = refsInBounds.length > 0 && refsInBounds.length < visibleEntries.length ? refsInBounds : null;
+  }
+
+  function moveCalendarWeek(delta: -1 | 1): void {
+    if (activeCalendarWeekStart == null) return;
+    calendarWeekStartOrdinal = activeCalendarWeekStart + (delta * CALENDAR_WEEK_DAYS);
+  }
+
+  // Svelte's dynamic component type needs a permissive cast because registry
+  // entries point at heterogeneous preview components with different props.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function getRenderableComponent(component: unknown): Component<any, any, any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return component as Component<any, any, any>;
   }
 
   function scheduleMapHydration(): void {
@@ -1118,6 +1255,25 @@
       activeVisualTab = visualTabs[0].id;
     }
   });
+
+  $effect(() => {
+    if (firstCalendarWeekStart == null) {
+      calendarWeekStartOrdinal = null;
+      return;
+    }
+    if (calendarWeekStartOrdinal == null) {
+      calendarWeekStartOrdinal = firstCalendarWeekStart;
+    }
+  });
+
+  $effect(() => {
+    if (mapSelectionRef && !visibleEntries.some((entry) => entry.ref === mapSelectionRef)) {
+      mapSelectionRef = null;
+    }
+    if (selectedRef && !visibleEntries.some((entry) => entry.ref === selectedRef)) {
+      selectedRef = null;
+    }
+  });
 </script>
 
 <section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} aria-label={title}>
@@ -1161,104 +1317,109 @@
                 <button type="button" data-testid="embeds-map-view-clear-filters" onclick={clearFilters}>Clear all</button>
               {/if}
             </div>
+            <p class="filter-summary" data-testid="embeds-map-view-filter-summary">
+              {visibleEntries.length} of {categoryFilteredEntries.length} results remain
+            </p>
 
-            {#if categories.length > 1}
-              <div class="filter-section">
-                <span class="filter-section-title">Type</span>
-                <div class="filter-category-options">
-                  {#each categories as category}
-                    <button
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={category === activeCategory}
-                      class:active={category === activeCategory}
-                      onclick={() => {
-                        activeCategory = category;
-                        hoveredRef = null;
-                        filtersOpen = false;
-                      }}
-                    >
-                      {category === 'all' ? 'All results' : category}
-                    </button>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-
-            {#each rangeFilterControls as control}
-              {@const rangeValue = getRangeValue(control)}
-              <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
-                <div class="range-label-row">
-                  <span class="filter-section-title">{control.label}</span>
-                  <span>{formatRangeValue(control, rangeValue.min)} - {formatRangeValue(control, rangeValue.max)}</span>
-                </div>
-                {#if control.type === 'time'}
-                  <div class="filter-histogram" aria-hidden="true">
-                    {#each histogramBuckets(control) as bucket}
-                      <span style={`height: ${histogramBarHeight(control, bucket)}%;`}></span>
+            <div class="filter-controls" data-testid="embeds-map-view-filter-controls">
+              {#if categories.length > 1}
+                <div class="filter-section">
+                  <span class="filter-section-title">Type</span>
+                  <div class="filter-category-options">
+                    {#each categories as category}
+                      <button
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={category === activeCategory}
+                        class:active={category === activeCategory}
+                        onclick={() => {
+                          activeCategory = category;
+                          clearMapViewportScope();
+                          filtersOpen = false;
+                        }}
+                      >
+                        {category === 'all' ? 'All results' : category}
+                      </button>
                     {/each}
                   </div>
-                {/if}
-                <div class="range-inputs">
-                  {#if control.type === 'date'}
-                    <input
-                      data-testid={`embeds-map-view-filter-${control.key}-min`}
-                      type="date"
-                      min={dateFromOrdinal(control.min)}
-                      max={dateFromOrdinal(control.max)}
-                      value={dateFromOrdinal(rangeValue.min)}
-                      oninput={(event) => updateRangeFilter(control.key, 'min', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.min)}
-                    />
-                    <input
-                      data-testid={`embeds-map-view-filter-${control.key}-max`}
-                      type="date"
-                      min={dateFromOrdinal(control.min)}
-                      max={dateFromOrdinal(control.max)}
-                      value={dateFromOrdinal(rangeValue.max)}
-                      oninput={(event) => updateRangeFilter(control.key, 'max', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.max)}
-                    />
-                  {:else}
-                    <input
-                      data-testid={`embeds-map-view-filter-${control.key}-min`}
-                      type="range"
-                      min={control.min}
-                      max={control.max}
-                      step={control.type === 'time' ? 5 : 1}
-                      value={rangeValue.min}
-                      oninput={(event) => updateRangeFilter(control.key, 'min', Number((event.currentTarget as HTMLInputElement).value))}
-                    />
-                    <input
-                      data-testid={`embeds-map-view-filter-${control.key}-max`}
-                      type="range"
-                      min={control.min}
-                      max={control.max}
-                      step={control.type === 'time' ? 5 : 1}
-                      value={rangeValue.max}
-                      oninput={(event) => updateRangeFilter(control.key, 'max', Number((event.currentTarget as HTMLInputElement).value))}
-                    />
-                  {/if}
                 </div>
-              </div>
-            {/each}
+              {/if}
 
-            {#each optionFilterControls as control}
-              <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
-                <span class="filter-section-title">{control.label}</span>
-                <div class="option-chips">
-                  {#each control.options as option}
-                    <button
-                      type="button"
-                      data-testid={`embeds-map-view-option-${testIdPart(control.label)}-${testIdPart(option.value)}`}
-                      class:active={(optionFilters[control.key] ?? []).includes(option.value)}
-                      aria-pressed={(optionFilters[control.key] ?? []).includes(option.value)}
-                      onclick={() => toggleOptionFilter(control.key, option.value)}
-                    >
-                      {option.label} <span>{option.count}</span>
-                    </button>
-                  {/each}
+              {#each rangeFilterControls as control}
+                {@const rangeValue = getRangeValue(control)}
+                <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
+                  <div class="range-label-row">
+                    <span class="filter-section-title">{control.label}</span>
+                    <span>{formatRangeValue(control, rangeValue.min)} - {formatRangeValue(control, rangeValue.max)}</span>
+                  </div>
+                  {#if control.type === 'time'}
+                    <div class="filter-histogram" aria-hidden="true">
+                      {#each histogramBuckets(control) as bucket}
+                        <span style={`height: ${histogramBarHeight(control, bucket)}%;`}></span>
+                      {/each}
+                    </div>
+                  {/if}
+                  <div class="range-inputs">
+                    {#if control.type === 'date'}
+                      <input
+                        data-testid={`embeds-map-view-filter-${control.key}-min`}
+                        type="date"
+                        min={dateFromOrdinal(control.min)}
+                        max={dateFromOrdinal(control.max)}
+                        value={dateFromOrdinal(rangeValue.min)}
+                        oninput={(event) => updateRangeFilter(control.key, 'min', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.min)}
+                      />
+                      <input
+                        data-testid={`embeds-map-view-filter-${control.key}-max`}
+                        type="date"
+                        min={dateFromOrdinal(control.min)}
+                        max={dateFromOrdinal(control.max)}
+                        value={dateFromOrdinal(rangeValue.max)}
+                        oninput={(event) => updateRangeFilter(control.key, 'max', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.max)}
+                      />
+                    {:else}
+                      <input
+                        data-testid={`embeds-map-view-filter-${control.key}-min`}
+                        type="range"
+                        min={control.min}
+                        max={control.max}
+                        step={control.type === 'time' ? 5 : 1}
+                        value={rangeValue.min}
+                        oninput={(event) => updateRangeFilter(control.key, 'min', Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                      <input
+                        data-testid={`embeds-map-view-filter-${control.key}-max`}
+                        type="range"
+                        min={control.min}
+                        max={control.max}
+                        step={control.type === 'time' ? 5 : 1}
+                        value={rangeValue.max}
+                        oninput={(event) => updateRangeFilter(control.key, 'max', Number((event.currentTarget as HTMLInputElement).value))}
+                      />
+                    {/if}
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+
+              {#each optionFilterControls as control}
+                <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
+                  <span class="filter-section-title">{control.label}</span>
+                  <div class="option-chips">
+                    {#each control.options as option}
+                      <button
+                        type="button"
+                        data-testid={`embeds-map-view-option-${testIdPart(control.label)}-${testIdPart(option.value)}`}
+                        class:active={(optionFilters[control.key] ?? []).includes(option.value)}
+                        aria-pressed={(optionFilters[control.key] ?? []).includes(option.value)}
+                        onclick={() => toggleOptionFilter(control.key, option.value)}
+                      >
+                        {option.label} <span>{option.count}</span>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              {/each}
+            </div>
           </div>
         {/if}
       </div>
@@ -1267,89 +1428,103 @@
 
   <div class="map-view-body">
     <div class="map-view-list" data-testid="embeds-map-view-list">
-      {#if isLoading && visibleEntries.length === 0}
-        <div class="empty-state">Loading referenced embeds...</div>
-      {:else if visibleEntries.length === 0}
-        <div class="empty-state">No mappable embeds resolved yet.</div>
-      {:else}
-        {#each visibleEntries as entry}
-          <button
-            type="button"
-            class="map-view-card"
-            class:highlighted={entry.highlighted}
-            class:selected={selectedRef === entry.ref}
-            class:hovered={entry.ref === hoveredRef}
-            class:dimmed={hoveredRef != null && entry.ref !== hoveredRef}
-            data-testid="embeds-map-view-card"
-            data-entry-status={entry.status}
-            data-entry-category={entry.category}
-            data-highlighted={entry.highlighted ? 'true' : 'false'}
-            data-selected={selectedRef === entry.ref ? 'true' : 'false'}
-            data-hovered={entry.ref === hoveredRef ? 'true' : 'false'}
-            data-dimmed={hoveredRef != null && entry.ref !== hoveredRef ? 'true' : 'false'}
-            onclick={() => openEntry(entry)}
-            onpointerenter={() => (hoveredRef = entry.ref)}
-            onpointerleave={() => {
-              if (hoveredRef === entry.ref) hoveredRef = null;
-            }}
-            onfocus={() => (hoveredRef = entry.ref)}
-            onblur={() => {
-              if (hoveredRef === entry.ref) hoveredRef = null;
-            }}
-          >
-            <span class="category-pill">{entry.category}</span>
-            <strong>{entry.title}</strong>
-            <span class="entry-subtitle">{entry.subtitle}</span>
-            {#if entry.status !== 'ready'}
-              <em>{entry.status === 'loading' ? 'Resolving...' : 'Unavailable'}</em>
-            {/if}
-          </button>
-        {/each}
+      <div class="map-view-carousel" data-testid="embeds-map-view-carousel" aria-label="Result previews">
+        {#if isLoading && carouselEntries.length === 0}
+          <div class="empty-state">Loading referenced embeds...</div>
+        {:else if carouselEntries.length === 0}
+          <div class="empty-state">No mappable embeds resolved yet.</div>
+        {:else}
+          {#each carouselEntries as entry}
+            <div
+              class="map-view-card"
+              class:highlighted={entry.highlighted}
+              class:selected={selectedRef === entry.ref}
+              class:hovered={entry.ref === hoveredRef}
+              class:dimmed={activeGeometryRef != null && entry.ref !== activeGeometryRef}
+              data-testid="embeds-map-view-card"
+              data-entry-status={entry.status}
+              data-entry-category={entry.category}
+              data-highlighted={entry.highlighted ? 'true' : 'false'}
+              data-selected={selectedRef === entry.ref ? 'true' : 'false'}
+              data-hovered={entry.ref === hoveredRef ? 'true' : 'false'}
+              data-dimmed={activeGeometryRef != null && entry.ref !== activeGeometryRef ? 'true' : 'false'}
+              role="group"
+              aria-label={entry.title}
+              onpointerenter={() => (hoveredRef = entry.ref)}
+              onpointerleave={() => handleEntryPointerLeave(entry.ref)}
+              onfocusin={() => (hoveredRef = entry.ref)}
+              onfocusout={() => handleEntryPointerLeave(entry.ref)}
+            >
+              {#if entry.preview}
+                {@const Component = getRenderableComponent(entry.preview.component)}
+                <Component {...entry.preview.props} />
+              {:else}
+                <button type="button" class="fallback-card" data-testid="embeds-map-view-fallback-card" onclick={() => openEntry(entry)}>
+                  <span class="category-pill">{entry.category}</span>
+                  <strong>{entry.title}</strong>
+                  <span class="entry-subtitle">{entry.subtitle}</span>
+                  {#if entry.status !== 'ready'}
+                    <em>{entry.status === 'loading' ? 'Resolving...' : 'Unavailable'}</em>
+                  {/if}
+                </button>
+              {/if}
+            </div>
+          {/each}
+        {/if}
+      </div>
+      {#if isCarouselScoped}
+        <button type="button" class="show-all-results" data-testid="embeds-map-view-show-all-results" onclick={showAllResults}>
+          Show all results
+        </button>
       {/if}
     </div>
 
     <div class="results-view-pane" data-testid="embeds-results-view-pane" data-active-tab={selectedVisualTab}>
       {#if selectedVisualTab === 'calendar'}
         <div class="results-view-calendar" data-testid="embeds-results-view-calendar" id="embeds-results-view-panel-calendar" role="tabpanel" aria-label="Calendar results">
-          {#if calendarDayGroups.length > 0}
-            {#each calendarDayGroups as dayGroup}
-              <section class="calendar-day" data-testid="embeds-results-view-calendar-day">
-                <header class="calendar-day-header">
-                  <strong>{formatCalendarDate(dayGroup.dateOrdinal)}</strong>
-                  <span>{dayGroup.entries.length} {dayGroup.entries.length === 1 ? 'result' : 'results'}</span>
-                </header>
-                <div class="calendar-items">
-                  {#each dayGroup.entries as item}
-                    <button
-                      type="button"
-                      class="calendar-item"
-                      class:highlighted={item.entry.highlighted}
-                      class:selected={selectedRef === item.entry.ref}
-                      class:hovered={item.entry.ref === hoveredRef}
-                      data-testid="embeds-results-view-calendar-item"
-                      data-entry-category={item.entry.category}
-                      data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
-                      onclick={() => openEntry(item.entry)}
-                      onpointerenter={() => (hoveredRef = item.entry.ref)}
-                      onpointerleave={() => {
-                        if (hoveredRef === item.entry.ref) hoveredRef = null;
-                      }}
-                      onfocus={() => (hoveredRef = item.entry.ref)}
-                      onblur={() => {
-                        if (hoveredRef === item.entry.ref) hoveredRef = null;
-                      }}
-                    >
-                      <span class="calendar-time">{formatCalendarTime(item)}</span>
-                      <span class="calendar-copy">
-                        <span class="category-pill">{item.entry.category}</span>
-                        <strong>{item.entry.title}</strong>
-                        <span>{item.entry.subtitle}</span>
-                      </span>
-                    </button>
-                  {/each}
-                </div>
-              </section>
-            {/each}
+          {#if activeCalendarWeekStart != null}
+            <header class="calendar-week-toolbar">
+              <button type="button" aria-label="Previous week" onclick={() => moveCalendarWeek(-1)}>Previous</button>
+              <strong data-testid="embeds-results-view-calendar-week-label">{formatCalendarWeekLabel(activeCalendarWeekStart)}</strong>
+              <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}>Next</button>
+            </header>
+            <div class="calendar-week" data-testid="embeds-results-view-calendar-week">
+              {#each calendarWeekDays as day}
+                <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day">
+                  <header class="calendar-day-header">
+                    <span>{formatCalendarDayLabel(day.dateOrdinal)}</span>
+                    <strong>{formatCalendarDayNumber(day.dateOrdinal)}</strong>
+                  </header>
+                  <div class="calendar-items">
+                    {#each day.entries as item}
+                      <button
+                        type="button"
+                        class="calendar-item"
+                        class:highlighted={item.entry.highlighted}
+                        class:selected={selectedRef === item.entry.ref}
+                        class:hovered={item.entry.ref === hoveredRef}
+                        data-testid="embeds-results-view-calendar-item"
+                        data-entry-category={item.entry.category}
+                        data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
+                        style={`--calendar-start-offset: ${calendarItemOffsetPx(item)}px;`}
+                        onclick={() => openEntry(item.entry)}
+                        onpointerenter={() => (hoveredRef = item.entry.ref)}
+                        onpointerleave={() => handleEntryPointerLeave(item.entry.ref)}
+                        onfocus={() => (hoveredRef = item.entry.ref)}
+                        onblur={() => handleEntryPointerLeave(item.entry.ref)}
+                      >
+                        <span class="calendar-time">{formatCalendarTime(item)}</span>
+                        <span class="calendar-copy">
+                          <span class="category-pill">{item.entry.category}</span>
+                          <strong>{item.entry.title}</strong>
+                          <span>{item.entry.subtitle}</span>
+                        </span>
+                      </button>
+                    {/each}
+                  </div>
+                </section>
+              {/each}
+            </div>
           {:else}
             <div class="empty-map">Referenced embeds do not expose date and time yet.</div>
           {/if}
@@ -1377,6 +1552,9 @@
                 minHeight="260px"
                 fitBounds={true}
                 scrollWheelZoom={false}
+                onMarkerSelect={selectMapEntry}
+                onRouteSelect={selectMapEntry}
+                onBoundsChange={handleMapBoundsChange}
               />
             {:else}
               <div class="map-hydration-placeholder">Map loading when visible...</div>
@@ -1518,6 +1696,18 @@
     gap: 10px;
   }
 
+  .filter-summary {
+    margin: 0;
+    color: var(--color-font-secondary, #666666);
+    font-size: var(--font-size-xxs, 0.75rem);
+    line-height: 1.4;
+  }
+
+  .filter-controls {
+    display: grid;
+    gap: 10px;
+  }
+
   .filter-menu-header strong,
   .filter-section-title {
     color: var(--color-font-primary, #222222);
@@ -1617,9 +1807,9 @@
 
   .map-view-body {
     display: grid;
-    grid-template-columns: minmax(260px, 34%) minmax(0, 66%);
-    min-height: 360px;
+    grid-template-columns: minmax(0, 1fr);
     border-top: 1px solid var(--color-grey-20, #f3f3f3);
+    background: var(--color-grey-20, #f3f3f3);
   }
 
   .results-view-pane {
@@ -1629,31 +1819,35 @@
   }
 
   .map-view-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     min-width: 0;
-    max-height: 420px;
-    overflow: auto;
-    padding: 14px;
+    border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
     background: var(--color-grey-10, #f9f9f9);
-    border-right: 1px solid var(--color-grey-20, #f3f3f3);
+  }
+
+  .map-view-carousel {
+    display: flex;
+    gap: 14px;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 16px;
+    scroll-padding: 16px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
   }
 
   .map-view-card {
-    display: grid;
-    gap: 6px;
-    width: 100%;
-    min-height: 106px;
-    text-align: left;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: var(--radius-6, 14px);
-    background: var(--color-grey-0, #ffffff);
+    display: block;
+    flex: 0 0 auto;
+    border: 2px solid transparent;
+    border-radius: 32px;
+    background: transparent;
     color: var(--color-font-primary, #222222);
-    padding: 12px;
-    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
+    padding: 3px;
+    text-align: left;
     cursor: pointer;
     opacity: 1;
+    scroll-snap-align: start;
     transition: opacity var(--duration-fast, 0.15s) ease, border-color var(--duration-fast, 0.15s) ease;
   }
 
@@ -1662,11 +1856,33 @@
   }
 
   .map-view-card.highlighted,
-  .map-view-card.hovered {
+  .map-view-card.hovered,
+  .map-view-card.selected {
     border-color: var(--color-primary, #6c63ff);
   }
 
-  .map-view-card strong {
+  .map-view-card:focus-visible {
+    outline: 2px solid var(--color-primary, #6c63ff);
+    outline-offset: 3px;
+  }
+
+  .fallback-card {
+    display: grid;
+    gap: 6px;
+    width: 300px;
+    min-width: 300px;
+    height: 200px;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: 30px;
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    padding: 16px;
+    text-align: left;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+  }
+
+  .fallback-card strong {
     display: -webkit-box;
     overflow: hidden;
     color: var(--color-font-primary, #222222);
@@ -1677,8 +1893,8 @@
     -webkit-box-orient: vertical;
   }
 
-  .map-view-card .entry-subtitle,
-  .map-view-card em {
+  .fallback-card .entry-subtitle,
+  .fallback-card em {
     display: -webkit-box;
     overflow: hidden;
     color: var(--color-font-secondary, #666666);
@@ -1700,6 +1916,23 @@
     white-space: nowrap;
   }
 
+  .show-all-results {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 16px 14px;
+    width: fit-content;
+    border: 1px solid var(--color-grey-30, #e3e3e3);
+    border-radius: 999px;
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    padding: 8px 12px;
+    font: inherit;
+    font-size: var(--font-size-xxs, 0.75rem);
+    font-weight: 650;
+    cursor: pointer;
+  }
+
   .map-view-map {
     min-width: 0;
     min-height: 360px;
@@ -1712,7 +1945,7 @@
     align-content: start;
     gap: 12px;
     min-height: 360px;
-    max-height: 420px;
+    max-height: 520px;
     overflow: auto;
     padding: 14px;
     background:
@@ -1720,18 +1953,59 @@
       var(--color-grey-20, #f3f3f3);
   }
 
+  .calendar-week-toolbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .calendar-week-toolbar strong {
+    color: var(--color-font-primary, #222222);
+    font-size: var(--font-size-small, 0.875rem);
+    text-align: center;
+  }
+
+  .calendar-week-toolbar button {
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: 999px;
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    padding: 7px 10px;
+    font: inherit;
+    font-size: var(--font-size-xxs, 0.75rem);
+    cursor: pointer;
+  }
+
+  .calendar-week {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(112px, 1fr));
+    gap: 8px;
+    min-width: 0;
+  }
+
   .calendar-day {
     display: grid;
+    grid-template-rows: auto 1fr;
     gap: 8px;
+    min-height: 300px;
+    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border-radius: var(--radius-5, 12px);
+    background: color-mix(in srgb, var(--color-grey-0, #ffffff) 88%, transparent);
+    padding: 8px;
+  }
+
+  .calendar-day.today {
+    border-color: var(--color-primary, #6c63ff);
   }
 
   .calendar-day-header {
-    display: flex;
+    display: grid;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    gap: 2px;
     color: var(--color-font-secondary, #666666);
     font-size: var(--font-size-xxs, 0.75rem);
+    text-align: center;
   }
 
   .calendar-day-header strong {
@@ -1740,17 +2014,21 @@
   }
 
   .calendar-items {
-    display: grid;
+    position: relative;
+    display: flex;
+    flex-direction: column;
     gap: 8px;
+    min-height: 220px;
   }
 
   .calendar-item {
     display: grid;
-    grid-template-columns: minmax(54px, auto) minmax(0, 1fr);
-    gap: 10px;
+    grid-template-columns: 1fr;
+    gap: 6px;
     width: 100%;
+    margin-top: var(--calendar-start-offset, 0px);
     border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: var(--radius-6, 14px);
+    border-radius: var(--radius-5, 12px);
     background: var(--color-grey-0, #ffffff);
     color: var(--color-font-primary, #222222);
     padding: 10px;
@@ -1783,7 +2061,7 @@
 
   .calendar-copy {
     display: grid;
-    gap: 5px;
+    gap: 4px;
     min-width: 0;
   }
 
@@ -1916,24 +2194,26 @@
     }
 
     .map-view-list {
-      flex-direction: row;
       max-height: none;
-      overflow-x: auto;
       border-right: 0;
       border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
+    }
+
+    .map-view-carousel {
+      gap: 12px;
       padding: 14px;
-      scroll-snap-type: x mandatory;
+      scroll-padding: 14px;
     }
 
     .map-view-card {
       box-sizing: border-box;
-      flex: 0 0 100%;
+      flex: 0 0 auto;
       min-width: 0;
       scroll-snap-align: start;
       scroll-snap-stop: always;
     }
 
-    .map-view-card strong {
+    .fallback-card strong {
       -webkit-line-clamp: 3;
       line-clamp: 3;
     }
@@ -1949,6 +2229,10 @@
 
     .results-view-calendar {
       max-height: 360px;
+    }
+
+    .calendar-week {
+      grid-template-columns: repeat(7, minmax(104px, 1fr));
     }
 
     .calendar-item {

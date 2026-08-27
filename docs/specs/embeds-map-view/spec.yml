@@ -21,6 +21,8 @@ scope:
     - Reuse of existing events, health appointments, maps places, travel stays, travel connections, and other embeds that already contain coordinates or routes.
     - Default-recommended map-view instructions and deterministic repair for map-capable app-skill outputs such as travel connections, health appointments, maps search, events search, and travel stays.
     - Rendering multiple travel connection child routes on one grouped map by deriving route polylines from existing connection segment coordinates.
+    - Figma-aligned preview carousel, map viewport selection, pin/route selection, filter panel, and weekly calendar behavior from Website node `5819:61921`.
+    - Reuse of registered `UnifiedEmbedPreview`-based child preview components instead of a second map-view-specific result card implementation.
     - Real OpenMates CLI inference tests that prove the assistant generates valid blocks from natural prompts.
     - Real CLI-generated example chats for inspection and future regression coverage.
     - Deterministic cost and privacy safeguards that forbid automatic paid provider enrichment.
@@ -33,6 +35,7 @@ scope:
     - Drawing exact flight tracks unless those tracks already exist in the referenced embed content.
     - Replacing fullscreen search-result pages for events, health, or travel.
     - Apple implementation before REST/API, CLI, SDK, web, and user-confirmation gates are complete.
+    - Cross-device persistence or assistant-context injection of active filters; this requires a separate approved encrypted sync and AI-context contract because no compatible state channel exists today.
 
 context_discovery:
   github_issues:
@@ -205,6 +208,24 @@ decisions:
       the standard fullscreen embed header, top bar, share behavior, and no
       provider-enrichment boundary.
     decided_at: "2026-08-12T11:10:00Z"
+  - id: D-9
+    status: active
+    decision: Reuse the embed preview registry and existing UnifiedEmbedPreview-based child components in a horizontal carousel above the map or calendar.
+    reason: >
+      Figma node 5819:61921 composes the existing 300 by 200 embed cards rather
+      than introducing a second result-card design. Registry reuse keeps child
+      content, fullscreen behavior, app identity, and accessibility consistent.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Keep filters local to the mounted results view for this redesign and do not silently persist them to an unrelated encrypted data model.
+    reason: >
+      The Figma canvas contains conflicting temporary and permanent filter notes.
+      Repository discovery found no existing per-view encrypted sync state that is
+      also available to the assistant. Cross-device and assistant-aware persistence
+      therefore needs a separate privacy/API contract rather than misuse of drafts,
+      highlights, chat metadata, or embed history.
+    decided_at: "2026-08-27T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -231,10 +252,10 @@ attempts:
       `embeds_map_view` block referencing generated event refs.
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Ask the user to confirm the deployed dev Berlin map-view example works visually on mobile/dark mode; Apple parity is blocked by unreachable remote Mac SSH.
-  command: "manual: ask user to confirm https://app.dev.openmates.org/example/berlin-ai-founder-meetups-map"
-  expected_outcome: User confirmation clears the remaining final web-visual gate.
+  current_task_id: TASK-8
+  next_action: Extend component and deployed preview tests for the Figma-aligned carousel, map selection, filters, and weekly calendar, then capture red evidence.
+  command: python3 scripts/tests.py run --suite vitest
+  expected_outcome: New assertions fail against the old custom result-card and day-list implementation.
   blocker: null
   last_verified_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
 
@@ -398,6 +419,43 @@ scenarios:
       - Selecting a result highlights the row and marker rather than opening `MapLocationEmbedFullscreen` inside the parent fullscreen.
       - The render uses local parent/child embed data only and does not call Maps, Geoapify, or other enrichment endpoints.
 
+  - id: S-13
+    title: Existing embed previews form the result carousel
+    given:
+      - A results view resolves event, place, appointment, fitness, stay, or travel connection child embeds.
+      - Each ready child type has an existing UnifiedEmbedPreview-based preview component.
+    when:
+      - Alice opens the map or calendar view.
+    then:
+      - Ready results render through the shared embed preview registry in one horizontal scrollable, snap-aligned carousel above the active visual pane.
+      - The map view does not render a second custom title/subtitle/category result card for ready embeds.
+      - Preview activation keeps the existing open-fullscreen behavior in chat mode and local selection behavior in Maps Search fullscreen mode.
+      - Loading or unregistered refs use a bounded accessible fallback without preventing ready previews from rendering.
+
+  - id: S-14
+    title: Map viewport and pin selection coordinate the preview carousel
+    given:
+      - The filtered result set contains multiple location pins or travel routes.
+    when:
+      - Alice stops moving the map or selects a pin.
+    then:
+      - The carousel refreshes only when the set of filtered entries intersecting the settled map viewport changes.
+      - Selecting a pin focuses its preview and visually dims other pins without deleting them from the filtered map data.
+      - A Show all results action clears pin or stop selection and restores the filtered result set.
+      - Travel route selection keeps all filtered route geometry visible while dimming non-selected paths.
+
+  - id: S-15
+    title: Calendar defaults to the first populated week
+    given:
+      - Filtered results expose date and start-time values across one or more weeks.
+    when:
+      - Alice switches to Calendar.
+    then:
+      - A seven-day Monday-first week grid opens on the first week containing results.
+      - Previous and next controls navigate one week at a time without changing the shared filters or preview carousel.
+      - The current day is highlighted only when it falls within the visible week.
+      - Event blocks are positioned by start time, remain keyboard-accessible, and activate the same result behavior as their preview.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -528,6 +586,39 @@ acceptance_criteria:
     verification_ids:
       - T-VITEST-FILTERS
       - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+
+  - id: AC-13
+    scenario: S-13
+    text: 'Ready map/calendar results render registered existing embed preview components in one horizontal carousel and no longer use the custom map-view result card UI.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-14
+    scenario: S-14
+    text: 'Settled map bounds and pin or route selection coordinate the visible preview set, dim non-selected geometry, and provide a Show all results reset without provider calls.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-15
+    scenario: S-15
+    text: 'Calendar renders a navigable Monday-first week grid beginning with the first populated week and highlights today only when visible.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
 
 assumptions:
   - id: A-1
@@ -997,7 +1088,69 @@ tests:
             timestamp: "2026-07-31T16:24:22Z"
             summary: Deutschlandticket map/list content present, filter button available, no raw embeds_map_view text, no visible implementation errors, no stuck loading/spinner state, and no obvious mobile layout breakage at 390x844.
 
+  - id: T-VITEST-FIGMA-REDESIGN
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-13
+      - AC-14
+      - AC-15
+    assertions:
+      - Ready child entries resolve through embedPreviewRegistry and render UnifiedEmbedPreview roots inside the horizontal carousel.
+      - The custom ready result-card title/subtitle/category implementation is absent.
+      - Pin selection narrows the carousel, exposes Show all results, and restores the filtered set without re-decoding entries.
+      - Calendar starts on the first populated Monday-first week and week navigation preserves filters.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
 verifications:
+  - id: V-FIGMA-ARTIFACT-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-13
+      - AC-14
+      - AC-15
+    status: pending
+    evidence:
+      status: pending
+      summary: Compare Figma node 5819:61921 with deployed laptop and mobile captures under test-results/figma/embeds-map-calendar-redesign.
+      timestamp: ""
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-13
+      - AC-14
+      - AC-15
+    status: pending
+    evidence:
+      status: pending
+      target: https://app.dev.openmates.org/dev/preview/embeds/EmbedsMapView
+      viewports:
+        - laptop
+        - mobile
+      summary: ""
+      timestamp: ""
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
@@ -1034,6 +1187,9 @@ implementation_plan:
     - Ref resolution and IndexedDB-backed embed loading in frontend/packages/ui/src/services/embedStore.ts.
     - List/map fullscreen UX in frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte.
     - Shared Leaflet rendering in frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte.
+    - Shared child preview resolution in frontend/packages/ui/src/services/embedPreviewRegistry.ts.
+    - Unified preview cards in frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte.
+    - Figma reference node 5819:61921 exported to test-results/figma/embeds-map-calendar-redesign/figma-chat-map-calendar-view.png.
     - Real example-chat creation from shared CLI chats in scripts/create-example-chat-from-share.mjs.
   architecture: >
     Add a lightweight message parser node and renderer for `embeds_map_view` that
@@ -1048,6 +1204,9 @@ implementation_plan:
     - The renderer resolves refs through local decrypted/indexed embed metadata, then hydrates visible entries plus bounded overscan.
     - A cached normalized entry model derives marker labels, route summaries, highlight state, and filter facets from resolved embed content once per embed/content identity.
     - Filter state applies to normalized entries locally, updating cards, markers, route paths, and counts without new provider calls or repeated TOON decoding.
+    - Each normalized ready entry resolves its registered preview component once and renders it in a horizontal carousel shared by map and calendar modes.
+    - Settled Leaflet bounds derive a viewport subset; explicit pin/route selection overrides that subset until Show all results clears it.
+    - Calendar projection groups the filtered entries into a Monday-first seven-day grid and keeps its week cursor independent from filters.
     - Leaflet map hydration is deferred until after text/cards can render and the map is near-visible or idle, especially on mobile.
     - Example-chat workflow extracts real shared CLI chats and commits sanitized hardcoded example data.
   affected_files:
@@ -1061,6 +1220,8 @@ implementation_plan:
       reason: Responsive list/map message renderer, normalized facet extraction, dynamic filters, cached entry resolution, and lazy map hydration trigger.
     - path: frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
       reason: Support multiple markers/routes, selected state, callbacks, and low-cost layer updates needed by grouped map views.
+    - path: frontend/packages/ui/src/services/embedPreviewRegistry.ts
+      reason: Register existing direct child preview components used by the Figma carousel.
     - path: frontend/apps/web_app/src/routes/+page.svelte
       reason: Ensure example chat hash targets are not misclassified as user chats during post-auth/sync deep-link handling.
     - path: frontend/packages/ui/src/services/embedStore.ts
@@ -1089,6 +1250,8 @@ implementation_plan:
     - Real OpenMates CLI inference against https://api.dev.openmates.org with recorded chat IDs.
     - python3 scripts/audit_sdk_cli_parity.py if CLI or SDK command surface changes.
     - python3 scripts/tests.py run --spec embeds-map-view.spec.ts after deploy.
+    - python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/dev/preview/embeds/EmbedsMapView --session 104a
+    - Manual Figma artifact review against node 5819:61921 for laptop and mobile captures.
     - python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts after deploy.
     - python3 scripts/apple_remote.py status and build-ios/test-ios after user confirmation, unless Apple is proven unaffected or unavailable.
   verification_order:
@@ -1370,6 +1533,82 @@ tasks:
         - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
         - frontend/apps/web_app/src/routes/+page.svelte
         - frontend/apps/web_app/tests/example-chats-load.spec.ts
+        - docs/specs/embeds-map-view/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: true
+
+  - id: TASK-8
+    title: Implement Figma-aligned carousel, map selection, filters, and week calendar
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-13
+        - S-14
+        - S-15
+      acceptance_criteria:
+        - AC-13
+        - AC-14
+        - AC-15
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+      - docs/specs/embeds-map-view/spec.yml
+    verification:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+    dependencies:
+      - TASK-3
+      - TASK-7
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+        - docs/specs/embeds-map-view/spec.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-9
+    independently_deployable: true
+
+  - id: TASK-9
+    title: Verify deployed Figma alignment and publish proof evidence
+    status: pending
+    phase: complete
+    covers:
+      scenarios:
+        - S-13
+        - S-14
+        - S-15
+      acceptance_criteria:
+        - AC-13
+        - AC-14
+        - AC-15
+    expected_files:
+      - docs/specs/embeds-map-view/spec.yml
+      - test-results/figma/embeds-map-calendar-redesign/*
+    verification:
+      - V-FIGMA-ARTIFACT-REVIEW
+      - V-UI-VISUAL-SMOKE
+    verification_ids:
+      - V-FIGMA-ARTIFACT-REVIEW
+      - V-UI-VISUAL-SMOKE
+    dependencies:
+      - TASK-8
+    ownership:
+      files:
         - docs/specs/embeds-map-view/spec.yml
       shared_files: []
     blockers: []
