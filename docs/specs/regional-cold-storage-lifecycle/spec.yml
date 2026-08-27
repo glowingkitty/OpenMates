@@ -326,6 +326,12 @@ attempts:
     outcome: blocked
     recorded_at: "2026-08-26"
     notes: The rebuilt API is healthy and the internal-only contract passed with missing-token 401, three configured regions, two health rows, eight pending replication jobs, and zero pending deletions. FSN1 temporary create/head/delete passed; NBG1 and HEL1 returned sanitized ClientError. The exact read-only inventory audit exceeded five minutes and was terminated. The mandatory all-region CLI image test did not start because its three-region prerequisite failed, so no test chat or upload was left behind.
+  - id: ATTEMPT-9
+    task_id: TASK-6
+    approach: Use canonical prepared CLI verification and read-only installed executable identity before rerunning regional cleanup and account-export proof.
+    outcome: blocked
+    recorded_at: "2026-08-27"
+    notes: Prepared cli-storage-unit passed 17 tests for manifest 7e347ef11b84c007dd4ff2ed69df29b03231302e4d404641fc591f5a9ecf1a49. Canonical read-only identity inspection was repeated against exact spec-evidence manifest 96f2f2d9baca5ebe620e0900f2ce803b7d5e5554b57a77fe1831acdf2cd56e46 and proved the preserved installed 0.16.0 executable hash 699bae94825349d48869591b37ed69cab2e5c5b31e39c43540550324cc68e354 differs from candidate 0.17.0 hash 23340fec6bfa60fd2f785a941241f52e19dfb3b327bd668a76c311ffe88003ba; contains_candidate_source is false and inspection_mutated_install is false. No prepared build profile exists, so no replacement executable was built or installed. Account-export proof remains gated.
 
 scenarios:
   - id: S-1
@@ -1369,7 +1375,7 @@ tasks:
     follow_up_tasks: [TASK-8]
     ownership: {session: 2e36, files: [backend/core/api/app/services/s3, backend/core/api/app/tasks/storage_tasks.py, scripts/verify_storage_lifecycle_api.py, scripts/audit_object_storage_inventory.py, scripts/verify_storage_replication_cli_chat.py, docs/architecture/storage/regional-cold-storage.md], shared_files: []}
     independently_deployable: true
-    blockers: [FSN1 and HEL1 live provisioning/backfill remains externally blocked if the existing provider 403 cannot be resolved with current authority.]
+    blockers: [The preserved installed CLI is 0.16.0 and does not contain the deployed 0.17.0 candidate source; regional cleanup and account-export proof must not run until read-only identity reports contains_candidate_source true.]
   - id: TASK-7
     title: Complete scalable personal and Team export with minimum workspace adapters
     phase: working_tasks
@@ -1460,11 +1466,11 @@ demonstration:
 
 handoff:
   current_task_id: TASK-6
-  next_action: Restore NBG1 object readability and HEL1 bucket provisioning authority, then rerun exact replica inventory/backfill and the mandatory-cleanup CLI image-token test across nbg1,fsn1,hel1; keep TASK-6 blocked until all three pass.
+  next_action: Publish and provide the deployed 0.17.0 CLI through the normal release path without mutating it in this session, require installed-cli-identity to report contains_candidate_source true, then rerun the mandatory-cleanup regional CLI image-token test and export-account-flow.spec.ts against the exact deployed commit.
   command: >-
-    python3 scripts/verify_storage_lifecycle_api.py --env dev --scenario all
-  expected_outcome: NBG1, FSN1, and HEL1 replication/failover/backfill behavior is proven where provisioned, with no destructive action on ambiguity and a precise external blocker for any provider-denied region.
+    python3 scripts/sessions.py verify-prepared --session 2e36 --profile installed-cli-identity --only docs/specs/regional-cold-storage-lifecycle/spec.yml --expected-manifest-id <MANIFEST_ID> --executable /home/superdev/.npm-global/bin/openmates
+  expected_outcome: The installed executable is inspected without mutation and contains_candidate_source is true before any regional CLI or account-export proof is accepted.
   blocker:
     status: external_confirmed
-    reason: Current bounded capability proof passes FSN1 but returns provider ClientError for NBG1 and HEL1; all-region backfill and CLI image verification cannot complete until NBG1 recovers and HEL1 provisioning authority is available.
-  last_verified_commit: b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f
+    reason: Canonical identity inspection reports installed 0.16.0 hash 699bae94825349d48869591b37ed69cab2e5c5b31e39c43540550324cc68e354 and candidate 0.17.0 hash 23340fec6bfa60fd2f785a941241f52e19dfb3b327bd668a76c311ffe88003ba, with contains_candidate_source false. The global CLI was not mutated.
+  last_verified_commit: 47be6195c6e22170ccd36b0899ae5b5629709efb
