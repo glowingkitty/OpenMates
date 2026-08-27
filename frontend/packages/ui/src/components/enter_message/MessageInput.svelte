@@ -5,6 +5,7 @@
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { sanitizeText } from '../../utils/textSanitizer';
+    import { canonicalizeAiModelSelection, isAiModelSelectionUsable } from '../../utils/aiModelSelection';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
@@ -92,6 +93,7 @@
     import {
         buildProjectMentionSyntax,
         extractMentionQuery,
+        resolveModelMentionSelection,
         type AnyMentionResult,
         type MateMentionResult,
         type ProjectMentionResult
@@ -145,7 +147,6 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
-    import { modelsMetadata } from '../../data/modelsMetadata';
     import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
@@ -268,15 +269,15 @@
     let pendingNewChatModelSelection = $state<ChatModelSelection | null>(null);
 
     function isModelSelectionUsable(selection: string): boolean {
-        const separator = selection.indexOf('/');
-        if (separator <= 0) return false;
-        const serverId = selection.slice(0, separator);
-        const modelId = selection.slice(separator + 1);
-        const model = modelsMetadata.find((candidate) => candidate.id === modelId && candidate.for_app_skill === 'ai.ask');
-        return !!model
-            && !!model.servers?.some((server) => server.id === serverId)
-            && !get(userProfile).disabled_ai_models?.includes(modelId)
-            && get(isProviderHealthy)(serverId);
+        const profile = get(userProfile);
+        return isAiModelSelectionUsable(
+            selection,
+            {
+                disabledModels: profile.disabled_ai_models,
+                disabledServers: profile.disabled_ai_servers,
+            },
+            get(isProviderHealthy),
+        );
     }
 
     async function recoverModelSelection(
@@ -285,15 +286,20 @@
         userId: string,
         chatId: string
     ): Promise<ChatModelSelection> {
-        return await recoverUnavailableModelSelection({
+        const canonicalSelection = canonicalizeAiModelSelection(selection) ?? selection;
+        const recoveredSelection = await recoverUnavailableModelSelection({
             phase,
-            selection,
+            selection: canonicalSelection,
             isUsable: isModelSelectionUsable,
             notify: () => notificationStore.error($text('enter_message.model_selector.unavailable_reset')),
             persistSelection: async () => {
                 await chatModelSelectionService.select({ userId, chatId, selection: 'auto' });
             }
         });
+        if (canonicalSelection !== selection && recoveredSelection === canonicalSelection) {
+            await chatModelSelectionService.select({ userId, chatId, selection: canonicalSelection });
+        }
+        return recoveredSelection;
     }
 
     $effect(() => {
@@ -2741,28 +2747,19 @@
 
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
-        if (result.type === 'model_alias') {
-            // Use the BestModelMention node for alias shortcuts (@best, @fast)
-            // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
-            const aliasResult = result as import('./services/mentionSearchService').ModelAliasMentionResult;
-            editor
-                .chain()
-                .focus()
-                .deleteRange({ from: atDocPosition, to: from })
-                .setBestModelMention({
-                    category: aliasResult.aliasId,
-                    displayName: aliasResult.mentionDisplayName
-                })
-                .insertContent(' ')
-                .run();
-        } else if (result.type === 'model') {
-            const modelResult = result as import('./services/mentionSearchService').ModelMentionResult;
+        if (result.type === 'model_alias' || result.type === 'model') {
+            const selection = resolveModelMentionSelection(result);
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
                 .run();
-            void persistModelSelection(`${modelResult.providerId}/${modelResult.id}`);
+            if (selection) {
+                void persistModelSelection(selection);
+            } else {
+                console.error('[MessageInput] Model mention did not resolve to an exact selection:', result.id);
+                notificationStore.error($text('common.try_again'));
+            }
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
@@ -4191,7 +4188,8 @@
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
-        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
+        const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton && !preservesComposerFocus) {
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
         }
@@ -4964,8 +4962,22 @@
 
         if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:')) {
             const userId = $userProfile.user_id;
-            if (userId && currentChatId) {
-                modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
+            try {
+                if (userId && currentChatId) {
+                    modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
+                }
+            } catch (error) {
+                console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
+                notificationStore.error($text('common.try_again'));
+                hasContent = !isContentEmptyExceptMention(editor);
+                refreshDraftPreviewState(editor);
+                awaitingAITaskStart = false;
+                if (awaitingAITaskTimeoutId) {
+                    clearTimeout(awaitingAITaskTimeoutId);
+                    awaitingAITaskTimeoutId = null;
+                }
+                sendClickInProgress = false;
+                return;
             }
             const separator = modelSelection.indexOf('/');
             if (separator > 0) {
@@ -6163,7 +6175,8 @@
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
                     {modelSelection}
-                    showModelSelector={modelSelectionReady}
+                    showModelSelector={true}
+                    {modelSelectionReady}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}

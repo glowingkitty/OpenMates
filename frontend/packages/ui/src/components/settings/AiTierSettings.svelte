@@ -11,9 +11,13 @@
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { notificationStore } from '../../stores/notificationStore';
+    import { isProviderHealthy } from '../../stores/appHealthStore';
     import { updateProfile, userProfile } from '../../stores/userProfile';
-    import { simplifyProviderName } from '../../utils/providerDisplay';
+    import { compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, getRecommendedModelForTier, getTierCapabilityLevel } from '../../utils/aiModelDisplay';
+    import { aiModelSelectionValue } from '../../utils/aiModelSelection';
     import {
+        SettingsCapabilityScale,
+        SettingsCard,
         SettingsInfoBox,
         SettingsItem,
         SettingsPageContainer,
@@ -35,8 +39,16 @@
     const pathParts = $derived(activeSettingsView.split('/'));
     const tier = $derived((pathParts[2] ?? 'simple') as Tier);
     const providerId = $derived(pathParts[3] === 'provider' ? pathParts[4] : null);
-    const aiModels = $derived(modelsMetadata.filter((model) => model.for_app_skill === 'ai.ask'));
+    const aiModels = $derived(modelsMetadata.filter((model) =>
+        model.for_app_skill === 'ai.ask'
+        && !$userProfile.disabled_ai_models?.includes(model.id)
+        && !!model.servers?.some((server) =>
+            !$userProfile.disabled_ai_servers?.[model.id]?.includes(server.id)
+            && $isProviderHealthy(server.id)
+        )
+    ));
     const providerModels = $derived(providerId ? aiModels.filter((model) => model.provider_id === providerId) : []);
+    const recommendedModelId = $derived(getRecommendedModelForTier(providerModels, tier)?.id ?? null);
     const preferenceField = $derived<PreferenceField>(
         tier === 'simple'
             ? 'default_ai_model_simple'
@@ -50,14 +62,8 @@
         for (const model of aiModels) {
             if (!result.has(model.provider_id)) result.set(model.provider_id, model);
         }
-        return [...result.values()].sort((a, b) =>
-            simplifyProviderName(a.provider_name).localeCompare(simplifyProviderName(b.provider_name))
-        );
+        return [...result.values()].sort(compareAiProviders);
     });
-
-    function modelValue(model: AIModelMetadata): string {
-        return `${model.provider_id}/${model.id}`;
-    }
 
     function tierTitle(): string {
         if (tier === 'simple') return $text('settings.ai_ask.ai_ask_settings.simple_requests');
@@ -65,8 +71,8 @@
         return $text('settings.ai_ask.ai_ask_settings.most_demanding_requests');
     }
 
-    function modelSubtitle(model: AIModelMetadata, index: number): string {
-        const recommendation = index === 0
+    function modelSubtitle(model: AIModelMetadata): string {
+        const recommendation = model.id === recommendedModelId
             ? `${$text('settings.ai_ask.ai_ask_settings.recommended')} · `
             : '';
         return `${recommendation}${model.tier} · ${model.description}`;
@@ -92,12 +98,27 @@
     }
 
     function openProvider(model: AIModelMetadata): void {
+        const display = getAiProviderDisplay(model.provider_id, model.provider_name);
         dispatch('openSettings', {
             settingsPath: `ai/tier/${tier}/provider/${model.provider_id}`,
             direction: 'forward',
             icon: 'ai',
-            title: simplifyProviderName(model.provider_name),
+            title: display.brandName,
         });
+    }
+
+    function openModel(model: AIModelMetadata): void {
+        dispatch('openSettings', {
+            settingsPath: `ai/model/${model.id}`,
+            direction: 'forward',
+            icon: 'ai',
+            title: model.name,
+            cameFrom: activeSettingsView,
+        });
+    }
+
+    function capabilityLabel(level: ReturnType<typeof getModelCapabilityLevel>): string {
+        return $text(`settings.ai_ask.ai_ask_settings.capability_${level}`);
     }
 </script>
 
@@ -110,14 +131,17 @@
 
     <section data-testid="ai-tier-provider-catalog">
         <SettingsSectionHeading
-            title={providerId ? simplifyProviderName(providerModels[0]?.provider_name ?? providerId) : tierTitle()}
+            title={providerId ? getAiProviderDisplay(providerId, providerModels[0]?.provider_name ?? providerId).brandName : tierTitle()}
             icon="ai"
         />
+        <SettingsCard padding="sm">
+            <SettingsCapabilityScale level={getTierCapabilityLevel(tier)} label={$text(`settings.ai_ask.ai_ask_settings.capability_${getTierCapabilityLevel(tier)}`)} />
+        </SettingsCard>
         <SettingsItem
-            type="toggle"
+            type="submenu"
             icon="ai"
             title={$text('settings.ai_ask.ai_ask_settings.model_auto')}
-            subtitleTop={$text('settings.ai_ask.ai_ask_settings.auto_description')}
+            subtitleBottom={$text('settings.ai_ask.ai_ask_settings.auto_description')}
             hasToggle={true}
             checked={currentSelection === null}
             data-testid="ai-model-option-auto"
@@ -125,27 +149,31 @@
         />
 
         {#if providerId}
-            {#each providerModels as model, index (model.id)}
+            {#each providerModels as model (model.id)}
                 <SettingsItem
-                    type="toggle"
+                    type="submenu"
+                    icon={model.provider_id}
                     iconSrc={getProviderIconUrl(model.logo_svg)}
                     iconAlt=""
                     title={model.name}
-                    subtitleTop={modelSubtitle(model, index)}
+                    subtitleBottom={`${modelSubtitle(model)} · ${capabilityLabel(getModelCapabilityLevel(model))}`}
                     hasToggle={true}
-                    checked={currentSelection === modelValue(model)}
+                    checked={currentSelection === aiModelSelectionValue(model)}
                     data-testid="ai-model-option-exact"
-                    onClick={() => saveSelection(modelValue(model))}
+                    onClick={() => openModel(model)}
+                    onToggleClick={() => saveSelection(aiModelSelectionValue(model))}
                 />
             {/each}
         {:else}
             {#each providers as model (model.provider_id)}
+                {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
                 <SettingsItem
                     type="submenu"
+                    icon={model.provider_id}
                     iconSrc={getProviderIconUrl(model.logo_svg)}
                     iconAlt=""
-                    title={simplifyProviderName(model.provider_name)}
-                    subtitleTop={$text('settings.ai_ask.ai_ask_settings.view_provider_models')}
+                    title={display.brandName}
+                    subtitleBottom={display.brandName !== display.companyName ? $text('enter_message.mention_dropdown.from_provider').replace('{provider}', display.companyName) : $text('settings.ai_ask.ai_ask_settings.view_provider_models')}
                     data-testid="ai-provider-family-card"
                     onClick={() => openProvider(model)}
                 />

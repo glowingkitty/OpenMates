@@ -39,6 +39,7 @@
         reserveTrailingControlSpace?: boolean;
         modelSelection?: string;
         showModelSelector?: boolean;
+        modelSelectionReady?: boolean;
     }
     let {
         showSendButton = false,
@@ -50,7 +51,8 @@
         forceUnauthenticatedCta = false,
         reserveTrailingControlSpace = false,
         modelSelection = 'auto',
-        showModelSelector = true
+        showModelSelector = true,
+        modelSelectionReady = true
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -107,10 +109,12 @@
 
 <div class="action-buttons" data-testid="action-buttons">
     <div class="left-buttons">
-        <div class="attachment-menu" bind:this={attachmentMenuElement}>
+        <div class="attachment-menu" bind:this={attachmentMenuElement} data-preserve-composer-focus="true">
             <button
-                class="clickable-icon icon_create"
+                type="button"
+                class="clickable-icon attachment-plus-icon"
                 data-testid="composer-attachment-menu-button"
+                data-icon="plus"
                 onclick={() => showAttachmentMenu = !showAttachmentMenu}
                 aria-label={$text('enter_message.attachments.attach_files')}
                 aria-haspopup="menu"
@@ -120,19 +124,21 @@
             ></button>
             {#if showAttachmentMenu}
                 <div class="attachment-menu-popover" data-testid="composer-attachment-menu" role="menu" tabindex="-1" onkeydown={handleAttachmentKeydown}>
-                    <button role="menuitem" onclick={() => { handleSketchClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_sketch"></span>{$text('enter_message.attachments.sketch')}</button>
-                    <button role="menuitem" onclick={() => { handleLocationClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_maps"></span>{$text('enter_message.attachments.share_location')}</button>
-                    <button role="menuitem" onclick={() => { handleFileSelectClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_files"></span>{$text('enter_message.attachments.attach_files')}</button>
+                    <button type="button" role="menuitem" data-testid="composer-attachment-drawing" onclick={() => { handleSketchClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_sketch"></span>{$text('enter_message.attachments.sketch')}</button>
+                    <button type="button" role="menuitem" data-testid="composer-attachment-location" onclick={() => { handleLocationClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_maps"></span>{$text('enter_message.attachments.share_location')}</button>
+                    <button type="button" role="menuitem" data-testid="composer-attachment-files" onclick={() => { handleFileSelectClick(); closeAttachmentMenu(); }}><span class="clickable-icon icon_files"></span>{$text('enter_message.attachments.attach_files')}</button>
                 </div>
             {/if}
         </div>
         {#if showModelSelector}
-            <ComposerModelSelector selection={modelSelection} onSelect={handleModelSelect} onOpenDetails={handleModelDetails} />
+            <ComposerModelSelector selection={modelSelection} ready={modelSelectionReady} onSelect={handleModelSelect} onOpenDetails={handleModelDetails} />
         {/if}
     </div>
     <div class="right-buttons {reserveTrailingControlSpace ? 'reserve-trailing-control-space' : ''}">
         <button
+            type="button"
             class="clickable-icon icon_camera"
+            data-testid="composer-camera-button"
             onclick={handleCameraClick}
             aria-label={$text('enter_message.attachments.take_photo')}
             use:tooltip
@@ -140,6 +146,7 @@
 
         <!-- Audio recording: press to start, then Finish/Cancel in the recording overlay. -->
         <button
+            type="button"
             class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
             data-testid="record-audio-button"
             onmousedown={handleRecordMouseDown}
@@ -156,6 +163,7 @@
             {#if isAuthenticated && hasNoCredits}
                 <!-- Signed-in user with zero credits: show "Buy credits" button -->
                 <button
+                    type="button"
                     class="send-button buy-credits-button"
                     data-action="buy-credits"
                     onclick={handleBuyCreditsClick}
@@ -167,7 +175,9 @@
                 </button>
             {:else if canSendMessage && !forceUnauthenticatedCta}
                 <button
+                    type="button"
                     class="send-button"
+                    data-testid="composer-send-button"
                     data-action="send-message"
                     onclick={handleSendMessageClick}
                     aria-label={$text('enter_message.send')}
@@ -179,6 +189,7 @@
             {:else}
                 <!-- Show auth CTA button for non-authenticated users -->
                 <button
+                    type="button"
                     class="send-button"
                     data-action="sign-up-to-send"
                     onclick={handleSignUpClick}
@@ -226,6 +237,10 @@
     }
 
     .attachment-menu { position: relative; }
+    .attachment-plus-icon {
+        -webkit-mask-image: var(--icon-url-plus);
+        mask-image: var(--icon-url-plus);
+    }
     .attachment-menu-popover { position: absolute; z-index: var(--z-index-dropdown); bottom: calc(100% + var(--spacing-4)); left: 0; min-width: 10rem; padding: var(--spacing-4); background: var(--color-grey-0); border-radius: var(--radius-8); box-shadow: var(--shadow-lg); }
     .attachment-menu-popover button { display: flex; align-items: center; gap: var(--spacing-4); width: 100%; padding: var(--spacing-4); border: 0; border-radius: var(--radius-3); color: var(--color-font-primary); text-align: start; background: transparent; cursor: pointer; }
     .attachment-menu-popover button:hover { background: var(--color-grey-10); }

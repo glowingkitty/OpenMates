@@ -10,7 +10,7 @@ Single source of truth for all settings page components. Every visual element on
 **Preview:** `/dev/preview/settings`
 **Figma:** "settings_menu_elements" frame (node 4944-31418)
 **Components:** `frontend/packages/ui/src/components/settings/elements/`
-**Inventory:** 26 component files; the table below counts 29 visual variants because `SettingsItem` has five variants.
+**Inventory:** 28 component files; the table below counts 31 visual variants because `SettingsItem` has five variants.
 
 ---
 
@@ -44,6 +44,8 @@ Single source of truth for all settings page components. Every visual element on
 | 27 | `SettingsGradientLink` | `settings/elements` | Gradient text link | H |
 | 28 | `SettingsCheckboxList` | `settings/elements` | Checkbox items with descriptions | G |
 | 29 | `SettingsPageContainer` | `settings/elements` | Page wrapper with max-width | H |
+| 30 | `SettingsCapabilityScale` | `settings/elements` | Low/medium/high/max AI capability indicator | H |
+| 31 | `SettingsModelPreferenceItem` | `settings/elements` | Editable AI request-tier model preference row | H |
 
 ---
 

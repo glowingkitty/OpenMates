@@ -18,10 +18,12 @@
         iconAlt = '',
         title,
         subtitleTop = '',
+        subtitleBottom = '',
         hasToggle = false,
         checked = false,
         disabled = false,
         onClick = undefined,
+        onToggleClick = undefined,
         'data-testid': testid = undefined,
     }: {
         type?: string;
@@ -30,10 +32,12 @@
         iconAlt?: string;
         title: string;
         subtitleTop?: string;
+        subtitleBottom?: string;
         hasToggle?: boolean;
         checked?: boolean;
         disabled?: boolean;
         onClick?: (() => void) | undefined;
+        onToggleClick?: (() => void) | undefined;
         'data-testid'?: string | undefined;
     } = $props();
 
@@ -45,6 +49,18 @@
         if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault();
             handleClick();
+        }
+    }
+
+    function handleToggleClick(event: Event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!disabled) (onToggleClick ?? onClick)?.();
+    }
+
+    function handleToggleKeydown(event: KeyboardEvent) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            handleToggleClick(event);
         }
     }
 
@@ -66,9 +82,19 @@
         {#if subtitleTop}
             <span class="item-subtitle">{subtitleTop}</span>
         {/if}
+        {#if subtitleBottom}
+            <span class="item-subtitle">{subtitleBottom}</span>
+        {/if}
     </div>
     {#if hasToggle}
-        <div class="item-toggle">
+        <div
+            class="item-toggle"
+            role="button"
+            tabindex={disabled ? -1 : 0}
+            onclick={handleToggleClick}
+            onkeydown={handleToggleKeydown}
+            data-testid={testid ? `${testid}-toggle` : undefined}
+        >
             <Toggle {checked} {disabled} ariaLabel={title} />
         </div>
     {/if}
@@ -177,6 +203,7 @@
 
     .item-toggle {
         flex-shrink: 0;
-        pointer-events: none;
     }
+
+    .item-toggle :global(.toggle) { pointer-events: none; }
 </style>

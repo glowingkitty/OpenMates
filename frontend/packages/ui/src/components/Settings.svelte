@@ -100,6 +100,7 @@ changes to the documentation (to keep the documentation up to date).
         getValidIconName,
     } from '../utils/categoryUtils';
     import { resolveIconName } from '../utils/iconNameResolver';
+    import { getAiProviderDisplay } from '../utils/aiModelDisplay';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { clearSettingsPathFromHash, getSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
 
@@ -1123,9 +1124,27 @@ changes to the documentation (to keep the documentation up to date).
      */
     let activeSubMenuDescription = $derived.by(() => {
         if (!isStandardSubPage) return '';
-        // AI model/provider detail pages show the model/provider name as the
-        // banner title — no inherited description from the parent AI section.
-        if (/^ai\/(model|provider)\//.test(activeSettingsView)) return '';
+        const aiModelMatch = activeSettingsView.match(/^ai\/model\/([^/]+)$/);
+        if (aiModelMatch) {
+            return modelsMetadata.find((model) => model.id === aiModelMatch[1])?.description ?? '';
+        }
+        const aiProviderMatch = activeSettingsView.match(/(?:^ai\/provider\/|^ai\/tier\/[^/]+\/provider\/)([^/]+)$/);
+        if (aiProviderMatch) {
+            const providerId = aiProviderMatch[1];
+            const model = modelsMetadata.find((candidate) => candidate.provider_id === providerId);
+            const display = getAiProviderDisplay(providerId, model?.provider_name ?? providerId);
+            return $text('settings.ai_ask.ai_ask_settings.provider_header_description')
+                .replace('{provider}', display.companyName);
+        }
+        const aiTierMatch = activeSettingsView.match(/^ai\/tier\/(simple|complex|most-demanding)$/);
+        if (aiTierMatch) {
+            const key = aiTierMatch[1] === 'simple'
+                ? 'simple_requests_description'
+                : aiTierMatch[1] === 'complex'
+                    ? 'complex_requests_description'
+                    : 'most_demanding_requests_description';
+            return $text(`settings.ai_ask.ai_ask_settings.${key}`);
+        }
         // Use the top-level path segment for description lookup
         const topSegment = activeSettingsView.split('/')[0];
         const key = settingsPageDescriptionKeys[topSegment];
@@ -1958,6 +1977,14 @@ changes to the documentation (to keep the documentation up to date).
                         previousPathSegments = navigationPath.slice(0, -1);
                     }
                 }
+            } else if (/^ai\/tier\/(simple|complex|most-demanding)\/provider\/[^/]+$/.test(currentPath)) {
+                // A provider catalog is nested under one tier. Return to that
+                // tier rather than the non-existent `ai/tier/<tier>/provider` route.
+                previousPathSegments = navigationPath.slice(0, 3);
+                previousPath = previousPathSegments.join('/');
+            } else if (/^ai\/model\/[^/]+$/.test(currentPath) && cameFromPath?.startsWith('ai/')) {
+                previousPath = cameFromPath;
+                previousPathSegments = cameFromPath.split('/');
             } else if (/^ai\/(model|provider)\/[^/]+$/.test(currentPath)) {
                 // AI model/provider detail pages — back always returns to
                 // the top-level AI settings page, not an intermediate 'ai/model'

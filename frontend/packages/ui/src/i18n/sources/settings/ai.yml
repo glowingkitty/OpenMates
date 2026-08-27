@@ -4,27 +4,27 @@
 # Keys should NOT include "ai." prefix - the build script adds it automatically
 description:
   context: Short description shown in the AI settings page gradient banner header
-  en: Models, pricing, and AI preferences
-  de: Modelle, Preise und KI-Einstellungen
-  zh: 模型、定价和 AI 偏好设置
-  es: Modelos, precios y preferencias de IA
-  fr: Modèles, tarifs et préférences d'IA
-  pt: Modelos, preços e preferências de IA
-  ru: Модели, цены и настройки ИИ
-  ja: モデル、料金、AI設定
-  ko: 모델, 가격 및 AI 환경설정
-  it: Modelli, prezzi e preferenze IA
-  tr: Modeller, fiyatlandırma ve yapay zeka tercihleri
-  vi: Mô hình, giá cả và tùy chọn AI
-  id: Model, harga, dan preferensi AI
-  pl: Modele, ceny i preferencje AI
-  nl: Modellen, prijzen en AI-voorkeuren
-  ar: النماذج والأسعار وتفضيلات الذكاء الاصطناعي
-  hi: मॉडल, मूल्य निर्धारण और AI प्राथमिकताएं
-  th: โมเดล ราคา และการตั้งค่า AI
-  cs: Modely, ceny a nastavení AI
-  sv: Modeller, priser och AI-inställningar
-  he: מודלים, תמחור והעדפות AI
+  en: Manage which AI models are used, how they respond & add your subscriptions.
+  de: Verwalte, welche KI-Modelle verwendet werden, wie sie antworten, und füge deine Abonnements hinzu.
+  zh: 管理使用哪些 AI 模型、它们如何响应，并添加你的订阅。
+  es: Gestiona qué modelos de IA se usan, cómo responden y añade tus suscripciones.
+  fr: Gérez les modèles d'IA utilisés, leur façon de répondre et ajoutez vos abonnements.
+  pt: Gerencie quais modelos de IA são usados, como respondem e adicione suas assinaturas.
+  ru: Управляйте используемыми моделями ИИ, их ответами и добавляйте свои подписки.
+  ja: 使用するAIモデル、応答方法、サブスクリプションを管理します。
+  ko: 사용할 AI 모델과 응답 방식을 관리하고 구독을 추가하세요.
+  it: Gestisci quali modelli IA vengono usati, come rispondono e aggiungi i tuoi abbonamenti.
+  tr: Hangi yapay zeka modellerinin kullanıldığını ve nasıl yanıt verdiğini yönetin, aboneliklerinizi ekleyin.
+  vi: Quản lý mô hình AI được sử dụng, cách chúng phản hồi và thêm gói đăng ký của bạn.
+  id: Kelola model AI yang digunakan, cara model merespons, dan tambahkan langganan Anda.
+  pl: Zarządzaj używanymi modelami AI, sposobem ich odpowiedzi i dodawaj subskrypcje.
+  nl: Beheer welke AI-modellen worden gebruikt, hoe ze reageren en voeg je abonnementen toe.
+  ar: أدِر نماذج الذكاء الاصطناعي المستخدمة وكيفية استجابتها وأضف اشتراكاتك.
+  hi: उपयोग किए जाने वाले AI मॉडल, उनके जवाब देने के तरीके और अपनी सदस्यताओं को प्रबंधित करें।
+  th: จัดการโมเดล AI ที่ใช้ วิธีการตอบกลับ และเพิ่มการสมัครสมาชิกของคุณ
+  cs: Spravujte používané modely AI, způsob jejich odpovědí a přidejte svá předplatná.
+  sv: Hantera vilka AI-modeller som används, hur de svarar och lägg till dina prenumerationer.
+  he: נהל אילו מודלי AI נמצאים בשימוש, כיצד הם מגיבים והוסף את המינויים שלך.
   verified_by_human: []
 
 # Settings > AI menu item (becomes settings.ai.text)
