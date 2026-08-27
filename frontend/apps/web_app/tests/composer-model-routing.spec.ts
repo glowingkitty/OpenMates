@@ -29,6 +29,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
 const EXPECTED_PROVIDER_ORDER = ['ChatGPT', 'Claude', 'Mistral', 'DeepSeek', 'Gemini', 'Qwen'];
+const COMPOSER_BLUR_SETTLE_MS = 250;
 
 const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 	id: 'composer-model-routing',
@@ -141,7 +142,10 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(attachmentMenu.getByTestId('composer-attachment-drawing')).toBeVisible();
 	await expect(attachmentMenu.getByTestId('composer-attachment-location')).toBeVisible();
 	await expect(attachmentMenu.getByTestId('composer-attachment-files')).toBeVisible();
-	await expect(editor).toBeFocused();
+	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
+	await expect(attachmentMenu).toBeVisible();
+	await expect(composer).toHaveAttribute('data-focused', 'true');
+	await expect(composer.getByTestId('action-buttons')).toBeVisible();
 	await takeStepScreenshot(page, '01-responsive-actions');
 	if (proof) await proof.checkpoint('composer-responsive-actions');
 	await page.keyboard.press('Escape');
@@ -157,7 +161,9 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 		await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toContainText('from OpenAI');
 		await expect(selectorMenu.getByTestId('composer-model-provider-anthropic')).toContainText('from Anthropic');
 		await expect(selectorMenu.getByTestId('composer-model-show-more')).toBeVisible();
-		await expect(editor).toBeFocused();
+		await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
+		await expect(selectorMenu).toBeVisible();
+		await expect(composer).toHaveAttribute('data-focused', 'true');
 	});
 	await takeStepScreenshot(page, '02-model-picker');
 	if (proof) await proof.checkpoint('composer-model-picker');

@@ -4738,7 +4738,7 @@ assertions:
     direct_tests:
     - &id536
       path: frontend/apps/web_app/tests/composer-model-routing.spec.ts
-      line: 102
+      line: 103
       name: composer picker, mentions, and grouped actions remain reachable without
         clipping
       surface: gui.web
@@ -4854,7 +4854,7 @@ assertions:
     direct_tests:
     - &id547
       path: frontend/apps/web_app/tests/composer-model-routing.spec.ts
-      line: 102
+      line: 103
       name: composer picker, mentions, and grouped actions remain reachable without
         clipping
       surface: gui.web
