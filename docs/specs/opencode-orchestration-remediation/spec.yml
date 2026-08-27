@@ -347,7 +347,7 @@ acceptance_criteria:
     scenario: S-5
     text: The stopped chats are not resumed until the focused tooling tests pass and the active Docker/test coordination state is free of orphan blockers.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids:
@@ -770,12 +770,20 @@ verifications:
   - id: V-OPERATIONAL-READINESS
     kind: manual_check
     phase: final
-    status: pending
+    status: passed
     required_for_done: true
     covers:
       - AC-6
     evidence:
-      status: pending
+      status: passed
+      timestamp: "2026-08-27T14:05:00Z"
+      actor: Codex
+      command: python3 scripts/engineering_control_plane.py verify && python3 scripts/verify_opencode_presence_live.py --isolated
+      run_id: live-green-operational-readiness-20260827
+      subject_commit: 133f7cb7509f1de76001d3b51fd8cd820d595128
+      reason: Live persistent-control-plane and isolated OpenCode checks passed against the deployed orchestration commit, and the normal zellij-hosted server is healthy on that same implementation.
+      summary: The private control plane passed live lease, FIFO operation, dispatch reuse, epoch, and cursor-event transactions. Isolated OpenCode 1.17.20 passed busy/idle/abort, permission, collision, and read-only child behavior with equal hook runtime/source hashes and no external model or normal-server use. The normal server restarted in zellij code from the same commit and returned HTTP 200.
+      next_action: Reconcile and resume eligible product chats from their existing managed worktrees.
 
 assumptions:
   - id: A-1
@@ -988,8 +996,8 @@ tasks:
 
   - id: TASK-5
     title: Verify operational readiness before resuming stopped chats
-    status: pending
-    phase: running_checks
+    status: done
+    phase: complete
     covers:
       scenarios:
         - S-1
@@ -1201,10 +1209,10 @@ tasks:
       shared_files: []
 
 implementation_state:
-  phase: verifying
-  subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+  phase: complete
+  subject_commit: 133f7cb7509f1de76001d3b51fd8cd820d595128
   active_task: TASK-12
-  last_updated: "2026-08-27T13:48:00Z"
+  last_updated: "2026-08-27T14:05:00Z"
 
 approvals:
   product_contract:
@@ -1284,10 +1292,10 @@ attempts:
 
 handoff:
   current_task_id: TASK-12
-  next_action: Run strict spec verification, deploy the isolated remediation commit, restart OpenCode in zellij, and exercise live lifecycle/media/resource behavior.
+  next_action: Reconcile active worktrees against the deployed orchestration commit, resume only unfinished chats, and observe their first minute for real workflow regressions.
   command: python3 scripts/spec_verify.py docs/specs/opencode-orchestration-remediation/spec.yml --phase complete --json
   expected_outcome: Spec evidence passes after TASK-8 through TASK-12 and final operational readiness are complete.
-  last_verified_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+  last_verified_commit: 133f7cb7509f1de76001d3b51fd8cd820d595128
   blocker: null
 
 risks:
