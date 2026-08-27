@@ -65,6 +65,16 @@ _TRANSIENT_CLIENT_ERROR_CODES = {
     "Throttling",
     "ThrottlingException",
 }
+
+
+def _stream_sha256(body: Any) -> str:
+    digest = hashlib.sha256()
+    try:
+        while chunk := body.read(1024 * 1024):
+            digest.update(chunk)
+    finally:
+        body.close()
+    return digest.hexdigest()
 _AUTHORIZATION_ERROR_CODES = {
     "AccessDenied",
     "AuthorizationHeaderMalformed",
@@ -256,7 +266,13 @@ class S3UploadService:
         )
         checksum = str((head.get("Metadata") or {}).get("openmates-sha256") or "").lower()
         if len(checksum) != 64 or any(character not in "0123456789abcdef" for character in checksum):
-            raise RuntimeError("External upload checksum metadata is unavailable")
+            response = await asyncio.to_thread(
+                self.region_clients[active_region].get_object,
+                Bucket=bucket_name,
+                Key=object_key,
+            )
+            checksum = await asyncio.to_thread(_stream_sha256, response["Body"])
+            logger.info("Computed ciphertext checksum for legacy external upload metadata")
         await self._persist_replication_outbox(
             logical_bucket=logical_bucket,
             object_key=object_key,

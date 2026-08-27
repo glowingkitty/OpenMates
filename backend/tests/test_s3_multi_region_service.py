@@ -159,6 +159,11 @@ class MissingChecksumClient:
     def head_object(self, *, Bucket, Key):
         return {"Metadata": {}}
 
+    def get_object(self, *, Bucket, Key):
+        from io import BytesIO
+
+        return {"Body": BytesIO(b"legacy-ciphertext")}
+
 
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
@@ -190,18 +195,25 @@ async def test_external_upload_checksum_metadata_creates_replication_intent(monk
 
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
 @pytest.mark.asyncio
-async def test_external_upload_without_checksum_metadata_fails_closed() -> None:
+async def test_external_upload_without_checksum_metadata_hashes_ciphertext(monkeypatch: pytest.MonkeyPatch) -> None:
     service_module = load_s3_service_module()
     service = service_module.S3UploadService(FakeSecretsManager())
     service.environment = "development"
     service.region_name = "nbg1"
     service.region_clients = {"nbg1": MissingChecksumClient()}
+    persisted = []
 
-    with pytest.raises(RuntimeError, match="checksum metadata"):
-        await service.persist_external_upload_replication(
-            logical_bucket="chatfiles",
-            object_key="owner-a/hash-a/original.bin",
-        )
+    async def persist(**kwargs):
+        persisted.append(kwargs)
+
+    monkeypatch.setattr(service, "_persist_replication_outbox", persist)
+
+    await service.persist_external_upload_replication(
+        logical_bucket="chatfiles",
+        object_key="owner-a/hash-a/original.bin",
+    )
+
+    assert persisted[0]["checksum"] == "beceee1f9a57fbe4da761d4275b3fd1d5bd12d3a851f3f4ba6954ac81a8b12ab"
 
 
 # contract-test: direct surface=rest_api assertions=storage.regions.configurable-redundancy,storage.retention.system-generation-only

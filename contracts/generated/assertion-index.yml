@@ -2265,7 +2265,7 @@ assertions:
       surface: rest_api
     - &id256
       path: backend/tests/test_s3_multi_region_service.py
-      line: 209
+      line: 221
       name: test_existing_regional_buckets_receive_acl_lifecycle_and_cors
       surface: rest_api
     - &id257
@@ -2327,13 +2327,13 @@ assertions:
       surface: rest_api
     - &id263
       path: backend/tests/test_s3_multi_region_service.py
-      line: 165
+      line: 170
       name: test_external_upload_checksum_metadata_creates_replication_intent
       surface: rest_api
     - &id264
       path: backend/tests/test_s3_multi_region_service.py
-      line: 193
-      name: test_external_upload_without_checksum_metadata_fails_closed
+      line: 198
+      name: test_external_upload_without_checksum_metadata_hashes_ciphertext
       surface: rest_api
     - &id265
       path: backend/tests/test_s3_recovery_backfill.py
@@ -3073,7 +3073,7 @@ assertions:
       surface: rest_api
     - &id356
       path: backend/tests/test_s3_multi_region_service.py
-      line: 209
+      line: 221
       name: test_existing_regional_buckets_receive_acl_lifecycle_and_cors
       surface: rest_api
     - &id357
@@ -3157,7 +3157,7 @@ assertions:
       surface: rest_api
     - &id375
       path: backend/tests/test_s3_multi_region_service.py
-      line: 165
+      line: 170
       name: test_external_upload_checksum_metadata_creates_replication_intent
       surface: rest_api
     - &id379
