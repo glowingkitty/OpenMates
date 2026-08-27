@@ -2,10 +2,10 @@ import json
 from pathlib import Path
 import urllib.parse
 
-from scripts.opencode_permission_watcher import approve_pending_once
+from scripts.opencode_permission_watcher import approve_pending_patterns
 
 
-def test_approve_pending_once_replies_once_to_valid_ids(monkeypatch, tmp_path: Path) -> None:
+def test_approve_pending_patterns_remembers_valid_ids(monkeypatch, tmp_path: Path) -> None:
     requests = []
 
     class Response:
@@ -22,7 +22,7 @@ def test_approve_pending_once_replies_once_to_valid_ids(monkeypatch, tmp_path: P
         return Response()
 
     monkeypatch.setattr("urllib.request.urlopen", capture)
-    approved = approve_pending_once(
+    approved = approve_pending_patterns(
         server_url="http://127.0.0.1:4096",
         project_root=tmp_path,
         session_id="ses_example",
@@ -32,7 +32,7 @@ def test_approve_pending_once_replies_once_to_valid_ids(monkeypatch, tmp_path: P
     assert approved == ["per_valid123"]
     request, timeout = requests[0]
     assert request.method == "POST"
-    assert json.loads(request.data) == {"response": "once"}
+    assert json.loads(request.data) == {"response": "always"}
     assert urllib.parse.parse_qs(urllib.parse.urlparse(request.full_url).query) == {
         "directory": [str(tmp_path)],
     }

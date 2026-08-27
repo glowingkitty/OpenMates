@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Restore ``opencode run --auto`` permission behavior for API resumptions."""
+"""Restore unattended permission behavior for API-resumed OpenCode turns.
+
+The OpenCode CLI's ``--auto`` mode replies ``once`` to every request.  That is
+appropriate for an attached terminal, but API resumptions need a detached
+watcher.  Replying ``once`` there causes the web client to notify for the same
+safe permission pattern on every tool call.  ``always`` records only the
+bounded patterns supplied by OpenCode (for example ``/tmp/*``), while the
+project hooks continue to enforce the orchestration safety policy.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +41,7 @@ def resolve_project_root(cwd: Path) -> Path:
     return common.parent if common.name == ".git" else cwd.resolve()
 
 
-def approve_pending_once(*, server_url: str, project_root: Path, session_id: str, state: dict) -> list[str]:
+def approve_pending_patterns(*, server_url: str, project_root: Path, session_id: str, state: dict) -> list[str]:
     approved: list[str] = []
     for permission_id in state.get("pending_permission_ids") or []:
         if not re.fullmatch(r"per_[A-Za-z0-9]+", str(permission_id)):
@@ -41,7 +49,7 @@ def approve_pending_once(*, server_url: str, project_root: Path, session_id: str
         query = urllib.parse.urlencode({"directory": str(project_root)})
         request = urllib.request.Request(
             f"{server_url}/session/{session_id}/permissions/{permission_id}?{query}",
-            data=b'{"response":"once"}',
+            data=b'{"response":"always"}',
             headers={"Content-Type": "application/json"},
             method="POST",
         )
@@ -77,7 +85,7 @@ def watch(*, server_url: str, cwd: Path, session_id: str, timeout_seconds: int) 
             live = state.get("execution") in {"busy", "retrying"} or state.get("turn") == "streaming"
             saw_live = saw_live or live
             try:
-                approve_pending_once(
+                approve_pending_patterns(
                     server_url=server_url,
                     project_root=project_root,
                     session_id=session_id,
