@@ -34,6 +34,10 @@ const READ_ONLY_SUBAGENTS = new Set([
 ]);
 const WRITABLE_SUBAGENTS = new Set(["general"]);
 const PROJECT_ROOT = process.env.OPENMATES_PROJECT_ROOT || "/home/superdev/projects/OpenMates";
+const CONTROL_PLANE_RUNTIME = process.env.OPENMATES_CONTROL_PLANE_RUNTIME || "/home/superdev/projects/.openmates-runtime/opencode-server";
+const CURRENT_CONTROL_PLANE_ROOT = existsSync(resolve(CONTROL_PLANE_RUNTIME, "scripts/sessions.py"))
+  ? CONTROL_PLANE_RUNTIME
+  : PROJECT_ROOT;
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
   `${PROJECT_ROOT}/.agent-worktrees`,
@@ -1233,6 +1237,11 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
       && !hasTopLevelSeparator
       && !unsafeControlSyntax
       && !existsSync(resolve(worktreePath, "scripts/sessions.py"));
+    const sessionsPyRuntime = sessionsPySegment === 0
+      && commandSegments.length === 1
+      && !hasTopLevelSeparator
+      && !unsafeControlSyntax
+      && new Set(["docker", "wait-health", "wait-lock", "lock", "unlock"]).has(shellUnescape(commandSegments[0][2] || ""));
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
@@ -1255,7 +1264,14 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyControlPlane) ? PROJECT_ROOT : worktreePath };
+    const controlPlaneWorkdir = sessionsPyRuntime ? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT;
+    return {
+      ...input,
+      command,
+      workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyControlPlane || sessionsPyRuntime)
+        ? controlPlaneWorkdir
+        : worktreePath,
+    };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };

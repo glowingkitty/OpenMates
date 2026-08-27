@@ -132,6 +132,28 @@ test("bash always receives the resolved worktree as its real workdir", () => {
   );
 });
 
+test("runtime lifecycle commands bypass stale session-local coordinators", () => {
+  const runtime = "/home/superdev/projects/.openmates-runtime/opencode-server";
+  for (const command of [
+    "python3 scripts/sessions.py docker restart --session abcd --service api --build",
+    "python3 scripts/sessions.py wait-health --session abcd --follow --poll 10 --timeout 900",
+    "python3 scripts/sessions.py wait-lock --session abcd --type docker --follow --poll 10",
+  ]) {
+    assert.deepEqual(
+      routeLocalToolArgsForTest("bash", { command, workdir: WORKTREE }, WORKTREE),
+      { command, workdir: runtime },
+    );
+  }
+  assert.equal(
+    routeLocalToolArgsForTest(
+      "bash",
+      { command: "python3 scripts/sessions.py deploy --session abcd --title test --message test", workdir: process.cwd() },
+      process.cwd(),
+    ).workdir,
+    process.cwd(),
+  );
+});
+
 test("prod SSH helper routes through its root control-plane copy", () => {
   const relativeCommand = 'printf "%s\\n" "000000" | ./scripts/prod-ssh.sh open';
   const relative = routeLocalToolArgsForTest("bash", { command: relativeCommand }, WORKTREE);

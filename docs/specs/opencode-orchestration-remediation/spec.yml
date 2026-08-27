@@ -181,6 +181,7 @@ scenarios:
       - Code-service recreation does not traverse or recreate infrastructure dependencies outside the admitted service set.
       - A previously managed service that is missing or stopped is restored by the next coordinated runtime operation.
       - Interrupted commands record a terminal failed operation before propagating the interruption.
+      - Runtime lifecycle commands are executed by the current clean control-plane runtime even when the requesting chat's source worktree is old or merged.
       - Exact mount and source-tree provenance is recorded before the runtime operation becomes completed.
       - Already coherent services are not restarted unnecessarily.
 
