@@ -13,15 +13,20 @@ Architecture:
 - Returns metadata + encrypted_chat_key per chat (needed for sidebar display)
 - Does NOT return messages (loaded on-demand via get_chat_messages)
 """
+from __future__ import annotations
+
+import hashlib
 import logging
-from typing import Dict, Any, List, Optional
+from typing import TYPE_CHECKING, Dict, Any, List, Optional
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -280,15 +285,20 @@ async def _fetch_chats_from_directus(
 ) -> List[Dict[str, Any]]:
     """Fetch specific chats from Directus by their IDs."""
     chats = []
+    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
     try:
         for chat_id in chat_ids:
             chat_data = await directus_service.chat.get_chat_metadata(chat_id)
-            if chat_data:
-                chats.append({
-                    "chat_details": chat_data,
-                    "messages": None,
-                    "server_message_count": None,
-                })
+            if not chat_data:
+                continue
+            if chat_data.get("hashed_user_id") != hashed_user_id or chat_data.get("hashed_team_id"):
+                logger.warning("Skipping Directus chat metadata outside the requesting Personal scope")
+                continue
+            chats.append({
+                "chat_details": chat_data,
+                "messages": None,
+                "server_message_count": None,
+            })
     except Exception as e:
         logger.error(f"Error fetching chats from Directus for user {user_id[:8]}...: {e}", exc_info=True)
     return chats
