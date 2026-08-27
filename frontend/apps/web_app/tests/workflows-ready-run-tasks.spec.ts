@@ -197,7 +197,8 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(detail).toBeVisible();
 				await expect(page.getByTestId('workflow-run-detail-id')).toHaveText(run.id);
 				await expect(page.getByTestId('workflow-run-detail-live-status')).toHaveAttribute('data-live', 'true');
-				await expect(page.getByTestId('workflow-run-detail-node-status')).toContainText(/queued|running|completed|failed/i);
+				const runNodeStatus = page.getByTestId('workflow-run-detail-node-status').first();
+				await expect(runNodeStatus).toContainText(/queued|running|completed|failed/i);
 				if (viewport.width === 1440) {
 					await expect(detail).toHaveAttribute('data-presentation', 'split');
 				} else {
@@ -212,7 +213,6 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				}
 
 				const initialStatus = await page.getByTestId('workflow-run-detail-live-status').getAttribute('data-status');
-				const runNodeStatus = page.getByTestId('workflow-run-detail-node-status').first();
 				const initialNodeStatus = await runNodeStatus.getAttribute('data-status');
 				await expect.poll(async () => {
 					const status = await page.getByTestId('workflow-run-detail-live-status').getAttribute('data-status');
