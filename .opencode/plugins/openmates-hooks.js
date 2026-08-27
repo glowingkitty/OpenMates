@@ -1042,7 +1042,10 @@ function exactCommitDeployedTestForTest(command, expectedCommit = "") {
     values[option] = options[++index];
   }
   const commit = values["--expected-commit"] || "";
-  if (!booleans.has("--gate-deploy") || !booleans.has("--require-exact-commit")) return null;
+  // The deployment gate plus a full expected SHA is safe for merged-worktree
+  // routing even without strict HEAD equality. tests.py then accepts a newer
+  // dev subject only when the requested spec's known inputs are unchanged.
+  if (!booleans.has("--gate-deploy")) return null;
   if (!/^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9][A-Za-z0-9._\/-]*\.spec\.ts$/.test(values["--spec"] || "")) return null;
   if (!/^[0-9a-f]{40}$/i.test(commit)) return null;
   if (expectedCommit && commit.toLowerCase() !== String(expectedCommit).toLowerCase()) return null;

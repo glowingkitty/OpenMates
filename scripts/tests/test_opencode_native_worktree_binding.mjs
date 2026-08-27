@@ -77,17 +77,23 @@ test("approved control-plane audits are narrowly parsed", () => {
   ]) assert.equal(isApprovedControlPlaneAuditCommand(command), false);
 });
 
-test("merged verification requires one exact gated spec command", () => {
+test("merged verification accepts commit-aware gated spec commands", () => {
   const commit = "a".repeat(40);
   const command = `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`;
   assert.deepEqual(exactCommitDeployedTestForTest(command, commit), { commit, spec: "chat-flow.spec.ts" });
+  assert.deepEqual(
+    exactCommitDeployedTestForTest(
+      `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit ${commit}`,
+      commit,
+    ),
+    { commit, spec: "chat-flow.spec.ts" },
+  );
   assert.deepEqual(
     exactCommitDeployedTestForTest(`${command} --proof-video-profile web-phone --detach`, commit),
     { commit, spec: "chat-flow.spec.ts" },
   );
   for (const rejected of [
     `python3 scripts/tests.py run --spec chat-flow.spec.ts --expected-commit ${commit}`,
-    `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit ${commit}`,
     "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit abc1234",
     `python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit ${commit}`,
     `${command} --proof-video-profile desktop`,
