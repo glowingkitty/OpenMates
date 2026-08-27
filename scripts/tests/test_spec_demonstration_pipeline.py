@@ -827,6 +827,20 @@ def test_review_frame_times_keep_later_action_centers_before_nearby_variants() -
     assert {6.0, 12.0, 18.0, 24.0}.issubset(set(times))
 
 
+def test_review_frame_times_prioritize_claim_anchors_before_transition_ends() -> None:
+    module = load_module()
+
+    times = module.build_review_frame_times(
+        duration_seconds=27.883,
+        interval_seconds=5,
+        action_times=[4.0, 14.709, 19.056, 24.316],
+        caption_intervals=[(0.0, 4.0), (11.042, 14.709), (16.056, 19.056), (20.983, 24.316)],
+        state_change_times=[0.0, 11.042, 16.056, 20.983],
+    )
+
+    assert {11.042, 16.056, 20.983}.issubset(set(times))
+
+
 def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -> None:
     module = load_module()
 

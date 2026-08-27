@@ -2372,7 +2372,7 @@ def build_review_frame_times(
             ):
                 event_candidates.append(rounded)
 
-    event_times = [*action_times, *state_change_times]
+    event_times = [*state_change_times, *action_times]
     for value in event_times:
         add_time(value)
     for value in event_times:

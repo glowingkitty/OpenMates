@@ -32,6 +32,10 @@ const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.e
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_ASSERTION_DWELL_MS = 1200;
 const PROOF_CLEAN_END_HOLD_MS = 2500;
+const PROOF_NOTIFICATION_DISMISS_TIMEOUT_MS = 15000;
+const PROOF_NOTIFICATION_DISMISS_SETTLE_MS = 350;
+const PROOF_NOTIFICATION_QUIET_MS = 1200;
+const PROOF_NOTIFICATION_POLL_MS = 150;
 const DRAFT_SELECTION_PROOF = defineVideoProof({
 	id: 'late-draft-activation-navigation-authority',
 	title: 'Late draft activation preserves newer chat navigation',
@@ -157,38 +161,53 @@ async function insertComposerText(page: any, messageEditor: any, text: string, v
 		.toContain(visibleText);
 }
 
-async function dismissOfflineSyncNoticeIfPresent(
-	page: any,
-	logCheckpoint: (message: string) => void
-): Promise<void> {
-	const visibleDismissButtons = await page.getByTestId('notification-dismiss').evaluateAll(
-		(buttons: HTMLElement[]) => buttons.filter((button) => {
-			const rect = button.getBoundingClientRect();
-			const style = window.getComputedStyle(button);
+async function countVisibleNotifications(page: any): Promise<number> {
+	return page.getByTestId('notification').evaluateAll((notifications: HTMLElement[]) => {
+		return notifications.filter((notification) => {
+			const rect = notification.getBoundingClientRect();
+			const style = window.getComputedStyle(notification);
 			return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-		}).length
-	).catch(() => 0);
-	if (visibleDismissButtons === 0) return;
+		}).length;
+	}).catch(() => 0);
+}
 
-	await page.getByTestId('notification-dismiss').evaluateAll((buttons: HTMLElement[]) => {
-		for (const button of buttons) {
-			const rect = button.getBoundingClientRect();
-			const style = window.getComputedStyle(button);
-			if (rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none') {
-				button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+async function dismissProofNotificationsUntilQuiet(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const deadline = Date.now() + PROOF_NOTIFICATION_DISMISS_TIMEOUT_MS;
+	let quietStartedAt: number | null = null;
+	let dismissedCount = 0;
+
+	while (Date.now() < deadline) {
+		const visibleNotifications = await countVisibleNotifications(page);
+		if (visibleNotifications === 0) {
+			quietStartedAt ??= Date.now();
+			if (Date.now() - quietStartedAt >= PROOF_NOTIFICATION_QUIET_MS) {
+				if (dismissedCount > 0) logCheckpoint('Dismissed notifications before proof capture.', { dismissedCount });
+				return;
 			}
+			await page.waitForTimeout(PROOF_NOTIFICATION_POLL_MS);
+			continue;
 		}
-	}).catch(() => undefined);
-	await expect
-		.poll(async () => page.getByTestId('notification').evaluateAll((notifications: HTMLElement[]) => {
-			return notifications.filter((notification) => {
-				const rect = notification.getBoundingClientRect();
-				const style = window.getComputedStyle(notification);
-				return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
-			}).length;
-		}), { timeout: 10000 })
-		.toBe(0);
-	logCheckpoint('Dismissed pre-existing notification before proof capture.');
+
+		quietStartedAt = null;
+		dismissedCount += await page.getByTestId('notification-dismiss').evaluateAll((buttons: HTMLElement[]) => {
+			let clicks = 0;
+			for (const button of buttons) {
+				const rect = button.getBoundingClientRect();
+				const style = window.getComputedStyle(button);
+				if (rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none') {
+					button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+					clicks += 1;
+				}
+			}
+			return clicks;
+		}).catch(() => 0);
+		await page.waitForTimeout(PROOF_NOTIFICATION_DISMISS_SETTLE_MS);
+	}
+
+	await expect.poll(() => countVisibleNotifications(page), { timeout: 1000 }).toBe(0);
 }
 
 // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.persistence.local-first-encrypted
@@ -332,12 +351,15 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		expect(draftChatId).toBeTruthy();
 		if (proof) {
 			await dismissSecurityReminderIfPresent(page, logCheckpoint);
-			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
+			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 		}
 		await proof?.assert('draft-is-saved-visible', async () => {
 			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 10000 });
 			await expect(messageEditor).toContainText(visibleDraft, { timeout: 10000 });
 		});
+		if (proof) {
+			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
+		}
 		await proof?.checkpoint('draft-saved');
 		await startNewChat(page, logCheckpoint);
 		await page.evaluate(async (chatId: string) => {
@@ -396,11 +418,14 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', targetChatId);
 		const targetMessage = page.getByTestId('message-user').filter({ hasText: 'Keep this saved chat selected.' });
 		if (proof) {
-			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
+			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 		}
 		await proof?.assert('target-selection-visible', async () => {
 			await expect(targetMessage).toBeVisible({ timeout: 10000 });
 		});
+		if (proof) {
+			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
+		}
 		await proof?.checkpoint('target-selected');
 		await page.evaluate(() => {
 			const release = (window as typeof window & {
@@ -427,7 +452,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		await expect(targetMessage).toBeVisible();
 		await expect.poll(() => new URL(page.url()).hash).toContain(`chat-id=${encodeURIComponent(targetChatId!)}`);
 		if (proof) {
-			await dismissOfflineSyncNoticeIfPresent(page, logCheckpoint);
+			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 		}
 		if (proof) {
 			await proof.assert('target-identity-remains-visible', async () => {
@@ -436,10 +461,12 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 				expect(finalDecisions.some((decision) => decision.result === 'applied')).toBe(false);
 			});
 			await page.waitForTimeout(PROOF_ASSERTION_DWELL_MS);
+			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 			await proof.checkpoint('target-preserved');
 		}
 		if (draftChatId) {
 			if (proof) {
+				await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 				await proof.action('reopen-draft', async () => {
 					const sidebarToggle = page.getByTestId('sidebar-toggle');
 					if (await sidebarToggle.getAttribute('aria-expanded') !== 'true') {
@@ -464,6 +491,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			};
 			if (proof) {
 				await proof.assert('draft-remains-navigable', assertDraftRemainsNavigable);
+				await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 				await proof.checkpoint('draft-reopened');
 				await proof.attach();
 				proofAttached = true;
