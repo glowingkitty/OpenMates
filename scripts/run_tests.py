@@ -137,6 +137,7 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
+PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
 E2E_GIFT_CARD_SEED_RETRIES = 5
@@ -190,7 +191,6 @@ APPLE_REMOTE_TIMEOUT = 7200  # seconds — Xcode test/build runs can be slow on 
 ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS = 15 * 60
 ACCOUNT_PREFLIGHT_CACHE_PATH = CONTROL_PLANE_ROOT / "test-results" / "account-preflight-cache.json"
 ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH = Path("/tmp/openmates-account-preflight-cache.lock")
-SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT = 3
 MAX_ERROR_SNIPPET = 600
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
@@ -1992,16 +1992,6 @@ def _passed_normal_preflight_slots(results: list[SpecResult]) -> tuple[int, ...]
     return tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
 
 
-def _single_spec_fallback_accounts(failed_account: int) -> list[int]:
-    """Pick a small fallback set, preferring slots recently proven healthy."""
-    candidates = [slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot != failed_account]
-    cached = _cached_preflight_slots()
-    cached_candidates = [slot for slot in candidates if slot in cached]
-    if cached_candidates:
-        return cached_candidates[:SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT]
-    return candidates[:SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT]
-
-
 def _apply_preflight_account_availability(
     specs: list[str],
     preflight_results: list[SpecResult],
@@ -2079,7 +2069,12 @@ class BatchRunner:
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
         self.progress_callback = progress_callback
-        self.coordinate_accounts = isinstance(client, GitHubActionsClient) if coordinate_accounts is None else coordinate_accounts
+        external_account_lease_held = os.environ.get(PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV) == "1"
+        self.coordinate_accounts = (
+            isinstance(client, GitHubActionsClient) and not external_account_lease_held
+            if coordinate_accounts is None
+            else coordinate_accounts
+        )
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
@@ -7351,7 +7346,10 @@ class TestOrchestrator:
                 if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                     return preflight
 
-                fallback_accounts = _single_spec_fallback_accounts(account)
+                fallback_accounts = [
+                    slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+                    if slot != account
+                ]
                 fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
                 fallback_slots = _passed_normal_preflight_slots([
                     self._dict_to_spec_result(test)
@@ -7393,8 +7391,6 @@ class TestOrchestrator:
                 reason=fixture_error,
             )
 
-        wrapper_account = os.environ.get("OPENMATES_TEST_ACCOUNT", "").strip()
-        coordinate_accounts = not (self.account is not None and wrapper_account == str(self.account))
         runner = BatchRunner(
             client=client,
             specs=specs,
@@ -7408,7 +7404,6 @@ class TestOrchestrator:
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
             progress_callback=self._save_playwright_progress_snapshot,
-            coordinate_accounts=coordinate_accounts,
         )
         try:
             result = runner.run_all_batches()
@@ -7465,7 +7460,10 @@ class TestOrchestrator:
         preflight = self._run_account_preflight(client, accounts=[account])
         preflight_duration += preflight.duration_seconds
         if preflight.status == "failed":
-            fallback_accounts = _single_spec_fallback_accounts(account)
+            fallback_accounts = [
+                slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+                if slot != account
+            ]
             fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
             preflight_duration += fallback_preflight.duration_seconds
             fallback_slots = _passed_normal_preflight_slots([
