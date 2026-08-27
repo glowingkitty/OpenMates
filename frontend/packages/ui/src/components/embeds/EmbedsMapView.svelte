@@ -2273,7 +2273,7 @@
 
   .calendar-week-toolbar {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
     align-items: center;
     gap: 8px;
     justify-self: start;
