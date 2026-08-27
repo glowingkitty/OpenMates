@@ -5,7 +5,7 @@
 -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import TaskBoard from './TaskBoard.svelte';
   import WorkflowRunTaskDetail from './WorkflowRunTaskDetail.svelte';
@@ -81,6 +81,7 @@
   let showDesktopTaskTags = $state(true);
   let showMobileTaskTags = $state(false);
   let selectedWorkflowRunProjection = $state<WorkflowRunTaskProjectionViewModel | null>(null);
+  let taskBoardPanel: HTMLElement | null = $state(null);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
@@ -127,8 +128,17 @@
     return matches[0] ?? null;
   }
 
+  async function revealTaskBoardPanel(): Promise<void> {
+    if (!isCentralTasksWorkspace || !taskBoardPanel) return;
+    await tick();
+    taskBoardPanel?.scrollIntoView({ block: isNarrowTasksWorkspace ? 'start' : 'center', inline: 'nearest', behavior: 'auto' });
+  }
+
   function handleSelectTask(task: TasksBoardItem): void {
-    if (isWorkflowRunTaskProjectionViewModel(task) && task.workflowRunId) selectedWorkflowRunProjection = task;
+    if (isWorkflowRunTaskProjectionViewModel(task) && task.workflowRunId) {
+      selectedWorkflowRunProjection = task;
+      void revealTaskBoardPanel();
+    }
   }
 
   function parseTaskStatus(request: string): UserTaskStatus | null {
@@ -599,7 +609,7 @@
           showReportIssue
           onStartInspiration={handleStartTaskInspiration}
         >
-      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board">
+      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board" bind:this={taskBoardPanel}>
         <div class="task-workspace-toolbar">
           <div class="task-search-cluster" aria-label="Task search and filters">
             <div class="task-search-stack">

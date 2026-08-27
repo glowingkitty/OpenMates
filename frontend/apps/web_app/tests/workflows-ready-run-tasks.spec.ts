@@ -106,6 +106,15 @@ async function expectExactRunProjection(page: any, runId: string) {
 	return projection;
 }
 
+async function expectNotCoveredByTaskComposer(page: any, target: any) {
+	const targetBox = await target.boundingBox();
+	const composerBox = await page.getByTestId('task-workspace-composer').boundingBox();
+	expect(targetBox).not.toBeNull();
+	expect(composerBox).not.toBeNull();
+	if (!targetBox || !composerBox) return;
+	expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(composerBox.y);
+}
+
 test.describe('Ready Workflow run Tasks projection', () => {
 	// contract-test: direct surface=gui.web assertions=workflows.activation.reachable-side-effect,workflows.execution.lifecycle-visible,tasks.workflow-projections.read-only,tasks.detail.embed-responsive
 	test('authors a ready Workflow and preserves the live projected run detail at proof viewports', async ({ page }: { page: any }, testInfo: any) => {
@@ -206,6 +215,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				await expect(liveStatus).toHaveAttribute('data-status', VISIBLE_RUN_DETAIL_STATUS);
 				const runNodeStatus = page.getByTestId('workflow-run-detail-node-status').first();
 				await expect(runNodeStatus).toHaveAttribute('data-status', VISIBLE_NODE_STATUS, { timeout: 30_000 });
+				await expectNotCoveredByTaskComposer(page, runNodeStatus);
 				if (viewport.width === 1440) {
 					await expect(detail).toHaveAttribute('data-presentation', 'split');
 				} else {
@@ -242,6 +252,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				expect(await taskBoard.evaluate((node: HTMLElement, original: HTMLElement | null) => node === original, boardNode)).toBe(true);
 				expect(await taskBoard.evaluate((board: HTMLElement) => board.scrollLeft)).toBe(detailOpenBoardScrollLeft);
 				await expect(taskBoard).toHaveAttribute('data-board-state', boardState);
+				await expectNotCoveredByTaskComposer(page, projection);
 				if (proof) {
 					await proof.assert('responsive-close-visible.assertion', async () => {
 						await expect(taskBoard).toBeVisible();
