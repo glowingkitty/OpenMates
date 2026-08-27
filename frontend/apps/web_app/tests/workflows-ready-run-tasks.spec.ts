@@ -214,7 +214,7 @@ test.describe('Ready Workflow run Tasks projection', () => {
 				if (proof) {
 					await proof.assert('projection-detail-visible.assertion', async () => {
 						await expect(page.getByTestId('workflow-run-detail-id')).toHaveText(run.id);
-						await expect(page.getByTestId('workflow-run-detail-node-status')).toBeVisible();
+						await expect(runNodeStatus).toBeVisible();
 					});
 					await proof.checkpoint('projection-detail-visible');
 				}
