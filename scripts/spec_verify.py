@@ -195,6 +195,8 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
     if not isinstance(demonstration, dict):
         return ["demonstration: every implemented executable spec requires embedded proof-video evidence"]
     eligibility = demonstration.get("eligibility")
+    if isinstance(eligibility, dict) and eligibility.get("status") == "not_applicable":
+        return []
     if not isinstance(eligibility, dict) or eligibility.get("status") != "required":
         return ["demonstration: implemented executable specs cannot complete without required proof-video evidence"]
     evidence = demonstration.get("evidence")

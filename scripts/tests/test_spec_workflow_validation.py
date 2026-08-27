@@ -11,6 +11,7 @@ Tests: python3 -m pytest scripts/tests/test_spec_workflow_validation.py.
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -268,6 +269,48 @@ implementation_state:
         "    assertions:\n      - example assertion\n    contract_assertions:\n      - example.flow.succeeds\n",
         1,
     )
+
+
+def passed_visual_demonstration(tmp_path: Path) -> str:
+    manifest_path = tmp_path / "visual-proof-manifest.json"
+    manifest = {
+        "subject_commit": "abc1234",
+        "privacy": {"status": "not_applicable"},
+        "narration_audio": {"status": "not_required"},
+        "review": {"status": "passed", "run_id": "review-1", "attempt_count": 1},
+        "publication": {"status": "delivered", "snippet_html": "<video controls></video>"},
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    immutable = dict(manifest)
+    immutable.pop("publication")
+    manifest_hash = "sha256:" + hashlib.sha256(
+        json.dumps(immutable, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return f"""demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: The fixture represents a visual UI smoke check.
+    classified_at: "2026-07-02T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show the reviewed visual UI state.
+      expected_proof: The route remains visually correct on laptop and mobile.
+      scenario_ids: [S-1]
+      acceptance_criteria: [AC-1]
+  evidence:
+    status: passed
+    subject_commit: abc1234
+    manifest_path: {manifest_path.as_posix()}
+    manifest_hash: {manifest_hash}
+    privacy_status: not_applicable
+    audio_status: not_required
+    review_status: passed
+    review_run_id: review-1
+    review_attempts: 1
+    timestamp: "2026-07-02T00:00:00Z"
+    publication_status: delivered
+"""
 
 
 def test_validator_accepts_plan_like_spec(tmp_path):
@@ -633,9 +676,10 @@ def test_spec_verify_rejects_schema_v2_manual_evidence_without_reason(tmp_path):
     assert any("reason" in failure for failure in failures)
 
 
-def ui_visual_smoke_spec(summary: str, viewports: str = "[laptop, mobile]") -> str:
+def ui_visual_smoke_spec(tmp_path: Path, summary: str, viewports: str = "[laptop, mobile]") -> str:
     return (
         schema_v2_spec()
+        .replace("implementation_state:\n", f"{passed_visual_demonstration(tmp_path)}\nimplementation_state:\n", 1)
         .replace("verification_scope: related_backend", "verification_scope: ui_visual_smoke", 1)
         .replace("V-EXAMPLE", "V-UI-VISUAL-SMOKE")
         .replace("kind: automated_test", "kind: manual_check", 1)
@@ -660,7 +704,7 @@ def ui_visual_smoke_spec(summary: str, viewports: str = "[laptop, mobile]") -> s
 
 def test_spec_verify_rejects_ui_visual_smoke_without_screenshot_review_summary(tmp_path):
     spec_verify = load_module("spec_verify")
-    path = write_spec(tmp_path, ui_visual_smoke_spec("Checked route returned HTTP 200."))
+    path = write_spec(tmp_path, ui_visual_smoke_spec(tmp_path, "Checked route returned HTTP 200."))
 
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
@@ -671,7 +715,10 @@ def test_spec_verify_accepts_ui_visual_smoke_evidence(tmp_path):
     spec_verify = load_module("spec_verify")
     path = write_spec(
         tmp_path,
-        ui_visual_smoke_spec("Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."),
+        ui_visual_smoke_spec(
+            tmp_path,
+            "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none.",
+        ),
     )
 
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
@@ -684,6 +731,7 @@ def test_spec_verify_rejects_ui_visual_smoke_without_mobile_viewport(tmp_path):
     path = write_spec(
         tmp_path,
         ui_visual_smoke_spec(
+            tmp_path,
             "Reviewed laptop screenshots. Defects: none. Accepted differences: none.",
             viewports="[laptop]",
         ),
