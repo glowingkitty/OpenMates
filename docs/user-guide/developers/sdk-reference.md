@@ -350,6 +350,13 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | `id, icon_name, background_color` | `id, input, input` | `object` |
 | `om.teams.usage()` | `om.teams.usage()` | `id, member_user_id` | `id, member_user_id` | `list` |
 
+## `wikipedia`
+
+| npm | pip | npm inputs | pip inputs | Return |
+| --- | --- | --- | --- | --- |
+| `om.wikipedia.search()` | `om.wikipedia.search()` | `input, language, limit` | `input, language, limit` | `object` |
+| `om.wikipedia.summary()` | `om.wikipedia.summary()` | `title, language` | `title, language` | `object` |
+
 ## `workflows`
 
 | npm | pip | npm inputs | pip inputs | Return |

@@ -227,6 +227,7 @@ class OpenMates:
         self.tasks = OpenMatesTasks(self)
         self.teams = OpenMatesTeams(self)
         self.workflows = OpenMatesWorkflows(self)
+        self.wikipedia = OpenMatesWikipedia(self)
 
     def _run_app_skill(
         self,
@@ -5522,6 +5523,14 @@ class OpenMatesDocs:
     def search(self, query: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/docs/search", q=query))
     def show(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}")
     def download(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}/download")
+
+
+class OpenMatesWikipedia:
+    def __init__(self, client: OpenMates): self._client = client
+    def search(self, query: str, *, language: str = "en", limit: int | None = None) -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/search", query=query, language=language, limit=limit))
+    def summary(self, title: str, *, language: str = "en") -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/summary", title=title, language=language))
 
 
 class OpenMatesEmbeds:

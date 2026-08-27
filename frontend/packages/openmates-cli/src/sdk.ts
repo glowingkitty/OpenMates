@@ -686,6 +686,7 @@ export class OpenMates {
   readonly tasks: OpenMatesTasks;
   readonly teams: OpenMatesTeams;
   readonly workflows: OpenMatesWorkflows;
+  readonly wikipedia: OpenMatesWikipedia;
   private readonly apiKey?: string;
   private readonly apiUrl: string;
   private readonly deviceId: string;
@@ -725,6 +726,7 @@ export class OpenMates {
     this.tasks = new OpenMatesTasks(this);
     this.teams = new OpenMatesTeams(this);
     this.workflows = new OpenMatesWorkflows(this);
+    this.wikipedia = new OpenMatesWikipedia(this);
   }
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions): Promise<T> {
@@ -4812,6 +4814,29 @@ export class OpenMatesDocs {
   async search(query: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/docs/search", { q: query })); }
   async show(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}`); }
   async download(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}/download`); }
+}
+
+export class OpenMatesWikipedia {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async search(query: string, options: { language?: string; limit?: number } = {}): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/search", {
+      query,
+      language: options.language ?? "en",
+      limit: options.limit,
+    }));
+  }
+
+  async summary(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/summary", {
+      title,
+      language: options.language ?? "en",
+    }));
+  }
 }
 
 export class OpenMatesEmbeds {
