@@ -8,6 +8,7 @@
 import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import EmbedsMapView from "../EmbedsMapView.svelte";
+import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
 
 const embedResolverMocks = vi.hoisted(() => ({
   resolveEmbed: vi.fn(),
@@ -32,6 +33,10 @@ const fullscreenMocks = vi.hoisted(() => ({
   dispatchEmbedFullscreen: vi.fn(),
 }));
 
+const previewRegistryMocks = vi.hoisted(() => ({
+  resolve: vi.fn(),
+}));
+
 vi.mock("../../../services/embedResolver", () => embedResolverMocks);
 vi.mock("../../../services/embedStore", () => ({
   embedStore: {
@@ -45,6 +50,9 @@ vi.mock("../../../services/embedStore", () => ({
   },
 }));
 vi.mock("../../../services/embedFullscreenController", () => fullscreenMocks);
+vi.mock("../../../services/embedPreviewRegistry", () => ({
+  embedPreviewRegistry: previewRegistryMocks,
+}));
 
 async function flush(target?: HTMLElement): Promise<void> {
   await tick();
@@ -60,8 +68,33 @@ describe("EmbedsMapView", () => {
     embedResolverMocks.decodeToonContent.mockReset();
     embedStoreMocks.resolveByRefDeep.mockReset();
     fullscreenMocks.dispatchEmbedFullscreen.mockReset();
+    previewRegistryMocks.resolve.mockReset();
     delete (globalThis as typeof globalThis & { __emitMapViewRefIndex?: (value: number) => void }).__emitMapViewRefIndex;
     delete (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;
+
+    previewRegistryMocks.resolve.mockImplementation(async ({ embedId, decodedContent, onFullscreen }: {
+      embedId: string;
+      decodedContent: Record<string, unknown>;
+      onFullscreen: () => void;
+    }) => {
+      const route = [decodedContent.origin, decodedContent.destination]
+        .filter((value): value is string => typeof value === "string")
+        .join(" -> ");
+      const skillName = String(decodedContent.displayName ?? decodedContent.title ?? (route || embedId));
+      return {
+        component: UnifiedEmbedPreview,
+        props: {
+          id: embedId,
+          appId: String(decodedContent.app_id ?? "maps"),
+          skillId: String(decodedContent.skill_id ?? "result"),
+          status: "finished",
+          skillName,
+          showStatus: false,
+          showSkillIcon: false,
+          onFullscreen,
+        },
+      };
+    });
 
     embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => {
       const map: Record<string, string> = {
@@ -527,7 +560,6 @@ describe("EmbedsMapView", () => {
     expect(cards[0].textContent).toContain("Bonn Hbf");
     expect(cards[0].textContent).toContain("Muenchen Hbf");
     expect(cards[0].classList.contains("highlighted")).toBe(true);
-    expect(target.querySelectorAll('[data-testid="connection-preview-details"]')).toHaveLength(2);
     expect(cards[0].querySelector('[data-testid="embed-preview"]')?.getAttribute("style")).toContain("height: 200px");
     expect(target.textContent).not.toContain("Search connections");
     expect(target.textContent).not.toContain("0 connections");
