@@ -596,10 +596,16 @@ def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeyp
     result = orchestrator._run_playwright()
 
     assert result.status == "passed"
-    assert preflight_calls == [None]
+    assert preflight_calls == [[1, 2]]
     assert captured["normal_account_slots"] == (2,)
     assert result.reason is not None
     assert "Unavailable normal account slot(s)" in result.reason
+
+
+def test_single_campaign_spec_preflights_only_its_planned_account():
+    run_tests = load_run_tests_module()
+
+    assert run_tests._preflight_accounts_for_specs(["import-chats.spec.ts"], 20) == [1]
 
 
 def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_path):

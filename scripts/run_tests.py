@@ -2270,6 +2270,14 @@ def build_playwright_dispatch_plan(
     return plan
 
 
+def _preflight_accounts_for_specs(specs: list[str], batch_size: int) -> list[int]:
+    """Preflight only account slots that the pending Playwright plan can use."""
+    return list(dict.fromkeys(
+        account
+        for _batch_index, _spec, account in build_playwright_dispatch_plan(specs, batch_size)
+    ))
+
+
 def _passed_preflight_slots(results: list[SpecResult]) -> frozenset[int]:
     """Return account slots that completed the preflight login successfully."""
     return frozenset(
@@ -7800,7 +7808,8 @@ class TestOrchestrator:
         normal_account_slots = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
 
         if not self.spec:
-            preflight = self._run_account_preflight(client)
+            preflight_accounts = _preflight_accounts_for_specs(specs, self.max_concurrent)
+            preflight = self._run_account_preflight(client, accounts=preflight_accounts)
             preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
             specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
                 _apply_preflight_account_availability(specs, preflight_results)
@@ -7891,6 +7900,7 @@ class TestOrchestrator:
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
             progress_callback=self._save_playwright_progress_snapshot,
+            coordinate_accounts=self.account is None,
         )
 
         try:
