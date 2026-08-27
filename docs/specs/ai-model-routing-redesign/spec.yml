@@ -400,10 +400,7 @@ tests:
     contract_assertions: [ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.defaults.google-tier-profiles]
     assertions: [Visible variants have capability and recommendation metadata, stable Gemini variants are distinct, and unsupported modality pricing is absent.]
     red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
-    green_phase:
-      required: true
-      expected: pass_after_implementation
-      evidence: {status: type_checked, command: "./scripts/lint_changed.sh frontend/packages/ui/src/services/chatModelSelection.ts frontend/packages/ui/src/services/unavailableModelRecovery.ts frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts", run_id: "local-cc62-frontend-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", reason: "Changed-file TypeScript gate passed; local Vitest execution is repository-forbidden and the unified Vitest dry-run exposed no runnable catalog entries."}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
   - id: T-CHAT-SELECTION-ENCRYPTION
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
@@ -418,7 +415,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py backend/tests/test_ai_chat_model_preferences.py backend/tests/test_setup_schemas.py scripts/tests/test_apple_cross_client_sync_test.py scripts/tests/test_verify_ai_model_routing.py -q", run_id: "local-cc62-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", result: "47 passed, 9 warnings"}
+      evidence: {status: type_checked, command: "./scripts/lint_changed.sh frontend/packages/ui/src/services/chatModelSelection.ts frontend/packages/ui/src/services/unavailableModelRecovery.ts frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts", run_id: "local-cc62-frontend-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", reason: "Changed-file TypeScript gate passed; local Vitest execution is repository-forbidden and the unified Vitest dry-run exposed no runnable catalog entries."}
   - id: T-ROUTING-PRECEDENCE
     type: pytest
     file: backend/tests/test_ai_model_routing.py
@@ -433,7 +430,7 @@ tests:
     green_phase:
       required: true
       expected: pass_after_implementation
-      evidence: {status: type_checked, command: "./scripts/lint_changed.sh frontend/packages/ui/src/services/chatModelSelection.ts frontend/packages/ui/src/services/unavailableModelRecovery.ts frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts", run_id: "local-cc62-frontend-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", reason: "Changed-file TypeScript gate passed; local Vitest execution is repository-forbidden and the unified Vitest dry-run exposed no runnable catalog entries."}
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py backend/tests/test_ai_chat_model_preferences.py backend/tests/test_setup_schemas.py scripts/tests/test_apple_cross_client_sync_test.py scripts/tests/test_verify_ai_model_routing.py -q", run_id: "local-cc62-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", result: "47 passed, 9 warnings"}
   - id: T-COMPOSER-MENTIONS
     type: vitest
     file: frontend/packages/ui/src/components/enter_message/__tests__/modelRoutingMentions.test.ts
@@ -454,7 +451,10 @@ tests:
       required: true
       expected: fail_before_implementation
       evidence: {status: failed_as_expected, command: "./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/__tests__", run_id: "local-cc62-frontend-routing-red-20260826T200512Z", subject_commit: "72d4803cf98804319bb11d11b3c420daed77aca4", timestamp: "2026-08-26T20:05:12Z", reason: "TypeScript reported only the intentionally missing unavailableModelRecovery service module for the new red contract tests; local Vitest execution is repository-forbidden."}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: type_checked, command: "./scripts/lint_changed.sh frontend/packages/ui/src/services/chatModelSelection.ts frontend/packages/ui/src/services/unavailableModelRecovery.ts frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts", run_id: "local-cc62-frontend-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", reason: "Changed-file TypeScript gate passed; local Vitest execution is repository-forbidden and the unified Vitest dry-run exposed no runnable catalog entries."}
   - id: T-WEB-AI-SETTINGS
     type: playwright
     file: frontend/apps/web_app/tests/ai-model-settings.spec.ts
