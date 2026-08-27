@@ -36,7 +36,7 @@ class ChatCacheMixin:
     return next_version
     """
 
-    _UPDATE_DRAFT_IF_CURRENT_LUA = """
+    _UPDATE_VERSIONED_DRAFT_IF_CURRENT_LUA = """
     local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0')
     local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0')
     local incoming_version = tonumber(ARGV[2])
@@ -547,7 +547,7 @@ class ChatCacheMixin:
         version_field = f"user_draft_v:{user_id}"
         try:
             was_written = await client.eval(
-                self._UPDATE_DRAFT_IF_CURRENT_LUA,
+                self._UPDATE_VERSIONED_DRAFT_IF_CURRENT_LUA,
                 2,
                 key,
                 versions_key,

@@ -74,6 +74,33 @@ class _Cache(ChatCacheMixin):
         return f"versions:{user_id}:{chat_id}"
 
 
+class _LegacyCacheBase:
+    _UPDATE_DRAFT_IF_CURRENT_LUA = "legacy one-key draft script"
+
+
+class _ConcreteCache(_LegacyCacheBase, _Cache):
+    pass
+
+
+# contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+@pytest.mark.anyio
+async def test_concrete_cache_service_uses_version_authoritative_draft_script() -> None:
+    redis = _AtomicRedis()
+    cache = _ConcreteCache(redis)
+
+    write_result = await cache.update_user_draft_in_cache(
+        "user-1",
+        "chat-1",
+        "encrypted-draft",
+        6,
+        "encrypted-preview",
+    )
+
+    assert write_result is True
+    assert redis.values["user:user-1:chat:chat-1:draft:draft_v"] == 6
+    assert redis.values["versions:user-1:chat-1:user_draft_v:user-1"] == 6
+
+
 # contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_concurrent_draft_version_increments_remain_monotonic() -> None:
