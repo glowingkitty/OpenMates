@@ -223,6 +223,45 @@ def test_inventory_fingerprint_uses_metadata_or_etag_without_body_download() -> 
     ) == "etag:etag-value"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
+def test_inventory_maintenance_clients_use_long_scan_timeouts(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import types
+
+    from scripts import audit_object_storage_inventory as module
+
+    created_clients = []
+    fake_boto3 = types.ModuleType("boto3")
+    fake_botocore = types.ModuleType("botocore")
+    fake_botocore_config = types.ModuleType("botocore.config")
+
+    class FakeConfig:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+
+    def fake_client(service_name: str, **kwargs: object) -> dict[str, object]:
+        client = {"service_name": service_name, **kwargs}
+        created_clients.append(client)
+        return client
+
+    fake_boto3.client = fake_client
+    fake_botocore_config.Config = FakeConfig
+    fake_botocore.config = fake_botocore_config
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+    monkeypatch.setitem(sys.modules, "botocore", fake_botocore)
+    monkeypatch.setitem(sys.modules, "botocore.config", fake_botocore_config)
+
+    clients = module._build_maintenance_region_clients(
+        access_key="test-access",
+        secret_key="test-secret",
+        regions=("nbg1", "fsn1"),
+    )
+
+    assert created_clients[0]["service_name"] == "s3"
+    assert created_clients[0]["config"].kwargs["read_timeout"] == module.MAINTENANCE_S3_READ_TIMEOUT_SECONDS
+    assert clients["fsn1"]["endpoint_url"] == "https://fsn1.your-objectstorage.com"
+
+
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.integrity.observable-reconcilable
 @pytest.mark.anyio
 async def test_backfill_never_uses_empty_secondary_authority_or_resurrects_tombstones() -> None:

@@ -34,6 +34,7 @@ from backend.shared.python_utils.object_storage_regions import (  # noqa: E402
 PROBE_BUCKET_PREFIX = "dev-openmates-region-probe"
 MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
 SHA256_METADATA_KEY = "openmates-sha256"
+MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
 
 
 def sanitized_provider_error(error: Exception) -> dict[str, object]:
@@ -120,6 +121,36 @@ def _scan_region_inventory(
             region=region,
             environment=environment,
         )
+    }
+
+
+def _build_maintenance_region_clients(
+    *,
+    access_key: str,
+    secret_key: str,
+    regions: tuple[str, ...],
+) -> dict[str, object]:
+    """Build S3 clients for long-running maintenance scans."""
+    import boto3
+    from botocore.config import Config
+
+    config = Config(
+        signature_version="s3v4",
+        s3={"addressing_style": "path"},
+        connect_timeout=10,
+        read_timeout=MAINTENANCE_S3_READ_TIMEOUT_SECONDS,
+        retries={"max_attempts": 2},
+    )
+    return {
+        region: boto3.client(
+            "s3",
+            endpoint_url=endpoint_for_region(region),
+            region_name=region,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            config=config,
+        )
+        for region in regions
     }
 
 
@@ -235,9 +266,6 @@ async def verify_replica_inventory(
     source_region: str,
 ) -> dict:
     """Read every replicated ciphertext once and compare exact regional bytes."""
-    import boto3
-    from botocore.config import Config
-
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
     secrets = SecretsManager()
@@ -247,24 +275,11 @@ async def verify_replica_inventory(
         secret_key = await secrets.get_secret("kv/data/providers/hetzner", "s3_secret_key")
         if not access_key or not secret_key:
             raise RuntimeError("Object-storage credentials are unavailable")
-        config = Config(
-            signature_version="s3v4",
-            s3={"addressing_style": "path"},
-            connect_timeout=10,
-            read_timeout=30,
-            retries={"max_attempts": 2},
+        clients = _build_maintenance_region_clients(
+            access_key=access_key,
+            secret_key=secret_key,
+            regions=regions,
         )
-        clients = {
-            region: boto3.client(
-                "s3",
-                endpoint_url=endpoint_for_region(region),
-                region_name=region,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-                config=config,
-            )
-            for region in regions
-        }
         with tempfile.TemporaryDirectory(prefix="openmates-regional-inventory-") as temporary:
             connection = _create_inventory_database(Path(temporary) / "inventory.sqlite3")
             try:
@@ -297,7 +312,6 @@ async def schedule_recovered_source_backfill(
     from datetime import datetime, timezone
 
     from backend.core.api.app.services.directus import DirectusService
-    from backend.core.api.app.services.s3.service import S3UploadService
     from backend.core.api.app.services.s3.recovery_backfill import (
         backfill_recovered_page,
         persist_region_reconciliation_state,
@@ -310,16 +324,23 @@ async def schedule_recovered_source_backfill(
     secrets = SecretsManager()
     await secrets.initialize()
     directus = DirectusService()
-    s3 = S3UploadService(secrets_manager=secrets, directus_service=directus)
     try:
-        await s3.initialize(configure_buckets=False)
+        access_key = await secrets.get_secret("kv/data/providers/hetzner", "s3_access_key")
+        secret_key = await secrets.get_secret("kv/data/providers/hetzner", "s3_secret_key")
+        if not access_key or not secret_key:
+            raise RuntimeError("Object-storage credentials are unavailable")
+        s3_clients = _build_maintenance_region_clients(
+            access_key=access_key,
+            secret_key=secret_key,
+            regions=regions,
+        )
         with tempfile.TemporaryDirectory(prefix="openmates-recovery-backfill-") as temporary:
             connection = _create_inventory_database(Path(temporary) / "backfill.sqlite3")
             try:
                 await asyncio.to_thread(
                     _populate_region_database,
                     connection,
-                    client=s3.region_clients[source_region],
+                    client=s3_clients[source_region],
                     region=source_region,
                     environment=environment,
                 )
@@ -365,7 +386,7 @@ async def schedule_recovered_source_backfill(
                             references=page[offset:offset + 100],
                             source_region=source_region,
                             configured_regions=regions,
-                            s3_clients=s3.region_clients,
+                            s3_clients=s3_clients,
                             directus_service=directus,
                             environment=environment,
                             now=datetime.now(timezone.utc),
