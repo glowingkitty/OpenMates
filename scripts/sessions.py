@@ -2151,6 +2151,10 @@ def wait_for_docker_operation_admitted(
             raise RuntimeError(f"Timed out after {timeout}s waiting for Docker operation admission: {operation_id}")
         if last_report == 0.0 or now - last_report >= 30:
             blockers = _runtime_operation_blockers(operation_id)
+            failed_operations = _fail_dead_local_persistent_operation_blockers(blockers["operations"])
+            if failed_operations:
+                last_report = 0.0
+                continue
             update_docker_operation(
                 operation_id,
                 "queued",
@@ -2159,6 +2163,31 @@ def wait_for_docker_operation_admitted(
             )
             last_report = now
         time.sleep(min(poll, max(1, int(deadline - now))))
+
+
+def _fail_dead_local_persistent_operation_blockers(operations: list[dict]) -> list[str]:
+    """Fail active same-host blockers after their owning process has exited."""
+    host = socket.gethostname()
+    failed: list[str] = []
+    for operation in operations:
+        operation_id = str(operation.get("id") or "")
+        owner_pid = int(operation.get("owner_pid") or 0)
+        if (
+            not operation_id
+            or operation.get("status") not in DOCKER_OPERATION_ACTIVE_STATUSES
+            or operation.get("owner_host") != host
+            or not owner_pid
+            or _process_is_alive(owner_pid)
+        ):
+            continue
+        update_docker_operation(
+            operation_id,
+            "failed",
+            failure_class="owner-exited",
+            error="Restart owner process ended before completion",
+        )
+        failed.append(operation_id)
+    return failed
 
 
 def _runtime_operation_blockers(operation_id: str) -> dict[str, list[dict]]:

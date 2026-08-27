@@ -554,6 +554,42 @@ def test_abandoned_restart_is_failed_before_new_test_lease(monkeypatch, tmp_path
     assert "process ended" in recorded["error"]
 
 
+def test_dead_local_persistent_restart_blocker_is_failed(monkeypatch):
+    calls = []
+    monkeypatch.setattr(sessions.socket, "gethostname", lambda: "dev-server")
+    monkeypatch.setattr(sessions, "_process_is_alive", lambda _pid: False)
+    monkeypatch.setattr(
+        sessions,
+        "update_docker_operation",
+        lambda operation_id, status, **fields: calls.append((operation_id, status, fields)) or {},
+    )
+
+    failed = sessions._fail_dead_local_persistent_operation_blockers([
+        {
+            "id": "docker-orphan",
+            "status": "admitted",
+            "owner_pid": 1234,
+            "owner_host": "dev-server",
+        },
+        {
+            "id": "docker-remote",
+            "status": "admitted",
+            "owner_pid": 5678,
+            "owner_host": "other-host",
+        },
+    ])
+
+    assert failed == ["docker-orphan"]
+    assert calls == [(
+        "docker-orphan",
+        "failed",
+        {
+            "failure_class": "owner-exited",
+            "error": "Restart owner process ended before completion",
+        },
+    )]
+
+
 def test_stale_session_save_preserves_new_infrastructure_state(monkeypatch, tmp_path):
     configure_state(monkeypatch, tmp_path)
     stale = sessions._load_sessions()
