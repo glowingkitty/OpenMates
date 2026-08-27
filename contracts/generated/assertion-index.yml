@@ -17357,12 +17357,12 @@ assertions:
       surface: gui.web
     - &id1962
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
-      line: 115
+      line: 116
       name: uses manual light theme for tiles when the OS is dark
       surface: gui.web
     - &id1963
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
-      line: 141
+      line: 142
       name: passes marker and path opacity to Leaflet while fitting geometry once
         on mount
       surface: gui.web
