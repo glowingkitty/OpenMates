@@ -204,6 +204,32 @@ def test_regular_specs_use_normal_accounts_and_skip_reserved_slots():
     assert not set(assigned_accounts) & set(run_tests.RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS)
 
 
+def test_externally_held_account_lease_disables_inner_coordination(monkeypatch):
+    run_tests = load_run_tests_module()
+
+    class FakeGitHubActionsClient(run_tests.GitHubActionsClient):
+        def __init__(self):
+            pass
+
+    monkeypatch.delenv(run_tests.PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV, raising=False)
+    default_runner = run_tests.BatchRunner(
+        client=FakeGitHubActionsClient(),
+        specs=["chat-flow.spec.ts"],
+        batch_size=1,
+        fail_fast=True,
+    )
+    assert default_runner.coordinate_accounts is True
+
+    monkeypatch.setenv(run_tests.PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV, "1")
+    leased_runner = run_tests.BatchRunner(
+        client=FakeGitHubActionsClient(),
+        specs=["chat-flow.spec.ts"],
+        batch_size=1,
+        fail_fast=True,
+    )
+    assert leased_runner.coordinate_accounts is False
+
+
 def test_batch_size_is_capped_to_normal_account_pool():
     run_tests = load_run_tests_module()
     regular_specs = [f"regular-{index}.spec.ts" for index in range(21)]

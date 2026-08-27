@@ -7319,10 +7319,13 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     """Align deploy metadata after a managed worktree is safely fast-forwarded."""
     worktree_path = str(worktree.get("path") or "")
     recorded_base = str(worktree.get("base_commit") or "")
+    recorded_merged = str(worktree.get("merged_commit") or "")
     if not worktree_path or not recorded_base:
         return ""
     current_head = _current_git_sha(Path(worktree_path))
-    if not current_head or current_head == recorded_base:
+    if not current_head:
+        return ""
+    if current_head == recorded_base and (not recorded_merged or recorded_merged == current_head):
         return ""
     rc, upstream_head, stderr = _run_cmd(
         ["git", "rev-parse", "refs/remotes/origin/dev"],
@@ -7342,8 +7345,19 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
             "Reason: managed worktree HEAD diverged from its recorded base. "
             f"Next: preserve the worktree and inspect both commits before repair. {stderr}".strip()
         )
+    if recorded_merged and recorded_merged != current_head:
+        rc, _stdout, stderr = _run_cmd(
+            ["git", "merge-base", "--is-ancestor", recorded_merged, current_head],
+            cwd=worktree_path,
+        )
+        if rc != 0:
+            raise RuntimeError(
+                "Reason: managed worktree deployed baseline diverged from origin/dev. "
+                f"Next: preserve the worktree and inspect both commits before repair. {stderr}".strip()
+            )
+        worktree["merged_commit"] = current_head
     worktree["base_commit"] = current_head
-    return recorded_base
+    return recorded_base if recorded_base != current_head else ""
 
 
 def refresh_session_worktree_base(session_id: str) -> dict[str, str]:

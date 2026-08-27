@@ -137,6 +137,7 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
+PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
 E2E_GIFT_CARD_SEED_RETRIES = 5
@@ -2068,7 +2069,12 @@ class BatchRunner:
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
         self.progress_callback = progress_callback
-        self.coordinate_accounts = isinstance(client, GitHubActionsClient) if coordinate_accounts is None else coordinate_accounts
+        external_account_lease_held = os.environ.get(PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV) == "1"
+        self.coordinate_accounts = (
+            isinstance(client, GitHubActionsClient) and not external_account_lease_held
+            if coordinate_accounts is None
+            else coordinate_accounts
+        )
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:

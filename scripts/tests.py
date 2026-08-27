@@ -83,6 +83,7 @@ DEV_HEALTH_URLS = (
     "https://api.dev.openmates.org/health",
     "https://app.dev.openmates.org/",
 )
+PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 
 PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
 BLOCKED_BY_PARENT_STATUS = "blocked_by_parent"
@@ -6004,6 +6005,8 @@ def command_run(runner_args: list[str]) -> int:
         run_env["OPENMATES_DOCKER_TEST_LEASE_HELD"] = "1"
     if selected_account is not None:
         run_env["OPENMATES_TEST_ACCOUNT"] = str(selected_account)
+    if account_lease:
+        run_env[PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV] = "1"
     seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
     if selected_test_labels:
         run_env["OPENMATES_CAMPAIGN_TEST_LABELS_JSON"] = json.dumps(selected_test_labels)

@@ -413,6 +413,43 @@ def test_refresh_session_worktree_base_updates_safe_fast_forward(monkeypatch, tm
     assert data["sessions"]["abcd"]["worktree"]["last_active"] == "now"
 
 
+def test_refresh_session_worktree_base_updates_stale_merged_commit(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    worktree_path = tmp_path / "agent-abcd"
+    worktree_path.mkdir()
+    data = {
+        "sessions": {
+            "abcd": {
+                "binding_mode": "worktree_routed",
+                "worktree": {
+                    "path": str(worktree_path),
+                    "base_commit": "new",
+                    "merged_commit": "old-merged",
+                    "status": "active",
+                },
+            }
+        }
+    }
+
+    def run_command(command, **_kwargs):
+        if command[1] == "rev-parse":
+            return 0, "new\n", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "new")
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
+
+    result = sessions.refresh_session_worktree_base("abcd")
+
+    assert result["previous_base"] == ""
+    assert result["base_commit"] == "new"
+    assert data["sessions"]["abcd"]["worktree"]["merged_commit"] == "new"
+    assert data["sessions"]["abcd"]["worktree"]["last_active"] == "now"
+
+
 def test_restore_routes_unmapped_child_session_through_parent_worktree(monkeypatch, tmp_path: Path) -> None:
     sessions = load_sessions_module()
     worktree_path = tmp_path / "agent-abcd"
