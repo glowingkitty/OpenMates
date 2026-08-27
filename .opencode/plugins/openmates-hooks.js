@@ -1955,6 +1955,54 @@ function firstResponseMediaVideoSnippetForTest(text) {
   return match ? match[0] : "";
 }
 
+function firstResponseMediaImageSnippetForTest(text) {
+  const match = String(text || "").match(/!\[[^\]]*\]\(https?:\/\/[^\s)]+\)/i);
+  return match ? match[0] : "";
+}
+
+function responseMediaArtifactForTest({ command = "", output = "" } = {}) {
+  const video = firstResponseMediaVideoSnippetForTest(output);
+  if (video) {
+    const key = createHash("sha256").update(video).digest("hex").slice(0, 24);
+    return { artifact_type: "video", artifact_key: key, snippet: video };
+  }
+  const figmaPath = figmaExportPathForTest(`${command}\n${output}`);
+  const image = firstResponseMediaImageSnippetForTest(output);
+  if (image && /figma/i.test(`${command}\n${output}`)) {
+    const keySource = figmaPath || image;
+    const key = createHash("sha256").update(keySource).digest("hex").slice(0, 24);
+    return { artifact_type: "figma_image", artifact_key: key, snippet: image };
+  }
+  if (figmaPath) {
+    const key = createHash("sha256").update(figmaPath).digest("hex").slice(0, 24);
+    return {
+      artifact_type: "figma_export",
+      artifact_key: key,
+      snippet: `Run python3 scripts/opencode_response_media.py ${figmaPath} --alt "Figma reference: current screen/frame", then embed the returned image Markdown in the same progress response.`,
+    };
+  }
+  return null;
+}
+
+function mediaDeliveryPromptForTest(record) {
+  if (!record?.snippet) return "";
+  const label = record.artifact_type === "video" ? "video" : "Figma reference";
+  return `A required ${label} artifact from the previous tool result is still pending. ${record.artifact_type === "figma_export" ? record.snippet : `Include this exact snippet in your next progress response, even when the result is visibly broken or further debugging remains:\n${record.snippet}`} Do not redo completed tests merely to regenerate it.`;
+}
+
+function responseContainsMediaForTest(text, record) {
+  return Boolean(record?.snippet && String(text || "").includes(record.snippet));
+}
+
+function assistantTextPartForTest(event) {
+  if (event?.type !== "message.part.updated") return null;
+  const part = event?.properties?.part;
+  if (part?.type !== "text" || typeof part.text !== "string") return null;
+  const messageID = part.messageID || part.message_id || event?.properties?.messageID || "";
+  if (!messageID) return null;
+  return { messageID, partID: part.id || "text", text: part.text };
+}
+
 function appendResponseMediaEmbedHint(command, output) {
   if (!output || typeof output.output !== "string" || output.output.includes(RESPONSE_MEDIA_EMBED_MARKER)) return;
   if (!/scripts\/(?:tests\.py\s+run|cli_video_capture\.py)\b/.test(command)) return;
@@ -1985,6 +2033,56 @@ ${FIGMA_REFERENCE_EMBED_MARKER}
 For Figma-based UI work, embed the exported Figma screenshot for the screen/frame currently being implemented in the next assistant progress response, and repeat when switching target frames. Upload it with:
   python3 scripts/opencode_response_media.py <exported-figma-png> --alt "Figma reference: <screen/frame>"
 Then paste the returned image Markdown before summarizing implementation progress.${pathHint}`;
+}
+
+function continuationSignalForTest(text) {
+  for (const line of String(text || "").split(/\r?\n/)) {
+    if (!line.includes("OPENMATES_") || !line.trim().startsWith("{")) continue;
+    try {
+      const payload = JSON.parse(line);
+      if (
+        ["OPENMATES_WAIT_READY", "OPENMATES_HEALTH_READY", "OPENMATES_CONTINUATION_READY"].includes(payload.signal)
+        && payload.operation_type
+        && payload.operation_key
+        && payload.next_action
+      ) return payload;
+    } catch {
+      // Only typed JSON signal lines are continuation records.
+    }
+  }
+  return null;
+}
+
+function continuationSuppressedForTest(state) {
+  return Boolean(
+    ["aborted", "failed"].includes(state?.turn)
+    || ["stopped", "error", "closed"].includes(state?.execution)
+    || (state?.pending_permission_ids || []).length
+    || (state?.pending_question_ids || []).length
+  );
+}
+
+function reconcilePresenceStatesForTest(states, authoritativeStatuses, { now = isoNow() } = {}) {
+  const reconciled = [];
+  for (const state of states) {
+    if (!PRESENCE_LIVE_EXECUTION.has(state?.execution) && state?.turn !== "streaming") continue;
+    const status = authoritativeStatuses?.[state.session_id];
+    const type = status?.type || status?.status?.type || "idle";
+    if (type === "busy" || type === "retry") {
+      reconciled.push({
+        ...state,
+        execution: type === "retry" ? "retrying" : "busy",
+        heartbeat_at: now,
+        updated_at: now,
+      });
+      continue;
+    }
+    const idle = { ...state, execution: "idle", updated_at: now };
+    if (idle.turn === "streaming") idle.turn = "none";
+    idle.attention = attentionFromPending(idle);
+    reconciled.push(idle);
+  }
+  return reconciled;
 }
 
 function activeCwd() {
@@ -2378,6 +2476,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const presenceStates = new Map();
   const notifierLiveSessions = new Set();
   const routingBlockCounts = new Map();
+  const readyContinuationSessions = new Set();
+  const pendingMediaBySession = new Map();
+  const claimedMediaBySession = new Map();
+  const assistantTextParts = new Map();
   const presenceSourceID = randomUUID();
   const presenceGeneration = Date.now();
   let presenceSequence = 0;
@@ -2421,6 +2523,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       questionCapability: "unsupported",
       childRole: marker?.role || "unknown",
     });
+    const persistedRecord = persisted.sessions?.[sessionID];
+    if (persistedRecord && typeof persistedRecord === "object") Object.assign(initial, persistedRecord);
     if (marker?.parent_id) {
       initial.parent_id = marker.parent_id;
       initial.top_level_session_id = marker.parent_id;
@@ -2448,24 +2552,150 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       updated_at: now,
     });
   };
-  const heartbeatTimer = setInterval(() => {
-    const now = isoNow();
-    for (const state of presenceStates.values()) {
-      if (PRESENCE_LIVE_EXECUTION.has(state.execution)) schedulePresence({ ...state, heartbeat_at: now, updated_at: now });
+  const continuationCommand = async (action, sessionID, signal = null) => {
+    const args = ["scripts/sessions.py", "continuation", action, "--session", sessionID];
+    if (action === "record" && signal) {
+      args.push(
+        "--operation-type", signal.operation_type,
+        "--operation-key", signal.operation_key,
+        "--next-action", signal.next_action,
+      );
     }
+    const result = await runProcess("python3", args, { cwd: CURRENT_CONTROL_PLANE_ROOT });
+    if (result.status !== 0) throw new Error(result.stderr || result.stdout || `continuation ${action} failed`);
+    return JSON.parse(result.stdout || "{}").continuation || null;
+  };
+  const mediaCommand = async (action, sessionID, artifact = null) => {
+    const args = ["scripts/sessions.py", "media", action, "--session", sessionID];
+    if (action === "record" && artifact) {
+      args.push(
+        "--artifact-type", artifact.artifact_type,
+        "--artifact-key", artifact.artifact_key,
+        "--snippet", artifact.snippet,
+      );
+    } else if (["ack", "release"].includes(action) && artifact?.artifact_key) {
+      args.push("--artifact-key", artifact.artifact_key);
+    }
+    const result = await runProcess("python3", args, { cwd: CURRENT_CONTROL_PLANE_ROOT });
+    if (result.status !== 0) throw new Error(result.stderr || result.stdout || `media ${action} failed`);
+    return JSON.parse(result.stdout || "{}").media || null;
+  };
+  const deliverPendingMedia = async (sessionID) => {
+    const current = currentPresence(sessionID);
+    if (continuationSuppressedForTest(current)) return false;
+    const record = await mediaCommand("claim", sessionID);
+    if (!record) return false;
+    const prompt = mediaDeliveryPromptForTest(record);
+    if (!prompt) {
+      await mediaCommand("release", sessionID, record);
+      return false;
+    }
+    claimedMediaBySession.set(sessionID, record);
+    try {
+      await client.session.prompt({
+        path: { id: sessionID },
+        body: {
+          messageID: record.message_id,
+          parts: [{ type: "text", text: prompt }],
+        },
+      });
+      return true;
+    } catch (error) {
+      claimedMediaBySession.delete(sessionID);
+      await mediaCommand("release", sessionID, record);
+      console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+      return false;
+    }
+  };
+  const deliverReadyContinuation = async (sessionID) => {
+    const current = currentPresence(sessionID);
+    if (continuationSuppressedForTest(current)) return false;
+    const record = await continuationCommand("claim", sessionID);
+    if (!record) return false;
+    readyContinuationSessions.delete(sessionID);
+    try {
+      await client.session.prompt({
+        path: { id: sessionID },
+        body: {
+          messageID: record.message_id,
+          parts: [{ type: "text", text: record.next_action }],
+        },
+      });
+      await continuationCommand("ack", sessionID);
+      return true;
+    } catch (error) {
+      await continuationCommand("release", sessionID);
+      console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+      return false;
+    }
+  };
+  const reconcileAuthoritativePresence = async () => {
+    if (typeof client?.session?.status !== "function") return;
+    const response = await client.session.status();
+    const statuses = response?.data || response || {};
+    const persistedSessions = presenceData().sessions || {};
+    for (const [sessionID, record] of Object.entries(persistedSessions)) {
+      if (!presenceStates.has(sessionID)) presenceStates.set(sessionID, record);
+    }
+    for (const record of reconcilePresenceStatesForTest([...presenceStates.values()], statuses)) {
+      schedulePresence(record);
+    }
+  };
+  const reconciliationTimer = setInterval(() => {
+    reconcileAuthoritativePresence().catch((error) => {
+      console.warn(`[OpenMates presence reconciliation diagnostic] ${error?.message || error}`);
+    });
   }, PRESENCE_HEARTBEAT_MS);
-  heartbeatTimer.unref?.();
+  reconciliationTimer.unref?.();
+  reconcileAuthoritativePresence().catch(() => {});
 
   return {
     event: async ({ event }) => {
       // Streaming part updates are extremely frequent and session.status already
       // carries the busy/idle lifecycle needed by presence tracking.
       if (event.type !== "message.part.updated") recordLifecycleEvent(event);
-      if (event.type === "session.idle") scheduleWorktreeCheckpoint(eventSessionID(event), "idle");
+      const textPart = assistantTextPartForTest(event);
+      if (textPart) {
+        const parts = assistantTextParts.get(textPart.messageID) || new Map();
+        parts.set(textPart.partID, textPart.text);
+        assistantTextParts.set(textPart.messageID, parts);
+      }
+      if (event.type === "message.updated" && event.properties?.info?.role === "user") {
+        try {
+          await continuationCommand("cancel", eventSessionID(event));
+          readyContinuationSessions.delete(eventSessionID(event));
+        } catch (error) {
+          console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+        }
+      }
+      if (event.type === "session.idle") {
+        const idleSessionID = eventSessionID(event);
+        scheduleWorktreeCheckpoint(idleSessionID, "idle");
+        if (!(await deliverPendingMedia(idleSessionID))) await deliverReadyContinuation(idleSessionID);
+      }
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
       const completedMessageID = completedAssistantMessageID(event);
       if (completedMessageID) {
         const completedSessionID = eventSessionID(event);
+        const completedText = [...(assistantTextParts.get(completedMessageID)?.values() || [])].join("\n");
+        assistantTextParts.delete(completedMessageID);
+        const requiredMedia = claimedMediaBySession.get(completedSessionID) || pendingMediaBySession.get(completedSessionID);
+        if (requiredMedia && responseContainsMediaForTest(completedText, requiredMedia)) {
+          try {
+            await mediaCommand("ack", completedSessionID, requiredMedia);
+            claimedMediaBySession.delete(completedSessionID);
+            pendingMediaBySession.delete(completedSessionID);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        } else if (claimedMediaBySession.has(completedSessionID)) {
+          try {
+            await mediaCommand("release", completedSessionID, requiredMedia);
+            claimedMediaBySession.delete(completedSessionID);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        }
         const current = currentPresence(completedSessionID);
         const notifierSessionID = current.top_level_session_id || current.parent_id || completedSessionID;
         if (notifierLiveSessions.has(notifierSessionID)) {
@@ -2492,6 +2722,18 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         guardBash(command, input.sessionID);
         const longSleep = opaqueLongSleepDecisionForTest(command);
         if (longSleep.decision === "block") throw new Error(longSleep.message);
+      }
+      if (
+        (BASH_TOOLS.has(tool) || EDIT_TOOLS.has(tool) || TASK_TOOLS.has(tool))
+        && readyContinuationSessions.has(input.sessionID)
+        && !/scripts\/sessions\.py\s+continuation\b/.test(bashCommand(output?.args || input?.args))
+      ) {
+        try {
+          await continuationCommand("cancel", input.sessionID);
+          readyContinuationSessions.delete(input.sessionID);
+        } catch (error) {
+          console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+        }
       }
       bindSessionStart(input, output);
 
@@ -2603,11 +2845,38 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         appendApiHealthWaitHint(output);
         appendResponseMediaEmbedHint(command, output);
         appendFigmaReferenceEmbedHint({ tool, command }, output);
+        const mediaArtifact = responseMediaArtifactForTest({ command, output: output?.output || "" });
+        if (mediaArtifact) {
+          try {
+            const record = await mediaCommand("record", input.sessionID, mediaArtifact);
+            if (record) pendingMediaBySession.set(input.sessionID, record);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        }
+        const continuationSignal = continuationSignalForTest(output?.output || "");
+        if (continuationSignal) {
+          try {
+            await continuationCommand("record", input.sessionID, continuationSignal);
+            readyContinuationSessions.add(input.sessionID);
+          } catch (error) {
+            console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+          }
+        }
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
           await recordWorktreeRouting(input.sessionID);
         }
       } else {
         appendFigmaReferenceEmbedHint({ tool }, output);
+        const mediaArtifact = responseMediaArtifactForTest({ output: output?.output || "" });
+        if (mediaArtifact) {
+          try {
+            const record = await mediaCommand("record", input.sessionID, mediaArtifact);
+            if (record) pendingMediaBySession.set(input.sessionID, record);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        }
       }
       if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) {
         const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
@@ -2645,6 +2914,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 OpenMatesHooks.test = Object.freeze({
   childRoleFromAgent,
   childMutationDecisionForTest,
+  continuationSignalForTest,
+  continuationSuppressedForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,
@@ -2665,11 +2936,17 @@ OpenMatesHooks.test = Object.freeze({
   appendFigmaReferenceEmbedHint,
   appendResponseMediaEmbedHint,
   figmaExportPathForTest,
+  firstResponseMediaImageSnippetForTest,
   firstResponseMediaVideoSnippetForTest,
+  responseMediaArtifactForTest,
+  mediaDeliveryPromptForTest,
+  responseContainsMediaForTest,
+  assistantTextPartForTest,
   sleepDurationSecondsForTest,
   notifierEventArgsForTest,
   temporaryLockWaitTypesForTest,
   reducePresenceEventForTest,
+  reconcilePresenceStatesForTest,
   runProcessForTest: runProcess,
   resolveWorktreeRouteForTest,
   routeLocalToolArgsWithCircuitBreakerForTest,

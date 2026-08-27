@@ -109,6 +109,24 @@ existing Node wrapper; it falls back to the Python helper when local
 unless the helper reports that no global browser executable is available and the
 user has approved the large browser download.
 
+For TypeScript validation in a dependency-light CLI worktree, do not install or
+repair packages inside that chat. Preview the exact file set with
+`sessions.py prepare-deploy --session <id> --only <paths...>`, then run
+`sessions.py verify-prepared --session <id> --profile cli-typecheck --only
+<paths...> --expected-manifest-id <manifest>`. Use `cli-storage-unit` for the
+focused storage regression. The verifier applies only that immutable patch to a
+disposable checkout and reuses the canonical dependency tree only when its
+`pnpm-lock.yaml` hash matches exactly. Inspect the active global CLI without
+reinstalling it with the `installed-cli-identity` profile; a version label alone
+is not proof that the executable contains candidate source.
+
+OpenCode records response video snippets and Figma exports as pending local
+delivery artifacts. The next completed progress response must contain the exact
+video/image snippet; if the response is interrupted or compacted, the hook may
+issue at most two operation-scoped delivery prompts. This does not authorize a
+generic idle continuation or rerunning a completed test. Pending media delivery
+is acknowledged only after the assistant response visibly contains the snippet.
+
 Final responses should be evidence-based and concise. Name changed files, exact
 verification commands, failed checks, skipped checks, and any uncertainty. For
 larger deployed UI work, include the Playwright visual-smoke route(s), laptop and

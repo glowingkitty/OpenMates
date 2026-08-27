@@ -7,8 +7,10 @@ goal: >
   Remove the remaining orchestration bottlenecks that keep OpenCode chats from
   completing independently: dead test leases must be reclaimed immediately,
   Docker/runtime operations must queue deterministically, deploy/test evidence
-  must stay commit-scoped, and restored or child sessions must keep using the
-  intended worktree.
+  must stay commit-scoped, deploy file selection must be exact, session state
+  and continuation must be durable, prepared verification must work from
+  dependency-light worktrees, and restored or child sessions must keep using
+  the intended worktree.
 
 scope:
   in:
@@ -25,6 +27,13 @@ scope:
     - Reuse the running OpenCode server for proof review and emit bounded progress and timeout cleanup.
     - Keep deploy test discovery module-local when an exact sibling test or explicit test-file contract exists.
     - Mount every shared product-code container from one clean integrated runtime checkout and repair mixed generations together.
+    - Resolve one immutable deploy manifest and never expand an explicit staged or path selection with historical session files.
+    - Route every managed OpenMates worktree deploy through a disposable integration checkout without writing the shared root.
+    - Treat a pushed commit as deployed even when the local control-plane checkout cannot fast-forward through unrelated dirty work.
+    - Reconcile presence with authoritative OpenCode generation state instead of renewing stale busy records indefinitely.
+    - Resume only allowlisted durable operations exactly once after a resource, deployment, dispatch, or compaction interruption becomes ready.
+    - Provide lockfile-compatible prepared verification for dependency-light worktrees without per-chat package installation.
+    - Persist pending response-media delivery so compaction cannot lose required video or Figma embeds.
   out:
     - Rewriting the full engineering control-plane architecture.
     - Changing product-facing OpenMates behavior, self-hosting CLI behavior, or user-visible UI.
@@ -57,6 +66,12 @@ context_discovery:
     - Standalone proof reviewers each booted a full OpenCode and unrelated MCP stack, consumed roughly 600 MB, and stayed silent for up to ten minutes.
     - The deploy gate mapped engineering_control_plane/api.py to unrelated product API-key tests and failed on dependencies outside the changed component.
     - API and worker containers mounted different chat worktrees and resolved the same HEL1 storage configuration differently while sharing one Compose project.
+    - AI Settings staged one file for a correction but deploy commit 9241fd81 also carried five older session-tracked files.
+    - The phone proof chat requested a coverage-only follow-up but deploy commit a454fe9b also carried two shared test files.
+    - OpenCode reported no active generations while sessions.py continued to report five chats as busy/streaming because the presence timer renewed stale state.
+    - AI Settings and Map stopped at deterministic post-validation or post-deploy waits and needed manual continuation messages.
+    - The S3 chat could not execute its TypeScript regression because the managed worktree lacked jszip and tsc, then had to diagnose the installed CLI path manually.
+    - Successful pushes were described as blocked because unrelated dirty files prevented only the local control-plane checkout from fast-forwarding.
   user_direction:
     - Create and execute a spec that resolves the remaining agentic coding flow issues.
     - Stop wasting tokens in the currently running chats until the orchestration flow is fixed.
@@ -196,6 +211,73 @@ scenarios:
       - Relevant changes still reject the run as a moving target.
       - Strict exact-HEAD mode remains available when explicitly requested.
 
+  - id: S-10
+    title: Explicit deploy selection is exact and root-independent
+    given:
+      - A long-running session has many historically tracked or dirty files.
+      - The chat stages or explicitly selects a smaller correction.
+      - The shared control-plane checkout contains unrelated dirty work.
+    when:
+      - The chat previews and deploys the correction.
+    then:
+      - One immutable manifest records the source base, patch identity, selected files, generated files, gates, and target branch.
+      - Staged or explicit path selection is authoritative and cannot be expanded with other session-tracked files.
+      - Every managed-worktree deploy validates and commits in a disposable integration checkout.
+      - The shared root HEAD, index, and working tree are unchanged by deployment.
+      - A successful push remains successful when only local control-plane fast-forward synchronization fails.
+
+  - id: S-11
+    title: Presence is authoritative and durable operations resume exactly once
+    given:
+      - A hook missed an idle event, OpenCode restarted, a response compacted, or a deterministic operation is waiting for a typed event.
+    when:
+      - The lifecycle reconciler compares stored presence, OpenCode generation state, and durable continuation state.
+    then:
+      - A timer cannot renew stale busy state without authoritative activity.
+      - Idle, stopped, failed, user-input, and active-generation states are distinguished correctly.
+      - Only an allowlisted nonterminal operation with a stored next action can resume a chat.
+      - Event delivery and continuation prompts are idempotent by session, operation, cursor, and generation.
+      - Manual stop, pending user input, terminal failure, and completion always suppress automatic continuation.
+
+  - id: S-12
+    title: Dependency-light worktrees use a prepared verification environment
+    given:
+      - A session worktree has source changes but does not contain a complete node_modules tree or installed CLI package.
+    when:
+      - The chat requests an allowlisted local validation profile or installed-CLI source verification.
+    then:
+      - The runner applies the immutable session patch to an isolated prepared checkout.
+      - Dependency reuse requires an exact lockfile fingerprint and does not install dependencies separately in each chat worktree.
+      - Verification records the base commit, patch identity, command profile, lockfile identity, and runtime epoch when applicable.
+      - Installed CLI verification reports the executable path, package source identity, and whether the executable contains the candidate source without mutating or reinstalling it.
+      - Concurrent validation cannot mix source patches and cleanup respects disk and process capacity limits.
+
+  - id: S-13
+    title: Every execution path claims only its real resources
+    given:
+      - Hourly, nightly, interactive, proof, GitHub, Docker, Vercel, CLI, and Apple work may overlap.
+    when:
+      - Initial or retry work is admitted.
+    then:
+      - Isolated tests do not claim the dev stack.
+      - Runtime readers share an epoch lease and runtime writers use an exclusive operation.
+      - Initial and retry GitHub dispatches use the same atomic capacity reservation and equivalent work is deduplicated.
+      - Test accounts and the Apple Mac remain exclusive resources while disjoint work proceeds concurrently.
+      - Existing API-health ownership is persisted and followers receive typed readiness events without duplicating shared recovery mutations.
+
+  - id: S-14
+    title: Required visual artifacts survive interruption and are delivered
+    given:
+      - A Playwright, CLI, proof, visual review, or Figma export produces response media.
+    when:
+      - The next assistant response completes or the chat compacts before embedding the media.
+    then:
+      - A durable artifact reference records its session, subject commit, run identity, snippet, and pending delivery state.
+      - The exact required video or image snippet appears in the next progress response, including failed or visibly broken runs.
+      - An interrupted delivery creates at most one bounded delivery continuation.
+      - Duplicate responses do not repeatedly embed an already delivered artifact.
+      - Raw media, credentials, and private logs are not stored in the engineering control-plane database.
+
 acceptance_criteria:
   - id: AC-10
     scenario: S-9
@@ -301,6 +383,58 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids:
       - T-SESSIONS-DOCKER
+
+  - id: AC-11
+    scenario: S-10
+    text: Explicit deploy selection is immutable and exact, every managed-worktree deploy is isolated from the shared root, and local root synchronization cannot turn a successful push into a deployment blocker.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-DEPLOY-MANIFEST
+
+  - id: AC-12
+    scenario: S-11
+    text: Presence is reconciled from authoritative OpenCode state and only allowlisted durable nonterminal operations can resume exactly once without overriding stop, failure, completion, permission, or user-input states.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-OPENCODE-LIFECYCLE
+      - T-CONTROL-PLANE
+
+  - id: AC-13
+    scenario: S-12
+    text: Dependency-light worktrees can run allowlisted exact-patch verification and installed-CLI identity checks through a lockfile-compatible prepared environment without per-chat installs or patch mixing.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-PREPARED-VERIFICATION
+
+  - id: AC-14
+    scenario: S-13
+    text: Every supported initial and retry execution path declares only its real resources, reuses equivalent work, persists health ownership, and preserves parallelism for disjoint work.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-RESOURCE-PATHS
+      - T-CONTROL-PLANE
+
+  - id: AC-15
+    scenario: S-14
+    text: Required response media is durably pending until embedded once in the next assistant progress response, including across compaction, without storing raw private artifacts in the control plane.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-MEDIA-DELIVERY
 
 tests:
   - id: T-CONTROL-PLANE
@@ -474,6 +608,164 @@ tests:
         subject_commit: 40f14fd489a4a0f00af633764d04478440b738d6
         summary: Included in the focused 149-test orchestration pass.
 
+  - id: T-DEPLOY-MANIFEST
+    type: pytest
+    file: scripts/tests/test_sessions_deploy_manifest.py
+    command: python3 -m pytest scripts/tests/test_sessions_deploy_manifest.py scripts/tests/test_sessions_integration_worktree.py
+    assertions:
+      - Staged and explicit selectors remain exact even when the session tracks other dirty files.
+      - Generated additions are declared separately and the manifest rejects source drift.
+      - All managed-worktree binding modes use disposable integration and leave root HEAD, index, and worktree unchanged.
+      - Successful push plus failed local root synchronization reports informational state and successful exit.
+    covers:
+      - AC-11
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-08-27T13:20:00Z"
+        command: git show --stat 9241fd81a30b77a17a0409d98df9d157ce18d74f a454fe9b15942c1722db3c88ca4f641773effe65
+        run_id: live-red-deploy-selection-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: Live AI Settings and phone-proof deployments expanded one-file selections with older session-tracked files; successful pushes were described as blocked by local root synchronization.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-08-27T13:34:00Z"
+        command: python3 -m pytest scripts/tests/test_sessions_deploy_manifest.py scripts/tests/test_sessions_integration_worktree.py scripts/tests/test_sessions_worktree_deploy.py -q
+        run_id: local-green-t-deploy-manifest-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: 44 passed; staged and explicit selectors are exact, grandfathered worktrees use native integration, and local root lag is informational.
+
+  - id: T-OPENCODE-LIFECYCLE
+    type: unit
+    file: scripts/tests/test_opencode_operation_continuation.mjs
+    command: node --test scripts/tests/test_opencode_presence_events.mjs scripts/tests/test_opencode_operation_continuation.mjs scripts/tests/test_opencode_spec_autocontinue.mjs
+    assertions:
+      - Presence heartbeat cannot renew stale busy state without authoritative activity.
+      - Reconciliation handles missed idle events and restart snapshots.
+      - Only durable allowlisted operations resume and duplicate events deliver one idempotent prompt.
+      - Manual stop, failure, completion, question, and permission states suppress continuation.
+      - Generic idle spec auto-continuation remains prohibited.
+    covers:
+      - AC-12
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-08-27T13:20:00Z"
+        command: python3 scripts/sessions.py status --json
+        run_id: live-red-opencode-presence-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: OpenCode reported no active generations while sessions.py reported five perpetually busy sessions, and deterministic post-validation waits required manual prompts.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-08-27T13:48:00Z"
+        command: node --test scripts/tests/test_opencode_presence_events.mjs scripts/tests/test_opencode_operation_continuation.mjs scripts/tests/test_opencode_spec_autocontinue.mjs scripts/tests/test_opencode_hooks_contract.mjs && python3 -m pytest scripts/tests/test_sessions_continuation.py -q
+        run_id: local-green-t-opencode-lifecycle-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: Authoritative status reconciliation, typed operation recording, exactly-once claims, bounded transport retry, and generic-idle suppression passed in the combined 58-Node/100-Python integration gate.
+
+  - id: T-PREPARED-VERIFICATION
+    type: pytest
+    file: scripts/tests/test_sessions_prepared_verification.py
+    command: python3 -m pytest scripts/tests/test_sessions_prepared_verification.py
+    assertions:
+      - Exact session patches execute in isolated prepared checkouts with lockfile-compatible dependency reuse.
+      - Different patches cannot share writable validation state and cleanup is bounded.
+      - Installed CLI identity inspection is read-only and reports executable and package-source identities.
+    covers:
+      - AC-13
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-08-27T13:20:00Z"
+        command: test -x .openmates-agent-worktrees/agent-2e36/frontend/packages/openmates-cli/node_modules/.bin/tsc
+        run_id: live-red-s3-worktree-dependencies-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: The S3 session could not run its TypeScript regression because its managed worktree lacked jszip and tsc, then manually investigated the installed executable source.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-08-27T13:48:00Z"
+        command: python3 -m pytest scripts/tests/test_sessions_prepared_verification.py -q
+        run_id: local-green-t-prepared-verification-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: 5 passed; exact patches use disposable checkouts, dependency links require an identical lock hash, cleanup is unconditional, and CLI identity inspection is read-only.
+
+  - id: T-RESOURCE-PATHS
+    type: pytest
+    file: scripts/tests/test_orchestration_resource_paths.py
+    command: python3 -m pytest scripts/tests/test_orchestration_resource_paths.py scripts/tests/test_daily_test_recovery.py
+    assertions:
+      - Initial and retry dispatch share atomic capacity admission and equivalent requests deduplicate.
+      - Isolated, runtime-reader, runtime-writer, account, Vercel, proof, and Apple paths declare only the intended resources.
+      - Health incident ownership and readiness events survive process restart without blocking unrelated work.
+    covers:
+      - AC-14
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-08-27T13:20:00Z"
+        command: python3 -m pytest scripts/tests/test_daily_test_recovery.py::test_retry_requires_a_second_budget_reservation -q
+        run_id: review-red-daily-retry-capacity-20260827
+        subject_commit: ed48a5ba1961ba2df2f1646ba12576ae8fb31a77
+        summary: Daily recovery review found retry capacity bypass and health ownership still used local session state instead of the durable event substrate.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-08-27T13:48:00Z"
+        command: python3 -m pytest scripts/tests/test_orchestration_resource_paths.py scripts/tests/test_daily_test_recovery.py -q
+        run_id: local-green-t-resource-paths-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: 14 passed; isolated suites remain independent, runtime readers share, accounts and the Mac remain exact exclusive lanes, dispatches deduplicate, and health ownership/readiness persist.
+
+  - id: T-MEDIA-DELIVERY
+    type: unit
+    file: scripts/tests/test_opencode_media_delivery.mjs
+    command: node --test scripts/tests/test_opencode_media_delivery.mjs scripts/tests/test_opencode_hooks_contract.mjs && python3 -m pytest scripts/tests/test_sessions_media_delivery.py -q
+    assertions:
+      - Tool output creates a pending typed artifact record and exact snippet identity.
+      - The next response acknowledges delivery once or schedules one bounded continuation after interruption.
+      - Figma frame changes create distinct pending artifacts while non-media work creates none.
+    covers:
+      - AC-15
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence:
+        status: failed_as_expected
+        timestamp: "2026-08-27T13:20:00Z"
+        command: python3 scripts/sessions.py chat search ses_fbf3e17b1ffeMkRjW7uZkmACMV "video generated"
+        run_id: live-red-response-media-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: Existing instructions and output hints did not reliably embed generated recordings or Figma references after interruption and compaction.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: "2026-08-27T13:48:00Z"
+        command: node --test scripts/tests/test_opencode_media_delivery.mjs scripts/tests/test_opencode_hooks_contract.mjs && python3 -m pytest scripts/tests/test_sessions_media_delivery.py -q
+        run_id: local-green-t-media-delivery-20260827
+        subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+        summary: Video/Figma extraction, stable artifact identity, response acknowledgement, restart-safe pending state, and a maximum of two delivery attempts passed.
+
 verifications:
   - id: V-OPERATIONAL-READINESS
     kind: manual_check
@@ -546,6 +838,16 @@ implementation_plan:
       reason: Worktree restore/child routing regression coverage.
     - path: scripts/tests/test_opencode_hooks_contract.mjs
       reason: Hook dedupe and routing guard regression coverage.
+    - path: scripts/tests/test_sessions_deploy_manifest.py
+      reason: Exact deploy selection, root isolation, and outcome classification regression coverage.
+    - path: scripts/tests/test_opencode_operation_continuation.mjs
+      reason: Authoritative lifecycle reconciliation and bounded exactly-once continuation coverage.
+    - path: scripts/tests/test_sessions_prepared_verification.py
+      reason: Prepared checkout, dependency identity, and installed CLI inspection coverage.
+    - path: scripts/tests/test_orchestration_resource_paths.py
+      reason: Execution-path resource declaration and retry admission audit.
+    - path: scripts/tests/test_opencode_media_delivery.mjs
+      reason: Durable pending media and exactly-once response delivery coverage.
   verification_strategy:
     - Run red-phase focused tests where practical before implementation, or record missing-test evidence when adding a new regression.
     - Implement the smallest coordination and hook changes needed to satisfy the spec.
@@ -558,6 +860,11 @@ implementation_plan:
     - T-SESSIONS-WORKTREE
     - T-OPENCODE-HOOKS
     - T-PROOF-REVIEWER
+    - T-DEPLOY-MANIFEST
+    - T-OPENCODE-LIFECYCLE
+    - T-PREPARED-VERIFICATION
+    - T-RESOURCE-PATHS
+    - T-MEDIA-DELIVERY
     - V-OPERATIONAL-READINESS
 
 tasks:
@@ -700,6 +1007,11 @@ tasks:
       - TASK-2
       - TASK-3
       - TASK-4
+      - TASK-8
+      - TASK-9
+      - TASK-10
+      - TASK-11
+      - TASK-12
     blockers: []
     follow_up_tasks: []
     ownership:
@@ -767,11 +1079,132 @@ tasks:
         - scripts/sessions.py
       shared_files: []
 
+  - id: TASK-8
+    title: Make deploy selection exact and root-independent
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-10]
+      acceptance_criteria: [AC-11]
+    expected_files:
+      - scripts/sessions.py
+      - scripts/tests/test_sessions_deploy_manifest.py
+      - scripts/tests/test_sessions_integration_worktree.py
+      - docs/contributing/guides/concurrent-sessions.md
+    verification_ids: [T-DEPLOY-MANIFEST]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: [TASK-9, TASK-10]
+    ownership:
+      files:
+        - scripts/sessions.py
+        - scripts/tests/test_sessions_deploy_manifest.py
+      shared_files: []
+
+  - id: TASK-9
+    title: Reconcile authoritative presence and resume durable operations exactly once
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-11]
+      acceptance_criteria: [AC-12]
+    expected_files:
+      - .opencode/plugins/openmates-hooks.js
+      - backend/engineering_control_plane/coordination.py
+      - backend/engineering_control_plane/coordination_repository.py
+      - scripts/sessions.py
+      - scripts/tests/test_opencode_operation_continuation.mjs
+      - scripts/tests/test_opencode_presence_events.mjs
+    verification_ids: [T-OPENCODE-LIFECYCLE, T-CONTROL-PLANE]
+    dependencies: [TASK-8]
+    blockers: []
+    follow_up_tasks: [TASK-12]
+    ownership:
+      files:
+        - .opencode/plugins/openmates-hooks.js
+        - backend/engineering_control_plane/coordination.py
+        - backend/engineering_control_plane/coordination_repository.py
+        - scripts/sessions.py
+      shared_files: []
+
+  - id: TASK-10
+    title: Add prepared verification and deterministic installed CLI identity
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-12]
+      acceptance_criteria: [AC-13]
+    expected_files:
+      - scripts/sessions.py
+      - scripts/tests.py
+      - scripts/tests/test_sessions_prepared_verification.py
+      - docs/contributing/guides/agent-workflow-core.md
+    verification_ids: [T-PREPARED-VERIFICATION]
+    dependencies: [TASK-8]
+    blockers: []
+    follow_up_tasks: [TASK-11]
+    ownership:
+      files:
+        - scripts/sessions.py
+        - scripts/tests.py
+        - scripts/tests/test_sessions_prepared_verification.py
+      shared_files: []
+
+  - id: TASK-11
+    title: Complete exact resource declarations and persistent health events
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-13]
+      acceptance_criteria: [AC-14]
+    expected_files:
+      - scripts/sessions.py
+      - scripts/tests.py
+      - scripts/run_tests.py
+      - backend/engineering_control_plane/coordination.py
+      - backend/engineering_control_plane/coordination_repository.py
+      - scripts/tests/test_orchestration_resource_paths.py
+    verification_ids: [T-RESOURCE-PATHS, T-CONTROL-PLANE]
+    dependencies: [TASK-9, TASK-10]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - scripts/sessions.py
+        - scripts/tests.py
+        - scripts/run_tests.py
+        - backend/engineering_control_plane/coordination.py
+        - backend/engineering_control_plane/coordination_repository.py
+      shared_files: []
+
+  - id: TASK-12
+    title: Persist and deliver required response media across interruption
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-14]
+      acceptance_criteria: [AC-15]
+    expected_files:
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/sessions.py
+      - scripts/tests/test_opencode_media_delivery.mjs
+      - scripts/tests/test_opencode_hooks_contract.mjs
+    verification_ids: [T-MEDIA-DELIVERY]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/sessions.py
+        - scripts/tests/test_opencode_media_delivery.mjs
+      shared_files: []
+
 implementation_state:
-  phase: implementation_validated
-  subject_commit: 40f14fd489a4a0f00af633764d04478440b738d6
-  active_task: TASK-5
-  last_updated: "2026-08-27T01:06:45Z"
+  phase: verifying
+  subject_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
+  active_task: TASK-12
+  last_updated: "2026-08-27T13:48:00Z"
 
 approvals:
   product_contract:
@@ -816,6 +1249,16 @@ decisions:
     decision: Shared product Docker services mount one clean integrated runtime checkout, never individual chat worktrees.
     reason: One Compose project with per-chat bind mounts creates silent API/worker split-brain even when lease coordination is correct.
     decided_at: "2026-08-27T11:10:00Z"
+  - id: D-7
+    status: active
+    decision: Harden the existing deploy, lifecycle, verification, resource, and media primitives instead of adding a second coordinator.
+    reason: Live chat evidence shows incomplete adoption and unsafe fallbacks in existing paths, while the private control plane already provides leases, operations, dispatches, and cursor events.
+    decided_at: "2026-08-27T13:20:00Z"
+  - id: D-8
+    status: active
+    decision: Generic idle auto-continuation remains forbidden; only a durable allowlisted operation may trigger one idempotent continuation.
+    reason: This recovers interrupted deterministic work without recreating runaway spec prompts or overriding explicit stop and user-input states.
+    decided_at: "2026-08-27T13:20:00Z"
 
 attempts:
   - id: ATT-1
@@ -840,11 +1283,11 @@ attempts:
     recorded_at: "2026-08-27T01:06:45Z"
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Run operational readiness checks against active coordination/runtime state, then deploy/apply if clean.
+  current_task_id: TASK-12
+  next_action: Run strict spec verification, deploy the isolated remediation commit, restart OpenCode in zellij, and exercise live lifecycle/media/resource behavior.
   command: python3 scripts/spec_verify.py docs/specs/opencode-orchestration-remediation/spec.yml --phase complete --json
-  expected_outcome: Spec evidence passes once V-OPERATIONAL-READINESS is recorded.
-  last_verified_commit: 40f14fd489a4a0f00af633764d04478440b738d6
+  expected_outcome: Spec evidence passes after TASK-8 through TASK-12 and final operational readiness are complete.
+  last_verified_commit: b2b7a554f77d0c40c1fdf387bbe676847c877fbe
   blocker: null
 
 risks:

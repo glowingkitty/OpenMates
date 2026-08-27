@@ -5,8 +5,8 @@
 // Run: node --test scripts/tests/test_opencode_hooks_contract.mjs.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import test from "node:test";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { after, test } from "node:test";
 
 import * as pluginModule from "../../.opencode/plugins/openmates-hooks.js";
 import * as cliAutoLoginPluginModule from "../../.opencode/plugins/cli-auto-login.js";
@@ -16,13 +16,16 @@ const preEditGuard = readFileSync(new URL("../../.claude/hooks/pre-edit-guard.sh
 const autoTrack = readFileSync(new URL("../../.claude/hooks/auto-track.sh", import.meta.url), "utf8");
 const bridge = readFileSync(new URL("../../.codex/hooks/claude-hook-bridge.sh", import.meta.url), "utf8");
 const opencodeConfig = JSON.parse(readFileSync(new URL("../../opencode.json", import.meta.url), "utf8"));
+const routedWorktree = mkdtempSync("/home/superdev/projects/.openmates-agent-worktrees/agent-hook-contract-");
+mkdirSync(`${routedWorktree}/.git`);
+after(() => rmSync(routedWorktree, { recursive: true, force: true }));
 const routedTestData = {
   sessions: {
     test: {
       opencode_session_id: "test-session",
       binding_mode: "worktree_routed",
       mode: "testing",
-      worktree: { path: process.cwd(), status: "active" },
+      worktree: { path: routedWorktree, status: "active" },
     },
   },
 };
@@ -62,7 +65,7 @@ test("auto-discovered modules export only valid OpenCode plugin factories", asyn
 
 test("merged worktree routing requires an existing Git worktree", () => {
   const { routingDecisionForTest } = pluginModule.OpenMatesHooks.test;
-  const worktreePath = process.cwd();
+  const worktreePath = routedWorktree;
   assert.deepEqual(
     routingDecisionForTest({
       session: { worktree: { path: worktreePath, status: "merged", merged_commit: "abc123456789" } },
@@ -96,7 +99,7 @@ test("root-hosted routing forces tool paths and shell workdir", () => {
 test("loaded hook overwrites model-provided shell workdir", async () => {
   const { executionArgs, output } = await runBeforeShellWithExecutionArgs("pwd");
   assert.strictEqual(output.args, executionArgs);
-  assert.equal(executionArgs.workdir, process.cwd());
+  assert.equal(executionArgs.workdir, routedWorktree);
 });
 
 test("loaded hook binds chained sessions.py start before later commands", async () => {
@@ -276,7 +279,7 @@ test("routing recovery allows direct prod ssh status and close only", async () =
         stale: {
           opencode_session_id: "stale-session",
           binding_mode: "worktree_routed",
-          worktree: { path: process.cwd(), status: "missing", merged_commit: "abc123456789" },
+          worktree: { path: routedWorktree, status: "missing", merged_commit: "abc123456789" },
         },
       },
     },
@@ -306,7 +309,7 @@ test("merged routing continues through the source worktree", async () => {
           opencode_session_id: "stale-session",
           binding_mode: "worktree_routed",
           mode: "testing",
-          worktree: { path: process.cwd(), status: "merged", merged_commit: commit },
+          worktree: { path: routedWorktree, status: "merged", merged_commit: commit },
         },
       },
     },
@@ -318,7 +321,7 @@ test("merged routing continues through the source worktree", async () => {
     { tool: "bash", sessionID: "stale-session" },
     output,
   ));
-  assert.equal(output.args.workdir, process.cwd());
+  assert.equal(output.args.workdir, routedWorktree);
 
   const followUp = { args: { command: command.replace(commit, "b".repeat(40)), workdir: "/model-selected-root" } };
   await assert.doesNotReject(
@@ -327,7 +330,7 @@ test("merged routing continues through the source worktree", async () => {
       followUp,
     ),
   );
-  assert.equal(followUp.args.workdir, process.cwd());
+  assert.equal(followUp.args.workdir, routedWorktree);
 });
 
 test("question routing runs approved audits from the control plane", async () => {

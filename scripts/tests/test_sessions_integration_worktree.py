@@ -200,8 +200,9 @@ def test_successful_integration_fast_forwards_dirty_control_plane_without_losing
     assert unrelated.read_text(encoding="utf-8") == "keep me\n"
 
 
-def test_post_push_control_plane_failure_returns_actionable_warning(monkeypatch):
+def test_post_push_control_plane_lag_is_informational(monkeypatch):
     sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _root: "local-head")
     monkeypatch.setattr(
         sessions,
         "_fast_forward_control_plane",
@@ -210,9 +211,9 @@ def test_post_push_control_plane_failure_returns_actionable_warning(monkeypatch)
 
     warning = sessions._control_plane_sync_warning("abc123")
 
-    assert "Reason: local overlap" in warning
-    assert "Next:" in warning
-    assert "git merge --ff-only abc123" in warning
+    assert "informational only" in warning
+    assert "deployment_affected=false" in warning
+    assert "abc123" in warning
 
 
 def test_gate_runner_uses_integration_checkout(monkeypatch, tmp_path):

@@ -250,9 +250,16 @@ This:
 6. Records the patch, source base, final base, integration identity, and resulting commit for reconciliation and commit-scoped verification
 7. Removes disposable integration state while retaining any unique or uncertain source worktree state
 
-Grandfathered and pilot-fallback chats continue through the legacy root
-integration path until they naturally finish. Native and legacy paths never mix
-within one session.
+Every managed session worktree, including a restored grandfathered session,
+deploys through the disposable integration checkout. Deployment never copies a
+session patch into the shared root checkout. A local root that cannot
+fast-forward after a successful push is informational and does not downgrade the
+deployment result.
+
+Use `--use-staged` when the staged file set is the intended exact scope, or
+`--only <path> [...]` for an explicit tracked-dirty file set. `prepare-deploy`
+prints a deterministic manifest ID; pass it back with
+`--expected-manifest-id <id>` to reject source or selection drift.
 
 To exclude specific files from the commit:
 

@@ -156,6 +156,21 @@ PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runt
 API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
 API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
 API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
+CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery"}
+CONTINUATION_MAX_DELIVERY_ATTEMPTS = 2
+MEDIA_DELIVERY_MAX_ATTEMPTS = 2
+PREPARED_VERIFICATION_PROFILES = {
+    "cli-typecheck": {
+        "command": ["pnpm", "--dir", "frontend/packages/openmates-cli", "run", "typecheck"],
+        "dependency_paths": ["node_modules", "frontend/packages/openmates-cli/node_modules"],
+        "timeout": 300,
+    },
+    "cli-storage-unit": {
+        "command": ["pnpm", "--dir", "frontend/packages/openmates-cli", "run", "test:unit:storage"],
+        "dependency_paths": ["node_modules", "frontend/packages/openmates-cli/node_modules"],
+        "timeout": 300,
+    },
+}
 DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
 DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
@@ -2735,6 +2750,166 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
         f for f in session.get("modified_files", [])
         if f in dirty_files and f not in exclude and deployable(f)
     )
+
+
+def _resolve_deploy_selection(
+    session: dict,
+    *,
+    exclude: set[str],
+    use_staged: bool = False,
+    only: list[str] | None = None,
+) -> tuple[list[str], str]:
+    """Resolve one authoritative deploy file selector.
+
+    Historical ``modified_files`` entries remain advisory. An explicit staged
+    or path selector must never be widened with other dirty files from the same
+    long-running session.
+    """
+    requested_only = {
+        _canonical_stored_repo_path(path)
+        for path in (only or [])
+        if _canonical_stored_repo_path(path) not in exclude
+    }
+    if use_staged and requested_only:
+        raise RuntimeError("--use-staged and --only are mutually exclusive deploy selectors")
+
+    default_files = set(_session_deploy_files(session, exclude))
+    if requested_only:
+        unavailable = sorted(requested_only - default_files)
+        if unavailable:
+            raise RuntimeError(
+                "--only contains files that are not tracked dirty work for this session: "
+                + ", ".join(unavailable)
+            )
+        return sorted(requested_only), "only"
+
+    if use_staged:
+        checkout_root = _session_checkout_root(session)
+        staged = {
+            _canonical_stored_repo_path(path)
+            for path in _get_staged_files(checkout_root=checkout_root)
+            if _canonical_stored_repo_path(path) not in exclude
+        }
+        tracked = {
+            _canonical_stored_repo_path(path)
+            for path in session.get("modified_files") or []
+        }
+        foreign = sorted(staged - tracked)
+        if foreign:
+            raise RuntimeError(
+                "--use-staged found staged files outside this session: " + ", ".join(foreign)
+            )
+        return sorted(staged), "staged"
+
+    return sorted(default_files), "tracked_dirty"
+
+
+def _build_deploy_manifest(
+    session_id: str,
+    session: dict,
+    files: list[str],
+    *,
+    selector: str,
+) -> dict:
+    """Build a deterministic identity for one resolved source patch."""
+    metadata = (
+        session.get("worktree")
+        if _session_is_control_plane_repo(session) and isinstance(session.get("worktree"), dict)
+        else None
+    )
+    patch_id = _worktree_patch_id(metadata, files) if metadata and files else ""
+    payload = {
+        "session_id": session_id,
+        "repository": _session_repo_id(session),
+        "target_branch": _session_repo_branch(session),
+        "source_base": str((metadata or {}).get("base_commit") or ""),
+        "selector": selector,
+        "selected_files": sorted(files),
+        "generated_files": [],
+        "patch_id": patch_id,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {**payload, "manifest_id": hashlib.sha256(encoded).hexdigest()}
+
+
+def _file_sha256(path: Path) -> str:
+    """Return one content identity without exposing file contents."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _prepared_dependency_identity(root: Path) -> str:
+    """Return the exact dependency lock identity for a prepared checkout."""
+    lockfile = root / "pnpm-lock.yaml"
+    if not lockfile.is_file():
+        raise RuntimeError(f"Prepared dependency root has no pnpm-lock.yaml: {root}")
+    return _file_sha256(lockfile)
+
+
+def _link_prepared_dependencies(
+    checkout_root: Path,
+    dependency_root: Path,
+    relative_paths: list[str],
+) -> str:
+    """Link immutable, lockfile-compatible dependency trees into one checkout."""
+    checkout_identity = _prepared_dependency_identity(checkout_root)
+    prepared_identity = _prepared_dependency_identity(dependency_root)
+    if checkout_identity != prepared_identity:
+        raise RuntimeError(
+            "Prepared dependencies are stale for this patch base: lockfile identity mismatch"
+        )
+    for relative in relative_paths:
+        source = dependency_root / relative
+        target = checkout_root / relative
+        if not source.is_dir():
+            raise RuntimeError(f"Prepared dependency path is unavailable: {relative}")
+        if target.exists() or target.is_symlink():
+            raise RuntimeError(f"Validation checkout unexpectedly contains dependency state: {relative}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(source, target_is_directory=True)
+    return prepared_identity
+
+
+def _installed_cli_identity(candidate_root: Path, executable: str = "") -> dict:
+    """Inspect the installed CLI and candidate package without changing either."""
+    requested = executable or os.environ.get("OPENMATES_CLI", "") or shutil.which("openmates") or ""
+    if not requested:
+        raise RuntimeError("The openmates executable is not installed or on PATH")
+    executable_path = Path(requested).expanduser()
+    if not executable_path.is_absolute():
+        resolved_command = shutil.which(str(executable_path))
+        if not resolved_command:
+            raise RuntimeError(f"Could not resolve installed CLI executable: {requested}")
+        executable_path = Path(resolved_command)
+    executable_path = executable_path.absolute()
+    resolved_path = executable_path.resolve(strict=True)
+    installed_package_root = resolved_path.parent.parent
+    installed_package_json = installed_package_root / "package.json"
+    installed_metadata = json.loads(installed_package_json.read_text()) if installed_package_json.is_file() else {}
+
+    candidate_package_root = candidate_root / "frontend" / "packages" / "openmates-cli"
+    candidate_package_json = candidate_package_root / "package.json"
+    if not candidate_package_json.is_file():
+        raise RuntimeError("Candidate CLI package.json is unavailable")
+    candidate_metadata = json.loads(candidate_package_json.read_text())
+    candidate_dist = candidate_package_root / "dist" / "cli.js"
+    installed_hash = _file_sha256(resolved_path)
+    candidate_hash = _file_sha256(candidate_dist) if candidate_dist.is_file() else ""
+    return {
+        "executable_path": str(executable_path),
+        "resolved_path": str(resolved_path),
+        "installed_package_root": str(installed_package_root),
+        "installed_version": str(installed_metadata.get("version") or ""),
+        "installed_executable_sha256": installed_hash,
+        "candidate_package_root": str(candidate_package_root),
+        "candidate_version": str(candidate_metadata.get("version") or ""),
+        "candidate_executable_sha256": candidate_hash,
+        "contains_candidate_source": bool(candidate_hash and candidate_hash == installed_hash),
+        "inspection_mutated_install": False,
+    }
 
 
 def _relative_repo_path_for_session(path_value: str | Path, session: dict | None = None) -> str:
@@ -9596,6 +9771,287 @@ def cmd_presence(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
+def _continuation_repository_session_id(data: dict, session_reference: str) -> str:
+    """Resolve a repository session from either short or OpenCode identity."""
+    if session_reference in data.get("sessions", {}):
+        return session_reference
+    for session_id, session in data.get("sessions", {}).items():
+        if isinstance(session, dict) and session.get("opencode_session_id") == session_reference:
+            return session_id
+    return ""
+
+
+def _record_session_continuation(
+    session_reference: str,
+    *,
+    operation_type: str,
+    operation_key: str,
+    next_action: str,
+) -> dict:
+    """Persist one allowlisted continuation, replacing only the same operation."""
+    if operation_type not in CONTINUATION_ALLOWED_TYPES:
+        raise RuntimeError(f"unsupported continuation operation type: {operation_type}")
+    if not operation_key or not next_action:
+        raise RuntimeError("continuation requires operation key and next action")
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            raise RuntimeError(f"session not found for continuation: {session_reference}")
+        session = data["sessions"][repository_session_id]
+        now = _now_iso()
+        current = session.get("continuation")
+        if (
+            isinstance(current, dict)
+            and current.get("operation_type") == operation_type
+            and current.get("operation_key") == operation_key
+            and current.get("status") in {"ready", "delivering", "delivered"}
+        ):
+            return dict(current)
+        record = {
+            "operation_type": operation_type,
+            "operation_key": operation_key,
+            "next_action": next_action,
+            "status": "ready",
+            "attempts": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+        session["continuation"] = record
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _claim_session_continuation(session_reference: str) -> dict | None:
+    """Claim one ready continuation and derive its idempotent OpenCode message ID."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        session = data["sessions"][repository_session_id]
+        record = session.get("continuation")
+        if not isinstance(record, dict) or record.get("status") != "ready":
+            return None
+        attempts = int(record.get("attempts") or 0)
+        if attempts >= CONTINUATION_MAX_DELIVERY_ATTEMPTS:
+            record["status"] = "failed"
+            record["updated_at"] = _now_iso()
+            return None
+        generation = attempts + 1
+        identity = ":".join(
+            [repository_session_id, str(record.get("operation_type")), str(record.get("operation_key")), str(generation)]
+        )
+        record["status"] = "delivering"
+        record["attempts"] = generation
+        record["message_id"] = f"msg_{hashlib.sha256(identity.encode('utf-8')).hexdigest()[:26]}"
+        record["updated_at"] = _now_iso()
+        return {**record, "repository_session_id": repository_session_id}
+
+    return _mutate_sessions(mutate)
+
+
+def _finish_session_continuation(session_reference: str, *, delivered: bool) -> dict | None:
+    """Acknowledge delivery or make a transport failure retryable once."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        record = data["sessions"][repository_session_id].get("continuation")
+        if not isinstance(record, dict) or record.get("status") != "delivering":
+            return dict(record) if isinstance(record, dict) else None
+        record["status"] = "delivered" if delivered else "ready"
+        record["updated_at"] = _now_iso()
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _cancel_session_continuation(session_reference: str) -> bool:
+    """Cancel a ready continuation after the chat already continued itself."""
+    def mutate(data: dict) -> bool:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return False
+        session = data["sessions"][repository_session_id]
+        record = session.get("continuation")
+        if not isinstance(record, dict) or record.get("status") != "ready":
+            return False
+        record["status"] = "cancelled"
+        record["updated_at"] = _now_iso()
+        return True
+
+    return bool(_mutate_sessions(mutate))
+
+
+def cmd_continuation(args: argparse.Namespace) -> None:
+    """Record and deliver bounded deterministic OpenCode continuations."""
+    try:
+        if args.continuation_action == "record":
+            result = _record_session_continuation(
+                args.session,
+                operation_type=args.operation_type,
+                operation_key=args.operation_key,
+                next_action=args.next_action,
+            )
+        elif args.continuation_action == "claim":
+            result = _claim_session_continuation(args.session)
+        elif args.continuation_action == "ack":
+            result = _finish_session_continuation(args.session, delivered=True)
+        elif args.continuation_action == "release":
+            result = _finish_session_continuation(args.session, delivered=False)
+        elif args.continuation_action == "cancel":
+            result = {"cancelled": _cancel_session_continuation(args.session)}
+        else:
+            raise RuntimeError(f"unknown continuation action: {args.continuation_action}")
+    except RuntimeError as exc:
+        print(f"Continuation error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"continuation": result}, sort_keys=True))
+
+
+def _record_session_media(
+    session_reference: str,
+    *,
+    artifact_type: str,
+    snippet: str,
+    artifact_key: str = "",
+    subject_commit: str = "",
+    run_id: str = "",
+) -> dict:
+    """Persist a privacy-minimal response artifact until it is visibly delivered."""
+    if artifact_type not in {"video", "figma_image", "figma_export"}:
+        raise RuntimeError(f"unsupported response media type: {artifact_type}")
+    if not snippet:
+        raise RuntimeError("response media requires an exact snippet or delivery instruction")
+    snippet_hash = hashlib.sha256(snippet.encode("utf-8")).hexdigest()
+    stable_key = artifact_key or snippet_hash[:24]
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            raise RuntimeError(f"session not found for response media: {session_reference}")
+        session = data["sessions"][repository_session_id]
+        artifacts = session.setdefault("response_media", {})
+        current = artifacts.get(stable_key)
+        if isinstance(current, dict):
+            if (
+                current.get("status") in {"pending", "delivering"}
+                and current.get("artifact_type") == "figma_export"
+                and artifact_type == "figma_image"
+            ):
+                current.update({
+                    "artifact_type": artifact_type,
+                    "snippet": snippet,
+                    "snippet_hash": snippet_hash,
+                    "subject_commit": subject_commit or current.get("subject_commit", ""),
+                    "run_id": run_id or current.get("run_id", ""),
+                    "status": "pending",
+                    "updated_at": _now_iso(),
+                })
+            return dict(current)
+        now = _now_iso()
+        record = {
+            "artifact_key": stable_key,
+            "artifact_type": artifact_type,
+            "snippet": snippet,
+            "snippet_hash": snippet_hash,
+            "subject_commit": subject_commit,
+            "run_id": run_id,
+            "status": "pending",
+            "attempts": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+        artifacts[stable_key] = record
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _claim_session_media(session_reference: str) -> dict | None:
+    """Claim the oldest pending media artifact with a deterministic message id."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        artifacts = data["sessions"][repository_session_id].get("response_media")
+        if not isinstance(artifacts, dict):
+            return None
+        candidates = sorted(
+            (item for item in artifacts.values() if isinstance(item, dict) and item.get("status") == "pending"),
+            key=lambda item: (str(item.get("created_at") or ""), str(item.get("artifact_key") or "")),
+        )
+        if not candidates:
+            return None
+        record = candidates[0]
+        attempts = int(record.get("attempts") or 0)
+        if attempts >= MEDIA_DELIVERY_MAX_ATTEMPTS:
+            record["status"] = "failed"
+            record["updated_at"] = _now_iso()
+            return None
+        attempt = attempts + 1
+        identity = f"{repository_session_id}:media:{record.get('artifact_key')}:{attempt}"
+        record["attempts"] = attempt
+        record["status"] = "delivering"
+        record["message_id"] = f"msg_{hashlib.sha256(identity.encode()).hexdigest()[:26]}"
+        record["updated_at"] = _now_iso()
+        return {**record, "repository_session_id": repository_session_id}
+
+    return _mutate_sessions(mutate)
+
+
+def _finish_session_media(session_reference: str, artifact_key: str, *, delivered: bool) -> dict | None:
+    """Acknowledge visible delivery or allow one bounded retry."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        artifacts = data["sessions"][repository_session_id].get("response_media")
+        record = artifacts.get(artifact_key) if isinstance(artifacts, dict) else None
+        if not isinstance(record, dict):
+            return None
+        if delivered and record.get("status") in {"pending", "delivering"}:
+            record["status"] = "delivered"
+            record["updated_at"] = _now_iso()
+        elif not delivered and record.get("status") == "delivering":
+            record["status"] = "pending"
+            if not delivered and int(record.get("attempts") or 0) >= MEDIA_DELIVERY_MAX_ATTEMPTS:
+                record["status"] = "failed"
+            record["updated_at"] = _now_iso()
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def cmd_media(args: argparse.Namespace) -> None:
+    """Record and deliver required OpenCode response media."""
+    try:
+        if args.media_action == "record":
+            result = _record_session_media(
+                args.session,
+                artifact_type=args.artifact_type,
+                snippet=args.snippet,
+                artifact_key=args.artifact_key or "",
+                subject_commit=args.subject_commit or "",
+                run_id=args.run_id or "",
+            )
+        elif args.media_action == "claim":
+            result = _claim_session_media(args.session)
+        elif args.media_action in {"ack", "release"}:
+            result = _finish_session_media(
+                args.session,
+                args.artifact_key,
+                delivered=args.media_action == "ack",
+            )
+        else:
+            raise RuntimeError(f"unknown media action: {args.media_action}")
+    except RuntimeError as exc:
+        print(f"Response media error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"media": result}, sort_keys=True))
+
+
 def _normalize_lock_type(raw: str) -> str:
     """Normalize short lock type names to full names."""
     mapping = {
@@ -10187,6 +10643,15 @@ def _health_url_key(url: str) -> str:
     return hashlib.sha256(url.strip().encode("utf-8")).hexdigest()[:16]
 
 
+def _health_lease_key(url: str) -> str:
+    return f"api-health-{_health_url_key(url)}"
+
+
+def _health_owner_key(session_id: str) -> str:
+    """Use a restart-stable incident owner instead of a short-lived waiter PID."""
+    return f"health-session:{session_id or 'manual'}"
+
+
 def _probe_health_url(url: str, *, timeout: int = API_HEALTH_PROBE_TIMEOUT_SECONDS) -> dict:
     """Probe a shared runtime health URL without raising on 5xx/connection errors."""
     request = urllib.request.Request(
@@ -10251,6 +10716,56 @@ def _health_incident_live(incident: dict | None) -> bool:
 def _claim_api_health_incident(session_id: str, url: str, probe: dict) -> dict:
     """Elect exactly one live chat to investigate a shared API health failure."""
 
+    if _persistent_coordination_enabled():
+        data = _load_sessions()
+        owner_session_id = _resource_wait_repository_session_id(data, session_id) or session_id or "manual"
+        try:
+            response = control_plane_api_request(
+                "POST",
+                "/v1/coordination/leases",
+                data={
+                    "lease_key": _health_lease_key(url),
+                    "owner_key": _health_owner_key(owner_session_id),
+                    "resources": [f"api-health:{_health_url_key(url)}"],
+                    "ttl_seconds": API_HEALTH_INCIDENT_STALE_SECONDS,
+                    "mode": "exclusive",
+                },
+            )
+            lease = response.get("lease") if isinstance(response, dict) else {}
+            incident = {
+                "status": "investigating",
+                "url": url,
+                "key": _health_url_key(url),
+                "owner_session_id": owner_session_id,
+                "claimed_at": str((lease or {}).get("acquired_at") or _now_iso()),
+                "heartbeat_at": _now_iso(),
+                "last_status_code": int(probe.get("status_code") or 0),
+                "last_error": str(probe.get("error") or ""),
+                "persistence": "engineering_control_plane",
+            }
+            # Keep a privacy-minimal local mirror for status text. The lease is authoritative.
+            def mirror(local_data: dict) -> None:
+                _infrastructure_state(local_data).setdefault("health_incidents", {})[
+                    _health_url_key(url)
+                ] = dict(incident)
+
+            _mutate_sessions(mirror)
+            return {"owned": True, "incident": incident}
+        except ControlPlaneApiError as exc:
+            if exc.status != 409:
+                raise RuntimeError(f"Persistent API-health election failed: {exc.detail}") from exc
+            mirrored = _infrastructure_state(data).setdefault("health_incidents", {}).get(_health_url_key(url), {})
+            return {
+                "owned": False,
+                "incident": {
+                    "status": "investigating",
+                    "url": url,
+                    "key": _health_url_key(url),
+                    "owner_session_id": str(mirrored.get("owner_session_id") or "persistent-api-health-investigator"),
+                    "persistence": "engineering_control_plane",
+                },
+            }
+
     def mutate(data: dict) -> dict:
         incidents = _infrastructure_state(data).setdefault("health_incidents", {})
         key = _health_url_key(url)
@@ -10290,6 +10805,29 @@ def _claim_api_health_incident(session_id: str, url: str, probe: dict) -> dict:
 def _clear_api_health_incident(url: str) -> None:
     """Clear an API health incident once the shared health probe is green again."""
 
+    if _persistent_coordination_enabled():
+        try:
+            control_plane_api_request("DELETE", f"/v1/coordination/leases/{_health_lease_key(url)}")
+            control_plane_api_request(
+                "POST",
+                "/v1/coordination/events",
+                data={
+                    "event_type": "runtime.changed",
+                    "target_type": "runtime_operation",
+                    "target_key": _health_lease_key(url),
+                    "subject_key": _health_url_key(url),
+                    "payload": {
+                        "signal": "OPENMATES_HEALTH_READY",
+                        "operation_type": "health_ready",
+                        "operation_key": _health_url_key(url),
+                    },
+                },
+            )
+        except ControlPlaneApiError as exc:
+            # Health is already green; retain local cleanup and surface the
+            # durable-event failure without turning product health red again.
+            print(f"Warning: API-health readiness persistence failed: {exc.detail}", file=sys.stderr)
+
     def mutate(data: dict) -> None:
         incidents = _infrastructure_state(data).setdefault("health_incidents", {})
         incidents.pop(_health_url_key(url), None)
@@ -10317,7 +10855,14 @@ def cmd_wait_lock(args: argparse.Namespace) -> None:
         while True:
             lock = _active_lock_snapshot(lock_type)
             if not lock:
-                print(json.dumps({"signal": "OPENMATES_WAIT_READY", "resource": lock_type, "session_id": args.session or ""}, sort_keys=True))
+                print(json.dumps({
+                    "signal": "OPENMATES_WAIT_READY",
+                    "resource": lock_type,
+                    "session_id": args.session or "",
+                    "operation_type": "resource_ready",
+                    "operation_key": lock_type,
+                    "next_action": "Continue the exact operation interrupted by this resource wait without redoing completed work.",
+                }, sort_keys=True))
                 print(f"Lock '{lock_type}' is available; continue the interrupted operation in this chat.")
                 return
 
@@ -10369,7 +10914,14 @@ def cmd_wait_health(args: argparse.Namespace) -> None:
             probe = _probe_health_url(url, timeout=probe_timeout)
             if probe.get("ok"):
                 _clear_api_health_incident(url)
-                print(json.dumps({"signal": "OPENMATES_HEALTH_READY", "url": url, "session_id": args.session or ""}, sort_keys=True))
+                print(json.dumps({
+                    "signal": "OPENMATES_HEALTH_READY",
+                    "url": url,
+                    "session_id": args.session or "",
+                    "operation_type": "health_ready",
+                    "operation_key": _health_url_key(url),
+                    "next_action": "Continue the exact verification interrupted by API health without repeating completed work.",
+                }, sort_keys=True))
                 print(f"Health URL {url} is ready; continue the interrupted operation in this chat.")
                 return
 
@@ -11251,7 +11803,17 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
 
     worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
-    to_commit = _session_deploy_files(session, exclude)
+    try:
+        to_commit, selector = _resolve_deploy_selection(
+            session,
+            exclude=exclude,
+            use_staged=bool(getattr(args, "use_staged", False)),
+            only=list(getattr(args, "only", None) or []),
+        )
+    except RuntimeError as exc:
+        print(f"DEPLOY PLAN FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
     tracked_but_clean = [f for f in modified if f not in dirty_files]
     dirty_but_untracked = [f for f in dirty_files if f not in modified]
     excluded = [f for f in modified if f in exclude]
@@ -11259,6 +11821,10 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== DEPLOYMENT PLAN ==")
     print(f"Session: {sid}")
     print(f"Task: {session.get('task', '?')}")
+    print(f"Selector: {selector}")
+    print(f"Manifest: {manifest['manifest_id']}")
+    if manifest["patch_id"]:
+        print(f"Patch: {manifest['patch_id']}")
     if not _session_is_control_plane_repo(session):
         print(f"Repo: {_session_repo_name(session)} ({_session_repo_branch(session)})")
         print(f"Checkout: {checkout_root}")
@@ -11389,6 +11955,107 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== END DEPLOYMENT PLAN ==")
 
 
+def _runtime_epoch_identity() -> str:
+    """Return a non-secret product runtime identity when one is recorded."""
+    try:
+        payload = json.loads(PRODUCT_RUNTIME_STATE_FILE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return ""
+    for key in ("runtime_epoch", "deployed_commit", "commit", "revision"):
+        value = str(payload.get(key) or "")
+        if value:
+            return value
+    return ""
+
+
+def cmd_verify_prepared(args: argparse.Namespace) -> None:
+    """Run one allowlisted exact-patch profile without installing in its worktree."""
+    data = _load_sessions()
+    session = data.get("sessions", {}).get(args.session)
+    if not isinstance(session, dict):
+        raise RuntimeError(f"Session {args.session} not found")
+    files, selector = _resolve_deploy_selection(
+        session,
+        exclude=set(),
+        use_staged=bool(args.use_staged),
+        only=list(args.only or []),
+    )
+    if not files:
+        raise RuntimeError("Prepared verification requires a non-empty exact session patch")
+    manifest = _build_deploy_manifest(args.session, session, files, selector=selector)
+    expected_manifest = str(args.expected_manifest_id or "")
+    if expected_manifest and expected_manifest != manifest["manifest_id"]:
+        raise RuntimeError(
+            "Prepared verification manifest changed; rerun prepare-deploy and use its current manifest ID"
+        )
+
+    if args.profile == "installed-cli-identity":
+        result = {
+            "status": "inspected",
+            "profile": args.profile,
+            "base_commit": str((session.get("worktree") or {}).get("base_commit") or ""),
+            "patch_id": manifest["patch_id"],
+            "manifest_id": manifest["manifest_id"],
+            "lockfile_identity": _prepared_dependency_identity(_session_checkout_root(session)),
+            "runtime_epoch": _runtime_epoch_identity(),
+            "cli": _installed_cli_identity(
+                _session_checkout_root(session),
+                executable=str(args.executable or ""),
+            ),
+        }
+        print(json.dumps(result, sort_keys=True))
+        return
+
+    profile = PREPARED_VERIFICATION_PROFILES.get(args.profile)
+    if profile is None:
+        raise RuntimeError(f"Unknown prepared verification profile: {args.profile}")
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if not metadata:
+        raise RuntimeError("Prepared verification requires a managed session worktree")
+    prepared_base = _fetch_origin_dev_commit()
+    integration = _prepare_integration_worktree(
+        args.session,
+        metadata,
+        files,
+        manifest["patch_id"],
+        prepared_base,
+    )
+    checkout = Path(integration["path"])
+    try:
+        lockfile_identity = _link_prepared_dependencies(
+            checkout,
+            CONTROL_PLANE_ROOT,
+            list(profile["dependency_paths"]),
+        )
+        command = list(profile["command"])
+        completed = subprocess.run(
+            command,
+            cwd=str(checkout),
+            capture_output=True,
+            text=True,
+            timeout=int(profile["timeout"]),
+            check=False,
+            env={**os.environ, "CI": "1"},
+        )
+        result = {
+            "status": "passed" if completed.returncode == 0 else "failed",
+            "profile": args.profile,
+            "base_commit": prepared_base,
+            "patch_id": manifest["patch_id"],
+            "manifest_id": manifest["manifest_id"],
+            "lockfile_identity": lockfile_identity,
+            "runtime_epoch": _runtime_epoch_identity(),
+            "exit_code": completed.returncode,
+            "stdout": completed.stdout[-12000:],
+            "stderr": completed.stderr[-12000:],
+        }
+        print(json.dumps(result, sort_keys=True))
+        if completed.returncode != 0:
+            raise SystemExit(completed.returncode)
+    finally:
+        _remove_integration_worktree(integration)
+
+
 def _fetch_origin_dev_commit() -> str:
     """Fetch and return the exact current origin/dev commit."""
     rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(CONTROL_PLANE_ROOT))
@@ -11420,16 +12087,14 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
 
 
 def _control_plane_sync_warning(commit_hash: str) -> str:
-    """Return actionable recovery when a pushed commit cannot load locally yet."""
-    try:
-        _fast_forward_control_plane(commit_hash)
-    except RuntimeError as exc:
-        return (
-            f"CONTROL PLANE SYNC REQUIRED — Reason: {exc} "
-            f"Next: preserve unrelated dirty files, resolve the reported checkout conflict, then run "
-            f"git merge --ff-only {commit_hash}."
-        )
-    return ""
+    """Describe local checkout lag without mutating or downgrading a pushed deploy."""
+    if not commit_hash or _current_git_sha(CONTROL_PLANE_ROOT) == commit_hash:
+        return ""
+    return (
+        "LOCAL CONTROL-PLANE CHECKOUT STALE — informational only; deployment_affected=false. "
+        f"The commit was pushed successfully as {commit_hash}. Preserve unrelated dirty files and "
+        "update this local checkout separately when convenient."
+    )
 
 
 def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
@@ -11895,26 +12560,28 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     worktree_metadata = session.get("worktree") if is_control_plane_repo and isinstance(session.get("worktree"), dict) else None
     checkout_root = _session_checkout_root(session)
 
-    use_staged = getattr(args, "use_staged", False)
+    use_staged = bool(getattr(args, "use_staged", False))
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
-    to_commit = _session_deploy_files(session, exclude)
-    staged_files_for_deploy = set(_get_staged_files(checkout_root=checkout_root)) if use_staged and not to_commit else set()
-    if staged_files_for_deploy:
-        allowed_staged_files = {
-            _canonical_stored_repo_path(path)
-            for path in modified
-            if _canonical_stored_repo_path(path) not in exclude
-        }
-        foreign_staged = sorted(staged_files_for_deploy - allowed_staged_files)
-        if foreign_staged:
-            print(
-                f"{_session_repo_name(session).upper()} DEPLOY FAILED — --use-staged found staged files outside this session: "
-                + ", ".join(foreign_staged),
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        to_commit = sorted(f for f in staged_files_for_deploy if f not in exclude)
-        modified = sorted(set(modified) | set(to_commit))
+    try:
+        to_commit, selector = _resolve_deploy_selection(
+            session,
+            exclude=exclude,
+            use_staged=use_staged,
+            only=list(getattr(args, "only", None) or []),
+        )
+    except RuntimeError as exc:
+        print(f"{_session_repo_name(session).upper()} DEPLOY FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
+    expected_manifest_id = str(getattr(args, "expected_manifest_id", "") or "")
+    if expected_manifest_id and manifest["manifest_id"] != expected_manifest_id:
+        print(
+            "WORKTREE DEPLOY BLOCKED — deploy manifest changed after preview. "
+            "Run prepare-deploy again and retry with its new manifest ID.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(f"Deploy manifest: {manifest['manifest_id']} ({selector}, {len(to_commit)} source file(s))")
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
     worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
     expected_patch_id = str(getattr(args, "expected_patch_id", "") or "")
@@ -12083,52 +12750,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"  ? {f}{tag}")
         print()
 
-    routed_modes = {"pending", "native", "pilot_fallback", "worktree_routed"}
-    if worktree_metadata and to_commit and validate_worktree_binding_mode(session) in routed_modes:
+    if worktree_metadata and to_commit:
+        validate_worktree_binding_mode(session)
         _deploy_native_worktree(args, session, worktree_metadata, to_commit, worktree_patch_id)
         return
-
-    if worktree_metadata and to_commit:
-        deploy_lock_held = False
-        try:
-            _wait_and_acquire_session_lock(
-                "vercel_deploy",
-                sid,
-                phase="integrating_worktree",
-                timeout=getattr(args, "lock_timeout", None),
-                poll=getattr(args, "lock_poll", 30),
-            )
-            deploy_lock_held = True
-        except RuntimeError as exc:
-            print(str(exc), file=sys.stderr)
-            sys.exit(1)
-        print("Dev deploy integration lock acquired for worktree diff application.")
-
-        try:
-            patch_action = _worktree_root_patch_action(sid, worktree_patch_id, to_commit)
-            if patch_action == "applied":
-                print("Session worktree diff is already integrated; continuing deploy retry.")
-            else:
-                if patch_action == "conflict":
-                    raise RuntimeError(
-                        "Selected root files changed after the previous worktree integration; "
-                        "resolve the root conflict before retrying."
-                    )
-                if patch_action == "refresh":
-                    print("Refreshing safely amended session worktree files in root...")
-                    _sync_worktree_files_to_root(worktree_metadata, to_commit)
-                else:
-                    print(f"Applying session worktree diff from {worktree_metadata.get('path')}...")
-                    _apply_worktree_diff_to_root(worktree_metadata, to_commit)
-                _record_worktree_root_patch(sid, worktree_patch_id, to_commit)
-        except (RuntimeError, OSError) as exc:
-            item = enqueue_worktree_deploy(sid, args.title, worktree_patch_id, reason=str(exc))
-            print(f"WORKTREE INTEGRATION BLOCKED — {item['id']}: {exc}", file=sys.stderr)
-            print("Resolve the root conflict, then rerun the same sessions.py deploy command.", file=sys.stderr)
-            sys.exit(1)
-        finally:
-            if deploy_lock_held:
-                _release_session_lock("vercel_deploy", released_by=sid)
 
     # Contract/test traceability is never bypassed by --skip-tests or --no-verify.
     _run_contract_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
@@ -14545,6 +15170,12 @@ def _print_deployed_commit_handoff(commit_sha: str) -> None:
         "Verify deployed spec: python3 scripts/tests.py run --spec <name>.spec.ts "
         f"--gate-deploy --expected-commit {commit_sha}"
     )
+    print(json.dumps({
+        "signal": "OPENMATES_CONTINUATION_READY",
+        "operation_type": "deployment_ready",
+        "operation_key": commit_sha,
+        "next_action": "Continue with the exact-commit verification required for this deployment without repeating implementation or local gates.",
+    }, sort_keys=True))
 
 
 def _maybe_start_verification_session(args: argparse.Namespace, source_session_id: str, commit_sha: str) -> None:
@@ -15535,6 +16166,35 @@ def main() -> None:
         if action != "release-task":
             p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
+    p_continuation = sub.add_parser("continuation", help="Manage bounded deterministic chat continuations")
+    p_continuation_sub = p_continuation.add_subparsers(dest="continuation_action", required=True)
+    p_continuation_record = p_continuation_sub.add_parser("record", help="Record one ready allowlisted operation")
+    p_continuation_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    p_continuation_record.add_argument("--operation-type", required=True, choices=sorted(CONTINUATION_ALLOWED_TYPES))
+    p_continuation_record.add_argument("--operation-key", required=True)
+    p_continuation_record.add_argument("--next-action", required=True)
+    for action in ("claim", "ack", "release", "cancel"):
+        p_continuation_action = p_continuation_sub.add_parser(action)
+        p_continuation_action.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+
+    p_media = sub.add_parser("media", help="Manage durable response-media delivery")
+    p_media_sub = p_media.add_subparsers(dest="media_action", required=True)
+    p_media_record = p_media_sub.add_parser("record", help="Record one pending response artifact")
+    p_media_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    p_media_record.add_argument(
+        "--artifact-type", required=True, choices=["video", "figma_image", "figma_export"]
+    )
+    p_media_record.add_argument("--artifact-key", default="")
+    p_media_record.add_argument("--snippet", required=True)
+    p_media_record.add_argument("--subject-commit", default="")
+    p_media_record.add_argument("--run-id", default="")
+    p_media_claim = p_media_sub.add_parser("claim")
+    p_media_claim.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    for action in ("ack", "release"):
+        p_media_finish = p_media_sub.add_parser(action)
+        p_media_finish.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+        p_media_finish.add_argument("--artifact-key", required=True)
+
     p_docker = sub.add_parser("docker", help="Run coordinated Docker operations")
     p_docker_sub = p_docker.add_subparsers(dest="docker_action", required=True)
     p_docker_restart = p_docker_sub.add_parser("restart", help="Drain dependent tests and restart services")
@@ -15748,6 +16408,39 @@ def main() -> None:
         nargs="*",
         help="File paths to exclude from commit",
     )
+    p_prep.add_argument(
+        "--use-staged",
+        action="store_true",
+        dest="use_staged",
+        help="Use exactly the staged session file set for the deployment plan.",
+    )
+    p_prep.add_argument(
+        "--only",
+        nargs="+",
+        help="Use exactly these tracked dirty session files for the deployment plan.",
+    )
+
+    p_verify_prepared = sub.add_parser(
+        "verify-prepared",
+        help="Run an allowlisted exact-patch check using shared lockfile-compatible dependencies",
+    )
+    p_verify_prepared.add_argument("--session", "-s", required=True, help="Session ID")
+    p_verify_prepared.add_argument(
+        "--profile",
+        required=True,
+        choices=[*sorted(PREPARED_VERIFICATION_PROFILES), "installed-cli-identity"],
+        help="Fixed validation command or read-only installed CLI inspection",
+    )
+    p_verify_prepared.add_argument("--only", nargs="+", help="Verify exactly these tracked dirty files")
+    p_verify_prepared.add_argument(
+        "--use-staged", action="store_true", help="Verify exactly the staged session file set"
+    )
+    p_verify_prepared.add_argument(
+        "--expected-manifest-id", help="Require the immutable manifest printed by prepare-deploy"
+    )
+    p_verify_prepared.add_argument(
+        "--executable", help="Installed CLI executable to inspect (identity profile only)"
+    )
 
     # deploy
     p_deploy = sub.add_parser(
@@ -15769,6 +16462,11 @@ def main() -> None:
         help="File paths to exclude",
     )
     p_deploy.add_argument(
+        "--only",
+        nargs="+",
+        help="Deploy exactly these tracked dirty session files. Mutually exclusive with --use-staged.",
+    )
+    p_deploy.add_argument(
         "--end",
         action="store_true",
         dest="end_session",
@@ -15785,8 +16483,8 @@ def main() -> None:
         "--use-staged",
         action="store_true",
         dest="use_staged",
-        help="Commit already staged hunks for the tracked session files instead of "
-        "running git add on whole files. Use for concurrent same-file edits.",
+        help="Use exactly the already staged tracked session file set. The source "
+        "worktree file contents are applied in isolated integration.",
     )
     p_deploy.add_argument(
         "--skip-tests",
@@ -15811,6 +16509,11 @@ def main() -> None:
         "--expected-patch-id",
         dest="expected_patch_id",
         help=argparse.SUPPRESS,
+    )
+    p_deploy.add_argument(
+        "--expected-manifest-id",
+        dest="expected_manifest_id",
+        help="Require the immutable manifest printed by prepare-deploy.",
     )
     p_deploy.add_argument(
         "--expected-checkpoint-commit",
@@ -16159,6 +16862,8 @@ def main() -> None:
         "opencode-chat": cmd_opencode_chat,
         "chat": cmd_opencode_chat,
         "presence": cmd_presence,
+        "continuation": cmd_continuation,
+        "media": cmd_media,
         "docker": cmd_docker,
         "worktree": cmd_worktree,
         "lock": cmd_lock,
@@ -16166,6 +16871,7 @@ def main() -> None:
         "wait-lock": cmd_wait_lock,
         "wait-health": cmd_wait_health,
         "prepare-deploy": cmd_prepare_deploy,
+        "verify-prepared": cmd_verify_prepared,
         "deploy": cmd_deploy,
         "lint": cmd_lint,
         "context": cmd_context,
