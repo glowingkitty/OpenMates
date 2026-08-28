@@ -55,6 +55,12 @@ const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
+			id: 'carousel-context',
+			text: 'The redesigned preview starts with a compact result carousel above the map.',
+			checkpoint: 'carousel-context',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
 			id: 'calendar-tab-week',
 			text: 'The Calendar view shows all five flights in a full Monday-first week.',
 			checkpoint: 'calendar-tab-week',
@@ -74,6 +80,12 @@ const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
 		}
 	],
 	assertions: [
+		{
+			id: 'carousel-context',
+			checkpoint: 'carousel-context',
+			visual: 'The initial view shows the compact result carousel above the map before switching into Calendar and Filter proof states.',
+			devices: ['web-laptop', 'web-phone']
+		},
 		{
 			id: 'calendar-tab-week',
 			checkpoint: 'calendar-tab-week',
@@ -184,7 +196,19 @@ test.describe('Embeds map view preview', () => {
 		expect((await tabButtons.last().boundingBox())?.width).toBeCloseTo(85, 0);
 		expect(await mapView.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(243, 243, 243)');
 		const calendarTab = mapView.getByTestId('embeds-results-view-tab-calendar');
-		await calendarTab.click();
+		if (proof) {
+			await proof.assert('carousel-context', async () => {
+				await expect(carousel).toBeVisible();
+				await expect(cards).toHaveCount(5);
+				await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true');
+			});
+			await proof.checkpoint('carousel-context');
+			await proof.action('open-calendar-tab', async () => {
+				await calendarTab.click();
+			});
+		} else {
+			await calendarTab.click();
+		}
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
 		await expect(calendarItems).toHaveCount(5);
