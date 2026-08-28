@@ -208,9 +208,9 @@
     .model-menu-row { display: flex; align-items: center; gap: var(--spacing-2); width: 100%; }
     .model-menu-row .menu-item { flex: 1; min-width: 0; }
     .model-icon { position: relative; display: inline-flex; flex: 0 0 auto; }
-    .model-capability { position: absolute; right: -0.25rem; bottom: -0.25rem; display: inline-flex; }
+    .model-capability { position: absolute; right: -0.25rem; bottom: -0.25rem; display: inline-flex; pointer-events: none; }
     .model-capability :global(.capability-scale) { line-height: 1; }
-    .model-capability :global(.bars) { width: 1rem; height: 1rem; padding: 0.1875rem; }
+    .model-capability :global(.capability-scale.compact .bars) { width: 1rem; height: 1rem; padding: 0.1875rem; }
     .model-menu-row :global(.toggle) { width: 3.0625rem; min-width: 3.0625rem; height: 1.8125rem; margin-left: auto; }
     .model-menu-row :global(.toggle .slider:before) { width: 1.5625rem; height: 1.5625rem; left: 0.125rem; bottom: 0.125rem; }
     .model-menu-row :global(.toggle input:checked + .slider:before) { transform: translateX(1.25rem); }
