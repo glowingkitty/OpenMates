@@ -92,7 +92,7 @@
 
             {#if isAuthenticated}
                 <section class="ai-section" data-testid="ai-default-models-group">
-                    <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.default_models')}</h3>
+                    <SettingsItem type="heading" icon="settings" title={$text('settings.ai_ask.ai_ask_settings.default_models')} />
                     <div class="ai-row-list">
                         <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.simple_requests')} value={modelLabel(defaultSimple)} capability={getTierCapabilityLevel('simple')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_low')} data-testid="ai-tier-row-simple" onEdit={() => openTier('simple')} />
                         <SettingsModelPreferenceItem title={$text('settings.ai_ask.ai_ask_settings.complex_requests')} value={modelLabel(defaultComplex)} capability={getTierCapabilityLevel('complex')} capabilityLabel={$text('settings.ai_ask.ai_ask_settings.capability_high')} data-testid="ai-tier-row-complex" onEdit={() => openTier('complex')} />
@@ -102,7 +102,7 @@
             {/if}
 
             <section class="ai-section" data-testid="ai-models-accounts-group">
-                <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.models_and_accounts')}</h3>
+                <SettingsItem type="heading" icon="ai" title={$text('settings.ai_ask.ai_ask_settings.models_and_accounts')} />
                 <div class="ai-row-list">
                     {#each providerFamilies as model (model.provider_id)}
                         {@const display = getAiProviderDisplay(model.provider_id, model.provider_name)}
@@ -122,7 +122,7 @@
 
             {#if isAuthenticated}
                 <section class="ai-section" data-testid="ai-response-settings-group">
-                    <h3 class="ai-section-title">{$text('settings.ai_ask.ai_ask_settings.response_settings')}</h3>
+                    <SettingsItem type="heading" icon="settings" title={$text('settings.ai_ask.ai_ask_settings.response_settings')} />
                     <div class="ai-row-list">
                         <SettingsItem type="ai-row" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.follow_up_suggestions_description')} hasToggle={true} checked={followUpSuggestionsEnabled} data-testid="ai-response-feature-follow-up-suggestions" onClick={() => saveResponseSetting('follow_up_suggestions_enabled', !followUpSuggestionsEnabled)} />
                         <SettingsItem type="ai-row" icon="insight" title={$text('settings.ai_ask.ai_ask_settings.quick_tips')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.quick_tips_description')} hasToggle={true} checked={quickTipsEnabled} data-testid="ai-response-feature-quick-tips" onClick={() => saveResponseSetting('quick_tips_enabled', !quickTipsEnabled)} />
@@ -154,13 +154,5 @@
 
     .ai-row-list {
         gap: var(--spacing-4);
-    }
-
-    .ai-section-title {
-        margin: 0 var(--spacing-10);
-        color: var(--color-font-primary);
-        font-size: var(--font-size-p);
-        font-weight: 700;
-        line-height: 1.25;
     }
 </style>
