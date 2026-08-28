@@ -875,6 +875,27 @@ tasks:
     blockers: [All evidence records require command, run ID, timestamp, subject commit, and approved proof response-media snippet_html before completion.]
     ownership: {files: [docs/specs/ai-model-routing-redesign/spec.yml, docs/architecture/ai/ai-model-selection.md], shared_files: []}
     independently_deployable: true
+    follow_up_tasks: [TASK-15]
+  - id: TASK-15
+    title: Define frequent exact-model change settings nudge contract
+    status: pending
+    phase: awaiting_approval
+    canonical_surfaces: [encrypted-chat-model-sync, dragonfly, notifications, web-push, apple-push]
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-5]}
+    contract_assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope, notifications.delivery.push-enabled, notifications.content.privacy-boundary, notifications.delivery.idempotent]
+    expected_files: [contracts/features/ai-model-routing/contract.yml, contracts/features/ai-model-routing/examples.yml, contracts/features/notifications/contract.yml, contracts/features/notifications/examples.yml, docs/specs/ai-model-routing-redesign/spec.yml]
+    verification_ids: [T-CHAT-SELECTION-ENCRYPTION]
+    verification_commands: [python3 scripts/contracts.py validate contracts/features/ai-model-routing, python3 scripts/contracts.py validate contracts/features/notifications, python3 scripts/spec_validate.py docs/specs/ai-model-routing-redesign/spec.yml]
+    dependencies: [TASK-3]
+    blockers:
+      - Approve whether the rolling-hour threshold counts only transitions to a different exact model, excluding Auto, same-model selection, restore, and unavailable-model recovery.
+      - The approved contract update must preserve Format-D ciphertext and send only a metadata-only change signal; Dragonfly keys and notification payloads must never contain model ids, chat ids, ciphertext, or chat content.
+      - Use an atomic rolling one-hour Dragonfly window and an atomic 72-hour delivery cooldown; cache loss may reset both and cache failure must never block encrypted preference persistence.
+      - Add translated title, body, and Open AI settings CTA in every supported language, route web and Apple notification actions to AI settings, and retain notification-history fallback when push is unavailable.
+    ownership:
+      files: [contracts/features/ai-model-routing/, contracts/features/notifications/, docs/specs/ai-model-routing-redesign/spec.yml]
+      shared_files: [backend/core/api/app/routes/handlers/websocket_handlers/chat_model_preference_handler.py, backend/core/api/app/services/notification_event_service.py, frontend/packages/ui/src/i18n/sources/notifications.yml]
+    independently_deployable: false
     follow_up_tasks: []
 
 attempts:
