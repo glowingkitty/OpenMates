@@ -331,7 +331,9 @@ test('session revoke: revoking session B from session A does not log out session
 			await dialog.accept();
 		});
 
-		await revokeBtn.click();
+		await proof.action('session-a-revoke-session-b', async () => {
+			await revokeBtn.click();
+		});
 		logA("Session A: clicked Remove on Session B's session card.");
 		await screenshotA(pageA, '06-after-revoke-click-a');
 
