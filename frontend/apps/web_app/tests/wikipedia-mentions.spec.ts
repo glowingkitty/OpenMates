@@ -22,16 +22,16 @@ async function openWikipediaSourceMenu(page: any): Promise<{ editor: any; source
 	return { editor, source };
 }
 
-async function activateWikipediaSearch(page: any, query: string): Promise<any> {
-	let editor: any;
-	await expect(async () => {
-		const opened = await openWikipediaSourceMenu(page);
-		editor = opened.editor;
-		await opened.source.click();
-		await expect(editor).toContainText('@wiki:', { timeout: 2_000 });
-		await page.keyboard.type(query, { delay: 50 });
-		await expect(editor).toContainText(`@wiki:${query}`, { timeout: 2_000 });
-	}).toPass({ timeout: 15_000 });
+async function activateWikipediaSearch(
+	page: any,
+	query: string,
+	opened?: { editor: any; source: any }
+): Promise<any> {
+	const { editor, source } = opened ?? await openWikipediaSourceMenu(page);
+	await source.click();
+	await expect(editor).toContainText('@wiki:', { timeout: 2_000 });
+	await editor.pressSequentially(query, { delay: 50 });
+	await expect(editor).toContainText(`@wiki:${query}`, { timeout: 2_000 });
 	return editor;
 }
 
@@ -51,11 +51,11 @@ test('Wiki discovery selects a canonical article and completes with source conte
 		if (request.url().includes('/v1/wikipedia/search')) wikipediaRequests.push(request.url());
 	});
 
-	await openWikipediaSourceMenu(page);
+	const opened = await openWikipediaSourceMenu(page);
 	expect(wikipediaRequests).toHaveLength(0);
 	await screenshot(page, 'wiki-static-discovery');
 
-	const editor = await activateWikipediaSearch(page, 'AlbertEin');
+	const editor = await activateWikipediaSearch(page, 'AlbertEin', opened);
 	const result = page.getByTestId('wikipedia-result').filter({ hasText: 'Albert Einstein' }).first();
 	await expect(result).toBeVisible({ timeout: 15000 });
 	await expect(result.getByTestId('wikipedia-description')).not.toBeEmpty();
