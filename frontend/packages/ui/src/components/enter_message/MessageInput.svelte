@@ -34,6 +34,7 @@
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+    import { notificationStore } from '../../stores/notificationStore';
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
@@ -2658,6 +2659,31 @@
 
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
+        if (result.type === 'wikipedia_source') {
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .insertContent('@wiki:')
+                .run();
+            mentionQuery = 'wiki:';
+            showMentionDropdown = true;
+            return;
+        }
+
+        if (result.type === 'wikipedia') {
+            let wikipediaReferenceCount = 0;
+            editor.state.doc.descendants((node) => {
+                if (node.type.name === 'genericMention' && node.attrs.mentionType === 'wikipedia') {
+                    wikipediaReferenceCount += 1;
+                }
+            });
+            if (wikipediaReferenceCount >= 3) {
+                notificationStore.error($text('enter_message.mention_dropdown.wikipedia_limit'));
+                return;
+            }
+        }
+
         if (result.type === 'model_alias') {
             // Use the BestModelMention node for alias shortcuts (@best, @fast)
             // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
@@ -2709,10 +2735,10 @@
                 .insertContent(' ')
                 .run();
         } else {
-            // Use generic mention node for skills, focus modes, and settings/memories
+            // Use generic mention node for skills, focus modes, settings/memories, projects, and Wikipedia.
             // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
             // Extract color gradient for the app-specific styling
-            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | ProjectMentionResult;
+            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | import('./services/mentionSearchService').WikipediaMentionResult | ProjectMentionResult;
             const projectResult = isProjectMentionType(result.type) ? result as ProjectMentionResult : null;
             editor
                 .chain()
