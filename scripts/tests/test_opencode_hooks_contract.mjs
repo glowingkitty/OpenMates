@@ -395,6 +395,10 @@ test("opencode config allows legacy external agent worktrees", () => {
     opencodeConfig.permission.external_directory["/home/superdev/projects/.openmates-agent-worktrees/**"],
     "allow",
   );
+  assert.equal(
+    opencodeConfig.permission.external_directory["/home/superdev/projects/.openmates-runtime/opencode-server/**"],
+    "allow",
+  );
 });
 
 test("bash guard allows temp writes even when a repo script and source extension appear", async () => {

@@ -39,7 +39,8 @@
     "firecrawl_firecrawl_search_feedback": "ask",
     "external_directory": {
       "/home/superdev/projects/OpenMatesCloud/**": "allow",
-      "/home/superdev/projects/.openmates-agent-worktrees/**": "allow"
+      "/home/superdev/projects/.openmates-agent-worktrees/**": "allow",
+      "/home/superdev/projects/.openmates-runtime/opencode-server/**": "allow"
     },
     "skill": {
       "*": "allow",
