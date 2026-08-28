@@ -6,7 +6,7 @@
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, tick } from 'svelte';
+    import { onMount } from 'svelte';
     import Toggle from '../Toggle.svelte';
     import { SettingsCapabilityScale } from '../settings/elements';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
@@ -76,13 +76,13 @@
         return $text(`settings.ai_ask.ai_ask_settings.capability_${getModelCapabilityLevel(model)}`);
     }
 
-    async function toggleSelector(): Promise<void> {
+    function toggleSelector(): void {
         isOpen = !isOpen;
-        if (isOpen) {
-            await tick();
-            selectorMenu?.focus();
-        }
     }
+
+    $effect(() => {
+        if (isOpen && selectorMenu) selectorMenu.focus();
+    });
 
     onMount(() => {
         const handlePointerDown = (event: PointerEvent) => {
@@ -96,19 +96,16 @@
         return () => document.removeEventListener('pointerdown', handlePointerDown);
     });
 
-    async function closeOnKeydown(event: KeyboardEvent): Promise<void> {
+    function closeOnKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();
             isOpen = false;
             activeProvider = null;
             showAllProviders = false;
-            await tick();
             selectorTrigger?.focus();
         } else if (event.key === 'ArrowDown' && !isOpen) {
             event.preventDefault();
             isOpen = true;
-            await tick();
-            selectorMenu?.focus();
         }
     }
 </script>

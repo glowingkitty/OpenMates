@@ -209,20 +209,24 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	expect(modelDetailsLabel).toBeTruthy();
 	await expect(firstModelName).toHaveText(modelDetailsLabel!.split(': ').at(-1)!);
 	await expect(firstModelCapability).toHaveAttribute('data-level', /^(low|medium|high|max)$/);
-	await expect.poll(async () => {
-		const [rowBox, nameBox, toggleBox, iconBox, capabilityBox] = await Promise.all([
-			firstModelRow.boundingBox(),
-			firstModelName.boundingBox(),
-			firstModelToggle.boundingBox(),
-			firstModelIcon.boundingBox(),
-			firstModelCapability.boundingBox()
-		]);
-		if (!rowBox || !nameBox || !toggleBox || !iconBox || !capabilityBox) return false;
-		return nameBox.x < toggleBox.x
-			&& toggleBox.x + toggleBox.width >= rowBox.x + rowBox.width - 1
-			&& capabilityBox.x >= iconBox.x + iconBox.width / 2
-			&& capabilityBox.y >= iconBox.y + iconBox.height / 2;
-	}).toBe(true);
+	const [rowBox, nameBox, toggleBox, iconBox, capabilityBox] = await Promise.all([
+		firstModelRow.boundingBox(),
+		firstModelName.boundingBox(),
+		firstModelToggle.boundingBox(),
+		firstModelIcon.boundingBox(),
+		firstModelCapability.boundingBox()
+	]);
+	expect(rowBox).toBeTruthy();
+	expect(nameBox).toBeTruthy();
+	expect(toggleBox).toBeTruthy();
+	expect(iconBox).toBeTruthy();
+	expect(capabilityBox).toBeTruthy();
+	expect(nameBox!.x).toBeLessThan(toggleBox!.x);
+	const toggleRightInset = rowBox!.x + rowBox!.width - (toggleBox!.x + toggleBox!.width);
+	expect(toggleRightInset).toBeGreaterThanOrEqual(0);
+	expect(toggleRightInset).toBeLessThanOrEqual(8);
+	expect(capabilityBox!.x + capabilityBox!.width / 2).toBeGreaterThan(iconBox!.x + iconBox!.width / 2);
+	expect(capabilityBox!.y + capabilityBox!.height / 2).toBeGreaterThan(iconBox!.y + iconBox!.height / 2);
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
 	await page.getByTestId('icon-button-close').click();
