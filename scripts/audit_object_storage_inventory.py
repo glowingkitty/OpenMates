@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 from pathlib import Path
 import sqlite3
@@ -39,6 +40,7 @@ EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
 MAINTENANCE_S3_MAX_ATTEMPTS = 3
 DIRECTUS_AUDIT_PAGE_SIZE = 500
+MAX_UNRESOLVED_BYTE_CHECKS = 100
 RUNTIME_INVENTORY_TIMEOUT_SECONDS = 900
 HOST_DELEGATION_TIMEOUT_SECONDS = RUNTIME_INVENTORY_TIMEOUT_SECONDS + 30
 
@@ -205,6 +207,18 @@ def _inventory_head_fingerprint(*, head: dict[str, object], fallback_etag: objec
     if etag:
         return f"etag:{etag}"
     raise RuntimeError("Provider inventory fingerprint unavailable")
+
+
+def _stream_object_sha256(body: object) -> str:
+    digest = hashlib.sha256()
+    try:
+        while chunk := body.read(1024 * 1024):
+            digest.update(chunk)
+    finally:
+        close = getattr(body, "close", None)
+        if callable(close):
+            close()
+    return f"sha256:{digest.hexdigest()}"
 
 
 def _scan_region_inventory(
@@ -540,6 +554,14 @@ def _compare_authoritative_inventory_database(
         "SELECT COUNT(*) FROM refs r LEFT JOIN objects s ON s.region = ? AND s.logical_bucket = r.logical_bucket AND s.object_key = r.object_key WHERE s.object_key IS NULL",
         (source_region,),
     ).fetchone()[0]
+    source_orphans_by_bucket = dict(connection.execute(
+        "SELECT o.logical_bucket, COUNT(*) FROM objects o LEFT JOIN refs r ON r.logical_bucket = o.logical_bucket AND r.object_key = o.object_key WHERE o.region = ? AND r.object_key IS NULL GROUP BY o.logical_bucket ORDER BY o.logical_bucket",
+        (source_region,),
+    ).fetchall())
+    references_without_source_by_bucket = dict(connection.execute(
+        "SELECT r.logical_bucket, COUNT(*) FROM refs r LEFT JOIN objects s ON s.region = ? AND s.logical_bucket = r.logical_bucket AND s.object_key = r.object_key WHERE s.object_key IS NULL GROUP BY r.logical_bucket ORDER BY r.logical_bucket",
+        (source_region,),
+    ).fetchall())
     reports: dict[str, dict[str, int]] = {}
     replicas_match = references_without_source == 0 and ambiguous_reference_count == 0
     for region in regions:
@@ -576,13 +598,62 @@ def _compare_authoritative_inventory_database(
         "source_region": source_region,
         "source_object_count": int(source_count),
         "source_objects_without_references": int(source_orphans),
+        "source_objects_without_references_by_logical_bucket": source_orphans_by_bucket,
         "authoritative_reference_count": int(reference_count),
         "references_without_source_objects": int(references_without_source),
+        "references_without_source_objects_by_logical_bucket": references_without_source_by_bucket,
         "ambiguous_reference_count": int(ambiguous_reference_count),
         "regions": reports,
         "authoritative_replicas_match": replicas_match,
         "object_keys_in_output": False,
         "mutations_performed": False,
+    }
+
+
+def _verify_unresolved_authoritative_bytes(
+    connection: sqlite3.Connection,
+    *,
+    clients: dict[str, object],
+    source_region: str,
+    regions: tuple[str, ...],
+    environment: str,
+) -> dict[str, int]:
+    """Read a capped set of unresolved authoritative pairs and compare SHA-256."""
+    candidates: list[tuple[str, str, str]] = []
+    for region in regions:
+        if region == source_region:
+            continue
+        rows = connection.execute(
+            "SELECT f.logical_bucket, f.object_key FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key JOIN objects r ON r.region = ? AND r.logical_bucket = f.logical_bucket AND r.object_key = f.object_key LEFT JOIN verified_jobs v ON v.logical_bucket = f.logical_bucket AND v.object_key = f.object_key AND v.region = ? AND v.checksum = r.checksum WHERE r.size_bytes = s.size_bytes AND r.checksum != s.checksum AND NOT (s.checksum LIKE 'sha256:%' AND r.checksum LIKE 'sha256:%') AND v.object_key IS NULL ORDER BY f.logical_bucket, f.object_key LIMIT ?",
+            (source_region, region, region, MAX_UNRESOLVED_BYTE_CHECKS + 1),
+        ).fetchall()
+        candidates.extend((str(logical_bucket), str(object_key), region) for logical_bucket, object_key in rows)
+    if len(candidates) > MAX_UNRESOLVED_BYTE_CHECKS:
+        return {"byte_verified_pair_count": 0, "byte_verification_deferred_count": len(candidates)}
+
+    source_checksums: dict[tuple[str, str], str] = {}
+    for logical_bucket, object_key, region in candidates:
+        identity = (logical_bucket, object_key)
+        legacy_bucket = get_bucket_name(logical_bucket, environment)
+        if identity not in source_checksums:
+            source_bucket = resolve_regional_bucket_name(legacy_bucket, source_region)
+            source = clients[source_region].get_object(Bucket=source_bucket, Key=object_key)
+            source_checksums[identity] = _stream_object_sha256(source["Body"])
+            connection.execute(
+                "UPDATE objects SET checksum = ? WHERE region = ? AND logical_bucket = ? AND object_key = ?",
+                (source_checksums[identity], source_region, logical_bucket, object_key),
+            )
+        replica_bucket = resolve_regional_bucket_name(legacy_bucket, region)
+        replica = clients[region].get_object(Bucket=replica_bucket, Key=object_key)
+        replica_checksum = _stream_object_sha256(replica["Body"])
+        connection.execute(
+            "UPDATE objects SET checksum = ? WHERE region = ? AND logical_bucket = ? AND object_key = ?",
+            (replica_checksum, region, logical_bucket, object_key),
+        )
+    connection.commit()
+    return {
+        "byte_verified_pair_count": len(candidates),
+        "byte_verification_deferred_count": 0,
     }
 
 
@@ -658,12 +729,25 @@ async def verify_replica_inventory(
                         )
                     except Exception as error:
                         raise InventoryStageError(f"replica_inventory:{region}", error) from error
-                return _compare_authoritative_inventory_database(
+                try:
+                    byte_report = await asyncio.to_thread(
+                        _verify_unresolved_authoritative_bytes,
+                        connection,
+                        clients=clients,
+                        source_region=source_region,
+                        regions=regions,
+                        environment=environment,
+                    )
+                except Exception as error:
+                    raise InventoryStageError("unresolved_byte_verification", error) from error
+                report = _compare_authoritative_inventory_database(
                     connection,
                     source_region=source_region,
                     regions=regions,
                     ambiguous_reference_count=ambiguous_count,
                 )
+                report.update(byte_report)
+                return report
             finally:
                 if directus is not None:
                     await directus.close()

@@ -5,6 +5,7 @@ are available. Host orchestration forwards only explicit arguments and never
 prints credentials, bucket names, or object keys.
 """
 
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from scripts.audit_object_storage_inventory import (
     _populate_authoritative_replica_database,
     _populate_authoritative_source_database,
     _populate_verified_job_database,
+    _verify_unresolved_authoritative_bytes,
     probe_managed_bucket,
     runtime_inventory_command,
 )
@@ -253,3 +255,50 @@ async def test_verified_job_loader_uses_snapshot_pages_and_only_verified_regions
         ("chatfiles", "two", "fsn1", f"sha256:{'b' * 64}"),
         ("chatfiles", "two", "nbg1", f"sha256:{'b' * 64}"),
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_unresolved_fingerprint_pairs_use_capped_read_only_byte_verification(tmp_path: Path) -> None:
+    payload = b"encrypted-ciphertext"
+
+    class Client:
+        def get_object(self, **_kwargs) -> dict:
+            return {"Body": BytesIO(payload)}
+
+    connection = _create_inventory_database(tmp_path / "inventory.sqlite3")
+    try:
+        connection.execute(
+            "INSERT INTO refs(logical_bucket, object_key) VALUES (?, ?)",
+            ("chatfiles", "live"),
+        )
+        connection.executemany(
+            "INSERT INTO objects(region, logical_bucket, object_key, size_bytes, checksum) VALUES (?, ?, ?, ?, ?)",
+            [
+                ("nbg1", "chatfiles", "live", len(payload), "etag:source"),
+                ("fsn1", "chatfiles", "live", len(payload), f"sha256:{'a' * 64}"),
+            ],
+        )
+        connection.commit()
+
+        byte_report = _verify_unresolved_authoritative_bytes(
+            connection,
+            clients={"nbg1": Client(), "fsn1": Client()},
+            source_region="nbg1",
+            regions=("nbg1", "fsn1"),
+            environment="development",
+        )
+        report = _compare_authoritative_inventory_database(
+            connection,
+            source_region="nbg1",
+            regions=("nbg1", "fsn1"),
+            ambiguous_reference_count=0,
+        )
+    finally:
+        connection.close()
+
+    assert byte_report == {
+        "byte_verified_pair_count": 1,
+        "byte_verification_deferred_count": 0,
+    }
+    assert report["regions"]["fsn1"]["mismatched"] == 0
+    assert report["regions"]["fsn1"]["fingerprint_unverified"] == 0
