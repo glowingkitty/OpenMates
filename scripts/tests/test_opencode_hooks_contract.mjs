@@ -231,21 +231,19 @@ test("assistant-side sleep polling is rejected in favor of the real completion s
   assert.equal(pluginModule.OpenMatesHooks.test.sleepDurationSecondsForTest("2m"), 120);
 });
 
-test("Playwright response-media output requires next progress embed", async () => {
+test("Playwright response-media output does not inject progress instructions", async () => {
   const snippet = '<video controls crossorigin="anonymous"><source src="https://example.test/latest.webm" type="video/webm"></video>';
   const text = await runAfterShell(
     "python3 scripts/tests.py run --spec chat-flow.spec.ts --proof-video-profile web-phone",
     `OpenCode response-media video for latest Playwright spec run:\n${snippet}`,
   );
 
-  assert.match(text, /OpenMates response-media embed required/);
-  assert.match(text, /next assistant progress response/);
-  assert.match(text, /even if the run\/proof is still broken/);
+  assert.doesNotMatch(text, /OpenMates response-media embed required/);
   assert.match(text, /<video controls crossorigin="anonymous">/);
   assert.equal(pluginModule.OpenMatesHooks.test.firstResponseMediaVideoSnippetForTest(`before ${snippet} after`), snippet);
 });
 
-test("Figma image export output requires reference embed before implementation progress", async () => {
+test("Figma image export output does not inject response instructions", async () => {
   const hooks = await pluginModule.OpenMatesHooks({});
   const output = {
     args: {},
@@ -256,9 +254,8 @@ test("Figma image export output requires reference embed before implementation p
     output,
   );
 
-  assert.match(output.output, /OpenMates Figma reference embed required/);
-  assert.match(output.output, /opencode_response_media.py <exported-figma-png>/);
-  assert.match(output.output, /Detected reference export: test-results\/figma\/ai-settings\/figma-default-models\.png/);
+  assert.doesNotMatch(output.output, /OpenMates Figma reference embed required/);
+  assert.doesNotMatch(output.output, /opencode_response_media.py <exported-figma-png>/);
   assert.equal(
     pluginModule.OpenMatesHooks.test.figmaExportPathForTest("saved ./test-results/figma/x/figma-screen.png"),
     "./test-results/figma/x/figma-screen.png",
@@ -284,6 +281,7 @@ test("source code containing video HTML is not queued as response media", () => 
   const artifact = pluginModule.OpenMatesHooks.test.responseMediaArtifactForTest({
     command: "python3 scripts/opencode_response_media.py proof.webm",
     output: snippet,
+    automationEnabled: true,
   });
   assert.deepEqual(
     artifact,
@@ -293,6 +291,33 @@ test("source code containing video HTML is not queued as response media", () => 
       snippet,
     },
   );
+});
+
+test("automatic response-media queueing and synthetic delivery are disabled by default", () => {
+  const snippet = '<video controls><source src="https://example.test/proof.webm" type="video/webm"></video>';
+  assert.equal(pluginModule.OpenMatesHooks.test.responseMediaAutomationEnabledForTest({}), false);
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.responseMediaArtifactForTest({
+      command: "python3 scripts/opencode_response_media.py proof.webm",
+      output: snippet,
+    }),
+    null,
+  );
+  assert.equal(
+    pluginModule.OpenMatesHooks.test.mediaDeliveryPromptForTest({ artifact_type: "video", snippet }),
+    "",
+  );
+});
+
+test("ordinary product tools cannot mutate control-plane paths or read secret config", () => {
+  const decide = pluginModule.OpenMatesHooks.test.controlPlaneToolDecisionForTest;
+  assert.equal(decide({ tool: "apply_patch", args: { filePath: `${process.cwd()}/scripts/sessions.py` } }).decision, "block");
+  assert.equal(decide({ tool: "write", args: { filePath: `${process.cwd()}/.opencode/plugins/openmates-hooks.js` } }).decision, "block");
+  assert.equal(decide({ tool: "bash", args: { command: "sed -i s/old/new/ scripts/sessions.py" } }).decision, "block");
+  assert.equal(decide({ tool: "read", args: { filePath: "/home/superdev/.config/opencode/opencode.json" } }).decision, "block");
+  assert.equal(decide({ tool: "bash", args: { command: "cat $HOME/.config/opencode/secrets.env" } }).decision, "block");
+  assert.equal(decide({ tool: "bash", args: { command: "cat ~/.config/opencode/opencode.json" } }).decision, "block");
+  assert.equal(decide({ tool: "read", args: { filePath: `${process.cwd()}/frontend/packages/ui/src/index.ts` } }).decision, "allow");
 });
 
 test("optional hook queues require matching sessions.py subcommands", async () => {

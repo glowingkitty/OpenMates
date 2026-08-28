@@ -81,6 +81,8 @@ def test_resolve_deploy_removes_superseded_records_for_merged_session(monkeypatc
         encoding="utf-8",
     )
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_worktree_head", lambda _path: "commit456")
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: [])
 
     sessions._mark_worktree_deployed("abcd", "patch123", "commit456")
 
@@ -88,6 +90,24 @@ def test_resolve_deploy_removes_superseded_records_for_merged_session(monkeypatc
     assert data["sessions"]["abcd"]["worktree"]["status"] == "merged"
     assert data["sessions"]["abcd"]["worktree"]["merged_commit"] == "commit456"
     assert data["deploy_queue"] == [{"session_id": "other", "patch_id": "patch123"}]
+
+
+def test_deploy_registry_refuses_merged_status_when_source_head_is_stale(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps({"sessions": {"abcd": {"worktree": {"path": "/tmp/agent-abcd"}}}, "deploy_queue": []}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_worktree_head", lambda _path: "older-head")
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: ["file.py"])
+
+    sessions._mark_worktree_deployed("abcd", "patch123", "commit456")
+
+    worktree = json.loads(sessions_file.read_text(encoding="utf-8"))["sessions"]["abcd"]["worktree"]
+    assert worktree["status"] == "changes_pending"
+    assert worktree["merged_commit"] == "commit456"
 
 
 def test_pending_worktree_commit_is_used_only_for_exact_clean_retry(monkeypatch):

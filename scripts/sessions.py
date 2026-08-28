@@ -159,6 +159,23 @@ API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
 CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery"}
 CONTINUATION_MAX_DELIVERY_ATTEMPTS = 2
 MEDIA_DELIVERY_MAX_ATTEMPTS = 2
+MEDIA_AUTOMATION_ENABLED = os.environ.get("OPENMATES_OPENCODE_RESPONSE_MEDIA_AUTOMATION", "").strip() == "1"
+PROTECTED_CONTROL_PLANE_EXACT_PATHS = frozenset(
+    {
+        "opencode.json",
+        "scripts/opencode_permission_watcher.py",
+        "scripts/opencode_credential_migration.py",
+        "scripts/opencode_runtime_release.py",
+        "scripts/sync_opencode_runtime_hook.py",
+        "scripts/sessions.py",
+        "scripts/start-opencode-server.sh",
+    }
+)
+PROTECTED_CONTROL_PLANE_PREFIXES = (
+    ".opencode/",
+    "backend/engineering_control_plane/",
+    "scripts/patches/opencode-",
+)
 PREPARED_VERIFICATION_PROFILES = {
     "cli-typecheck": {
         "command": ["pnpm", "--dir", "frontend/packages/openmates-cli", "run", "typecheck"],
@@ -2829,6 +2846,27 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     )
 
 
+def is_protected_control_plane_path(path: str) -> bool:
+    """Return whether a repository path belongs to the shared coding traffic controller."""
+    normalized = _canonical_stored_repo_path(str(path or "").replace("\\", "/")).removeprefix("./")
+    if normalized in PROTECTED_CONTROL_PLANE_EXACT_PATHS:
+        return True
+    return any(normalized.startswith(prefix) for prefix in PROTECTED_CONTROL_PLANE_PREFIXES)
+
+
+def validate_product_session_deploy_paths(paths: list[str]) -> None:
+    """Reject control-plane changes from the product-session deployment lane."""
+    protected = sorted({path for path in paths if is_protected_control_plane_path(path)})
+    if not protected:
+        return
+    rendered = ", ".join(protected)
+    raise RuntimeError(
+        "CONTROL-PLANE DEPLOY BLOCKED — ordinary OpenCode product sessions cannot deploy "
+        f"shared orchestration files: {rendered}. Preserve the worktree and move these changes "
+        "to the dedicated Codex control-plane recovery branch for review."
+    )
+
+
 def _resolve_deploy_selection(
     session: dict,
     *,
@@ -3437,20 +3475,28 @@ def _mark_worktree_deployed(
     integration: dict | None = None,
 ) -> None:
     """Mark a worktree merged and clear its matching blocked deploy record."""
-    checkpoint_files = sorted(str(path) for path in (integration or {}).get("files") or [])
-    source_patch_still_matches = True
     current_session = _load_sessions().get("sessions", {}).get(session_id, {})
     current_metadata = current_session.get("worktree") if isinstance(current_session, dict) else None
-    if checkpoint_files and isinstance(current_metadata, dict):
+    source_matches_deployed_commit = False
+    if isinstance(current_metadata, dict) and current_metadata.get("path"):
         try:
-            source_patch_still_matches = _worktree_patch_id(current_metadata, checkpoint_files) == patch_id
+            source_matches_deployed_commit = (
+                _worktree_head(current_metadata["path"]) == commit_hash
+                and not _worktree_changed_files({**current_metadata, "base_commit": commit_hash})
+            )
         except (OSError, RuntimeError):
-            source_patch_still_matches = False
+            source_matches_deployed_commit = False
+    # Synchronisation rebases any work created after the immutable deployment
+    # checkpoint onto commit_hash.  A clean source at that exact commit is the
+    # only state that may truthfully be called merged.  A patch fingerprint
+    # cannot be compared here: after a successful deploy the selected patch is
+    # part of HEAD and therefore correctly disappears from the working diff.
+    merged_state_is_truthful = source_matches_deployed_commit
 
     def mark(data: dict) -> None:
         metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
         if isinstance(metadata, dict):
-            metadata["status"] = "merged"
+            metadata["status"] = "merged" if merged_state_is_truthful else "changes_pending"
             metadata["merged_commit"] = commit_hash
             metadata["last_active"] = _now_iso()
             metadata.pop("pending_commit", None)
@@ -3467,10 +3513,10 @@ def _mark_worktree_deployed(
                 }
             session = data.get("sessions", {}).get(session_id)
             if isinstance(session, dict):
-                session["workspace_state"] = "integrated" if source_patch_still_matches else "changes_pending"
+                session["workspace_state"] = "integrated" if merged_state_is_truthful else "changes_pending"
                 auto = session.get("auto_integration")
                 if isinstance(auto, dict):
-                    auto["status"] = "integrated" if source_patch_still_matches else "changes_pending"
+                    auto["status"] = "integrated" if merged_state_is_truthful else "changes_pending"
                     auto["updated_at"] = _now_iso()
         if patch_id:
             data["deploy_queue"] = [
@@ -3480,7 +3526,7 @@ def _mark_worktree_deployed(
             ]
 
     _mutate_sessions(mark)
-    if source_patch_still_matches:
+    if merged_state_is_truthful:
         with _worktree_checkpoint_lock(session_id):
             latest_session = _load_sessions().get("sessions", {}).get(session_id, {})
             latest_auto = latest_session.get("auto_integration") if isinstance(latest_session.get("auto_integration"), dict) else {}
@@ -10170,7 +10216,7 @@ def _record_session_media(
             "snippet_hash": snippet_hash,
             "subject_commit": subject_commit,
             "run_id": run_id,
-            "status": "pending",
+            "status": "pending" if MEDIA_AUTOMATION_ENABLED else "quarantined",
             "attempts": 0,
             "created_at": now,
             "updated_at": now,
@@ -10218,6 +10264,9 @@ def _fail_session_media(session_reference: str, artifact_key: str, *, reason: st
 
 def _claim_session_media(session_reference: str) -> dict | None:
     """Claim the oldest pending media artifact with a deterministic message id."""
+    if not MEDIA_AUTOMATION_ENABLED:
+        return None
+
     def mutate(data: dict) -> dict | None:
         repository_session_id = _continuation_repository_session_id(data, session_reference)
         if not repository_session_id:
@@ -10266,6 +10315,50 @@ def _claim_session_media(session_reference: str) -> dict | None:
     return _mutate_sessions(mutate)
 
 
+def _quarantine_session_media(session_reference: str = "", *, reason: str = "recovery hotfix") -> dict:
+    """Retire every undelivered legacy media record without deleting forensic state."""
+    now = _now_iso()
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = (
+            _continuation_repository_session_id(data, session_reference)
+            if session_reference
+            else ""
+        )
+        if session_reference and not repository_session_id:
+            raise RuntimeError(f"session not found for response media quarantine: {session_reference}")
+        selected = (
+            {repository_session_id: data["sessions"][repository_session_id]}
+            if repository_session_id
+            else data.get("sessions", {})
+        )
+        quarantined = 0
+        sessions_changed = 0
+        for session in selected.values():
+            artifacts = session.get("response_media") if isinstance(session, dict) else None
+            if not isinstance(artifacts, dict):
+                continue
+            changed = False
+            for record in artifacts.values():
+                if not isinstance(record, dict) or record.get("status") not in {"pending", "delivering"}:
+                    continue
+                record["status"] = "quarantined"
+                record["quarantine_reason"] = reason
+                record["quarantined_at"] = now
+                record["updated_at"] = now
+                quarantined += 1
+                changed = True
+            sessions_changed += int(changed)
+        return {
+            "quarantined": quarantined,
+            "sessions_changed": sessions_changed,
+            "reason": reason,
+            "quarantined_at": now,
+        }
+
+    return _mutate_sessions(mutate)
+
+
 def _finish_session_media(session_reference: str, artifact_key: str, *, delivered: bool) -> dict | None:
     """Acknowledge visible delivery or allow one bounded retry."""
     def mutate(data: dict) -> dict | None:
@@ -10292,7 +10385,9 @@ def _finish_session_media(session_reference: str, artifact_key: str, *, delivere
 def cmd_media(args: argparse.Namespace) -> None:
     """Record and deliver required OpenCode response media."""
     try:
-        if args.media_action == "record":
+        if args.media_action == "quarantine":
+            result = _quarantine_session_media(args.session or "", reason=args.reason or "recovery hotfix")
+        elif args.media_action == "record":
             result = _record_session_media(
                 args.session,
                 artifact_type=args.artifact_type,
@@ -12448,30 +12543,141 @@ def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> N
         )
 
 
+def _git_commit_tree(repo: Path, commit: str) -> str:
+    """Resolve the tree identity for a retained snapshot commit."""
+    rc, tree, stderr = _run_cmd(["git", "rev-parse", f"{commit}^{{tree}}"], cwd=str(repo))
+    if rc != 0 or not tree.strip():
+        raise RuntimeError(f"Could not resolve snapshot tree: {stderr}")
+    return tree.strip()
+
+
+def _snapshot_worktree_to_commit(source_root: Path, base_commit: str, *, message: str) -> str:
+    """Capture tracked and non-ignored untracked source state without touching its real index."""
+    with tempfile.TemporaryDirectory(prefix="openmates-deploy-snapshot-") as temp_dir:
+        env = {
+            **os.environ,
+            "GIT_INDEX_FILE": str(Path(temp_dir) / "index"),
+            "GIT_AUTHOR_NAME": os.environ.get("GIT_AUTHOR_NAME", "OpenMates Recovery"),
+            "GIT_AUTHOR_EMAIL": os.environ.get("GIT_AUTHOR_EMAIL", "recovery@openmates.org"),
+            "GIT_COMMITTER_NAME": os.environ.get("GIT_COMMITTER_NAME", "OpenMates Recovery"),
+            "GIT_COMMITTER_EMAIL": os.environ.get("GIT_COMMITTER_EMAIL", "recovery@openmates.org"),
+        }
+        read_tree = subprocess.run(
+            ["git", "read-tree", base_commit],
+            cwd=str(source_root),
+            env=env,
+            capture_output=True,
+            timeout=120,
+        )
+        if read_tree.returncode != 0:
+            raise RuntimeError(read_tree.stderr.decode("utf-8", errors="replace").strip())
+        add = subprocess.run(
+            ["git", "add", "-A", "--", "."],
+            cwd=str(source_root),
+            env=env,
+            capture_output=True,
+            timeout=120,
+        )
+        if add.returncode != 0:
+            raise RuntimeError(add.stderr.decode("utf-8", errors="replace").strip())
+        tree = subprocess.run(
+            ["git", "write-tree"],
+            cwd=str(source_root),
+            env=env,
+            capture_output=True,
+            timeout=120,
+        )
+        tree_hash = tree.stdout.decode("utf-8", errors="replace").strip()
+        if tree.returncode != 0 or not tree_hash:
+            raise RuntimeError(tree.stderr.decode("utf-8", errors="replace").strip())
+        commit = subprocess.run(
+            ["git", "commit-tree", tree_hash, "-p", base_commit, "-m", message],
+            cwd=str(source_root),
+            env=env,
+            capture_output=True,
+            timeout=120,
+        )
+        commit_hash = commit.stdout.decode("utf-8", errors="replace").strip()
+        if commit.returncode != 0 or not commit_hash:
+            raise RuntimeError(commit.stderr.decode("utf-8", errors="replace").strip())
+        return commit_hash
+
+
 def _sync_deployed_files_to_source(
+    session_id: str,
     source_metadata: dict,
     checkout_root: Path,
     files: list[str],
     patch_files: list[str],
     expected_patch_id: str,
+    checkpoint_commit: str,
+    deployed_commit: str,
 ) -> str:
-    """Align deployed files without overwriting edits made during integration."""
+    """Advance to the deploy and reapply only work remaining after its checkpoint."""
     source_root = Path(str(source_metadata.get("path") or ""))
     try:
-        if _worktree_patch_id(source_metadata, patch_files) != expected_patch_id:
-            return "Source worktree changed during deploy; deployed files were not synchronized."
-        for relative_path in files:
-            deployed_path = checkout_root / relative_path
-            source_path = source_root / relative_path
-            if deployed_path.is_file():
-                source_path.parent.mkdir(parents=True, exist_ok=True)
-                temporary = source_path.with_name(f".{source_path.name}.{os.getpid()}.deploy-sync")
-                shutil.copy2(deployed_path, temporary)
-                temporary.replace(source_path)
-            elif source_path.exists() or source_path.is_symlink():
-                source_path.unlink()
+        if not checkpoint_commit or not deployed_commit:
+            return "Checkpoint or deployed commit is missing; source worktree was not advanced."
+        snapshot_commit = _snapshot_worktree_to_commit(
+            source_root,
+            checkpoint_commit,
+            message=f"recovery: preserve post-checkpoint work for {session_id}",
+        )
+        safe_session = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:48] or "unknown"
+        recovery_ref = f"refs/openmates/deploy-recovery/{safe_session}-{snapshot_commit[:12]}"
+        rc, _stdout, stderr = _run_cmd(
+            ["git", "update-ref", recovery_ref, snapshot_commit],
+            cwd=str(source_root),
+        )
+        if rc != 0:
+            return f"Could not retain source recovery ref: {stderr}"
+        diff_result = subprocess.run(
+            ["git", "diff", "--binary", checkpoint_commit, snapshot_commit, "--"],
+            cwd=str(source_root),
+            capture_output=True,
+            timeout=120,
+        )
+        if diff_result.returncode != 0:
+            return diff_result.stderr.decode("utf-8", errors="replace").strip()
+        remainder = diff_result.stdout
+        if remainder:
+            validate = subprocess.run(
+                ["git", "apply", "--3way", "--whitespace=nowarn", "-"],
+                cwd=str(checkout_root),
+                input=remainder,
+                capture_output=True,
+                timeout=120,
+            )
+            _run_cmd(["git", "reset", "--hard", deployed_commit], cwd=str(checkout_root))
+            if validate.returncode != 0:
+                detail = validate.stderr.decode("utf-8", errors="replace").strip()
+                return f"Post-checkpoint work could not be rebased; preserved at {recovery_ref}: {detail}"
+        latest_snapshot = _snapshot_worktree_to_commit(
+            source_root,
+            checkpoint_commit,
+            message=f"recovery: verify post-checkpoint work for {session_id}",
+        )
+        if _git_commit_tree(source_root, latest_snapshot) != _git_commit_tree(source_root, snapshot_commit):
+            return f"Source worktree changed during final deploy synchronization; preserved at {recovery_ref}."
+        rc, _stdout, stderr = _run_cmd(["git", "reset", "--hard", deployed_commit], cwd=str(source_root))
+        if rc != 0:
+            return f"Could not advance source worktree to deployed commit; preserved at {recovery_ref}: {stderr}"
+        if remainder:
+            apply_result = subprocess.run(
+                ["git", "apply", "--3way", "--whitespace=nowarn", "-"],
+                cwd=str(source_root),
+                input=remainder,
+                capture_output=True,
+                timeout=120,
+            )
+            if apply_result.returncode != 0:
+                _run_cmd(["git", "reset", "--hard", snapshot_commit], cwd=str(source_root))
+                detail = apply_result.stderr.decode("utf-8", errors="replace").strip()
+                return f"Post-checkpoint restore failed; recovery checkout retained at {recovery_ref}: {detail}"
+        if _worktree_head(source_root) != deployed_commit:
+            return f"Source HEAD does not match deployed commit; recovery state is {recovery_ref}."
     except (OSError, RuntimeError) as exc:
-        return f"Could not synchronize deployed files into the source worktree: {exc}"
+        return f"Could not advance source worktree to the deployed commit: {exc}"
     return ""
 
 
@@ -12503,10 +12709,14 @@ def _deploy_native_worktree(
             prepared_base,
         )
         checkpoint_commit = str(getattr(args, "expected_checkpoint_commit", "") or "")
-        if checkpoint_commit:
-            integration = _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
-        else:
-            integration = _prepare_integration_worktree(*prepare_args)
+        if not checkpoint_commit:
+            checkpoint_commit = _create_worktree_checkpoint_commit(
+                sid,
+                worktree_metadata,
+                to_commit,
+                patch_id,
+            )
+        integration = _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
 
         while True:
             checkout_root = Path(integration["path"])
@@ -12589,11 +12799,14 @@ def _deploy_native_worktree(
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
             source_sync_warning = _sync_deployed_files_to_source(
+                sid,
                 worktree_metadata,
                 checkout_root,
                 commit_files,
                 to_commit,
                 patch_id,
+                checkpoint_commit,
+                commit_hash_full,
             )
             control_plane_warning = _control_plane_sync_warning(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
@@ -12876,6 +13089,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         )
     except RuntimeError as exc:
         print(f"{_session_repo_name(session).upper()} DEPLOY FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        validate_product_session_deploy_paths(to_commit)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
         sys.exit(1)
     manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
     expected_manifest_id = str(getattr(args, "expected_manifest_id", "") or "")
@@ -15762,6 +15980,17 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
         upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
         conflicts = sorted(local_paths.intersection(upstream_paths))
         if conflicts:
+            if worktree.get("status") == "active":
+                # An interrupted active chat may own genuine pending edits on
+                # paths that advanced upstream. Preserve that exact checkout so
+                # the chat can reconcile its own task context after recovery.
+                link_shared_worktree_resources(worktree_path)
+                return {
+                    "cwd": str(worktree_path),
+                    "repository_session_id": repository_session_id,
+                    "advanced": False,
+                    "preserved_conflicts": conflicts,
+                }
             integration = worktree.get("integration") if isinstance(worktree.get("integration"), dict) else {}
             if worktree.get("status") != "merged" or integration.get("status") != "merged":
                 raise RuntimeError(
@@ -16478,6 +16707,9 @@ def main() -> None:
 
     p_media = sub.add_parser("media", help="Manage durable response-media delivery")
     p_media_sub = p_media.add_subparsers(dest="media_action", required=True)
+    p_media_quarantine = p_media_sub.add_parser("quarantine", help="Quarantine undelivered legacy media records")
+    p_media_quarantine.add_argument("--session", default="", help="Optional repository or OpenCode session ID")
+    p_media_quarantine.add_argument("--reason", default="recovery hotfix")
     p_media_record = p_media_sub.add_parser("record", help="Record one pending response artifact")
     p_media_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
     p_media_record.add_argument(

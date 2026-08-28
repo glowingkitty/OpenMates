@@ -19,6 +19,7 @@ import tempfile
 
 
 HOOK_PATH = Path(".opencode/plugins/openmates-hooks.js")
+RUNTIME_MIRRORS = (HOOK_PATH, Path("opencode.json"))
 
 
 def _digest(data: bytes) -> str:
@@ -28,37 +29,44 @@ def _digest(data: bytes) -> str:
 def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
     runtime_checkout = runtime_checkout.resolve()
     project_root = project_root.resolve()
-    source = runtime_checkout / HOOK_PATH
-    target = project_root / HOOK_PATH
     if runtime_checkout == project_root:
         raise ValueError("runtime checkout and shared project root must differ")
-    if not source.is_file():
-        raise FileNotFoundError(f"deployed hook is missing: {source}")
-    source_data = source.read_bytes()
-    if not source_data or b"export const OpenMatesHooks" not in source_data:
-        raise ValueError(f"deployed hook does not export OpenMatesHooks: {source}")
-    previous_data = target.read_bytes() if target.is_file() else b""
-    source_hash = _digest(source_data)
-    previous_hash = _digest(previous_data) if previous_data else ""
-    changed = previous_data != source_data
-    if changed:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=target.parent, prefix=".openmates-hooks-", delete=False) as handle:
-            temporary = Path(handle.name)
-            handle.write(source_data)
-            handle.flush()
-            os.fsync(handle.fileno())
-        try:
-            temporary.chmod(source.stat().st_mode & 0o777)
-            os.replace(temporary, target)
-        finally:
-            temporary.unlink(missing_ok=True)
+    files = []
+    for relative in RUNTIME_MIRRORS:
+        source = runtime_checkout / relative
+        target = project_root / relative
+        if not source.is_file():
+            raise FileNotFoundError(f"deployed runtime file is missing: {source}")
+        source_data = source.read_bytes()
+        if relative == HOOK_PATH and (not source_data or b"export const OpenMatesHooks" not in source_data):
+            raise ValueError(f"deployed hook does not export OpenMatesHooks: {source}")
+        previous_data = target.read_bytes() if target.is_file() else b""
+        changed = previous_data != source_data
+        if changed:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=target.parent, prefix=f".{target.name}-", delete=False) as handle:
+                temporary = Path(handle.name)
+                handle.write(source_data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            try:
+                temporary.chmod(source.stat().st_mode & 0o777)
+                os.replace(temporary, target)
+            finally:
+                temporary.unlink(missing_ok=True)
+        files.append(
+            {
+                "changed": changed,
+                "path": str(relative),
+                "previous_hash": _digest(previous_data) if previous_data else "",
+                "source_hash": _digest(source_data),
+                "target": str(target),
+            }
+        )
     return {
-        "changed": changed,
-        "previous_hash": previous_hash,
+        "changed": any(item["changed"] for item in files),
+        "files": files,
         "runtime_checkout": str(runtime_checkout),
-        "source_hash": source_hash,
-        "target": str(target),
     }
 
 

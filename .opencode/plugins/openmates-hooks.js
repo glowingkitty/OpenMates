@@ -63,6 +63,7 @@ const OPAQUE_LONG_SLEEP_MARKER = "[OpenMates opaque long sleep guard]";
 const API_HEALTH_WAIT_MARKER = "[OpenMates API health coordination]";
 const RESPONSE_MEDIA_EMBED_MARKER = "[OpenMates response-media embed required]";
 const FIGMA_REFERENCE_EMBED_MARKER = "[OpenMates Figma reference embed required]";
+const CONTROL_PLANE_GUARD_MARKER = "[OpenMates control-plane guard]";
 const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
@@ -79,6 +80,29 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
 const HOOK_SOURCE_URL = new URL(import.meta.url);
+const PROTECTED_CONTROL_PLANE_PATHS = [
+  ".opencode/",
+  "backend/engineering_control_plane/",
+  "opencode.json",
+  "scripts/opencode_credential_migration.py",
+  "scripts/opencode_permission_watcher.py",
+  "scripts/opencode_runtime_release.py",
+  "scripts/sync_opencode_runtime_hook.py",
+  "scripts/patches/opencode-",
+  "scripts/sessions.py",
+  "scripts/start-opencode-server.sh",
+];
+const SECRET_CONFIG_PATHS = [
+  "/home/superdev/.config/opencode/",
+  "/home/superdev/opencode/.opencode/opencode.jsonc",
+];
+const SECRET_ENV_KEYS = [
+  "BRAVE_API_KEY",
+  "CONTEXT7_API_KEY",
+  "FIRECRAWL_API_KEY",
+  "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "PENPOT_ACCESS_TOKEN",
+];
 
 function hashHookSource() {
   try {
@@ -2016,13 +2040,19 @@ function resolveExistingFigmaExportPathForTest(
   return "";
 }
 
+function responseMediaAutomationEnabledForTest(env = process.env) {
+  return String(env?.OPENMATES_OPENCODE_RESPONSE_MEDIA_AUTOMATION || "").trim() === "1";
+}
+
 function responseMediaArtifactForTest({
   command = "",
   output = "",
   cwd = "",
   worktreePath = "",
   requireExistingFigmaExport = false,
+  automationEnabled = responseMediaAutomationEnabledForTest(),
 } = {}) {
+  if (!automationEnabled) return null;
   const video = firstResponseMediaVideoSnippetForTest(output);
   if (
     video
@@ -2057,7 +2087,8 @@ function responseMediaArtifactForTest({
   return null;
 }
 
-function mediaDeliveryPromptForTest(record) {
+function mediaDeliveryPromptForTest(record, { automationEnabled = responseMediaAutomationEnabledForTest() } = {}) {
+  if (!automationEnabled) return "";
   if (!record?.snippet) return "";
   if (record.artifact_type === "figma_export") return "";
   const label = record.artifact_type === "video" ? "video" : "Figma reference";
@@ -2094,6 +2125,7 @@ function assistantTextPartForTest(event) {
 }
 
 function appendResponseMediaEmbedHint(command, output) {
+  if (!responseMediaAutomationEnabledForTest()) return;
   if (!output || typeof output.output !== "string" || output.output.includes(RESPONSE_MEDIA_EMBED_MARKER)) return;
   if (!/scripts\/(?:tests\.py\s+run|cli_video_capture\.py)\b/.test(command)) return;
   const snippet = firstResponseMediaVideoSnippetForTest(output.output);
@@ -2111,6 +2143,7 @@ function figmaExportPathForTest(text) {
 }
 
 function appendFigmaReferenceEmbedHint({ tool = "", command = "", cwd = "", worktreePath = "" } = {}, output) {
+  if (!responseMediaAutomationEnabledForTest()) return;
   if (!output || typeof output.output !== "string" || output.output.includes(FIGMA_REFERENCE_EMBED_MARKER)) return;
   const value = `${tool} ${command} ${output.output}`;
   if (!/figma/i.test(value)) return;
@@ -2293,6 +2326,88 @@ function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target 
   const message = worktreeGuardMessage(sessionID || mappedSessionID, worktreePath);
   if (worktreePath) return { decision: "block", message };
   return { decision: normalized === "strict" ? "block" : "warn", message };
+}
+
+function normalizedGuardPathForTest(value, cwd = activeCwd()) {
+  const raw = String(value || "").replaceAll("\\", "/");
+  if (!raw) return "";
+  const absolute = isAbsolute(raw) ? resolve(raw) : resolve(cwd, raw);
+  const normalized = absolute.replaceAll("\\", "/");
+  const rootRelative = relative(PROJECT_ROOT, absolute).replaceAll("\\", "/");
+  if (rootRelative && !rootRelative.startsWith("../") && rootRelative !== "..") return rootRelative;
+  for (const root of WORKTREE_ROOTS) {
+    const prefix = `${root.replace(/\/$/, "")}/`;
+    if (!normalized.startsWith(prefix)) continue;
+    const worktreeRelative = normalized.slice(prefix.length).split("/").slice(1).join("/");
+    if (worktreeRelative) return worktreeRelative;
+  }
+  return normalized;
+}
+
+function protectedControlPlanePathForTest(value, cwd = activeCwd()) {
+  const normalized = normalizedGuardPathForTest(value, cwd).replace(/^\.\//, "");
+  return PROTECTED_CONTROL_PLANE_PATHS.some((protectedPath) => (
+    protectedPath.endsWith("/") || protectedPath.endsWith("-")
+      ? normalized.startsWith(protectedPath)
+      : normalized === protectedPath
+  ));
+}
+
+function secretConfigPathForTest(value, cwd = activeCwd()) {
+  const normalized = (isAbsolute(String(value || "")) ? resolve(String(value)) : resolve(cwd, String(value || "")))
+    .replaceAll("\\", "/");
+  return SECRET_CONFIG_PATHS.some((protectedPath) => (
+    protectedPath.endsWith("/") ? normalized.startsWith(protectedPath) : normalized === protectedPath
+  ));
+}
+
+function commandReferencesProtectedControlPlaneForTest(command) {
+  const value = String(command || "").replaceAll("\\", "/");
+  return /(?:^|[\s'"/])(?:\.opencode\/|backend\/engineering_control_plane\/|opencode\.json\b|scripts\/(?:sessions\.py\b|start-opencode-server\.sh\b|sync_opencode_runtime_hook\.py\b|opencode_(?:permission_watcher|credential_migration|runtime_release)\.py\b|patches\/opencode-))/.test(value);
+}
+
+function commandReferencesSecretConfigForTest(command) {
+  const value = String(command || "").replaceAll("\\", "/");
+  return /(?:\/home\/superdev|\$HOME|\$\{HOME\}|~)?\/?(?:\.config\/opencode(?:\/|\b)|opencode\/\.opencode\/opencode\.jsonc\b)|\bsecrets\.env\b/.test(value);
+}
+
+function commandMutatesFilesForTest(command) {
+  const value = String(command || "");
+  return /(?:^|[;&|]\s*|\s)(?:apply_patch|chmod|chown|cp|install|mv|perl\s+-[^\n]*i|rm|sed\s+-[^\n]*i|tee|truncate)(?:\s|$)|(?:^|[^<])>{1,2}(?!>)/.test(value);
+}
+
+function controlPlaneToolDecisionForTest({ tool = "", args = {}, cwd = activeCwd() } = {}) {
+  const files = EDIT_TOOLS.has(tool)
+    ? editedFilesForTest(args, cwd)
+    : explicitFilesForTest(args, cwd);
+  if ((READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool) || EDIT_TOOLS.has(tool)) && files.some((file) => secretConfigPathForTest(file, cwd))) {
+    return {
+      decision: "block",
+      message: actionable(CONTROL_PLANE_GUARD_MARKER, "OpenCode credential configuration is outside the product-agent trust boundary.", "use the dedicated Codex control-plane workflow; do not expose or copy credential values."),
+    };
+  }
+  if (EDIT_TOOLS.has(tool) && files.some((file) => protectedControlPlanePathForTest(file, cwd))) {
+    return {
+      decision: "block",
+      message: actionable(CONTROL_PLANE_GUARD_MARKER, "ordinary product chats cannot edit shared OpenCode or sessions.py orchestration files.", "preserve the product worktree and move this control-plane change to the dedicated Codex recovery branch."),
+    };
+  }
+  if (BASH_TOOLS.has(tool)) {
+    const command = bashCommand(args);
+    if (commandReferencesSecretConfigForTest(command)) {
+      return {
+        decision: "block",
+        message: actionable(CONTROL_PLANE_GUARD_MARKER, "shell access to OpenCode credential configuration is forbidden.", "use the dedicated Codex control-plane workflow without printing credential values."),
+      };
+    }
+    if (commandReferencesProtectedControlPlaneForTest(command) && commandMutatesFilesForTest(command)) {
+      return {
+        decision: "block",
+        message: actionable(CONTROL_PLANE_GUARD_MARKER, "the shell command would mutate shared OpenCode or sessions.py orchestration files.", "move this change to the dedicated Codex recovery branch."),
+      };
+    }
+  }
+  return { decision: "allow", message: "" };
 }
 
 function guardRootEdit(files, sessionID, worktreePath = "") {
@@ -2615,7 +2730,9 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   // argparse commands must not be retried from every lifecycle event.
   const [continuationQueueEnabled, mediaQueueEnabled] = await Promise.all([
     sessionsCommandSupportedForTest("continuation"),
-    sessionsCommandSupportedForTest("media"),
+    responseMediaAutomationEnabledForTest()
+      ? sessionsCommandSupportedForTest("media")
+      : Promise.resolve(false),
   ]);
   const assistantTextParts = new Map();
   const presenceSourceID = randomUUID();
@@ -2948,12 +3065,20 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       output.env ||= {};
       output.env.OPENCODE_SESSION_ID = route.topLevelOpenCodeSessionID || input.sessionID;
       if (route.worktreePath) output.env.OPENMATES_SESSION_WORKTREE = route.worktreePath;
+      for (const key of SECRET_ENV_KEYS) output.env[key] = "";
     },
     "tool.execute.before": async (input, output) => {
       const tool = input.tool || "";
       const githubMcpGuard = githubMcpGuardDecisionForTest(tool);
       if (githubMcpGuard.decision === "block") throw new Error(githubMcpGuard.message);
       if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !SEARCH_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
+
+      const controlPlaneDecision = controlPlaneToolDecisionForTest({
+        tool,
+        args: output?.args || input?.args || {},
+        cwd: instanceDirectory,
+      });
+      if (controlPlaneDecision.decision === "block") throw new Error(controlPlaneDecision.message);
 
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(output?.args || input?.args);
@@ -3170,6 +3295,7 @@ OpenMatesHooks.test = Object.freeze({
   childMutationDecisionForTest,
   continuationSignalForTest,
   continuationSuppressedForTest,
+  controlPlaneToolDecisionForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,
@@ -3196,6 +3322,7 @@ OpenMatesHooks.test = Object.freeze({
   canonicalResponseMediaKeySourceForTest,
   resolveExistingFigmaExportPathForTest,
   responseMediaArtifactForTest,
+  responseMediaAutomationEnabledForTest,
   responseMediaVideoProducerCommandForTest,
   sessionsCommandSupportedForTest,
   validResponseMediaVideoSnippetForTest,

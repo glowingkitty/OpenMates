@@ -29,7 +29,50 @@ def isolated_state(monkeypatch, sessions):
         return callback(state)
 
     monkeypatch.setattr(sessions, "_mutate_sessions", mutate)
+    monkeypatch.setattr(sessions, "MEDIA_AUTOMATION_ENABLED", True)
     return state
+
+
+def test_recovery_quarantines_all_undelivered_media_without_deleting_records(monkeypatch) -> None:
+    sessions = load_sessions()
+    state = {
+        "sessions": {
+            "one": {
+                "opencode_session_id": "ses_one",
+                "response_media": {
+                    "pending": {"artifact_key": "pending", "status": "pending"},
+                    "delivering": {"artifact_key": "delivering", "status": "delivering"},
+                    "delivered": {"artifact_key": "delivered", "status": "delivered"},
+                },
+            },
+            "two": {
+                "opencode_session_id": "ses_two",
+                "response_media": {"failed": {"artifact_key": "failed", "status": "failed"}},
+            },
+        }
+    }
+
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(state))
+    result = sessions._quarantine_session_media(reason="recovery test")
+
+    assert result["quarantined"] == 2
+    assert result["sessions_changed"] == 1
+    assert state["sessions"]["one"]["response_media"]["pending"]["status"] == "quarantined"
+    assert state["sessions"]["one"]["response_media"]["delivering"]["status"] == "quarantined"
+    assert state["sessions"]["one"]["response_media"]["delivered"]["status"] == "delivered"
+    assert state["sessions"]["two"]["response_media"]["failed"]["status"] == "failed"
+
+
+def test_disabled_automation_never_claims_or_creates_pending_media(monkeypatch) -> None:
+    sessions = load_sessions()
+    state = isolated_state(monkeypatch, sessions)
+    monkeypatch.setattr(sessions, "MEDIA_AUTOMATION_ENABLED", False)
+
+    record = sessions._record_session_media("repo", artifact_type="video", snippet="<video></video>")
+
+    assert record["status"] == "quarantined"
+    assert sessions._claim_session_media("repo") is None
+    assert state["sessions"]["repo"]["response_media"][record["artifact_key"]]["status"] == "quarantined"
 
 
 def test_media_delivery_is_idempotent_and_acknowledged_once(monkeypatch) -> None:

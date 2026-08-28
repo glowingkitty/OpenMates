@@ -14,6 +14,8 @@ def test_sync_hook_atomically_updates_shared_runtime_mirror(tmp_path: Path) -> N
     target.parent.mkdir(parents=True)
     source.write_text("export const OpenMatesHooks = async () => ({});\n", encoding="utf-8")
     target.write_text("stale\n", encoding="utf-8")
+    (runtime / "opencode.json").write_text('{"agent":{}}\n', encoding="utf-8")
+    (project / "opencode.json").write_text('{"agent":{"build":{"steps":8}}}\n', encoding="utf-8")
 
     first = sync_hook(runtime, project)
     second = sync_hook(runtime, project)
@@ -21,6 +23,7 @@ def test_sync_hook_atomically_updates_shared_runtime_mirror(tmp_path: Path) -> N
     assert first["changed"] is True
     assert second["changed"] is False
     assert target.read_bytes() == source.read_bytes()
+    assert (project / "opencode.json").read_bytes() == (runtime / "opencode.json").read_bytes()
 
 
 def test_sync_hook_rejects_invalid_or_same_checkout(tmp_path: Path) -> None:
@@ -30,5 +33,6 @@ def test_sync_hook_rejects_invalid_or_same_checkout(tmp_path: Path) -> None:
     source = runtime / HOOK_PATH
     source.parent.mkdir(parents=True)
     source.write_text("not a plugin\n", encoding="utf-8")
+    (runtime / "opencode.json").write_text("{}\n", encoding="utf-8")
     with pytest.raises(ValueError, match="does not export"):
         sync_hook(runtime, tmp_path / "project")

@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 import time
 from contextlib import contextmanager, nullcontext
@@ -663,48 +664,94 @@ def test_chat_deduplication_blocks_fresh_inspection_failure(monkeypatch):
     assert data.get("worktree_deletion_manifests", []) == []
 
 
-def test_deploy_sync_copies_integrated_files_when_source_patch_is_unchanged(monkeypatch, tmp_path):
-    sessions = load_sessions_module()
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+def _deployed_source_fixture(tmp_path: Path) -> tuple[Path, Path, str, str]:
     source = tmp_path / "source"
+    source.mkdir()
+    _git(source, "init")
+    _git(source, "config", "user.email", "test@example.com")
+    _git(source, "config", "user.name", "Test")
+    (source / "deployed.txt").write_text("base\n", encoding="utf-8")
+    (source / "remaining.txt").write_text("base\n", encoding="utf-8")
+    _git(source, "add", ".")
+    _git(source, "commit", "-m", "base")
+    base = _git(source, "rev-parse", "HEAD")
+    (source / "deployed.txt").write_text("deployed\n", encoding="utf-8")
+    _git(source, "commit", "-am", "deployed")
+    deployed = _git(source, "rev-parse", "HEAD")
     integration = tmp_path / "integration"
-    (source / "scripts").mkdir(parents=True)
-    (integration / "scripts").mkdir(parents=True)
-    (source / "scripts" / "sessions.py").write_text("source\n", encoding="utf-8")
-    (integration / "scripts" / "sessions.py").write_text("deployed\n", encoding="utf-8")
-    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "patch-1")
+    _git(tmp_path, "clone", str(source), str(integration))
+    _git(source, "reset", "--hard", base)
+    (source / "deployed.txt").write_text("deployed\n", encoding="utf-8")
+    return source, integration, base, deployed
+
+
+def test_deploy_sync_advances_unchanged_source_patch_to_clean_deployed_head(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source, integration, base, deployed = _deployed_source_fixture(tmp_path)
 
     warning = sessions._sync_deployed_files_to_source(
-        {"path": str(source), "base_commit": "base"},
+        "ses_test",
+        {"path": str(source), "base_commit": base},
         integration,
-        ["scripts/sessions.py"],
-        ["scripts/sessions.py"],
+        ["deployed.txt"],
+        ["deployed.txt"],
         "patch-1",
+        deployed,
+        deployed,
     )
 
     assert warning == ""
-    assert (source / "scripts" / "sessions.py").read_text(encoding="utf-8") == "deployed\n"
+    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert _git(source, "status", "--porcelain") == ""
 
 
 def test_deploy_sync_preserves_source_edits_made_during_integration(monkeypatch, tmp_path):
     sessions = load_sessions_module()
-    source = tmp_path / "source"
-    integration = tmp_path / "integration"
-    source.mkdir()
-    integration.mkdir()
-    (source / "file.txt").write_text("new edit\n", encoding="utf-8")
-    (integration / "file.txt").write_text("deployed\n", encoding="utf-8")
-    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "changed-patch")
+    source, integration, base, deployed = _deployed_source_fixture(tmp_path)
+    (source / "deployed.txt").write_text("later edit\n", encoding="utf-8")
 
     warning = sessions._sync_deployed_files_to_source(
-        {"path": str(source), "base_commit": "base"},
+        "ses_test",
+        {"path": str(source), "base_commit": base},
         integration,
-        ["file.txt"],
-        ["file.txt"],
+        ["deployed.txt"],
+        ["deployed.txt"],
         "original-patch",
+        deployed,
+        deployed,
     )
 
-    assert "changed during deploy" in warning
-    assert (source / "file.txt").read_text(encoding="utf-8") == "new edit\n"
+    assert warning == ""
+    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert (source / "deployed.txt").read_text(encoding="utf-8") == "later edit\n"
+    assert _git(source, "status", "--porcelain") == "M  deployed.txt"
+
+
+def test_deploy_sync_preserves_unselected_post_checkpoint_work(tmp_path):
+    sessions = load_sessions_module()
+    source, integration, base, deployed = _deployed_source_fixture(tmp_path)
+    (source / "remaining.txt").write_text("post-checkpoint\n", encoding="utf-8")
+
+    warning = sessions._sync_deployed_files_to_source(
+        "ses_test",
+        {"path": str(source), "base_commit": base},
+        integration,
+        ["deployed.txt"],
+        ["deployed.txt"],
+        "original-patch",
+        deployed,
+        deployed,
+    )
+
+    assert warning == ""
+    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert (source / "remaining.txt").read_text(encoding="utf-8") == "post-checkpoint\n"
+    assert _git(source, "status", "--porcelain") == "M  remaining.txt"
 
 
 def test_chat_deduplication_blocks_lease_acquired_after_discovery(monkeypatch):
