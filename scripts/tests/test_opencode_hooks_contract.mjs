@@ -137,11 +137,26 @@ test("loaded hook binds chained sessions.py start before later commands", async 
   const { executionArgs } = await runBeforeShellWithExecutionArgs(
     'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" && python3 scripts/issues.py show BTWQJ --env dev',
   );
-  assert.equal(
+  assert.match(
     executionArgs.command,
-    'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" --opencode-session test-session && python3 scripts/issues.py show BTWQJ --env dev',
+    /python3 scripts\/sessions\.py start --mode bug --task "Investigate A && B" --opencode-session test-session && python3 scripts\/issues\.py show BTWQJ --env dev/,
   );
   assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
+});
+
+test("bash completion guard preserves payload and exit status", () => {
+  const { stabilizeBashCompletionForTest } = pluginModule.OpenMatesHooks.test;
+  const original = { command: "printf ok", timeout: 120000, workdir: "/tmp" };
+  const guarded = stabilizeBashCompletionForTest(original);
+
+  assert.match(guarded.command, /openmates-bash-completion-guard/);
+  assert.match(guarded.command, /\n\(\nprintf ok\n\)\n/);
+  assert.match(guarded.command, /__openmates_bash_status=\$\?/);
+  assert.match(guarded.command, /exit \"\$__openmates_bash_status\"/);
+  assert.equal(guarded.timeout, 120000);
+  assert.equal(guarded.workdir, "/tmp");
+  assert.equal(stabilizeBashCompletionForTest(guarded).command, guarded.command);
+  assert.equal(original.command, "printf ok");
 });
 
 test("blocking hook messages always explain reason and next action", async () => {
