@@ -394,9 +394,9 @@ test('session revoke: revoking session B from session A does not log out session
 		logB('Session B: exact guest onboarding carousel restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');
 		await proof.checkpoint('session-b-guest-onboarding');
+		proofWindowEndedAtMs = Date.now() - proofRecordingStartedAt;
 		await proof.attach();
 		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
-		proofWindowEndedAtMs = Date.now() - proofRecordingStartedAt;
 		await contextB.close();
 		contextBClosed = true;
 		if (proofVideoB) {
