@@ -5,15 +5,9 @@
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { sanitizeText } from '../../utils/textSanitizer';
-    import { canonicalizeAiModelSelection, isAiModelSelectionUsable } from '../../utils/aiModelSelection';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
-    import {
-        chatModelSelectionService,
-        registerChatModelSelectionSync,
-        type ChatModelSelection
-    } from '../../services/chatModelSelection';
     import { chatDB } from '../../services/db';
     import { isTeamAIInvocation } from '../../services/teamService';
     import { activeTeamId } from '../../stores/teamStore';
@@ -24,8 +18,6 @@
         cleanupDraftService,
         setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
-        reconcilePreservedDraftVersion,
-        shouldPreserveSameChatDraftRestore,
         triggerSaveDraft,
         flushSaveDraft
     } from '../../services/draftService';
@@ -37,13 +29,11 @@
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
-    import { isProviderHealthy } from '../../stores/appHealthStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
-    import { notificationStore } from '../../stores/notificationStore';
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
@@ -95,7 +85,6 @@
     import {
         buildProjectMentionSyntax,
         extractMentionQuery,
-        resolveModelMentionSelection,
         type AnyMentionResult,
         type MateMentionResult,
         type ProjectMentionResult
@@ -149,7 +138,6 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
-    import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
     interface UnclosedBlock {
@@ -264,102 +252,6 @@
     let showCamera = $state(false);
     let showMaps = $state(false);
     let showSketch = $state(false);
-    let modelSelection = $state<ChatModelSelection>('auto');
-    let modelSelectionReady = $state(true);
-    let modelSelectionChatId = $state<string | undefined>(undefined);
-    let modelSelectionUserId = $state<string | null>(null);
-    let pendingNewChatModelSelection = $state<ChatModelSelection | null>(null);
-
-    function isModelSelectionUsable(selection: string): boolean {
-        const profile = get(userProfile);
-        return isAiModelSelectionUsable(
-            selection,
-            {
-                disabledModels: profile.disabled_ai_models,
-                disabledServers: profile.disabled_ai_servers,
-            },
-            get(isProviderHealthy),
-        );
-    }
-
-    async function recoverModelSelection(
-        phase: UnavailableModelRecoveryPhase,
-        selection: ChatModelSelection,
-        userId: string,
-        chatId: string
-    ): Promise<ChatModelSelection> {
-        const canonicalSelection = canonicalizeAiModelSelection(selection) ?? selection;
-        const recoveredSelection = await recoverUnavailableModelSelection({
-            phase,
-            selection: canonicalSelection,
-            isUsable: isModelSelectionUsable,
-            notify: () => notificationStore.error($text('enter_message.model_selector.unavailable_reset')),
-            persistSelection: async () => {
-                await chatModelSelectionService.select({ userId, chatId, selection: 'auto' });
-            }
-        });
-        if (canonicalSelection !== selection && recoveredSelection === canonicalSelection) {
-            await chatModelSelectionService.select({ userId, chatId, selection: canonicalSelection });
-        }
-        return recoveredSelection;
-    }
-
-    $effect(() => {
-        const userId = $userProfile.user_id;
-        const chatId = currentChatId;
-        const pendingSelection = pendingNewChatModelSelection;
-        let cancelled = false;
-
-        if (!userId || !chatId) {
-            modelSelectionUserId = userId;
-            modelSelectionChatId = chatId;
-            modelSelectionReady = true;
-            if (!chatId && !pendingSelection) modelSelection = 'auto';
-            return;
-        }
-        if (chatId === modelSelectionChatId && userId === modelSelectionUserId) return;
-
-        modelSelectionUserId = userId;
-        modelSelectionChatId = chatId;
-        modelSelectionReady = false;
-        if (pendingSelection) {
-            modelSelection = pendingSelection;
-            pendingNewChatModelSelection = null;
-            void chatModelSelectionService
-                .select({ userId, chatId, selection: pendingSelection })
-                .catch((error) => {
-                    console.error('[MessageInput] Failed to persist new-chat model selection:', error);
-                    notificationStore.error($text('common.try_again'));
-                })
-                .finally(() => {
-                    if (!cancelled) modelSelectionReady = true;
-                });
-        } else {
-            modelSelection = 'auto';
-            void chatModelSelectionService
-                .restore({ userId, chatId })
-                .then((selection) => recoverModelSelection('load', selection, userId, chatId))
-                .then((selection) => {
-                    if (!cancelled) modelSelection = selection;
-                })
-                .catch((error) => {
-                    console.error('[MessageInput] Failed to restore chat model selection:', error);
-                    notificationStore.error($text('common.try_again'));
-                })
-                .finally(() => {
-                    if (!cancelled) modelSelectionReady = true;
-                });
-        }
-
-        return () => { cancelled = true; };
-    });
-    $effect(() => {
-        const userId = $userProfile.user_id;
-        if (!userId) return;
-        return registerChatModelSelectionSync(userId, (chatId, selection) => {
-            if (chatId === currentChatId) modelSelection = selection;
-        });
-    });
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
     // the parent (ActiveChat) can react to the map overlay opening/closing.
     $effect(() => { isMapsOpen = showMaps; });
@@ -787,6 +679,22 @@
             }
         } else {
             messageInputPlaceholderOverride.set(getBasePlaceholderText());
+        }
+    }
+
+    function refreshPlaceholderOverrideForTranslations() {
+        if (guestCtaMode && !$authStore.isAuthenticated) {
+            messageInputPlaceholderOverride.set(getBasePlaceholderText());
+            return;
+        }
+
+        if (placeholderText) {
+            messageInputPlaceholderOverride.set(placeholderText);
+            return;
+        }
+
+        if (placeholderCycleTimer) {
+            updateCyclingPlaceholderText();
         }
     }
 
@@ -2508,6 +2416,7 @@
         // for several seconds on page load because CustomPlaceholder calls get(text) at
         // TipTap init time, before the locale fetch completes.
         const unsubscribeText = text.subscribe(() => {
+            refreshPlaceholderOverrideForTranslations();
             if (editor && !editor.isDestroyed) {
                 editor.view.dispatch(editor.state.tr);
             }
@@ -2749,44 +2658,39 @@
 
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
-        if (result.type === 'wikipedia_source') {
+        if (result.type === 'model_alias') {
+            // Use the BestModelMention node for alias shortcuts (@best, @fast)
+            // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
+            const aliasResult = result as import('./services/mentionSearchService').ModelAliasMentionResult;
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
-                .insertContent('@wiki:')
+                .setBestModelMention({
+                    category: aliasResult.aliasId,
+                    displayName: aliasResult.mentionDisplayName
+                })
+                .insertContent(' ')
                 .run();
-            mentionQuery = 'wiki:';
-            showMentionDropdown = true;
-            return;
-        }
-
-        if (result.type === 'wikipedia') {
-            let wikipediaReferenceCount = 0;
-            editor.state.doc.descendants((node) => {
-                if (node.type.name === 'genericMention' && node.attrs.mentionType === 'wikipedia') {
-                    wikipediaReferenceCount += 1;
-                }
-            });
-            if (wikipediaReferenceCount >= 3) {
-                notificationStore.error($text('enter_message.mention_dropdown.wikipedia_limit'));
-                return;
-            }
-        }
-
-        if (result.type === 'model_alias' || result.type === 'model') {
-            const selection = resolveModelMentionSelection(result);
+        } else if (result.type === 'model') {
+            // Use the custom AI model mention node for visual display
+            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id:provider
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
+                .setAIModelMention({
+                    modelId: result.id,
+                    modelProvider: (result as import('./services/mentionSearchService').ModelMentionResult).providerId,
+                    displayName: result.mentionDisplayName
+                })
+                .insertContent(' ')
                 .run();
-            if (selection) {
-                void persistModelSelection(selection);
-            } else {
-                console.error('[MessageInput] Model mention did not resolve to an exact selection:', result.id);
-                notificationStore.error($text('common.try_again'));
-            }
+            
+            // Debug: Log the editor state after insertion
+            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
+                JSON.stringify(editor.getJSON(), null, 2)
+            );
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
@@ -2805,7 +2709,7 @@
                 .insertContent(' ')
                 .run();
         } else {
-            // Use generic mention node for skills, focus modes, settings/memories, and Wikipedia.
+            // Use generic mention node for skills, focus modes, and settings/memories
             // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
             // Extract color gradient for the app-specific styling
             const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | ProjectMentionResult;
@@ -3290,12 +3194,15 @@
                         // Also update the placeholder attribute directly if the editor is empty
                         // This ensures the placeholder text is immediately visible in the new language
                         if (isContentEmptyExceptMention(editor)) {
+                            refreshPlaceholderOverrideForTranslations();
                             // Get the current placeholder text using the text store
                             const key = (typeof window !== 'undefined' && 
                                         (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
                                 'enter_message.placeholder.touch' :
                                 'enter_message.placeholder.desktop';
-                            const newPlaceholderText = placeholderText || $text(key);
+                            const newPlaceholderText = guestCtaMode && !$authStore.isAuthenticated
+                                ? getBasePlaceholderText()
+                                : placeholderText || $text(key);
                             
                             // Update the placeholder data attribute on the editor element
                             // TipTap's placeholder extension uses this attribute for display
@@ -4215,8 +4122,7 @@
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
-        const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
-        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton && !preservesComposerFocus) {
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
         }
@@ -4987,33 +4893,6 @@
             }
         }
 
-        if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:')) {
-            const userId = $userProfile.user_id;
-            try {
-                if (userId && currentChatId) {
-                    modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
-                }
-            } catch (error) {
-                console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
-                notificationStore.error($text('common.try_again'));
-                hasContent = !isContentEmptyExceptMention(editor);
-                refreshDraftPreviewState(editor);
-                awaitingAITaskStart = false;
-                if (awaitingAITaskTimeoutId) {
-                    clearTimeout(awaitingAITaskTimeoutId);
-                    awaitingAITaskTimeoutId = null;
-                }
-                sendClickInProgress = false;
-                return;
-            }
-            const separator = modelSelection.indexOf('/');
-            if (separator > 0) {
-                const provider = modelSelection.slice(0, separator);
-                const modelId = modelSelection.slice(separator + 1);
-                editor.commands.insertContentAt(0, `@ai-model:${modelId}:${provider} `);
-            }
-        }
-
         void handleSend(
             editor,
             dispatch,
@@ -5048,35 +4927,6 @@
     function handleBuyCreditsClick() {
         console.info('[MessageInput] User clicked Buy credits — opening billing/buy-credits settings');
         settingsDeepLink.set('billing/buy-credits');
-        panelState.openSettings();
-    }
-
-    async function persistModelSelection(selection: ChatModelSelection): Promise<void> {
-        modelSelection = selection;
-        const userId = $userProfile.user_id;
-        if (!userId || !currentChatId) {
-            pendingNewChatModelSelection = currentChatId ? null : selection;
-            return;
-        }
-
-        try {
-            modelSelection = await chatModelSelectionService.select({
-                userId,
-                chatId: currentChatId,
-                selection
-            });
-        } catch (error) {
-            console.error('[MessageInput] Failed to persist chat model selection:', error);
-            notificationStore.error($text('common.try_again'));
-        }
-    }
-
-    function handleModelSelect(event: CustomEvent<{ selection: string }>): void {
-        void persistModelSelection(event.detail.selection);
-    }
-
-    function handleModelDetails(event: CustomEvent<{ modelId: string }>): void {
-        settingsDeepLink.set(`ai/model/${event.detail.modelId}`);
         panelState.openSettings();
     }
 
@@ -5489,7 +5339,6 @@
         });
 
         const draftStateChatId = get(draftEditorUIState).currentChatId;
-        const draftState = get(draftEditorUIState);
         const isSameOrPendingDraftContext = !draftStateChatId || draftStateChatId === chatId;
         const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
         const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
@@ -5498,29 +5347,6 @@
             editorHasInFlightEmbed(editor) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
-        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed &&
-            draftContent !== null &&
-            shouldPreserveSameChatDraftRestore(
-                chatId,
-                tipTapToCanonicalMarkdown(draftContent),
-                tipTapToCanonicalMarkdown(editor.getJSON()),
-                draftState,
-            );
-
-        if (shouldPreserveNewerLocalDraft) {
-            appendMessageInputDiagnostic('setDraftContent-preserve-local-editor', {
-                draftStateChatId,
-                currentChatId,
-                reason: 'newer-local-draft',
-            });
-            console.debug('[MessageInput] Preserving active editor during delayed draft restore', {
-                chatId,
-                currentChatId,
-                draftStateChatId,
-            });
-            draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
-            return;
-        }
 
         if (shouldPreserveInFlightEmbed) {
             appendMessageInputDiagnostic('setDraftContent-preserve-in-flight-embed', {
@@ -6005,7 +5831,6 @@
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
-        data-focused={isMessageFieldFocused}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
@@ -6226,15 +6051,11 @@
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
-                    {modelSelection}
-                    showModelSelector={true}
-                    {modelSelectionReady}
+                    isSketchOpen={showSketch}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sketchClick={handleSketchClick}
-                    on:modelSelect={handleModelSelect}
-                    on:modelDetails={handleModelDetails}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
                     on:buyCreditsClick={handleBuyCreditsClick}

@@ -73,6 +73,13 @@ async function waitForLandingIntroExamples(page: any): Promise<void> {
 	throw lastError;
 }
 
+async function getGuestComposerPlaceholder(page: any): Promise<string> {
+	return page.getByTestId('message-editor').evaluate((element: HTMLElement) => {
+		const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
+		return paragraph?.dataset.placeholder ?? '';
+	});
+}
+
 async function landingIntroLayoutMetrics(page: any): Promise<{
 	activeSideGap: number;
 	activeBottomGap: number;
@@ -1348,10 +1355,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.keyboard.press('Escape');
 		await expect(page.getByTestId('record-overlay')).toHaveCount(0, { timeout: 5000 });
 
-		const guestPlaceholder = await page.getByTestId('message-editor').evaluate((element: HTMLElement) => {
-			const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
-			return paragraph?.dataset.placeholder ?? '';
-		});
+		const guestPlaceholder = await getGuestComposerPlaceholder(page);
 		expect(guestPlaceholder).toMatch(/Click here to (test for free|ask anything)/);
 		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
 		await expect(page.getByTestId('resume-chat-large-card')).toHaveCount(0);
@@ -1385,6 +1389,28 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(allExamplesView).toBeVisible({ timeout: 5000 });
 		await expect(allExamplesView.getByTestId('resume-chat-large-card').first()).toBeVisible();
 		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
+	test('guest composer placeholder resolves after async locale load', async ({ page }: { page: any }) => {
+		test.setTimeout(30000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.addInitScript(() => {
+			localStorage.setItem('preferredLanguage', 'de');
+		});
+
+		await page.goto(getE2EDebugUrl('/?landing-guest-placeholder-locale'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+		await skipExpandedLandingIntro(page);
+
+		await expect(page.getByTestId('message-field')).toBeVisible({ timeout: 10000 });
+		await expect.poll(() => getGuestComposerPlaceholder(page), { timeout: 6000 }).toMatch(
+			/Klicke hier, um (es kostenlos zu testen|alles zu fragen)/
+		);
+		const guestPlaceholder = await getGuestComposerPlaceholder(page);
+		expect(guestPlaceholder).not.toBe('Loading...');
+		expect(guestPlaceholder).not.toContain('[T:');
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.guest-sequence,landing-onboarding.manual-navigation,landing-onboarding.signup-cta

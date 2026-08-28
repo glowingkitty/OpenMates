@@ -908,7 +908,6 @@
     let showWikiFullscreen = $state(false);
     let wikiFullscreenData = $state<{
         wikiTitle: string;
-        language?: string | null;
         wikidataId?: string | null;
         displayText: string;
         thumbnailUrl?: string | null;
@@ -1722,7 +1721,6 @@
     function handleWikiFullscreen(event: CustomEvent) {
         const detail = event.detail as {
             wikiTitle: string;
-            language?: string | null;
             wikidataId?: string | null;
             displayText: string;
             thumbnailUrl?: string | null;
@@ -5665,13 +5663,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeGuestInputLinkKey = $derived(
         guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
     );
-    let activeGuestInputPlaceholderKey = $derived.by(() => {
-        const deviceType = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
-            ? 'touch'
-            : 'desktop';
-        const intent = guestInputLinkIndex === 0 ? 'privacy' : 'apps';
-        return `enter_message.placeholder.guest_${intent}_${deviceType}`;
-    });
     let activeGuestInputLinkHref = $derived(
         guestInputLinkIndex === 0 ? externalLinks.legal.privacyPolicy : '#apps'
     );
@@ -13803,7 +13794,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
-                                    placeholderText={showWelcome && !$authStore.isAuthenticated ? $text(activeGuestInputPlaceholderKey) : undefined}
                                     guestCtaMode={showWelcome && !$authStore.isAuthenticated}
                                     on:textchange={(e) => {
                                         const t = (e.detail?.text || '');
@@ -13859,12 +13849,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
                          with the new article (fresh fetch, reset state) — same pattern as
                          regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
-                    {#key `${wikiFullscreenData.language || ''}:${wikiFullscreenData.wikiTitle}`}
+                    {#key wikiFullscreenData.wikiTitle}
                         {#await loadWikipediaFullscreenComponent() then module}
                             {#if module}
                             <module.default
                                 wikiTitle={wikiFullscreenData.wikiTitle}
-                                language={wikiFullscreenData.language}
                                 wikidataId={wikiFullscreenData.wikidataId}
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
