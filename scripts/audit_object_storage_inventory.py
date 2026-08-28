@@ -469,24 +469,36 @@ async def _populate_reference_database(connection: sqlite3.Connection, directus_
 
 async def _populate_verified_job_database(connection: sqlite3.Connection, directus_service: object) -> None:
     """Load only checksum-verified regional job evidence in bounded pages."""
-    cursor: str | None = None
+    latest = await directus_service.get_items(
+        "storage_replication_jobs",
+        params={"fields": "created_at", "sort": "-created_at", "limit": 1},
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    if not latest:
+        return
+    snapshot_created_at = latest[0].get("created_at")
+    if not snapshot_created_at:
+        raise RuntimeError("Verified regional storage job snapshot has no timestamp")
+    offset = 0
     while True:
-        item_filter: dict[str, object] = {"state": {"_eq": "verified"}}
-        if cursor:
-            item_filter["id"] = {"_gt": cursor}
         rows = await directus_service.get_items(
             "storage_replication_jobs",
             params={
-                "filter": item_filter,
-                "fields": "id,logical_bucket,object_key,checksum,region_states",
-                "sort": "id",
+                "filter": {"created_at": {"_lte": snapshot_created_at}},
+                "fields": "id,logical_bucket,object_key,checksum,state,region_states,created_at",
+                "sort": "created_at,id",
                 "limit": DIRECTUS_AUDIT_PAGE_SIZE,
+                "offset": offset,
             },
             no_cache=True,
             admin_required=True,
             raise_on_error=True,
         ) or []
         for row in rows:
+            if row.get("state") != "verified":
+                continue
             checksum = _normalise_sha256(row.get("checksum"))
             if not checksum:
                 continue
@@ -504,9 +516,7 @@ async def _populate_verified_job_database(connection: sqlite3.Connection, direct
                 )
         if len(rows) < DIRECTUS_AUDIT_PAGE_SIZE:
             break
-        cursor = str(rows[-1].get("id") or "")
-        if not cursor:
-            raise RuntimeError("Cannot paginate verified regional storage jobs")
+        offset += len(rows)
     connection.commit()
 
 

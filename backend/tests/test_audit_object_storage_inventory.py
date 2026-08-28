@@ -189,38 +189,46 @@ def test_authoritative_scan_heads_only_referenced_objects(tmp_path: Path, monkey
 
 # contract-test: supporting surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.integrity.observable-reconcilable
 @pytest.mark.anyio
-async def test_verified_job_loader_uses_cursor_pages_and_only_verified_regions(tmp_path: Path, monkeypatch) -> None:
+async def test_verified_job_loader_uses_snapshot_pages_and_only_verified_regions(tmp_path: Path, monkeypatch) -> None:
     from scripts import audit_object_storage_inventory as module
 
     monkeypatch.setattr(module, "DIRECTUS_AUDIT_PAGE_SIZE", 2)
 
     class Directus:
-        filters: list[dict] = []
+        params: list[dict] = []
 
         async def get_items(self, _collection: str, *, params: dict, **_kwargs) -> list[dict]:
-            self.filters.append(params["filter"])
-            if "id" not in params["filter"]:
+            self.params.append(params)
+            if params["sort"] == "-created_at":
+                return [{"created_at": "2026-08-28T10:00:00Z"}]
+            if params["offset"] == 0:
                 return [
                     {
                         "id": "job-1",
+                        "created_at": "2026-08-28T09:00:00Z",
                         "logical_bucket": "chatfiles",
                         "object_key": "one",
                         "checksum": "a" * 64,
+                        "state": "verified",
                         "region_states": {"nbg1": "verified", "fsn1": "pending"},
                     },
                     {
                         "id": "job-2",
+                        "created_at": "2026-08-28T09:30:00Z",
                         "logical_bucket": "chatfiles",
                         "object_key": "two",
                         "checksum": f"sha256:{'b' * 64}",
+                        "state": "verified",
                         "region_states": {"nbg1": "verified", "fsn1": "verified"},
                     },
                 ]
             return [{
                 "id": "job-3",
+                "created_at": "2026-08-28T10:00:00Z",
                 "logical_bucket": "chatfiles",
                 "object_key": "invalid-checksum",
                 "checksum": "invalid",
+                "state": "verified",
                 "region_states": {"nbg1": "verified"},
             }]
 
@@ -234,10 +242,12 @@ async def test_verified_job_loader_uses_cursor_pages_and_only_verified_regions(t
     finally:
         connection.close()
 
-    assert directus.filters == [
-        {"state": {"_eq": "verified"}},
-        {"state": {"_eq": "verified"}, "id": {"_gt": "job-2"}},
-    ]
+    assert directus.params[0] == {"fields": "created_at", "sort": "-created_at", "limit": 1}
+    assert [params["offset"] for params in directus.params[1:]] == [0, 2]
+    assert all(
+        params["filter"] == {"created_at": {"_lte": "2026-08-28T10:00:00Z"}}
+        for params in directus.params[1:]
+    )
     assert rows == [
         ("chatfiles", "one", "nbg1", f"sha256:{'a' * 64}"),
         ("chatfiles", "two", "fsn1", f"sha256:{'b' * 64}"),

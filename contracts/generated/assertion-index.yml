@@ -2423,7 +2423,7 @@ assertions:
     - &id260
       path: backend/tests/test_audit_object_storage_inventory.py
       line: 192
-      name: test_verified_job_loader_uses_cursor_pages_and_only_verified_regions
+      name: test_verified_job_loader_uses_snapshot_pages_and_only_verified_regions
       surface: rest_api
     - &id264
       path: backend/tests/test_generated_model_streaming_storage.py
@@ -3497,7 +3497,7 @@ assertions:
     - &id401
       path: backend/tests/test_audit_object_storage_inventory.py
       line: 192
-      name: test_verified_job_loader_uses_cursor_pages_and_only_verified_regions
+      name: test_verified_job_loader_uses_snapshot_pages_and_only_verified_regions
       surface: rest_api
     - &id404
       path: backend/tests/test_s3_recovery_backfill.py
