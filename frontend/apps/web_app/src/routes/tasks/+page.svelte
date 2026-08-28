@@ -76,6 +76,7 @@
   }
 
   .main-content {
+    container: main-content / inline-size;
     position: fixed;
     inset-inline-start: calc(var(--sidebar-width, 325px) + var(--sidebar-margin, 10px));
     inset-inline-end: 0;

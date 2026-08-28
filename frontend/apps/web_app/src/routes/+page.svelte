@@ -3712,6 +3712,7 @@
 	}
 
 	.main-content {
+		container: main-content / inline-size;
 		/* Change from fixed to absolute positioning when in scrollable mode */
 		position: fixed;
 		/* Logical property: offset from the sidebar on the inline-start side.
