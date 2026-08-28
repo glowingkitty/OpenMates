@@ -2665,7 +2665,6 @@
             const wikipediaSearchEndPosition = atDocPosition + wikipediaSearchSyntax.length;
             editor
                 .chain()
-                .focus()
                 .deleteRange({ from: atDocPosition, to: from })
                 .insertContent(wikipediaSearchSyntax)
                 .run();
