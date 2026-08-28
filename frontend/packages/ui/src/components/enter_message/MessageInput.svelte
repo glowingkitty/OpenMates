@@ -2661,13 +2661,14 @@
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
         if (result.type === 'wikipedia_source') {
             const wikipediaSearchSyntax = '@wiki:';
+            const wikipediaSearchEndPosition = atDocPosition + wikipediaSearchSyntax.length;
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
                 .insertContent(wikipediaSearchSyntax)
-                .setTextSelection(atDocPosition + wikipediaSearchSyntax.length)
                 .run();
+            editor.chain().focus(wikipediaSearchEndPosition).run();
             mentionQuery = 'wiki:';
             showMentionDropdown = true;
             return;
