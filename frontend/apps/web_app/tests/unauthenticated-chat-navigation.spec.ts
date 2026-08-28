@@ -76,6 +76,7 @@ async function blurComposerAndWaitForWelcome(page: any) {
 	await expect(composer).not.toBeFocused();
 	await expect(page.getByTestId('daily-inspiration-area')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('suggestions-wrapper')).toHaveCount(0, { timeout: 3000 });
 }
 
 async function expectGuestWelcomeSuppressedForComposer(page: any) {

@@ -5033,6 +5033,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     const SUGGESTIONS_APPROX_HEIGHT = 150;
     const GUEST_INTEREST_TAGS_PROMPT_GAP = 10;
     const GUEST_INTEREST_TAGS_APPROX_HEIGHT = 70;
+    const WELCOME_CENTER_OFFSET_NARROW_PX = 127;
+    const WELCOME_CENTER_OFFSET_DESKTOP_VH = 17.5;
 
     function recalculateGuestInterestTagsTop() {
         if (!chatSideEl || !welcomeContentEl) {
@@ -5097,8 +5099,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // The welcome block is vertically centered below the inspiration banner
         // and welcome top-button row.
         // Approximate its bottom edge position within the container.
-        const welcomeTopOffset = isEffectivelyNarrow ? 127 : 60;
-        const welcomeCenter = containerHeight * 0.5 + welcomeTopOffset;
+        const welcomeCenterOffset = isEffectivelyNarrow
+            ? WELCOME_CENTER_OFFSET_NARROW_PX
+            : viewportHeight * (WELCOME_CENTER_OFFSET_DESKTOP_VH / 100);
+        const welcomeCenter = containerHeight * 0.5 + welcomeCenterOffset;
         const welcomeBottom = welcomeCenter + welcomeHeight / 2;
 
         // Available gap between welcome bottom and the message input top.
@@ -13660,7 +13664,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          <!-- New-chat suggestions are tied to the active message input. The short
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
-                         {#if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                         {#if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && (messageInputFocused || !suggestionsWouldOverlapWelcome) && !hideSuggestionsForAnonymousFileAttachment}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
