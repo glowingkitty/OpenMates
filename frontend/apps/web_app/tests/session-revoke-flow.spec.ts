@@ -198,7 +198,8 @@ async function _isLoggedOut(page: any): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 // contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated
-test('session revoke: revoking session B from session A does not log out session A', async (_fixtures: any, testInfo: any) => {
+// eslint-disable-next-line no-empty-pattern
+test('session revoke: revoking session B from session A does not log out session A', async ({}, testInfo: any) => {
 	test.slow();
 	// Login × 2 + OTP window wait + settings navigation + revoke + assertions
 	test.setTimeout(300000);
