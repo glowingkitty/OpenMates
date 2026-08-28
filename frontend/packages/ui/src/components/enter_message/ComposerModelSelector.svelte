@@ -7,6 +7,7 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { onMount } from 'svelte';
+    import Toggle from '../Toggle.svelte';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { isProviderHealthy } from '../../stores/appHealthStore';
@@ -63,6 +64,11 @@
         onOpenDetails(modelId);
     }
 
+    function toggleModel(model: AIModelMetadata): void {
+        const modelSelection = aiModelSelectionValue(model);
+        select(selection === modelSelection ? 'auto' : modelSelection);
+    }
+
     onMount(() => {
         const handlePointerDown = (event: PointerEvent) => {
             if (!selectorElement.contains(event.target as Node)) {
@@ -117,12 +123,25 @@
                     {$text('enter_message.model_selector.model_selection')}
                 </button>
                 {#each providerModels as model (model.id)}
-                    <div class="model-menu-row">
-                        <button type="button" class="menu-item" role="menuitem" data-testid={`composer-model-${model.id}`} onclick={() => select(aiModelSelectionValue(model))}>
+                    {@const isSelected = selection === aiModelSelectionValue(model)}
+                    <div class="model-menu-row" data-testid="composer-model-row">
+                        <button
+                            type="button"
+                            class="menu-item"
+                            role="menuitem"
+                            data-testid="composer-model-name"
+                            aria-label={`${$text('enter_message.model_selector.model_details')}: ${model.name}`}
+                            onclick={() => openDetails(model.id)}
+                        >
                             <img src={getProviderIconUrl(model.logo_svg)} alt="" />
                             <span><strong>{model.name}</strong><small>{model.tier}</small></span>
                         </button>
-                        <button type="button" class="model-details" aria-label={$text('enter_message.model_selector.model_details')} onclick={() => openDetails(model.id)}>?</button>
+                        <Toggle
+                            checked={isSelected}
+                            ariaLabel={model.name}
+                            testId="composer-model-toggle"
+                            on:change={() => toggleModel(model)}
+                        />
                     </div>
                 {/each}
             {:else}
@@ -156,15 +175,17 @@
     .model-selector-trigger:disabled { opacity: 0.65; cursor: wait; }
     .model-selector-trigger img, .menu-item img { width: 1.75rem; height: 1.75rem; object-fit: contain; border-radius: var(--radius-2); }
     .model-selector-label { max-width: 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-    .model-selector-menu { position: absolute; z-index: var(--z-index-dropdown); bottom: calc(100% + var(--spacing-4)); left: 0; width: min(13rem, calc(100vw - 2rem)); max-height: 22rem; overflow-y: auto; padding: var(--spacing-2); background: var(--color-grey-0); border-radius: var(--radius-8); box-shadow: var(--shadow-lg); }
+    .model-selector-menu { position: absolute; z-index: var(--z-index-dropdown); bottom: calc(100% + var(--spacing-4)); left: 0; width: min(18rem, calc(100vw - 2rem)); max-height: 22rem; overflow-y: auto; padding: var(--spacing-2); background: var(--color-grey-0); border-radius: var(--radius-8); box-shadow: var(--shadow-lg); }
     .menu-item, .menu-heading { display: flex; align-items: center; gap: var(--spacing-4); width: 100%; padding: var(--spacing-4); border: 0; border-radius: var(--radius-3); color: var(--color-font-primary); text-align: start; background: transparent; cursor: pointer; }
     .menu-item:hover, .menu-heading:hover { background: var(--color-grey-10); }
     .menu-item span { display: flex; flex-direction: column; min-width: 0; }
     .menu-item strong { color: var(--color-primary-start); }
     .menu-item small { color: var(--color-font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .model-menu-row { display: flex; align-items: center; }
+    .model-menu-row { display: flex; align-items: center; gap: var(--spacing-2); }
     .model-menu-row .menu-item { flex: 1; }
-    .model-details { width: 2rem; height: 2rem; border: 0; border-radius: var(--radius-full); color: var(--color-font-button); background: var(--color-primary); cursor: pointer; }
+    .model-menu-row :global(.toggle) { width: 3.0625rem; min-width: 3.0625rem; height: 1.8125rem; }
+    .model-menu-row :global(.toggle .slider:before) { width: 1.5625rem; height: 1.5625rem; left: 0.125rem; bottom: 0.125rem; }
+    .model-menu-row :global(.toggle input:checked + .slider:before) { transform: translateX(1.25rem); }
     .show-more { width: 100%; padding: var(--spacing-3) var(--spacing-4); border: 0; color: var(--color-font-secondary); text-align: center; background: transparent; cursor: pointer; }
     @media (max-width: 34rem) { .model-selector-label { display: none; } }
 </style>

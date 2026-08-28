@@ -242,7 +242,7 @@
         mask-image: var(--icon-url-plus);
     }
     .attachment-menu-popover { position: absolute; z-index: var(--z-index-dropdown); bottom: calc(100% + var(--spacing-4)); left: 0; min-width: 10rem; padding: var(--spacing-4); background: var(--color-grey-0); border-radius: var(--radius-8); box-shadow: var(--shadow-lg); }
-    .attachment-menu-popover button { display: flex; align-items: center; gap: var(--spacing-4); width: 100%; padding: var(--spacing-4); border: 0; border-radius: var(--radius-3); color: var(--color-font-primary); text-align: start; background: transparent; cursor: pointer; }
+    .attachment-menu-popover button { display: flex; align-items: center; justify-content: flex-start; gap: var(--spacing-4); width: 100%; padding: var(--spacing-4); border: 0; border-radius: var(--radius-3); color: var(--color-font-primary); text-align: start; background: transparent; cursor: pointer; }
     .attachment-menu-popover button:hover { background: var(--color-grey-10); }
 
     /* Prevent page scroll during the recording start gesture.
