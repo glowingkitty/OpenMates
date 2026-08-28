@@ -3994,6 +3994,17 @@ def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_co
         and auto_integration.get("checkpoint_commit") == previous_commit
     ):
         return previous_commit
+    # A normal deploy attempt creates the recovery commit before running its
+    # gates. If a gate fails, that commit remains at the session-owned ref but
+    # is intentionally not promoted into auto_integration metadata. A retry
+    # must be able to replace that exact session checkpoint without weakening
+    # the compare-and-swap guard for arbitrary commits or reused session IDs.
+    rc, subject, _stderr = _run_cmd(
+        ["git", "show", "-s", "--format=%s", previous_commit],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc == 0 and subject.strip() == f"checkpoint: preserve session {session_id}":
+        return previous_commit
     raise RuntimeError(f"Refusing to overwrite checkpoint ref with unverified provenance: {checkpoint_ref}")
 
 
@@ -4166,8 +4177,10 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
             current_session = current.get("sessions", {}).get(session_id)
             if not isinstance(current_session, dict):
                 return
+            previous = current_session.get("auto_integration") if isinstance(current_session.get("auto_integration"), dict) else {}
             current_session["workspace_state"] = "recovery_needed"
             current_session["auto_integration"] = {
+                **previous,
                 "status": "blocked",
                 "event": event,
                 "patch_id": patch_id,

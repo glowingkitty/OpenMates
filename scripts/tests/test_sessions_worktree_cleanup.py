@@ -568,6 +568,23 @@ def test_checkpoint_ref_refuses_unverified_session_id_reuse(monkeypatch):
         sessions._checkpoint_ref_expected_commit("abcd", checkpoint_ref, "new-checkpoint")
 
 
+def test_checkpoint_ref_accepts_prior_failed_deploy_checkpoint(monkeypatch):
+    sessions = load_sessions_module()
+    checkpoint_ref = sessions._worktree_checkpoint_ref("abcd")
+
+    def run_command(command, **_kwargs):
+        if command[:3] == ["git", "rev-parse", "--verify"]:
+            return 0, "old-checkpoint", ""
+        if command[:4] == ["git", "show", "-s", "--format=%s"]:
+            return 0, "checkpoint: preserve session abcd", ""
+        raise AssertionError(command)
+
+    monkeypatch.setattr(sessions, "_run_cmd", run_command)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {"abcd": {}}})
+
+    assert sessions._checkpoint_ref_expected_commit("abcd", checkpoint_ref, "new-checkpoint") == "old-checkpoint"
+
+
 def test_ensure_reactivates_valid_merged_worktree(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     worktree = tmp_path / "managed" / "agent-abcd"
