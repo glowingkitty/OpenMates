@@ -418,8 +418,9 @@ describe("EmbedsMapView", () => {
     expect(filterMenu?.textContent).toContain("All results");
     expect(filterMenu?.textContent).toContain("event");
     expect(filterMenu?.textContent).toContain("place");
-    expect(target.querySelector('[data-testid="embeds-map-view-list"]')).toBeNull();
-    expect(target.querySelector('[data-testid="embeds-results-view-pane"]')).toBeNull();
+    expect(target.querySelector('[data-testid="embeds-map-view-list"]')).not.toBeNull();
+    expect(target.querySelector('[data-testid="embeds-results-view-pane"]')).not.toBeNull();
+    expect(target.querySelector('[data-testid="embeds-map-view-list"]')?.closest('[aria-hidden]')?.getAttribute("aria-hidden")).toBe("true");
 
     filterButton!.click();
     await tick();

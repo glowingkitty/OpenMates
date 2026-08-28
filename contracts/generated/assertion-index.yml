@@ -9566,12 +9566,12 @@ assertions:
       surface: rest_api
     - &id1037
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 697
+      line: 698
       name: retries source refs when the ref index changes during the initial load
       surface: gui.web
     - &id1038
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 743
+      line: 744
       name: retries unresolved source refs when synced embeds become available
       surface: gui.web
     - &id1039
@@ -17045,38 +17045,38 @@ assertions:
       surface: gui.web
     - &id1919
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 444
+      line: 445
       name: switches from the map state to the full weekly calendar state
       surface: gui.web
     - &id1920
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 487
+      line: 488
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
     - &id1921
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 519
+      line: 520
       name: does not map online event placeholder coordinates
       surface: gui.web
     - &id1922
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 546
+      line: 547
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
     - &id1923
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 587
+      line: 588
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
     - &id1924
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 667
+      line: 668
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
     - &id1925
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 782
+      line: 783
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     tests:
@@ -17542,38 +17542,38 @@ assertions:
       surface: gui.web
     - &id1984
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 444
+      line: 445
       name: switches from the map state to the full weekly calendar state
       surface: gui.web
     - &id1985
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 487
+      line: 488
       name: labels event and appointment start filters as time, not departure time
       surface: gui.web
     - &id1986
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 519
+      line: 520
       name: does not map online event placeholder coordinates
       surface: gui.web
     - &id1987
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 546
+      line: 547
       name: draws multiple travel connection routes from structured and flat segment
         coordinates
       surface: gui.web
     - &id1988
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 587
+      line: 588
       name: derives route filters and applies them without re-decoding entries
       surface: gui.web
     - &id1989
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 667
+      line: 668
       name: does not re-resolve ready entries for unrelated ref-index bumps
       surface: gui.web
     - &id1990
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
-      line: 782
+      line: 783
       name: cancels one scheduled idle map hydration when unmounted
       surface: gui.web
     - &id1991
