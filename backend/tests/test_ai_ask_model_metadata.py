@@ -45,7 +45,7 @@ def _ai_ask_models() -> list[dict[str, Any]]:
 def test_every_ai_ask_model_has_explicit_capability_and_release_date() -> None:
     models = _ai_ask_models()
 
-    assert models
+    assert len(models) == 35
     for model in models:
         assert model.get("capability_level") in CAPABILITY_LEVELS, model["id"]
         assert date.fromisoformat(model["release_date"]), model["id"]

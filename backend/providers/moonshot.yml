@@ -25,6 +25,7 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-04-28" # Model release date (Kimi K2.6)
+    capability_level: "medium"
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -72,6 +73,7 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-06-12" # Model release date from OpenRouter/Hugging Face listing
+    capability_level: "high"
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -118,6 +120,7 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-07-27" # Together AI serverless availability / open-weights release
+    capability_level: "high"
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard/provider IDs for cross-referencing

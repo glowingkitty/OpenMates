@@ -34,7 +34,9 @@ const EXPECTED_PROVIDERS = [
 	{ id: 'mistral', label: 'Mistral' },
 	{ id: 'deepseek', label: 'DeepSeek' },
 	{ id: 'google', label: 'Gemini' },
-	{ id: 'alibaba', label: 'Qwen' }
+	{ id: 'alibaba', label: 'Qwen' },
+	{ id: 'moonshot', label: 'Kimi' },
+	{ id: 'zai', label: 'GLM' }
 ];
 const COMPOSER_BLUR_SETTLE_MS = 250;
 
@@ -198,14 +200,19 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	});
 	await takeStepScreenshot(page, '02-model-picker');
 	if (proof) await proof.checkpoint('composer-model-picker');
+	await selectorMenu.getByTestId('composer-model-show-more').focus();
+	await page.keyboard.press('Escape');
+	await expect(selectorMenu).toBeHidden();
+	await selector.click();
 
 	await selectorMenu.getByTestId('composer-model-show-more').click();
 	const modelSelectionBack = selectorMenu.getByTestId('composer-model-back');
 	await expect(modelSelectionBack).toHaveText('Model selection');
 	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeHidden();
 	await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toBeHidden();
-	await expect(selectorMenu.getByTestId('composer-model-provider-google')).toContainText('Gemini');
-	await expect(selectorMenu.getByTestId('composer-model-provider-alibaba')).toContainText('Qwen');
+	for (const provider of EXPECTED_PROVIDERS.slice(4)) {
+		await expect(selectorMenu.getByTestId(`composer-model-provider-${provider.id}`)).toContainText(provider.label);
+	}
 	await modelSelectionBack.click();
 	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
 	await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toBeVisible();
@@ -286,6 +293,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeHidden();
 	await expect(reopenedMenu.getByTestId('composer-model-back')).toBeVisible();
 	await expect(reopenedMenu.getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' }).getByRole('checkbox')).toBeChecked();
+	await reopenedMenu.getByTestId('composer-model-back').click();
+	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeVisible();
 	await selector.click();
 
 	await editor.click();

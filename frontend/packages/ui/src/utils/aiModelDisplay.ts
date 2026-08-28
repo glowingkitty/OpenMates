@@ -42,9 +42,20 @@ export function compareAiProviders(a: AIModelMetadata, b: AIModelMetadata): numb
 }
 
 export function getModelCapabilityLevel(model: AIModelMetadata): AiCapabilityLevel {
-    if (model.tier === 'economy') return 'low';
-    if (model.tier === 'standard') return 'medium';
-    return model.reasoning ? 'max' : 'high';
+    if (!model.capability_level) {
+        throw new Error(`Missing capability_level for AI model ${model.id}`);
+    }
+    return model.capability_level;
+}
+
+export function compareAiModels(a: AIModelMetadata, b: AIModelMetadata): number {
+    if (!a.release_date || !b.release_date) {
+        throw new Error(`Missing release_date for AI model ${!a.release_date ? a.id : b.id}`);
+    }
+    const capabilityRank: Record<AiCapabilityLevel, number> = { low: 0, medium: 1, high: 2, max: 3 };
+    return b.release_date.localeCompare(a.release_date)
+        || capabilityRank[getModelCapabilityLevel(b)] - capabilityRank[getModelCapabilityLevel(a)]
+        || a.id.localeCompare(b.id);
 }
 
 export function getTierCapabilityLevel(tier: AiRequestTier): AiCapabilityLevel {

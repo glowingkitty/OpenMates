@@ -67,6 +67,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-08-26"
+    capability_level: "low"
     allow_auto_select: true
     reasoning: true
     external_ids:
@@ -117,6 +118,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-08-26"
+    capability_level: "medium"
     allow_auto_select: true
     reasoning: true
     external_ids:
@@ -167,6 +169,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-08-26"
+    capability_level: "high"
     allow_auto_select: true
     reasoning: true
     reasoning_effort: "medium"
@@ -218,6 +221,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-08-26"
+    capability_level: "max"
     allow_auto_select: true
     reasoning: true
     reasoning_effort: "max"
@@ -269,6 +273,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-04-15"
+    capability_level: "high"
     allow_auto_select: true
     external_ids:
       lmarena: "gpt-5.5"
@@ -314,6 +319,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-03-05" # Model release date (GPT-5.4 released March 2026)
+    capability_level: "high"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gpt-5.4"
@@ -358,6 +364,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-08-01" # Model release date (based on Llama 3.1 release)
+    capability_level: "low"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gpt-oss-120b"
@@ -409,6 +416,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2025-08-01"
+    capability_level: "low"
     allow_auto_select: true
     external_ids:
       lmarena: "gpt-oss-20b"

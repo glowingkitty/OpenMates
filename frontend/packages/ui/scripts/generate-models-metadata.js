@@ -187,6 +187,8 @@ function parseProviderYaml(providerId, filePath) {
         // e.g., "ai.ask" for text generation, "images.generate" for image generation
         for_app_skill: model.for_app_skill || null,
         tier: tier,
+        // Explicit product capability; never infer this from price or reasoning.
+        capability_level: model.capability_level || null,
         // Release date for sorting by "new"
         release_date: model.release_date || null,
         // Server information with regions for settings page

@@ -25,6 +25,7 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-06-16" # OpenRouter catalog created date
+    capability_level: "high"
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -70,6 +71,7 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-01-06" # Cerebras public preview availability date
+    capability_level: "medium"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "glm-4.7"
