@@ -30,6 +30,7 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { createSignupLogger, createStepScreenshotter, getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
@@ -37,6 +38,60 @@ const CYCLES = 5;
 const CHAT_LOAD_TIMEOUT = 12000;
 const SETTINGS_TIMEOUT = 8000;
 const SLIDE_NAVIGATION_TIMEOUT = 5000;
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const PROOF_VIDEO_HEIGHT = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_HEIGHT || '', 10);
+const IS_PROOF_CAPTURE = PROOF_VIDEO_WIDTH > 0 && PROOF_VIDEO_HEIGHT > 0;
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const PROOF_VIEWPORT = IS_PROOF_CAPTURE ? { width: PROOF_VIDEO_WIDTH, height: PROOF_VIDEO_HEIGHT } : null;
+
+const CHAT_NAVIGATION_PROOF = defineVideoProof({
+	id: 'unauthenticated-chat-navigation-reactive',
+	title: 'Guest example chat navigation stays reactive',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'welcome-cards',
+			text: 'The guest welcome screen shows clickable example chat cards after returning from New Chat.',
+			checkpoint: 'welcome-cards-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'cycles-stable',
+			text: 'Repeated New Chat and example-card navigation keeps loading assistant content instead of freezing.',
+			checkpoint: 'navigation-cycles-complete',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'settings-reactive',
+			text: 'The Settings menu still opens after the repeated guest navigation cycle.',
+			checkpoint: 'settings-menu-responsive',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'guest-navigation.welcome-cards-visible',
+			checkpoint: 'welcome-cards-visible',
+			visual: 'The guest welcome screen visibly shows example chat cards without the suggestion rail blocking them.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'guest-navigation.example-chat-content-visible',
+			checkpoint: 'navigation-cycles-complete',
+			visual: 'After repeated New Chat and example-card navigation, an assistant message is visible with no frozen loading state or raw error text.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'guest-navigation.settings-responsive',
+			checkpoint: 'settings-menu-responsive',
+			visual: 'The Settings menu is visible after the navigation cycles, confirming UI controls still respond.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
 
 function getNewChatButton(page: any) {
 	return page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
@@ -254,8 +309,18 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		page
 	}: {
 		page: any;
-	}) => {
+	}, testInfo: any) => {
 		test.setTimeout(120000);
+		if (PROOF_VIEWPORT) {
+			await page.setViewportSize(PROOF_VIEWPORT);
+		}
+		const proof = IS_PROOF_CAPTURE
+			? createVideoProofRuntime(CHAT_NAVIGATION_PROOF, {
+				device: PROOF_DEVICE,
+				attach: testInfo.attach.bind(testInfo),
+				captureFrame: () => page.screenshot({ type: 'png' })
+			})
+			: null;
 
 		const consoleLogs: string[] = [];
 		page.on('console', (msg: any) => {
@@ -294,6 +359,13 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 				.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]')
 				.first();
 			await expect(chatCard).toBeVisible({ timeout: 10000 });
+			if (proof && cycle === 1) {
+				await proof.assert('guest-navigation.welcome-cards-visible', async () => {
+					await expect(chatCard).toBeVisible();
+					await expect(page.getByTestId('suggestions-wrapper')).toHaveCount(0);
+				});
+				await proof.checkpoint('welcome-cards-visible');
+			}
 			console.log(`[chat-nav] [${cycle}] Welcome screen cards visible`);
 
 			// ── 2b. Record current hash, then click the first card ───────────
@@ -315,6 +387,13 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			// Verify chat content rendered (at least one assistant message visible).
 			const assistantMessage = page.getByTestId('mate-message-content').first();
 			await expect(assistantMessage).toBeVisible({ timeout: CHAT_LOAD_TIMEOUT });
+			if (proof && cycle === CYCLES) {
+				await proof.assert('guest-navigation.example-chat-content-visible', async () => {
+					await expect(assistantMessage).toBeVisible();
+					await expect(page.getByText('The AI service encountered an error while processing your request.')).toHaveCount(0);
+				});
+				await proof.checkpoint('navigation-cycles-complete');
+			}
 			console.log(`[chat-nav] [${cycle}] Assistant message content visible — UI is reactive`);
 		}
 
@@ -344,6 +423,13 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const settingsMenu = page.getByTestId('settings-menu');
 		await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
 		await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
+		if (proof) {
+			await proof.assert('guest-navigation.settings-responsive', async () => {
+				await expect(settingsMenu).toBeVisible();
+				await expect(settingsMenu.getByTestId('learning-mode-toggle-wrapper')).toHaveCount(0);
+			});
+			await proof.checkpoint('settings-menu-responsive');
+		}
 		console.log('[chat-nav] Settings menu opened — settings panel is reactive');
 
 		// ─── 5. Close the settings panel ─────────────────────────────────────
@@ -370,6 +456,9 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			jsErrors.length,
 			`Expected no JS errors during navigation cycles. Errors:\n${jsErrors.join('\n')}`
 		).toBe(0);
+		if (proof) {
+			await proof.attach();
+		}
 
 		console.log('[chat-nav] All assertions passed — UI stays fully reactive after rapid navigation');
 	});
