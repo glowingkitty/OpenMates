@@ -334,10 +334,10 @@ contracts:
     - sdks.pip
     - gui.web
   feature.public-example-chats:
-    version: 1
+    version: 2
     status: approved
     path: features/public-example-chats
-    fingerprint: 8469f5b452da01b2fa7c60b19908d7d0b2f31bb3971bef2c83679882678348d6
+    fingerprint: 848d07ed04bed51d98b28f50bf7874971fcd3b382ab9bac74c4e234ab5f87fef
     required_surfaces:
     - gui.web
   feature.settings-ui:
@@ -3287,45 +3287,52 @@ assertions:
     - sdks.pip
     - gui.web
   public-example-chats.catalog.discoverable:
-    contract: feature.public-example-chats@1
+    contract: feature.public-example-chats@2
     contract_id: feature.public-example-chats
     type: behavior
     fingerprint: 7b2015f09a3e838061b27b087d44a1f06a66d671c576f80305a3ba50425214bf
     required_surfaces:
     - gui.web
   public-example-chats.navigation.static-public-link:
-    contract: feature.public-example-chats@1
+    contract: feature.public-example-chats@2
     contract_id: feature.public-example-chats
     type: behavior
     fingerprint: 43539ab76eea7a2a9792278e0ab8ddb9ee270163269a2bf478d0d3a8aece5c30
     required_surfaces:
     - gui.web
+  public-example-chats.navigation.selected-state-visible:
+    contract: feature.public-example-chats@2
+    contract_id: feature.public-example-chats
+    type: behavior
+    fingerprint: ba6e396cc58b6c1e2bc44a1362695b38290d5d65b14b506df7e69bf7c118eb27
+    required_surfaces:
+    - gui.web
   public-example-chats.transcript.safe-rendering:
-    contract: feature.public-example-chats@1
+    contract: feature.public-example-chats@2
     contract_id: feature.public-example-chats
     type: privacy
     fingerprint: fd6ff0edd6f3344f9944b04aa9fea05ab0d121dbcd75259248be62a9008f401c
     required_surfaces:
     - gui.web
   public-example-chats.history.explicit-forgotten-reveal:
-    contract: feature.public-example-chats@1
+    contract: feature.public-example-chats@2
     contract_id: feature.public-example-chats
     type: behavior
     fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
     required_surfaces:
     - gui.web
   public-example-chats.seo.crawlable:
-    contract: feature.public-example-chats@1
+    contract: feature.public-example-chats@2
     contract_id: feature.public-example-chats
     type: behavior
     fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
     required_surfaces:
     - gui.web
   public-example-chats.surface.semantic-parity:
-    contract: feature.public-example-chats@1
+    contract: feature.public-example-chats@2
     contract_id: feature.public-example-chats
     type: parity
-    fingerprint: 2754d8e41bd329d24cc4d8b6a3bfdac5e4477d1903d06265e98e2dae88cf1eba
+    fingerprint: 67235ddaed51576e20b57721a62685dd87bb9046a441794e496fef69c57d7138
     required_surfaces:
     - gui.web
   settings-ui.shell.lifecycle-and-routing:

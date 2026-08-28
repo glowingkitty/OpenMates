@@ -133,6 +133,84 @@ async function expectLandingCarouselNavigatesBothDirections(page: any) {
 }
 
 test.describe('Unauthenticated chat navigation stays reactive', () => {
+	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.selected-state-visible
+	test('light-mode sidebar keeps the selected chat distinct and below the active panel shadow', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1366, height: 900 });
+		await page.addInitScript(() => {
+			localStorage.setItem('theme_mode', 'light');
+			localStorage.setItem('theme', 'light');
+		});
+
+		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', 'demo-for-everyone', {
+			timeout: 15000
+		});
+
+		const sidebar = page.getByTestId('activity-history-wrapper');
+		if (!(await sidebar.isVisible({ timeout: 1000 }).catch(() => false))) {
+			await page.getByTestId('sidebar-toggle').click();
+		}
+		await expect(sidebar).toBeVisible({ timeout: 10000 });
+
+		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-for-everyone"]');
+		await expect(activeRow).toBeVisible({ timeout: 10000 });
+		const activeStyles = await activeRow.evaluate((element: HTMLElement) => {
+			const probe = document.createElement('span');
+			probe.style.backgroundColor = 'var(--color-grey-0)';
+			document.body.appendChild(probe);
+			const expectedBackground = getComputedStyle(probe).backgroundColor;
+			probe.remove();
+			return {
+				actualBackground: getComputedStyle(element).backgroundColor,
+				expectedBackground
+			};
+		});
+		expect(activeStyles.actualBackground).toBe(activeStyles.expectedBackground);
+
+		const nonActiveChatId = await page.getByTestId('chat-item-wrapper').evaluateAll(
+			(elements: HTMLElement[]) => elements.find((element) => element.dataset.chatId !== 'demo-for-everyone')?.dataset.chatId ?? ''
+		);
+		expect(nonActiveChatId).not.toBe('');
+		const hoveredRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${nonActiveChatId}"]`);
+		await hoveredRow.hover();
+		const hoverStyles = await hoveredRow.evaluate((element: HTMLElement) => {
+			const probe = document.createElement('span');
+			probe.style.backgroundColor = 'var(--color-grey-10)';
+			document.body.appendChild(probe);
+			const expectedBackground = getComputedStyle(probe).backgroundColor;
+			probe.remove();
+			return {
+				actualBackground: getComputedStyle(element).backgroundColor,
+				expectedBackground
+			};
+		});
+		expect(hoverStyles.actualBackground).toBe(hoverStyles.expectedBackground);
+
+		const layerStyles = await page.getByTestId('active-chat-container').evaluate((activeChat: HTMLElement) => {
+			const findFixedLayer = (element: HTMLElement | null): HTMLElement | null => {
+				let current = element;
+				while (current && getComputedStyle(current).position !== 'fixed') current = current.parentElement;
+				return current;
+			};
+			const sidebarContent = document.querySelector<HTMLElement>('[data-testid="activity-history-wrapper"]');
+			const mainLayer = findFixedLayer(activeChat);
+			const sidebarLayer = findFixedLayer(sidebarContent);
+			return {
+				mainZIndex: Number.parseInt(mainLayer ? getComputedStyle(mainLayer).zIndex : '', 10),
+				sidebarZIndex: Number.parseInt(sidebarLayer ? getComputedStyle(sidebarLayer).zIndex : '', 10),
+				boxShadow: getComputedStyle(activeChat).boxShadow
+			};
+		});
+		expect(layerStyles.mainZIndex).toBeGreaterThan(layerStyles.sidebarZIndex);
+		expect(layerStyles.boxShadow).not.toBe('none');
+	});
+
 	// contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression
 	test('focused desktop guest composer suppresses surrounding welcome UI', async ({
 		page

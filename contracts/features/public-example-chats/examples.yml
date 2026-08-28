@@ -1,5 +1,5 @@
 schema_version: 1
-contract: feature.public-example-chats@1
+contract: feature.public-example-chats@2
 
 catalog_discovery:
   - id: guest-intro-example-cards
@@ -19,6 +19,11 @@ static_navigation:
   - id: settings-memory-card-hash
     input: {settings_route: apps/books/settings_memories/currently_reading, clicked_chat_id: example-memory-books-currently-reading}
     expected: {hash_contains_chat_id: true, reload_preserves_example: true, transcript_visible_after_reload: true}
+
+navigation_state:
+  - id: logged-out-selected-example
+    input: {surface: guest_sidebar, route: "/#chat-id=demo-for-everyone", theme: light}
+    expected: {selected_row_background: color-grey-0, non_selected_hover_background: color-grey-10, active_chat_layer_above_sidebar: true, active_chat_outer_shadow_visible: true}
 
 renderable_transcripts:
   - id: deep-research-sub-chats

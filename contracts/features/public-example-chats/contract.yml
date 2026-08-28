@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.public-example-chats
-version: 1
+version: 2
 status: approved
 title: Public Example Chats
 summary: >
@@ -18,7 +18,7 @@ scope:
   excludes:
     - Private authenticated chats, user-owned shares, and editable share-policy generation.
     - Live app-skill execution semantics beyond verifying committed example output renders safely.
-    - Exact visual styling, animation timing, example copy punctuation, and example ranking weights.
+    - Exact visual styling beyond the stable selected-row, hover, and panel-layer navigation states; animation timing, example copy punctuation, and example ranking weights.
     - Apple native example browsing and CLI TUI example browsing, which have separate parity specs.
 
 models:
@@ -70,6 +70,20 @@ models:
       type: ui_controls
       required: true
       constraints: {password: absent, community: absent, expiry: absent, generate_link: absent}
+
+  PublicExampleNavigationState:
+    selected_row_background:
+      type: design_token
+      required: true
+      constraints: {value: color-grey-0}
+    hover_row_background:
+      type: design_token
+      required: true
+      constraints: {value: color-grey-10, applies_to_non_selected_rows: true}
+    active_chat_layer:
+      type: stacking_context
+      required: true
+      constraints: {above_sidebar: true, outer_shadow_visible: true}
 
   PublicCompressedHistory:
     summary:
@@ -129,6 +143,10 @@ assertions:
     type: behavior
     must: Opening a public example selects a stable example chat hash and exposes a same-origin static public link while hiding editable private-share controls.
     depends_on: [models.PublicExampleChrome, examples.static_navigation]
+  - id: public-example-chats.navigation.selected-state-visible
+    type: behavior
+    must: In light mode, an opened public example row uses color-grey-0 as its persistent selected background, non-selected rows retain color-grey-10 hover feedback, and the active chat surface remains layered above the sidebar so its outer shadow is visible at their shared edge.
+    depends_on: [models.PublicExampleNavigationState, examples.navigation_state]
   - id: public-example-chats.transcript.safe-rendering
     type: privacy
     must: Public examples render readable transcript messages and committed embed previews without raw tool payloads, unresolved i18n keys, private storage markers, generated-audio binary/key material, or broken public-fetch placeholders.
@@ -169,4 +187,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [catalog_discovery, static_navigation, renderable_transcripts, compressed_history, seo_public_pages]
+  required_groups: [catalog_discovery, static_navigation, navigation_state, renderable_transcripts, compressed_history, seo_public_pages]
