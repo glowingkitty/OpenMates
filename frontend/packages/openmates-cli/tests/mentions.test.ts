@@ -199,6 +199,16 @@ describe("resolveWikipediaMentions", () => {
     ]);
     assert.equal(parsed.processedMessage, "@wikipedia:en:C%2B%2B compare @wikipedia:en:S%C3%A3o_Paulo");
   });
+
+  it("keeps balanced article parentheses while preserving sentence punctuation", async () => {
+    const parsed = await resolveWikipediaMentions("Read @wiki:en:Mercury_(planet).", "en", async (query, language) => {
+      assert.equal(query, "Mercury_(planet)");
+      assert.equal(language, "en");
+      return [result({ key: "Mercury_(planet)", title: "Mercury (planet)" })];
+    });
+
+    assert.equal(parsed.processedMessage, "Read @wikipedia:en:Mercury_(planet).");
+  });
 });
 
 describe("parseMentions", () => {

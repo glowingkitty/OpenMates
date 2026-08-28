@@ -208,6 +208,7 @@ const WIKIPEDIA_REFERENCE_LIMIT = 3;
 const WIKIPEDIA_SEARCH_LIMIT = 5;
 const WIKIPEDIA_TOKEN_PATTERN = /^wiki:(.+)$/i;
 const CANONICAL_WIKIPEDIA_TOKEN_PATTERN = /^wikipedia:[a-z]{2,10}:[^\s]+$/i;
+const WIKIPEDIA_TRAILING_PUNCTUATION = new Set([".", ",", ";", "!", "?"]);
 
 /**
  * Extract raw @mention tokens from message text.
@@ -244,6 +245,30 @@ function normalizeWikipediaLanguage(language: string): string {
   return /^[a-z]{2,10}$/.test(normalized) ? normalized : "en";
 }
 
+function splitWikipediaTokenBody(rawBody: string): { body: string; suffix: string } {
+  let body = rawBody;
+  let suffix = "";
+  while (body) {
+    const last = body.at(-1) ?? "";
+    if (WIKIPEDIA_TRAILING_PUNCTUATION.has(last)) {
+      body = body.slice(0, -1);
+      suffix = `${last}${suffix}`;
+      continue;
+    }
+    if (last === ")") {
+      const openCount = (body.match(/\(/g) ?? []).length;
+      const closeCount = (body.match(/\)/g) ?? []).length;
+      if (closeCount > openCount) {
+        body = body.slice(0, -1);
+        suffix = `${last}${suffix}`;
+        continue;
+      }
+    }
+    break;
+  }
+  return { body, suffix };
+}
+
 function parseWikipediaToken(token: string, defaultLanguage: string): {
   language: string;
   query: string;
@@ -252,9 +277,7 @@ function parseWikipediaToken(token: string, defaultLanguage: string): {
   const match = token.match(WIKIPEDIA_TOKEN_PATTERN);
   if (!match) return null;
 
-  const suffixMatch = match[1].match(/([.,;!?)]*)$/);
-  const suffix = suffixMatch?.[1] ?? "";
-  const body = suffix ? match[1].slice(0, -suffix.length) : match[1];
+  const { body, suffix } = splitWikipediaTokenBody(match[1]);
   const separator = body.indexOf(":");
   const possibleLanguage = separator > 0 ? body.slice(0, separator) : "";
   const hasLanguage = /^[a-z]{2,10}(?:[-_][a-z]{2,10})?$/i.test(possibleLanguage);
