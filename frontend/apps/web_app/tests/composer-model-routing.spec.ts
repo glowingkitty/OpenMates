@@ -163,8 +163,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 
 	await selector.click();
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
-	await expect(selector).toHaveAttribute('aria-haspopup', 'dialog');
-	await expect(selectorMenu).toBeFocused();
+	await expect(selectorMenu).toHaveAttribute('role', 'group');
 	await assertProof(proof, 'ai-model-routing.composer.picker-provider-order', async () => {
 		await expect(selectorMenu.getByTestId('composer-model-auto')).toContainText('Auto select');
 		for (let index = 0; index < 4; index += 1) {
@@ -227,6 +226,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	expect(toggleRightInset).toBeLessThanOrEqual(8);
 	expect(capabilityBox!.x + capabilityBox!.width / 2).toBeGreaterThan(iconBox!.x + iconBox!.width / 2);
 	expect(capabilityBox!.y + capabilityBox!.height / 2).toBeGreaterThan(iconBox!.y + iconBox!.height / 2);
+	await takeStepScreenshot(page, '03-model-list');
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
 	await page.getByTestId('icon-button-close').click();
@@ -250,7 +250,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 		await expect.poll(async () => editor.evaluate((element: HTMLElement) => element.innerText.trim())).toBe('');
 		await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 	});
-	await takeStepScreenshot(page, '03-exact-selection');
+	await takeStepScreenshot(page, '04-exact-selection');
 	if (proof) {
 		await proof.checkpoint('composer-exact-selection');
 		await proof.attach();

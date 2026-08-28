@@ -28,8 +28,6 @@
     let activeProvider = $state<string | null>(null);
     let showAllProviders = $state(false);
     let selectorElement: HTMLDivElement;
-    let selectorTrigger = $state<HTMLButtonElement>();
-    let selectorMenu = $state<HTMLDivElement>();
     const models = $derived(modelsMetadata.filter((model) =>
         model.for_app_skill === 'ai.ask'
         && !$userProfile.disabled_ai_models?.includes(model.id)
@@ -80,10 +78,6 @@
         isOpen = !isOpen;
     }
 
-    $effect(() => {
-        if (isOpen && selectorMenu) selectorMenu.focus();
-    });
-
     onMount(() => {
         const handlePointerDown = (event: PointerEvent) => {
             if (!selectorElement.contains(event.target as Node)) {
@@ -102,7 +96,6 @@
             isOpen = false;
             activeProvider = null;
             showAllProviders = false;
-            selectorTrigger?.focus();
         } else if (event.key === 'ArrowDown' && !isOpen) {
             event.preventDefault();
             isOpen = true;
@@ -114,10 +107,8 @@
     <button
         type="button"
         class="model-selector-trigger"
-        bind:this={selectorTrigger}
         data-testid="composer-model-selector"
         aria-label={selectorAriaLabel}
-        aria-haspopup="dialog"
         aria-expanded={isOpen}
         disabled={!ready}
         data-loading={!ready}
@@ -135,12 +126,9 @@
     {#if isOpen}
         <div
             class="model-selector-menu"
-            bind:this={selectorMenu}
             data-testid="composer-model-selector-menu"
-            role="dialog"
+            role="group"
             aria-label={$text('enter_message.model_selector.model_selection')}
-            tabindex="-1"
-            onkeydown={closeOnKeydown}
         >
             {#if activeProvider}
                 <button type="button" class="menu-heading" onclick={() => activeProvider = null}>
