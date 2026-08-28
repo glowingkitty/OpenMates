@@ -25,6 +25,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -48,7 +49,9 @@ except ModuleNotFoundError:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONTROL_PLANE_ENV_FILE = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config")) / "openmates" / "engineering-control-plane.env"
 RESULTS_DIR = PROJECT_ROOT / "test-results"
-PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
+CONTROL_PLANE_RESULTS_DIR = session_control.CONTROL_PLANE_ROOT / "test-results"
+PROOF_SOURCE_DIR = CONTROL_PLANE_RESULTS_DIR / "proof-video-sources"
+PROOF_SOURCE_ARTIFACTS_DIR = CONTROL_PLANE_RESULTS_DIR / "proof-video-source-artifacts"
 PROOF_CAPTURE_END_BUFFER_SECONDS = 4.0
 PROOF_CAPTURE_DURATION_PADDING_SECONDS = 0.5
 
@@ -1963,6 +1966,21 @@ def publish_latest_playwright_response_media(
     return record
 
 
+def persist_proof_source_file(source: Path, *, identity: str, role: str) -> Path:
+    """Copy proof inputs into shared storage that survives worktree/runtime replacement."""
+    destination_dir = PROOF_SOURCE_ARTIFACTS_DIR / identity
+    destination_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    destination = destination_dir / f"{role}-{source.name}"
+    source_hash = _file_sha256(source)
+    if destination.is_file() and _file_sha256(destination) == source_hash:
+        return destination
+    temporary = destination_dir / f".{destination.name}.{os.getpid()}.tmp"
+    shutil.copy2(source, temporary)
+    temporary.chmod(0o600)
+    os.replace(temporary, destination)
+    return destination
+
+
 def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
     if run_data.get("deployment_verified") is not True or run_data.get("gate_deploy") is not True:
         raise RuntimeError("Proof-source attestation requires a passed deploy gate")
@@ -2019,6 +2037,7 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
             identity = hashlib.sha256(
                 f"{proof_run_id}\0{git_sha}\0{spec_name}\0{artifact_path}".encode("utf-8")
             ).hexdigest()
+            durable_artifact_path = persist_proof_source_file(artifact_path, identity=identity, role="artifact")
             record = {
                 "run_id": proof_run_id,
                 "source_run_id": run_id,
@@ -2029,12 +2048,13 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
                 "deployment_reference": deployment_reference,
                 "deployment_verified": True,
                 "target": str(run_data.get("environment") or "https://app.dev.openmates.org"),
-                "artifact_path": str(artifact_path),
-                "artifact_sha256": _file_sha256(artifact_path),
+                "artifact_path": str(durable_artifact_path),
+                "artifact_sha256": _file_sha256(durable_artifact_path),
             }
             if proof_timeline_path is not None:
-                record["proof_timeline_path"] = str(proof_timeline_path)
-                record["proof_timeline_sha256"] = _file_sha256(proof_timeline_path)
+                durable_timeline_path = persist_proof_source_file(proof_timeline_path, identity=identity, role="timeline")
+                record["proof_timeline_path"] = str(durable_timeline_path)
+                record["proof_timeline_sha256"] = _file_sha256(durable_timeline_path)
             if profile:
                 record["proof_video_profile"] = profile
             record_path = PROOF_SOURCE_DIR / f"{identity}.json"

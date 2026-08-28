@@ -35,6 +35,7 @@ def load_tests_control(tmp_path, monkeypatch):
     results_dir = tmp_path / "test-results"
     monkeypatch.setattr(module, "RESULTS_DIR", results_dir)
     monkeypatch.setattr(module, "PROOF_SOURCE_DIR", results_dir / "proof-video-sources")
+    monkeypatch.setattr(module, "PROOF_SOURCE_ARTIFACTS_DIR", results_dir / "proof-video-source-artifacts")
     monkeypatch.setattr(module, "STATE_FILE", results_dir / "tests-state.json")
     monkeypatch.setattr(module, "HISTORY_FILE", results_dir / "tests-history.jsonl")
     monkeypatch.setattr(module, "LEASES_FILE", results_dir / "failed-test-leases.json")
@@ -1012,6 +1013,8 @@ def test_record_latest_run_artifact_persists_deploy_gate_metadata(tmp_path, monk
     assert len(attestations) == 1
     attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
     assert attestation["artifact_sha256"].startswith("sha256:")
+    assert Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
+    assert Path(attestation["artifact_path"]).read_bytes() == b"verified-video"
 
 
 def test_record_latest_run_artifact_expands_short_sha_for_proof_source(tmp_path, monkeypatch):
@@ -1076,7 +1079,8 @@ def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path
     attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
     assert len(attestations) == 1
     attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
-    assert attestation["artifact_path"] == str(video.resolve())
+    assert Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
+    assert Path(attestation["artifact_path"]).read_bytes() == b"verified-video"
 
 
 def test_record_latest_run_artifact_publishes_latest_playwright_video_response_media(tmp_path, monkeypatch):
@@ -1255,6 +1259,8 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
     commit = "a" * 40
     video = tmp_path / "video.webm"
     video.write_bytes(b"video")
+    timeline = tmp_path / "proof-timeline.json"
+    timeline.write_text('{"device":"web-laptop"}', encoding="utf-8")
     run_data = {
         "run_id": "run-one",
         "git_sha": commit,
@@ -1265,6 +1271,7 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
             "file": "example.spec.ts",
             "status": "passed",
             "artifact_paths": [str(video), str(video)],
+            "proof_timeline_path": str(timeline),
         }]}},
     }
 
@@ -1274,6 +1281,10 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
     attestation = json.loads(records[0].read_text(encoding="utf-8"))
     assert attestation["run_id"] == "run-one"
     assert attestation["source_run_id"] == "run-one"
+    assert Path(attestation["artifact_path"]).read_bytes() == b"video"
+    assert Path(attestation["proof_timeline_path"]).read_text(encoding="utf-8") == '{"device":"web-laptop"}'
+    assert Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
+    assert Path(attestation["proof_timeline_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
 
 
 def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, monkeypatch):
@@ -1431,7 +1442,8 @@ def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, 
     assert recorded == commit
     attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
     assert len(attestations) == 2
-    assert {attestation["artifact_path"] for attestation in attestations} == {str(first_video.resolve()), str(second_video.resolve())}
+    assert {Path(attestation["artifact_path"]).read_bytes() for attestation in attestations} == {b"first-video", b"second-video"}
+    assert all(Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR) for attestation in attestations)
     assert all(attestation["source_run_id"] == "12345" for attestation in attestations)
     assert all(attestation["run_id"].startswith("12345:") for attestation in attestations)
 
@@ -1481,7 +1493,8 @@ def test_proof_timeline_attestation_prefers_attached_proof_video(tmp_path, monke
     assert recorded == commit
     attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
     assert len(attestations) == 1
-    assert attestations[0]["artifact_path"] == str(second_video.resolve())
+    assert Path(attestations[0]["artifact_path"]).read_bytes() == b"second-video"
+    assert Path(attestations[0]["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
 
 
 def test_proof_source_attestation_requires_explicit_deploy_gate(tmp_path, monkeypatch):

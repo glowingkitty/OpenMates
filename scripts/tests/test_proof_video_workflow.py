@@ -122,6 +122,10 @@ def test_control_plane_root_resolves_shared_session_registry_from_worktree(
     assert workflow._resolve_control_plane_root(worktree_root) / ".claude" / "sessions.json" == control_root / ".claude" / "sessions.json"
 
 
+def test_proof_sources_use_shared_control_plane_results() -> None:
+    assert workflow.PROOF_SOURCE_DIR == workflow.CONTROL_PLANE_ROOT / "test-results" / "proof-video-sources"
+
+
 def test_start_current_uses_deployed_session_commit_from_linked_worktree(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
