@@ -9,20 +9,24 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { loginToTestAccount, startNewChat, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const { openMentionDropdown } = require('./helpers/mention-test-helpers');
 const { createSignupLogger, createStepScreenshotter, getTestAccount } = require('./signup-flow-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-async function activateWikipediaSearch(page: any, query: string): Promise<any> {
-	const editor = page.getByTestId('message-editor').last();
-	await editor.click();
-	await page.keyboard.insertText('@');
-	const source = page.getByTestId('wikipedia-source-result');
+async function openWikipediaSourceMenu(page: any): Promise<{ editor: any; source: any }> {
+	const { editor, dropdown } = await openMentionDropdown(page);
+	const source = dropdown.getByTestId('wikipedia-source-result');
 	await expect(source).toBeVisible({ timeout: 5000 });
+	return { editor, source };
+}
+
+async function activateWikipediaSearch(page: any, query: string): Promise<any> {
+	const { editor, source } = await openWikipediaSourceMenu(page);
 	await source.click();
 	await expect(editor).toContainText('@wiki:');
-	await page.keyboard.insertText(query);
+	await page.keyboard.type(query, { delay: 50 });
 	return editor;
 }
 
@@ -42,15 +46,12 @@ test('Wiki discovery selects a canonical article and completes with source conte
 		if (request.url().includes('/v1/wikipedia/search')) wikipediaRequests.push(request.url());
 	});
 
-	const editor = page.getByTestId('message-editor').last();
-	await editor.click();
-	await page.keyboard.insertText('@');
-	await expect(page.getByTestId('wikipedia-source-result')).toBeVisible({ timeout: 5000 });
+	const { editor, source } = await openWikipediaSourceMenu(page);
 	expect(wikipediaRequests).toHaveLength(0);
 	await screenshot(page, 'wiki-static-discovery');
 
-	await page.getByTestId('wikipedia-source-result').click();
-	await page.keyboard.insertText('AlbertEin');
+	await source.click();
+	await page.keyboard.type('AlbertEin', { delay: 50 });
 	const result = page.getByTestId('wikipedia-result').filter({ hasText: 'Albert Einstein' }).first();
 	await expect(result).toBeVisible({ timeout: 15000 });
 	await expect(result.getByTestId('wikipedia-description')).not.toBeEmpty();
