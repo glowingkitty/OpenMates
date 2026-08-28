@@ -97,7 +97,7 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		{
 			id: 'daily-inspiration.guest-isolated-after-force-logout',
 			checkpoint: 'session-b-guest-onboarding',
-			visual: 'Session B visibly shows the guest onboarding daily-inspiration carousel and no stale chat header after force logout.',
+			visual: 'Session B visibly shows the guest onboarding carousel and no stale chat header after force logout.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -112,12 +112,14 @@ async function dismissBlockingNotifications(page: any, logFn: (msg: string) => v
 	}
 }
 
-function trimProofVideoToProofWindow(rawPath: string, outputPath: string, proofStartOffsetMs: number): void {
+function trimProofVideoToProofWindow(rawPath: string, outputPath: string, proofStartOffsetMs: number, proofEndOffsetMs: number): void {
 	const trimStartSeconds = Math.max(0, proofStartOffsetMs / 1000).toFixed(3);
+	const trimDurationSeconds = Math.max(0.1, (proofEndOffsetMs - proofStartOffsetMs) / 1000).toFixed(3);
 	const result = spawnSync('ffmpeg', [
 		'-y',
 		'-i', rawPath,
 		'-ss', trimStartSeconds,
+		'-t', trimDurationSeconds,
 		'-map', '0:v:0',
 		'-c:v', 'libvpx-vp9',
 		'-deadline', 'realtime',
@@ -268,6 +270,7 @@ test('session revoke: revoking session B from session A does not log out session
 	const pageB = await contextB.newPage();
 	const proofRecordingStartedAt = Date.now();
 	const proofVideoB = pageB.video();
+	let proofWindowEndedAtMs = 0;
 
 	// Attach console listeners
 	pageA.on('console', (msg: any) => {
@@ -391,6 +394,7 @@ test('session revoke: revoking session B from session A does not log out session
 		await proof.checkpoint('session-b-guest-onboarding');
 		await proof.attach();
 		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
+		proofWindowEndedAtMs = Date.now() - proofRecordingStartedAt;
 		await contextB.close();
 		contextBClosed = true;
 		if (proofVideoB) {
@@ -399,7 +403,7 @@ test('session revoke: revoking session B from session A does not log out session
 			fs.rmSync(rawProofVideoPath, { force: true });
 			fs.rmSync(proofVideoPath, { force: true });
 			await proofVideoB.saveAs(rawProofVideoPath);
-			trimProofVideoToProofWindow(rawProofVideoPath, proofVideoPath, proofWindowStartedAtMs);
+			trimProofVideoToProofWindow(rawProofVideoPath, proofVideoPath, proofWindowStartedAtMs, proofWindowEndedAtMs);
 			await testInfo.attach(`${PROOF_DEVICE}-session-b-proof-video`, {
 				path: proofVideoPath,
 				contentType: 'video/webm'
