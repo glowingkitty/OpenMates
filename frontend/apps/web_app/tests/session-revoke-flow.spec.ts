@@ -27,6 +27,8 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { chromium } = require('@playwright/test');
+const { spawnSync } = require('child_process');
+const fs = require('fs');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	createSignupLogger,
@@ -54,6 +56,7 @@ const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
 	}
 	: {};
 const PROOF_CAPTURE_END_HOLD_MS = 750;
+const PROOF_VIDEO_CRF = '32';
 const GUEST_ONBOARDING_IDS = [
 	'openmates-intro',
 	'openmates-actionable-events',
@@ -106,6 +109,28 @@ async function dismissBlockingNotifications(page: any, logFn: (msg: string) => v
 		if (!(await dismissButton.isVisible().catch(() => false))) continue;
 		await dismissButton.click({ timeout: 5000, force: true });
 	}
+}
+
+function trimProofVideoToProofWindow(rawPath: string, outputPath: string, proofStartOffsetMs: number): void {
+	const trimStartSeconds = Math.max(0, proofStartOffsetMs / 1000).toFixed(3);
+	const result = spawnSync('ffmpeg', [
+		'-y',
+		'-i', rawPath,
+		'-ss', trimStartSeconds,
+		'-map', '0:v:0',
+		'-c:v', 'libvpx-vp9',
+		'-deadline', 'realtime',
+		'-cpu-used', '4',
+		'-b:v', '0',
+		'-crf', PROOF_VIDEO_CRF,
+		'-an',
+		outputPath
+	], { encoding: 'utf8' });
+	if (result.error || result.status !== 0 || !fs.existsSync(outputPath)) {
+		const detail = result.error?.message || result.stderr || result.stdout || 'unknown ffmpeg failure';
+		throw new Error(`Session revoke proof video trim failed: ${String(detail).slice(-1000)}`);
+	}
+	fs.rmSync(rawPath, { force: true });
 }
 
 // ---------------------------------------------------------------------------
@@ -240,6 +265,7 @@ test('session revoke: revoking session B from session A does not log out session
 	});
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
+	const proofRecordingStartedAt = Date.now();
 	const proofVideoB = pageB.video();
 
 	// Attach console listeners
@@ -287,6 +313,7 @@ test('session revoke: revoking session B from session A does not log out session
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditorB = pageB.getByTestId('message-editor');
 		await fillMessageEditor(pageB, messageEditorB, sessionBDraftText);
+		const proofWindowStartedAtMs = Date.now() - proofRecordingStartedAt;
 		const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
 			device: PROOF_DEVICE,
 			attach: testInfo.attach.bind(testInfo),
@@ -364,8 +391,14 @@ test('session revoke: revoking session B from session A does not log out session
 		await contextB.close();
 		contextBClosed = true;
 		if (proofVideoB) {
+			const rawProofVideoPath = testInfo.outputPath(`${PROOF_DEVICE}-session-b-proof-video.raw.webm`);
+			const proofVideoPath = testInfo.outputPath(`${PROOF_DEVICE}-session-b-proof-video.webm`);
+			fs.rmSync(rawProofVideoPath, { force: true });
+			fs.rmSync(proofVideoPath, { force: true });
+			await proofVideoB.saveAs(rawProofVideoPath);
+			trimProofVideoToProofWindow(rawProofVideoPath, proofVideoPath, proofWindowStartedAtMs);
 			await testInfo.attach(`${PROOF_DEVICE}-session-b-proof-video`, {
-				path: await proofVideoB.path(),
+				path: proofVideoPath,
 				contentType: 'video/webm'
 			});
 		} else if (IS_PROOF_CAPTURE) {
