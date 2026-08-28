@@ -36,7 +36,24 @@ const {
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const { fillMessageEditor, startNewChat } = require('./helpers/chat-test-helpers');
+const {
+	dismissSecurityReminderIfPresent,
+	fillMessageEditor,
+	startNewChat
+} = require('./helpers/chat-test-helpers');
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const PROOF_VIDEO_HEIGHT = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_HEIGHT || '', 10);
+const IS_PROOF_CAPTURE = PROOF_VIDEO_WIDTH > 0 && PROOF_VIDEO_HEIGHT > 0;
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
+	? {
+		viewport: { width: PROOF_VIDEO_WIDTH, height: PROOF_VIDEO_HEIGHT },
+		...(PROOF_DEVICE === 'web-phone' ? { hasTouch: true, isMobile: true, colorScheme: 'dark' } : { colorScheme: 'light' })
+	}
+	: {};
+const PROOF_CAPTURE_END_HOLD_MS = 750;
 const GUEST_ONBOARDING_IDS = [
 	'openmates-intro',
 	'openmates-actionable-events',
@@ -45,6 +62,51 @@ const GUEST_ONBOARDING_IDS = [
 	'openmates-provider-cross-platform',
 	'openmates-signup-cta'
 ];
+
+const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
+	id: 'session-revoke-logout-welcome-reset',
+	title: 'Session revoke logout restores guest welcome',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'session-b-draft',
+			text: 'Session B starts in an authenticated draft chat with its chat header visible.',
+			checkpoint: 'session-b-draft-header',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'session-b-forced-logout',
+			text: 'After Session A removes Session B, Session B returns to the guest onboarding carousel without the stale draft header.',
+			checkpoint: 'session-b-guest-onboarding',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'session-revoke.session-b-draft-header',
+			checkpoint: 'session-b-draft-header',
+			visual: 'Session B visibly shows an authenticated draft chat header before revocation.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'daily-inspiration.guest-isolated-after-force-logout',
+			checkpoint: 'session-b-guest-onboarding',
+			visual: 'Session B visibly shows the guest onboarding daily-inspiration carousel and no stale chat header after force logout.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
+
+async function dismissBlockingNotifications(page: any, logFn: (msg: string) => void): Promise<void> {
+	await dismissSecurityReminderIfPresent(page, logFn);
+	for (const dismissButton of await page.getByTestId('notification-dismiss').all()) {
+		if (!(await dismissButton.isVisible().catch(() => false))) continue;
+		await dismissButton.click({ timeout: 5000, force: true });
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Login helper (shared between sessions)
@@ -87,23 +149,30 @@ async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void
 // ---------------------------------------------------------------------------
 
 async function navigateToSessions(page: any, logFn: (msg: string) => void): Promise<void> {
+	await dismissBlockingNotifications(page, logFn);
+
 	// Open settings menu using the stable #settings-menu-toggle id
 	const openSettingsBtn = page.locator('#settings-menu-toggle');
 	await expect(openSettingsBtn).toBeVisible({ timeout: 15000 });
-	await openSettingsBtn.click();
+	await openSettingsBtn.click({ timeout: 10000 });
 
 	// Wait for the settings menu to actually open
-	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
+	const visibleMenu = page.locator('[data-testid="settings-menu"].visible');
+	if (!(await visibleMenu.isVisible({ timeout: 5000 }).catch(() => false))) {
+		await dismissBlockingNotifications(page, logFn);
+		await openSettingsBtn.click({ timeout: 10000, force: true });
+	}
+	await expect(visibleMenu).toBeVisible({ timeout: 10000 });
 	logFn('Opened settings menu.');
 
 	// Navigate Account → Security → Active Sessions
-	await page.getByRole('menuitem', { name: /account/i }).click();
+	await visibleMenu.getByRole('menuitem', { name: /account/i }).click();
 	logFn('Navigated to Account settings.');
 
-	await page.getByRole('menuitem', { name: /security/i }).click();
+	await visibleMenu.getByRole('menuitem', { name: /security/i }).click();
 	logFn('Navigated to Security settings.');
 
-	await page.getByRole('menuitem', { name: /active sessions/i }).click();
+	await visibleMenu.getByRole('menuitem', { name: /active sessions/i }).click();
 	logFn('Navigated to Active Sessions settings page.');
 
 	// Wait for sessions list to load
@@ -129,7 +198,7 @@ async function _isLoggedOut(page: any): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 // contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated
-test('session revoke: revoking session B from session A does not log out session A', async () => {
+test('session revoke: revoking session B from session A does not log out session A', async (_fixtures: any, testInfo: any) => {
 	test.slow();
 	// Login × 2 + OTP window wait + settings navigation + revoke + assertions
 	test.setTimeout(300000);
@@ -154,10 +223,28 @@ test('session revoke: revoking session B from session A does not log out session
 
 	// Two separate browser contexts = two independent sessions (separate cookies,
 	// separate IndexedDB, separate WebSocket connections).
-	const contextA = await browser.newContext({ baseURL });
-	const contextB = await browser.newContext({ baseURL });
+	const contextA = await browser.newContext({ baseURL, ...PROOF_CONTEXT_OPTIONS });
+	let contextBClosed = false;
+	const contextB = await browser.newContext({
+		baseURL,
+		...PROOF_CONTEXT_OPTIONS,
+		...(IS_PROOF_CAPTURE
+			? {
+				recordVideo: {
+					dir: testInfo.outputPath(`session-b-proof-video-${PROOF_DEVICE}`),
+					size: { width: PROOF_VIDEO_WIDTH, height: PROOF_VIDEO_HEIGHT }
+				}
+			}
+			: {})
+	});
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
+	const proofVideoB = pageB.video();
+	const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
+		device: PROOF_DEVICE,
+		attach: testInfo.attach.bind(testInfo),
+		captureFrame: () => pageB.screenshot({ type: 'png' })
+	});
 
 	// Attach console listeners
 	pageA.on('console', (msg: any) => {
@@ -204,10 +291,13 @@ test('session revoke: revoking session B from session A does not log out session
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditorB = pageB.getByTestId('message-editor');
 		await fillMessageEditor(pageB, messageEditorB, sessionBDraftText);
-		await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-		await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
+		await proof.assert('session-revoke.session-b-draft-header', async () => {
+			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
+		});
 		logB('Session B: active draft chat header visible before forced logout.');
 		await screenshotB(pageB, '02b-session-b-active-draft-header');
+		await proof.checkpoint('session-b-draft-header');
 
 		logA('Both sessions logged in. Waiting 8s for WebSocket connections to stabilise…');
 		await pageA.waitForTimeout(8000);
@@ -252,17 +342,20 @@ test('session revoke: revoking session B from session A does not log out session
 		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
 		await expect(loginBtnB).toBeVisible({ timeout: 60000 });
 		logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
-		const guestBannerB = pageB.getByTestId('daily-inspiration-banner').first();
-		await expect(guestBannerB).toBeVisible({ timeout: 10000 });
-		await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
-		await expect(guestBannerB).toHaveAttribute(
-			'data-visible-inspiration-ids',
-			GUEST_ONBOARDING_IDS.join(',')
-		);
-		await expect(pageB.getByTestId('chat-header-title')).toHaveCount(0, { timeout: 10000 });
-		await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
+		await proof.assert('daily-inspiration.guest-isolated-after-force-logout', async () => {
+			const guestBannerB = pageB.getByTestId('daily-inspiration-banner').first();
+			await expect(guestBannerB).toBeVisible({ timeout: 10000 });
+			await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
+			await expect(guestBannerB).toHaveAttribute(
+				'data-visible-inspiration-ids',
+				GUEST_ONBOARDING_IDS.join(',')
+			);
+			await expect(pageB.getByTestId('chat-header-title')).toHaveCount(0, { timeout: 10000 });
+			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
+		});
 		logB('Session B: exact guest onboarding carousel restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');
+		await proof.checkpoint('session-b-guest-onboarding');
 
 		// ── Step 6: Verify Session A is still logged in ──────────────────────
 		// After the revoke, Session A should remain on the Settings > Sessions page
@@ -325,11 +418,23 @@ test('session revoke: revoking session B from session A does not log out session
 		expect(remainingCards).toBeGreaterThanOrEqual(1);
 
 		await screenshotA(pageA, '10-sessions-list-updated-a');
+		await proof.attach();
+		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
+		await contextB.close();
+		contextBClosed = true;
+		if (proofVideoB) {
+			await testInfo.attach(`${PROOF_DEVICE}-session-b-proof-video`, {
+				path: await proofVideoB.path(),
+				contentType: 'video/webm'
+			});
+		} else if (IS_PROOF_CAPTURE) {
+			throw new Error(`Playwright did not create a Session B proof video for ${PROOF_DEVICE}`);
+		}
 
 		logA('=== TEST PASSED: Session revoke correctly targeted Session B only. ===');
 	} finally {
 		await contextA.close();
-		await contextB.close();
+		if (!contextBClosed) await contextB.close();
 		await browser.close();
 	}
 });
