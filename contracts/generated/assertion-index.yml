@@ -18720,7 +18720,7 @@ assertions:
     supporting_tests:
     - &id2131
       path: frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
-      line: 110
+      line: 112
       name: combined chat settings deep link hydrates chat context after reload
       surface: gui.web
     tests:
@@ -18737,7 +18737,7 @@ assertions:
     direct_tests:
     - &id2132
       path: frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
-      line: 75
+      line: 77
       name: guest Apps catalog survives settings navigation and opens app details
       surface: gui.web
     - &id2133
@@ -23763,7 +23763,7 @@ assertions:
       surface: gui.web
     - &id2726
       path: frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
-      line: 75
+      line: 77
       name: guest Apps catalog survives settings navigation and opens app details
       surface: gui.web
     - &id2727

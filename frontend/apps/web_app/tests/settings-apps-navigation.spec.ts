@@ -47,6 +47,8 @@ async function openTopLevelSettingsPage(settingsMenu: any, pageName: string): Pr
 		pageName.toLowerCase() === 'memories' ? 'settings_memories' : pageName.toLowerCase(),
 		{ timeout: SETTINGS_TIMEOUT }
 	);
+	await expect(settingsMenu.getByTestId('settings-page-content')).toHaveCount(1);
+	await expect(settingsMenu.getByTestId('ai-settings')).toHaveCount(pageName === 'AI' ? 1 : 0);
 }
 
 async function backToSettingsRoot(settingsMenu: any): Promise<void> {
