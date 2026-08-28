@@ -294,6 +294,7 @@ scenarios:
       - The chat invokes sessions.py or tests.py directly, with environment assignments, or in a chained shell command.
     then:
       - The command executes from the clean deployed control-plane runtime rather than the source worktree.
+      - An interrupted active chat with overlapping pending source edits resumes in its existing worktree instead of losing work or being blocked by restore preflight.
       - An unrenewed lease expires within 30 minutes even when an older client requests a longer lifetime.
       - Live work renews its lease by heartbeat and is not limited to 30 minutes of total execution.
       - A blocked client reports the exact admission blocker at least once per minute.
@@ -1385,6 +1386,7 @@ tasks:
       - scripts/spec_demo.py
       - scripts/tests/test_opencode_hooks_contract.mjs
       - scripts/tests/test_sessions_docker_orchestration.py
+      - scripts/tests/test_sessions_native_worktree_lifecycle.py
     verification_ids: [T-CONTROL-PLANE, T-SESSIONS-DOCKER, T-OPENCODE-HOOKS, T-OPENCODE-LIFECYCLE, T-PROOF-REVIEWER, V-OPERATIONAL-READINESS]
     dependencies: [TASK-18]
     blockers: []
@@ -1399,6 +1401,7 @@ tasks:
         - scripts/spec_demo.py
         - scripts/tests/test_opencode_hooks_contract.mjs
         - scripts/tests/test_sessions_docker_orchestration.py
+        - scripts/tests/test_sessions_native_worktree_lifecycle.py
       shared_files: []
 
 implementation_state:

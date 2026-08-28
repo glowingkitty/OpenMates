@@ -15655,6 +15655,19 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
         upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
         conflicts = sorted(local_paths.intersection(upstream_paths))
         if conflicts:
+            if worktree.get("status") == "active":
+                # An interrupted active chat may have genuine pending edits on
+                # paths that moved upstream while it was offline. Preserve and
+                # resume that checkout in place so the chat can reconcile its
+                # own task context; canonical control-plane commands are routed
+                # away from this potentially stale source worktree by the hook.
+                link_shared_worktree_resources(worktree_path)
+                return {
+                    "cwd": str(worktree_path),
+                    "repository_session_id": repository_session_id,
+                    "advanced": False,
+                    "preserved_conflicts": conflicts,
+                }
             integration = worktree.get("integration") if isinstance(worktree.get("integration"), dict) else {}
             if worktree.get("status") != "merged" or integration.get("status") != "merged":
                 raise RuntimeError(
@@ -15885,7 +15898,13 @@ def cmd_restore(args: argparse.Namespace) -> None:
     prompt = (
         f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
         f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
-        "For every shared Docker or test operation, use the current routed coordinator: "
+        + (
+            "The active worktree was preserved because pending task edits overlap newer origin/dev paths; "
+            "reconcile those edits in this worktree without discarding them. "
+            if restore.get("preserved_conflicts")
+            else ""
+        )
+        + "For every shared Docker or test operation, use the current routed coordinator: "
         "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree. "
         "A temporary shared lock is not a terminal blocker: run the intended canonical command directly so it queues, "
         "or run `python3 scripts/sessions.py wait-lock --session <repository-session-id> --type <docker|vercel> "
