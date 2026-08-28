@@ -568,11 +568,15 @@ def _session_repo_remote(session: dict | None) -> str:
 
 
 def _session_checkout_root(session: dict | None) -> Path:
+    worktree = (session or {}).get("worktree")
+    if isinstance(worktree, dict) and worktree.get("path"):
+        return Path(str(worktree["path"])).expanduser().resolve()
     return Path(_session_repo_metadata(session)["repo_root"]).expanduser().resolve()
 
 
 def _session_is_control_plane_repo(session: dict | None) -> bool:
-    return _session_checkout_root(session) == CONTROL_PLANE_ROOT.resolve()
+    repo_root = Path(_session_repo_metadata(session)["repo_root"]).expanduser().resolve()
+    return repo_root == CONTROL_PLANE_ROOT.resolve()
 
 
 def _current_head() -> str:
@@ -3880,17 +3884,23 @@ def select_auto_integration_candidates(*, now: str | None = None) -> list[dict]:
         ):
             rejected.append((session_id, "held", "live_edit_lease"))
             continue
-        files = _session_deploy_files(session, set())
-        checkpoint_files = sorted(str(path) for path in auto.get("files") or [])
-        if sorted(files) != checkpoint_files:
-            rejected.append((session_id, "recovery_needed", "checkpoint_file_set_changed"))
-            continue
-        block_reason = _auto_integration_block_reason(files)
-        if block_reason:
-            rejected.append((session_id, "blocked", block_reason))
-            continue
-        if not files or _worktree_patch_id(metadata, files) != auto.get("patch_id"):
-            rejected.append((session_id, "recovery_needed", "checkpoint_patch_changed"))
+        try:
+            files = _session_deploy_files(session, set())
+            checkpoint_files = sorted(str(path) for path in auto.get("files") or [])
+            if sorted(files) != checkpoint_files:
+                rejected.append((session_id, "recovery_needed", "checkpoint_file_set_changed"))
+                continue
+            block_reason = _auto_integration_block_reason(files)
+            if block_reason:
+                rejected.append((session_id, "blocked", block_reason))
+                continue
+            if not files or _worktree_patch_id(metadata, files) != auto.get("patch_id"):
+                rejected.append((session_id, "recovery_needed", "checkpoint_patch_changed"))
+                continue
+        except (OSError, RuntimeError) as exc:
+            rejected.append(
+                (session_id, "recovery_needed", f"candidate_inspection_failed:{str(exc)[-1000:]}")
+            )
             continue
         selected.append(
             {
@@ -3956,7 +3966,18 @@ def checkpoint_idle_sessions(*, now: str | None = None) -> list[dict]:
                     continue
             except (OSError, RuntimeError):
                 pass
-        results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
+        try:
+            results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
+        except (OSError, RuntimeError) as exc:
+            # One corrupt or unrecoverable worktree must not suppress every
+            # later checkpoint/integration candidate in the hourly pass.
+            results.append(
+                {
+                    "session_id": str(_session_id),
+                    "status": "blocked",
+                    "reason": str(exc)[-2000:],
+                }
+            )
     return results
 
 
@@ -4682,9 +4703,18 @@ def _remove_reconciled_worktree(candidate: dict) -> None:
     )
     rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
     if rc != 0 and path.exists():
-        if candidate.get("linked"):
-            raise RuntimeError(f"Failed to remove worktree {path}: {stderr}")
-        shutil.rmtree(path)
+        try:
+            shutil.rmtree(path)
+        except OSError as host_exc:
+            try:
+                _remove_expired_worktree_with_container(path)
+            except (OSError, RuntimeError) as cleanup_exc:
+                details = "; ".join(
+                    item for item in (stderr.strip(), str(host_exc), str(cleanup_exc)) if item
+                )
+                raise RuntimeError(f"Failed to remove worktree {path}: {details}") from cleanup_exc
+    if path.exists():
+        raise RuntimeError(f"Worktree still exists after removal: {path}")
     _run_cmd(["git", "worktree", "prune"])
 
 
@@ -5048,15 +5078,16 @@ def _managed_worktree_records() -> list[dict]:
         session = registered.get("session") if isinstance(registered.get("session"), dict) else {}
         path = Path(path_text)
         timestamp: float | None = None
-        if path.exists():
+        created_at = str(metadata.get("created_at") or session.get("started") or "")
+        if created_at:
+            try:
+                timestamp = _parse_iso(created_at).timestamp()
+            except (TypeError, ValueError):
+                timestamp = None
+        if timestamp is None and path.exists():
+            # Unregistered recovery/orphan directories have no durable birth
+            # timestamp, so filesystem age is the conservative fallback only.
             timestamp = path.stat().st_mtime
-        else:
-            created_at = str(metadata.get("created_at") or session.get("started") or "")
-            if created_at:
-                try:
-                    timestamp = _parse_iso(created_at).timestamp()
-                except (TypeError, ValueError):
-                    timestamp = None
         records.append(
             {
                 "session_id": str(registered.get("session_id") or _worktree_candidate_id(path_text, metadata)),
@@ -5078,6 +5109,52 @@ def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     return max(0.0, (now_timestamp - float(timestamp)) / 3600)
 
 
+def _hard_expiry_record_is_live(record: dict, data: dict) -> bool:
+    """Protect a currently executing or explicitly leased session from expiry."""
+    session_id = str(record.get("session_id") or "")
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    if not session and session_id:
+        current = data.get("sessions", {}).get(session_id)
+        session = current if isinstance(current, dict) else {}
+    if not session:
+        return False
+    if session.get("writing"):
+        return True
+    if any(
+        isinstance(lease, dict) and str(lease.get("session_id") or "") == session_id
+        for lease in data.get("edit_leases", {}).values()
+    ):
+        return True
+    docker_lock = data.get("locks", {}).get("docker_rebuild", {})
+    if _is_lock_active(docker_lock, "docker_rebuild") and str(docker_lock.get("claimed_by") or "") == session_id:
+        return True
+    return _auto_integration_presence_is_live(session)
+
+
+def _remove_expired_worktree_with_container(path: Path) -> None:
+    """Remove root-owned contents from one exact managed directory."""
+    image = os.environ.get("OPENMATES_WORKTREE_CLEANUP_IMAGE", "openmates-core-api:latest")
+    inspect_rc, _stdout, inspect_stderr = _run_cmd(["docker", "image", "inspect", image])
+    if inspect_rc != 0:
+        raise RuntimeError(f"cleanup image {image!r} is unavailable: {inspect_stderr or 'image inspect failed'}")
+    cleanup_script = (
+        "from pathlib import Path; import shutil; root=Path('/cleanup'); "
+        "[(item.unlink() if item.is_symlink() or item.is_file() else shutil.rmtree(item)) "
+        "for item in list(root.iterdir())]"
+    )
+    rc, _stdout, stderr = _run_cmd(
+        [
+            "docker", "run", "--rm", "--network", "none", "--pids-limit", "64",
+            "--memory", "128m", "--cpus", "0.5",
+            "--mount", f"type=bind,source={path},target=/cleanup",
+            "--entrypoint", "python3", image, "-c", cleanup_script,
+        ]
+    )
+    if rc != 0:
+        raise RuntimeError(stderr or "container cleanup failed")
+    path.rmdir()
+
+
 def _remove_expired_worktree(record: dict) -> None:
     """Remove one exact expired path while refusing anything outside managed storage."""
     path = Path(str(record.get("path") or "")).resolve(strict=False)
@@ -5097,8 +5174,14 @@ def _remove_expired_worktree(record: dict) -> None:
     if rc != 0 and path.exists():
         try:
             shutil.rmtree(path)
-        except OSError as exc:
-            raise RuntimeError(f"Failed to remove expired worktree {path}: {stderr or exc}") from exc
+        except OSError as host_exc:
+            try:
+                _remove_expired_worktree_with_container(path)
+            except (OSError, RuntimeError) as cleanup_exc:
+                details = "; ".join(
+                    item for item in (stderr.strip(), str(host_exc), str(cleanup_exc)) if item
+                )
+                raise RuntimeError(f"Failed to remove expired worktree {path}: {details}") from cleanup_exc
     if path.exists():
         raise RuntimeError(f"Expired worktree still exists after removal: {path}")
 
@@ -5115,16 +5198,24 @@ def expire_managed_worktrees(
         )
     current_timestamp = time.time() if now_timestamp is None else now_timestamp
     records = _managed_worktree_records()
+    current_data = _load_sessions()
+    live_session_ids = {
+        str(record.get("session_id") or "")
+        for record in records
+        if _hard_expiry_record_is_live(record, current_data)
+    }
     expired = [
         {**record, "age_hours": _managed_worktree_age_hours(record, current_timestamp)}
         for record in records
         if _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
+        and str(record.get("session_id") or "") not in live_session_ids
     ]
     expired.sort(key=lambda item: len(Path(str(item["path"])).parts), reverse=True)
     retained = sorted(
         str(record["session_id"])
         for record in records
         if _managed_worktree_age_hours(record, current_timestamp) < max_age_hours
+        or str(record.get("session_id") or "") in live_session_ids
     )
     deleted_records: list[dict] = []
     failures: list[dict] = []
@@ -5192,6 +5283,12 @@ def expire_managed_worktrees(
         "inspected": len(records),
         "deleted": deleted_ids,
         "retained": retained,
+        "protected_live": sorted(
+            str(record.get("session_id") or "")
+            for record in records
+            if str(record.get("session_id") or "") in live_session_ids
+            and _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
+        ),
         "failures": failures,
     }
 
@@ -5201,7 +5298,9 @@ def _enforce_worktree_creation_capacity() -> None:
     expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
     worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
     usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
-    used_percent = ((usage.total - usage.free) * 100 / usage.total) if usage.total else 100.0
+    # free excludes reserved blocks, while used does not include them. Using
+    # total-free double-counts reserved capacity and trips the 85% gate early.
+    used_percent = (usage.used * 100 / usage.total) if usage.total else 100.0
     breaches: list[str] = []
     if worktree_count >= WORKTREE_MAX_COUNT:
         breaches.append(f"worktree count limit reached ({worktree_count}/{WORKTREE_MAX_COUNT})")

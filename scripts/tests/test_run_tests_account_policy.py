@@ -1577,3 +1577,63 @@ def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path,
     assert (dest / "new_otp_key.txt").read_text(encoding="utf-8") == "OTP_PLACEHOLDER"
     assert (dest / "api_key.txt").read_text(encoding="utf-8") == "API_KEY_PLACEHOLDER"
     assert not (results_dir / "screenshots" / "current" / "backup-code-login-flow" / "new_otp_key.txt").exists()
+
+
+def test_vercel_gate_fails_immediately_for_stale_dev_ancestor(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "_vercel_project_config", lambda: ("team", "project"))
+    monkeypatch.setattr(run_tests, "_latest_vercel_deployment_for_sha", lambda *_args: None)
+    monkeypatch.setattr(run_tests, "_requested_commit_is_stale_dev_ancestor", lambda _sha: True)
+
+    ready, reason = run_tests._wait_for_vercel_deployment(
+        "a" * 40,
+        {"VERCEL_TOKEN": "test-token", "OPENMATES_VERCEL_WAIT_TIMEOUT": "3600"},
+    )
+
+    assert ready is False
+    assert "stale dev ancestor" in reason
+
+
+def test_recent_runs_uses_direct_workflow_runs_endpoint(monkeypatch):
+    run_tests = load_run_tests_module()
+    client = object.__new__(run_tests.GitHubActionsClient)
+    client.last_dispatch_error = None
+    client.dispatch_circuit = run_tests.DispatchCircuit()
+    captured = []
+
+    def fake_run(command, **_kwargs):
+        captured.append(command)
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"workflow_runs": [{"id": 123, "display_title": "dispatch-token"}]}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    assert client._recent_runs(limit=50) == [{"databaseId": 123, "displayTitle": "dispatch-token"}]
+    assert captured == [[
+        "gh",
+        "api",
+        f"repos/{run_tests.GH_REPO}/actions/workflows/playwright-spec.yml/runs?per_page=50",
+    ]]
+
+
+def test_recent_runs_surfaces_rate_limit_without_silent_empty_retry(monkeypatch):
+    run_tests = load_run_tests_module()
+    client = object.__new__(run_tests.GitHubActionsClient)
+    client.last_dispatch_error = None
+    client.dispatch_circuit = run_tests.DispatchCircuit()
+    monkeypatch.setattr(
+        run_tests.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="HTTP 403: API rate limit exceeded",
+        ),
+    )
+
+    assert client._recent_runs() == []
+    assert client.last_dispatch_error == "GitHub Actions rate limit blocked workflow run discovery"
+    assert client.dispatch_circuit.is_open is True

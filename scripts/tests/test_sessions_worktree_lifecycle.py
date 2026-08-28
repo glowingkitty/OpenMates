@@ -72,6 +72,24 @@ def test_default_agent_worktree_directory_stays_inside_control_plane_root():
     assert sessions.SESSIONS_FILE == sessions.CONTROL_PLANE_ROOT / ".claude" / "sessions.json"
 
 
+def test_session_checkout_uses_worktree_while_repo_identity_remains_control_plane(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root = tmp_path / "OpenMates"
+    worktree = root / ".openmates-agent-worktrees" / "agent-abcd"
+    session = {
+        "repo_root": str(root),
+        "repo_id": "openmates",
+        "repo_name": "OpenMates",
+        "repo_branch": "dev",
+        "repo_remote": "origin",
+        "worktree": {"path": str(worktree)},
+    }
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+
+    assert sessions._session_checkout_root(session) == worktree.resolve()
+    assert sessions._session_is_control_plane_repo(session) is True
+
+
 def test_linked_worktree_resolves_shared_control_plane_root(tmp_path):
     sessions = load_sessions_module()
     root = tmp_path / "root"

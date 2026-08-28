@@ -177,15 +177,18 @@ def test_reconciliation_started_marker_replaces_stale_health(monkeypatch, tmp_pa
     assert saved["target_ref"] == "origin/dev"
 
 
-def test_hard_expiry_deletes_every_classification_after_seventy_two_hours(monkeypatch, tmp_path):
+def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     managed = tmp_path / "worktrees"
     old_unique = managed / "agent-old"
+    old_inactive = managed / "agent-inactive"
     recent_active = managed / "agent-recent"
     old_unique.mkdir(parents=True)
+    old_inactive.mkdir()
     recent_active.mkdir()
     now = time.time()
     os.utime(old_unique, (now - 73 * 3600, now - 73 * 3600))
+    os.utime(old_inactive, (now - 73 * 3600, now - 73 * 3600))
     os.utime(recent_active, (now - 2 * 3600, now - 2 * 3600))
     sessions_file = tmp_path / "sessions.json"
     sessions_file.write_text(
@@ -193,9 +196,10 @@ def test_hard_expiry_deletes_every_classification_after_seventy_two_hours(monkey
             {
                 "sessions": {
                     "old": {"writing": "source.py", "worktree": {"path": str(old_unique), "status": "active"}},
+                    "inactive": {"worktree": {"path": str(old_inactive), "status": "active"}},
                     "recent": {"worktree": {"path": str(recent_active), "status": "active"}},
                 },
-                "deploy_queue": [{"session_id": "old"}, {"session_id": "recent"}],
+                "deploy_queue": [{"session_id": "old"}, {"session_id": "inactive"}, {"session_id": "recent"}],
                 "edit_leases": {"source.py": {"session_id": "old"}, "recent.py": {"session_id": "recent"}},
             }
         ),
@@ -211,19 +215,81 @@ def test_hard_expiry_deletes_every_classification_after_seventy_two_hours(monkey
 
     report = sessions.expire_managed_worktrees(max_age_hours=72, now_timestamp=now)
 
-    assert removed == [old_unique]
-    assert report["deleted"] == ["old"]
-    assert report["retained"] == ["recent"]
-    assert deleted_refs == ["old"]
+    assert removed == [old_inactive]
+    assert report["deleted"] == ["inactive"]
+    assert report["retained"] == ["old", "recent"]
+    assert report["protected_live"] == ["old"]
+    assert deleted_refs == ["inactive"]
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
-    assert set(data["sessions"]) == {"recent"}
-    assert data["deploy_queue"] == [{"session_id": "recent"}]
-    assert data["edit_leases"] == {"recent.py": {"session_id": "recent"}}
+    assert set(data["sessions"]) == {"old", "recent"}
+    assert data["deploy_queue"] == [{"session_id": "old"}, {"session_id": "recent"}]
+    assert data["edit_leases"] == {"source.py": {"session_id": "old"}, "recent.py": {"session_id": "recent"}}
     manifest = data["worktree_deletion_manifests"][-1]
-    assert manifest["session_id"] == "old"
+    assert manifest["session_id"] == "inactive"
     assert manifest["reason"] == "hard_max_age_72h"
     assert "patch" not in manifest
     assert "content" not in manifest
+
+
+def test_hard_expiry_uses_created_at_instead_of_refreshed_directory_mtime(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    worktree = managed / "agent-old"
+    worktree.mkdir(parents=True)
+    now = time.time()
+    os.utime(worktree, (now, now))
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps({
+            "sessions": {
+                "old": {
+                    "started": "2020-01-01T00:00:00Z",
+                    "worktree": {
+                        "path": str(worktree),
+                        "created_at": "2020-01-01T00:00:00Z",
+                    },
+                }
+            }
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "_linked_git_worktrees", lambda: [])
+
+    records = sessions._managed_worktree_records()
+
+    assert len(records) == 1
+    assert records[0]["path_timestamp"] == sessions._parse_iso("2020-01-01T00:00:00Z").timestamp()
+
+
+def test_hard_expiry_uses_bounded_container_fallback_for_root_owned_artifacts(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed_root = tmp_path / "managed"
+    worktree = managed_root / "agent-old"
+    worktree.mkdir(parents=True)
+    (worktree / "root-owned-artifact").write_text("artifact", encoding="utf-8")
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed_root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "repo")
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (1, "", "not a working tree"))
+    monkeypatch.setattr(
+        sessions.shutil,
+        "rmtree",
+        lambda _path: (_ for _ in ()).throw(PermissionError("permission denied")),
+    )
+    recovered: list[Path] = []
+
+    def recover(path: Path) -> None:
+        recovered.append(path)
+        (path / "root-owned-artifact").unlink()
+        path.rmdir()
+
+    monkeypatch.setattr(sessions, "_remove_expired_worktree_with_container", recover)
+
+    sessions._remove_expired_worktree({"path": str(worktree), "linked": False})
+
+    assert recovered == [worktree]
+    assert not worktree.exists()
 
 
 def test_worktree_capacity_refuses_before_creation_when_limits_are_breached(monkeypatch, tmp_path):
@@ -240,6 +306,25 @@ def test_worktree_capacity_refuses_before_creation_when_limits_are_breached(monk
 
     with pytest.raises(RuntimeError, match="worktree count limit"):
         sessions._enforce_worktree_creation_capacity()
+
+
+def test_worktree_capacity_does_not_count_reserved_blocks_as_used(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    managed = tmp_path / "worktrees"
+    managed.mkdir()
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path)
+    monkeypatch.setattr(sessions, "WORKTREE_MAX_COUNT", 200)
+    monkeypatch.setattr(sessions, "WORKTREE_MIN_FREE_BYTES", 0)
+    monkeypatch.setattr(sessions, "WORKTREE_MAX_DISK_PERCENT", 85)
+    monkeypatch.setattr(sessions, "expire_managed_worktrees", lambda **_kwargs: {"deleted": []})
+    monkeypatch.setattr(
+        sessions.shutil,
+        "disk_usage",
+        lambda _path: sessions.shutil._ntuple_diskusage(total=100, used=80, free=15),
+    )
+
+    sessions._enforce_worktree_creation_capacity()
 
 
 def test_chat_deduplication_removes_integrated_older_worktree_and_rebinds_latest(monkeypatch):

@@ -657,14 +657,20 @@ def test_post_run_subject_guard_accepts_irrelevant_focused_spec_change(tmp_path,
     ) == current_dev
 
 
-def test_post_run_subject_guard_exact_mode_rejects_any_advance(tmp_path, monkeypatch):
+def test_post_run_subject_guard_exact_mode_preserves_pinned_evidence(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     subject = "a" * 40
-    current_dev = "b" * 40
-    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "integrated_dev_sha",
+        lambda: (_ for _ in ()).throw(AssertionError("exact pinned evidence must not consult moving dev")),
+    )
 
-    with pytest.raises(RuntimeError, match="exact-commit verification"):
-        tests_control.validate_test_subject_commit_after_run(subject, ["--spec", "chat-flow.spec.ts"], require_exact=True)
+    assert tests_control.validate_test_subject_commit_after_run(
+        subject,
+        ["--spec", "chat-flow.spec.ts"],
+        require_exact=True,
+    ) == subject
 
 
 def test_seeded_only_failed_files_from_non_spec_lease(tmp_path, monkeypatch):

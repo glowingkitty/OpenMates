@@ -199,7 +199,12 @@ def test_remove_unlinked_reviewed_worktree_uses_contained_directory_cleanup(monk
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
     monkeypatch.setattr(sessions, "_run_cmd", lambda _cmd: (1, "", "not a working tree"))
     removed: list[Path] = []
-    monkeypatch.setattr(sessions.shutil, "rmtree", lambda path: removed.append(Path(path)))
+
+    def remove(path):
+        removed.append(Path(path))
+        Path(path).rmdir()
+
+    monkeypatch.setattr(sessions.shutil, "rmtree", remove)
 
     sessions._remove_reconciled_worktree({"path": str(worktree), "linked": False})
 

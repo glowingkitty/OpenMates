@@ -1421,6 +1421,31 @@ def _deployment_matches_commit(deployment: dict, git_sha: str, *, exact: bool) -
     return bool(requested and deployed_sha and (deployed_sha.startswith(requested) or requested.startswith(deployed_sha)))
 
 
+def _requested_commit_is_stale_dev_ancestor(git_sha: str) -> bool:
+    """Return true only when Git proves the requested commit predates origin/dev."""
+    try:
+        requested = subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", git_sha],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        current_dev = subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", "origin/dev"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        if not requested or not current_dev or requested == current_dev:
+            return False
+        return subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "merge-base", "--is-ancestor", requested, current_dev],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> tuple[bool, str]:
     """Block Playwright dispatch until Vercel has deployed the current dev commit."""
     if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
@@ -1460,6 +1485,14 @@ def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> tuple[
             continue
 
         if deployment is None:
+            if last_status == "not found" and _requested_commit_is_stale_dev_ancestor(git_sha):
+                reason = (
+                    f"No Vercel deployment exists for stale dev ancestor {git_sha}. "
+                    "Verify the relevant files are unchanged, then rerun against current origin/dev; "
+                    "waiting cannot create a deployment for an older commit."
+                )
+                _log(reason, "ERROR")
+                return False, reason
             if last_status != "not found":
                 _log("Vercel deployment not visible yet")
             last_status = "not found"
@@ -1989,6 +2022,8 @@ class GitHubActionsClient:
                 break
             time.sleep(2)
             runs = self._recent_runs(limit=max(50, min(100, len(pending) * 3)))
+            if self.last_dispatch_error:
+                break
             for token in list(pending):
                 run_id = _matching_dispatched_run_id(runs, token)
                 if run_id is not None:
@@ -1996,27 +2031,51 @@ class GitHubActionsClient:
                     pending.pop(token)
         for token, spec in pending.items():
             _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
-        if pending:
+        if pending and not self.last_dispatch_error:
             self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
         return resolved
 
     def _recent_runs(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[dict]:
-        """Get the most recent runs for a workflow."""
+        """Get runs directly without the extra workflow-list lookup from `gh run list`."""
+        workflow_id = urllib.parse.quote(workflow, safe="")
         rc = subprocess.run(
-            ["gh", "run", "list",
-             "--repo", GH_REPO,
-             "--workflow", workflow,
-             "--limit", str(limit),
-             "--json", "databaseId,displayTitle"],
-            capture_output=True, text=True,
+            [
+                "gh",
+                "api",
+                f"repos/{GH_REPO}/actions/workflows/{workflow_id}/runs?per_page={limit}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if rc.returncode != 0:
+            detail = (rc.stderr or rc.stdout or "GitHub workflow-runs query failed").strip()
+            if _is_github_rate_limit_error(detail):
+                self.dispatch_circuit.open_rate_limit()
+                self.last_dispatch_error = "GitHub Actions rate limit blocked workflow run discovery"
+            else:
+                self.last_dispatch_error = (
+                    f"GitHub Actions workflow run discovery failed ({github_dispatch_error_category(detail)})"
+                )
+            _log(self.last_dispatch_error, "ERROR")
             return []
         try:
             data = json.loads(rc.stdout)
         except json.JSONDecodeError:
+            self.last_dispatch_error = "GitHub Actions workflow run discovery returned invalid JSON"
             return []
-        return data if isinstance(data, list) else []
+        runs = data.get("workflow_runs") if isinstance(data, dict) else None
+        if not isinstance(runs, list):
+            self.last_dispatch_error = "GitHub Actions workflow run discovery returned an invalid payload"
+            return []
+        return [
+            {
+                "databaseId": run.get("id"),
+                "displayTitle": run.get("display_title") or run.get("name") or "",
+            }
+            for run in runs
+            if isinstance(run, dict)
+        ]
 
     def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
         """Get the most recent run IDs for a workflow."""
