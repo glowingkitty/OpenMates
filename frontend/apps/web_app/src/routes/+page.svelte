@@ -3723,7 +3723,7 @@
 		top: 0;
 		bottom: 0;
 		background-color: var(--color-grey-0);
-		z-index: 10;
+		z-index: 11;
 		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
 		transition:
 			inset-inline-start 0.3s ease,

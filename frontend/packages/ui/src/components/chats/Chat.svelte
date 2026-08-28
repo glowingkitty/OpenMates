@@ -2420,7 +2420,7 @@
   }
 
   .chat-item-wrapper.active {
-    background-color: var(--color-grey-10);
+    background-color: var(--color-grey-0);
   }
 
   .chat-item {
