@@ -40,13 +40,13 @@ const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'responsive-actions',
-			text: 'The composer keeps model, camera, audio, and send controls direct while Drawing, Location, and Files share one attachment menu.',
+			text: 'The composer keeps model, camera, audio, and send controls direct while left-aligned Drawing, Location, and Files actions share one attachment menu.',
 			checkpoint: 'composer-responsive-actions',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'model-picker',
-			text: 'The model picker starts with Auto select and groups exact models under product-brand providers in the approved order.',
+			text: 'The model picker starts with Auto select, groups exact models by provider, opens model settings from each model name, and applies a chat override only from its toggle.',
 			checkpoint: 'composer-model-picker',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -67,7 +67,7 @@ const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 		{
 			id: 'ai-model-routing.composer.picker-provider-order',
 			checkpoint: 'composer-model-picker',
-			visual: 'Auto select and product-brand providers appear in the approved order in the composer picker.',
+			visual: 'Auto select and product-brand providers appear in the approved order, and model rows use toggles instead of question-mark controls.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -99,7 +99,7 @@ async function focusComposer(page: any): Promise<any> {
 	return editor;
 }
 
-// contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
+// contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions,ai-model-routing.settings.hierarchy-canonical
 test('composer picker, mentions, and grouped actions remain reachable without clipping', async ({ page }, testInfo: any) => {
 	test.setTimeout(240000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -142,6 +142,9 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(attachmentMenu.getByTestId('composer-attachment-drawing')).toBeVisible();
 	await expect(attachmentMenu.getByTestId('composer-attachment-location')).toBeVisible();
 	await expect(attachmentMenu.getByTestId('composer-attachment-files')).toBeVisible();
+	for (const testId of ['composer-attachment-drawing', 'composer-attachment-location', 'composer-attachment-files']) {
+		await expect.poll(async () => attachmentMenu.getByTestId(testId).evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
+	}
 	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
 	await expect(attachmentMenu).toBeVisible();
 	await expect(composer).toHaveAttribute('data-focused', 'true');
@@ -174,7 +177,20 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 		await expect(providerRows.nth(index + 1)).toContainText(EXPECTED_PROVIDER_ORDER[index]);
 	}
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
-	await selectorMenu.getByRole('menuitem').first().click();
+	const firstModelRow = selectorMenu.getByTestId('composer-model-row').first();
+	const firstModelName = firstModelRow.getByTestId('composer-model-name');
+	const firstModelToggle = firstModelRow.getByTestId('composer-model-toggle');
+	await expect(firstModelName).toBeVisible();
+	await expect(firstModelToggle.getByRole('checkbox')).not.toBeChecked();
+	await expect(firstModelRow).not.toContainText('?');
+	await firstModelName.click();
+	await expect(page.getByTestId('ai-model-details')).toBeVisible();
+	await page.getByTestId('profile-container').click();
+	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
+
+	await selector.click();
+	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
+	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
 	await expect(selector).not.toHaveAttribute('aria-label', /Auto select/i);
 
 	await editor.click();
