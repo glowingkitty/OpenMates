@@ -20,7 +20,7 @@ def _file_hash(path: Path) -> str:
     return digest.hexdigest()
 
 
-def validate_release(release: Path) -> dict[str, str]:
+def validate_release(release: Path, *, control_plane_commit: str = "") -> dict[str, str]:
     release = release.resolve()
     manifest_path = release / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -29,6 +29,8 @@ def validate_release(release: Path) -> dict[str, str]:
         raise RuntimeError(f"release binary is missing or not executable: {binary}")
     if _file_hash(binary) != manifest.get("binary_sha256"):
         raise RuntimeError("release binary checksum does not match manifest")
+    if control_plane_commit and manifest.get("control_plane_commit") != control_plane_commit:
+        raise RuntimeError("runtime control-plane commit does not match release manifest")
     return {str(key): str(value) for key, value in manifest.items()}
 
 
@@ -85,6 +87,7 @@ def main() -> int:
     prepare.add_argument("--version", required=True)
     validate = subparsers.add_parser("validate")
     validate.add_argument("--release", required=True, type=Path)
+    validate.add_argument("--control-plane-commit", default="")
     args = parser.parse_args()
     if args.command == "prepare":
         result = prepare_release(
@@ -95,7 +98,7 @@ def main() -> int:
             version=args.version,
         )
     else:
-        result = validate_release(args.release)
+        result = validate_release(args.release, control_plane_commit=args.control_plane_commit)
     print(json.dumps(result, sort_keys=True))
     return 0
 

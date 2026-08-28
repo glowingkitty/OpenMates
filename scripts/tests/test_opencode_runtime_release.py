@@ -43,3 +43,20 @@ def test_validate_release_rejects_a_modified_binary(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="binary checksum"):
         validate_release(releases / "current")
+
+
+def test_validate_release_rejects_a_mixed_control_plane_commit(tmp_path: Path) -> None:
+    binary = tmp_path / "opencode"
+    binary.write_text("binary", encoding="utf-8")
+    binary.chmod(0o755)
+    releases = tmp_path / "releases"
+    prepare_release(
+        binary,
+        releases,
+        opencode_commit="a" * 40,
+        control_plane_commit="b" * 40,
+        version="1.17.20",
+    )
+
+    with pytest.raises(RuntimeError, match="control-plane commit"):
+        validate_release(releases / "current", control_plane_commit="c" * 40)

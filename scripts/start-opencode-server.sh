@@ -11,20 +11,28 @@ RELEASES="${OPENCODE_RELEASES_DIR:-$HOME/.local/lib/opencode/releases}"
 RELEASE="$RELEASES/current"
 LOG_FILE="${OPENCODE_SERVER_LOG:-$HOME/.local/share/opencode/log/serve-${PORT}.log}"
 SECRETS_FILE="${OPENCODE_SECRETS_FILE:-$HOME/.config/opencode/secrets.env}"
+CONTROL_PLANE_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["control_plane_commit"])' "$RELEASE/manifest.json")"
 
 git -C "$SOURCE_CHECKOUT" fetch origin dev
+git -C "$SOURCE_CHECKOUT" merge-base --is-ancestor "$CONTROL_PLANE_COMMIT" origin/dev || {
+    echo "ERROR: release control-plane commit is not reachable from origin/dev: $CONTROL_PLANE_COMMIT" >&2
+    exit 1
+}
 if [ ! -e "$RUNTIME_CHECKOUT/.git" ]; then
     mkdir -p "$(dirname "$RUNTIME_CHECKOUT")"
-    git -C "$SOURCE_CHECKOUT" worktree add --detach "$RUNTIME_CHECKOUT" origin/dev
+    git -C "$SOURCE_CHECKOUT" worktree add --detach "$RUNTIME_CHECKOUT" "$CONTROL_PLANE_COMMIT"
 else
     if [ -n "$(git -C "$RUNTIME_CHECKOUT" status --porcelain)" ]; then
         echo "ERROR: OpenCode runtime checkout is dirty: $RUNTIME_CHECKOUT" >&2
         exit 1
     fi
-    git -C "$RUNTIME_CHECKOUT" merge --ff-only origin/dev
+    git -C "$RUNTIME_CHECKOUT" checkout --detach "$CONTROL_PLANE_COMMIT"
 fi
 
-python3 "$RUNTIME_CHECKOUT/scripts/opencode_runtime_release.py" validate --release "$RELEASE" >/dev/null
+python3 "$RUNTIME_CHECKOUT/scripts/opencode_runtime_release.py" validate \
+    --release "$RELEASE" \
+    --control-plane-commit "$(git -C "$RUNTIME_CHECKOUT" rev-parse HEAD)" \
+    >/dev/null
 python3 "$RUNTIME_CHECKOUT/scripts/sync_opencode_runtime_hook.py" \
     --runtime-checkout "$RUNTIME_CHECKOUT" \
     --project-root "$SOURCE_CHECKOUT"
