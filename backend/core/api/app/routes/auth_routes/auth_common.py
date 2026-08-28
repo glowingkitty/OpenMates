@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from fastapi import Request, HTTPException, status
 import logging
 import time
 import hashlib
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, TYPE_CHECKING
 
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 

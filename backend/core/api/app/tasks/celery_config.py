@@ -1128,6 +1128,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
     "app.tasks.persistence_tasks.persist_chat_pinned": "persistence",
     "app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs": "persistence",
+    "app.tasks.persistence_tasks.cleanup_expired_account_exports": "persistence",
     "app.tasks.persistence_tasks.persist_user_draft": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
     "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
@@ -1304,6 +1305,11 @@ app.conf.beat_schedule = {
     },
     'cleanup-expired-chat-recovery-jobs': {
         'task': 'app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs',
+        'schedule': timedelta(hours=1),
+        'options': {'queue': 'persistence'},
+    },
+    'cleanup-expired-account-exports': {
+        'task': 'app.tasks.persistence_tasks.cleanup_expired_account_exports',
         'schedule': timedelta(hours=1),
         'options': {'queue': 'persistence'},
     },

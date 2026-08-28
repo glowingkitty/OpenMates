@@ -199,6 +199,24 @@ def cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
         raise
 
 
+async def _async_cleanup_expired_account_exports() -> dict[str, int]:
+    from backend.core.api.app.services.account_export_service import AccountExportService
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+    service = AccountExportService(directus_service=directus_service)
+    return await service.purge_expired_exports()
+
+
+@app.task(name="app.tasks.persistence_tasks.cleanup_expired_account_exports")
+def cleanup_expired_account_exports() -> dict[str, int]:
+    try:
+        return asyncio.run(_async_cleanup_expired_account_exports())
+    except Exception:
+        logger.exception("Periodic account export cleanup failed")
+        raise
+
+
 def _sanitize_optional_client_encrypted_field(
     *,
     message_id: str,

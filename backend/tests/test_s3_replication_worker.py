@@ -1430,6 +1430,13 @@ async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key(
             return {"Body": BytesIO(objects[(Bucket, Key)])}
 
         def delete_object(self, *, Bucket: str, Key: str) -> None:
+            if Bucket not in buckets.values():
+                from botocore.exceptions import ClientError
+
+                raise ClientError(
+                    {"Error": {"Code": "NoSuchBucket"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                    "DeleteObject",
+                )
             objects.pop((Bucket, Key), None)
 
     class FakeS3Service:
@@ -1529,3 +1536,19 @@ async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key(
     purged = await processor.process_deletion_tombstone("tombstone-1", 1)
     assert purged == {"tombstone_id": "tombstone-1", "state": "completed", "processed": 3}
     assert objects == {}
+
+    directus.rows["storage_deletion_tombstones"]["tombstone-legacy"] = {
+        "id": "tombstone-legacy",
+        "logical_bucket": "profile_images_legacy",
+        "object_key": "legacy-profile.bin",
+        "generations": [1],
+        "generation_keys": {"1": "legacy-profile.bin"},
+        "purge_states": {"1": {region: "pending" for region in buckets}},
+        "state": "pending",
+        "version": 1,
+        "attempts": 0,
+    }
+
+    missing_bucket = await processor.process_deletion_tombstone("tombstone-legacy", 1)
+    assert missing_bucket == {"tombstone_id": "tombstone-legacy", "state": "completed", "processed": 3}
+    assert directus.rows["storage_deletion_tombstones"]["tombstone-legacy"]["last_error_code"] == "NoSuchBucket"

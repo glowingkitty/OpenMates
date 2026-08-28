@@ -38,6 +38,10 @@ def ensure_s3_dependencies() -> None:
             super().__init__(operation_name)
             self.response = response or {"Error": {}}
 
+    class BotocoreTransportError(Exception):
+        def __init__(self, *_args, **_kwargs) -> None:
+            super().__init__(self.__class__.__name__)
+
     config_module.Config = Config
     for name in (
         "ClientError",
@@ -47,7 +51,11 @@ def ensure_s3_dependencies() -> None:
         "HTTPClientError",
         "ReadTimeoutError",
     ):
-        setattr(exceptions_module, name, ClientError if name == "ClientError" else type(name, (Exception,), {}))
+        setattr(
+            exceptions_module,
+            name,
+            ClientError if name == "ClientError" else type(name, (BotocoreTransportError,), {}),
+        )
 
     botocore_module.config = config_module
     botocore_module.exceptions = exceptions_module

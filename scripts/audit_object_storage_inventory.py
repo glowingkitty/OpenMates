@@ -18,6 +18,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,9 @@ MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
 MAINTENANCE_S3_MAX_ATTEMPTS = 3
 DIRECTUS_AUDIT_PAGE_SIZE = 500
 MAX_UNRESOLVED_BYTE_CHECKS = 100
+INVENTORY_LIST_MAX_KEYS = 100
+INVENTORY_LIST_RETRY_ATTEMPTS = 3
+INVENTORY_LIST_RETRY_DELAY_SECONDS = 2
 RUNTIME_INVENTORY_TIMEOUT_SECONDS = 900
 HOST_DELEGATION_TIMEOUT_SECONDS = RUNTIME_INVENTORY_TIMEOUT_SECONDS + 30
 
@@ -61,6 +65,17 @@ def runtime_inventory_command(arguments: list[str]) -> list[str]:
         *forwarded,
         "--runtime",
     ]
+
+
+def build_runtime_delegation_failure(return_code: int, stderr: str) -> dict[str, object]:
+    return {
+        "status": "blocked",
+        "error_class": "RuntimeInventoryDelegationError",
+        "runtime_return_code": return_code,
+        "runtime_stderr_present": bool(stderr.strip()),
+        "inventory_stage": "runtime_delegation",
+        "object_keys_in_output": False,
+    }
 
 
 def sanitized_provider_error(error: Exception) -> dict[str, object]:
@@ -301,15 +316,32 @@ def _iter_managed_bucket_items(
         bucket = resolve_regional_bucket_name(legacy_bucket, region)
         continuation_token: str | None = None
         while True:
-            request: dict[str, object] = {"Bucket": bucket, "MaxKeys": 1000}
+            request: dict[str, object] = {"Bucket": bucket, "MaxKeys": INVENTORY_LIST_MAX_KEYS}
             if continuation_token:
                 request["ContinuationToken"] = continuation_token
-            page = client.list_objects_v2(**request)
+            page = _list_objects_v2_page(client=client, request=request)
             for item in page.get("Contents") or []:
                 yield logical_bucket, bucket, item
             continuation_token = page.get("NextContinuationToken")
             if not continuation_token:
                 break
+
+
+def _list_objects_v2_page(*, client: object, request: dict[str, object]) -> dict[str, object]:
+    transient_codes = {"500", "502", "503", "504", "RequestTimeout"}
+    transient_classes = {"ReadTimeoutError", "EndpointConnectionError"}
+    for attempt in range(INVENTORY_LIST_RETRY_ATTEMPTS):
+        try:
+            return client.list_objects_v2(**request)
+        except Exception as error:
+            evidence = sanitized_provider_error(error)
+            if (
+                str(evidence.get("error_code")) not in transient_codes
+                and str(evidence.get("error_class")) not in transient_classes
+            ) or attempt + 1 >= INVENTORY_LIST_RETRY_ATTEMPTS:
+                raise
+            time.sleep(INVENTORY_LIST_RETRY_DELAY_SECONDS * (attempt + 1))
+    raise RuntimeError("Provider inventory page unavailable")
 
 
 def _create_inventory_database(path: Path) -> sqlite3.Connection:
@@ -1126,6 +1158,16 @@ def main() -> int:
         if completed.returncode != 0:
             if completed.stdout:
                 print(completed.stdout.strip())
+            else:
+                print(
+                    json.dumps(
+                        build_runtime_delegation_failure(completed.returncode, completed.stderr),
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    if args.json
+                    else build_runtime_delegation_failure(completed.returncode, completed.stderr)
+                )
             return completed.returncode
         print(completed.stdout.strip())
         return 0

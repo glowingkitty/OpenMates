@@ -30,6 +30,7 @@ CLI_DIST = CLI_DIR / "dist/cli.js"
 LOGIN_HELPER = ROOT / "scripts/openmates_cli_test_account.mjs"
 POLL_INTERVAL_SECONDS = 5
 DEFAULT_TIMEOUT_SECONDS = 180
+ORPHAN_UPLOAD_CLEANUP_TIMEOUT_SECONDS = 60
 REPORT_FIELDS = (
     "status",
     "variant_count",
@@ -37,16 +38,28 @@ REPORT_FIELDS = (
     "deleted_region_count",
 )
 SAFE_RUNTIME_FAILURE_CLASSES = {
+    "cli_build_failed",
+    "cli_chat_create_failed",
+    "cli_chat_preflight_rejected",
+    "cli_chat_response_timeout",
+    "cli_chat_delete_failed",
+    "cli_file_upload_failed",
+    "cli_login_failed",
+    "cli_mention_resolution_failed",
+    "cli_signup_required",
+    "orphan_upload_cleanup_timeout",
+    "orphan_upload_record_delete_failed",
     "regional_ciphertext_checksum_mismatch",
     "regional_cleanup_timeout",
     "regional_replica_timeout",
+    "runtime_output_invalid_json",
     "upload_record_not_found",
     "upload_variants_missing",
 }
 
 
-def parse_cli_json(output: str) -> dict[str, Any]:
-    """Return the last complete CLI result from mixed streaming output."""
+def parse_json_objects(output: str) -> list[dict[str, Any]]:
+    """Return complete JSON objects embedded in mixed command output."""
     decoder = json.JSONDecoder()
     candidates: list[dict[str, Any]] = []
     for index, character in enumerate(output):
@@ -58,10 +71,40 @@ def parse_cli_json(output: str) -> dict[str, Any]:
             continue
         if isinstance(value, dict):
             candidates.append(value)
+    return candidates
+
+
+def parse_cli_json(output: str) -> dict[str, Any]:
+    """Return the last complete CLI result from mixed streaming output."""
+    candidates = parse_json_objects(output)
     for candidate in reversed(candidates):
         if candidate.get("status") == "completed" or candidate.get("chat_id"):
             return candidate
     raise RuntimeError("cli_result_invalid_json")
+
+
+def parse_runtime_report(output: str) -> dict[str, Any]:
+    """Return the last sanitized runtime report from mixed runtime output."""
+    for candidate in reversed(parse_json_objects(output)):
+        if "status" in candidate or "failure_class" in candidate:
+            return candidate
+    raise RuntimeError("runtime_output_invalid_json")
+
+
+def classify_cli_failure(output: str, default: str) -> str:
+    """Map mixed CLI output to a safe non-secret failure class."""
+    lowered = output.casefold()
+    if "upload failed:" in lowered:
+        return "cli_file_upload_failed"
+    if "response timed out" in lowered or "timed out waiting" in lowered:
+        return "cli_chat_response_timeout"
+    if "encrypted chat preflight was rejected" in lowered:
+        return "cli_chat_preflight_rejected"
+    if "unknown mention" in lowered:
+        return "cli_mention_resolution_failed"
+    if "file uploads require signup" in lowered or "signup_required" in lowered:
+        return "cli_signup_required"
+    return default
 
 
 def require_grounded_answer(payload: dict[str, Any], marker: str) -> None:
@@ -83,6 +126,7 @@ def _run(
     env: dict[str, str] | None = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
     input_text: str | None = None,
+    failure_class: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     completed = subprocess.run(
         command,
@@ -95,7 +139,8 @@ def _run(
         timeout=timeout,
     )
     if completed.returncode != 0:
-        raise RuntimeError(f"command_failed:{Path(command[0]).name}")
+        default_failure = failure_class or f"command_failed:{Path(command[0]).name}"
+        raise RuntimeError(classify_cli_failure(f"{completed.stdout}\n{completed.stderr}", default_failure))
     return completed
 
 
@@ -111,6 +156,21 @@ def _unique_image(directory: Path) -> tuple[Path, str, str]:
     path = directory / "regional-image-test.svg"
     path.write_bytes(payload)
     return path, hashlib.sha256(payload).hexdigest(), marker
+
+
+def _proof_slug(content_hash: str) -> str:
+    return f"regional-storage-{content_hash[:16]}"
+
+
+def build_host_report(scenario: str, replica_report: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **replica_report,
+        "status": "passed",
+        "scenario": scenario,
+        "chat_completed": True,
+        "image_grounded": True,
+        "object_keys_in_output": False,
+    }
 
 
 def _runtime_command(
@@ -143,6 +203,30 @@ def _runtime_command(
     return command
 
 
+def _runtime_upload_cleanup_command(
+    *,
+    content_hash: str,
+    regions: tuple[str, ...],
+    timeout: int,
+) -> list[str]:
+    runtime_verifier = os.getenv("OPENMATES_STORAGE_RUNTIME_VERIFIER")
+    command = ["docker", "exec"]
+    if not runtime_verifier:
+        command.append("-i")
+    command.extend([
+        "api",
+        "python",
+        runtime_verifier or "-",
+        "--runtime-cleanup-content-hash",
+        content_hash,
+        "--verify-regions",
+        ",".join(regions),
+        "--timeout-seconds",
+        str(timeout),
+    ])
+    return command
+
+
 def _run_runtime(command: list[str], *, timeout: int) -> subprocess.CompletedProcess[str]:
     source = None if os.getenv("OPENMATES_STORAGE_RUNTIME_VERIFIER") else Path(__file__).read_text(encoding="utf-8")
     completed = subprocess.run(
@@ -165,6 +249,15 @@ def _run_runtime(command: list[str], *, timeout: int) -> subprocess.CompletedPro
     raise RuntimeError(safe_failure)
 
 
+def _run_runtime_upload_cleanup(command: list[str], *, timeout: int) -> dict[str, Any]:
+    completed = _run_runtime(command, timeout=timeout)
+    report = parse_runtime_report(f"{completed.stdout}\n{completed.stderr}")
+    if report.get("status") not in {"passed", "not_found"}:
+        failure = str(report.get("failure_class") or "orphan_upload_cleanup_timeout")
+        raise RuntimeError(failure if failure in SAFE_RUNTIME_FAILURE_CLASSES else "runtime_verification_failed")
+    return report
+
+
 def _start_runtime_cleanup_session(
     command: list[str],
 ) -> tuple[subprocess.Popen[str], dict[str, Any]]:
@@ -185,12 +278,16 @@ def _start_runtime_cleanup_session(
     if process.stdout is None:
         _stop_runtime_process(process)
         raise RuntimeError("runtime_verification_failed")
-    ready_line = process.stdout.readline()
-    try:
-        ready = json.loads(ready_line)
-    except json.JSONDecodeError:
-        _stop_runtime_process(process)
-        raise RuntimeError("runtime_verification_failed")
+    while True:
+        ready_line = process.stdout.readline()
+        if not ready_line:
+            _stop_runtime_process(process)
+            raise RuntimeError("runtime_output_invalid_json")
+        try:
+            ready = parse_runtime_report(ready_line)
+        except RuntimeError:
+            continue
+        break
     if ready.get("status") != "replicas_ready":
         _stop_runtime_process(process)
         failure = str(ready.get("failure_class") or "")
@@ -220,10 +317,7 @@ def _finish_runtime_cleanup_session(
     except subprocess.TimeoutExpired:
         _stop_runtime_process(process)
         raise RuntimeError("regional_cleanup_timeout")
-    try:
-        report = json.loads(remaining_output.strip())
-    except json.JSONDecodeError:
-        raise RuntimeError("runtime_verification_failed")
+    report = parse_runtime_report(remaining_output)
     if process.returncode != 0:
         failure = str(report.get("failure_class") or "")
         raise RuntimeError(failure if failure in SAFE_RUNTIME_FAILURE_CLASSES else "runtime_verification_failed")
@@ -243,7 +337,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
     if not args.cleanup:
         raise RuntimeError("cleanup_is_required")
     if os.getenv("OPENMATES_CLI_SKIP_BUILD") != "1":
-        _run(["npm", "run", "build"], cwd=CLI_DIR, timeout=300)
+        _run(["npm", "run", "build"], cwd=CLI_DIR, timeout=300, failure_class="cli_build_failed")
     with tempfile.TemporaryDirectory(prefix="openmates-regional-cli-") as temporary:
         home = Path(temporary)
         (home / "backend").symlink_to(ROOT / "backend", target_is_directory=True)
@@ -262,6 +356,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                 args.api_url,
             ],
             env=env,
+            failure_class="cli_login_failed",
         )
         chat_id: str | None = None
         cleanup_verified = False
@@ -277,6 +372,8 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                     "chats",
                     "new",
                     prompt,
+                    "--slug",
+                    _proof_slug(content_hash),
                     "--json",
                     "--response-timeout-seconds",
                     str(args.timeout_seconds),
@@ -284,6 +381,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                 cwd=CLI_DIR,
                 env=env,
                 timeout=args.timeout_seconds + 120,
+                failure_class="cli_chat_create_failed",
             )
             payload = parse_cli_json(f"{chat.stdout}\n{chat.stderr}")
             require_grounded_answer(payload, grounded_marker)
@@ -312,6 +410,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                     ),
                     cwd=CLI_DIR,
                     env=env,
+                    failure_class="cli_chat_delete_failed",
                 )
                 deletion_report = _finish_runtime_cleanup_session(
                     runtime_process,
@@ -321,14 +420,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                     raise RuntimeError("regional_cleanup_verification_failed")
                 replica_report["deleted_region_count"] = deletion_report.get("deleted_region_count", 0)
                 cleanup_verified = True
-            return {
-                "status": "passed",
-                "scenario": args.scenario,
-                "chat_completed": True,
-                "image_grounded": True,
-                **replica_report,
-                "object_keys_in_output": False,
-            }
+            return build_host_report(args.scenario, replica_report)
         finally:
             if chat_id and not cleanup_verified:
                 try:
@@ -344,6 +436,7 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                         ),
                         cwd=CLI_DIR,
                         env=env,
+                        failure_class="cli_chat_delete_failed",
                     )
                     if runtime_process is not None:
                         deletion_report = _finish_runtime_cleanup_session(
@@ -360,6 +453,21 @@ def _host_verify(args: argparse.Namespace) -> dict[str, Any]:
                     raise RuntimeError(f"mandatory_cleanup_failed:{safe_failure}") from cleanup_error
                 if not cleanup_verified:
                     raise RuntimeError("mandatory_cleanup_failed")
+            if not chat_id:
+                try:
+                    _run_runtime_upload_cleanup(
+                        _runtime_upload_cleanup_command(
+                            content_hash=content_hash,
+                            regions=args.regions,
+                            timeout=ORPHAN_UPLOAD_CLEANUP_TIMEOUT_SECONDS,
+                        ),
+                        timeout=ORPHAN_UPLOAD_CLEANUP_TIMEOUT_SECONDS + 30,
+                    )
+                except Exception as cleanup_error:
+                    safe_failure = str(cleanup_error)
+                    if safe_failure not in SAFE_RUNTIME_FAILURE_CLASSES:
+                        safe_failure = "runtime_verification_failed"
+                    raise RuntimeError(f"mandatory_cleanup_failed:{safe_failure}") from cleanup_error
             subprocess.run(
                 _cli_command("--api-url", args.api_url, "logout", "--yes"),
                 cwd=CLI_DIR,
@@ -592,6 +700,109 @@ async def _runtime_verify(args: argparse.Namespace) -> dict[str, Any]:
         await secrets.aclose()
 
 
+async def _runtime_cleanup_upload_by_hash(args: argparse.Namespace) -> dict[str, Any]:
+    from botocore.exceptions import ClientError
+
+    from backend.core.api.app.services.s3.config import get_bucket_name
+    from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+
+    secrets, directus, s3 = await _load_runtime_services()
+    try:
+        deadline = time.monotonic() + args.timeout_seconds
+        upload: dict[str, Any] | None = None
+        while time.monotonic() < deadline:
+            rows = await directus.get_items(
+                "upload_files",
+                params={
+                    "filter": {"content_hash": {"_eq": args.runtime_cleanup_content_hash}},
+                    "fields": "id,files_metadata,file_size_bytes",
+                    "sort": "-created_at",
+                    "limit": 1,
+                },
+                no_cache=True,
+                admin_required=True,
+                raise_on_error=True,
+            )
+            if rows:
+                upload = dict(rows[0])
+                break
+            await asyncio.sleep(POLL_INTERVAL_SECONDS)
+        if upload is None:
+            return {
+                "status": "not_found",
+                "upload_record_found": False,
+                "object_keys_in_output": False,
+            }
+
+        variants = [
+            variant
+            for variant in dict(upload.get("files_metadata") or {}).values()
+            if isinstance(variant, dict) and variant.get("s3_key")
+        ]
+        tombstones = await directus.embed._persist_upload_tombstones([upload])
+        directus_id = str(upload.get("id") or "")
+        if directus_id:
+            deleted = await directus.delete_item("upload_files", directus_id, admin_required=True)
+            if not deleted:
+                raise RuntimeError("orphan_upload_record_delete_failed")
+        await directus.embed._activate_s3_tombstones(tombstones)
+
+        deadline = time.monotonic() + args.timeout_seconds
+        while time.monotonic() < deadline:
+            deleted_count = 0
+            completed_tombstones = 0
+            for variant in variants:
+                key = str(variant["s3_key"])
+                tombstone_rows = await directus.get_items(
+                    "storage_deletion_tombstones",
+                    params={
+                        "filter": {
+                            "logical_bucket": {"_eq": "chatfiles"},
+                            "object_key": {"_eq": key},
+                            "state": {"_eq": "completed"},
+                        },
+                        "fields": "id,state",
+                        "limit": 1,
+                    },
+                    no_cache=True,
+                    admin_required=True,
+                    raise_on_error=True,
+                )
+                if tombstone_rows:
+                    completed_tombstones += 1
+                for region in args.regions:
+                    bucket = resolve_regional_bucket_name(
+                        get_bucket_name("chatfiles", s3.environment), region
+                    )
+                    try:
+                        await asyncio.to_thread(
+                            s3.region_clients[region].head_object,
+                            Bucket=bucket,
+                            Key=key,
+                        )
+                    except ClientError as exc:
+                        if exc.response.get("Error", {}).get("Code") in {"404", "NoSuchKey"}:
+                            deleted_count += 1
+                            continue
+                        raise
+            if not variants or (
+                deleted_count == len(variants) * len(args.regions)
+                and completed_tombstones == len(variants)
+            ):
+                return {
+                    "status": "passed",
+                    "upload_record_found": True,
+                    "variant_count": len(variants),
+                    "deleted_region_count": len(args.regions),
+                    "object_keys_in_output": False,
+                }
+            await asyncio.sleep(POLL_INTERVAL_SECONDS)
+        raise RuntimeError("orphan_upload_cleanup_timeout")
+    finally:
+        await directus.close()
+        await secrets.aclose()
+
+
 async def _runtime_cleanup_aggregate(minutes: int) -> dict[str, Any]:
     """Return recent deletion health without object identities or storage names."""
     secrets, directus, _s3 = await _load_runtime_services()
@@ -726,18 +937,20 @@ def main() -> int:
     parser.add_argument("--cleanup", action="store_true", default=True)
     parser.add_argument("--timeout-seconds", type=int, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--runtime-content-hash")
+    parser.add_argument("--runtime-cleanup-content-hash")
     parser.add_argument("--wait-for-cleanup", action="store_true")
     parser.add_argument("--runtime-cleanup-aggregate-minutes", type=int)
     parser.add_argument("--expect-deleted", action="store_true")
     args = parser.parse_args()
     try:
-        report = (
-            asyncio.run(_runtime_cleanup_aggregate(args.runtime_cleanup_aggregate_minutes))
-            if args.runtime_cleanup_aggregate_minutes
-            else asyncio.run(_runtime_verify(args))
-            if args.runtime_content_hash
-            else _host_verify(args)
-        )
+        if args.runtime_cleanup_content_hash:
+            report = asyncio.run(_runtime_cleanup_upload_by_hash(args))
+        elif args.runtime_cleanup_aggregate_minutes:
+            report = asyncio.run(_runtime_cleanup_aggregate(args.runtime_cleanup_aggregate_minutes))
+        elif args.runtime_content_hash:
+            report = asyncio.run(_runtime_verify(args))
+        else:
+            report = _host_verify(args)
     except Exception as exc:
         report = {
             "status": "failed",

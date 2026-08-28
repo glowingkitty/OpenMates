@@ -98,7 +98,6 @@ class FakeDirectus:
         self.created.append(payload)
         return True, {"id": f"tombstone-{len(self.created)}", **payload}
 
-
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.files.reference-safe-single-copy,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
 async def test_account_inventory_persists_every_non_regulated_object_before_owner_removal() -> None:
@@ -212,3 +211,34 @@ async def test_failed_storage_reference_row_delete_stops_account_finalization() 
             user_id="user-1",
             user_id_hash="hashed-user-1",
         )
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.privacy.ciphertext-boundary
+@pytest.mark.anyio
+async def test_account_deletion_removes_persisted_export_jobs_and_parts() -> None:
+    class DirectusWithExportRows:
+        def __init__(self) -> None:
+            self.rows = {
+                "account_export_jobs": [{"id": "job-1"}],
+                "account_export_parts": [{"id": "part-1"}, {"id": "part-2"}],
+            }
+
+        async def get_items(self, collection: str, **_kwargs: object) -> list[dict]:
+            return list(self.rows.get(collection, []))
+
+        async def bulk_delete_items(self, collection: str, item_ids: list[str]) -> bool:
+            self.rows[collection] = [row for row in self.rows[collection] if row["id"] not in item_ids]
+            return True
+
+    directus = DirectusWithExportRows()
+
+    deleted = await storage_reference_service.delete_account_storage_reference_rows(
+        directus_service=directus,
+        user_id="user-1",
+        user_id_hash="hashed-user-1",
+    )
+
+    assert deleted["account_export_jobs"] == 1
+    assert deleted["account_export_parts"] == 2
+    assert directus.rows["account_export_jobs"] == []
+    assert directus.rows["account_export_parts"] == []

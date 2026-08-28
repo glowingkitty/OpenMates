@@ -30,6 +30,9 @@ def test_health_verifier_accepts_only_required_aggregate_shape() -> None:
                 "last_error_code": "",
             }],
             "pending_replication": 4,
+            "source_missing_replication": 1,
+            "replication_error_code_counts": {"404": 1},
+            "max_replication_attempts": 3,
             "pending_deletion": 2,
             "result_truncated": False,
         }
@@ -44,6 +47,9 @@ def test_health_verifier_accepts_only_required_aggregate_shape() -> None:
             "last_error_code": "",
         }],
         "pending_replication": 4,
+        "source_missing_replication": 1,
+        "replication_error_code_counts": {"404": 1},
+        "max_replication_attempts": 3,
         "pending_deletion": 2,
         "result_truncated": False,
     }

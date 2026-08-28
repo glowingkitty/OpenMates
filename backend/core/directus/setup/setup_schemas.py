@@ -178,6 +178,8 @@ USER_CHAT_PREFERENCE_INDEXES = (
 EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
 BACKEND_PERMISSION_COLLECTIONS = (
+    'account_export_jobs',
+    'account_export_parts',
     'anonymous_free_usage_budget',
     'anonymous_free_usage_identity_daily',
     'anonymous_free_usage_reservations',

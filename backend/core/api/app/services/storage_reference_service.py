@@ -465,6 +465,8 @@ async def delete_account_storage_reference_rows(
 ) -> dict[str, int]:
     """Delete account-owned storage reference rows in bounded required batches."""
     specifications = (
+        ("account_export_parts", {"hashed_user_id": {"_eq": user_id_hash}}),
+        ("account_export_jobs", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("upload_files", {"user_id": {"_eq": user_id}}),
         ("user_task_archives", {"hashed_user_id": {"_eq": user_id_hash}}),
         ("workspace_change_archives", {"hashed_user_id": {"_eq": user_id_hash}}),

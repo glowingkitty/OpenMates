@@ -1,0 +1,32 @@
+# Durable Account Export V1 job state for CLI, SDK, web, and Apple parity.
+# Rows contain owner/team hashes, progress, failures, and part manifests only;
+# payload bytes live in account_export_parts and never contain reusable secrets.
+account_export_jobs:
+  type: collection
+  note: "Durable resumable Account Export job state"
+  fields:
+    id: {type: uuid, primary: true}
+    export_id: {type: string, length: 64, required: true, unique: true}
+    schema_version: {type: string, length: 64, required: true}
+    status: {type: string, length: 32, required: true}
+    hashed_user_id: {type: string, length: 64, required: true}
+    hashed_team_id: {type: string, length: 64, nullable: true}
+    selected_domains: {type: json, required: true}
+    default_domains: {type: json, required: true}
+    advanced_optional_domains: {type: json, required: true}
+    filters: {type: json, required: true}
+    format: {type: string, length: 32, required: true}
+    progress: {type: json, required: true}
+    chunks: {type: json, required: true}
+    domain_results: {type: json, required: true}
+    failures: {type: json, required: true}
+    created_at: {type: datetime, required: true}
+    updated_at: {type: datetime, required: true}
+    expires_at: {type: datetime, required: true}
+    accepted_partial_at: {type: datetime, nullable: true}
+    completed_at: {type: datetime, nullable: true}
+  indexes:
+    - name: idx_account_export_jobs_user
+      fields: [hashed_user_id, status, created_at]
+    - name: idx_account_export_jobs_team
+      fields: [hashed_team_id, status, created_at]

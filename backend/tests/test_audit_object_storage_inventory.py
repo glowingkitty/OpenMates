@@ -19,6 +19,7 @@ from scripts.audit_object_storage_inventory import (
     _populate_authoritative_source_database,
     _populate_verified_job_database,
     _verify_unresolved_authoritative_bytes,
+    build_runtime_delegation_failure,
     probe_managed_bucket,
     runtime_inventory_command,
 )
@@ -46,6 +47,20 @@ def test_networked_inventory_delegates_to_api_runtime() -> None:
     ]
     assert command[7:9] == ["python", "/app/scripts/audit_object_storage_inventory.py"]
     assert command[-1] == "--runtime"
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_networked_inventory_delegation_failure_is_safe_and_visible() -> None:
+    report = build_runtime_delegation_failure(2, "unrecognized arguments: --flag")
+
+    assert report == {
+        "status": "blocked",
+        "error_class": "RuntimeInventoryDelegationError",
+        "runtime_return_code": 2,
+        "runtime_stderr_present": True,
+        "inventory_stage": "runtime_delegation",
+        "object_keys_in_output": False,
+    }
 
 
 class RecordingClient:
@@ -133,8 +148,10 @@ class AuthoritativeInventoryClient:
     def __init__(self, *, replica: bool = False) -> None:
         self.replica = replica
         self.head_keys: list[str] = []
+        self.list_max_keys: list[int] = []
 
-    def list_objects_v2(self, **_kwargs) -> dict:
+    def list_objects_v2(self, **kwargs) -> dict:
+        self.list_max_keys.append(int(kwargs["MaxKeys"]))
         return {
             "Contents": [
                 {"Key": "live", "Size": 10, "ETag": '"source-live"'},
@@ -187,6 +204,45 @@ def test_authoritative_scan_heads_only_referenced_objects(tmp_path: Path, monkey
 
     assert source.head_keys == ["live"]
     assert replica.head_keys == ["live"]
+    assert source.list_max_keys == [module.INVENTORY_LIST_MAX_KEYS]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
+def test_inventory_listing_retries_transient_provider_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import audit_object_storage_inventory as module
+
+    class FlakyClient:
+        def __init__(self) -> None:
+            self.calls = 0
+            self.max_keys: list[int] = []
+
+        def list_objects_v2(self, **kwargs) -> dict:
+            self.calls += 1
+            self.max_keys.append(int(kwargs["MaxKeys"]))
+            if self.calls == 1:
+                error = RuntimeError("temporary provider failure")
+                error.response = {
+                    "Error": {"Code": "504"},
+                    "ResponseMetadata": {"HTTPStatusCode": 504},
+                }
+                raise error
+            return {"Contents": [{"Key": "live", "Size": 1, "ETag": '"etag"'}]}
+
+    client = FlakyClient()
+    monkeypatch.setattr(module, "BUCKETS", {"chatfiles": {"managed": True}})
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+
+    rows = list(
+        module._iter_managed_bucket_items(
+            client=client,
+            region="nbg1",
+            environment="development",
+        )
+    )
+
+    assert client.calls == 2
+    assert client.max_keys == [module.INVENTORY_LIST_MAX_KEYS, module.INVENTORY_LIST_MAX_KEYS]
+    assert rows[0][0] == "chatfiles"
 
 
 # contract-test: supporting surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.integrity.observable-reconcilable

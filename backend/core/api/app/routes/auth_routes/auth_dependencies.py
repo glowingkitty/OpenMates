@@ -3,21 +3,23 @@ Shared dependencies for authentication routes.
 This file contains functions that provide services to all auth-related endpoints,
 including retrieving the currently authenticated user.
 """
+from __future__ import annotations
+
 import hashlib
 import logging
 import time
 from fastapi import Request, Response, HTTPException, Depends, Cookie
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
-from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
-# Import services and models needed by get_current_user
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.models.user import User
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +30,9 @@ API_KEY_FIRST_PARTY_SDK_PRODUCT_PREFIXES = {
     "/v1/user-plans": ("plans", "plan"),
     "/v1/projects": ("projects", "project"),
 }
-FIRST_PARTY_SDK_NAMES = {"npm", "pip"}
+FIRST_PARTY_SDK_NAMES = {"cli", "npm", "pip"}
+ACCOUNT_EXPORT_API_KEY_SCOPE_GROUP = "account"
+ACCOUNT_EXPORT_API_KEY_SCOPE = "account:export"
 WORKFLOW_EXECUTION_PATH_PARTS = ("/run", "/steps/", "/runs/", "/input")
 
 
@@ -76,6 +80,17 @@ def _sdk_product_scope_for_request(method: str) -> str:
 
 def _is_first_party_sdk_request(request: Request) -> bool:
     return request.headers.get("x-openmates-sdk", "").strip().lower() in FIRST_PARTY_SDK_NAMES
+
+
+def _is_authenticated_first_party_sdk_request(request: Request, api_key_info: dict[str, Any]) -> bool:
+    return bool(api_key_info.get("device_hash")) and _is_first_party_sdk_request(request)
+
+
+def _api_key_has_explicit_scope(api_key_info: dict[str, Any], group: str, required_scope: str) -> bool:
+    metadata = api_key_info.get("api_key_metadata") or {}
+    scopes = metadata.get("scopes") if isinstance(metadata, dict) else {}
+    group_scopes = scopes.get(group) if isinstance(scopes, dict) else []
+    return required_scope in (group_scopes or [])
 
 
 def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[str, Any]) -> None:
@@ -140,6 +155,22 @@ def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[st
                 status_code=403,
                 detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
             ) from exc
+
+    if path == "/v1/account-exports" or path.startswith("/v1/account-exports/"):
+        if not _is_authenticated_first_party_sdk_request(request, api_key_info):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "developer_api_access_not_classified"},
+            )
+        if not _api_key_has_explicit_scope(
+            api_key_info,
+            ACCOUNT_EXPORT_API_KEY_SCOPE_GROUP,
+            ACCOUNT_EXPORT_API_KEY_SCOPE,
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "missing_scope", "missing_scope": ACCOUNT_EXPORT_API_KEY_SCOPE},
+            )
 
 # All functions now accept Request and fetch services from backend.core.api.app.state
 # (Keep existing service getters)
@@ -313,6 +344,8 @@ async def get_current_user(
             "path": "/",
         }
         if request is not None:
+            from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
+
             cookie_domain = get_cookie_domain(request)
             if cookie_domain:
                 cookie_params["domain"] = cookie_domain

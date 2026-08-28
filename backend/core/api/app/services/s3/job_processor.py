@@ -292,13 +292,16 @@ class RegionalStorageJobProcessor:
                     processed += 1
                 except Exception as error:
                     last_error_code = _error_code(error)
+                    already_missing = last_error_code in MISSING_SOURCE_CODES
                     tombstone = record_purge_result(
                         tombstone,
                         generation=generation,
                         region=region,
-                        success=False,
+                        success=already_missing,
                         now=now,
                     )
+                    if already_missing:
+                        processed += 1
 
         completed = tombstone["state"] == "completed"
         if not completed:

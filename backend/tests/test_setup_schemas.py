@@ -211,6 +211,8 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         assert payload["fields"] == ["*"]
 
     assert actions_by_collection == {
+        "account_export_jobs": {"create", "read", "update", "delete"},
+        "account_export_parts": {"create", "read", "update", "delete"},
         "anonymous_free_usage_budget": {"create", "read", "update", "delete"},
         "anonymous_free_usage_identity_daily": {"create", "read", "update", "delete"},
         "anonymous_free_usage_reservations": {"create", "read", "update", "delete"},
