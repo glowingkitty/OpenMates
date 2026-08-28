@@ -30,8 +30,6 @@ async function activateWikipediaSearch(
 	const { editor, source } = opened ?? await openWikipediaSourceMenu(page);
 	await source.click();
 	await expect(editor).toContainText('@wiki:', { timeout: 2_000 });
-	await editor.click();
-	await page.keyboard.press('End');
 	await page.keyboard.type(query, { delay: 50 });
 	await expect(editor).toContainText(`@wiki:${query}`, { timeout: 2_000 });
 	return editor;

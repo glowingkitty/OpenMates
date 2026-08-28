@@ -2660,11 +2660,13 @@
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
         if (result.type === 'wikipedia_source') {
+            const wikipediaSearchSyntax = '@wiki:';
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
-                .insertContent('@wiki:')
+                .insertContent(wikipediaSearchSyntax)
+                .setTextSelection(atDocPosition + wikipediaSearchSyntax.length)
                 .run();
             mentionQuery = 'wiki:';
             showMentionDropdown = true;
