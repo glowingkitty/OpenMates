@@ -28,7 +28,14 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
-const EXPECTED_PROVIDER_ORDER = ['ChatGPT', 'Claude', 'Mistral', 'DeepSeek', 'Gemini', 'Qwen'];
+const EXPECTED_PROVIDERS = [
+	{ id: 'openai', label: 'ChatGPT' },
+	{ id: 'anthropic', label: 'Claude' },
+	{ id: 'mistral', label: 'Mistral' },
+	{ id: 'deepseek', label: 'DeepSeek' },
+	{ id: 'google', label: 'Gemini' },
+	{ id: 'alibaba', label: 'Qwen' }
+];
 const COMPOSER_BLUR_SETTLE_MS = 250;
 
 const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
@@ -156,18 +163,19 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 
 	await selector.click();
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
+	await expect(selector).toHaveAttribute('aria-haspopup', 'dialog');
+	await expect(selectorMenu).toBeFocused();
 	await assertProof(proof, 'ai-model-routing.composer.picker-provider-order', async () => {
 		await expect(selectorMenu.getByTestId('composer-model-auto')).toContainText('Auto select');
-		const providerRows = selectorMenu.getByRole('menuitem');
 		for (let index = 0; index < 4; index += 1) {
-			await expect(providerRows.nth(index + 1)).toContainText(EXPECTED_PROVIDER_ORDER[index]);
+			await expect(selectorMenu.getByTestId(`composer-model-provider-${EXPECTED_PROVIDERS[index].id}`)).toContainText(EXPECTED_PROVIDERS[index].label);
 		}
 		await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toContainText('from OpenAI');
 		await expect(selectorMenu.getByTestId('composer-model-provider-anthropic')).toContainText('from Anthropic');
 		await expect(selectorMenu.getByTestId('composer-model-provider-mistral')).toHaveText('Mistral');
 		await expect(selectorMenu.getByTestId('composer-model-provider-deepseek')).toHaveText('DeepSeek');
-		for (const provider of EXPECTED_PROVIDER_ORDER.slice(0, 4)) {
-			await expect.poll(async () => selectorMenu.getByTestId(`composer-model-provider-${provider}`).evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
+		for (const provider of EXPECTED_PROVIDERS.slice(0, 4)) {
+			await expect.poll(async () => selectorMenu.getByTestId(`composer-model-provider-${provider.id}`).evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
 		}
 		await expect(selectorMenu.getByTestId('composer-model-show-more')).toBeVisible();
 		await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
@@ -177,10 +185,15 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await takeStepScreenshot(page, '02-model-picker');
 	if (proof) await proof.checkpoint('composer-model-picker');
 
-	const providerRows = selectorMenu.getByRole('menuitem');
 	await selectorMenu.getByTestId('composer-model-show-more').click();
-	for (let index = 4; index < EXPECTED_PROVIDER_ORDER.length; index += 1) {
-		await expect(providerRows.nth(index + 1)).toContainText(EXPECTED_PROVIDER_ORDER[index]);
+	let previousProviderY = Number.NEGATIVE_INFINITY;
+	for (const provider of EXPECTED_PROVIDERS) {
+		const providerRow = selectorMenu.getByTestId(`composer-model-provider-${provider.id}`);
+		await expect(providerRow).toContainText(provider.label);
+		const providerBox = await providerRow.boundingBox();
+		expect(providerBox).toBeTruthy();
+		expect(providerBox!.y).toBeGreaterThan(previousProviderY);
+		previousProviderY = providerBox!.y;
 	}
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
 	const firstModelRow = selectorMenu.getByTestId('composer-model-row').first();
