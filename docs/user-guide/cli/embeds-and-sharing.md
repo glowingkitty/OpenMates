@@ -153,6 +153,17 @@ openmates chats new "@Web-Search latest AI news"
 openmates chats new "@Code-Projects review my architecture"
 ```
 
+### Wikipedia References
+
+Use `@wiki:<title>` to attach Wikipedia source context. Add a language code when the article should come from a specific Wikipedia edition:
+
+```
+openmates chats new "@wiki:AlbertEinstein summarize his most important contribution"
+openmates chats new "@wiki:de:AlbertEinstein fasse den wichtigsten Beitrag zusammen"
+```
+
+The CLI resolves the title before inference and sends the canonical encrypted directive `@wikipedia:<language>:<percent-encoded-title>`. It lists alternatives for disambiguation pages, allows at most three references per message, and reports provider or safety failures instead of silently continuing without the source. Only an explicit Wiki query and selected public article metadata are sent through the OpenMates backend to Wikimedia; generic mentions never contact Wikimedia.
+
 ### File Mentions
 
 Attach local files to chat messages using `@/path/to/file` or `@./relative/path`:

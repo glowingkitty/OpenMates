@@ -200,6 +200,7 @@ export const privacyPolicyLinks = {
   webshare: "https://www.webshare.io/privacy-policy",
   googleMaps: "https://privacy.google.com/",
   geoapify: "https://www.geoapify.com/privacy-policy/", // verified 2026-07-30
+  wikimedia: "https://foundation.wikimedia.org/wiki/Policy:Privacy_policy", // verified 2026-08-28
   youtube: "https://www.youtube.com/howyoutubeworks/privacy/",
 
   // Group G — Travel

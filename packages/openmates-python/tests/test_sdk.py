@@ -114,6 +114,42 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+# contract-test: direct surface=sdks.pip assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
+def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+        ok = True
+
+        def json(self):
+            return {"language": "de", "title": "Albert Einstein"}
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append((url, headers["Authorization"]))
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    wikipedia = OpenMates(api_key="sk-api-test").wikipedia
+
+    assert wikipedia.search("AlbertEin", language="de", limit=3) == {
+        "language": "de",
+        "title": "Albert Einstein",
+    }
+    wikipedia.summary("Albert_Einstein", language="de")
+
+    assert requests_seen == [
+        (
+            "https://api.openmates.org/v1/wikipedia/search?query=AlbertEin&language=de&limit=3",
+            "Bearer sk-api-test",
+        ),
+        (
+            "https://api.openmates.org/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+            "Bearer sk-api-test",
+        ),
+    ]
+
+
 def test_native_app_skill_method_resolves_async_task_response(monkeypatch):
     requests = []
 

@@ -319,7 +319,7 @@ acceptance_criteria:
     contract_assertions: [wikipedia-mentions.safety.fail-closed]
   - id: AC-7
     scenario: S-7
-    text: The web @ menu exposes Wiki without a network request, and activated @wiki autocomplete renders/selects accessible previews with semantic CLI parity.
+    text: The web @ menu exposes Wiki without a network request, activated @wiki autocomplete renders/selects accessible previews, and sent references persist as interactive Wiki links that open the selected article with semantic CLI parity.
     required: true
     status: pending
     coverage_status: covered
@@ -459,7 +459,7 @@ tests:
   - id: T-NODE-CLI-WIKIPEDIA
     type: unit
     file: frontend/packages/openmates-cli/tests/mentions.test.ts
-    command: node --test --experimental-strip-types --loader frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/mentions.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/mentions.test.ts
     assertions:
       - CLI recognizes explicit Wiki shorthand and language overrides without forwarding generic mentions.
       - First result becomes canonical wire syntax, disambiguation lists alternatives, and a fourth reference fails visibly.
@@ -499,7 +499,7 @@ tests:
       - Generic @ menu shows Wiki without a request; @wiki typing shows title, description, and proxied thumbnail.
       - Keyboard and pointer selection insert stable mention chips and canonical references.
       - Disambiguation, no-result, fourth-reference, provider, and safety failures are visible and do not start inference.
-      - A successful reference response identifies Wikipedia and survives reload without raw wire syntax.
+      - A successful reference response identifies Wikipedia and survives reload without raw wire syntax; the sent user reference remains an interactive Wiki link that opens the selected article.
     contract_assertions: [wikipedia-mentions.discovery.web-menu, wikipedia-mentions.resolution.disambiguation-visible, wikipedia-mentions.references.maximum-three, wikipedia-mentions.ai.source-aware-intent, wikipedia-mentions.surfaces.semantic-parity]
     covers: [AC-3, AC-5, AC-7, AC-9]
     red_phase: {required: true, expected: fail_against_current_deploy, evidence: {status: pending}}

@@ -46,6 +46,29 @@ async function withServer(
 }
 
 describe("OpenMates SDK", () => {
+  // contract-test: direct surface=sdks.npm assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
+  it("preserves Wikipedia query, language, and title metadata", async () => {
+    const requests: string[] = [];
+    await withServer((request, response) => {
+      requests.push(String(request.url));
+      assert.equal(request.headers.authorization, "Bearer sk-api-test");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ language: "de", title: "Albert Einstein" }));
+    }, async (apiUrl) => {
+      const wikipedia = new OpenMates({ apiKey: "sk-api-test", apiUrl }).wikipedia;
+      assert.deepEqual(await wikipedia.search("AlbertEin", { language: "de", limit: 3 }), {
+        language: "de",
+        title: "Albert Einstein",
+      });
+      await wikipedia.summary("Albert_Einstein", { language: "de" });
+    });
+
+    assert.deepEqual(requests, [
+      "/v1/wikipedia/search?query=AlbertEin&language=de&limit=3",
+      "/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+    ]);
+  });
+
   it("uses an injected opaque device id without deriving it from the platform", async () => {
     await withServer((request, response) => {
       assert.equal(request.headers["x-openmates-sdk"], "npm");
