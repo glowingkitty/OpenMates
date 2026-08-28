@@ -53,13 +53,13 @@ const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 		},
 		{
 			id: 'model-picker',
-			text: 'The model picker starts with Auto select, groups exact models by provider, opens model settings from each model name, and applies a chat override only from its toggle.',
+			text: 'The one-line Auto select row aligns with provider rows. Show more opens the remaining providers on a separate page, and provider pages sort newest models before capability.',
 			checkpoint: 'composer-model-picker',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'mention-selection',
-			text: 'Typing the Best model shortcut resolves to Claude Fable 5, updates the selector, and removes the redundant mention from the message.',
+			text: 'Typing the Best model shortcut resolves to Claude Fable 5, shows Claude with a max capability badge in the selector, and removes the redundant mention.',
 			checkpoint: 'composer-exact-selection',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -74,13 +74,13 @@ const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 		{
 			id: 'ai-model-routing.composer.picker-provider-order',
 			checkpoint: 'composer-model-picker',
-			visual: 'Auto select and product-brand providers appear in the approved order, and model rows use toggles instead of question-mark controls.',
+			visual: 'Auto select is a single aligned row, product-brand providers use separate main and more pages, and model rows sort by release date then capability.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'ai-model-routing.composer.mention-to-exact-selection',
 			checkpoint: 'composer-exact-selection',
-			visual: 'The exact resolved model is visibly identified while the redundant model mention is absent from editable text.',
+			visual: 'The resolved provider brand and capability badge are visible while the redundant model mention is absent from editable text.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -165,18 +165,33 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
 	await expect(selectorMenu).toHaveAttribute('role', 'group');
 	await assertProof(proof, 'ai-model-routing.composer.picker-provider-order', async () => {
-		await expect(selectorMenu.getByTestId('composer-model-auto')).toContainText('Auto select');
+		const autoRow = selectorMenu.getByTestId('composer-model-auto');
+		const openAiRow = selectorMenu.getByTestId('composer-model-provider-openai');
+		await expect(autoRow).toHaveText('Auto select');
 		for (let index = 0; index < 4; index += 1) {
 			await expect(selectorMenu.getByTestId(`composer-model-provider-${EXPECTED_PROVIDERS[index].id}`)).toContainText(EXPECTED_PROVIDERS[index].label);
 		}
-		await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toContainText('from OpenAI');
+		await expect(openAiRow).toContainText('from OpenAI');
 		await expect(selectorMenu.getByTestId('composer-model-provider-anthropic')).toContainText('from Anthropic');
 		await expect(selectorMenu.getByTestId('composer-model-provider-mistral')).toHaveText('Mistral');
 		await expect(selectorMenu.getByTestId('composer-model-provider-deepseek')).toHaveText('DeepSeek');
 		for (const provider of EXPECTED_PROVIDERS.slice(0, 4)) {
 			await expect.poll(async () => selectorMenu.getByTestId(`composer-model-provider-${provider.id}`).evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
 		}
-		await expect(selectorMenu.getByTestId('composer-model-show-more')).toBeVisible();
+		await expect(selectorMenu.getByTestId('composer-model-show-more')).toHaveText('Show more');
+		const [autoIconBox, providerIconBox, autoLabelBox, providerLabelBox] = await Promise.all([
+			autoRow.getByTestId('composer-model-auto-icon').boundingBox(),
+			openAiRow.getByTestId('composer-model-provider-icon').boundingBox(),
+			autoRow.getByTestId('composer-model-auto-label').boundingBox(),
+			openAiRow.getByTestId('composer-model-provider-label').boundingBox()
+		]);
+		expect(autoIconBox).toBeTruthy();
+		expect(providerIconBox).toBeTruthy();
+		expect(autoLabelBox).toBeTruthy();
+		expect(providerLabelBox).toBeTruthy();
+		expect(Math.abs(autoIconBox!.width - providerIconBox!.width)).toBeLessThanOrEqual(1);
+		expect(Math.abs(autoIconBox!.height - providerIconBox!.height)).toBeLessThanOrEqual(1);
+		expect(Math.abs(autoLabelBox!.x - providerLabelBox!.x)).toBeLessThanOrEqual(1);
 		await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
 		await expect(selectorMenu).toBeVisible();
 		await expect(composer).toHaveAttribute('data-focused', 'true');
@@ -185,16 +200,33 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	if (proof) await proof.checkpoint('composer-model-picker');
 
 	await selectorMenu.getByTestId('composer-model-show-more').click();
-	let previousProviderY = Number.NEGATIVE_INFINITY;
-	for (const provider of EXPECTED_PROVIDERS) {
-		const providerRow = selectorMenu.getByTestId(`composer-model-provider-${provider.id}`);
-		await expect(providerRow).toContainText(provider.label);
-		const providerBox = await providerRow.boundingBox();
-		expect(providerBox).toBeTruthy();
-		expect(providerBox!.y).toBeGreaterThan(previousProviderY);
-		previousProviderY = providerBox!.y;
-	}
+	const modelSelectionBack = selectorMenu.getByTestId('composer-model-back');
+	await expect(modelSelectionBack).toHaveText('Model selection');
+	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeHidden();
+	await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toBeHidden();
+	await expect(selectorMenu.getByTestId('composer-model-provider-google')).toContainText('Gemini');
+	await expect(selectorMenu.getByTestId('composer-model-provider-alibaba')).toContainText('Qwen');
+	await modelSelectionBack.click();
+	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
+	await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toBeVisible();
+
+	await selectorMenu.getByTestId('composer-model-show-more').click();
+	await selectorMenu.getByTestId('composer-model-provider-google').click();
+	await expect(selectorMenu.getByTestId('composer-model-row').first()).toBeVisible();
+	await selectorMenu.getByTestId('composer-model-back').click();
+	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
+
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
+	await expect(selectorMenu.getByTestId('composer-model-name')).toHaveText([
+		'GPT-5.6 Sol Max',
+		'GPT-5.6 Sol',
+		'GPT-5.6 Terra',
+		'GPT-5.6 Luna',
+		'GPT-5.5',
+		'GPT-5.4',
+		'GPT-OSS-120b',
+		'GPT-OSS-20b'
+	]);
 	const firstModelRow = selectorMenu.getByTestId('composer-model-row').first();
 	const firstModelName = firstModelRow.getByTestId('composer-model-name');
 	const firstModelToggle = firstModelRow.getByTestId('composer-model-toggle');
@@ -236,8 +268,25 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await focusComposer(page);
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
-	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
-	await expect(selector).not.toHaveAttribute('aria-label', /Auto select/i);
+	const solMaxRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' });
+	await solMaxRow.getByTestId('composer-model-toggle').click();
+	await expect(selector).toHaveAttribute('aria-label', /Model selection: ChatGPT/i);
+	await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('ChatGPT');
+	const [triggerIconBox, triggerCapabilityBox] = await Promise.all([
+		selector.getByTestId('composer-model-selector-icon').boundingBox(),
+		selector.getByTestId('composer-model-selector-capability').boundingBox()
+	]);
+	expect(triggerIconBox).toBeTruthy();
+	expect(triggerCapabilityBox).toBeTruthy();
+	expect(triggerCapabilityBox!.x + triggerCapabilityBox!.width / 2).toBeLessThan(triggerIconBox!.x + triggerIconBox!.width / 2);
+	expect(triggerCapabilityBox!.y + triggerCapabilityBox!.height / 2).toBeGreaterThan(triggerIconBox!.y + triggerIconBox!.height / 2);
+
+	await selector.click();
+	const reopenedMenu = composer.getByTestId('composer-model-selector-menu');
+	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeHidden();
+	await expect(reopenedMenu.getByTestId('composer-model-back')).toBeVisible();
+	await expect(reopenedMenu.getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' }).getByRole('checkbox')).toBeChecked();
+	await selector.click();
 
 	await editor.click();
 	await page.keyboard.press('Control+A');
@@ -247,7 +296,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(bestMention).toBeVisible({ timeout: 10000 });
 	await bestMention.click();
 	await assertProof(proof, 'ai-model-routing.composer.mention-to-exact-selection', async () => {
-		await expect(selector).toHaveAttribute('aria-label', /Claude Fable 5/i);
+		await expect(selector).toHaveAttribute('aria-label', /Model selection: Claude/i);
+		await expect(selector.getByTestId('composer-model-selector-capability')).toHaveAttribute('data-level', 'max');
 		await expect.poll(async () => editor.evaluate((element: HTMLElement) => element.innerText.trim())).toBe('');
 		await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 	});
