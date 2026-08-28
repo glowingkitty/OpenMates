@@ -164,6 +164,11 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 		}
 		await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toContainText('from OpenAI');
 		await expect(selectorMenu.getByTestId('composer-model-provider-anthropic')).toContainText('from Anthropic');
+		await expect(selectorMenu.getByTestId('composer-model-provider-mistral')).toHaveText('Mistral');
+		await expect(selectorMenu.getByTestId('composer-model-provider-deepseek')).toHaveText('DeepSeek');
+		for (const provider of EXPECTED_PROVIDER_ORDER.slice(0, 4)) {
+			await expect.poll(async () => selectorMenu.getByTestId(`composer-model-provider-${provider}`).evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
+		}
 		await expect(selectorMenu.getByTestId('composer-model-show-more')).toBeVisible();
 		await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
 		await expect(selectorMenu).toBeVisible();
@@ -181,9 +186,30 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	const firstModelRow = selectorMenu.getByTestId('composer-model-row').first();
 	const firstModelName = firstModelRow.getByTestId('composer-model-name');
 	const firstModelToggle = firstModelRow.getByTestId('composer-model-toggle');
+	const firstModelIcon = firstModelRow.getByTestId('composer-model-icon');
+	const firstModelCapability = firstModelRow.getByTestId('composer-model-capability');
 	await expect(firstModelName).toBeVisible();
 	await expect(firstModelToggle.getByRole('checkbox')).not.toBeChecked();
 	await expect(firstModelRow).not.toContainText('?');
+	await expect.poll(async () => firstModelName.evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
+	const modelDetailsLabel = await firstModelName.getAttribute('aria-label');
+	expect(modelDetailsLabel).toBeTruthy();
+	await expect(firstModelName).toHaveText(modelDetailsLabel!.split(': ').at(-1)!);
+	await expect(firstModelCapability).toHaveAttribute('data-level', /^(low|medium|high|max)$/);
+	await expect.poll(async () => {
+		const [rowBox, nameBox, toggleBox, iconBox, capabilityBox] = await Promise.all([
+			firstModelRow.boundingBox(),
+			firstModelName.boundingBox(),
+			firstModelToggle.boundingBox(),
+			firstModelIcon.boundingBox(),
+			firstModelCapability.boundingBox()
+		]);
+		if (!rowBox || !nameBox || !toggleBox || !iconBox || !capabilityBox) return false;
+		return nameBox.x < toggleBox.x
+			&& toggleBox.x + toggleBox.width >= rowBox.x + rowBox.width - 1
+			&& capabilityBox.x >= iconBox.x + iconBox.width / 2
+			&& capabilityBox.y >= iconBox.y + iconBox.height / 2;
+	}).toBe(true);
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
 	await page.getByTestId('icon-button-close').click();
