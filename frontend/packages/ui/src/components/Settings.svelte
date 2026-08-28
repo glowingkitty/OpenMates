@@ -3622,35 +3622,6 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     @media (max-width: 730px) {
-        .header-github-link {
-            display: none;
-        }
-
-        .referral-cta {
-            inset-inline-end: 58px;
-            width: 42px;
-            min-width: 42px;
-            max-width: 42px;
-        }
-    }
-
-    @container main-content (max-width: 894px) {
-        .referral-cta {
-            max-width: 24px;
-            justify-content: center;
-        }
-
-        .referral-cta .referral-cta-text {
-            display: none;
-            opacity: 0;
-        }
-    }
-
-    @container main-content (max-width: 730px) {
-        .header-github-link {
-            display: none;
-        }
-
         .referral-cta {
             inset-inline-end: 58px;
             width: 42px;

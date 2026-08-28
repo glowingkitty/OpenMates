@@ -98,6 +98,11 @@
         showAllProviders = false;
     }
 
+    function showProviderModels(providerId: string): void {
+        showAllProviders = false;
+        activeProvider = providerId;
+    }
+
     onMount(() => {
         const handlePointerDown = (event: PointerEvent) => {
             if (!selectorElement.contains(event.target as Node)) {
@@ -207,7 +212,7 @@
                 </button>
                 {#each remainingProviders as provider (provider.provider_id)}
                     {@const display = getAiProviderDisplay(provider.provider_id, provider.provider_name)}
-                    <button type="button" class="menu-item" data-testid={`composer-model-provider-${provider.provider_id}`} onclick={() => activeProvider = provider.provider_id}>
+                    <button type="button" class="menu-item" data-testid={`composer-model-provider-${provider.provider_id}`} onclick={() => showProviderModels(provider.provider_id)}>
                         <img class="menu-icon" data-testid="composer-model-provider-icon" src={getProviderIconUrl(provider.logo_svg)} alt="" />
                         <span class="menu-item-copy" data-testid="composer-model-provider-label">
                             <strong>{display.brandName}</strong>
@@ -224,7 +229,7 @@
                 </button>
                 {#each visibleProviders as provider (provider.provider_id)}
                     {@const display = getAiProviderDisplay(provider.provider_id, provider.provider_name)}
-                    <button type="button" class="menu-item" data-testid={`composer-model-provider-${provider.provider_id}`} onclick={() => activeProvider = provider.provider_id}>
+                    <button type="button" class="menu-item" data-testid={`composer-model-provider-${provider.provider_id}`} onclick={() => showProviderModels(provider.provider_id)}>
                         <img class="menu-icon" data-testid="composer-model-provider-icon" src={getProviderIconUrl(provider.logo_svg)} alt="" />
                         <span class="menu-item-copy" data-testid="composer-model-provider-label">
                             <strong>{display.brandName}</strong>
