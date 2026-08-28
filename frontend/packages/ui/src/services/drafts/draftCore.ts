@@ -9,6 +9,32 @@ import type { Editor } from '@tiptap/core'; // Import authStore for authenticati
 
 let editorInstance: Editor | null = null; // Keep a reference to the Tiptap editor
 
+export function shouldPreserveSameChatDraftRestore(
+	chatId: string | null,
+	incomingMarkdown: string,
+	currentEditorMarkdown: string,
+	state: DraftEditorState,
+): boolean {
+	if (!chatId || state.currentChatId !== chatId || currentEditorMarkdown === incomingMarkdown) {
+		return false;
+	}
+
+	return state.hasUnsavedChanges ||
+		state.isSaveInProgress ||
+		(state.lastSavedContentMarkdown !== null && currentEditorMarkdown !== state.lastSavedContentMarkdown);
+}
+
+export function reconcilePreservedDraftVersion(
+	state: DraftEditorState,
+	chatId: string | null,
+	version: number,
+): DraftEditorState {
+	if (!chatId || state.currentChatId !== chatId || version <= state.currentUserDraftVersion) {
+		return state;
+	}
+	return { ...state, currentUserDraftVersion: version };
+}
+
 /**
  * Initializes the draft service with the Tiptap editor instance.
  * MUST be called by MessageInput onMount.

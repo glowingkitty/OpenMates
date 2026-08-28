@@ -4,6 +4,7 @@
 // typed into the composer before the async draft restore finished.
 // The real editor is mocked so tests exercise only the draft service contract:
 // context may update, but typed content must not be cleared for the same pending context.
+// contract-test-file: tooling
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -88,7 +89,13 @@ vi.mock('../../../components/enter_message/utils', () => ({
   isContentEmptyExceptMention: mocks.isContentEmptyExceptMention,
 }));
 
-import { cleanupDraftService, initializeDraftService, setCurrentChatContext } from '../draftCore';
+import {
+  cleanupDraftService,
+  initializeDraftService,
+  reconcilePreservedDraftVersion,
+  setCurrentChatContext,
+  shouldPreserveSameChatDraftRestore,
+} from '../draftCore';
 
 function createEditorMock() {
   const chain = {
@@ -139,5 +146,48 @@ describe('draftCore setCurrentChatContext', () => {
       { type: 'doc', content: [] },
       { emitUpdate: false },
     );
+  });
+});
+
+describe('shouldPreserveSameChatDraftRestore', () => {
+  it('preserves editor content changed after the incoming snapshot was saved', () => {
+    expect(shouldPreserveSameChatDraftRestore('chat-1', '@', '@wiki:AlbertEin', {
+      currentChatId: 'chat-1',
+      currentUserDraftVersion: 1,
+      hasUnsavedChanges: false,
+      lastSavedContentMarkdown: '@',
+      isSwitchingContext: false,
+      isSaveInProgress: false,
+      newlyCreatedChatIdToSelect: null,
+    })).toBe(true);
+  });
+
+  it('allows incoming content when switching chat context', () => {
+    expect(shouldPreserveSameChatDraftRestore('chat-2', 'restored', 'local', {
+      currentChatId: 'chat-1',
+      currentUserDraftVersion: 1,
+      hasUnsavedChanges: true,
+      lastSavedContentMarkdown: 'local',
+      isSwitchingContext: false,
+      isSaveInProgress: true,
+      newlyCreatedChatIdToSelect: null,
+    })).toBe(false);
+  });
+
+  it('advances the same-chat version without clearing local draft flags', () => {
+    const state = {
+      currentChatId: 'chat-1',
+      currentUserDraftVersion: 1,
+      hasUnsavedChanges: true,
+      lastSavedContentMarkdown: '@',
+      isSwitchingContext: false,
+      isSaveInProgress: true,
+      newlyCreatedChatIdToSelect: null,
+    };
+
+    expect(reconcilePreservedDraftVersion(state, 'chat-1', 2)).toEqual({
+      ...state,
+      currentUserDraftVersion: 2,
+    });
   });
 });

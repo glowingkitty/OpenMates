@@ -108,4 +108,5 @@ test('Wiki disambiguation and provider failures stay visible before inference', 
 	await expect(page.getByTestId('wikipedia-search-error')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('stop-processing-button')).toHaveCount(0);
 	await screenshot(page, 'wiki-provider-error');
+	await deleteActiveChat(page, log);
 });

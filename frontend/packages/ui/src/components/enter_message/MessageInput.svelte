@@ -24,6 +24,8 @@
         cleanupDraftService,
         setCurrentChatContext as setDraftServiceCurrentChatContext,
         clearEditorAndResetDraftState,
+        reconcilePreservedDraftVersion,
+        shouldPreserveSameChatDraftRestore,
         triggerSaveDraft,
         flushSaveDraft
     } from '../../services/draftService';
@@ -5487,6 +5489,7 @@
         });
 
         const draftStateChatId = get(draftEditorUIState).currentChatId;
+        const draftState = get(draftEditorUIState);
         const isSameOrPendingDraftContext = !draftStateChatId || draftStateChatId === chatId;
         const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
         const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
@@ -5495,6 +5498,29 @@
             editorHasInFlightEmbed(editor) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
+        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed &&
+            draftContent !== null &&
+            shouldPreserveSameChatDraftRestore(
+                chatId,
+                tipTapToCanonicalMarkdown(draftContent),
+                tipTapToCanonicalMarkdown(editor.getJSON()),
+                draftState,
+            );
+
+        if (shouldPreserveNewerLocalDraft) {
+            appendMessageInputDiagnostic('setDraftContent-preserve-local-editor', {
+                draftStateChatId,
+                currentChatId,
+                reason: 'newer-local-draft',
+            });
+            console.debug('[MessageInput] Preserving active editor during delayed draft restore', {
+                chatId,
+                currentChatId,
+                draftStateChatId,
+            });
+            draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
+            return;
+        }
 
         if (shouldPreserveInFlightEmbed) {
             appendMessageInputDiagnostic('setDraftContent-preserve-in-flight-embed', {

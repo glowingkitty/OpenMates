@@ -13,7 +13,9 @@ export {
 	cleanupDraftService,
 	setCurrentChatContext,
 	clearEditorAndResetDraftState,
-	getEditorInstance
+	getEditorInstance,
+	reconcilePreservedDraftVersion,
+	shouldPreserveSameChatDraftRestore
 } from './drafts/draftCore';
 
 // Re-export save/trigger/flush functions
