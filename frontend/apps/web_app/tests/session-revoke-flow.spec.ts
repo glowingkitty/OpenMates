@@ -241,11 +241,6 @@ test('session revoke: revoking session B from session A does not log out session
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
 	const proofVideoB = pageB.video();
-	const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
-		device: PROOF_DEVICE,
-		attach: testInfo.attach.bind(testInfo),
-		captureFrame: () => pageB.screenshot({ type: 'png' })
-	});
 
 	// Attach console listeners
 	pageA.on('console', (msg: any) => {
@@ -292,6 +287,11 @@ test('session revoke: revoking session B from session A does not log out session
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditorB = pageB.getByTestId('message-editor');
 		await fillMessageEditor(pageB, messageEditorB, sessionBDraftText);
+		const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
+			device: PROOF_DEVICE,
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => pageB.screenshot({ type: 'png' })
+		});
 		await proof.assert('session-revoke.session-b-draft-header', async () => {
 			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
 			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
@@ -359,6 +359,18 @@ test('session revoke: revoking session B from session A does not log out session
 		logB('Session B: exact guest onboarding carousel restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');
 		await proof.checkpoint('session-b-guest-onboarding');
+		await proof.attach();
+		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
+		await contextB.close();
+		contextBClosed = true;
+		if (proofVideoB) {
+			await testInfo.attach(`${PROOF_DEVICE}-session-b-proof-video`, {
+				path: await proofVideoB.path(),
+				contentType: 'video/webm'
+			});
+		} else if (IS_PROOF_CAPTURE) {
+			throw new Error(`Playwright did not create a Session B proof video for ${PROOF_DEVICE}`);
+		}
 
 		// ── Step 6: Verify Session A is still logged in ──────────────────────
 		// After the revoke, Session A should remain on the Settings > Sessions page
@@ -421,18 +433,6 @@ test('session revoke: revoking session B from session A does not log out session
 		expect(remainingCards).toBeGreaterThanOrEqual(1);
 
 		await screenshotA(pageA, '10-sessions-list-updated-a');
-		await proof.attach();
-		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
-		await contextB.close();
-		contextBClosed = true;
-		if (proofVideoB) {
-			await testInfo.attach(`${PROOF_DEVICE}-session-b-proof-video`, {
-				path: await proofVideoB.path(),
-				contentType: 'video/webm'
-			});
-		} else if (IS_PROOF_CAPTURE) {
-			throw new Error(`Playwright did not create a Session B proof video for ${PROOF_DEVICE}`);
-		}
 
 		logA('=== TEST PASSED: Session revoke correctly targeted Session B only. ===');
 	} finally {
