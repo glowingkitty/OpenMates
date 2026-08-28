@@ -2668,14 +2668,17 @@
                 .deleteRange({ from: atDocPosition, to: from })
                 .insertContent(wikipediaSearchSyntax)
                 .run();
-            editor.view.focus();
-            editor.view.dispatch(
-                editor.state.tr
-                    .setSelection(TextSelection.create(editor.state.doc, wikipediaSearchEndPosition))
-                    .scrollIntoView()
-            );
-            mentionQuery = 'wiki:';
-            showMentionDropdown = true;
+            requestAnimationFrame(() => {
+                if (!editor || editor.isDestroyed) return;
+                editor.view.focus();
+                editor.view.dispatch(
+                    editor.state.tr
+                        .setSelection(TextSelection.create(editor.state.doc, wikipediaSearchEndPosition))
+                        .scrollIntoView()
+                );
+                mentionQuery = 'wiki:';
+                showMentionDropdown = true;
+            });
             return;
         }
 
