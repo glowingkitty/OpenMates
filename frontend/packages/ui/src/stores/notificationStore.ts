@@ -102,6 +102,7 @@ const initialState: NotificationState = {
 const { subscribe, update } = writable<NotificationState>(initialState);
 
 export const SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY = "security-reminder";
+export const SECURITY_REMINDER_NOTIFICATION_DURATION_MS = 7000;
 export const NOTIFICATION_OUTRO_DURATION_MS = 280;
 const REDUCED_MOTION_OUTRO_DURATION_MS = 1;
 

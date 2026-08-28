@@ -15,6 +15,7 @@
     import { getSessionId } from '../utils/sessionId';
     import {
         notificationStore,
+        SECURITY_REMINDER_NOTIFICATION_DURATION_MS,
         SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
     } from '../stores/notificationStore';
     import AccountRecovery from './AccountRecovery.svelte';
@@ -632,7 +633,7 @@
                                 window.location.hash = '#settings/account/security';
                             }
                         },
-                        duration: 0,
+                        duration: SECURITY_REMINDER_NOTIFICATION_DURATION_MS,
                         dismissible: true,
                         dedupeKey: SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
                     });
