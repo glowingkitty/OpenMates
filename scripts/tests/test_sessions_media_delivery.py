@@ -103,6 +103,8 @@ def test_interrupted_delivery_retries_once_then_stops(monkeypatch) -> None:
     failed = sessions._finish_session_media("repo", record["artifact_key"], delivered=False)
 
     assert first["message_id"] != second["message_id"]
+    assert first["message_id"][4:16] != "000000000000"
+    assert second["message_id"][4:16] != "000000000000"
     assert failed["status"] == "failed"
     assert sessions._claim_session_media("repo") is None
 

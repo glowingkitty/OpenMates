@@ -69,6 +69,20 @@ def test_record_claim_and_ack_are_idempotent(monkeypatch):
     assert sessions._claim_session_continuation("ses_test") is None
 
 
+def test_automatic_message_ids_preserve_opencode_chronological_order(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions.time, "time_ns", lambda: 1_787_947_100_000_000_000)
+
+    message_id = sessions._opencode_ascending_message_id(entropy="stable-operation")
+
+    assert len(message_id) == 30
+    assert int(message_id[4:16], 16) == (1_787_947_100_000 * 0x1000 + 1) & ((1 << 48) - 1)
+    assert message_id < sessions._opencode_ascending_message_id(
+        timestamp_ms=1_787_947_100_001,
+        entropy="later-operation",
+    )
+
+
 def test_transport_failure_retries_once_with_new_generation(monkeypatch):
     sessions = load_sessions_module()
     data = state()

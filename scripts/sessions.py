@@ -10036,6 +10036,23 @@ def _continuation_repository_session_id(data: dict, session_reference: str) -> s
     return ""
 
 
+def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: str = "") -> str:
+    """Create an OpenCode message ID that preserves chronological storage order.
+
+    OpenCode streams messages by lexicographic ID, not by the database timestamp.
+    Supplying a plain digest as ``messageID`` therefore corrupts the effective
+    conversation order whenever that digest sorts after native IDs. Mirror the
+    native 48-bit timestamp prefix and keep a stable base62 suffix for retries.
+    """
+    created_ms = int(timestamp_ms if timestamp_ms is not None else time.time_ns() // 1_000_000)
+    # The native implementation writes the low 48 bits into a six-byte buffer.
+    encoded_time = (created_ms * 0x1000 + 1) & ((1 << 48) - 1)
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    digest = hashlib.sha256((entropy or secrets.token_hex(16)).encode("utf-8")).digest()
+    suffix = "".join(alphabet[value % len(alphabet)] for value in digest[:14])
+    return f"msg_{encoded_time:012x}{suffix}"
+
+
 def _record_session_continuation(
     session_reference: str,
     *,
@@ -10099,7 +10116,7 @@ def _claim_session_continuation(session_reference: str) -> dict | None:
         )
         record["status"] = "delivering"
         record["attempts"] = generation
-        record["message_id"] = f"msg_{hashlib.sha256(identity.encode('utf-8')).hexdigest()[:26]}"
+        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
         record["updated_at"] = _now_iso()
         return {**record, "repository_session_id": repository_session_id}
 
@@ -10308,7 +10325,7 @@ def _claim_session_media(session_reference: str) -> dict | None:
         identity = f"{repository_session_id}:media:{record.get('artifact_key')}:{attempt}"
         record["attempts"] = attempt
         record["status"] = "delivering"
-        record["message_id"] = f"msg_{hashlib.sha256(identity.encode()).hexdigest()[:26]}"
+        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
         record["updated_at"] = _now_iso()
         return {**record, "repository_session_id": repository_session_id}
 
