@@ -2747,6 +2747,31 @@
 
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
+        if (result.type === 'wikipedia_source') {
+            editor
+                .chain()
+                .focus()
+                .deleteRange({ from: atDocPosition, to: from })
+                .insertContent('@wiki:')
+                .run();
+            mentionQuery = 'wiki:';
+            showMentionDropdown = true;
+            return;
+        }
+
+        if (result.type === 'wikipedia') {
+            let wikipediaReferenceCount = 0;
+            editor.state.doc.descendants((node) => {
+                if (node.type.name === 'genericMention' && node.attrs.mentionType === 'wikipedia') {
+                    wikipediaReferenceCount += 1;
+                }
+            });
+            if (wikipediaReferenceCount >= 3) {
+                notificationStore.error($text('enter_message.mention_dropdown.wikipedia_limit'));
+                return;
+            }
+        }
+
         if (result.type === 'model_alias' || result.type === 'model') {
             const selection = resolveModelMentionSelection(result);
             editor
@@ -2778,7 +2803,7 @@
                 .insertContent(' ')
                 .run();
         } else {
-            // Use generic mention node for skills, focus modes, and settings/memories
+            // Use generic mention node for skills, focus modes, settings/memories, and Wikipedia.
             // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
             // Extract color gradient for the app-specific styling
             const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | ProjectMentionResult;

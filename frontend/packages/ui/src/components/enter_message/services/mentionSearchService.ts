@@ -25,6 +25,9 @@ import {
   type ProjectViewModel,
 } from "../../../services/projectService";
 import type { ProjectMentionAccessMode } from "../extensions/GenericMentionNode";
+import { getApiUrl } from "../../../config/api";
+import { getCurrentLanguage } from "../../../i18n/setup";
+import { proxyImage } from "../../../utils/imageProxy";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -37,6 +40,8 @@ export type MentionType =
   | "focus_mode"
   | "settings_memory"
   | "settings_memory_entry"
+  | "wikipedia_source"
+  | "wikipedia"
   | "project"
   | "project_folder"
   | "project_file";
@@ -196,6 +201,19 @@ export interface ProjectMentionResult extends MentionResult {
   projectAccessMode: ProjectMentionAccessMode;
 }
 
+export interface WikipediaSourceMentionResult extends MentionResult {
+  type: "wikipedia_source";
+}
+
+export interface WikipediaMentionResult extends MentionResult {
+  type: "wikipedia";
+  pageId: number;
+  title: string;
+  language: string;
+  thumbnailUrl: string;
+  disambiguation: boolean;
+}
+
 /**
  * Union type for all mention results.
  */
@@ -207,7 +225,85 @@ export type AnyMentionResult =
   | FocusModeMentionResult
   | SettingsMemoryMentionResult
   | SettingsMemoryEntryMentionResult
+  | WikipediaSourceMentionResult
+  | WikipediaMentionResult
   | ProjectMentionResult;
+
+interface WikipediaSearchResponse {
+  results: Array<{
+    page_id: number;
+    key: string;
+    title: string;
+    language: string;
+    description?: string;
+    thumbnail_url?: string;
+    disambiguation?: boolean;
+  }>;
+}
+
+const WIKIPEDIA_QUERY_PREFIX = "wiki:";
+const WIKIPEDIA_SEARCH_LIMIT = 5;
+
+export function getWikipediaSourceMentionResult(): WikipediaSourceMentionResult {
+  return {
+    id: "wikipedia-source",
+    type: "wikipedia_source",
+    displayName: "Wikipedia",
+    mentionDisplayName: "Wiki",
+    subtitle: "Wikipedia",
+    icon: "wikipedia",
+    mentionSyntax: "@wiki:",
+    searchTerms: ["wiki", "wikipedia", "encyclopedia"],
+  };
+}
+
+export function parseWikipediaMentionQuery(query: string): { language: string; query: string } | null {
+  if (!query.toLowerCase().startsWith(WIKIPEDIA_QUERY_PREFIX)) return null;
+  const value = query.slice(WIKIPEDIA_QUERY_PREFIX.length);
+  const explicitLanguage = value.match(/^([a-z]{2,10}):(.*)$/i);
+  return {
+    language: explicitLanguage?.[1]?.toLowerCase() || getCurrentLanguage(),
+    query: (explicitLanguage?.[2] ?? value).trim(),
+  };
+}
+
+export async function searchWikipediaMentions(
+  query: string,
+  signal?: AbortSignal,
+): Promise<WikipediaMentionResult[]> {
+  const parsed = parseWikipediaMentionQuery(query);
+  if (!parsed?.query) return [];
+
+  const params = new URLSearchParams({
+    query: parsed.query,
+    language: parsed.language,
+    limit: String(WIKIPEDIA_SEARCH_LIMIT),
+  });
+  const response = await fetch(`${getApiUrl()}/v1/wikipedia/search?${params}`, {
+    credentials: "include",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Wikipedia search failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as WikipediaSearchResponse;
+  return payload.results.map((result) => ({
+    id: `wikipedia:${result.language}:${result.page_id}`,
+    type: "wikipedia",
+    displayName: result.title,
+    mentionDisplayName: `Wiki-${toHyphenatedName(result.title)}`,
+    subtitle: result.description || "Wikipedia",
+    icon: "wikipedia",
+    mentionSyntax: `@wikipedia:${result.language}:${encodeURIComponent(result.key)}`,
+    searchTerms: buildSearchTerms(result.title, result.description),
+    pageId: result.page_id,
+    title: result.title,
+    language: result.language,
+    thumbnailUrl: proxyImage(result.thumbnail_url, 80),
+    disambiguation: result.disambiguation === true,
+  }));
+}
 
 /**
  * Convert a name to hyphenated format for mention display.
@@ -950,6 +1046,7 @@ function getAllSettingsMemoryEntryResults(): SettingsMemoryEntryMentionResult[] 
  */
 export function getAllMentionResults(): AnyMentionResult[] {
   return [
+    getWikipediaSourceMentionResult(),
     ...getModelAliasMentionResults(),
     ...getModelMentionResults(),
     ...getMateMentionResults(),
@@ -970,7 +1067,7 @@ export function getDefaultMentionResults(): AnyMentionResult[] {
   const models = getModelMentionResults();
   // Show aliases + enough models to fill 4 total slots
   const modelsToShow = Math.max(0, 4 - aliases.length);
-  return [...aliases, ...models.slice(0, modelsToShow)];
+  return [getWikipediaSourceMentionResult(), ...aliases, ...models.slice(0, modelsToShow)];
 }
 
 /** Larger limit when user is searching so settings/memories and entries can appear. */
