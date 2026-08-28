@@ -48,85 +48,49 @@ html[data-map-view-proof-clean='true'] .preview-container {
 `;
 
 const EMBEDS_MAP_VIEW_PROOF_CONTRACT = defineVideoProof({
-	id: 'embeds-map-view-figma-alignment',
-	title: 'Embeds map view Figma alignment proof',
+	id: 'embeds-map-view-filter-calendar-figma-alignment',
+	title: 'Embeds map view Filter and Calendar Figma alignment proof',
 	surface: 'web',
 	devices: ['web-laptop', 'web-phone'],
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
-			id: 'map-carousel-previews',
-			text: 'The map results view opens with reusable embed previews grouped in a horizontal carousel.',
-			checkpoint: 'map-carousel-previews',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
 			id: 'calendar-tab-week',
-			text: 'The map state switches into a full weekly calendar with the same flight results.',
+			text: 'The Calendar view shows all five flights in a full Monday-first week.',
 			checkpoint: 'calendar-tab-week',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
+			id: 'filter-panel',
+			text: 'The Filter view replaces the results with a dedicated panel showing the result count and available controls.',
+			checkpoint: 'filter-panel',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
 			id: 'local-route-filter',
-			text: 'Selecting Qatar Airways in the local filter narrows the view from five flights to two.',
+			text: 'Selecting Qatar Airways narrows the shared result set from five flights to two.',
 			checkpoint: 'local-route-filter',
 			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'shared-stop-selection',
-			text: 'Selecting Hamad International Airport keeps both filtered Qatar routes and shows the selected stop label.',
-			checkpoint: 'shared-stop-selection',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'local-filter-reset',
-			text: 'The filter can return the view to all five results.',
-			checkpoint: 'local-filter-reset',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'mobile-carousel-map-layout',
-			text: 'On phone, the carousel stays above the hydrated map and remains within the narrow layout.',
-			checkpoint: 'mobile-carousel-map-layout',
-			devices: ['web-phone']
 		}
 	],
 	assertions: [
 		{
-			id: 'map-carousel-previews',
-			checkpoint: 'map-carousel-previews',
-			visual: 'The map view is visible with reusable embed preview cards in a horizontal carousel above a hydrated map.',
+			id: 'calendar-tab-week',
+			checkpoint: 'calendar-tab-week',
+			visual: 'The Calendar tab is selected and the complete Monday-first weekly calendar visibly contains all five flight results with contained week navigation.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'calendar-tab-week',
-			checkpoint: 'calendar-tab-week',
-			visual: 'The Calendar tab is selected and a full weekly calendar with the flight results is visible.',
+			id: 'filter-panel',
+			checkpoint: 'filter-panel',
+			visual: 'The dedicated Filter panel is visible with five of five results, Price and Carrier controls, and no Map or Calendar content showing through.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'local-route-filter',
 			checkpoint: 'local-route-filter',
-			visual: 'The Qatar carrier chip is selected and the filter summary visibly shows two of five results remain.',
+			visual: 'The Qatar carrier chip is selected and the Filter summary visibly shows two of five results remain.',
 			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'shared-stop-selection',
-			checkpoint: 'shared-stop-selection',
-			visual: 'The selected Hamad International Airport pin keeps its label visible while both Qatar route previews and both matching paths remain present.',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'local-filter-reset',
-			checkpoint: 'local-filter-reset',
-			visual: 'The filter summary shows all five results are available again.',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'mobile-carousel-map-layout',
-			checkpoint: 'mobile-carousel-map-layout',
-			visual: 'The phone-width layout keeps the preview carousel above the hydrated map without horizontal overflow.',
-			devices: ['web-phone']
 		}
 	],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
@@ -203,15 +167,6 @@ test.describe('Embeds map view preview', () => {
 		await expect(cards.getByTestId('connection-preview-details')).toHaveCount(5);
 		await expect(mapView).not.toContainText('Search connections');
 		await expect(mapView).not.toContainText('0 connections');
-		if (proof) {
-			await proof.assert('map-carousel-previews', async () => {
-				await expect(carousel).toBeVisible();
-				await expect(cards.first()).toContainText('Berlin (BER)');
-				await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true');
-			});
-			await proof.checkpoint('map-carousel-previews');
-		}
-
 		const visualTabs = mapView.getByTestId('embeds-results-view-tabs');
 		await expect(visualTabs).toBeVisible();
 		await expect(visualTabs).toContainText('Map');
@@ -258,9 +213,21 @@ test.describe('Embeds map view preview', () => {
 			await proof.checkpoint('calendar-tab-week');
 		}
 		const mapTab = mapView.getByTestId('embeds-results-view-tab-map');
+		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
+		await expect(filterButton).toBeVisible();
+		await expect(filterButton).toHaveAttribute('data-icon', 'filter');
+		const filterButtonBox = await filterButton.boundingBox();
+		expect(filterButtonBox, 'filter button box should exist').not.toBeNull();
+		expect(filterButtonBox!.y).toBeLessThan(mapViewBox!.y);
+		expect(filterButtonBox!.y + filterButtonBox!.height).toBeGreaterThan(mapViewBox!.y);
+		expect(filterButtonBox!.width).toBeCloseTo(42, 0);
+		expect(filterButtonBox!.height).toBeCloseTo(42, 0);
+		expect(await filterButton.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 255, 255)');
 		if (proof) {
-			await proof.action('return-to-map-tab', async () => {
+			await proof.action('open-filter-panel', async () => {
 				await mapTab.click();
+				await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'map');
+				await filterButton.click();
 			});
 		} else {
 			await mapTab.click();
@@ -274,21 +241,7 @@ test.describe('Embeds map view preview', () => {
 		const zoomControls = mapPane.getByTestId('embed-map-zoom-controls');
 		await expect(zoomControls).toBeVisible();
 
-		const filterButton = mapView.getByTestId('embeds-map-view-filter-button');
-		await expect(filterButton).toBeVisible();
-		await expect(filterButton).toHaveAttribute('data-icon', 'filter');
-		const filterButtonBox = await filterButton.boundingBox();
-		expect(filterButtonBox, 'filter button box should exist').not.toBeNull();
-		expect(filterButtonBox!.y).toBeLessThan(mapViewBox!.y);
-		expect(filterButtonBox!.y + filterButtonBox!.height).toBeGreaterThan(mapViewBox!.y);
-		expect(filterButtonBox!.width).toBeCloseTo(42, 0);
-		expect(filterButtonBox!.height).toBeCloseTo(42, 0);
-		expect(await filterButton.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(255, 255, 255)');
-		if (proof) {
-			await proof.action('open-filter-menu', async () => {
-				await filterButton.click();
-			});
-		} else {
+		if (!proof) {
 			await filterButton.click();
 		}
 		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
@@ -299,6 +252,15 @@ test.describe('Embeds map view preview', () => {
 		await expect(filterMenu).toContainText('route');
 		await expect(filterMenu).toContainText('Price');
 		await expect(filterMenu).toContainText('Carrier');
+		if (proof) {
+			await proof.assert('filter-panel', async () => {
+				await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
+				await expect(filterMenu.getByTestId('embeds-map-view-filter-controls')).toBeVisible();
+				await expect(filterMenu).toContainText('Price');
+				await expect(filterMenu).toContainText('Carrier');
+			});
+			await proof.checkpoint('filter-panel');
+		}
 		const qatarCarrier = filterMenu.getByTestId('embeds-map-view-option-carrier-qr');
 		if (proof) {
 			await proof.action('select-route-filter', async () => {
@@ -324,42 +286,17 @@ test.describe('Embeds map view preview', () => {
 
 		const sharedStop = mapPane.locator('[data-marker-label="Hamad International Airport (DOH)"]');
 		await expect(sharedStop).toHaveCount(1);
-		if (proof) {
-			await proof.action('select-shared-stop', async () => {
-				await sharedStop.click();
-			});
-		} else {
-			await sharedStop.click();
-		}
+		await sharedStop.click();
 		await expect(cards).toHaveCount(2);
 		await expect(mapPane).toContainText('Hamad International Airport (DOH)');
 		await expect(mapPane).toHaveAttribute('data-route-count', '2');
-		if (proof) {
-			await proof.assert('shared-stop-selection', async () => {
-				await expect(cards).toHaveCount(2);
-				await expect(mapPane).toContainText('Hamad International Airport (DOH)');
-			});
-			await proof.checkpoint('shared-stop-selection');
-		}
 		await mapView.getByTestId('embeds-map-view-show-all-results').click();
 		await expect(cards).toHaveCount(2);
 
 		await filterButton.click();
 		const resetMenu = mapView.getByTestId('embeds-map-view-filter-menu');
-		if (proof) {
-			await proof.action('select-all-results', async () => {
-				await resetMenu.getByTestId('embeds-map-view-clear-filters').click();
-			});
-		} else {
-			await resetMenu.getByTestId('embeds-map-view-clear-filters').click();
-		}
+		await resetMenu.getByTestId('embeds-map-view-clear-filters').click();
 		await expect(resetMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
-		if (proof) {
-			await proof.assert('local-filter-reset', async () => {
-				await expect(resetMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
-			});
-			await proof.checkpoint('local-filter-reset');
-		}
 		await filterButton.click();
 		await expect(filterButton).toHaveAttribute('data-icon', 'filter');
 		await expect(cards).toHaveCount(5);
@@ -392,13 +329,6 @@ test.describe('Embeds map view preview', () => {
 			expect(mobileMapBox, 'mobile map box should exist').not.toBeNull();
 			expect(mobileMapBox!.y).toBeGreaterThan(mobileListBox!.y);
 			expect(mobileListBox!.width).toBeLessThanOrEqual(390);
-			if (proof) {
-				await proof.assert('mobile-carousel-map-layout', async () => {
-					await expect(carousel).toBeVisible();
-					await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true');
-				});
-				await proof.checkpoint('mobile-carousel-map-layout');
-			}
 		}
 		if (!proof) {
 			await calendarTab.click();

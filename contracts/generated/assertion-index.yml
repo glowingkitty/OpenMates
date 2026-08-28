@@ -16929,7 +16929,7 @@ assertions:
       surface: gui.web
     - &id1912
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 160
+      line: 124
       name: renders source-backed refs responsively without app-skill or embed API
         calls
       surface: gui.web
@@ -17102,7 +17102,7 @@ assertions:
       surface: gui.web
     - &id1913
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 423
+      line: 353
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id1927
@@ -17388,7 +17388,7 @@ assertions:
       surface: gui.web
     - &id1971
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 160
+      line: 124
       name: renders source-backed refs responsively without app-skill or embed API
         calls
       surface: gui.web
@@ -17588,7 +17588,7 @@ assertions:
       surface: gui.web
     - &id1972
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 423
+      line: 353
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id1990
