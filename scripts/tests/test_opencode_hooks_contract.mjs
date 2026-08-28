@@ -144,19 +144,18 @@ test("loaded hook binds chained sessions.py start before later commands", async 
   assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
 });
 
-test("bash completion guard preserves payload and exit status", () => {
-  const { stabilizeBashCompletionForTest } = pluginModule.OpenMatesHooks.test;
-  const original = { command: "printf ok", timeout: 120000, workdir: "/tmp" };
-  const guarded = stabilizeBashCompletionForTest(original);
+test("hook subprocesses have a bounded lifetime", async () => {
+  const { runProcessForTest } = pluginModule.OpenMatesHooks.test;
+  const started = Date.now();
+  const result = await runProcessForTest(
+    process.execPath,
+    ["-e", "setTimeout(() => {}, 5_000)"],
+    { timeoutMs: 50 },
+  );
 
-  assert.match(guarded.command, /openmates-bash-completion-guard/);
-  assert.match(guarded.command, /\n\(\nprintf ok\n\)\n/);
-  assert.match(guarded.command, /__openmates_bash_status=\$\?/);
-  assert.match(guarded.command, /exit \"\$__openmates_bash_status\"/);
-  assert.equal(guarded.timeout, 120000);
-  assert.equal(guarded.workdir, "/tmp");
-  assert.equal(stabilizeBashCompletionForTest(guarded).command, guarded.command);
-  assert.equal(original.command, "printf ok");
+  assert.equal(result.status, null);
+  assert.match(result.stderr, /timed out after 50ms/);
+  assert.ok(Date.now() - started < 2_000);
 });
 
 test("blocking hook messages always explain reason and next action", async () => {

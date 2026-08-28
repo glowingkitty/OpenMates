@@ -64,7 +64,6 @@ const API_HEALTH_WAIT_MARKER = "[OpenMates API health coordination]";
 const RESPONSE_MEDIA_EMBED_MARKER = "[OpenMates response-media embed required]";
 const FIGMA_REFERENCE_EMBED_MARKER = "[OpenMates Figma reference embed required]";
 const CONTROL_PLANE_GUARD_MARKER = "[OpenMates control-plane guard]";
-const BASH_COMPLETION_GUARD_MARKER = "# openmates-bash-completion-guard";
 const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
@@ -104,6 +103,7 @@ const SECRET_ENV_KEYS = [
   "GITHUB_PERSONAL_ACCESS_TOKEN",
   "PENPOT_ACCESS_TOKEN",
 ];
+const HOOK_SUBPROCESS_TIMEOUT_MS = Number(process.env.OPENMATES_HOOK_SUBPROCESS_TIMEOUT_MS || 15_000);
 
 function hashHookSource() {
   try {
@@ -179,25 +179,6 @@ function bashCommand(args) {
   if (typeof args === "string") return args;
   if (!args || typeof args !== "object") return "";
   return args.command || args.cmd || args.script || "";
-}
-
-function stabilizeBashCompletionForTest(args) {
-  const command = bashCommand(args);
-  if (!command || command.includes(BASH_COMPLETION_GUARD_MARKER)) return args;
-  return {
-    ...toolInput(args),
-    command: [
-      BASH_COMPLETION_GUARD_MARKER,
-      "(",
-      command,
-      ")",
-      "__openmates_bash_status=$?",
-      // Keep the spawned shell alive long enough for OpenCode to attach its
-      // exit listener even when the payload finishes immediately.
-      "sleep 0.25",
-      'exit "$__openmates_bash_status"',
-    ].join("\n"),
-  };
 }
 
 function firstUnquotedShellSeparatorIndex(command) {
@@ -2251,7 +2232,12 @@ function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
 
-function runProcess(command, args, { cwd = PROJECT_ROOT, env = process.env, input = "", timeoutMs = 0 } = {}) {
+function runProcess(command, args, {
+  cwd = PROJECT_ROOT,
+  env = process.env,
+  input = "",
+  timeoutMs = HOOK_SUBPROCESS_TIMEOUT_MS,
+} = {}) {
   return new Promise((resolvePromise) => {
     const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
     const stdout = [];
@@ -3213,10 +3199,6 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
       const routedDirectory = route.worktreePath || instanceDirectory;
       await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-      if (BASH_TOOLS.has(tool)) {
-        const currentArgs = output?.args || input?.args;
-        replaceToolArgs(output, currentArgs, stabilizeBashCompletionForTest(currentArgs));
-      }
     },
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
@@ -3354,7 +3336,6 @@ OpenMatesHooks.test = Object.freeze({
   responseContainsMediaForTest,
   assistantTextPartForTest,
   sleepDurationSecondsForTest,
-  stabilizeBashCompletionForTest,
   notifierEventArgsForTest,
   temporaryLockWaitTypesForTest,
   reducePresenceEventForTest,
