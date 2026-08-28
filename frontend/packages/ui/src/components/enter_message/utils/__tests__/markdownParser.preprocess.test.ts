@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// contract-test-file: tooling
 // __tests__/markdownParser.preprocess.test.ts
 //
 // Purpose: regression tests for OPE-380 — indented or blank-line-split JSON
@@ -163,6 +164,21 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
     expect(linkText?.marks?.[0]?.attrs?.href).toBe(
       "#message=Fitnessziel%20setzen",
     );
+  });
+
+  it("renders saved Wikipedia directives as read-only mention chips", () => {
+    const doc = parseMarkdownToTiptap(
+      "@wikipedia:en:Albert_Einstein Summarize his most important contribution.",
+    );
+
+    const [mention, bodyText] = doc.content[0].content;
+    expect(mention.type).toBe("genericMention");
+    expect(mention.attrs).toMatchObject({
+      mentionType: "wikipedia",
+      displayName: "Wiki-Albert-Einstein",
+      mentionSyntax: "@wikipedia:en:Albert_Einstein",
+    });
+    expect(bodyText.text).toBe(" Summarize his most important contribution.");
   });
 
   it("separates adjacent invalid settings fallback links into separate paragraphs", () => {

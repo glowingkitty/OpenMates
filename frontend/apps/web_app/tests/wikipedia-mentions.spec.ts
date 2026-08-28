@@ -87,7 +87,7 @@ test('Wiki disambiguation and provider failures stay visible before inference', 
 	await startNewChat(page, log);
 
 	const editor = await activateWikipediaSearch(page, 'Mercury');
-	const disambiguation = page.getByTestId('wikipedia-result').filter({ hasText: /^Mercury/ }).first();
+	const disambiguation = page.getByTestId('wikipedia-result').filter({ hasText: 'Topics referred to by the same term' }).first();
 	await expect(disambiguation).toHaveAttribute('data-disambiguation', 'true', { timeout: 15000 });
 	await disambiguation.click();
 	await expect(page.getByTestId('wikipedia-disambiguation-message')).toBeVisible();
