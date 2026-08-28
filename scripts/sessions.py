@@ -12287,20 +12287,14 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
             print(f"  ? {f}{tag}")
         print()
 
-    # Run linter on files to commit
+    # Deployment planning must stay a quick, non-blocking preview. The deploy
+    # command and pre-commit hook run the authoritative lint gate; running the
+    # same potentially multi-minute lint here caused callers with ordinary tool
+    # timeouts to be killed mid-turn and left OpenCode tool records stale.
     if to_commit:
         lint_flags = _get_lint_flags(to_commit)
         if lint_flags and _session_is_control_plane_repo(session):
-            print("Running linter...")
-            rc, stdout, stderr = _run_lint(to_commit, checkout_root=checkout_root)
-            if rc != 0:
-                print("LINT ERRORS — fix before deploying:")
-                if stdout:
-                    print(stdout)
-                if stderr:
-                    print(stderr)
-            else:
-                print("Lint: PASSED")
+            print("Lint: DEFERRED (authoritative blocking gate runs during deploy)")
         elif lint_flags:
             print(f"Lint: SKIPPED ({_session_repo_name(session)} has no OpenMates lint_changed.sh gate)")
         print()
