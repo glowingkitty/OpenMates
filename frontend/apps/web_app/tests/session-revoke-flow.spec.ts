@@ -324,11 +324,11 @@ test('session revoke: revoking session B from session A does not log out session
 			attach: testInfo.attach.bind(testInfo),
 			captureFrame: () => pageB.screenshot({ type: 'png' })
 		});
+		await proof.checkpoint('session-b-draft-header');
 		await proof.assert('session-revoke.session-b-draft-header', async () => {
 			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 5000 });
 			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 5000 });
 		});
-		await proof.checkpoint('session-b-draft-header');
 
 		logA(`Both sessions logged in. Waiting ${Math.ceil(SESSION_STABILIZE_MS / 1000)}s for WebSocket connections to stabilise…`);
 		await pageA.waitForTimeout(SESSION_STABILIZE_MS);
