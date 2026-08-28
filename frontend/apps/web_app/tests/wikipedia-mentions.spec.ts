@@ -72,12 +72,19 @@ test('Wiki discovery selects a canonical article and completes with source conte
 	await page.locator('[data-action="send-message"]').last().click();
 	const assistant = page.getByTestId('message-assistant').last();
 	await expect(assistant).toBeVisible({ timeout: 120000 });
-	await expect(assistant).toContainText(/Wikipedia/i, { timeout: 120000 });
+	await expect(page.getByTestId('stop-processing-button')).toHaveCount(0, { timeout: 120000 });
+	await expect(assistant.getByTestId('mate-message-content')).toContainText(/Wikipedia/i, { timeout: 30000 });
 	await screenshot(page, 'wiki-source-aware-response');
 
 	await page.reload();
-	await expect(page.getByTestId('message-assistant').last()).toContainText(/Wikipedia/i, { timeout: 30000 });
-	await expect(page.getByTestId('message-user').last()).not.toContainText('@wikipedia:en:Albert_Einstein');
+	await expect(page.getByTestId('message-assistant').last().getByTestId('mate-message-content')).toContainText(/Wikipedia/i, { timeout: 30000 });
+	const persistedUserMessage = page.getByTestId('message-user').last();
+	await expect(persistedUserMessage).not.toContainText('@wikipedia:en:Albert_Einstein');
+	const persistedWikiLink = persistedUserMessage.getByTestId('wiki-inline-link');
+	await expect(persistedWikiLink).toContainText('Albert Einstein');
+	await persistedWikiLink.click();
+	await expect(page.getByTestId('wiki-fullscreen-content')).toContainText('Albert Einstein', { timeout: 30000 });
+	await page.getByTestId('embed-minimize').click();
 	await deleteActiveChat(page, log);
 });
 
