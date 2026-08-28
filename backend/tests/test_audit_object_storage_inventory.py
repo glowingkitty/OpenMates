@@ -5,9 +5,18 @@ are available. Host orchestration forwards only explicit arguments and never
 prints credentials, bucket names, or object keys.
 """
 
+from pathlib import Path
+
+import pytest
+
 from scripts.audit_object_storage_inventory import (
     EMPTY_SHA256,
     RUNTIME_INVENTORY_TIMEOUT_SECONDS,
+    _compare_authoritative_inventory_database,
+    _create_inventory_database,
+    _populate_authoritative_replica_database,
+    _populate_authoritative_source_database,
+    _populate_verified_job_database,
     probe_managed_bucket,
     runtime_inventory_command,
 )
@@ -64,3 +73,173 @@ def test_managed_bucket_probe_checks_data_plane_and_cleans_up() -> None:
     probe_managed_bucket(client, "private-bucket", "private-probe-key")
 
     assert client.operations == ["head_bucket", "put_object", "head_object", "delete_object"]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_authoritative_sqlite_report_separates_orphans_and_unverified_fingerprints(tmp_path: Path) -> None:
+    connection = _create_inventory_database(tmp_path / "inventory.sqlite3")
+    try:
+        connection.executemany(
+            "INSERT INTO refs(logical_bucket, object_key) VALUES (?, ?)",
+            [
+                ("chatfiles", "live-a"),
+                ("chatfiles", "live-b"),
+                ("chatfiles", "missing-source"),
+            ],
+        )
+        connection.executemany(
+            "INSERT INTO objects(region, logical_bucket, object_key, size_bytes, checksum) VALUES (?, ?, ?, ?, ?)",
+            [
+                ("nbg1", "chatfiles", "live-a", 10, f"sha256:{'a' * 64}"),
+                ("nbg1", "chatfiles", "live-b", 20, "etag:legacy-b"),
+                ("nbg1", "chatfiles", "orphan", 30, "etag:orphan"),
+                ("fsn1", "chatfiles", "live-a", 10, f"sha256:{'a' * 64}"),
+                ("fsn1", "chatfiles", "live-b", 20, f"sha256:{'b' * 64}"),
+            ],
+        )
+        connection.execute(
+            "INSERT INTO verified_jobs(logical_bucket, object_key, region, checksum) VALUES (?, ?, ?, ?)",
+            ("chatfiles", "live-b", "fsn1", f"sha256:{'b' * 64}"),
+        )
+        connection.commit()
+
+        report = _compare_authoritative_inventory_database(
+            connection,
+            source_region="nbg1",
+            regions=("nbg1", "fsn1"),
+            ambiguous_reference_count=4,
+        )
+    finally:
+        connection.close()
+
+    assert report["source_objects_without_references"] == 1
+    assert report["references_without_source_objects"] == 1
+    assert report["ambiguous_reference_count"] == 4
+    assert report["regions"]["fsn1"] == {
+        "authoritative_present": 2,
+        "missing": 0,
+        "mismatched": 0,
+        "durably_verified": 1,
+        "fingerprint_unverified": 0,
+    }
+    assert report["authoritative_replicas_match"] is False
+    assert report["object_keys_in_output"] is False
+    assert report["mutations_performed"] is False
+
+
+class AuthoritativeInventoryClient:
+    def __init__(self, *, replica: bool = False) -> None:
+        self.replica = replica
+        self.head_keys: list[str] = []
+
+    def list_objects_v2(self, **_kwargs) -> dict:
+        return {
+            "Contents": [
+                {"Key": "live", "Size": 10, "ETag": '"source-live"'},
+                {"Key": "orphan", "Size": 20, "ETag": '"source-orphan"'},
+            ]
+        }
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict:
+        self.head_keys.append(Key)
+        if self.replica and Key == "missing":
+            error = RuntimeError("missing")
+            error.response = {"Error": {"Code": "404"}}
+            raise error
+        return {
+            "ContentLength": 10,
+            "ETag": '"replica-live"' if self.replica else '"source-live"',
+            "Metadata": {"openmates-sha256": "a" * 64} if self.replica else {},
+        }
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable
+def test_authoritative_scan_heads_only_referenced_objects(tmp_path: Path, monkeypatch) -> None:
+    from scripts import audit_object_storage_inventory as module
+
+    monkeypatch.setattr(module, "BUCKETS", {"chatfiles": {"managed": True}})
+    connection = _create_inventory_database(tmp_path / "inventory.sqlite3")
+    connection.executemany(
+        "INSERT INTO refs(logical_bucket, object_key) VALUES (?, ?)",
+        [("chatfiles", "live"), ("chatfiles", "missing")],
+    )
+    connection.commit()
+    source = AuthoritativeInventoryClient()
+    replica = AuthoritativeInventoryClient(replica=True)
+    try:
+        _populate_authoritative_source_database(
+            connection,
+            client=source,
+            region="nbg1",
+            environment="development",
+        )
+        _populate_authoritative_replica_database(
+            connection,
+            client=replica,
+            source_region="nbg1",
+            region="fsn1",
+            environment="development",
+        )
+    finally:
+        connection.close()
+
+    assert source.head_keys == ["live"]
+    assert replica.head_keys == ["live"]
+
+
+# contract-test: supporting surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_verified_job_loader_uses_cursor_pages_and_only_verified_regions(tmp_path: Path, monkeypatch) -> None:
+    from scripts import audit_object_storage_inventory as module
+
+    monkeypatch.setattr(module, "DIRECTUS_AUDIT_PAGE_SIZE", 2)
+
+    class Directus:
+        filters: list[dict] = []
+
+        async def get_items(self, _collection: str, *, params: dict, **_kwargs) -> list[dict]:
+            self.filters.append(params["filter"])
+            if "id" not in params["filter"]:
+                return [
+                    {
+                        "id": "job-1",
+                        "logical_bucket": "chatfiles",
+                        "object_key": "one",
+                        "checksum": "a" * 64,
+                        "region_states": {"nbg1": "verified", "fsn1": "pending"},
+                    },
+                    {
+                        "id": "job-2",
+                        "logical_bucket": "chatfiles",
+                        "object_key": "two",
+                        "checksum": f"sha256:{'b' * 64}",
+                        "region_states": {"nbg1": "verified", "fsn1": "verified"},
+                    },
+                ]
+            return [{
+                "id": "job-3",
+                "logical_bucket": "chatfiles",
+                "object_key": "invalid-checksum",
+                "checksum": "invalid",
+                "region_states": {"nbg1": "verified"},
+            }]
+
+    directus = Directus()
+    connection = _create_inventory_database(tmp_path / "inventory.sqlite3")
+    try:
+        await _populate_verified_job_database(connection, directus)
+        rows = connection.execute(
+            "SELECT logical_bucket, object_key, region, checksum FROM verified_jobs ORDER BY object_key, region"
+        ).fetchall()
+    finally:
+        connection.close()
+
+    assert directus.filters == [
+        {"state": {"_eq": "verified"}},
+        {"state": {"_eq": "verified"}, "id": {"_gt": "job-2"}},
+    ]
+    assert rows == [
+        ("chatfiles", "one", "nbg1", f"sha256:{'a' * 64}"),
+        ("chatfiles", "two", "fsn1", f"sha256:{'b' * 64}"),
+        ("chatfiles", "two", "nbg1", f"sha256:{'b' * 64}"),
+    ]

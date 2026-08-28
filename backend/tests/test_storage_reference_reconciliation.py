@@ -85,6 +85,28 @@ def test_cold_manifest_file_references_remain_authoritative() -> None:
     assert inventory.references == {("chatfiles", "files/shared.enc")}
 
 
+# contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.integrity.observable-reconcilable
+def test_unarchived_usage_rows_are_not_malformed_storage_references() -> None:
+    module = _reference_module()
+
+    unarchived = module._inventory_for_reference_row(
+        "usage_monthly_chat_summaries",
+        {"id": "usage-hot", "archive_s3_key": None},
+    )
+    malformed = module._inventory_for_reference_row(
+        "usage_monthly_chat_summaries",
+        {"id": "usage-malformed", "archive_s3_key": ""},
+    )
+
+    assert unarchived.references == set()
+    assert unarchived.ambiguous == []
+    assert malformed.ambiguous == [{
+        "source": "usage_monthly_chat_summaries",
+        "record_id": "usage-malformed",
+        "reason": "invalid_object_reference",
+    }]
+
+
 # contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.deletion.global-authoritative
 def test_deletion_plan_excludes_surviving_references_and_rejects_ambiguity() -> None:
     module = _reference_module()

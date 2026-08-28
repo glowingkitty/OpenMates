@@ -579,11 +579,13 @@ async def test_tombstone_blocks_buffered_and_streaming_reads_immediately() -> No
 @pytest.mark.anyio
 async def test_processor_copies_verifies_and_then_purges_the_same_immutable_key() -> None:
     processor_module = _job_processor_module()
+    from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+
     content = b"encrypted-ciphertext"
     checksum = hashlib.sha256(content).hexdigest()
     object_key = "user-hash/content-hash/embed-id/20260826_120000_original.bin"
     buckets = {
-        region: "dev-openmates-chatfiles" if region == "nbg1" else f"dev-openmates-chatfiles-{region}"
+        region: resolve_regional_bucket_name("dev-openmates-chatfiles", region)
         for region in ("nbg1", "fsn1", "hel1")
     }
     objects = {(buckets["nbg1"], object_key): content}

@@ -1113,7 +1113,7 @@ verifications:
     covers: [AC-12, AC-14]
     status: blocked
     command: python3 scripts/audit_object_storage_inventory.py --env dev --verify-replicas --json
-    evidence: {status: blocked, command: "docker exec api python /app/scripts/audit_object_storage_inventory.py --env dev --probe-regions --regions nbg1,fsn1,hel1 --json; docker exec api python /app/scripts/audit_object_storage_inventory.py --env dev --verify-replicas --regions nbg1,fsn1,hel1 --source-region nbg1 --json", run_id: "task6-regional-capability-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Rebuilt runtime executed the bounded capability probe: FSN1 passed temporary create/head/delete; NBG1 and HEL1 returned sanitized ClientError. Exact read-only inventory exceeded five minutes and was terminated without mutation. Backfill remains blocked until NBG1 is readable and HEL1 provisioning succeeds.", timestamp: "2026-08-26T19:25:00Z"}
+    evidence: {status: blocked, command: "python3 scripts/audit_object_storage_inventory.py --env dev --probe-regions --regions nbg1,fsn1,hel1 --json; python3 scripts/audit_object_storage_inventory.py --env dev --verify-replicas --regions nbg1,fsn1,hel1 --source-region nbg1 --json", run_id: "task6-regional-parity-recheck-20260827", subject_commit: "034f1b3c409dde23683a10110b63a5db45d9fc04", summary: "Bounded capability probe passed nbg1, fsn1, and hel1. Read-only physical parity remains blocked: nbg1 source has 10363 objects and 1108769204 bytes; fsn1 and hel1 each have 1698 objects and 365190874 bytes, with 8665 missing, 1623 mismatched, and zero extras. Output remained sanitized with object_keys_in_output=false. No backfill was started.", timestamp: "2026-08-27T23:15:20Z"}
   - id: V-DEV-CLI-IMAGE-REPLICATION
     kind: automated_test
     phase: green
@@ -1126,7 +1126,7 @@ verifications:
       - The real OpenMates CLI uploads the dedicated private test image and receives a successful answer that requires image inspection.
       - The encrypted upload generation and exact checksum verify in the nbg1, fsn1, and hel1 physical buckets without printing private object identifiers.
       - Authoritative cleanup tombstones and removes the test chat and file from every configured region.
-    evidence: {status: blocked, command: "python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup", run_id: "task6-regional-capability-20260826", subject_commit: "b830fff9cf4e0cd4ff4122884cfb7fe70e4dec7f", summary: "Verifier implementation and helper tests pass, but the real chat was intentionally not started because the prerequisite capability probe failed in NBG1 and HEL1. Mandatory all-region checksum and tombstone cleanup evidence therefore remains blocked; no test upload or chat was created.", timestamp: "2026-08-26T19:25:00Z"}
+    evidence: {status: blocked, command: "python3 scripts/verify_storage_replication_cli_chat.py --env dev --scenario image-question --verify-regions nbg1,fsn1,hel1 --cleanup", run_id: "task6-regional-parity-recheck-20260827", subject_commit: "034f1b3c409dde23683a10110b63a5db45d9fc04", summary: "Real CLI image replication and cleanup proof was intentionally not started because the all-region physical parity prerequisite failed after regional capability recovered. Mandatory checksum and tombstone cleanup evidence remains blocked; no test upload or chat was created.", timestamp: "2026-08-27T23:15:20Z"}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final

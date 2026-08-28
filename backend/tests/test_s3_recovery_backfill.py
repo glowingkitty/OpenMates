@@ -385,15 +385,15 @@ def test_replica_inventory_report_is_aggregate_and_detects_drift() -> None:
         regions=("nbg1", "fsn1", "hel1"),
         inventories={
             "nbg1": {
-                ("chatfiles", "private/a.bin"): (10, "a" * 64),
-                ("chatfiles", "private/b.bin"): (20, "b" * 64),
+                ("chatfiles", "private/a.bin"): (10, f"sha256:{'a' * 64}"),
+                ("chatfiles", "private/b.bin"): (20, "etag:legacy-b"),
             },
             "fsn1": {
-                ("chatfiles", "private/a.bin"): (10, "a" * 64),
+                ("chatfiles", "private/a.bin"): (10, f"sha256:{'a' * 64}"),
             },
             "hel1": {
-                ("chatfiles", "private/a.bin"): (10, "c" * 64),
-                ("chatfiles", "private/b.bin"): (20, "b" * 64),
+                ("chatfiles", "private/a.bin"): (10, f"sha256:{'c' * 64}"),
+                ("chatfiles", "private/b.bin"): (20, f"sha256:{'b' * 64}"),
             },
         },
     )
@@ -403,12 +403,65 @@ def test_replica_inventory_report_is_aggregate_and_detects_drift() -> None:
         "source_object_count": 2,
         "source_bytes": 30,
         "regions": {
-            "nbg1": {"object_count": 2, "bytes": 30, "missing": 0, "mismatched": 0, "extra": 0},
-            "fsn1": {"object_count": 1, "bytes": 10, "missing": 1, "mismatched": 0, "extra": 0},
-            "hel1": {"object_count": 2, "bytes": 30, "missing": 0, "mismatched": 1, "extra": 0},
+            "nbg1": {"object_count": 2, "bytes": 30, "missing": 0, "mismatched": 0, "fingerprint_unverified": 0, "extra": 0},
+            "fsn1": {"object_count": 1, "bytes": 10, "missing": 1, "mismatched": 0, "fingerprint_unverified": 0, "extra": 0},
+            "hel1": {"object_count": 2, "bytes": 30, "missing": 0, "mismatched": 1, "fingerprint_unverified": 1, "extra": 0},
         },
         "replicas_match": False,
         "object_keys_in_output": False,
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=storage.integrity.observable-reconcilable,storage.privacy.ciphertext-boundary
+def test_authoritative_replica_inventory_separates_orphans_from_repairable_drift() -> None:
+    from scripts.audit_object_storage_inventory import compare_authoritative_regional_inventory
+
+    report = compare_authoritative_regional_inventory(
+        source_region="nbg1",
+        regions=("nbg1", "fsn1"),
+        references={
+            ("chatfiles", "private/a.bin"),
+            ("chatfiles", "private/b.bin"),
+            ("chatfiles", "private/source-missing.bin"),
+        },
+        ambiguous_reference_count=7,
+        inventories={
+            "nbg1": {
+                ("chatfiles", "private/a.bin"): (10, f"sha256:{'a' * 64}"),
+                ("chatfiles", "private/b.bin"): (20, "etag:legacy-b"),
+                ("chatfiles", "private/orphan.bin"): (30, "etag:orphan"),
+            },
+            "fsn1": {
+                ("chatfiles", "private/a.bin"): (10, f"sha256:{'a' * 64}"),
+                ("chatfiles", "private/b.bin"): (20, f"sha256:{'b' * 64}"),
+            },
+        },
+    )
+
+    assert report == {
+        "source_region": "nbg1",
+        "source_object_count": 3,
+        "source_objects_without_references": 1,
+        "authoritative_reference_count": 3,
+        "references_without_source_objects": 1,
+        "ambiguous_reference_count": 7,
+        "regions": {
+            "nbg1": {
+                "authoritative_present": 2,
+                "missing": 0,
+                "mismatched": 0,
+                "fingerprint_unverified": 0,
+            },
+            "fsn1": {
+                "authoritative_present": 2,
+                "missing": 0,
+                "mismatched": 0,
+                "fingerprint_unverified": 1,
+            },
+        },
+        "authoritative_replicas_match": False,
+        "object_keys_in_output": False,
+        "mutations_performed": False,
     }
 
 

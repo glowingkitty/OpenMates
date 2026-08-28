@@ -37,6 +37,8 @@ MISSING_BUCKET_CODES = {"404", "NoSuchBucket", "NotFound"}
 SHA256_METADATA_KEY = "openmates-sha256"
 EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 MAINTENANCE_S3_READ_TIMEOUT_SECONDS = 90
+MAINTENANCE_S3_MAX_ATTEMPTS = 3
+DIRECTUS_AUDIT_PAGE_SIZE = 500
 RUNTIME_INVENTORY_TIMEOUT_SECONDS = 900
 HOST_DELEGATION_TIMEOUT_SECONDS = RUNTIME_INVENTORY_TIMEOUT_SECONDS + 30
 
@@ -71,6 +73,15 @@ def sanitized_provider_error(error: Exception) -> dict[str, object]:
     return result
 
 
+class InventoryStageError(RuntimeError):
+    """Attach a non-sensitive audit stage to a provider failure."""
+
+    def __init__(self, stage: str, error: Exception) -> None:
+        super().__init__(type(error).__name__)
+        self.stage = stage
+        self.error = error
+
+
 def compare_regional_inventory(
     *,
     source_region: str,
@@ -85,20 +96,25 @@ def compare_regional_inventory(
     for region in regions:
         inventory = inventories[region]
         keys = set(inventory)
-        mismatched = sum(
-            1
+        relations = [
+            _inventory_relation(source[key], inventory[key])
             for key in source_keys & keys
-            if inventory[key] != source[key]
-        )
+        ]
+        mismatched = relations.count("mismatched")
+        fingerprint_unverified = relations.count("fingerprint_unverified")
         report = {
             "object_count": len(keys),
             "bytes": sum(size for size, _checksum in inventory.values()),
             "missing": len(source_keys - keys),
             "mismatched": mismatched,
+            "fingerprint_unverified": fingerprint_unverified,
             "extra": len(keys - source_keys),
         }
         region_reports[region] = report
-        if region != source_region and any(report[field] for field in ("missing", "mismatched", "extra")):
+        if region != source_region and any(
+            report[field]
+            for field in ("missing", "mismatched", "fingerprint_unverified", "extra")
+        ):
             replicas_match = False
     return {
         "source_region": source_region,
@@ -107,6 +123,62 @@ def compare_regional_inventory(
         "regions": region_reports,
         "replicas_match": replicas_match,
         "object_keys_in_output": False,
+    }
+
+
+def _inventory_relation(source: tuple[int, str], replica: tuple[int, str]) -> str:
+    """Classify comparable checksums without treating ETags as SHA-256."""
+    source_size, source_fingerprint = source
+    replica_size, replica_fingerprint = replica
+    if source_size != replica_size:
+        return "mismatched"
+    if source_fingerprint == replica_fingerprint:
+        return "matched"
+    if source_fingerprint.startswith("sha256:") and replica_fingerprint.startswith("sha256:"):
+        return "mismatched"
+    return "fingerprint_unverified"
+
+
+def compare_authoritative_regional_inventory(
+    *,
+    source_region: str,
+    regions: tuple[str, ...],
+    references: set[tuple[str, str]],
+    ambiguous_reference_count: int,
+    inventories: dict[str, dict[tuple[str, str], tuple[int, str]]],
+) -> dict:
+    """Compare only live references and classify source-only objects separately."""
+    source = inventories[source_region]
+    source_keys = set(source)
+    repairable_references = references & source_keys
+    reports: dict[str, dict[str, int]] = {}
+    replicas_match = not (references - source_keys) and ambiguous_reference_count == 0
+    for region in regions:
+        inventory = inventories[region]
+        present = repairable_references & set(inventory)
+        relations = [_inventory_relation(source[key], inventory[key]) for key in present]
+        report = {
+            "authoritative_present": len(present),
+            "missing": len(repairable_references - set(inventory)),
+            "mismatched": relations.count("mismatched"),
+            "fingerprint_unverified": relations.count("fingerprint_unverified"),
+        }
+        reports[region] = report
+        if region != source_region and any(
+            report[field] for field in ("missing", "mismatched", "fingerprint_unverified")
+        ):
+            replicas_match = False
+    return {
+        "source_region": source_region,
+        "source_object_count": len(source_keys),
+        "source_objects_without_references": len(source_keys - references),
+        "authoritative_reference_count": len(references),
+        "references_without_source_objects": len(references - source_keys),
+        "ambiguous_reference_count": ambiguous_reference_count,
+        "regions": reports,
+        "authoritative_replicas_match": replicas_match,
+        "object_keys_in_output": False,
+        "mutations_performed": False,
     }
 
 
@@ -121,10 +193,15 @@ def _normalise_sha256(value: object) -> str | None:
 
 def _inventory_object_fingerprint(*, client: object, bucket: str, item: dict[str, object]) -> str:
     head = client.head_object(Bucket=bucket, Key=str(item["Key"]))
+    return _inventory_head_fingerprint(head=head, fallback_etag=item.get("ETag"))
+
+
+def _inventory_head_fingerprint(*, head: dict[str, object], fallback_etag: object = None) -> str:
+    """Return SHA metadata when available, otherwise a provider ETag."""
     metadata_checksum = _normalise_sha256((head.get("Metadata") or {}).get(SHA256_METADATA_KEY))
     if metadata_checksum:
         return f"sha256:{metadata_checksum}"
-    etag = str(item.get("ETag") or "").strip('"')
+    etag = str(head.get("ETag") or fallback_etag or "").strip('"')
     if etag:
         return f"etag:{etag}"
     raise RuntimeError("Provider inventory fingerprint unavailable")
@@ -161,7 +238,7 @@ def _build_maintenance_region_clients(
         s3={"addressing_style": "path"},
         connect_timeout=10,
         read_timeout=MAINTENANCE_S3_READ_TIMEOUT_SECONDS,
-        retries={"max_attempts": 2},
+        retries={"max_attempts": MAINTENANCE_S3_MAX_ATTEMPTS, "mode": "standard"},
     )
     return {
         region: boto3.client(
@@ -183,6 +260,26 @@ def _iter_region_inventory(
     environment: str,
 ):
     """Yield one streamed ciphertext inventory row at a time."""
+    for logical_bucket, bucket, item in _iter_managed_bucket_items(
+        client=client,
+        region=region,
+        environment=environment,
+    ):
+        yield (
+            logical_bucket,
+            str(item["Key"]),
+            int(item.get("Size", 0)),
+            _inventory_object_fingerprint(client=client, bucket=bucket, item=item),
+        )
+
+
+def _iter_managed_bucket_items(
+    *,
+    client: object,
+    region: str,
+    environment: str,
+):
+    """Yield provider list rows for every managed replicated logical bucket."""
     for logical_bucket, config in BUCKETS.items():
         if not config.get("managed", True) or not should_replicate_bucket(logical_bucket):
             continue
@@ -195,13 +292,7 @@ def _iter_region_inventory(
                 request["ContinuationToken"] = continuation_token
             page = client.list_objects_v2(**request)
             for item in page.get("Contents") or []:
-                object_key = str(item["Key"])
-                yield (
-                    logical_bucket,
-                    object_key,
-                    int(item.get("Size", 0)),
-                    _inventory_object_fingerprint(client=client, bucket=bucket, item=item),
-                )
+                yield logical_bucket, bucket, item
             continuation_token = page.get("NextContinuationToken")
             if not continuation_token:
                 break
@@ -214,6 +305,9 @@ def _create_inventory_database(path: Path) -> sqlite3.Connection:
     )
     connection.execute(
         "CREATE TABLE refs (logical_bucket TEXT, object_key TEXT, PRIMARY KEY(logical_bucket, object_key))"
+    )
+    connection.execute(
+        "CREATE TABLE verified_jobs (logical_bucket TEXT, object_key TEXT, region TEXT, checksum TEXT, PRIMARY KEY(logical_bucket, object_key, region))"
     )
     return connection
 
@@ -229,6 +323,73 @@ def _populate_region_database(
         connection.execute(
             "INSERT OR REPLACE INTO objects(region, logical_bucket, object_key, size_bytes, checksum) VALUES (?, ?, ?, ?, ?)",
             (region, *row),
+        )
+    connection.commit()
+
+
+def _populate_authoritative_source_database(
+    connection: sqlite3.Connection,
+    *,
+    client: object,
+    region: str,
+    environment: str,
+) -> None:
+    """List all source objects but HEAD only those with live references."""
+    references = {
+        (str(logical_bucket), str(object_key))
+        for logical_bucket, object_key in connection.execute(
+            "SELECT logical_bucket, object_key FROM refs"
+        )
+    }
+    for logical_bucket, bucket, item in _iter_managed_bucket_items(
+        client=client,
+        region=region,
+        environment=environment,
+    ):
+        object_key = str(item["Key"])
+        checksum = "unreferenced"
+        if (logical_bucket, object_key) in references:
+            checksum = _inventory_object_fingerprint(client=client, bucket=bucket, item=item)
+        connection.execute(
+            "INSERT OR REPLACE INTO objects(region, logical_bucket, object_key, size_bytes, checksum) VALUES (?, ?, ?, ?, ?)",
+            (region, logical_bucket, object_key, int(item.get("Size", 0)), checksum),
+        )
+    connection.commit()
+
+
+def _populate_authoritative_replica_database(
+    connection: sqlite3.Connection,
+    *,
+    client: object,
+    source_region: str,
+    region: str,
+    environment: str,
+) -> None:
+    """HEAD only live references that exist in the authoritative source."""
+    source_references = connection.execute(
+        "SELECT f.logical_bucket, f.object_key FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key",
+        (source_region,),
+    ).fetchall()
+    for logical_bucket, object_key in source_references:
+        legacy_bucket = get_bucket_name(str(logical_bucket), environment)
+        bucket = resolve_regional_bucket_name(legacy_bucket, region)
+        try:
+            head = client.head_object(Bucket=bucket, Key=str(object_key))
+        except Exception as error:
+            response = getattr(error, "response", None)
+            code = response.get("Error", {}).get("Code") if isinstance(response, dict) else None
+            if str(code) in {"404", "NoSuchKey", "NotFound"}:
+                continue
+            raise
+        connection.execute(
+            "INSERT OR REPLACE INTO objects(region, logical_bucket, object_key, size_bytes, checksum) VALUES (?, ?, ?, ?, ?)",
+            (
+                region,
+                str(logical_bucket),
+                str(object_key),
+                int(head.get("ContentLength", 0)),
+                _inventory_head_fingerprint(head=head),
+            ),
         )
     connection.commit()
 
@@ -255,7 +416,11 @@ def _compare_inventory_database(
             (region, source_region),
         ).fetchone()[0]
         mismatched = connection.execute(
-            "SELECT COUNT(*) FROM objects s JOIN objects r ON r.region = ? AND r.logical_bucket = s.logical_bucket AND r.object_key = s.object_key WHERE s.region = ? AND (r.size_bytes != s.size_bytes OR r.checksum != s.checksum)",
+            "SELECT COUNT(*) FROM objects s JOIN objects r ON r.region = ? AND r.logical_bucket = s.logical_bucket AND r.object_key = s.object_key WHERE s.region = ? AND (r.size_bytes != s.size_bytes OR (s.checksum LIKE 'sha256:%' AND r.checksum LIKE 'sha256:%' AND r.checksum != s.checksum))",
+            (region, source_region),
+        ).fetchone()[0]
+        fingerprint_unverified = connection.execute(
+            "SELECT COUNT(*) FROM objects s JOIN objects r ON r.region = ? AND r.logical_bucket = s.logical_bucket AND r.object_key = s.object_key WHERE s.region = ? AND r.size_bytes = s.size_bytes AND r.checksum != s.checksum AND NOT (s.checksum LIKE 'sha256:%' AND r.checksum LIKE 'sha256:%')",
             (region, source_region),
         ).fetchone()[0]
         extra = connection.execute(
@@ -267,9 +432,10 @@ def _compare_inventory_database(
             "bytes": int(size_bytes),
             "missing": int(missing),
             "mismatched": int(mismatched),
+            "fingerprint_unverified": int(fingerprint_unverified),
             "extra": int(extra),
         }
-        if region != source_region and any((missing, mismatched, extra)):
+        if region != source_region and any((missing, mismatched, fingerprint_unverified, extra)):
             replicas_match = False
     return {
         "source_region": source_region,
@@ -281,11 +447,141 @@ def _compare_inventory_database(
     }
 
 
+async def _populate_reference_database(connection: sqlite3.Connection, directus_service: object) -> int:
+    """Load authoritative references into SQLite and return ambiguity count."""
+    from backend.core.api.app.services.storage_reference_service import (
+        iter_authoritative_storage_reference_pages,
+    )
+
+    ambiguous_count = 0
+    async for authority in iter_authoritative_storage_reference_pages(
+        directus_service=directus_service,
+        encryption_service=directus_service.encryption_service,
+    ):
+        ambiguous_count += len(authority.ambiguous)
+        connection.executemany(
+            "INSERT OR IGNORE INTO refs(logical_bucket, object_key) VALUES (?, ?)",
+            authority.references,
+        )
+    connection.commit()
+    return ambiguous_count
+
+
+async def _populate_verified_job_database(connection: sqlite3.Connection, directus_service: object) -> None:
+    """Load only checksum-verified regional job evidence in bounded pages."""
+    cursor: str | None = None
+    while True:
+        item_filter: dict[str, object] = {"state": {"_eq": "verified"}}
+        if cursor:
+            item_filter["id"] = {"_gt": cursor}
+        rows = await directus_service.get_items(
+            "storage_replication_jobs",
+            params={
+                "filter": item_filter,
+                "fields": "id,logical_bucket,object_key,checksum,region_states",
+                "sort": "id",
+                "limit": DIRECTUS_AUDIT_PAGE_SIZE,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        ) or []
+        for row in rows:
+            checksum = _normalise_sha256(row.get("checksum"))
+            if not checksum:
+                continue
+            for region, state in dict(row.get("region_states") or {}).items():
+                if state != "verified":
+                    continue
+                connection.execute(
+                    "INSERT OR REPLACE INTO verified_jobs(logical_bucket, object_key, region, checksum) VALUES (?, ?, ?, ?)",
+                    (
+                        str(row.get("logical_bucket")),
+                        str(row.get("object_key")),
+                        str(region),
+                        f"sha256:{checksum}",
+                    ),
+                )
+        if len(rows) < DIRECTUS_AUDIT_PAGE_SIZE:
+            break
+        cursor = str(rows[-1].get("id") or "")
+        if not cursor:
+            raise RuntimeError("Cannot paginate verified regional storage jobs")
+    connection.commit()
+
+
+def _compare_authoritative_inventory_database(
+    connection: sqlite3.Connection,
+    *,
+    source_region: str,
+    regions: tuple[str, ...],
+    ambiguous_reference_count: int,
+) -> dict:
+    """Compare physical inventory only where current Directus references exist."""
+    source_count = connection.execute(
+        "SELECT COUNT(*) FROM objects WHERE region = ?", (source_region,)
+    ).fetchone()[0]
+    reference_count = connection.execute("SELECT COUNT(*) FROM refs").fetchone()[0]
+    source_orphans = connection.execute(
+        "SELECT COUNT(*) FROM objects o LEFT JOIN refs r ON r.logical_bucket = o.logical_bucket AND r.object_key = o.object_key WHERE o.region = ? AND r.object_key IS NULL",
+        (source_region,),
+    ).fetchone()[0]
+    references_without_source = connection.execute(
+        "SELECT COUNT(*) FROM refs r LEFT JOIN objects s ON s.region = ? AND s.logical_bucket = r.logical_bucket AND s.object_key = r.object_key WHERE s.object_key IS NULL",
+        (source_region,),
+    ).fetchone()[0]
+    reports: dict[str, dict[str, int]] = {}
+    replicas_match = references_without_source == 0 and ambiguous_reference_count == 0
+    for region in regions:
+        present = connection.execute(
+            "SELECT COUNT(*) FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key JOIN objects r ON r.region = ? AND r.logical_bucket = f.logical_bucket AND r.object_key = f.object_key",
+            (source_region, region),
+        ).fetchone()[0]
+        missing = connection.execute(
+            "SELECT COUNT(*) FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key LEFT JOIN objects r ON r.region = ? AND r.logical_bucket = f.logical_bucket AND r.object_key = f.object_key WHERE r.object_key IS NULL",
+            (source_region, region),
+        ).fetchone()[0]
+        mismatched = connection.execute(
+            "SELECT COUNT(*) FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key JOIN objects r ON r.region = ? AND r.logical_bucket = f.logical_bucket AND r.object_key = f.object_key WHERE r.size_bytes != s.size_bytes OR (s.checksum LIKE 'sha256:%' AND r.checksum LIKE 'sha256:%' AND r.checksum != s.checksum)",
+            (source_region, region),
+        ).fetchone()[0]
+        durably_verified = connection.execute(
+            "SELECT COUNT(*) FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key JOIN objects r ON r.region = ? AND r.logical_bucket = f.logical_bucket AND r.object_key = f.object_key JOIN verified_jobs v ON v.logical_bucket = f.logical_bucket AND v.object_key = f.object_key AND v.region = ? AND v.checksum = r.checksum WHERE r.size_bytes = s.size_bytes AND r.checksum != s.checksum AND NOT (s.checksum LIKE 'sha256:%' AND r.checksum LIKE 'sha256:%')",
+            (source_region, region, region),
+        ).fetchone()[0]
+        fingerprint_unverified = connection.execute(
+            "SELECT COUNT(*) FROM refs f JOIN objects s ON s.region = ? AND s.logical_bucket = f.logical_bucket AND s.object_key = f.object_key JOIN objects r ON r.region = ? AND r.logical_bucket = f.logical_bucket AND r.object_key = f.object_key LEFT JOIN verified_jobs v ON v.logical_bucket = f.logical_bucket AND v.object_key = f.object_key AND v.region = ? AND v.checksum = r.checksum WHERE r.size_bytes = s.size_bytes AND r.checksum != s.checksum AND NOT (s.checksum LIKE 'sha256:%' AND r.checksum LIKE 'sha256:%') AND v.object_key IS NULL",
+            (source_region, region, region),
+        ).fetchone()[0]
+        reports[region] = {
+            "authoritative_present": int(present),
+            "missing": int(missing),
+            "mismatched": int(mismatched),
+            "durably_verified": int(durably_verified),
+            "fingerprint_unverified": int(fingerprint_unverified),
+        }
+        if region != source_region and any((missing, mismatched, fingerprint_unverified)):
+            replicas_match = False
+    return {
+        "source_region": source_region,
+        "source_object_count": int(source_count),
+        "source_objects_without_references": int(source_orphans),
+        "authoritative_reference_count": int(reference_count),
+        "references_without_source_objects": int(references_without_source),
+        "ambiguous_reference_count": int(ambiguous_reference_count),
+        "regions": reports,
+        "authoritative_replicas_match": replicas_match,
+        "object_keys_in_output": False,
+        "mutations_performed": False,
+    }
+
+
 async def verify_replica_inventory(
     *,
     environment: str,
     regions: tuple[str, ...],
     source_region: str,
+    authoritative_only: bool = False,
 ) -> dict:
     """Read every replicated ciphertext once and compare exact regional bytes."""
     from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -304,21 +600,63 @@ async def verify_replica_inventory(
         )
         with tempfile.TemporaryDirectory(prefix="openmates-regional-inventory-") as temporary:
             connection = _create_inventory_database(Path(temporary) / "inventory.sqlite3")
+            directus = None
             try:
-                for region in regions:
-                    await asyncio.to_thread(
-                        _populate_region_database,
+                if not authoritative_only:
+                    for region in regions:
+                        await asyncio.to_thread(
+                            _populate_region_database,
+                            connection,
+                            client=clients[region],
+                            region=region,
+                            environment=environment,
+                        )
+                    return _compare_inventory_database(
                         connection,
-                        client=clients[region],
-                        region=region,
+                        source_region=source_region,
+                        regions=regions,
+                    )
+                from backend.core.api.app.services.directus import DirectusService
+
+                directus = DirectusService()
+                try:
+                    ambiguous_count = await _populate_reference_database(connection, directus)
+                    await _populate_verified_job_database(connection, directus)
+                except Exception as error:
+                    raise InventoryStageError("authoritative_references", error) from error
+                try:
+                    await asyncio.to_thread(
+                        _populate_authoritative_source_database,
+                        connection,
+                        client=clients[source_region],
+                        region=source_region,
                         environment=environment,
                     )
-                return _compare_inventory_database(
+                except Exception as error:
+                    raise InventoryStageError("source_inventory", error) from error
+                for region in regions:
+                    if region == source_region:
+                        continue
+                    try:
+                        await asyncio.to_thread(
+                            _populate_authoritative_replica_database,
+                            connection,
+                            client=clients[region],
+                            source_region=source_region,
+                            region=region,
+                            environment=environment,
+                        )
+                    except Exception as error:
+                        raise InventoryStageError(f"replica_inventory:{region}", error) from error
+                return _compare_authoritative_inventory_database(
                     connection,
                     source_region=source_region,
                     regions=regions,
+                    ambiguous_reference_count=ambiguous_count,
                 )
             finally:
+                if directus is not None:
+                    await directus.close()
                 connection.close()
     finally:
         await secrets.aclose()
@@ -659,6 +997,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--probe-regions", action="store_true")
     parser.add_argument("--verify-replicas", action="store_true")
+    parser.add_argument("--verify-authoritative-replicas", action="store_true")
     parser.add_argument("--backfill-recovered-source", action="store_true")
     parser.add_argument("--provision-regions", action="store_true")
     parser.add_argument("--source-region", default="nbg1")
@@ -670,12 +1009,14 @@ def main() -> int:
         args.dry_run,
         args.probe_regions,
         args.verify_replicas,
+        args.verify_authoritative_replicas,
         args.backfill_recovered_source,
         args.provision_regions,
     ))
     if selected_modes != 1:
         parser.error(
             "Choose exactly one of --dry-run, --probe-regions, --verify-replicas, "
+            "--verify-authoritative-replicas, "
             "--backfill-recovered-source, or --provision-regions"
         )
 
@@ -706,7 +1047,7 @@ def main() -> int:
             "results": asyncio.run(probe_region_capabilities(environment, regions)),
             "object_keys_in_output": False,
         }
-    elif args.verify_replicas:
+    elif args.verify_replicas or args.verify_authoritative_replicas:
         if args.source_region not in regions:
             parser.error("--source-region must be included in configured regions")
         try:
@@ -715,15 +1056,20 @@ def main() -> int:
                     environment=environment,
                     regions=regions,
                     source_region=args.source_region,
+                    authoritative_only=args.verify_authoritative_replicas,
                 )
             )
-            report["status"] = "passed" if report["replicas_match"] else "drift_detected"
+            match_field = "authoritative_replicas_match" if args.verify_authoritative_replicas else "replicas_match"
+            report["status"] = "passed" if report[match_field] else "drift_detected"
         except Exception as exc:
+            root_error = exc.error if isinstance(exc, InventoryStageError) else exc
             report = {
                 "status": "blocked",
-                **sanitized_provider_error(exc),
+                **sanitized_provider_error(root_error),
                 "object_keys_in_output": False,
             }
+            if isinstance(exc, InventoryStageError):
+                report["inventory_stage"] = exc.stage
     elif args.backfill_recovered_source:
         if args.source_region not in regions:
             parser.error("--source-region must be included in configured regions")

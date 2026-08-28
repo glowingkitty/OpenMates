@@ -546,9 +546,13 @@ def _inventory_for_reference_row(
     if collection.startswith("usage_monthly_"):
         bucket = "usage_archives"
         key = row.get("archive_s3_key")
+        if key is None:
+            return inventory
     elif collection == "user_task_archives":
         bucket = "task_archives"
         key = row.get("archive_s3_key")
+        if key is None:
+            return inventory
     else:
         bucket = row.get("s3_bucket_key")
         key = row.get("s3_object_key")
