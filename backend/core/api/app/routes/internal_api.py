@@ -33,12 +33,17 @@ from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.replication import (
     build_replication_job,
     persist_replication_job,
+    record_persisted_region_error,
 )
 from backend.core.api.app.services.s3.reconciliation import find_deletion_tombstone
 from backend.core.api.app.services.s3.recovery_backfill import (
     backfill_recovered_page,
 )
-from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+from backend.shared.python_utils.object_storage_regions import (
+    RETRYABLE_STORAGE_ERROR_CODES,
+    is_retryable_storage_error,
+    parse_storage_regions,
+)
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService
@@ -273,6 +278,39 @@ async def storage_region_health_route(
         "pending_deletion": len(tombstone_rows),
         "result_truncated": len(replication_rows) == 100 or len(tombstone_rows) == 100,
     }
+
+
+class StorageRegionErrorRequest(BaseModel):
+    """Internal report of a retryable regional object-storage failure."""
+
+    region: str = Field(..., description="Configured storage region that failed")
+    error_code: str = Field(..., description="Provider error code or transport exception name")
+    http_status: Optional[int] = Field(None, description="Provider HTTP status, when available")
+
+
+@router.post("/storage/region-errors")
+async def record_storage_region_error_route(
+    payload: StorageRegionErrorRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> dict[str, str]:
+    """Journal upload-service regional failures into the shared health circuit."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    if payload.region not in configured_regions:
+        raise HTTPException(status_code=400, detail="Storage region is not configured")
+    if not is_retryable_storage_error(payload.error_code, payload.http_status):
+        return {"status": "ignored"}
+    health_error_code = (
+        payload.error_code
+        if payload.error_code in RETRYABLE_STORAGE_ERROR_CODES or payload.http_status is None
+        else str(payload.http_status)
+    )
+    await record_persisted_region_error(
+        directus_service=directus_service,
+        region=payload.region,
+        error_code=health_error_code,
+        now=datetime.now(timezone.utc),
+    )
+    return {"status": "recorded"}
 
 
 # ---------------------------------------------------------------------------
@@ -1603,6 +1641,10 @@ class UploadStoreRecordRequest(BaseModel):
     malware_scan: str = Field(default="clean", description="ClamAV scan result")
     ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
     created_at: int = Field(..., description="Unix timestamp of upload")
+    storage_active_regions: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Internal per-object active S3 region already persisted by the upload service",
+    )
     # PDF-specific: number of pages extracted by pymupdf during upload.
     # Stored so that deduplication responses can return the correct page_count
     # without re-parsing the PDF on subsequent uploads of the same file.
@@ -1633,20 +1675,42 @@ async def store_upload_record(
 
     try:
         record = payload.model_dump(exclude_none=True)
+        record.pop("storage_active_regions", None)
+        record_files_metadata = record.get("files_metadata") or {}
+        configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
         replicated_keys: set[str] = set()
-        for variant in payload.files_metadata.values():
+        seen_object_keys: set[str] = set()
+        for variant_name, variant in payload.files_metadata.items():
             if not isinstance(variant, dict):
                 raise ValueError("Upload variant metadata must be an object")
             object_key = variant.get("s3_key")
             if not isinstance(object_key, str) or not object_key:
                 raise ValueError("Upload variant metadata requires an S3 key")
-            if object_key in replicated_keys:
+            seen_object_keys.add(object_key)
+            already_replicated = object_key in replicated_keys
+            active_region = payload.storage_active_regions.get(object_key)
+            if active_region:
+                if active_region not in configured_regions:
+                    raise ValueError("Upload variant active region is not configured")
+                existing_region = variant.get("active_region")
+                if isinstance(existing_region, str) and existing_region != active_region:
+                    raise ValueError("Upload variant active region does not match storage routing metadata")
+                record_variant = record_files_metadata.get(variant_name)
+                if isinstance(record_variant, dict):
+                    record_variant["active_region"] = active_region
+                if not already_replicated:
+                    replicated_keys.add(object_key)
+                continue
+            if already_replicated:
                 continue
             await s3_service.persist_external_upload_replication(
                 logical_bucket="chatfiles",
                 object_key=object_key,
             )
             replicated_keys.add(object_key)
+        unknown_active_keys = set(payload.storage_active_regions) - seen_object_keys
+        if unknown_active_keys:
+            raise ValueError("Upload storage routing metadata references unknown S3 keys")
         await directus_service.create_item("upload_files", record)
         logger.info(f"{log_prefix} Upload record stored successfully")
 

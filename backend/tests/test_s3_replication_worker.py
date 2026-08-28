@@ -69,6 +69,26 @@ def test_active_success_creates_one_deterministic_desired_generation() -> None:
     assert first["state"] == "pending"
 
 
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
+def test_upload_microservice_retryable_s3_codes_align_with_core() -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+    replication_module = _replication_module()
+
+    expected_provider_codes = {
+        "429",
+        "502",
+        "504",
+        "BadGateway",
+        "GatewayTimeout",
+        "RequestTimeoutException",
+        "ThrottlingException",
+        "TooManyRequests",
+    }
+    assert expected_provider_codes <= upload_module.RETRYABLE_UPLOAD_ERROR_CODES
+    assert expected_provider_codes <= replication_module.RETRYABLE_ERROR_CODES
+
+
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.failover.health-reconciled
 def test_replica_failure_persists_bounded_retry_without_failing_active_write() -> None:
     module = _replication_module()
@@ -370,6 +390,7 @@ async def test_upload_microservice_uses_active_bucket_and_internal_outbox(monkey
     service.configured_regions = ("nbg1", "fsn1", "hel1")
     service.region_clients = {"fsn1": client}
     service.client = client
+    service.base_domain = "s3.example.invalid"
 
     result = await service.upload_file(
         "owner/hash/embed/original.bin",
@@ -382,6 +403,574 @@ async def test_upload_microservice_uses_active_bucket_and_internal_outbox(monkey
     assert requests[0][0] == "https://api.dev.invalid/internal/storage/replication-jobs"
     assert requests[0][1]["json"]["checksum"] == hashlib.sha256(content).hexdigest()
     assert requests[0][1]["json"]["active_region"] == "fsn1"
+    assert service.get_base_url(target_env="dev", region="fsn1") == (
+        "https://dev-openmates-chatfiles-fsn1.fsn1.your-objectstorage.com"
+    )
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
+@pytest.mark.anyio
+async def test_upload_microservice_exists_probe_uses_stored_active_region() -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class PrimaryClient:
+        buckets: list[str] = []
+
+        def head_object(self, *, Bucket: str, **_kwargs: object) -> None:
+            self.buckets.append(Bucket)
+            raise upload_module.ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
+
+    class SecondaryClient:
+        buckets: list[str] = []
+
+        def head_object(self, *, Bucket: str, **_kwargs: object) -> dict:
+            self.buckets.append(Bucket)
+            return {"Metadata": {"openmates-sha256": "unused"}}
+
+    primary = PrimaryClient()
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"nbg1": primary, "fsn1": secondary}
+    service.client = primary
+
+    assert await service.check_file_exists("owner/fallback.bin", target_env="dev", region="fsn1")
+    assert primary.buckets == []
+    assert secondary.buckets == ["dev-openmates-chatfiles-fsn1"]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("error_code", "http_status"),
+    [
+        ("ServiceUnavailable", 503),
+        ("BadGateway", 502),
+        ("GatewayTimeout", 504),
+        ("UnknownProviderCode", 501),
+        ("UnknownProviderCode", 502),
+        ("TooManyRequests", 429),
+    ],
+)
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+async def test_upload_microservice_fails_over_and_persists_secondary_as_active(
+    monkeypatch: pytest.MonkeyPatch,
+    error_code: str,
+    http_status: int,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class PrimaryClient:
+        def put_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {
+                    "Error": {"Code": error_code},
+                    "ResponseMetadata": {"HTTPStatusCode": http_status},
+                },
+                "PutObject",
+            )
+
+        def head_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
+
+    class SecondaryClient:
+        puts: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+    requests: list[dict] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **kwargs: object) -> Response:
+            requests.append(dict(kwargs))
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"nbg1": PrimaryClient(), "fsn1": secondary}
+    service.client = service.region_clients["nbg1"]
+
+    result = await service.upload_file_with_region(
+        "owner/hash/embed/failover.bin",
+        b"encrypted-upload-service-write",
+        target_env="dev",
+    )
+
+    health_requests = [request for request in requests if request["json"].get("region") == "nbg1"]
+    outbox_requests = [request for request in requests if request["json"].get("active_region") == "fsn1"]
+    assert result.key == "owner/hash/embed/failover.bin"
+    assert result.region == "fsn1"
+    assert secondary.puts[0]["Bucket"] == "dev-openmates-chatfiles-fsn1"
+    assert health_requests[0]["json"]["http_status"] == http_status
+    assert outbox_requests[0]["json"]["active_region"] == "fsn1"
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_fails_over_on_transport_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class PrimaryClient:
+        def put_object(self, **_kwargs: object) -> None:
+            raise upload_module.EndpointConnectionError(endpoint_url="https://nbg1.example.invalid")
+
+        def head_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
+
+    class SecondaryClient:
+        puts: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> Response:
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"nbg1": PrimaryClient(), "fsn1": secondary}
+    service.client = service.region_clients["nbg1"]
+
+    result = await service.upload_file_with_region(
+        "owner/hash/embed/transport.bin",
+        b"encrypted-upload-service-write",
+        target_env="dev",
+    )
+
+    assert result.region == "fsn1"
+    assert secondary.puts[0]["Bucket"] == "dev-openmates-chatfiles-fsn1"
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_journals_retryable_failure_on_last_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FinalClient:
+        puts = 0
+
+        def put_object(self, **_kwargs: object) -> None:
+            self.puts += 1
+            raise upload_module.ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "PutObject",
+            )
+
+        def head_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
+
+    requests: list[dict] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, url: str, **kwargs: object) -> Response:
+            requests.append({"url": url, **dict(kwargs)})
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    final_client = FinalClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"fsn1": final_client}
+    service.client = final_client
+
+    with pytest.raises(RuntimeError, match="S3 upload failed"):
+        await service.upload_file_with_region(
+            "owner/hash/embed/final-candidate.bin",
+            b"encrypted-upload-service-write",
+            target_env="dev",
+        )
+
+    assert final_client.puts == 1
+    assert len(requests) == 1
+    assert requests[0]["url"].endswith("/internal/storage/region-errors")
+    assert requests[0]["json"] == {
+        "region": "fsn1",
+        "error_code": "ServiceUnavailable",
+        "http_status": 503,
+    }
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_journals_pinned_variant_failure_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class PinnedClient:
+        puts = 0
+
+        def put_object(self, **_kwargs: object) -> None:
+            self.puts += 1
+            raise upload_module.ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "PutObject",
+            )
+
+        def head_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
+
+    class SecondaryClient:
+        puts: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+    requests: list[dict] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, url: str, **kwargs: object) -> Response:
+            requests.append({"url": url, **dict(kwargs)})
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    pinned_client = PinnedClient()
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"nbg1": pinned_client, "fsn1": secondary}
+    service.client = pinned_client
+
+    with pytest.raises(RuntimeError, match="S3 upload failed"):
+        await service.upload_file_with_region(
+            "owner/hash/embed/full.enc",
+            b"encrypted-full-image-variant",
+            target_env="dev",
+            preferred_region="nbg1",
+            allow_region_fallback=False,
+        )
+
+    assert pinned_client.puts == 1
+    assert secondary.puts == []
+    assert len(requests) == 1
+    assert requests[0]["url"].endswith("/internal/storage/region-errors")
+    assert requests[0]["json"] == {
+        "region": "nbg1",
+        "error_code": "ServiceUnavailable",
+        "http_status": 503,
+    }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["last_candidate", "pinned_variant"])
+@pytest.mark.parametrize("write_failure", ["client", "transport"])
+@pytest.mark.parametrize("head_failure", ["client", "transport"])
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+async def test_upload_microservice_journals_ambiguous_probe_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+    write_failure: str,
+    head_failure: str,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FailingClient:
+        def put_object(self, **_kwargs: object) -> None:
+            if write_failure == "transport":
+                raise upload_module.EndpointConnectionError(endpoint_url="https://region.example.invalid")
+            raise upload_module.ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "PutObject",
+            )
+
+        def head_object(self, **_kwargs: object) -> None:
+            if head_failure == "transport":
+                raise upload_module.EndpointConnectionError(endpoint_url="https://region.example.invalid")
+            raise upload_module.ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "HeadObject",
+            )
+
+    class SecondaryClient:
+        puts: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+    requests: list[dict] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, url: str, **kwargs: object) -> Response:
+            requests.append({"url": url, **dict(kwargs)})
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    failing_client = FailingClient()
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_name = "nbg1"
+    if case == "last_candidate":
+        failed_region = "fsn1"
+        service.region_clients = {"fsn1": failing_client}
+        kwargs: dict[str, object] = {}
+    else:
+        failed_region = "nbg1"
+        service.region_clients = {"nbg1": failing_client, "fsn1": secondary}
+        kwargs = {"preferred_region": "nbg1", "allow_region_fallback": False}
+    service.client = failing_client
+
+    with pytest.raises(RuntimeError, match="ambiguous"):
+        await service.upload_file_with_region(
+            "owner/hash/embed/ambiguous-probe.bin",
+            b"encrypted-upload-service-write",
+            target_env="dev",
+            **kwargs,
+        )
+
+    assert secondary.puts == []
+    assert len(requests) == 1
+    assert requests[0]["url"].endswith("/internal/storage/region-errors")
+    assert requests[0]["json"] == {
+        "region": failed_region,
+        "error_code": "EndpointConnectionError" if write_failure == "transport" else "ServiceUnavailable",
+        "http_status": None if write_failure == "transport" else 503,
+    }
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_persists_primary_when_transport_error_left_matching_object(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+    content = b"encrypted-upload-service-write"
+
+    class AmbiguousPrimaryClient:
+        def put_object(self, **_kwargs: object) -> None:
+            raise upload_module.EndpointConnectionError(endpoint_url="https://nbg1.example.invalid")
+
+        def head_object(self, **_kwargs: object) -> dict:
+            return {"Metadata": {"openmates-sha256": hashlib.sha256(content).hexdigest()}}
+
+    class SecondaryClient:
+        puts: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+    requests: list[dict] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **kwargs: object) -> Response:
+            requests.append(dict(kwargs))
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"nbg1": AmbiguousPrimaryClient(), "fsn1": secondary}
+    service.client = service.region_clients["nbg1"]
+
+    result = await service.upload_file_with_region(
+        "owner/hash/embed/ambiguous.bin",
+        content,
+        target_env="dev",
+    )
+
+    assert result.region == "nbg1"
+    assert secondary.puts == []
+    assert requests[0]["json"]["active_region"] == "nbg1"
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled,storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_profile_private_fails_over_and_persists_secondary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class PrimaryClient:
+        def put_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "PutObject",
+            )
+
+        def head_object(self, **_kwargs: object) -> None:
+            raise upload_module.ClientError(
+                {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+                "HeadObject",
+            )
+
+    class SecondaryClient:
+        puts: list[dict] = []
+
+        def put_object(self, **kwargs: object) -> None:
+            self.puts.append(dict(kwargs))
+
+    requests: list[dict] = []
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class HttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **kwargs: object) -> Response:
+            requests.append(dict(kwargs))
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", HttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    secondary = SecondaryClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1", "fsn1")
+    service.region_clients = {"nbg1": PrimaryClient(), "fsn1": secondary}
+    service.client = service.region_clients["nbg1"]
+
+    result = await service.upload_profile_image_private_with_region(
+        "profile.enc",
+        b"encrypted-profile-image",
+        target_env="dev",
+    )
+
+    assert result.key == "profile.enc"
+    assert result.region == "fsn1"
+    assert secondary.puts[0]["Bucket"] == "dev-openmates-profile-images-private-fsn1"
+    assert secondary.puts[0]["CacheControl"] == "no-cache, no-store, must-revalidate"
+    outbox_requests = [request for request in requests if request["json"].get("logical_bucket")]
+    assert outbox_requests[0]["json"]["logical_bucket"] == "profile_images_private"
+    assert outbox_requests[0]["json"]["active_region"] == "fsn1"
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.replication.active-write-durable-outbox
@@ -439,6 +1028,242 @@ async def test_upload_microservice_removes_late_write_when_core_rejects_outbox(
     assert client.deletes == [
         {"Bucket": "dev-openmates-chatfiles", "Key": "owner/deleted.bin"}
     ]
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_keeps_late_write_when_outbox_transport_status_is_ambiguous(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def put_object(self, **_kwargs: object) -> None:
+            return None
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class FailedHttpClient:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> None:
+            raise upload_module.httpx.ConnectError("outbox unreachable")
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", FailedHttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    client = FakeClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1",)
+    service.region_clients = {"nbg1": client}
+    service.client = client
+
+    with pytest.raises(RuntimeError, match="outbox status is ambiguous"):
+        await service.upload_file(
+            "owner/outbox-transport.bin",
+            b"late-ciphertext",
+            target_env="dev",
+        )
+
+    assert client.deletes == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_retries_outbox_transport_before_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def put_object(self, **_kwargs: object) -> None:
+            return None
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class Response:
+        def raise_for_status(self) -> None:
+            return None
+
+    class FlakyHttpClient:
+        calls = 0
+
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> Response:
+            self.__class__.calls += 1
+            if self.__class__.calls == 1:
+                raise upload_module.httpx.ConnectError("outbox response lost")
+            return Response()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", FlakyHttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    client = FakeClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1",)
+    service.region_clients = {"nbg1": client}
+    service.client = client
+
+    result = await service.upload_file(
+        "owner/outbox-retry.bin",
+        b"late-ciphertext",
+        target_env="dev",
+    )
+
+    assert result == "owner/outbox-retry.bin"
+    assert FlakyHttpClient.calls == 2
+    assert client.deletes == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_does_not_cleanup_after_transport_then_4xx(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def put_object(self, **_kwargs: object) -> None:
+            return None
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class RejectedResponse:
+        def raise_for_status(self) -> None:
+            request = upload_module.httpx.Request("POST", "https://api.dev.invalid/internal/storage/replication-jobs")
+            response = upload_module.httpx.Response(409, request=request)
+            raise upload_module.httpx.HTTPStatusError("outbox rejected", request=request, response=response)
+
+    class TransportThenRejectedHttpClient:
+        calls = 0
+
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> RejectedResponse:
+            self.__class__.calls += 1
+            if self.__class__.calls == 1:
+                raise upload_module.httpx.ConnectError("outbox response lost")
+            return RejectedResponse()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", TransportThenRejectedHttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    client = FakeClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1",)
+    service.region_clients = {"nbg1": client}
+    service.client = client
+
+    with pytest.raises(RuntimeError, match="outbox status is ambiguous"):
+        await service.upload_file(
+            "owner/outbox-transport-then-4xx.bin",
+            b"late-ciphertext",
+            target_env="dev",
+        )
+
+    assert TransportThenRejectedHttpClient.calls == 2
+    assert client.deletes == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.anyio
+async def test_upload_microservice_does_not_cleanup_after_ambiguous_outbox_5xx(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ensure_s3_dependencies()
+    upload_module = importlib.import_module("backend.upload.services.s3_upload")
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.deletes: list[dict] = []
+
+        def put_object(self, **_kwargs: object) -> None:
+            return None
+
+        def delete_object(self, **kwargs: object) -> None:
+            self.deletes.append(dict(kwargs))
+
+    class AmbiguousResponse:
+        def raise_for_status(self) -> None:
+            request = upload_module.httpx.Request("POST", "https://api.dev.invalid/internal/storage/replication-jobs")
+            response = upload_module.httpx.Response(500, request=request)
+            raise upload_module.httpx.HTTPStatusError("outbox response failed", request=request, response=response)
+
+    class FailedStatusHttpClient:
+        calls = 0
+
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+        async def post(self, _url: str, **_kwargs: object) -> AmbiguousResponse:
+            self.__class__.calls += 1
+            return AmbiguousResponse()
+
+    monkeypatch.setattr(upload_module.httpx, "AsyncClient", FailedStatusHttpClient)
+    monkeypatch.setenv("DEV_CORE_API_URL", "https://api.dev.invalid")
+    monkeypatch.setenv("DEV_INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    client = FakeClient()
+    service = upload_module.UploadsS3Service()
+    service.region_name = "nbg1"
+    service.configured_regions = ("nbg1",)
+    service.region_clients = {"nbg1": client}
+    service.client = client
+
+    with pytest.raises(RuntimeError, match="outbox status is ambiguous"):
+        await service.upload_file(
+            "owner/outbox-5xx.bin",
+            b"late-ciphertext",
+            target_env="dev",
+        )
+
+    assert FailedStatusHttpClient.calls == 2
+    assert client.deletes == []
 
 
 # contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.replication.active-write-durable-outbox

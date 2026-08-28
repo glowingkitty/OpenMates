@@ -16,6 +16,33 @@ HETZNER_OBJECT_STORAGE_DOMAIN = "your-objectstorage.com"
 REGION_MANAGED_MEDIA_BUCKETS = {"buffer_media"}
 REGION_EXCLUDED_BUCKETS = {"product_media"}
 NON_REPLICATED_BUCKETS = REGION_MANAGED_MEDIA_BUCKETS | REGION_EXCLUDED_BUCKETS
+RETRYABLE_STORAGE_ERROR_CODES = frozenset(
+    {
+        "500",
+        "502",
+        "503",
+        "504",
+        "429",
+        "BadGateway",
+        "ConnectionClosedError",
+        "ConnectTimeoutError",
+        "EndpointConnectionError",
+        "GatewayTimeout",
+        "HTTPClientError",
+        "InternalError",
+        "ReadTimeoutError",
+        "RequestTimeout",
+        "RequestTimeoutException",
+        "ServiceUnavailable",
+        "SlowDown",
+        "TooManyRequests",
+        "TooManyRequestsException",
+        "Throttling",
+        "ThrottlingException",
+    }
+)
+RETRYABLE_STORAGE_THROTTLED_STATUS = 429
+RETRYABLE_STORAGE_SERVER_ERROR_MIN_STATUS = 500
 REGIONAL_BUCKET_NAME_OVERRIDES = {
     # These default dev HEL1 names are already taken in the provider namespace.
     ("dev-openmates-chatfiles", "hel1"): "dev-openmates-chatfiles-hel1-om",
@@ -46,6 +73,19 @@ def endpoint_for_region(region: str) -> str:
     if region not in SUPPORTED_STORAGE_REGIONS:
         raise ValueError(f"Unsupported storage region: {region}")
     return f"https://{region}.{HETZNER_OBJECT_STORAGE_DOMAIN}"
+
+
+def is_retryable_storage_error(error_code: str | None, http_status: int | str | None = None) -> bool:
+    """Return whether an S3 provider error can safely retry or fail over."""
+    if error_code in RETRYABLE_STORAGE_ERROR_CODES:
+        return True
+    try:
+        status = int(http_status) if http_status is not None else None
+    except (TypeError, ValueError):
+        return False
+    return status == RETRYABLE_STORAGE_THROTTLED_STATUS or (
+        status is not None and status >= RETRYABLE_STORAGE_SERVER_ERROR_MIN_STATUS
+    )
 
 
 def resolve_regional_bucket_name(legacy_bucket_name: str, region: str) -> str:

@@ -18,16 +18,28 @@ if "boto3" not in sys.modules:
     sys.modules["boto3"] = boto3_module
 
 if "botocore" not in sys.modules:
+    class _FakeClientError(Exception):
+        def __init__(self, response, operation_name):
+            super().__init__(operation_name)
+            self.response = response
+
+    class _FakeEndpointConnectionError(Exception):
+        def __init__(self, *args, endpoint_url=None):
+            super().__init__(endpoint_url or (args[0] if args else "endpoint unavailable"))
+
+    _FakeClientError.__name__ = "ClientError"
+    _FakeEndpointConnectionError.__name__ = "EndpointConnectionError"
+
     botocore_module = types.ModuleType("botocore")
     botocore_config_module = types.ModuleType("botocore.config")
     botocore_config_module.Config = lambda *_args, **_kwargs: None
     botocore_exceptions_module = types.ModuleType("botocore.exceptions")
-    botocore_exceptions_module.ClientError = Exception
-    botocore_exceptions_module.ConnectionClosedError = Exception
-    botocore_exceptions_module.ReadTimeoutError = Exception
-    botocore_exceptions_module.ConnectTimeoutError = Exception
-    botocore_exceptions_module.EndpointConnectionError = Exception
-    botocore_exceptions_module.HTTPClientError = Exception
+    botocore_exceptions_module.ClientError = _FakeClientError
+    botocore_exceptions_module.ConnectionClosedError = type("ConnectionClosedError", (Exception,), {})
+    botocore_exceptions_module.ReadTimeoutError = type("ReadTimeoutError", (Exception,), {})
+    botocore_exceptions_module.ConnectTimeoutError = type("ConnectTimeoutError", (Exception,), {})
+    botocore_exceptions_module.EndpointConnectionError = _FakeEndpointConnectionError
+    botocore_exceptions_module.HTTPClientError = type("HTTPClientError", (Exception,), {})
     sys.modules["botocore"] = botocore_module
     sys.modules["botocore.config"] = botocore_config_module
     sys.modules["botocore.exceptions"] = botocore_exceptions_module
@@ -53,7 +65,7 @@ from backend.shared.python_utils.generated_assets import (
     decrypt_generated_asset_variant,
     encrypt_chunked_stream,
 )
-from backend.core.api.app.services.s3.service import ClientError, S3UploadService
+from backend.core.api.app.services.s3.service import ClientError, EndpointConnectionError, S3UploadService
 from backend.shared.python_utils.generated_assets import create_download_token
 from backend.shared.python_utils.generated_assets.service import _token_secret
 from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
@@ -144,11 +156,16 @@ async def test_s3_stream_reads_fixed_chunks_and_closes_body() -> None:
 
 
 class _FakeMultipartUploadClient:
-    def __init__(self, *, fail_completion_precondition: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        fail_completion_precondition: bool = False,
+        completion_failure: str | None = None,
+    ) -> None:
         self.parts = []
         self.completed = None
         self.aborted = False
-        self.fail_completion_precondition = fail_completion_precondition
+        self.completion_failure = "precondition" if fail_completion_precondition else completion_failure
 
     def create_multipart_upload(self, **_kwargs):
         return {"UploadId": "upload-1"}
@@ -158,10 +175,22 @@ class _FakeMultipartUploadClient:
         return {"ETag": f"etag-{kwargs['PartNumber']}"}
 
     def complete_multipart_upload(self, **kwargs):
-        if self.fail_completion_precondition:
+        if self.completion_failure == "precondition":
             error = ClientError({"Error": {"Code": "PreconditionFailed"}}, "CompleteMultipartUpload")
             error.response = {"Error": {"Code": "PreconditionFailed"}}
             raise error
+        if self.completion_failure == "service_unavailable":
+            error = ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "CompleteMultipartUpload",
+            )
+            error.response = {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}}
+            raise error
+        if self.completion_failure == "transport":
+            try:
+                raise EndpointConnectionError(endpoint_url="https://nbg1.example.invalid")
+            except TypeError as exc:
+                raise EndpointConnectionError("https://nbg1.example.invalid") from exc
         self.completed = kwargs
 
     def abort_multipart_upload(self, **_kwargs):
@@ -181,6 +210,25 @@ class _FakeS3MetadataClient:
 
     def generate_presigned_url(self, *_args, **_kwargs):
         return "https://s3.example.test/signed"
+
+
+class _FakeReplicationDirectus:
+    def __init__(self) -> None:
+        self.created_items = []
+
+    async def get_items(self, collection, **_kwargs):
+        if collection == "storage_deletion_tombstones":
+            return []
+        if collection == "storage_replication_jobs":
+            return []
+        if collection == "storage_region_health":
+            return []
+        return []
+
+    async def create_item(self, collection, payload, **_kwargs):
+        created = {"id": f"{collection}-1", **dict(payload)}
+        self.created_items.append((collection, created))
+        return True, created
 
 
 class _RacingS3MetadataClient(_FakeS3MetadataClient):
@@ -205,7 +253,8 @@ class _RacingS3MetadataClient(_FakeS3MetadataClient):
 async def test_s3_stream_upload_uses_bounded_multipart_parts() -> None:
     part_size = 5 * 1024 * 1024
     upload_client = _FakeMultipartUploadClient()
-    service = S3UploadService(secrets_manager=None)
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
     metadata_client = _FakeS3MetadataClient()
     service.client = metadata_client
     service.upload_client = upload_client
@@ -235,6 +284,8 @@ async def test_s3_stream_upload_uses_bounded_multipart_parts() -> None:
     ]
     assert result["url"].endswith("models/master.glb")
     assert upload_client.aborted is False
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
 
 
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
@@ -243,7 +294,8 @@ async def test_s3_stream_retry_accepts_matching_immutable_object() -> None:
     content = b"existing-encrypted-model"
     metadata_client = _FakeS3MetadataClient(hashlib.sha256(content).hexdigest())
     upload_client = _FakeMultipartUploadClient()
-    service = S3UploadService(secrets_manager=None)
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
     service.client = metadata_client
     service.upload_client = upload_client
     service.region_name = "nbg1"
@@ -264,6 +316,8 @@ async def test_s3_stream_retry_accepts_matching_immutable_object() -> None:
     assert result["url"].endswith("models/existing-master.glb")
     assert upload_client.parts == []
     assert upload_client.completed is None
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
 
 
 # contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
@@ -272,7 +326,8 @@ async def test_s3_stream_completion_race_accepts_matching_winner() -> None:
     content = b"racing-encrypted-model"
     metadata_client = _RacingS3MetadataClient(hashlib.sha256(content).hexdigest())
     upload_client = _FakeMultipartUploadClient(fail_completion_precondition=True)
-    service = S3UploadService(secrets_manager=None)
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
     service.client = metadata_client
     service.upload_client = upload_client
     service.region_name = "nbg1"
@@ -293,6 +348,43 @@ async def test_s3_stream_completion_race_accepts_matching_winner() -> None:
     assert result["url"].endswith("models/racing-master.glb")
     assert upload_client.aborted is True
     assert metadata_client.head_calls == 2
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("completion_failure", ["service_unavailable", "transport"])
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+async def test_s3_stream_ambiguous_completion_accepts_matching_committed_object(
+    completion_failure: str,
+) -> None:
+    content = b"committed-encrypted-model"
+    metadata_client = _RacingS3MetadataClient(hashlib.sha256(content).hexdigest())
+    upload_client = _FakeMultipartUploadClient(completion_failure=completion_failure)
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
+    service.client = metadata_client
+    service.upload_client = upload_client
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": metadata_client}
+    service.upload_region_clients = {"nbg1": upload_client}
+    service.environment = "development"
+
+    async def source():
+        yield content
+
+    result = await service.upload_file_stream(
+        bucket_key="chatfiles",
+        file_key="models/committed-master.glb",
+        source=source(),
+        content_type="application/octet-stream",
+    )
+
+    assert result["url"].endswith("models/committed-master.glb")
+    assert upload_client.aborted is False
+    assert metadata_client.head_calls == 2
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
 
 
 # contract-test: supporting surface=rest_api assertions=storage.replication.active-write-durable-outbox

@@ -27,8 +27,10 @@ from typing import Any, Optional, Dict
 
 from backend.shared.python_utils.object_storage_regions import (
     endpoint_for_region,
+    is_retryable_storage_error,
     parse_storage_regions,
     resolve_regional_bucket_name,
+    RETRYABLE_STORAGE_ERROR_CODES,
     select_temporary_upload_region,
     should_replicate_bucket,
 )
@@ -39,6 +41,7 @@ from backend.shared.python_utils.storage_availability import (
 from backend.core.api.app.services.s3.replication import (
     build_replication_job,
     persist_replication_job,
+    record_persisted_region_error,
 )
 from backend.core.api.app.services.s3.reconciliation import (
     build_deletion_tombstone,
@@ -56,17 +59,6 @@ logger = logging.getLogger(__name__)
 HETZNER_OBJECT_STORAGE_PROVIDER = "Hetzner Object Storage"
 EXTERNAL_PROVIDER_DEGRADED = "external_provider_degraded"
 INTERNAL_STORAGE_CONFIGURATION = "internal_storage_configuration"
-_TRANSIENT_CLIENT_ERROR_CODES = {
-    "InternalError",
-    "RequestTimeout",
-    "RequestTimeoutException",
-    "ServiceUnavailable",
-    "SlowDown",
-    "Throttling",
-    "ThrottlingException",
-}
-
-
 def _stream_sha256(body: Any) -> str:
     digest = hashlib.sha256()
     try:
@@ -151,9 +143,7 @@ def classify_hetzner_upload_error(error: BaseException) -> HetznerObjectStorageE
         error_code = str(error_details.get("Code") or "Unknown")
         status_code = response_metadata.get("HTTPStatusCode")
 
-        if error_code in _TRANSIENT_CLIENT_ERROR_CODES or status_code == 429 or (
-            isinstance(status_code, int) and status_code >= 500
-        ):
+        if is_retryable_storage_error(error_code, status_code):
             is_throttled = (
                 status_code == 429
                 or "Throttl" in error_code
@@ -659,6 +649,7 @@ class S3UploadService:
         content_type: str,
         metadata: Optional[Dict[str, str]] = None,
         region: str | None = None,
+        _failed_regions: frozenset[str] | None = None,
     ) -> Dict[str, str]:
         """
         Upload a file to S3 using a simple approach with retries.
@@ -721,6 +712,25 @@ class S3UploadService:
             # Store content in BytesIO to ensure it's treated as a file-like object
             file_obj = BytesIO(content)
             content_checksum = hashlib.sha256(content).hexdigest()
+
+            async def _probe_ambiguous_write() -> str:
+                try:
+                    existing = await asyncio.to_thread(
+                        self.region_clients[selected_region].head_object,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                    )
+                except ClientError as head_error:
+                    head_code = str(head_error.response.get('Error', {}).get('Code') or '')
+                    if head_code in {'404', 'NoSuchKey'}:
+                        return 'missing'
+                    raise RuntimeError("S3 upload write status is ambiguous after failed verification") from head_error
+                except _TRANSIENT_NETWORK_ERRORS as head_error:
+                    raise RuntimeError("S3 upload write status is ambiguous after failed verification") from head_error
+                existing_checksum = (existing.get('Metadata') or {}).get('openmates-sha256')
+                if existing_checksum == content_checksum:
+                    return 'matching'
+                raise RuntimeError("Immutable storage key already exists with different content")
             
             # Set ACL based on bucket access configuration
             acl = 'private' if bucket_config['access'] == 'private' else 'public-read'
@@ -778,6 +788,7 @@ class S3UploadService:
                     break
                 except ClientError as e:
                     error_code = e.response['Error']['Code']
+                    http_status = (e.response.get('ResponseMetadata') or {}).get('HTTPStatusCode')
                     if error_code in {'PreconditionFailed', '412'}:
                         existing = await asyncio.to_thread(
                             self.region_clients[selected_region].head_object,
@@ -793,6 +804,10 @@ class S3UploadService:
                     
                     # If we've reached the maximum number of retries, re-raise the exception
                     if attempt == max_retries - 1:
+                        if should_replicate_bucket(bucket_key) and is_retryable_storage_error(error_code, http_status):
+                            if await _probe_ambiguous_write() == 'matching':
+                                logger.info("Retryable S3 failure followed by matching immutable object head")
+                                break
                         raise
                     
                     # Otherwise, wait and retry with exponential backoff
@@ -812,6 +827,10 @@ class S3UploadService:
                     )
                     
                     if attempt == max_retries - 1:
+                        if should_replicate_bucket(bucket_key):
+                            if await _probe_ambiguous_write() == 'matching':
+                                logger.info("Network failure followed by matching immutable object head")
+                                break
                         raise
                     
                     # Create a new client with a longer read timeout for the next attempt.
@@ -866,6 +885,58 @@ class S3UploadService:
         except HetznerObjectStorageError:
             raise
         except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as exc:
+            error_code = (
+                str(exc.response.get("Error", {}).get("Code") or type(exc).__name__)
+                if isinstance(exc, ClientError)
+                else type(exc).__name__
+            )
+            http_status = (
+                (exc.response.get("ResponseMetadata") or {}).get("HTTPStatusCode")
+                if isinstance(exc, ClientError)
+                else None
+            )
+            retryable_failure = is_retryable_storage_error(error_code, http_status)
+            if self.directus_service is not None and retryable_failure:
+                health_error_code = (
+                    error_code
+                    if error_code in RETRYABLE_STORAGE_ERROR_CODES or http_status is None
+                    else str(http_status)
+                )
+                await record_persisted_region_error(
+                    directus_service=self.directus_service,
+                    region=selected_region,
+                    error_code=health_error_code,
+                    now=datetime.now(timezone.utc),
+                )
+            failed_regions = set(_failed_regions or ())
+            failed_regions.add(selected_region)
+            allow_failover = should_replicate_bucket(bucket_key) and (
+                region is None or _failed_regions is not None
+            )
+            next_region = next(
+                (
+                    candidate
+                    for candidate in self.upload_region_clients
+                    if candidate not in failed_regions
+                ),
+                None,
+            )
+            if allow_failover and retryable_failure and next_region:
+                logger.warning(
+                    "Retryable active-region upload failure; trying configured fallback: failed_region=%s fallback_region=%s error=%s",
+                    selected_region,
+                    next_region,
+                    error_code,
+                )
+                return await self.upload_file(
+                    bucket_key=bucket_key,
+                    file_key=file_key,
+                    content=content,
+                    content_type=content_type,
+                    metadata=metadata,
+                    region=next_region,
+                    _failed_regions=frozenset(failed_regions),
+                )
             logger.error("Failed to upload to S3: %s", type(exc).__name__)
             raise classify_hetzner_upload_error(exc) from exc
         except HTTPException:
@@ -1018,6 +1089,45 @@ class S3UploadService:
             }
             if should_replicate_bucket(bucket_key):
                 completion_parameters["IfNoneMatch"] = "*"
+
+            async def _record_completion_region_error(error_code: str, http_status: int | None = None) -> None:
+                if self.directus_service is None or not is_retryable_storage_error(error_code, http_status):
+                    return
+                health_error_code = (
+                    error_code
+                    if error_code in RETRYABLE_STORAGE_ERROR_CODES or http_status is None
+                    else str(http_status)
+                )
+                await record_persisted_region_error(
+                    directus_service=self.directus_service,
+                    region=selected_region,
+                    error_code=health_error_code,
+                    now=datetime.now(timezone.utc),
+                )
+
+            async def _verify_ambiguous_multipart_completion() -> str:
+                try:
+                    existing = await asyncio.to_thread(
+                        self.region_clients[selected_region].head_object,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                    )
+                except ClientError as head_error:
+                    head_code = str(head_error.response.get("Error", {}).get("Code") or "")
+                    if head_code in {"404", "NoSuchKey"}:
+                        return "missing"
+                    raise RuntimeError(
+                        "S3 multipart completion status is ambiguous after failed verification"
+                    ) from head_error
+                except _TRANSIENT_NETWORK_ERRORS as head_error:
+                    raise RuntimeError(
+                        "S3 multipart completion status is ambiguous after failed verification"
+                    ) from head_error
+                existing_checksum = (existing.get("Metadata") or {}).get("openmates-sha256")
+                if existing_checksum == content_checksum:
+                    return "matching"
+                raise RuntimeError("Immutable storage key already exists with different content")
+
             try:
                 await asyncio.to_thread(
                     self.upload_client.complete_multipart_upload,
@@ -1026,22 +1136,52 @@ class S3UploadService:
             except ClientError as error:
                 error_code = error.response.get("Error", {}).get("Code")
                 if error_code not in {"PreconditionFailed", "412"}:
+                    http_status = (error.response.get("ResponseMetadata") or {}).get("HTTPStatusCode")
+                    if should_replicate_bucket(bucket_key) and is_retryable_storage_error(error_code, http_status):
+                        try:
+                            probe_result = await _verify_ambiguous_multipart_completion()
+                        except RuntimeError:
+                            await _record_completion_region_error(str(error_code), http_status)
+                            raise
+                        if probe_result == "matching":
+                            logger.info("Retryable multipart completion failure followed by matching object head")
+                            upload_id = None
+                        else:
+                            await _record_completion_region_error(str(error_code), http_status)
+                            raise
+                    else:
+                        raise
+                else:
+                    await asyncio.to_thread(
+                        self.upload_client.abort_multipart_upload,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                        UploadId=upload_id,
+                    )
+                    upload_id = None
+                    existing = await asyncio.to_thread(
+                        self.region_clients[selected_region].head_object,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                    )
+                    existing_checksum = (existing.get("Metadata") or {}).get("openmates-sha256")
+                    if existing_checksum != content_checksum:
+                        raise RuntimeError("Immutable storage key already exists with different content") from error
+            except _TRANSIENT_NETWORK_ERRORS as error:
+                if should_replicate_bucket(bucket_key):
+                    try:
+                        probe_result = await _verify_ambiguous_multipart_completion()
+                    except RuntimeError:
+                        await _record_completion_region_error(type(error).__name__)
+                        raise
+                    if probe_result == "matching":
+                        logger.info("Network multipart completion failure followed by matching object head")
+                        upload_id = None
+                    else:
+                        await _record_completion_region_error(type(error).__name__)
+                        raise
+                else:
                     raise
-                await asyncio.to_thread(
-                    self.upload_client.abort_multipart_upload,
-                    Bucket=bucket_name,
-                    Key=file_key,
-                    UploadId=upload_id,
-                )
-                upload_id = None
-                existing = await asyncio.to_thread(
-                    self.region_clients[selected_region].head_object,
-                    Bucket=bucket_name,
-                    Key=file_key,
-                )
-                existing_checksum = (existing.get("Metadata") or {}).get("openmates-sha256")
-                if existing_checksum != content_checksum:
-                    raise RuntimeError("Immutable storage key already exists with different content") from error
         except asyncio.CancelledError:
             if upload_id:
                 await asyncio.to_thread(
@@ -1186,16 +1326,49 @@ class S3UploadService:
             if await _storage_object_is_tombstoned(self, bucket_name, object_key):
                 return None
 
-            # boto3 get_object + Body.read() are both synchronous network calls.
-            # Run them on the default executor so the event loop is not blocked
-            # while waiting for S3 (critical: get_file is in hot paths like
-            # profile-image serving). See commit d64b91773 for the incident
-            # that exposed sync-boto3-in-async as an event-loop killer.
-            def _download() -> bytes:
-                response = self.client.get_object(Bucket=bucket_name, Key=object_key)
-                return response['Body'].read()
+            bucket_candidates: list[tuple[str, Any]] = [(bucket_name, self.client)]
+            try:
+                bucket_key, _bucket_config = get_bucket_by_name(bucket_name)
+            except ValueError:
+                bucket_key = None
+            if bucket_key and should_replicate_bucket(bucket_key):
+                legacy_bucket = get_bucket_name(bucket_key, self.environment)
+                preferred_regions = (
+                    (self.region_name,) + tuple(region for region in self.region_clients if region != self.region_name)
+                    if self.region_name
+                    else tuple(self.region_clients)
+                )
+                bucket_candidates = [
+                    (resolve_regional_bucket_name(legacy_bucket, region), self.region_clients[region])
+                    for region in preferred_regions
+                    if region in self.region_clients
+                ]
 
-            file_content = await asyncio.to_thread(_download)
+            file_content = None
+            for candidate_bucket, candidate_client in bucket_candidates:
+                try:
+                    # boto3 get_object + Body.read() are synchronous network calls.
+                    def _download() -> bytes:
+                        response = candidate_client.get_object(Bucket=candidate_bucket, Key=object_key)
+                        return response['Body'].read()
+
+                    file_content = await asyncio.to_thread(_download)
+                    break
+                except ClientError as exc:
+                    error_code = exc.response.get('Error', {}).get('Code')
+                    http_status = (exc.response.get('ResponseMetadata') or {}).get('HTTPStatusCode')
+                    if (
+                        error_code in {'NoSuchKey', '404'}
+                        or is_retryable_storage_error(str(error_code), http_status)
+                    ) and candidate_bucket != bucket_candidates[-1][0]:
+                        continue
+                    raise
+                except _TRANSIENT_NETWORK_ERRORS:
+                    if candidate_bucket != bucket_candidates[-1][0]:
+                        continue
+                    raise
+            if file_content is None:
+                return None
 
             logger.info("Successfully downloaded object from storage: size=%s bytes", len(file_content))
             return file_content
@@ -1302,9 +1475,7 @@ class S3UploadService:
                     raise storage_unavailable_error() from exc
                 if error_code in {"NoSuchKey", "404"} or status_code == 404:
                     raise HTTPException(status_code=404, detail="Generated asset file missing") from exc
-                retryable = error_code in _TRANSIENT_CLIENT_ERROR_CODES or status_code == 429 or (
-                    isinstance(status_code, int) and status_code >= 500
-                )
+                retryable = is_retryable_storage_error(error_code, status_code)
                 if not retryable:
                     raise storage_unavailable_error() from exc
                 logger.warning(

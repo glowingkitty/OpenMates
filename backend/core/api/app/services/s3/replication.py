@@ -12,23 +12,15 @@ from datetime import datetime, timedelta
 import hashlib
 from typing import Any, Callable
 
+from backend.shared.python_utils.object_storage_regions import (
+    RETRYABLE_STORAGE_ERROR_CODES,
+    is_retryable_storage_error,
+)
+
 
 MAX_RETRY_DELAY = timedelta(hours=1)
 BASE_RETRY_DELAY = timedelta(seconds=30)
-RETRYABLE_ERROR_CODES = {
-    "500",
-    "503",
-    "ConnectionClosedError",
-    "ConnectTimeoutError",
-    "EndpointConnectionError",
-    "HTTPClientError",
-    "InternalError",
-    "ReadTimeoutError",
-    "RequestTimeout",
-    "ServiceUnavailable",
-    "SlowDown",
-    "Throttling",
-}
+RETRYABLE_ERROR_CODES = set(RETRYABLE_STORAGE_ERROR_CODES)
 MISSING_OBJECT_CODES = {"404", "NoSuchBucket", "NoSuchKey"}
 DEFAULT_STORAGE_SWEEP_LIMIT = 100
 _DUE_STATES = ("pending", "retry_scheduled")
@@ -119,7 +111,7 @@ async def record_persisted_region_error(
     now: datetime,
 ) -> None:
     """Persist retryable circuit state; missing-object data remains health-neutral."""
-    if error_code in MISSING_OBJECT_CODES or error_code not in RETRYABLE_ERROR_CODES:
+    if error_code in MISSING_OBJECT_CODES or not is_retryable_storage_error(error_code, error_code):
         return
     rows = await directus_service.get_items(
         "storage_region_health",
@@ -298,7 +290,7 @@ class RegionCircuitBreaker:
         )
 
     def record_error(self, region: str, *, error_code: str, now: datetime) -> None:
-        if error_code in MISSING_OBJECT_CODES or error_code not in RETRYABLE_ERROR_CODES:
+        if error_code in MISSING_OBJECT_CODES or not is_retryable_storage_error(error_code, error_code):
             return
         state = self._state(region)
         state["failures"] += 1

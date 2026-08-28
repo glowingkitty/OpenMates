@@ -51,3 +51,71 @@ async def test_upload_record_registration_failure_reaches_caller(monkeypatch: py
             "internal-token",
             {"id": "upload-record"},
         )
+
+
+# contract-test: direct surface=rest_api assertions=storage.failover.health-reconciled
+def test_upload_route_requires_one_active_region_for_variant_metadata() -> None:
+    first = types.SimpleNamespace(key="one.bin", region="fsn1")
+    second = types.SimpleNamespace(key="two.bin", region="fsn1")
+    mismatched = types.SimpleNamespace(key="three.bin", region="hel1")
+
+    class S3Service:
+        def get_base_url(self, target_env="prod", *, region=None):
+            return f"{target_env}:{region or 'primary'}"
+
+    assert upload_route._single_upload_region(first, second) == "fsn1"
+    assert upload_route._active_region_map(first, second) == {
+        "one.bin": "fsn1",
+        "two.bin": "fsn1",
+    }
+    with pytest.raises(RuntimeError, match="different active regions"):
+        upload_route._single_upload_region(first, mismatched)
+    assert upload_route._s3_base_url_for_stored_files(
+        S3Service(),
+        "dev",
+        {"original": {"s3_key": "one.bin", "active_region": "fsn1"}},
+    ) == "dev:fsn1"
+    assert upload_route._active_region_map_from_stored_files(
+        {"original": {"s3_key": "one.bin", "active_region": "fsn1"}}
+    ) == {"one.bin": "fsn1"}
+    assert upload_route._sample_stored_file_reference(
+        {"original": {"s3_key": "one.bin", "active_region": "fsn1"}}
+    ) == ("one.bin", "fsn1")
+    assert upload_route._stored_file_references(
+        {
+            "original": {"s3_key": "one.bin", "active_region": "fsn1"},
+            "preview": {"s3_key": "two.bin", "active_region": "fsn1"},
+        }
+    ) == [("one.bin", "fsn1"), ("two.bin", "fsn1")]
+    assert upload_route._s3_base_url_for_stored_files(
+        S3Service(),
+        "dev",
+        {"original": {"s3_key": "legacy.bin"}},
+    ) == "dev:primary"
+
+
+# contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy,storage.failover.health-reconciled
+@pytest.mark.asyncio
+async def test_stored_file_reference_probe_requires_every_variant() -> None:
+    class S3Service:
+        def __init__(self) -> None:
+            self.calls = []
+
+        async def check_file_exists(self, s3_key, *, target_env, region=None):
+            self.calls.append((s3_key, target_env, region))
+            return s3_key != "preview.bin"
+
+    service = S3Service()
+
+    assert not await upload_route._stored_file_references_available(
+        service,
+        target_env="dev",
+        files_metadata={
+            "original": {"s3_key": "original.bin", "active_region": "fsn1"},
+            "preview": {"s3_key": "preview.bin", "active_region": "fsn1"},
+        },
+    )
+    assert service.calls == [
+        ("original.bin", "dev", "fsn1"),
+        ("preview.bin", "dev", "fsn1"),
+    ]
