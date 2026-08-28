@@ -54,6 +54,7 @@
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
     import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+    import { TextSelection } from '@tiptap/pm/state';
     import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
     import type { AudioWaveformData } from '../../utils/audioWaveform';
@@ -2668,7 +2669,12 @@
                 .deleteRange({ from: atDocPosition, to: from })
                 .insertContent(wikipediaSearchSyntax)
                 .run();
-            editor.chain().focus(wikipediaSearchEndPosition).run();
+            editor.view.focus();
+            editor.view.dispatch(
+                editor.state.tr
+                    .setSelection(TextSelection.create(editor.state.doc, wikipediaSearchEndPosition))
+                    .scrollIntoView()
+            );
             mentionQuery = 'wiki:';
             showMentionDropdown = true;
             return;
