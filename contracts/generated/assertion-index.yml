@@ -15960,12 +15960,12 @@ assertions:
       surface: gui.apple
     - &id1837
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 217
+      line: 206
       name: focused desktop guest composer suppresses surrounding welcome UI
       surface: gui.web
     - &id1838
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 239
+      line: 228
       name: focused desktop authenticated composer suppresses surrounding welcome
         UI
       surface: gui.web
@@ -15977,7 +15977,7 @@ assertions:
     supporting_tests:
     - &id1839
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 263
+      line: 252
       name: clicking intro/example chats and new-chat repeatedly keeps UI responsive
       surface: gui.web
     tests:
@@ -17717,7 +17717,7 @@ assertions:
     direct_tests:
     - &id2000
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 137
+      line: 148
       name: light-mode sidebar keeps the selected chat distinct and below the active
         panel shadow
       surface: gui.web

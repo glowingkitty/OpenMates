@@ -132,6 +132,17 @@ async function expectLandingCarouselNavigatesBothDirections(page: any) {
 	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: SLIDE_NAVIGATION_TIMEOUT });
 }
 
+async function resolveCssTokenColor(page: any, tokenName: string): Promise<string> {
+	return page.evaluate((name: string) => {
+		const probe = document.createElement('span');
+		probe.style.backgroundColor = `var(${name})`;
+		document.body.appendChild(probe);
+		const color = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		return color;
+	}, tokenName);
+}
+
 test.describe('Unauthenticated chat navigation stays reactive', () => {
 	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.selected-state-visible
 	test('light-mode sidebar keeps the selected chat distinct and below the active panel shadow', async ({
@@ -161,18 +172,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-for-everyone"]');
 		await expect(activeRow).toBeVisible({ timeout: 10000 });
 		await expect(activeRow).toHaveClass(/active/);
-		const activeStyles = await activeRow.evaluate((element: HTMLElement) => {
-			const probe = document.createElement('span');
-			probe.style.backgroundColor = 'var(--color-grey-0)';
-			document.body.appendChild(probe);
-			const expectedBackground = getComputedStyle(probe).backgroundColor;
-			probe.remove();
-			return {
-				actualBackground: getComputedStyle(element).backgroundColor,
-				expectedBackground
-			};
-		});
-		expect(activeStyles.actualBackground).toBe(activeStyles.expectedBackground);
+		await expect(activeRow).toHaveCSS('background-color', await resolveCssTokenColor(page, '--color-grey-0'));
 
 		const nonActiveChatId = await page.getByTestId('chat-item-wrapper').evaluateAll(
 			(elements: HTMLElement[]) => elements.find((element) => element.dataset.chatId !== 'demo-for-everyone')?.dataset.chatId ?? ''
@@ -181,18 +181,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		const hoveredRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${nonActiveChatId}"]`);
 		await expect(hoveredRow).not.toHaveClass(/active/);
 		await hoveredRow.hover();
-		const hoverStyles = await hoveredRow.evaluate((element: HTMLElement) => {
-			const probe = document.createElement('span');
-			probe.style.backgroundColor = 'var(--color-grey-10)';
-			document.body.appendChild(probe);
-			const expectedBackground = getComputedStyle(probe).backgroundColor;
-			probe.remove();
-			return {
-				actualBackground: getComputedStyle(element).backgroundColor,
-				expectedBackground
-			};
-		});
-		expect(hoverStyles.actualBackground).toBe(hoverStyles.expectedBackground);
+		await expect(hoveredRow).toHaveCSS('background-color', await resolveCssTokenColor(page, '--color-grey-10'));
 
 		const layerStyles = await page.getByTestId('active-chat-container').evaluate((activeChat: HTMLElement) => {
 			const findFixedLayer = (element: HTMLElement | null): HTMLElement | null => {
