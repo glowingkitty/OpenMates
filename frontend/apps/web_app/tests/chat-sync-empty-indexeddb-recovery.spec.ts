@@ -19,6 +19,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const PARTIAL_SCHEMA_CHAT_ID = 'e2e-current-version-partial-schema-chat';
 const PARTIAL_SCHEMA_MESSAGE_ID = `${PARTIAL_SCHEMA_CHAT_ID.slice(-10)}-00000000-0000-4000-8000-000000000001`;
 const MISSING_INDEX_CHAT_ID = 'e2e-current-version-missing-index-chat';
+const MISSING_INDEX_ENCRYPTED_TITLE = 'e2e-encrypted-title-preservation-marker';
 
 async function clearLocalChatIndexedDb(page: any): Promise<void> {
 	await page.evaluate(async () => {
@@ -257,7 +258,7 @@ async function replaceLocalChatDbAtCurrentVersionWithMissingChatIndex(page: any)
 	await page.goto(prepUrl);
 	await page.unroute(prepUrl);
 
-	await page.evaluate(async (chatId: string) => {
+	await page.evaluate(async ({ chatId, encryptedTitle }: { chatId: string; encryptedTitle: string }) => {
 		type IndexSchema = {
 			name: string;
 			keyPath: string | string[];
@@ -345,7 +346,7 @@ async function replaceLocalChatDbAtCurrentVersionWithMissingChatIndex(page: any)
 				const transaction = db.transaction('chats', 'readwrite');
 				transaction.objectStore('chats').put({
 					chat_id: chatId,
-					encrypted_title: null,
+					encrypted_title: encryptedTitle,
 					messages_v: 0,
 					title_v: 0,
 					draft_v: 0,
@@ -368,7 +369,7 @@ async function replaceLocalChatDbAtCurrentVersionWithMissingChatIndex(page: any)
 				};
 			};
 		});
-	}, MISSING_INDEX_CHAT_ID);
+	}, { chatId: MISSING_INDEX_CHAT_ID, encryptedTitle: MISSING_INDEX_ENCRYPTED_TITLE });
 }
 
 async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
@@ -738,7 +739,11 @@ test('current-version IndexedDB missing a required chat index is repaired withou
 		expect(hasMissingIndexError).toBe(false);
 
 		const dbState = await page.evaluate(async (chatId: string) => {
-			return await new Promise<{ hasRequiredIndex: boolean; hasSeededChat: boolean }>(
+			return await new Promise<{
+				hasRequiredIndex: boolean;
+				encryptedTitle: string | null;
+				lastEditedTimestamp: number | null;
+			}>(
 				(resolve, reject) => {
 					const request = indexedDB.open('chats_db');
 					request.onerror = () =>
@@ -754,9 +759,11 @@ test('current-version IndexedDB missing a required chat index is repaired withou
 						};
 						transaction.oncomplete = () => {
 							db.close();
+							const chat = chatRequest.result;
 							resolve({
 								hasRequiredIndex: store.indexNames.contains('last_edited_overall_timestamp'),
-								hasSeededChat: !!chatRequest.result
+								encryptedTitle: chat?.encrypted_title ?? null,
+								lastEditedTimestamp: chat?.last_edited_overall_timestamp ?? null
 							});
 						};
 					};
@@ -765,6 +772,7 @@ test('current-version IndexedDB missing a required chat index is repaired withou
 		}, MISSING_INDEX_CHAT_ID);
 
 		expect(dbState.hasRequiredIndex).toBe(true);
-		expect(dbState.hasSeededChat).toBe(true);
+		expect(dbState.encryptedTitle).toBe(MISSING_INDEX_ENCRYPTED_TITLE);
+		expect(dbState.lastEditedTimestamp).toBe(1700000000);
 	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
 });

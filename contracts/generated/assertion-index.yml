@@ -4696,13 +4696,13 @@ assertions:
       surface: gui.apple
     - &id565
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 518
+      line: 519
       name: empty browser storage reloads server chats instead of stalling phased
         sync
       surface: gui.web
     - &id566
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 542
+      line: 543
       name: empty local IndexedDB with cold server cache keeps sync pending instead
         of finalizing no chats
       surface: gui.web
@@ -4766,18 +4766,18 @@ assertions:
       surface: gui.web
     - &id567
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 585
+      line: 586
       name: partial local IndexedDB schema is healed before authenticated sync starts
       surface: gui.web
     - &id568
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 637
+      line: 638
       name: current-version partial IndexedDB schema is recreated without dropping
         local rows
       surface: gui.web
     - &id569
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 712
+      line: 713
       name: current-version IndexedDB missing a required chat index is repaired without
         dropping local rows
       surface: gui.web
@@ -4861,13 +4861,13 @@ assertions:
     direct_tests:
     - &id584
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 518
+      line: 519
       name: empty browser storage reloads server chats instead of stalling phased
         sync
       surface: gui.web
     - &id585
       path: frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
-      line: 542
+      line: 543
       name: empty local IndexedDB with cold server cache keeps sync pending instead
         of finalizing no chats
       surface: gui.web

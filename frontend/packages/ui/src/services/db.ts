@@ -171,6 +171,11 @@ class ChatDatabase {
     this.CHAT_COMPRESSION_CHECKPOINTS_STORE_NAME,
     this.MESSAGE_WINDOW_PAGES_STORE_NAME,
   ];
+  private readonly REQUIRED_STARTUP_INDEX_NAMES_BY_STORE: Readonly<
+    Record<string, readonly string[]>
+  > = {
+    [this.CHATS_STORE_NAME]: ["last_edited_overall_timestamp"],
+  };
   private readonly DATA_BEARING_STORE_NAMES = [
     ...this.REQUIRED_STORE_NAMES,
     "user_drafts",
@@ -260,12 +265,38 @@ class ChatDatabase {
     );
   }
 
+  private getMissingRequiredStartupIndexes(
+    db: IDBDatabase | null = this.db,
+  ): string[] {
+    if (!db) return [];
+
+    const storeNames = Object.keys(this.REQUIRED_STARTUP_INDEX_NAMES_BY_STORE).filter(
+      (storeName) => db.objectStoreNames.contains(storeName),
+    );
+    if (storeNames.length === 0) return [];
+
+    const transaction = db.transaction(storeNames, "readonly");
+    return storeNames.flatMap((storeName) => {
+      const store = transaction.objectStore(storeName);
+      return this.REQUIRED_STARTUP_INDEX_NAMES_BY_STORE[storeName]
+        .filter((indexName) => !store.indexNames.contains(indexName))
+        .map((indexName) => `${storeName}.${indexName}`);
+    });
+  }
+
+  private getInvalidSchemaEntries(db: IDBDatabase | null = this.db): string[] {
+    return [
+      ...this.getMissingRequiredStores(db),
+      ...this.getMissingRequiredStartupIndexes(db),
+    ];
+  }
+
   private closeInvalidSchemaConnection(
-    missingStores: string[],
+    invalidSchemaEntries: string[],
     reason: string,
   ): void {
     console.warn(
-      `[ChatDatabase] ${reason}; reopening database to heal schema. Missing store(s): ${missingStores.join(", ")}`,
+      `[ChatDatabase] ${reason}; reopening database to heal schema. Missing schema entry or entries: ${invalidSchemaEntries.join(", ")}`,
     );
     try {
       this.db?.close();
@@ -602,7 +633,7 @@ class ChatDatabase {
     this.partialSchemaRepairInProgress = true;
     try {
       console.warn(
-        `[ChatDatabase] Partial schema detected; snapshotting ${existingStores.length} store(s), recreating ${this.DB_NAME}, and restoring raw records. Missing store(s): ${missingStores.join(", ")}`,
+        `[ChatDatabase] Partial schema detected; snapshotting ${existingStores.length} store(s), recreating ${this.DB_NAME}, and restoring raw records. Missing schema entry or entries: ${missingStores.join(", ")}`,
       );
 
       const snapshot = await this.captureRawStoreSnapshot(invalidDb, existingStores);
@@ -949,16 +980,16 @@ class ChatDatabase {
         console.warn("[ChatDatabase] Database opened successfully");
         this.db = request.result;
 
-        let missingStores = this.getMissingRequiredStores(this.db);
-        if (missingStores.length > 0) {
+        let invalidSchemaEntries = this.getInvalidSchemaEntries(this.db);
+        if (invalidSchemaEntries.length > 0) {
           let repaired = false;
           try {
             repaired =
-              (await this.repairCatastrophicMissingStoreSchema(missingStores)) ||
-              (await this.repairPartialMissingStoreSchema(missingStores));
+              (await this.repairCatastrophicMissingStoreSchema(invalidSchemaEntries)) ||
+              (await this.repairPartialMissingStoreSchema(invalidSchemaEntries));
           } catch (error) {
             this.closeInvalidSchemaConnection(
-              missingStores,
+              invalidSchemaEntries,
               "Database schema repair failed",
             );
             reject(error);
@@ -966,19 +997,19 @@ class ChatDatabase {
           }
           if (repaired) {
             if (this.db) {
-              missingStores = this.getMissingRequiredStores(this.db);
-              if (missingStores.length === 0) {
+              invalidSchemaEntries = this.getInvalidSchemaEntries(this.db);
+              if (invalidSchemaEntries.length === 0) {
                 console.warn(
                   "[ChatDatabase] Schema repair completed; continuing initialization",
                 );
               } else {
                 this.closeInvalidSchemaConnection(
-                  missingStores,
-                  "Database schema repair completed but required stores are still missing",
+                  invalidSchemaEntries,
+                  "Database schema repair completed but required schema entries are still missing",
                 );
                 reject(
                   new Error(
-                    `IndexedDB schema invalid after repair: missing required store(s): ${missingStores.join(", ")}`,
+                    `IndexedDB schema invalid after repair: missing required schema entry or entries: ${invalidSchemaEntries.join(", ")}`,
                   ),
                 );
                 return;
@@ -1000,12 +1031,12 @@ class ChatDatabase {
 
           if (!repaired) {
             this.closeInvalidSchemaConnection(
-              missingStores,
-              "Database opened without required stores after migration",
+              invalidSchemaEntries,
+              "Database opened without required schema entries after migration",
             );
             reject(
               new Error(
-                `IndexedDB schema invalid: missing required store(s): ${missingStores.join(", ")}`,
+                `IndexedDB schema invalid: missing required schema entry or entries: ${invalidSchemaEntries.join(", ")}`,
               ),
             );
             return;
