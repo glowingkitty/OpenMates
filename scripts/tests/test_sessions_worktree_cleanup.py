@@ -208,6 +208,11 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
     monkeypatch.setattr(sessions, "_linked_git_worktrees", lambda: [])
+    monkeypatch.setattr(
+        sessions,
+        "_hard_expiry_record_is_safely_disposable",
+        lambda record: (record["session_id"] == "inactive", "unique_changes"),
+    )
     removed: list[Path] = []
     monkeypatch.setattr(sessions, "_remove_expired_worktree", lambda item: removed.append(Path(item["path"])))
     deleted_refs: list[str] = []
@@ -219,6 +224,7 @@ def test_hard_expiry_deletes_inactive_classifications_but_protects_live_work(mon
     assert report["deleted"] == ["inactive"]
     assert report["retained"] == ["old", "recent"]
     assert report["protected_live"] == ["old"]
+    assert report["protected_unresolved"] == []
     assert deleted_refs == ["inactive"]
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
     assert set(data["sessions"]) == {"old", "recent"}
@@ -261,6 +267,28 @@ def test_hard_expiry_uses_created_at_instead_of_refreshed_directory_mtime(monkey
 
     assert len(records) == 1
     assert records[0]["path_timestamp"] == sessions._parse_iso("2020-01-01T00:00:00Z").timestamp()
+
+
+def test_hard_expiry_disposable_check_protects_unique_and_unmerged_work(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    path = tmp_path / "agent-old"
+    path.mkdir()
+    record = {
+        "path": str(path),
+        "metadata": {"path": str(path), "base_commit": "base"},
+        "session": {"repo_remote": "origin", "repo_branch": "dev"},
+    }
+
+    monkeypatch.setattr(sessions, "_candidate_changed_files", lambda *_args: ["source.py"])
+    assert sessions._hard_expiry_record_is_safely_disposable(record) == (False, "unique_changes")
+
+    monkeypatch.setattr(sessions, "_candidate_changed_files", lambda *_args: [])
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "ahead\n", ""))
+    monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: False)
+    assert sessions._hard_expiry_record_is_safely_disposable(record) == (False, "unmerged_head")
+
+    monkeypatch.setattr(sessions, "_git_is_ancestor", lambda *_args: True)
+    assert sessions._hard_expiry_record_is_safely_disposable(record) == (True, "reachable_clean_head")
 
 
 def test_hard_expiry_uses_bounded_container_fallback_for_root_owned_artifacts(monkeypatch, tmp_path):

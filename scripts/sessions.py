@@ -5131,6 +5131,27 @@ def _hard_expiry_record_is_live(record: dict, data: dict) -> bool:
     return _auto_integration_presence_is_live(session)
 
 
+def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
+    """Require proof that an aged worktree contains no unrecoverable work."""
+    path = Path(str(record.get("path") or ""))
+    if not path.exists():
+        return True, "missing"
+    metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+    try:
+        if _candidate_changed_files(path, metadata):
+            return False, "unique_changes"
+    except (OSError, RuntimeError, ValueError):
+        return False, "inspection_failed"
+    rc, head, _stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
+    if rc != 0 or not head.strip():
+        return False, "inspection_failed"
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    if not _git_is_ancestor(head.strip(), target_ref):
+        return False, "unmerged_head"
+    return True, "reachable_clean_head"
+
+
 def _remove_expired_worktree_with_container(path: Path) -> None:
     """Remove root-owned contents from one exact managed directory."""
     image = os.environ.get("OPENMATES_WORKTREE_CLEANUP_IMAGE", "openmates-core-api:latest")
@@ -5204,12 +5225,21 @@ def expire_managed_worktrees(
         for record in records
         if _hard_expiry_record_is_live(record, current_data)
     }
-    expired = [
-        {**record, "age_hours": _managed_worktree_age_hours(record, current_timestamp)}
-        for record in records
-        if _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
-        and str(record.get("session_id") or "") not in live_session_ids
-    ]
+    expired: list[dict] = []
+    protected_unresolved: list[dict] = []
+    for record in records:
+        age_hours = _managed_worktree_age_hours(record, current_timestamp)
+        session_id = str(record.get("session_id") or "")
+        if age_hours < max_age_hours or session_id in live_session_ids:
+            continue
+        disposable, reason = _hard_expiry_record_is_safely_disposable(record)
+        candidate = {**record, "age_hours": age_hours}
+        if disposable:
+            expired.append(candidate)
+        else:
+            protected_unresolved.append(
+                {"session_id": session_id, "path": str(record.get("path") or ""), "reason": reason}
+            )
     expired.sort(key=lambda item: len(Path(str(item["path"])).parts), reverse=True)
     retained = sorted(
         str(record["session_id"])
@@ -5289,6 +5319,7 @@ def expire_managed_worktrees(
             if str(record.get("session_id") or "") in live_session_ids
             and _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
         ),
+        "protected_unresolved": protected_unresolved,
         "failures": failures,
     }
 
