@@ -374,11 +374,14 @@ assumptions:
     text: Wikimedia is already disclosed as a third-party processor for Wikipedia proxy traffic.
     category: privacy
     required_before: completion
-    status: contradicted
+    status: corrected
     evidence:
       - source: shared/docs/privacy_policy.yml
         summary: No Wikimedia or Wikipedia disclosure was found during discovery.
-    blocker: Verify the canonical Wikimedia privacy URL and update all generated legal/privacy sources before completion.
+      - source: https://foundation.wikimedia.org/wiki/Policy:Privacy_policy
+        summary: Firecrawl live verification on 2026-08-28 returned HTTP 200 and the official Wikimedia Foundation Privacy Policy title.
+      - source: commit 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+        summary: Wikimedia disclosure, translations, rendered legal content, provider link, policy date, and API/CLI/composer documentation were completed; translation and locale gates passed during deploy.
 
 contracts:
   api:
@@ -441,7 +444,16 @@ tests:
         timestamp: "2026-08-27T00:00:00Z"
         subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc+worktree-eb16
         summary: Test collection failed because the planned safe Wikipedia context module did not exist before implementation.
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_wikipedia_mentions.py backend/tests/test_wikipedia_language.py -q
+        run_id: local-wikipedia-backend-green-20260828T150438Z
+        timestamp: "2026-08-28T15:04:38Z"
+        subject_commit: f8e83eeb5a126f7ad1c79a11bc45154c463cad69
+        summary: 14 passed and one optional live-language probe skipped; provider, parser, safety, auth-boundary, cache, and locale tests passed.
   - id: T-REST-WIKIPEDIA-DEV
     type: manual
     file: scripts/api_tests/test_wikipedia_api.py
@@ -466,8 +478,26 @@ tests:
       - CLI human and JSON output identify canonical article, language, source, and retryable errors.
     contract_assertions: [wikipedia-mentions.syntax.explicit-trigger, wikipedia-mentions.resolution.first-result, wikipedia-mentions.resolution.disambiguation-visible, wikipedia-mentions.references.maximum-three, wikipedia-mentions.surfaces.semantic-parity]
     covers: [AC-1, AC-2, AC-3, AC-5, AC-9]
-    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: passed_unexpectedly
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/mentions.test.ts
+        run_id: local-wikipedia-cli-resolver-existing-20260828
+        timestamp: "2026-08-28T15:02:00Z"
+        subject_commit: f8e83eeb5a126f7ad1c79a11bc45154c463cad69
+        summary: The resumed spec found the resolver and its five direct Wikipedia cases already implemented; no valid pre-implementation red artifact survived.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/mentions.test.ts
+        run_id: local-wikipedia-cli-resolver-green-20260828
+        timestamp: "2026-08-28T15:02:00Z"
+        subject_commit: f8e83eeb5a126f7ad1c79a11bc45154c463cad69
+        summary: 34 tests passed, including explicit shorthand, language override, generic mention isolation, disambiguation, three-reference enforcement, order, and percent encoding.
   - id: T-NPM-SDK-WIKIPEDIA
     type: unit
     file: frontend/packages/openmates-cli/tests/sdk.test.ts
@@ -477,8 +507,26 @@ tests:
       - Real dev SDK calls preserve canonical language/title/order and visible API errors.
     contract_assertions: [wikipedia-mentions.references.maximum-three, wikipedia-mentions.surfaces.semantic-parity]
     covers: [AC-4, AC-9]
-    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: passed_unexpectedly
+        command: node --test --experimental-strip-types --test-name-pattern='preserves Wikipedia query' --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/sdk.test.ts
+        run_id: local-wikipedia-npm-existing-20260828
+        timestamp: "2026-08-28T15:03:00Z"
+        subject_commit: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+        summary: The typed SDK namespace already existed when direct coverage was added, so the focused contract passed on first execution.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types --test-name-pattern='preserves Wikipedia query' --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/sdk.test.ts
+        run_id: local-wikipedia-npm-green-20260828
+        timestamp: "2026-08-28T15:03:00Z"
+        subject_commit: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+        summary: Focused npm SDK request-contract test passed with API-key authorization, query, language, limit, canonical title, and summary path preserved.
   - id: T-PIP-SDK-WIKIPEDIA
     type: pytest
     file: packages/openmates-python/tests/test_sdk.py
@@ -488,8 +536,26 @@ tests:
       - Real dev SDK calls preserve canonical language/title/order and visible API errors.
     contract_assertions: [wikipedia-mentions.references.maximum-three, wikipedia-mentions.surfaces.semantic-parity]
     covers: [AC-4, AC-9]
-    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: passed_unexpectedly
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py -k wikipedia -q
+        run_id: local-wikipedia-pip-existing-20260828
+        timestamp: "2026-08-28T15:03:00Z"
+        subject_commit: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+        summary: The typed SDK namespace already existed when direct coverage was added, so the focused contract passed on first execution.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk.py -k wikipedia -q
+        run_id: local-wikipedia-pip-green-20260828
+        timestamp: "2026-08-28T15:03:00Z"
+        subject_commit: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+        summary: Focused pip SDK request-contract test passed with API-key authorization, query, language, limit, canonical title, and summary path preserved.
   - id: T-PW-WIKIPEDIA
     type: playwright
     file: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
@@ -524,9 +590,14 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-9]
-    status: pending
+    status: passed
     command: python3 scripts/audit_sdk_cli_parity.py
-    evidence: {}
+    evidence:
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-sdk-cli-parity-20260828T150438Z
+      timestamp: "2026-08-28T15:04:38Z"
+      subject_commit: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+      summary: 89 command entries and four workflow-template transport entries checked successfully.
   - id: V-CLI-PROOF
     kind: artifact_review
     phase: final
@@ -555,8 +626,13 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-8]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence:
+      command: 'python3 scripts/sessions.py deploy --session eb16 --title "test: complete Wikipedia SDK and privacy coverage"'
+      run_id: deploy-460c5a9d
+      timestamp: "2026-08-28T15:06:00Z"
+      subject_commit: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+      summary: Official Wikimedia privacy URL verified live; disclosure source, all locale source entries, generated legal renderer, provider link, policy date, API notes, CLI guide, and composer architecture were completed. Translation generation and locale validation passed during deploy.
   - id: V-USER-CONFIRMATION
     kind: user_confirmation
     phase: final
