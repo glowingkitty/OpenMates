@@ -151,7 +151,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(composer.getByTestId('action-buttons')).toBeVisible();
 	await takeStepScreenshot(page, '01-responsive-actions');
 	if (proof) await proof.checkpoint('composer-responsive-actions');
-	await page.keyboard.press('Escape');
+	await composer.getByTestId('composer-attachment-menu-button').click();
+	await expect(attachmentMenu).toBeHidden();
 
 	await selector.click();
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
@@ -185,7 +186,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(firstModelRow).not.toContainText('?');
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
-	await page.getByTestId('profile-container').click();
+	await page.getByTestId('icon-button-close').click();
+	await expect(page.getByTestId('ai-model-details')).toBeHidden();
 	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
 
 	await selector.click();
