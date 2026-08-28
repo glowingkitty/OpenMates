@@ -30,6 +30,7 @@ async function activateWikipediaSearch(
 	const { editor, source } = opened ?? await openWikipediaSourceMenu(page);
 	await source.click();
 	await expect(editor).toContainText('@wiki:', { timeout: 2_000 });
+	await expect(page.getByTestId('mention-dropdown-header')).toHaveText('Enter a term to search for on Wikipedia');
 	await page.keyboard.type(query, { delay: 50 });
 	await expect(editor).toContainText(`@wiki:${query}`, { timeout: 2_000 });
 	return editor;
@@ -89,7 +90,7 @@ test('Wiki discovery selects a canonical article and completes with source conte
 });
 
 // contract-test: direct surface=gui.web assertions=wikipedia-mentions.resolution.disambiguation-visible,wikipedia-mentions.safety.fail-closed
-test('Wiki disambiguation and provider failures stay visible before inference', async ({ page }: { page: any }) => {
+test('Wiki alternatives and provider failures stay visible before inference', async ({ page }: { page: any }) => {
 	test.setTimeout(120000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -99,10 +100,8 @@ test('Wiki disambiguation and provider failures stay visible before inference', 
 	await startNewChat(page, log);
 
 	const editor = await activateWikipediaSearch(page, 'Mercury');
-	const disambiguation = page.getByTestId('wikipedia-result').filter({ hasText: 'Topics referred to by the same term' }).first();
-	await expect(disambiguation).toHaveAttribute('data-disambiguation', 'true', { timeout: 15000 });
-	await disambiguation.click();
-	await expect(page.getByTestId('wikipedia-disambiguation-message')).toBeVisible();
+	await expect(page.getByTestId('wikipedia-result').filter({ hasText: 'Topics referred to by the same term' })).toHaveCount(0, { timeout: 15000 });
+	await expect(page.getByTestId('wikipedia-result').filter({ hasText: 'Mercury (planet)' }).first()).toBeVisible();
 	await expect(editor.locator('[data-mention-type="wikipedia"]')).toHaveCount(0);
 	await expect(page.getByTestId('stop-processing-button')).toHaveCount(0);
 

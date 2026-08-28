@@ -464,8 +464,10 @@
     >
         <!-- Header text -->
         <div class="mention-dropdown-header">
-            <span class="header-text">
-                {$text('enter_message.mention_dropdown.header')}
+            <span class="header-text" data-testid="mention-dropdown-header">
+                {$text(wikipediaMode
+                    ? 'enter_message.mention_dropdown.wikipedia_header'
+                    : 'enter_message.mention_dropdown.header')}
             </span>
             <button 
                 class="settings-button" 

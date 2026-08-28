@@ -21979,7 +21979,7 @@ assertions:
     direct_tests:
     - &id2529
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 39
+      line: 40
       name: Wiki discovery selects a canonical article and completes with source context
       surface: gui.web
     supporting_tests: []
@@ -22058,8 +22058,8 @@ assertions:
       surface: rest_api
     - &id2537
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 92
-      name: Wiki disambiguation and provider failures stay visible before inference
+      line: 93
+      name: Wiki alternatives and provider failures stay visible before inference
       surface: gui.web
     - &id2538
       path: frontend/packages/openmates-cli/tests/mentions.test.ts
@@ -22200,8 +22200,8 @@ assertions:
       surface: rest_api
     - &id2551
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 92
-      name: Wiki disambiguation and provider failures stay visible before inference
+      line: 93
+      name: Wiki alternatives and provider failures stay visible before inference
       surface: gui.web
     - &id2552
       path: scripts/api_tests/test_wikipedia_api.py
@@ -22234,7 +22234,7 @@ assertions:
     direct_tests:
     - &id2553
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 39
+      line: 40
       name: Wiki discovery selects a canonical article and completes with source context
       surface: gui.web
     supporting_tests: []
@@ -22330,7 +22330,7 @@ assertions:
     direct_tests:
     - &id2562
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 39
+      line: 40
       name: Wiki discovery selects a canonical article and completes with source context
       surface: gui.web
     - &id2563

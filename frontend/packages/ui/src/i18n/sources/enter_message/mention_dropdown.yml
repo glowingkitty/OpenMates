@@ -33,6 +33,30 @@ header:
   sv: Som standard väljer OpenMates automatiskt AI-modell, mates, app-färdigheter, fokusmoder samt inställningar och minnen. Sök för att åsidosätta det automatiska valet
   he: כברירת מחדל, OpenMates בוחרת אוטומטית את מודל ה-AI, ה-mates, כישורי האפליקציה, מצבי המיקוד וההגדרות והזיכרונות. חפש כדי לדרוס את הבחירה האוטומטית
   verified_by_human: []
+wikipedia_header:
+  context: Header shown while the user is entering an explicit Wikipedia search term in the mention dropdown
+  en: Enter a term to search for on Wikipedia
+  de: Gib einen Begriff ein, um auf Wikipedia zu suchen
+  zh: 输入一个词条以在维基百科上搜索
+  es: Introduce un término para buscar en Wikipedia
+  fr: Saisissez un terme à rechercher sur Wikipédia
+  pt: Digite um termo para pesquisar na Wikipédia
+  ru: Введите термин для поиска в Википедии
+  ja: Wikipediaで検索する用語を入力してください
+  ko: 위키백과에서 검색할 용어를 입력하세요
+  it: Inserisci un termine da cercare su Wikipedia
+  tr: Wikipedia'da aramak için bir terim girin
+  vi: Nhập một thuật ngữ để tìm kiếm trên Wikipedia
+  id: Masukkan istilah untuk dicari di Wikipedia
+  pl: Wpisz termin, aby wyszukać go w Wikipedii
+  nl: Voer een term in om op Wikipedia te zoeken
+  ar: أدخل مصطلحًا للبحث عنه في ويكيبيديا
+  hi: विकिपीडिया पर खोजने के लिए कोई शब्द दर्ज करें
+  th: ป้อนคำเพื่อค้นหาในวิกิพีเดีย
+  cs: Zadejte výraz, který chcete vyhledat na Wikipedii
+  sv: Ange en term att söka efter på Wikipedia
+  he: הזינו מונח לחיפוש בוויקיפדיה
+  verified_by_human: []
 autocomplete_hint:
   context: Footer hint text in the @ mention dropdown suggesting how to autocomplete
   en: Press enter or tab to autocomplete.

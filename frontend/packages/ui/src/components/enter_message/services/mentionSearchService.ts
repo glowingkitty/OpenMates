@@ -288,7 +288,7 @@ export async function searchWikipediaMentions(
   }
 
   const payload = (await response.json()) as WikipediaSearchResponse;
-  return payload.results.map((result) => ({
+  return payload.results.filter((result) => result.disambiguation !== true).map((result) => ({
     id: `wikipedia:${result.language}:${result.page_id}`,
     type: "wikipedia",
     displayName: result.title,
