@@ -28,7 +28,7 @@ test.describe('Feature availability', () => {
 		const availability = await availabilityResponse.json();
 		const disabled = availability.disabled ?? [];
 
-		expect(disabled).toContain('platform:teams');
+		expect(disabled).not.toContain('platform:teams');
 		expect(disabled).toContain('platform:ios');
 		expect(disabled).not.toContain('platform:projects');
 		expect(disabled).not.toContain('platform:plans');
@@ -45,6 +45,7 @@ test.describe('Feature availability', () => {
 		await expect(page.getByTestId('plans-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('workflows-nav-link')).toBeVisible();
 		await expect(page.getByTestId('tasks-nav-link')).toBeVisible();
+		await expect(page.getByTestId('teams-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('workspace-mobile-select')).toBeHidden();
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
