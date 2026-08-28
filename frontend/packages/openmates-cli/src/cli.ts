@@ -69,6 +69,7 @@ import WebSocket from "ws";
 
 import {
   parseMentions,
+  resolveWikipediaMentions,
   listMentionOptions,
   type MentionType,
 } from "./mentions.js";
@@ -10409,11 +10410,21 @@ async function sendMessageStreaming(
   // Parse @mentions in the message, resolve to backend wire syntax.
   // If any mentions fail to resolve, show error and abort.
   let finalMessage = params.message;
+  let resolvedWikipediaMentions: Awaited<ReturnType<typeof resolveWikipediaMentions>>["resolved"] = [];
   const isTeamAiTrigger = params.personal !== true && (typeof params.teamId === "string" || Boolean(client.getActiveTeamId()));
   if (params.message.includes("@")) {
     try {
+      const defaultWikipediaLanguage = process.env.OPENMATES_LANGUAGE
+        ?? Intl.DateTimeFormat().resolvedOptions().locale
+        ?? "en";
+      const wikipediaResult = await resolveWikipediaMentions(
+        params.message,
+        defaultWikipediaLanguage,
+        (query, language, limit) => client.searchWikipediaTitles(query, language, limit),
+      );
+      resolvedWikipediaMentions = wikipediaResult.resolved;
       const mentionCtx = await client.buildMentionContext();
-      const parsed = parseMentions(params.message, mentionCtx);
+      const parsed = parseMentions(wikipediaResult.processedMessage, mentionCtx);
       finalMessage = parsed.processedMessage;
 
       // Report unresolved mentions as errors
@@ -10612,9 +10623,10 @@ async function sendMessageStreaming(
       }
 
       // Show resolved mentions as confirmation
-      if (parsed.resolved.length > 0 && !params.json) {
+      const resolvedMentions = [...resolvedWikipediaMentions, ...parsed.resolved];
+      if (resolvedMentions.length > 0 && !params.json) {
         clearTyping();
-        for (const r of parsed.resolved) {
+        for (const r of resolvedMentions) {
           const typeLabel = r.type.replace("_", " ");
           process.stderr.write(
             `\x1b[2m  ${r.original} → ${r.displayName} (${typeLabel})\x1b[0m\n`,
@@ -10624,9 +10636,15 @@ async function sendMessageStreaming(
 
     } catch (error) {
       clearTyping();
+      const alternatives = error instanceof Error && "alternatives" in error
+        ? (error as Error & { alternatives?: string[] }).alternatives ?? []
+        : [];
       process.stderr.write(
         `\x1b[31mError:\x1b[0m Failed to process mentions or file attachments - ${error instanceof Error ? error.message : String(error)}\n`,
       );
+      if (alternatives.length > 0) {
+        process.stderr.write(`  Choose one of: ${alternatives.join(", ")}\n`);
+      }
       process.exit(1);
     }
   }

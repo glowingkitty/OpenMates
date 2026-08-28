@@ -2964,6 +2964,30 @@ export class OpenMatesClient {
     return this.getActiveTeamId();
   }
 
+  async searchWikipediaTitles(query: string, language: string, limit = 5): Promise<Array<{
+    page_id: number;
+    key: string;
+    title: string;
+    description?: string;
+    disambiguation: boolean;
+    language: string;
+  }>> {
+    this.requireSession();
+    const params = new URLSearchParams({ query, language, limit: String(limit) });
+    const response = await this.http.get<{ results?: Array<{
+      page_id: number;
+      key: string;
+      title: string;
+      description?: string;
+      disambiguation: boolean;
+      language: string;
+    }> }>(`/v1/wikipedia/search?${params.toString()}`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`Wikipedia search failed with HTTP ${response.status}`);
+    }
+    return Array.isArray(response.data.results) ? response.data.results : [];
+  }
+
   async startAccountExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {
     this.requireSession();
     const response = await this.http.post<AccountExportResponse>("/v1/account-exports", {
