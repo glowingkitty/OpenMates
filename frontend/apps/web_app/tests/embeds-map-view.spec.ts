@@ -184,13 +184,7 @@ test.describe('Embeds map view preview', () => {
 		expect((await tabButtons.last().boundingBox())?.width).toBeCloseTo(85, 0);
 		expect(await mapView.evaluate((element) => getComputedStyle(element).backgroundColor)).toBe('rgb(243, 243, 243)');
 		const calendarTab = mapView.getByTestId('embeds-results-view-tab-calendar');
-		if (proof) {
-			await proof.action('open-calendar-tab', async () => {
-				await calendarTab.click();
-			});
-		} else {
-			await calendarTab.click();
-		}
+		await calendarTab.click();
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
 		await expect(calendarItems).toHaveCount(5);

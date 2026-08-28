@@ -17340,7 +17340,7 @@ assertions:
       surface: gui.web
     - &id1947
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 353
+      line: 347
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id1961
@@ -17826,7 +17826,7 @@ assertions:
       surface: gui.web
     - &id2006
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 353
+      line: 347
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id2024
