@@ -158,6 +158,15 @@ test("hook subprocesses have a bounded lifetime", async () => {
   assert.ok(Date.now() - started < 2_000);
 });
 
+test("the complete pre-tool hook has a hard deadline", async () => {
+  const { withHookDeadlineForTest } = pluginModule.OpenMatesHooks.test;
+  await assert.rejects(
+    () => withHookDeadlineForTest("tool.execute.before", "ses-stuck", () => new Promise(() => {}), 25),
+    /\[OpenMates hook deadline\].*25ms.*ses-stuck.*Next:/,
+  );
+  assert.equal(await withHookDeadlineForTest("tool.execute.before", "ses-ok", async () => "ok", 100), "ok");
+});
+
 test("blocking hook messages always explain reason and next action", async () => {
   for (const command of ["docker compose restart api", "cat > scripts/example.py", "npx playwright test"]) {
     await assert.rejects(

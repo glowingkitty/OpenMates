@@ -104,6 +104,7 @@ const SECRET_ENV_KEYS = [
   "PENPOT_ACCESS_TOKEN",
 ];
 const HOOK_SUBPROCESS_TIMEOUT_MS = Number(process.env.OPENMATES_HOOK_SUBPROCESS_TIMEOUT_MS || 15_000);
+const PRE_TOOL_HOOK_TIMEOUT_MS = Number(process.env.OPENMATES_PRE_TOOL_HOOK_TIMEOUT_MS || 45_000);
 
 function hashHookSource() {
   try {
@@ -120,6 +121,24 @@ const hookWarningDedupe = new Map();
 
 function actionable(marker, reason, next) {
   return `${marker} Reason: ${reason} Next: ${next}`;
+}
+
+async function withHookDeadlineForTest(label, sessionID, operation, timeoutMs = PRE_TOOL_HOOK_TIMEOUT_MS) {
+  let timeout;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(operation),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(actionable(
+          "[OpenMates hook deadline]",
+          `${label} did not settle within ${timeoutMs}ms for ${sessionID || "unknown session"}.`,
+          "retry the tool once; if it repeats, the orchestration monitor must inspect the named hook stage rather than leaving the chat busy.",
+        ))), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 
 function warningReasonForTest(message) {
@@ -3073,7 +3092,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (route.worktreePath) output.env.OPENMATES_SESSION_WORKTREE = route.worktreePath;
       for (const key of SECRET_ENV_KEYS) output.env[key] = "";
     },
-    "tool.execute.before": async (input, output) => {
+    "tool.execute.before": async (input, output) => withHookDeadlineForTest(
+      "tool.execute.before",
+      input?.sessionID,
+      async () => {
       const tool = input.tool || "";
       const githubMcpGuard = githubMcpGuardDecisionForTest(tool);
       if (githubMcpGuard.decision === "block") throw new Error(githubMcpGuard.message);
@@ -3198,8 +3220,9 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         return;
       }
       const routedDirectory = route.worktreePath || instanceDirectory;
-      await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-    },
+        await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
+      },
+    ),
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
       if (TASK_TOOLS.has(tool)) {
@@ -3355,4 +3378,5 @@ OpenMatesHooks.test = Object.freeze({
   workerEditPathDecisionForTest,
   warnOnceForTest,
   warningReasonForTest,
+  withHookDeadlineForTest,
 });
