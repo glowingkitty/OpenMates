@@ -21400,7 +21400,7 @@ assertions:
       surface: rest_api
     - &id2448
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 81
+      line: 82
       name: Wiki disambiguation and provider failures stay visible before inference
       surface: gui.web
     - &id2449
@@ -21522,7 +21522,7 @@ assertions:
       surface: rest_api
     - &id2460
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 81
+      line: 82
       name: Wiki disambiguation and provider failures stay visible before inference
       surface: gui.web
     - &id2461

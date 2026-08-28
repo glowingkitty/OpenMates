@@ -51,6 +51,7 @@ test('Wiki discovery selects a canonical article and completes with source conte
 	await screenshot(page, 'wiki-static-discovery');
 
 	await source.click();
+	await expect(editor).toContainText('@wiki:');
 	await page.keyboard.type('AlbertEin', { delay: 50 });
 	const result = page.getByTestId('wikipedia-result').filter({ hasText: 'Albert Einstein' }).first();
 	await expect(result).toBeVisible({ timeout: 15000 });
