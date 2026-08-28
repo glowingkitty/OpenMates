@@ -27,6 +27,10 @@
   interface Props {
     /** Canonical Wikipedia article title (e.g. "Albert_Einstein") */
     wikiTitle: string;
+    /** Explicit article language; falls back to the current UI locale */
+    language?: string | null;
+    /** Wikidata QID retained for parity with the inline link metadata */
+    wikidataId?: string | null;
     /** The topic phrase as shown in the message */
     displayText: string;
     /** Thumbnail URL from batch validation (low-res preview) */
@@ -44,6 +48,7 @@
 
   let {
     wikiTitle,
+    language = null,
     displayText,
     thumbnailUrl = null,
     description = null,
@@ -56,7 +61,7 @@
   let articleTitle = $derived.by(() => fetchedTitle || displayText);
   let articleDescription = $derived.by(() => fetchedDescription || description || '');
   let articleImageUrl = $derived.by(() => fetchedImageUrl || thumbnailUrl || '');
-  let wikipediaLanguage = $derived(normalizeWikipediaLanguage($locale));
+  let wikipediaLanguage = $derived(normalizeWikipediaLanguage(language || $locale));
   let articleUrl = $derived(
     fetchedArticleUrl || `https://${wikipediaLanguage}.wikipedia.org/wiki/${encodeURIComponent(wikiTitle)}`,
   );

@@ -908,6 +908,7 @@
     let showWikiFullscreen = $state(false);
     let wikiFullscreenData = $state<{
         wikiTitle: string;
+        language?: string | null;
         wikidataId?: string | null;
         displayText: string;
         thumbnailUrl?: string | null;
@@ -1097,7 +1098,6 @@
                 return;
             }
 
-            resetComposerWelcomeState();
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -1189,7 +1189,6 @@
                 console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
                 
                 // Clear current chat state
-                resetComposerWelcomeState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -1723,6 +1722,7 @@
     function handleWikiFullscreen(event: CustomEvent) {
         const detail = event.detail as {
             wikiTitle: string;
+            language?: string | null;
             wikidataId?: string | null;
             displayText: string;
             thumbnailUrl?: string | null;
@@ -5022,25 +5022,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
-    function resetComposerWelcomeState() {
-        if (blurTimer) {
-            clearTimeout(blurTimer);
-            blurTimer = undefined;
-        }
-        messageInputFocused = false;
-        messageInputRecentlyFocused = false;
-        messageInputHasContent = false;
-        messageInputMapsOpen = false;
-        anonymousFileAttachmentPending = false;
-        liveInputText = '';
-        suggestionsWouldOverlapWelcome = false;
-
-        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
-        if (activeElement instanceof HTMLElement) {
-            activeElement.blur();
-        }
-    }
-
     // Cache the last measured welcome content height so that when the welcome
     // block is hidden (hideWelcomeForKeyboard fades it to invisible), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
@@ -7439,7 +7420,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
-        resetComposerWelcomeState();
+        if (blurTimer) {
+            clearTimeout(blurTimer);
+            blurTimer = undefined;
+        }
+        messageInputFocused = false;
+        messageInputRecentlyFocused = false;
+        suggestionsWouldOverlapWelcome = false;
+        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+        if (activeElement instanceof HTMLElement) {
+            activeElement.blur();
+        }
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
@@ -11327,7 +11318,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             try {
-                resetComposerWelcomeState();
                 // Clear current chat state immediately (before database deletion)
                 // This ensures UI updates right away, even on mobile
                 currentChat = null;
@@ -11369,7 +11359,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } catch (error) {
                 console.error('[ActiveChat] Error in logout event handler:', error);
                 // Fallback: ensure UI is cleared even if handler fails
-                resetComposerWelcomeState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -13870,11 +13859,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
                          with the new article (fresh fetch, reset state) — same pattern as
                          regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
-                    {#key wikiFullscreenData.wikiTitle}
+                    {#key `${wikiFullscreenData.language || ''}:${wikiFullscreenData.wikiTitle}`}
                         {#await loadWikipediaFullscreenComponent() then module}
                             {#if module}
                             <module.default
                                 wikiTitle={wikiFullscreenData.wikiTitle}
+                                language={wikiFullscreenData.language}
                                 wikidataId={wikiFullscreenData.wikidataId}
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}

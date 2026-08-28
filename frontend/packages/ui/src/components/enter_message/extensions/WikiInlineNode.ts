@@ -41,6 +41,8 @@ export const WikiInlineNode = Node.create<WikiInlineNodeOptions>({
       displayText: { default: "" },
       /** Canonical Wikipedia article title (e.g. "Albert_Einstein") */
       wikiTitle: { default: "" },
+      /** Wikipedia language selected by an explicit user mention */
+      language: { default: null },
       /** Wikidata QID (e.g. "Q937") — may be null */
       wikidataId: { default: null },
       /** Thumbnail URL from Wikipedia validation — may be null */
@@ -83,6 +85,7 @@ export const WikiInlineNode = Node.create<WikiInlineNodeOptions>({
           props: {
             displayText: node.attrs.displayText as string,
             wikiTitle: node.attrs.wikiTitle as string,
+            language: node.attrs.language as string | null,
             wikidataId: node.attrs.wikidataId as string | null,
             thumbnailUrl: node.attrs.thumbnailUrl as string | null,
             description: node.attrs.description as string | null,
@@ -104,7 +107,10 @@ export const WikiInlineNode = Node.create<WikiInlineNodeOptions>({
           if (
             newAttrs.displayText === currentAttrs.displayText &&
             newAttrs.wikiTitle === currentAttrs.wikiTitle &&
-            newAttrs.wikidataId === currentAttrs.wikidataId
+            newAttrs.language === currentAttrs.language &&
+            newAttrs.wikidataId === currentAttrs.wikidataId &&
+            newAttrs.thumbnailUrl === currentAttrs.thumbnailUrl &&
+            newAttrs.description === currentAttrs.description
           ) {
             return true; // No DOM changes needed
           }
@@ -121,6 +127,7 @@ export const WikiInlineNode = Node.create<WikiInlineNodeOptions>({
               props: {
                 displayText: newAttrs.displayText as string,
                 wikiTitle: newAttrs.wikiTitle as string,
+                language: newAttrs.language as string | null,
                 wikidataId: newAttrs.wikidataId as string | null,
                 thumbnailUrl: newAttrs.thumbnailUrl as string | null,
                 description: newAttrs.description as string | null,

@@ -19,6 +19,8 @@
     displayText: string;
     /** Canonical Wikipedia article title (e.g. "Albert_Einstein") */
     wikiTitle: string;
+    /** Wikipedia language selected by an explicit user mention */
+    language?: string | null;
     /** Wikidata QID (e.g. "Q937") — may be null */
     wikidataId?: string | null;
     /** Thumbnail URL from Wikipedia batch validation — may be null */
@@ -29,7 +31,7 @@
     clickable?: boolean;
   }
 
-  let { displayText, wikiTitle, wikidataId = null, thumbnailUrl = null, description = null, clickable = true }: Props = $props();
+  let { displayText, wikiTitle, language = null, wikidataId = null, thumbnailUrl = null, description = null, clickable = true }: Props = $props();
 
   function handleClick(e: MouseEvent) {
     if (!clickable) return;
@@ -40,6 +42,7 @@
       new CustomEvent('wikifullscreen', {
         detail: {
           wikiTitle,
+          language,
           wikidataId,
           displayText,
           thumbnailUrl,
