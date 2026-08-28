@@ -173,7 +173,8 @@ PREPARED_VERIFICATION_PROFILES = {
 }
 DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
-DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
+DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
+DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_HARD_MAX_AGE_HOURS = 72
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
@@ -10429,6 +10430,16 @@ def available_docker_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[s
     return {line.strip() for line in stdout.splitlines() if line.strip()} - DOCKER_NON_RESTARTABLE_SERVICES
 
 
+def available_docker_setup_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[str]:
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("config", "--services", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not read Docker Compose services: {stderr or stdout}")
+    return {line.strip() for line in stdout.splitlines() if line.strip()} & DOCKER_SETUP_SERVICES
+
+
 def _docker_checkout_root(session_id: str) -> Path:
     session = _load_sessions().get("sessions", {}).get(session_id)
     if not isinstance(session, dict):
@@ -10807,10 +10818,106 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             _release_session_lock("docker_rebuild", released_by=args.session)
 
 
+def cmd_docker_run_setup(args: argparse.Namespace) -> None:
+    """Drain dependent tests and run allowlisted one-shot setup services."""
+    services = sorted(set(args.service))
+    checkout_root = _docker_checkout_root(args.session)
+    available = available_docker_setup_services(checkout_root)
+    invalid = sorted(set(services) - available)
+    if invalid:
+        raise RuntimeError(
+            f"Services are not setup-runnable: {', '.join(invalid)}. "
+            f"Available setup services: {', '.join(sorted(available))}"
+        )
+
+    operation = request_docker_restart(args.session, services)
+    lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
+    try:
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock(
+                "docker_rebuild",
+                args.session,
+                phase="draining_tests",
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+            )
+            lock_acquired = True
+
+        def heartbeat() -> None:
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
+            update_docker_operation(operation["id"], "draining_tests")
+
+        wait_for_docker_test_leases(
+            operation["id"],
+            timeout=args.timeout,
+            poll=args.poll,
+            heartbeat=heartbeat,
+        )
+        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        source_commit = _current_git_sha(checkout_root)
+        rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
+        if rc != 0 or not backend_tree.strip():
+            raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
+
+        update_docker_operation(
+            operation["id"],
+            "restarting",
+            waiting_for_tests=[],
+            services=services,
+            source_commit=source_commit,
+            backend_tree=backend_tree.strip(),
+            action="run-setup",
+        )
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
+
+        for service in services:
+            compose_args = ["run", "--rm"]
+            if getattr(args, "build", False):
+                compose_args.append("--build")
+            compose_args.append(service)
+            rc, stdout, stderr = _run_cmd_with_heartbeat(
+                _docker_compose_command(*compose_args, checkout_root=checkout_root),
+                cwd=str(checkout_root),
+                timeout=max(120, args.timeout),
+                heartbeat=lambda: (
+                    None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                    update_docker_operation(operation["id"], "restarting"),
+                ),
+            )
+            if rc != 0:
+                raise RuntimeError((stderr or stdout or f"Docker setup run failed for {service}").strip())
+
+        completed = update_docker_operation(operation["id"], "completed")
+        print(
+            f"Docker setup run {completed['id']} completed for {', '.join(services)}."
+        )
+    except BaseException as exc:
+        try:
+            update_docker_operation(
+                operation["id"],
+                "failed",
+                error=str(exc) or type(exc).__name__,
+            )
+        except Exception:
+            pass
+        raise
+    finally:
+        if lock_acquired:
+            _release_session_lock("docker_rebuild", released_by=args.session)
+
+
 def cmd_docker(args: argparse.Namespace) -> None:
     try:
         if args.docker_action == "restart":
             cmd_docker_restart(args)
+            return
+        if args.docker_action == "run-setup":
+            cmd_docker_run_setup(args)
             return
     except RuntimeError as exc:
         print(f"Docker operation failed: {exc}", file=sys.stderr)
@@ -15655,19 +15762,6 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
         upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
         conflicts = sorted(local_paths.intersection(upstream_paths))
         if conflicts:
-            if worktree.get("status") == "active":
-                # An interrupted active chat may have genuine pending edits on
-                # paths that moved upstream while it was offline. Preserve and
-                # resume that checkout in place so the chat can reconcile its
-                # own task context; canonical control-plane commands are routed
-                # away from this potentially stale source worktree by the hook.
-                link_shared_worktree_resources(worktree_path)
-                return {
-                    "cwd": str(worktree_path),
-                    "repository_session_id": repository_session_id,
-                    "advanced": False,
-                    "preserved_conflicts": conflicts,
-                }
             integration = worktree.get("integration") if isinstance(worktree.get("integration"), dict) else {}
             if worktree.get("status") != "merged" or integration.get("status") != "merged":
                 raise RuntimeError(
@@ -15898,13 +15992,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
     prompt = (
         f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
         f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
-        + (
-            "The active worktree was preserved because pending task edits overlap newer origin/dev paths; "
-            "reconcile those edits in this worktree without discarding them. "
-            if restore.get("preserved_conflicts")
-            else ""
-        )
-        + "For every shared Docker or test operation, use the current routed coordinator: "
+        "For every shared Docker or test operation, use the current routed coordinator: "
         "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree. "
         "A temporary shared lock is not a terminal blocker: run the intended canonical command directly so it queues, "
         "or run `python3 scripts/sessions.py wait-lock --session <repository-session-id> --type <docker|vercel> "
@@ -16439,6 +16527,26 @@ def main() -> None:
         default=DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS,
         help="Seconds to wait for restarted services to become healthy",
     )
+    p_docker_setup = p_docker_sub.add_parser("run-setup", help="Drain dependent tests and run setup services")
+    p_docker_setup.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_setup.add_argument(
+        "--service",
+        action="append",
+        required=True,
+        help="Setup service to run; repeat for multiple services",
+    )
+    p_docker_setup.add_argument(
+        "--build",
+        action="store_true",
+        help="Build the setup image before running the service",
+    )
+    p_docker_setup.add_argument(
+        "--timeout",
+        type=int,
+        default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+        help="Seconds to wait for the Docker lock and dependent tests",
+    )
+    p_docker_setup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)

@@ -10,6 +10,8 @@ Access: first-party/session or approved API-key REST; no AI credits consumed.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -32,6 +34,7 @@ from backend.core.api.app.services.limiter import limiter
 
 
 router = APIRouter(prefix="/v1/account-exports", tags=["Account Exports"])
+logger = logging.getLogger(__name__)
 
 
 class AccountExportStartRequest(BaseModel):
@@ -40,6 +43,44 @@ class AccountExportStartRequest(BaseModel):
     format: Literal["zip", "directory"] = "zip"
     include_advanced_metadata: bool = False
     team_id: str | None = None
+    defer_build: bool = False
+
+
+async def _build_deferred_account_export(
+    service: AccountExportService,
+    *,
+    user_id: str,
+    export_id: str,
+    team_id: str | None,
+) -> None:
+    try:
+        await service.build_export(user_id=user_id, export_id=export_id, team_id=team_id)
+    except Exception:
+        logger.exception("Deferred account export build failed", extra={"export_id": export_id})
+
+
+def _schedule_deferred_account_export(
+    request: Request,
+    service: AccountExportService,
+    *,
+    user_id: str,
+    export_id: str,
+    team_id: str | None,
+) -> None:
+    task = asyncio.create_task(
+        _build_deferred_account_export(
+            service,
+            user_id=user_id,
+            export_id=export_id,
+            team_id=team_id,
+        )
+    )
+    tasks = getattr(request.app.state, "account_export_build_tasks", None)
+    if not isinstance(tasks, set):
+        tasks = set()
+        request.app.state.account_export_build_tasks = tasks
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
 
 
 class AccountExportFailureRequest(BaseModel):
@@ -84,7 +125,6 @@ async def start_account_export(
     current_user: User = Depends(get_current_user_or_api_key),
     service: AccountExportService = Depends(get_account_export_service),
 ) -> AccountExportJobResponse:
-    del request
     try:
         export = await service.start_export(
             user_id=current_user.id,
@@ -93,7 +133,18 @@ async def start_account_export(
             include_advanced_metadata=payload.include_advanced_metadata,
             output_format=payload.format,
             team_id=payload.team_id,
+            build_immediately=not payload.defer_build,
         )
+        if payload.defer_build:
+            export_id = str(export.get("export_id") or "")
+            if export_id:
+                _schedule_deferred_account_export(
+                    request,
+                    service,
+                    user_id=current_user.id,
+                    export_id=export_id,
+                    team_id=payload.team_id,
+                )
         return AccountExportJobResponse(export=export)
     except AccountExportFilterError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

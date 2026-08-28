@@ -144,6 +144,25 @@ async def test_start_export_creates_resumable_job_without_updating_last_export_a
 
 # contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
+async def test_deferred_start_returns_before_chunks_are_materialized() -> None:
+    service = AccountExportService(directus_service=FakeDirectusService())
+
+    job = await service.start_export(user_id="user-1", build_immediately=False)
+
+    assert job["status"] == "queued"
+    assert job["chunks"] == []
+    assert job["domain_results"] == {}
+
+    ready = await service.build_export(user_id="user-1", export_id=job["export_id"])
+
+    assert ready["status"] == "ready"
+    assert list(dict.fromkeys(chunk["domain"] for chunk in ready["chunks"])) == service.default_domains
+    assert ready["progress"]["total_parts"] == len(ready["chunks"])
+    assert ready["domain_results"]["chats"]["status"] == "ready"
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
 async def test_manifest_excludes_team_scoped_rows_and_counts_defaults() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
 

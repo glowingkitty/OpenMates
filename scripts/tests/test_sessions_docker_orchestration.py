@@ -424,6 +424,47 @@ def test_restart_command_routes_all_compose_operations_through_shared_runtime(
     ]
 
 
+def test_setup_command_runs_one_shot_service_through_shared_runtime(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    configure_runtime_checkout(monkeypatch, checkout_root)
+    events = []
+    monkeypatch.setattr(
+        sessions,
+        "available_docker_setup_services",
+        lambda root: events.append(("available", root)) or {"cms-setup", "vault-setup"},
+    )
+    monkeypatch.setattr(
+        sessions,
+        "request_docker_restart",
+        lambda _session, services: events.append(("request", tuple(services))) or {"id": "op-1"},
+    )
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: events.append(("drain", "tests")) or [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(
+        sessions,
+        "update_docker_operation",
+        lambda operation_id, status, **kwargs: events.append(("status", status, kwargs)) or {"id": operation_id, "status": status, **kwargs},
+    )
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(
+        sessions,
+        "_run_cmd_with_heartbeat",
+        lambda command, *, cwd, **_kwargs: events.append(("run", Path(cwd), command)) or (0, "", ""),
+    )
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], timeout=1, poll=1, build=True)
+
+    sessions.cmd_docker_run_setup(args)
+
+    assert ("available", checkout_root) in events
+    assert ("request", ("cms-setup",)) in events
+    assert ("drain", "tests") in events
+    assert ("run", checkout_root, [str(checkout_root), "run", "--rm", "--build", "cms-setup"]) in events
+    assert any(event[0] == "status" and event[1] == "completed" for event in events)
+
+
 def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, tmp_path):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()

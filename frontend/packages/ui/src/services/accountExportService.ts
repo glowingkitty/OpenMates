@@ -87,6 +87,9 @@ type AccountExportJob = Record<string, unknown> & {
   status?: string;
   selected_domains?: string[];
   filters?: Record<string, unknown>;
+  chunks?: AccountExportChunk[];
+  progress?: Record<string, unknown>;
+  domain_results?: Record<string, unknown>;
 };
 
 type AccountExportChunk = Record<string, unknown> & {
@@ -111,6 +114,10 @@ type StoredAccountExportJob = {
 
 const ACCOUNT_EXPORT_JOB_STORAGE_KEY = "openmates.account_export.resume_job";
 const ACCOUNT_EXPORT_BROWSER_SIZE_LIMIT_MB = 250;
+const ACCOUNT_EXPORT_READY_POLL_INTERVAL_MS = 2_000;
+const ACCOUNT_EXPORT_READY_TIMEOUT_MS = 180_000;
+const ACCOUNT_EXPORT_TERMINAL_FAILURE_STATUSES = new Set(["cancelled", "expired", "failed"]);
+const ACCOUNT_EXPORT_READY_STATUSES = new Set(["ready", "partial", "complete", "partial_accepted"]);
 
 const ACCOUNT_EXPORT_FORBIDDEN_FIELD_NAMES = new Set([
   "access_token",
@@ -341,6 +348,8 @@ export async function exportAllUserData(
     const started = await startOrResumeAccountExport(options, signature);
     activeExportId = String(started.export_id ?? "");
 
+    const ready = await waitForAccountExportJobReady(activeExportId, onProgress);
+
     onProgress({ phase: "manifest", progress: 20, message: "Fetching export manifest..." });
     const manifest = await fetchAccountExportManifest(activeExportId);
 
@@ -349,7 +358,7 @@ export async function exportAllUserData(
 
     onProgress({ phase: "creating_zip", progress: 80, message: "Creating archive..." });
     const zipBlob = await createAccountExportV1Zip({
-      export: { ...started, status: "complete" },
+      export: { ...ready, status: "complete" },
       manifest: sanitizeAccountExportManifest(manifest),
       chunks,
     });
@@ -462,6 +471,7 @@ async function startOrResumeAccountExport(options: ExportOptions, signature: str
       filters: {},
       format: "zip",
       include_advanced_metadata: false,
+      defer_build: true,
     }),
   });
   const exportId = String(response.export.export_id ?? "");
@@ -515,6 +525,54 @@ async function acceptPartialAccountExportJob(exportId: string): Promise<AccountE
     body: JSON.stringify({}),
   });
   return response.export;
+}
+
+async function waitForAccountExportJobReady(exportId: string, onProgress: ExportProgressCallback): Promise<AccountExportJob> {
+  const startedAt = Date.now();
+  let lastJob: AccountExportJob | null = null;
+  while (Date.now() - startedAt <= ACCOUNT_EXPORT_READY_TIMEOUT_MS) {
+    const response = await accountExportRequest<{ export: AccountExportJob }>(`/v1/account-exports/${encodeURIComponent(exportId)}`);
+    const job = response.export;
+    lastJob = job;
+    const status = String(job.status ?? "queued");
+    if (ACCOUNT_EXPORT_TERMINAL_FAILURE_STATUSES.has(status)) {
+      throw new Error(`Account export job ${exportId} ${status}`);
+    }
+    if (isAccountExportReady(job)) return job;
+    onProgress({
+      phase: "loading",
+      progress: accountExportPreparationProgress(job),
+      message: "Preparing export chunks...",
+    });
+    await delay(ACCOUNT_EXPORT_READY_POLL_INTERVAL_MS);
+  }
+  const status = String(lastJob?.status ?? "queued");
+  throw new Error(`Account export job ${exportId} is still preparing after ${Math.round(ACCOUNT_EXPORT_READY_TIMEOUT_MS / 1000)} seconds (status: ${status}). Try again to resume it.`);
+}
+
+function isAccountExportReady(job: AccountExportJob): boolean {
+  const status = String(job.status ?? "");
+  if (ACCOUNT_EXPORT_READY_STATUSES.has(status)) return true;
+  if (Array.isArray(job.chunks) && job.chunks.length > 0) return true;
+  const progress = job.progress ?? {};
+  const totalParts = typeof progress.total_parts === "number" ? progress.total_parts : 0;
+  if (totalParts > 0) return true;
+  const selectedDomains = Array.isArray(job.selected_domains) ? job.selected_domains : [];
+  const domainResults = job.domain_results && typeof job.domain_results === "object" && !Array.isArray(job.domain_results)
+    ? job.domain_results
+    : {};
+  return selectedDomains.length > 0 && selectedDomains.every((domain) => domain in domainResults);
+}
+
+function accountExportPreparationProgress(job: AccountExportJob): number {
+  const progress = job.progress ?? {};
+  const completed = typeof progress.completed_domains === "number" ? progress.completed_domains : 0;
+  const total = typeof progress.total_domains === "number" && progress.total_domains > 0 ? progress.total_domains : 1;
+  return Math.max(5, Math.min(30, Math.round((completed / total) * 30)));
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function accountExportRequest<T>(path: string, init: RequestInit = {}): Promise<T> {

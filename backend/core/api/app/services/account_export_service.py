@@ -173,6 +173,7 @@ class AccountExportService:
         include_advanced_metadata: bool = False,
         output_format: str = "zip",
         team_id: str | None = None,
+        build_immediately: bool = True,
     ) -> dict[str, Any]:
         await self.purge_expired_exports()
         selected_domains = self._normalize_domains(domains, include_advanced_metadata=include_advanced_metadata)
@@ -214,12 +215,38 @@ class AccountExportService:
         can_persist = self._can_persist_exports()
         if can_persist:
             await self._create_persisted_job(job)
+        if not build_immediately:
+            return _public_job(job)
+        return await self._build_export_job(user_id=user_id, team_id=team_id, job=job)
+
+    async def build_export(self, *, user_id: str, export_id: str, team_id: str | None = None) -> dict[str, Any]:
+        job = await self._get_user_job(user_id, export_id, team_id=team_id)
+        return await self._build_export_job(user_id=user_id, team_id=team_id, job=job, mark_ready=True)
+
+    async def _build_export_job(
+        self,
+        *,
+        user_id: str,
+        team_id: str | None,
+        job: dict[str, Any],
+        mark_ready: bool = False,
+    ) -> dict[str, Any]:
+        if job["status"] in TERMINAL_EXPORT_STATUSES or job["chunks"] or job["domain_results"]:
+            return _public_job(job)
+        can_persist = self._can_persist_exports()
+        if mark_ready:
+            job["status"] = "running"
+            job["updated_at"] = _utc_now()
+            await self._persist_job_update(job)
         try:
             await self._build_job_chunks(user_id=user_id, team_id=team_id, job=job, persist_parts=can_persist)
         except Exception:
             if can_persist and job.get("_row_id") and job.get("status") != "failed":
                 await self._mark_job_failed(job, reason="build_export_failed")
             raise
+        if mark_ready and job["status"] == "running":
+            job["status"] = "ready"
+        job["updated_at"] = _utc_now()
         await self._persist_job_update(job)
         if can_persist:
             job["chunks"] = [_chunk_manifest(chunk) for chunk in job["chunks"]]

@@ -206,7 +206,7 @@ async function installAccountExportMock(page: any, config: AccountExportMockConf
 			return;
 		}
 		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}`) {
-			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'queued', selected_domains: config.selectedDomains } }) });
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'ready', selected_domains: config.selectedDomains, progress: { total_parts: chunks.length } } }) });
 			return;
 		}
 		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}/manifest`) {
@@ -414,6 +414,7 @@ test('exports selected account domains and verifies the browser ZIP with the sta
 	const startCall = calls.find((call) => call.method === 'POST' && call.path === '/v1/account-exports');
 	expect(startCall?.body?.domains).toEqual(['usage']);
 	expect(startCall?.body?.filters).toEqual({});
+	expect(startCall?.body?.defer_build).toBe(true);
 
 	const zipBuffer = fs.readFileSync(exportPath);
 	const entries = parseZipEntries(zipBuffer);
