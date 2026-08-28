@@ -207,6 +207,7 @@
 <style>
     .action-buttons {
         position: absolute;
+        z-index: var(--z-index-dropdown-2);
         bottom: 1rem;
         left: 1rem;
         right: 1rem;
