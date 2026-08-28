@@ -57,6 +57,7 @@ const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
 	: {};
 const PROOF_CAPTURE_END_HOLD_MS = 750;
 const PROOF_VIDEO_CRF = '32';
+const SESSION_STABILIZE_MS = IS_PROOF_CAPTURE ? 4000 : 8000;
 const GUEST_ONBOARDING_IDS = [
 	'openmates-intro',
 	'openmates-actionable-events',
@@ -313,6 +314,10 @@ test('session revoke: revoking session B from session A does not log out session
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditorB = pageB.getByTestId('message-editor');
 		await fillMessageEditor(pageB, messageEditorB, sessionBDraftText);
+		await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
+		logB('Session B: active draft chat header visible before forced logout.');
+		await screenshotB(pageB, '02b-session-b-active-draft-header');
 		const proofWindowStartedAtMs = Date.now() - proofRecordingStartedAt;
 		const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -320,15 +325,13 @@ test('session revoke: revoking session B from session A does not log out session
 			captureFrame: () => pageB.screenshot({ type: 'png' })
 		});
 		await proof.assert('session-revoke.session-b-draft-header', async () => {
-			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
+			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 5000 });
+			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 5000 });
 		});
-		logB('Session B: active draft chat header visible before forced logout.');
-		await screenshotB(pageB, '02b-session-b-active-draft-header');
 		await proof.checkpoint('session-b-draft-header');
 
-		logA('Both sessions logged in. Waiting 8s for WebSocket connections to stabilise…');
-		await pageA.waitForTimeout(8000);
+		logA(`Both sessions logged in. Waiting ${Math.ceil(SESSION_STABILIZE_MS / 1000)}s for WebSocket connections to stabilise…`);
+		await pageA.waitForTimeout(SESSION_STABILIZE_MS);
 		await screenshotA(pageA, '03-after-stabilise-a');
 		await screenshotB(pageB, '03-after-stabilise-b');
 
