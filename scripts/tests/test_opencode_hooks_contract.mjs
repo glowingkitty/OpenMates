@@ -98,7 +98,7 @@ test("merged worktree routing requires an existing Git worktree", () => {
 test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /resolveWorktreeRoute\(client, input\.sessionID/);
   assert.match(source, /routeLocalToolArgsForTest\(tool/);
-  assert.match(source, /sessionsPyRuntime \? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT/);
+  assert.match(source, /controlPlaneScriptRuntime \? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT/);
   assert.match(source, /Reason:/);
   assert.match(source, /Next:/);
   assert.match(source, /routedOpenCodeSessionID/);
@@ -122,6 +122,17 @@ test("every canonical sessions.py command uses the deployed control-plane runtim
   }
 });
 
+test("test dispatches use the deployed control-plane runtime", async () => {
+  for (const command of [
+    "python3 scripts/tests.py run --spec chat-flow.spec.ts",
+    "OPENCODE_SESSION_ID=test-session python3 scripts/tests.py run --suite vitest",
+    "COMMIT=$(git rev-parse origin/dev) && OPENCODE_SESSION_ID=test-session python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit $COMMIT",
+  ]) {
+    const { executionArgs } = await runBeforeShellWithExecutionArgs(command);
+    assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
+  }
+});
+
 test("loaded hook binds chained sessions.py start before later commands", async () => {
   const { executionArgs } = await runBeforeShellWithExecutionArgs(
     'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" && python3 scripts/issues.py show BTWQJ --env dev',
@@ -130,6 +141,7 @@ test("loaded hook binds chained sessions.py start before later commands", async 
     executionArgs.command,
     'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" --opencode-session test-session && python3 scripts/issues.py show BTWQJ --env dev',
   );
+  assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
 });
 
 test("blocking hook messages always explain reason and next action", async () => {
@@ -369,7 +381,7 @@ test("routing recovery allows direct prod ssh status and close only", async () =
   );
 });
 
-test("merged routing continues through the source worktree", async () => {
+test("merged routing runs canonical test dispatches from the control plane", async () => {
   const commit = "a".repeat(40);
   const hooks = await pluginModule.OpenMatesHooks({
     routingData: {
@@ -390,7 +402,7 @@ test("merged routing continues through the source worktree", async () => {
     { tool: "bash", sessionID: "stale-session" },
     output,
   ));
-  assert.equal(output.args.workdir, routedWorktree);
+  assert.equal(output.args.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
 
   const followUp = { args: { command: command.replace(commit, "b".repeat(40)), workdir: "/model-selected-root" } };
   await assert.doesNotReject(
@@ -399,7 +411,7 @@ test("merged routing continues through the source worktree", async () => {
       followUp,
     ),
   );
-  assert.equal(followUp.args.workdir, routedWorktree);
+  assert.equal(followUp.args.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
 });
 
 test("question routing runs approved audits from the control plane", async () => {

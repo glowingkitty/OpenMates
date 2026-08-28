@@ -2521,10 +2521,6 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any], *, replace_lat
             or not 0 <= finding_confidence <= 1
         ):
             raise DemonstrationError("Review receipt contains an invalid incidental finding")
-        if finding.get("category") in {"contrast", "typography"} and (
-            finding.get("severity") != "warning" or finding.get("intent") != "unclear"
-        ):
-            raise DemonstrationError("Contrast and typography findings must remain unclear advisory warnings")
     reviewed_frames = receipt.get("reviewed_frames")
     if (
         not isinstance(reviewed_frames, list)

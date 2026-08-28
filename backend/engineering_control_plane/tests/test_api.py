@@ -45,6 +45,11 @@ class FakeCoordinationRepository:
     def __init__(self) -> None:
         self.dispatches: dict[str, dict[str, Any]] = {}
         self.events: list[dict[str, Any]] = []
+        self.acquired_leases: list[dict[str, Any]] = []
+
+    def acquire_lease(self, **values):
+        self.acquired_leases.append(values)
+        return {**values, "status": "active"}
 
     def runtime_epoch(self):
         return 7
@@ -224,6 +229,28 @@ def test_coordinate_scope_can_inspect_one_lease_for_dead_owner_recovery(monkeypa
     assert response.status_code == 200
     assert response.json()["lease"]["owner_key"] == "dev-server:1234"
     assert missing.status_code == 404
+    app.dependency_overrides.clear()
+
+
+def test_lease_api_caps_unrenewed_lifetime_without_rejecting_old_clients(monkeypatch) -> None:
+    client, _, headers = _client(monkeypatch, ["read", "coordinate"])
+    coordination = FakeCoordinationRepository()
+    app.dependency_overrides[get_coordination_repository] = lambda: coordination
+
+    response = client.post(
+        "/v1/coordination/leases",
+        headers=headers,
+        json={
+            "lease_key": "old-client-run",
+            "owner_key": "dev-server:1234",
+            "resources": ["dev-stack"],
+            "ttl_seconds": 12 * 60 * 60,
+            "mode": "shared",
+        },
+    )
+
+    assert response.status_code == 200
+    assert coordination.acquired_leases[0]["ttl_seconds"] == 30 * 60
     app.dependency_overrides.clear()
 
 

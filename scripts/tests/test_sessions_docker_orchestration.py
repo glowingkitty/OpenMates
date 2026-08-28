@@ -178,7 +178,27 @@ def test_persistent_acquire_reclaims_dead_same_host_conflict_and_preserves_mode(
 
     assert lease["lease_id"] == "new-lease"
     assert calls[-1][2]["mode"] == "shared"
+    assert calls[-1][2]["ttl_seconds"] == 30 * 60
     assert ("DELETE", "/v1/coordination/leases/stale-lease", None) in calls
+
+
+def test_persistent_acquire_reports_its_blocker_while_waiting(monkeypatch, capsys):
+    monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
+    monkeypatch.setattr(
+        sessions,
+        "control_plane_api_request",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            sessions.ControlPlaneApiError(409, "runtime operation owns requested resources: docker-first")
+        ),
+    )
+    timestamps = iter([100.0, 100.0, 100.0, 100.0, 102.0])
+    monkeypatch.setattr(sessions.time, "time", lambda: next(timestamps))
+    monkeypatch.setattr(sessions.time, "sleep", lambda _seconds: None)
+
+    with pytest.raises(RuntimeError, match="docker-first"):
+        sessions.acquire_test_resource_lease("new-lease", "tests", {"dev-stack"}, timeout=1)
+
+    assert "Waiting for test resource admission" in capsys.readouterr().err
 
 
 def test_local_shared_test_leases_can_coexist(monkeypatch, tmp_path):
@@ -407,8 +427,8 @@ def test_restart_command_routes_all_compose_operations_through_shared_runtime(
 def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, tmp_path):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
+    configure_runtime_checkout(monkeypatch, checkout_root)
     monkeypatch.setattr(sessions, "_persistent_coordination_enabled", lambda: True)
-    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session_id: checkout_root)
     monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
     monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1", "status": "queued"})
     admission_statuses = iter(["queued", "queued", "admitted"])

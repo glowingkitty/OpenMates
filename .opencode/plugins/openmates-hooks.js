@@ -1229,14 +1229,11 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (improvementReviewSegment >= 0 && !improvementReviewControlPlane) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: OpenCode improvement review generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify.`);
     }
-    const sessionsPySegment = commandSegments.findIndex((tokens) => (
-      ["python", "python3"].includes(shellUnescape(tokens[0]))
-      && shellUnescape(tokens[1]) === "scripts/sessions.py"
-    ));
-    const sessionsPyRuntime = sessionsPySegment === 0
-      && commandSegments.length === 1
-      && !hasTopLevelSeparator
-      && !unsafeControlSyntax;
+    // Session lifecycle and test dispatch are shared control-plane operations,
+    // not source-worktree operations. Route the full expression through the
+    // clean runtime even when assignments or another command are chained around
+    // the canonical script, so old worktrees cannot execute stale queue logic.
+    const controlPlaneScriptRuntime = commandSegments.some(isCanonicalControlPlaneScriptSegment);
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
@@ -1262,8 +1259,8 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     return {
       ...input,
       command,
-      workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyRuntime)
-        ? (sessionsPyRuntime ? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT)
+      workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || controlPlaneScriptRuntime)
+        ? (controlPlaneScriptRuntime ? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT)
         : worktreePath,
     };
   }
@@ -1673,6 +1670,14 @@ function hasOpenCodeSessionEnvironmentChange(tokens) {
     if (token.startsWith("--unset=") && token.slice("--unset=".length) === "OPENCODE_SESSION_ID") return true;
   }
   return false;
+}
+
+function isCanonicalControlPlaneScriptSegment(tokens) {
+  let index = 0;
+  while (index < tokens.length && isAssignment(shellUnescape(tokens[index] || ""))) index += 1;
+  if (!["python", "python3"].includes(shellUnescape(tokens[index] || ""))) return false;
+  const script = shellUnescape(tokens[index + 1] || "").replace(/^\.\//, "");
+  return script === "scripts/sessions.py" || script === "scripts/tests.py";
 }
 
 function isTestsScriptToken(token) {

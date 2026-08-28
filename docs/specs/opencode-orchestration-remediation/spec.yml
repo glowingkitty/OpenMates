@@ -285,6 +285,19 @@ scenarios:
       - Duplicate responses do not repeatedly embed an already delivered artifact.
       - Raw media, credentials, and private logs are not stored in the engineering control-plane database.
 
+  - id: S-15
+    title: Long-lived chats cannot execute stale coordination clients
+    given:
+      - An OpenCode chat owns a source worktree created before the latest orchestration repair.
+      - A lease owner exits before releasing its resource.
+    when:
+      - The chat invokes sessions.py or tests.py directly, with environment assignments, or in a chained shell command.
+    then:
+      - The command executes from the clean deployed control-plane runtime rather than the source worktree.
+      - An unrenewed lease expires within 30 minutes even when an older client requests a longer lifetime.
+      - Live work renews its lease by heartbeat and is not limited to 30 minutes of total execution.
+      - A blocked client reports the exact admission blocker at least once per minute.
+
 acceptance_criteria:
   - id: AC-10
     scenario: S-9
@@ -443,6 +456,18 @@ acceptance_criteria:
     verification_ids:
       - T-MEDIA-DELIVERY
 
+  - id: AC-16
+    scenario: S-15
+    text: Old worktrees use current coordination scripts, renewable leases remain unlimited in total duration, and silent orphan waits are bounded and observable.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-CONTROL-PLANE
+      - T-SESSIONS-DOCKER
+      - T-OPENCODE-HOOKS
+
 tests:
   - id: T-CONTROL-PLANE
     type: pytest
@@ -454,6 +479,7 @@ tests:
       - AC-1
       - AC-2
       - AC-7
+      - AC-16
     red_phase:
       required: true
       expected: fail_before_fix
@@ -487,6 +513,7 @@ tests:
       - AC-3
       - AC-7
       - AC-9
+      - AC-16
     red_phase:
       required: true
       expected: fail_before_fix
@@ -569,6 +596,7 @@ tests:
       - OpenCode hook routing warnings are deduplicated and blocked source commands include one deterministic recovery action.
     covers:
       - AC-5
+      - AC-16
     red_phase:
       required: true
       expected: fail_before_fix
@@ -597,6 +625,7 @@ tests:
       - A long-running reviewer reports progress, terminates at its bounded timeout, preserves output, and removes staging links.
     covers:
       - AC-8
+      - AC-16
     red_phase:
       required: true
       expected: fail_before_fix
@@ -1341,23 +1370,35 @@ tasks:
       shared_files: []
 
   - id: TASK-19
-    title: Replace assistant sleep loops with deterministic completion waits
+    title: Replace stale and opaque waits with canonical deterministic coordination
     status: in_progress
     phase: working_tasks
     covers:
-      scenarios: [S-6, S-11]
-      acceptance_criteria: [AC-7, AC-12]
+      scenarios: [S-6, S-11, S-15]
+      acceptance_criteria: [AC-7, AC-12, AC-16]
     expected_files:
       - .opencode/plugins/openmates-hooks.js
+      - backend/engineering_control_plane/api.py
+      - backend/engineering_control_plane/tests/test_api.py
+      - scripts/proof_video_workflow.py
+      - scripts/sessions.py
+      - scripts/spec_demo.py
       - scripts/tests/test_opencode_hooks_contract.mjs
-    verification_ids: [T-OPENCODE-HOOKS, T-OPENCODE-LIFECYCLE, V-OPERATIONAL-READINESS]
+      - scripts/tests/test_sessions_docker_orchestration.py
+    verification_ids: [T-CONTROL-PLANE, T-SESSIONS-DOCKER, T-OPENCODE-HOOKS, T-OPENCODE-LIFECYCLE, T-PROOF-REVIEWER, V-OPERATIONAL-READINESS]
     dependencies: [TASK-18]
     blockers: []
     follow_up_tasks: []
     ownership:
       files:
         - .opencode/plugins/openmates-hooks.js
+        - backend/engineering_control_plane/api.py
+        - backend/engineering_control_plane/tests/test_api.py
+        - scripts/proof_video_workflow.py
+        - scripts/sessions.py
+        - scripts/spec_demo.py
         - scripts/tests/test_opencode_hooks_contract.mjs
+        - scripts/tests/test_sessions_docker_orchestration.py
       shared_files: []
 
 implementation_state:

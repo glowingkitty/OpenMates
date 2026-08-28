@@ -29,6 +29,7 @@ from backend.engineering_control_plane.records import (
 
 router = APIRouter(prefix="/v1")
 COORDINATION_COLLECTIONS = frozenset({"test_claims", "test_debug_campaigns", "test_debug_groups"})
+MAX_UNRENEWED_LEASE_TTL_SECONDS = 30 * 60
 
 
 class RecordWriteRequest(BaseModel):
@@ -198,7 +199,10 @@ def acquire_lease(
             lease_key=request.lease_key,
             owner_key=request.owner_key,
             resources=request.resources,
-            ttl_seconds=request.ttl_seconds,
+            # Leases are renewable heartbeats, not reservations for an entire
+            # agent turn. Accept older clients' longer requests but cap the
+            # stored expiry so a dead owner cannot block the queue for hours.
+            ttl_seconds=min(request.ttl_seconds, MAX_UNRENEWED_LEASE_TTL_SECONDS),
             mode=request.mode,
         )
     except CoordinationConflict as exc:
