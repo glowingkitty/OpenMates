@@ -233,6 +233,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
 	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
 
+	await focusComposer(page);
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
