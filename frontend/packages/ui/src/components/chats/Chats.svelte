@@ -4711,13 +4711,13 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     the hover effect on desktop where it's intentional user feedback.
     */
     @media (hover: hover) {
-        .chat-item:hover {
-            background-color: var(--color-grey-25); /* Slightly different hover */
+        .chat-item:hover:not(.active) {
+            background-color: var(--color-grey-10);
         }
     }
 
     .chat-item.active {
-        background-color: var(--color-grey-30);
+        background-color: var(--color-grey-0);
     }
 
     /* Incognito chat styling */

@@ -1106,7 +1106,7 @@
     return textToTruncate;
   }
 
-  let isActive = $derived(activeChatId === chat?.chat_id);
+  let isActive = $derived(activeChatId === chat?.chat_id || $activeChatStore === chat?.chat_id);
   let isSharedByOthers = $derived(!!chat?.is_shared_by_others);
   let isOwnerShared = $derived(!!chat?.is_shared && !isSharedByOthers);
   let isIdeaBucketChat = $derived(chat?.ideabucket === true);
@@ -2415,7 +2415,7 @@
     margin-bottom: 0;
   }
 
-  .chat-item-wrapper:hover {
+  .chat-item-wrapper:hover:not(.active) {
     background-color: var(--color-grey-10);
   }
 

@@ -15884,12 +15884,12 @@ assertions:
       surface: gui.apple
     - &id1828
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 215
+      line: 217
       name: focused desktop guest composer suppresses surrounding welcome UI
       surface: gui.web
     - &id1829
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 237
+      line: 239
       name: focused desktop authenticated composer suppresses surrounding welcome
         UI
       surface: gui.web
@@ -15901,7 +15901,7 @@ assertions:
     supporting_tests:
     - &id1830
       path: frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
-      line: 261
+      line: 263
       name: clicking intro/example chats and new-chat repeatedly keeps UI responsive
       surface: gui.web
     tests:

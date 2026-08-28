@@ -160,6 +160,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 
 		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-for-everyone"]');
 		await expect(activeRow).toBeVisible({ timeout: 10000 });
+		await expect(activeRow).toHaveClass(/active/);
 		const activeStyles = await activeRow.evaluate((element: HTMLElement) => {
 			const probe = document.createElement('span');
 			probe.style.backgroundColor = 'var(--color-grey-0)';
@@ -178,6 +179,7 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		);
 		expect(nonActiveChatId).not.toBe('');
 		const hoveredRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${nonActiveChatId}"]`);
+		await expect(hoveredRow).not.toHaveClass(/active/);
 		await hoveredRow.hover();
 		const hoverStyles = await hoveredRow.evaluate((element: HTMLElement) => {
 			const probe = document.createElement('span');
