@@ -4159,7 +4159,8 @@
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
-        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
+        const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton && !preservesComposerFocus) {
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
         }
@@ -5868,6 +5869,7 @@
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
+        data-focused={isMessageFieldFocused}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
