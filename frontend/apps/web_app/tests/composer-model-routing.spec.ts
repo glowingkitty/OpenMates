@@ -108,6 +108,12 @@ async function focusComposer(page: any): Promise<any> {
 	return editor;
 }
 
+async function expectComposerFocusPreserved(page: any, composer: any): Promise<void> {
+	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
+	await expect(composer).toHaveAttribute('data-focused', 'true');
+	await expect(composer.getByTestId('action-buttons')).toBeVisible();
+}
+
 // contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions,ai-model-routing.settings.hierarchy-canonical
 test('composer picker, mentions, and grouped actions remain reachable without clipping', async ({ page }, testInfo: any) => {
 	test.setTimeout(240000);
@@ -154,14 +160,26 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	for (const testId of ['composer-attachment-drawing', 'composer-attachment-location', 'composer-attachment-files']) {
 		await expect.poll(async () => attachmentMenu.getByTestId(testId).evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
 	}
-	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
 	await expect(attachmentMenu).toBeVisible();
-	await expect(composer).toHaveAttribute('data-focused', 'true');
-	await expect(composer.getByTestId('action-buttons')).toBeVisible();
+	await expectComposerFocusPreserved(page, composer);
+
+	await attachmentMenu.getByTestId('composer-attachment-drawing').click();
+	await expectComposerFocusPreserved(page, composer);
+	await composer.getByRole('button', { name: 'Close sketch' }).click();
+
+	await composer.getByTestId('composer-attachment-menu-button').click();
+	await attachmentMenu.getByTestId('composer-attachment-location').click();
+	await expectComposerFocusPreserved(page, composer);
+	await composer.getByRole('button', { name: 'Close', exact: true }).click();
+
+	await composer.getByTestId('composer-attachment-menu-button').click();
+	await Promise.all([
+		page.waitForEvent('filechooser'),
+		attachmentMenu.getByTestId('composer-attachment-files').click()
+	]);
+	await expectComposerFocusPreserved(page, composer);
 	await takeStepScreenshot(page, '01-responsive-actions');
 	if (proof) await proof.checkpoint('composer-responsive-actions');
-	await composer.getByTestId('composer-attachment-menu-button').click();
-	await expect(attachmentMenu).toBeHidden();
 
 	await selector.click();
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
@@ -194,9 +212,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 		expect(Math.abs(autoIconBox!.width - providerIconBox!.width)).toBeLessThanOrEqual(1);
 		expect(Math.abs(autoIconBox!.height - providerIconBox!.height)).toBeLessThanOrEqual(1);
 		expect(Math.abs(autoLabelBox!.x - providerLabelBox!.x)).toBeLessThanOrEqual(1);
-		await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
 		await expect(selectorMenu).toBeVisible();
-		await expect(composer).toHaveAttribute('data-focused', 'true');
+		await expectComposerFocusPreserved(page, composer);
 	});
 	await takeStepScreenshot(page, '02-model-picker');
 	if (proof) await proof.checkpoint('composer-model-picker');
@@ -206,6 +223,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await selector.click();
 
 	await selectorMenu.getByTestId('composer-model-show-more').click();
+	await expectComposerFocusPreserved(page, composer);
 	const modelSelectionBack = selectorMenu.getByTestId('composer-model-back');
 	await expect(modelSelectionBack).toHaveText('Model selection');
 	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeHidden();
@@ -214,11 +232,13 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 		await expect(selectorMenu.getByTestId(`composer-model-provider-${provider.id}`)).toContainText(provider.label);
 	}
 	await modelSelectionBack.click();
+	await expectComposerFocusPreserved(page, composer);
 	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
 	await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toBeVisible();
 
 	await selectorMenu.getByTestId('composer-model-show-more').click();
 	await selectorMenu.getByTestId('composer-model-provider-google').click();
+	await expectComposerFocusPreserved(page, composer);
 	await expect(selectorMenu.getByTestId('composer-model-row').first()).toBeVisible();
 	await selectorMenu.getByTestId('composer-model-back').click();
 	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
