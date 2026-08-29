@@ -16226,6 +16226,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         visibility: visible;
     }
 
+    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
+        display: none;
+    }
+
     /* Adjust top-buttons position on small screens (absolute mode only) */
     @media (max-width: 730px) {
         .top-buttons:not(.top-buttons-flow) {
