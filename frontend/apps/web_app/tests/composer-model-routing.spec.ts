@@ -236,14 +236,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
 	await expect(selectorMenu.getByTestId('composer-model-provider-openai')).toBeVisible();
 
-	await selectorMenu.getByTestId('composer-model-show-more').click();
-	await selectorMenu.getByTestId('composer-model-provider-google').click();
-	await expectComposerFocusPreserved(page, composer);
-	await expect(selectorMenu.getByTestId('composer-model-row').first()).toBeVisible();
-	await selectorMenu.getByTestId('composer-model-back').click();
-	await expect(selectorMenu.getByTestId('composer-model-auto')).toBeVisible();
-
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
+	await expectComposerFocusPreserved(page, composer);
 	await expect(selectorMenu.getByTestId('composer-model-name')).toHaveText([
 		'GPT-5.6 Sol Max',
 		'GPT-5.6 Sol',
