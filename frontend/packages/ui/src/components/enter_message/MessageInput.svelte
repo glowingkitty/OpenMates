@@ -4160,7 +4160,17 @@
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
         const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
-        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton && !preservesComposerFocus) {
+        if (preservesComposerFocus) {
+            event.preventDefault();
+            if (blurTimeoutId) {
+                clearTimeout(blurTimeoutId);
+                blurTimeoutId = null;
+            }
+            isMessageFieldFocused = true;
+            isFocused = true;
+            return;
+        }
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
         }
