@@ -97,7 +97,7 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		{
 			id: 'daily-inspiration.guest-isolated-after-force-logout',
 			checkpoint: 'session-b-guest-onboarding',
-			visual: 'Session B visibly shows the expanded first guest intro covering the chat surface with no stale chat header after force logout.',
+			visual: 'Session B visibly shows the expanded first guest intro covering the full chat shell with no composer or stale chat header after force logout.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -390,6 +390,7 @@ test('session revoke: revoking session B from session A does not log out session
 			);
 			await expect(pageB.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
 			await expect(guestBannerB).toHaveAttribute('data-landing-intro-phase', 'expanded');
+			await expect(pageB.getByTestId('message-input-wrapper')).toBeHidden({ timeout: 10000 });
 			const geometry = await pageB.evaluate(() => {
 				const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
 				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
