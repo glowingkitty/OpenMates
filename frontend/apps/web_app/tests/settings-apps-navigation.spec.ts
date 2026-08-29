@@ -73,8 +73,8 @@ async function expectAppsCatalogLoaded(settingsMenu: any): Promise<void> {
 	}
 }
 
-// contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability,workspace-shell.nav.released-surfaces-visible
-test('guest Apps catalog survives settings navigation and opens app details', async ({
+// contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability,settings-ui.shell.lifecycle-and-routing,workspace-shell.nav.released-surfaces-visible
+test('guest settings routes replace AI after opening a dynamic provider page', async ({
 	page
 }: {
 	page: any;
@@ -88,7 +88,23 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 	await expectAppsCatalogLoaded(settingsMenu);
 	await backToSettingsRoot(settingsMenu);
 
-	for (const pageName of ['AI', 'Mates', 'Memories', 'Interface']) {
+	await openTopLevelSettingsPage(settingsMenu, 'AI');
+	await settingsMenu.getByTestId('ai-provider-family-card').first().click();
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^ai\/provider\//, {
+		timeout: SETTINGS_TIMEOUT
+	});
+	await expect(settingsMenu.getByTestId('ai-settings')).toHaveCount(0);
+	await expect(settingsMenu.getByTestId('ai-provider-details')).toBeVisible({
+		timeout: SETTINGS_TIMEOUT
+	});
+
+	await settingsMenu.getByTestId('banner-back-button').click();
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai', {
+		timeout: SETTINGS_TIMEOUT
+	});
+	await backToSettingsRoot(settingsMenu);
+
+	for (const pageName of ['Mates', 'Memories', 'Interface']) {
 		await openTopLevelSettingsPage(settingsMenu, pageName);
 		await backToSettingsRoot(settingsMenu);
 	}
