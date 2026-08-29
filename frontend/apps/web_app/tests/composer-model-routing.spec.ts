@@ -108,10 +108,16 @@ async function focusComposer(page: any): Promise<any> {
 	return editor;
 }
 
-async function expectComposerFocusPreserved(page: any, composer: any): Promise<void> {
+async function expectComposerFocusPreserved(page: any, composer: any, expectEditorFocus = true): Promise<void> {
 	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
 	await expect(composer).toHaveAttribute('data-focused', 'true');
 	await expect(composer.getByTestId('action-buttons')).toBeVisible();
+	if (expectEditorFocus) {
+		await expect.poll(async () => composer.getByTestId('message-editor').evaluate((editor: HTMLElement) => {
+			const activeElement = document.activeElement;
+			return activeElement === editor || editor.contains(activeElement);
+		})).toBe(true);
+	}
 }
 
 // contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions,ai-model-routing.settings.hierarchy-canonical
@@ -164,12 +170,12 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expectComposerFocusPreserved(page, composer);
 
 	await attachmentMenu.getByTestId('composer-attachment-drawing').click();
-	await expectComposerFocusPreserved(page, composer);
+	await expectComposerFocusPreserved(page, composer, false);
 	await composer.getByRole('button', { name: 'Close sketch' }).click();
 
 	await composer.getByTestId('composer-attachment-menu-button').click();
 	await attachmentMenu.getByTestId('composer-attachment-location').click();
-	await expectComposerFocusPreserved(page, composer);
+	await expectComposerFocusPreserved(page, composer, false);
 	await composer.getByRole('button', { name: 'Close', exact: true }).click();
 
 	await composer.getByTestId('composer-attachment-menu-button').click();
@@ -282,6 +288,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await takeStepScreenshot(page, '03-model-list');
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
+	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
+	await expect(composer).toHaveAttribute('data-focused', 'false');
 	await page.getByTestId('icon-button-close').click();
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
 	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);

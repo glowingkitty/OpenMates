@@ -849,6 +849,8 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    let preserveComposerFocusOnNextBlur = false;
+    let preserveComposerFocusResetTimer: ReturnType<typeof setTimeout> | null = null;
     
     // --- Initial mount tracking ---
     let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
@@ -2456,6 +2458,10 @@
     });
  
     onDestroy(() => {
+        if (preserveComposerFocusResetTimer) {
+            clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = null;
+        }
         // cleanup() is now called from the onMount return function.
         // Ensure event listeners specific to this component that were added outside onMount's return
         // (if any) are cleaned up here or in the onMount return.
@@ -2498,6 +2504,11 @@
             blurTimeoutId = null;
             console.debug('[MessageInput] Cancelled pending blur timeout - focus regained');
         }
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) {
+            clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = null;
+        }
         
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
@@ -2513,6 +2524,12 @@
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
         const chatIdAtBlur = currentChatId;
+        const preserveComposerFocusForThisBlur = preserveComposerFocusOnNextBlur;
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) {
+            clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = null;
+        }
         // Cancel any existing blur timeout before creating a new one
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -2524,6 +2541,11 @@
         // or when clicking on UI elements that should maintain focus
         blurTimeoutId = setTimeout(() => {
             blurTimeoutId = null; // Clear the timeout ID
+            if (preserveComposerFocusForThisBlur) {
+                isMessageFieldFocused = true;
+                isFocused = true;
+                return;
+            }
             // Check if editor is still actually blurred (not refocused)
             // This prevents race conditions where focus is regained quickly
             const editorDom = editor?.view.dom;
@@ -4110,7 +4132,16 @@
     }
 
     function handleMessageWrapperClick(event: MouseEvent) {
-        const chip = (event.target as HTMLElement).closest('[data-testid="project-access-chip"]') as HTMLElement | null;
+        const target = event.target as HTMLElement;
+        const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
+        const opensSeparateSurface = showMaps || showSketch || target.closest('[data-testid="composer-model-name"]');
+        if (preservesComposerFocus && !opensSeparateSurface) {
+            setTimeout(() => {
+                if (editor && !editor.isDestroyed) editor.commands.focus('end');
+            }, 0);
+        }
+
+        const chip = target.closest('[data-testid="project-access-chip"]') as HTMLElement | null;
         if (!chip) return;
         event.preventDefault();
         event.stopPropagation();
@@ -4161,13 +4192,13 @@
         const isSuggestionButton = target.closest('.suggestion-item');
         const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
         if (preservesComposerFocus) {
-            event.preventDefault();
-            if (blurTimeoutId) {
-                clearTimeout(blurTimeoutId);
-                blurTimeoutId = null;
-            }
-            isMessageFieldFocused = true;
-            isFocused = true;
+            if (target.closest('[data-testid="composer-model-name"]')) return;
+            preserveComposerFocusOnNextBlur = true;
+            if (preserveComposerFocusResetTimer) clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = setTimeout(() => {
+                preserveComposerFocusOnNextBlur = false;
+                preserveComposerFocusResetTimer = null;
+            }, 0);
             return;
         }
         if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
@@ -6174,7 +6205,7 @@
             <MapsView
                 defaultImprecise={defaultImprecise}
                 {isFullscreen}
-                on:close={() => showMaps = false}
+                on:close={() => { showMaps = false; focus(); }}
                 on:locationselected={handleLocationSelected}
                 on:toggleFullscreen={toggleFullscreen}
             />
