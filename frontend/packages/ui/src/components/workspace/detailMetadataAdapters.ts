@@ -35,7 +35,7 @@ export const taskDetailAdapter: DetailMetadataAdapter<UserTaskViewModel> = {
 export const planDetailAdapter: DetailMetadataAdapter<UserPlanViewModel> = {
   load: async (id) => requireItem((await listUserPlans()).find((plan) => plan.plan_id === id), 'Plan'),
   saveTitle: (plan, title) => updateUserPlan(plan, { title }),
-  saveDescription: (plan, summary) => updateUserPlan(plan, { summary }),
+  saveDescription: (plan, goal) => updateUserPlan(plan, { goal }),
 };
 
 export const workflowDetailAdapter: DetailMetadataAdapter<WorkflowDetail> = {

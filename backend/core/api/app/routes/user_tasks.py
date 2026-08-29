@@ -73,7 +73,6 @@ class UserTaskCreateRequest(BaseModel):
     linked_project_ids: list[str] = Field(default_factory=list)
     parent_task_id: str | None = None
     plan_id: str | None = None
-    plan_step_id: str | None = None
     task_type: Literal["work", "verification"] = "work"
     verification_id: str | None = None
     due_at: int | None = None
@@ -109,7 +108,6 @@ class UserTaskUpdateRequest(BaseModel):
     linked_project_ids: list[str] | None = None
     parent_task_id: str | None = None
     plan_id: str | None = None
-    plan_step_id: str | None = None
     task_type: Literal["work", "verification"] | None = None
     verification_id: str | None = None
     due_at: int | None = None

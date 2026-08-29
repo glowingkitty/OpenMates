@@ -23,6 +23,7 @@ class _FakeLimiter:
 
 
 auth_deps_stub = types.ModuleType("backend.core.api.app.routes.auth_routes.auth_dependencies")
+auth_deps_stub.get_current_user = lambda: None
 auth_deps_stub.get_current_user_or_api_key = lambda: None
 limiter_stub = types.ModuleType("backend.core.api.app.services.limiter")
 limiter_stub.limiter = _FakeLimiter()
@@ -31,8 +32,6 @@ workspace_planner_stub.WorkspaceAskPlanningError = RuntimeError
 workspace_planner_stub.run_plan_ask_pipeline = AsyncMock()
 team_workspace_stub = types.ModuleType("backend.core.api.app.services.team_workspace_service")
 team_workspace_stub.move_workspace_record_to_team = AsyncMock()
-user_task_service_stub = types.ModuleType("backend.core.api.app.services.user_task_service")
-user_task_service_stub.UserTaskService = object
 workspace_history_stub = types.ModuleType("backend.core.api.app.services.workspace_change_history_service")
 workspace_history_stub.WorkspaceChangeHistoryService = object
 workspace_history_stub.build_history_commands = lambda *args, **kwargs: {}
@@ -41,7 +40,6 @@ sys.modules.setdefault("backend.core.api.app.routes.auth_routes.auth_dependencie
 sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
 sys.modules.setdefault("backend.apps.ai.processing.workspace_ask_planner", workspace_planner_stub)
 sys.modules.setdefault("backend.core.api.app.services.team_workspace_service", team_workspace_stub)
-sys.modules.setdefault("backend.core.api.app.services.user_task_service", user_task_service_stub)
 sys.modules.setdefault("backend.core.api.app.services.workspace_change_history_service", workspace_history_stub)
 
 from backend.core.api.app.routes import user_plans  # noqa: E402

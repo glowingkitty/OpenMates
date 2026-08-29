@@ -2016,7 +2016,7 @@ async function handlePlans(
       return;
     }
     const proposal = isShortWorkspaceAsk(instruction)
-      ? { title: instruction, summary: "", goal: instruction }
+      ? { title: instruction, goal: instruction }
       : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
     const title = requiredString(proposal, "title", instruction);
     const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
@@ -2025,8 +2025,7 @@ async function handlePlans(
     });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
-      summary: typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "summary") ?? "",
-      goal: typeof flags.goal === "string" ? flags.goal : optionalString(proposal, "goal") ?? title,
+      goal: typeof flags.goal === "string" ? flags.goal : typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "goal") ?? optionalString(proposal, "summary") ?? title,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
       primaryChatId: linkContext.primaryChatId,
@@ -2048,12 +2047,10 @@ async function handlePlans(
     });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
-      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : "",
-      goal: typeof flags.goal === "string" ? flags.goal : "",
+      goal: requiredPlanGoal(flags),
       scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : "",
       scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : "",
-      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : "",
-      currentFocus: typeof flags["current-focus"] === "string" ? flags["current-focus"] : "",
+      userFlows: parsePlanUserFlowsFlag(flags["user-flows"]),
       assumptions: typeof flags.assumptions === "string" ? flags.assumptions : "",
       openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : "",
       constraints: typeof flags.constraints === "string" ? flags.constraints : "",
@@ -2067,9 +2064,6 @@ async function handlePlans(
       primaryChatKey: linkContext.primaryChatKey,
       linkedProjectIds: linkContext.linkedProjectIds,
       linkedProjectKeys: linkContext.linkedProjectKeys,
-      currentPhaseId: typeof flags.phase === "string" ? flags.phase : null,
-      currentStepId: typeof flags.step === "string" ? flags.step : null,
-      currentTaskId: typeof flags.task === "string" ? flags.task : null,
       plannerFocusId: typeof flags.focus === "string" ? flags.focus : null,
     });
     const created = await client.createUserPlan(input);
@@ -2104,12 +2098,10 @@ async function handlePlans(
       : null;
     const patch = await buildUpdateUserPlanInput(plan, masterKey, {
       title: typeof flags.title === "string" ? flags.title : undefined,
-      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : undefined,
       goal: typeof flags.goal === "string" ? flags.goal : undefined,
       scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : undefined,
       scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : undefined,
-      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : undefined,
-      currentFocus: flags["current-focus"] === true ? "" : typeof flags["current-focus"] === "string" ? flags["current-focus"] : undefined,
+      userFlows: flags["user-flows"] === undefined ? undefined : parsePlanUserFlowsFlag(flags["user-flows"]),
       assumptions: typeof flags.assumptions === "string" ? flags.assumptions : undefined,
       openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : undefined,
       constraints: typeof flags.constraints === "string" ? flags.constraints : undefined,
@@ -2123,9 +2115,6 @@ async function handlePlans(
       primaryChatKey: linkContext?.primaryChatKey ?? undefined,
       linkedProjectIds: hasProjectRelink ? linkContext?.linkedProjectIds ?? [] : undefined,
       linkedProjectKeys: linkContext?.linkedProjectKeys,
-      currentPhaseId: flags.phase === true ? null : typeof flags.phase === "string" ? flags.phase : undefined,
-      currentStepId: flags.step === true ? null : typeof flags.step === "string" ? flags.step : undefined,
-      currentTaskId: flags.task === true ? null : typeof flags.task === "string" ? flags.task : undefined,
       plannerFocusId: flags.focus === true ? null : typeof flags.focus === "string" ? flags.focus : undefined,
     });
     const updated = await client.updateUserPlan(plan.planId, patch);
@@ -2238,7 +2227,6 @@ async function handlePlans(
       type: typeof flags.type === "string" ? flags.type : undefined,
       status: typeof flags.status === "string" ? flags.status : undefined,
       required: flags.required === true ? true : flags.optional === true ? false : undefined,
-      linkedStepIds: splitCsvFlag(flags.step ?? flags.steps),
       linkedTaskIds: splitCsvFlag(flags.task ?? flags.tasks),
       verificationIds: splitCsvFlag(flags.verification ?? flags.verifications),
     });
@@ -2653,17 +2641,35 @@ function recoveryStrings(record: Record<string, unknown>, key: string): string[]
   return value;
 }
 
+function parsePlanUserFlowsFlag(value: unknown): Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"] {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error("--user-flows must be a JSON array.");
+  const parsed = JSON.parse(value) as unknown;
+  if (!Array.isArray(parsed)) throw new Error("--user-flows must be a JSON array.");
+  return parsed as Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"];
+}
+
+function recoveryPlanUserFlows(record: Record<string, unknown>): Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"] {
+  const flows = record.user_flows;
+  if (!Array.isArray(flows)) throw new Error("Recovery record requires user_flows array.");
+  return flows as Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"];
+}
+
+function requiredPlanGoal(flags: Record<string, unknown>): string {
+  if (typeof flags.goal !== "string" || !flags.goal.trim()) throw new Error("Creating a plan requires --goal.");
+  return flags.goal;
+}
+
 function recoveryPlanCreateOptions(record: Record<string, unknown>, linkContext: PlanLinkKeyContext): Parameters<typeof buildCreateUserPlanInput>[1] {
   return {
-    planId: recoveryString(record, "plan_id"), title: recoveryString(record, "title"), summary: recoveryString(record, "summary"), goal: recoveryString(record, "goal"),
-    scopeIn: recoveryString(record, "scope_in"), scopeOut: recoveryString(record, "scope_out"), userFlows: recoveryString(record, "user_flows"), currentFocus: recoveryString(record, "current_focus"),
+    planId: recoveryString(record, "plan_id"), title: recoveryString(record, "title"), goal: recoveryString(record, "goal"),
+    scopeIn: recoveryString(record, "scope_in"), scopeOut: recoveryString(record, "scope_out"), userFlows: recoveryPlanUserFlows(record),
     assumptions: recoveryString(record, "assumptions"), openQuestions: recoveryString(record, "open_questions"), constraints: recoveryString(record, "constraints"), decisions: recoveryString(record, "decisions"),
     risks: recoveryString(record, "risks"), referencePatterns: recoveryString(record, "reference_patterns"), context: recoveryString(record, "context"),
     status: recoveryString(record, "status") as UserPlanStatus, slug: typeof record.slug === "string" ? record.slug : undefined,
     primaryChatId: linkContext.primaryChatId, primaryChatKey: linkContext.primaryChatKey,
     linkedProjectIds: linkContext.linkedProjectIds, linkedProjectKeys: linkContext.linkedProjectKeys,
-    currentPhaseId: typeof record.current_phase_id === "string" ? record.current_phase_id : null, currentStepId: typeof record.current_step_id === "string" ? record.current_step_id : null,
-    currentTaskId: typeof record.current_task_id === "string" ? record.current_task_id : null, plannerFocusId: typeof record.planner_focus_id === "string" ? record.planner_focus_id : null,
+    plannerFocusId: typeof record.planner_focus_id === "string" ? record.planner_focus_id : null,
   };
 }
 
@@ -2682,7 +2688,7 @@ async function recoveryAssumptionInput(plan: DecryptedUserPlan, masterKey: Uint8
     assumption_id: recoveryString(record, "assumption_id"), encrypted_text: await encrypt("text"), category: typeof record.category === "string" ? record.category : undefined,
     status: typeof record.status === "string" ? record.status : undefined, required_before: typeof record.required_before === "string" ? record.required_before : undefined,
     linked_sub_chat_id: typeof record.linked_sub_chat_id === "string" ? record.linked_sub_chat_id : null, linked_task_id: typeof record.linked_task_id === "string" ? record.linked_task_id : null,
-    linked_step_ids: Array.isArray(record.linked_step_ids) ? record.linked_step_ids as string[] : [], linked_criterion_ids: Array.isArray(record.linked_criterion_ids) ? record.linked_criterion_ids as string[] : [],
+    linked_criterion_ids: Array.isArray(record.linked_criterion_ids) ? record.linked_criterion_ids as string[] : [],
     encrypted_corrected_text: await encrypt("corrected_text"), encrypted_evidence_summary: await encrypt("evidence_summary"), encrypted_blocker_reason: await encrypt("blocker_reason"),
     encrypted_waiver_reason: await encrypt("waiver_reason"), encrypted_sources: await encryptPlanAssumptionSources(plan, masterKey, JSON.stringify(record.sources)), created_at: nowSeconds(), updated_at: nowSeconds(),
   };
@@ -2690,14 +2696,12 @@ async function recoveryAssumptionInput(plan: DecryptedUserPlan, masterKey: Uint8
 
 type PlanTextSection = {
   label: string;
-  option: "goal" | "currentFocus" | "scopeIn" | "scopeOut" | "userFlows" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
+  option: "goal" | "scopeIn" | "scopeOut" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
   read: (plan: DecryptedUserPlan) => string;
 };
 
 const PLAN_TEXT_SECTIONS: Record<string, PlanTextSection> = {
   goal: { label: "Goal", option: "goal", read: (plan) => plan.goal },
-  "current-focus": { label: "Current focus", option: "currentFocus", read: (plan) => plan.currentFocus },
-  "user-flows": { label: "User flows", option: "userFlows", read: (plan) => plan.userFlows },
   "scope-in": { label: "Scope in", option: "scopeIn", read: (plan) => plan.scopeIn },
   "scope-out": { label: "Scope out", option: "scopeOut", read: (plan) => plan.scopeOut },
   assumptions: { label: "Assumptions", option: "assumptions", read: (plan) => plan.assumptions },
@@ -2792,7 +2796,6 @@ async function handleGoalChat(
   });
   const planInput = await buildCreateUserPlanInput(masterKey, {
     title: typeof flags.title === "string" && flags.title.trim() ? flags.title.trim() : goal,
-    summary: typeof flags.summary === "string" ? flags.summary : "",
     goal,
     status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
     primaryChatId: linkContext.primaryChatId,
@@ -3899,12 +3902,10 @@ function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
     short_id: plan.shortId,
     slug: plan.slug || null,
     title: plan.title,
-    summary: plan.summary,
     goal: plan.goal,
     scope_in: plan.scopeIn,
     scope_out: plan.scopeOut,
     user_flows: plan.userFlows,
-    current_focus: plan.currentFocus,
     assumptions: plan.assumptions,
     open_questions: plan.openQuestions,
     constraints: plan.constraints,
@@ -3915,9 +3916,6 @@ function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
     status: plan.status,
     primary_chat_id: plan.primaryChatId,
     linked_project_ids: plan.linkedProjectIds,
-    current_phase_id: plan.currentPhaseId,
-    current_step_id: plan.currentStepId,
-    current_task_id: plan.currentTaskId,
     planner_focus_id: plan.plannerFocusId,
     version: plan.version,
     created_at: plan.createdAt,

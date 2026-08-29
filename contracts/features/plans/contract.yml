@@ -40,9 +40,6 @@ models:
       type: chat_id
       nullable: true
       constraints: {required_for_active_or_executable: true}
-    current_task_id:
-      type: stable_id
-      nullable: true
     linked_project_hashes:
       type: hashed_id_list
       nullable: true
@@ -54,16 +51,16 @@ models:
       constraints: {plaintext: forbidden}
     encrypted_goal:
       type: encrypted_string
-      nullable: true
+      required: true
       constraints: {plaintext: forbidden}
     encrypted_scope_in:
       type: encrypted_string
       nullable: true
       constraints: {plaintext: forbidden}
-    encrypted_current_focus:
-      type: encrypted_string
+    encrypted_user_flows:
+      type: encrypted_json_array
       nullable: true
-      constraints: {plaintext: forbidden}
+      constraints: {flow_shape: "flow_id,title,actor?,steps[step_id,text,references?],expected_outcome,linked_task_ids?,linked_criterion_ids?", plaintext: forbidden}
     encrypted_open_questions:
       type: encrypted_string
       nullable: true
@@ -260,6 +257,18 @@ assertions:
       to a visible blocked/work loop; verification task, AI-evaluator, run,
       artifact, and learning-task provenance stays explicit.
     depends_on: [models.PlanCriterion, models.PlanVerification, models.PlanVerificationRun, models.PlanLearning, examples.plan_completion_gates]
+  - id: plans.dependencies.done-only
+    type: invariant
+    must: Mixed Plan/Task blocked_by edges are owner- and shared-Project-scoped, reject self, duplicate, and cyclic edges, and satisfy only when their target is done or completed.
+    depends_on: [models.PlanRecord]
+  - id: plans.assumptions.investigated-before-work
+    type: security
+    must: Confirmed or corrected required assumptions include encrypted typed source/evidence proofs before dependent work can proceed.
+    depends_on: [models.PlanPrivateContent]
+  - id: plans.approval.human-web-revision-bound
+    type: security
+    must: Immutable encrypted Plan revisions are approved only through an authenticated trusted browser session, and material edits invalidate approval.
+    depends_on: [models.PlanRecord]
   - id: plans.active-context.vault-boundary
     type: privacy
     must: >

@@ -232,7 +232,7 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.plans.attach()` | `om.plans.attach()` | `id, chat_id` | `id, chat_id` | `object` |
 | `om.plans.complete()` | `om.plans.complete()` | `id` | `id` | `object` |
 | `om.plans.create()` | `om.plans.create()` | `input` | `input` | `object` |
-| `om.plans.createAssumption()` | `om.plans.create_assumption()` | `id, assumption_id, text, category, status, required_before, linked_sub_chat_id, linked_task_id, linked_step_ids, linked_criterion_ids, source_count, corrected_text, evidence_summary, blocker_reason, waiver_reason, sources, proof_inputs` | `id, input` | `object` |
+| `om.plans.createAssumption()` | `om.plans.create_assumption()` | `id, assumption_id, text, category, status, required_before, linked_sub_chat_id, linked_task_id, linked_criterion_ids, source_count, corrected_text, evidence_summary, blocker_reason, waiver_reason, sources, proof_inputs` | `id, input` | `object` |
 | `om.plans.createCriterion()` | `om.plans.create_criterion()` | `id, input` | `id, input` | `object` |
 | `om.plans.createLearning()` | `om.plans.create_learning()` | `id, input` | `id, input` | `object` |
 | `om.plans.createLearningTasks()` | `om.plans.create_learning_tasks()` | `id, input` | `id, input` | `object` |

@@ -41,7 +41,6 @@ export async function projectPlanAssumption(plan: DecryptedUserPlan, masterKey: 
     required_before: assumption.required_before ?? null,
     linked_sub_chat_id: assumption.linked_sub_chat_id ?? null,
     linked_task_id: assumption.linked_task_id ?? null,
-    linked_step_ids: assumption.linked_step_ids ?? [],
     linked_criterion_ids: assumption.linked_criterion_ids ?? [],
     corrected_text: await decrypt(assumption.encrypted_corrected_text),
     evidence_summary: await decrypt(assumption.encrypted_evidence_summary),

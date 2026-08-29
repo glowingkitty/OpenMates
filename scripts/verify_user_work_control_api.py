@@ -54,7 +54,7 @@ def timestamp() -> int:
 
 def plan_payload(plan_id: str, project_id: str) -> dict[str, Any]:
     now = timestamp()
-    return {"plan_id": plan_id, "encrypted_title": opaque(), "encrypted_plan_key": opaque(), "linked_project_ids": [project_id], "status": "draft", "created_at": now, "updated_at": now, "key_wrappers": []}
+    return {"plan_id": plan_id, "encrypted_title": opaque(), "encrypted_goal": opaque(), "linked_project_ids": [project_id], "status": "draft", "created_at": now, "updated_at": now, "key_wrappers": [{"key_type": "master", "encrypted_plan_key": opaque(), "created_at": now}]}
 
 
 def task_payload(task_id: str, plan_id: str, project_id: str) -> dict[str, Any]:

@@ -100,6 +100,7 @@ import {
   type PlanVerificationUpdateOptions,
   type PlanCreateOptions,
   type PlanUpdateOptions,
+  type UserPlanFlow,
 } from "./plansCli.js";
 import {
   buildEncryptedObjectSlugMetadata,
@@ -1611,7 +1612,6 @@ async function toPublicPlanCriterion(record: UserPlanCriterionRecord, planKey: U
     type: record.type,
     status: record.status,
     required: record.required,
-    linkedStepIds: record.linked_step_ids ?? [],
     linkedTaskIds: record.linked_task_ids ?? [],
     verificationIds: record.verification_ids ?? [],
     createdAt: typeof record.created_at === "number" ? record.created_at : null,
@@ -1628,7 +1628,6 @@ async function toPublicPlanAssumption(record: UserPlanAssumptionRecord, planKey:
     requiredBefore: record.required_before,
     linkedSubChatId: record.linked_sub_chat_id ?? null,
     linkedTaskId: record.linked_task_id ?? null,
-    linkedStepIds: record.linked_step_ids ?? [],
     linkedCriterionIds: record.linked_criterion_ids ?? [],
     sourceCount: record.source_count,
     correctedText: await decryptOptionalPlanField(record.encrypted_corrected_text, planKey),
@@ -1705,7 +1704,6 @@ async function buildPlanAssumptionCreateInput(plan: DecryptedUserPlan, masterKey
     required_before: input.requiredBefore,
     linked_sub_chat_id: input.linkedSubChatId,
     linked_task_id: input.linkedTaskId,
-    linked_step_ids: input.linkedStepIds,
     linked_criterion_ids: input.linkedCriterionIds,
     source_count: input.sourceCount,
     encrypted_corrected_text: input.correctedText !== undefined ? await encryptWithAesGcmCombined(input.correctedText, planKey) : undefined,
@@ -3874,7 +3872,6 @@ export interface PlanAssumptionCreateOptions {
   requiredBefore?: string;
   linkedSubChatId?: string | null;
   linkedTaskId?: string | null;
-  linkedStepIds?: string[];
   linkedCriterionIds?: string[];
   sourceCount?: number;
   correctedText?: string;
@@ -3887,7 +3884,7 @@ export interface PlanAssumptionCreateOptions {
 
 export type WorkDependencyTarget = { kind: "plan" | "task"; id: string };
 export type PlanAssumptionProofInput =
-  | { kind: "embed"; embedId: string }
+  | { kind: "embed"; embedId: string; startLine?: number; endLine?: number }
   | { kind: "file"; path: string; startLine?: number; endLine?: number }
   | { kind: "url"; url: string };
 
@@ -3946,7 +3943,6 @@ export type PlanLearningRecord = Omit<DecryptedPlanLearning, "encrypted">;
 export class OpenMatesPlans {
   private readonly client: OpenMates;
   readonly goal: { set: (planId: string, value: string) => Promise<PlanRecord> };
-  readonly currentFocus: { set: (planId: string, value: string) => Promise<PlanRecord>; clear: (planId: string) => Promise<PlanRecord> };
   readonly successCriteria: {
     add: (planId: string, input: PlanCriterionCreateOptions) => Promise<PlanCriterionRecord>;
     update: (planId: string, criterionId: string, input: PlanCriterionUpdateOptions) => Promise<PlanCriterionRecord>;
@@ -3958,7 +3954,10 @@ export class OpenMatesPlans {
     update: (planId: string, taskId: string, input: TaskUpdateOptions) => Promise<Record<string, unknown>>;
     remove: (planId: string, taskId: string) => Promise<Record<string, unknown>>;
   };
-  readonly userFlows: PlanTextSectionFacade;
+  readonly userFlows: {
+    set: (planId: string, value: UserPlanFlow[]) => Promise<PlanRecord>;
+    clear: (planId: string) => Promise<PlanRecord>;
+  };
   readonly scopeIn: PlanTextSectionFacade;
   readonly scopeOut: PlanTextSectionFacade;
   readonly openQuestions: PlanTextSectionFacade & {
@@ -4008,10 +4007,6 @@ export class OpenMatesPlans {
   constructor(client: OpenMates) {
     this.client = client;
     this.goal = { set: (planId, value) => this.update(planId, { goal: value }) };
-    this.currentFocus = {
-      set: (planId, value) => this.update(planId, { currentFocus: value }),
-      clear: (planId) => this.update(planId, { currentFocus: "" }),
-    };
     this.successCriteria = {
       add: (planId, input) => this.createCriterion(planId, input),
       update: (planId, criterionId, input) => this.updateCriterion(planId, criterionId, input),
@@ -4023,7 +4018,10 @@ export class OpenMatesPlans {
       update: async (planId, taskId, input) => this.client.tasks.update(taskId, input, { planId }),
       remove: async (planId, taskId) => this.client.tasks.delete(taskId, { confirmed: true, filters: { planId } }),
     };
-    this.userFlows = this.textSectionFacade("userFlows");
+    this.userFlows = {
+      set: (planId, value) => this.update(planId, { userFlows: value }),
+      clear: (planId) => this.update(planId, { userFlows: [] }),
+    };
     this.scopeIn = this.textSectionFacade("scopeIn");
     this.scopeOut = this.textSectionFacade("scopeOut");
     this.openQuestions = {
@@ -4198,7 +4196,7 @@ export class OpenMatesPlans {
       : undefined;
     const response = await this.client.request<Record<string, unknown>>("/v1/user-plans/ask", {
       instruction,
-      ...(options.create || plannedCreate ? { encrypted_create: await buildCreateUserPlanInput(masterKey, options.create ?? plannedCreate ?? { title: instruction }) } : {}),
+      ...(options.create || plannedCreate ? { encrypted_create: await buildCreateUserPlanInput(masterKey, options.create ?? plannedCreate ?? { title: instruction, goal: instruction }) } : {}),
       ...(options.update ? await this.buildAskUpdate(options.update, masterKey) : {}),
       ...(encryptedUpdates ? { encrypted_updates: encryptedUpdates } : {}),
     });
@@ -4344,7 +4342,6 @@ export class OpenMatesPlans {
     const payload: Partial<UserPlanCriterionRecord> = { updated_at: Math.floor(Date.now() / 1000) };
     if (input.status !== undefined) payload.status = input.status as UserPlanCriterionRecord["status"];
     if (input.required !== undefined) payload.required = input.required;
-    if (input.linkedStepIds !== undefined) payload.linked_step_ids = input.linkedStepIds;
     if (input.linkedTaskIds !== undefined) payload.linked_task_ids = input.linkedTaskIds;
     if (input.verificationIds !== undefined) payload.verification_ids = input.verificationIds;
     if (input.evidence !== undefined) (payload as Record<string, unknown>).encrypted_evidence = await encryptWithAesGcmCombined(input.evidence, planKey);

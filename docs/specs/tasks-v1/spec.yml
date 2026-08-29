@@ -813,7 +813,6 @@ contracts:
           - label_hashes
           - parent_task_id
           - plan_id
-          - plan_step_id
           - task_type
           - verification_id
           - due_at
@@ -1017,7 +1016,7 @@ contracts:
       - Internal continuation renders to users as a system/activity entry such as OpenMates continued to the next task, not as a fake user-authored message.
       - A blocked task pauses the chat queue until explicit user or assistant action resolves, skips, completes, or requeues it.
       - Priority and capacity are evaluated only for the current user-ordered head of each chat or Plan execution lane.
-      - Plan-linked Tasks are eligible only when their task_id matches the Plan's server-visible current_task_id; the generic Task allocator does not infer Plan dependencies.
+      - Plan-linked Tasks are eligible only when they are the first user-ordered open Task in the Plan lane, all normalized dependencies are done, and the Plan's approval and assumption gates pass.
       - Completion, block, skip, cancellation, or failure triggers scope admission, and a periodic sweep repairs missed admission events after restart.
   websocket:
     - event: user_task_updated
@@ -1209,7 +1208,7 @@ tests:
       - self-host environment values configure personal and Team normal and urgent-reserve capacities and invalid values fail visibly.
       - Workflow runs and projections are never queried or counted by user Task admission.
       - only one user-ordered head per chat or Plan lane is eligible, and urgent Tasks cannot skip predecessors.
-      - Plan-linked Tasks require matching Plan current_task_id before admission.
+      - Plan-linked Tasks require lane-head position, completed normalized dependencies, and passing Plan approval and assumption gates before admission.
       - completing, blocking, skipping, cancelling, or failing an active Task automatically admits waiting eligible work under a scope lock.
       - a recovery sweep admits eligible waiting Tasks after missed callbacks or restart.
       - queued dispatches that exceed the worker lease are blocked and free capacity, while delayed workers must win the queued-to-running fence before inference.

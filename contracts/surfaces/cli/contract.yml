@@ -89,6 +89,18 @@ assertions:
     type: parity
     must: CLI slug generation, lookup-hash privacy, local resolution, ambiguity errors, id transport, destructive confirmations, and JSON/human output boundaries preserve the object contracts for Workflows, Projects, Plans, Tasks, and Chats without weakening encrypted-content or owner/team scoping semantics.
     depends_on: [models, examples, surfaces]
+  - id: cli.work-structure.complete
+    type: parity
+    must: CLI Plan and Task commands expose the same dependency, assumption-evidence, revision, and lifecycle structure as the first-party REST and SDK surfaces without creating a second planning model.
+    depends_on: [surfaces]
+  - id: cli.plan-approval.web-only
+    type: security
+    must: The CLI may submit and inspect encrypted Plan revisions but cannot approve them; approval remains bound to an authenticated trusted browser session.
+    depends_on: [surfaces]
+  - id: cli.recovery.yaml-explicit
+    type: behavior
+    must: Project-scoped Plan and Task recovery YAML is written only by an explicit CLI command or configured external recovery root, contains decrypted typed work data without ciphertext fields, and requires validation plus explicit confirmation before restore.
+    depends_on: [surfaces]
 
 surfaces:
   rest_api:

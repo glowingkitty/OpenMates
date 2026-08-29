@@ -49,7 +49,7 @@ async def test_process_due_ai_tasks_starts_due_rows() -> None:
     directus = SimpleNamespace()
     directus.cache = FakeCache()
     task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "ai", "version": 2}
-    directus.get_items = AsyncMock(side_effect=[[task], [], [], [task]])
+    directus.get_items = AsyncMock(side_effect=[[task], [], [], [task], []])
     directus.update_item_if_version = AsyncMock(return_value={"id": "row-1", "status": "in_progress"})
 
     result = await process_due_ai_tasks(UserTaskMethods(directus), now=200)
@@ -103,7 +103,7 @@ async def test_process_due_ai_tasks_skips_rows_without_version() -> None:
     directus = SimpleNamespace()
     directus.cache = FakeCache()
     task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1")}
-    directus.get_items = AsyncMock(side_effect=[[task], [], [], [task]])
+    directus.get_items = AsyncMock(side_effect=[[task], [], [], [task], []])
     directus.update_item_if_version = AsyncMock()
 
     result = await process_due_ai_tasks(UserTaskMethods(directus), now=200)
@@ -117,7 +117,7 @@ async def test_process_due_ai_tasks_skips_rows_without_version() -> None:
 async def test_scheduler_reconciles_waiting_todo_scope_without_due_task() -> None:
     task = {"id": "row-1", "task_id": "task-1", "hashed_user_id": hash_id("user-1"), "status": "todo", "assignee_type": "ai", "version": 2}
     directus = SimpleNamespace(cache=FakeCache())
-    directus.get_items = AsyncMock(side_effect=[[], [task], [], [task]])
+    directus.get_items = AsyncMock(side_effect=[[], [task], [], [task], []])
     directus.update_item_if_version = AsyncMock(return_value={**task, "status": "in_progress", "version": 3})
 
     result = await process_due_ai_tasks(UserTaskMethods(directus), now=200)
@@ -157,7 +157,7 @@ async def test_scheduler_fails_stale_queued_task_before_refill() -> None:
         "version": 1,
     }
     directus = SimpleNamespace(cache=FakeCache())
-    directus.get_items = AsyncMock(side_effect=[[], [], [stale], [released, next_task]])
+    directus.get_items = AsyncMock(side_effect=[[], [], [stale], [released, next_task], []])
     directus.update_item_if_version = AsyncMock(
         side_effect=[released, {**next_task, "status": "in_progress", "queue_state": "active", "ai_execution_state": "queued", "version": 2}]
     )

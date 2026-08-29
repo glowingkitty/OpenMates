@@ -68,16 +68,13 @@ class PlanVerificationTaskKeyWrapperRequest(BaseModel):
 
 class UserPlanCreateRequest(BaseModel):
     plan_id: str = Field(min_length=1)
-    encrypted_plan_key: str | None = None
     encrypted_title: str = Field(min_length=1)
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
-    encrypted_summary: str | None = None
-    encrypted_goal: str | None = None
+    encrypted_goal: str = Field(min_length=1)
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
     encrypted_user_flows: str | None = None
-    encrypted_current_focus: str | None = None
     encrypted_linked_project_ids: str | None = None
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
@@ -90,27 +87,21 @@ class UserPlanCreateRequest(BaseModel):
     status: PlanStatus = "draft"
     primary_chat_id: str | None = None
     linked_project_ids: list[str] = Field(default_factory=list)
-    current_phase_id: str | None = None
-    current_step_id: str | None = None
-    current_task_id: str | None = None
     continuation_state: str | None = None
     planner_focus_id: str | None = None
     created_at: int
     updated_at: int
-    key_wrappers: list[UserPlanKeyWrapperRequest] = Field(default_factory=list)
+    key_wrappers: list[UserPlanKeyWrapperRequest] = Field(min_length=1)
 
 
 class UserPlanUpdateRequest(BaseModel):
-    encrypted_plan_key: str | None = None
     encrypted_title: str | None = None
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
-    encrypted_summary: str | None = None
     encrypted_goal: str | None = None
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
     encrypted_user_flows: str | None = None
-    encrypted_current_focus: str | None = None
     encrypted_linked_project_ids: str | None = None
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
@@ -123,9 +114,6 @@ class UserPlanUpdateRequest(BaseModel):
     status: PlanStatus | None = None
     primary_chat_id: str | None = None
     linked_project_ids: list[str] | None = None
-    current_phase_id: str | None = None
-    current_step_id: str | None = None
-    current_task_id: str | None = None
     continuation_state: str | None = None
     planner_focus_id: str | None = None
     updated_at: int | None = None
@@ -143,8 +131,6 @@ class UserPlanMoveRequest(BaseModel):
 
 class PlanActivationRequest(BaseModel):
     chat_id: str | None = None
-    current_step_id: str | None = None
-    current_task_id: str | None = None
     updated_at: int | None = None
     version: int | None = None
     key_wrappers: list[UserPlanKeyWrapperRequest] | None = None
@@ -162,7 +148,6 @@ class PlanCriterionRequest(BaseModel):
     type: str = "functional"
     status: CriterionStatus = "pending"
     required: bool = True
-    linked_step_ids: list[str] = Field(default_factory=list)
     linked_task_ids: list[str] = Field(default_factory=list)
     verification_ids: list[str] = Field(default_factory=list)
     coverage_status: str = "uncovered"
@@ -214,7 +199,6 @@ class PlanVerificationRequest(BaseModel):
     encrypted_red_phase_reason: str | None = None
     primary_chat_id: str | None = None
     linked_project_ids: list[str] = Field(default_factory=list)
-    plan_step_id: str | None = None
     assignee_type: str = "user"
     created_at: int
     updated_at: int | None = None
@@ -273,7 +257,6 @@ class PlanAssumptionRequest(BaseModel):
     required_before: str = "implementation"
     linked_sub_chat_id: str | None = None
     linked_task_id: str | None = None
-    linked_step_ids: list[str] = Field(default_factory=list)
     linked_criterion_ids: list[str] = Field(default_factory=list)
     source_count: int = 0
     encrypted_corrected_text: str | None = None
@@ -1276,7 +1259,7 @@ async def update_plan_assumption(
             raise ValueError("Plan assumption not found")
         validate_assumption_resolution_evidence({**existing, **patch})
         assumption = await service.update_assumption(plan_id, current_user.id, assumption_id, patch)
-        material_fields = {"required_before", "linked_sub_chat_id", "linked_task_id"}
+        material_fields = set(patch) - {"updated_at"}
         if material_fields & set(patch):
             plan = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
             return {"assumption": assumption, "plan": plan}

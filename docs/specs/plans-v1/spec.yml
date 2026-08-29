@@ -789,7 +789,6 @@ contracts:
       purpose: Lightweight /goal-compatible plan shape for users who want a persistent objective without a full visible spec-style plan.
       required_user_visible_sections:
         - goal
-        - current_focus
         - checks_or_success_criteria_when_needed
       required_system_fields:
         - plan_id
@@ -1087,8 +1086,6 @@ contracts:
           - plans.create(input)
           - plans.update(planId, input)
           - plans.goal.set(planId, input)
-          - plans.currentFocus.set(planId, input)
-          - plans.currentFocus.clear(planId)
           - plans.attach(planId, input)
           - plans.start(planId, input?)
           - plans.resume(planId, input?)
@@ -1152,8 +1149,6 @@ contracts:
           - plans.create(input)
           - plans.update(plan_id, input)
           - plans.goal.set(plan_id, input)
-          - plans.current_focus.set(plan_id, input)
-          - plans.current_focus.clear(plan_id)
           - plans.attach(plan_id, input)
           - plans.start(plan_id, input=None)
           - plans.resume(plan_id, input=None)
@@ -1231,7 +1226,7 @@ contracts:
         - Supports chat and project plan management surfaces.
     - route: POST /v1/user-plans
       auth: session_or_api_key
-      request: "{ plan_id, encrypted_plan_key, encrypted_title, encrypted_goal, encrypted_scope?, encrypted_user_flows?, primary_chat_id?, linked_project_ids?, status?, planner_focus_id?, key_wrappers?, created_at, updated_at }"
+      request: "{ plan_id, encrypted_title, encrypted_goal, encrypted_scope?, encrypted_user_flows?, primary_chat_id?, linked_project_ids?, status?, planner_focus_id?, key_wrappers, created_at, updated_at }"
       response: "{ plan: PlanRecord }"
       notes:
         - Creates draft or active durable plans from @plan, natural-language planning, or explicit user actions.
@@ -1248,7 +1243,7 @@ contracts:
         - Project/chat relinks update linked_project_hashes, encrypted_linked_project_ids, and replacement key wrappers together so access contexts do not drift.
     - route: POST /v1/user-plans/{plan_id}/activate
       auth: session_or_api_key
-      request: "{ chat_id?, current_step_id?, version? }"
+      request: "{ chat_id?, version? }"
       response: "{ plan: PlanRecord }"
       notes:
         - Low-level endpoint that sets the active plan for a chat or project context.
@@ -1265,7 +1260,7 @@ contracts:
         - Assistant-driven chat completion must resolve missing-learning blockers by recording concise learnings before retrying completion.
     - route: POST /v1/user-plans/{plan_id}/criteria
       auth: session_or_api_key
-      request: "{ criterion_id, encrypted_text, type, required, linked_step_ids?, linked_task_ids?, created_at }"
+      request: "{ criterion_id, encrypted_text, type, required, linked_task_ids?, created_at }"
       response: "{ criterion: AcceptanceCriterionRecord }"
     - route: PATCH /v1/user-plans/{plan_id}/criteria/{criterion_id}
       auth: session_or_api_key
@@ -1365,9 +1360,6 @@ contracts:
           - primary_chat_id
           - hashed_primary_chat_id
           - linked_project_hashes
-          - current_phase_id
-          - current_step_id
-          - current_task_id
           - continuation_state: idle|scheduled|paused|blocked|budget_limited
           - approval_state: draft|approved|rejected|autoconfirmed
           - planner_focus_id
@@ -1376,14 +1368,11 @@ contracts:
           - updated_at
           - completed_at
         encrypted_fields:
-          - encrypted_plan_key
           - encrypted_title
-          - encrypted_summary
           - encrypted_goal
           - encrypted_scope_in
           - encrypted_scope_out
           - encrypted_user_flows
-          - encrypted_current_focus
           - encrypted_linked_project_ids
           - encrypted_assumptions
           - encrypted_open_questions
@@ -1395,13 +1384,12 @@ contracts:
           - encrypted_continuation_policy
         notes:
           - primary_chat_id is optional only for draft/manual plans. Activation, assumption sub-chats, execution, continuation, and completion workflows require a primary chat.
-          - current_focus is encrypted user-facing text; server-visible current_phase_id/current_step_id/current_task_id are routing pointers only.
+          - encrypted_goal is the required authoritative Plan outcome; execution ordering is derived from linked Tasks.
           - continuation_state is server-visible so workers can safely continue or pause active work without decrypting plan content.
           - approval_state prevents accidental execution of unapproved plans; autoconfirmed is valid only for explicit CLI/autonomous requests that pass safety gates.
       - name: user_plan_key_wrappers
         purpose: Per-plan key grants for owner, chat, and project access.
         encrypted_fields:
-          - encrypted_plan_key
         server_visible_fields:
           - id
           - hashed_plan_id
@@ -1456,7 +1444,6 @@ contracts:
           - required_before: implementation|task_execution|completion|never
           - linked_sub_chat_id
           - linked_task_id
-          - linked_step_ids
           - linked_criterion_ids
           - source_count
           - version
@@ -1532,25 +1519,6 @@ contracts:
           - Each finalized actionable learning has exactly one encrypted task draft; if one observation needs several tasks, split it into separate learnings or choose the highest-value first task.
           - Task drafts remain drafts until create-tasks materializes them as normal user_tasks records.
           - Learning text, suggested changes, evidence summaries, and task draft titles/descriptions are private plan content and must remain client-encrypted.
-      - name: user_plan_steps
-        purpose: Optional ordered phases/grouping steps inside a plan. User-facing work items remain linked user_tasks.
-        server_visible_fields:
-          - id
-          - plan_id
-          - step_id
-          - parent_step_id
-          - status: pending|active|blocked|done|skipped
-          - position
-          - linked_task_ids
-          - version
-          - created_at
-          - updated_at
-        encrypted_fields:
-          - encrypted_title
-          - encrypted_description
-          - encrypted_notes
-        notes:
-          - Steps are grouping/navigation structure only. They must not replace linked user_tasks for executable work.
       - name: plan_user_flows_payload
         purpose: Optional encrypted JSON array stored in encrypted_user_flows that describes user-facing flows the completed plan must support.
         encrypted_shape:
@@ -1576,7 +1544,6 @@ contracts:
           - type: functional|quality|safety|privacy|performance|research|content|manual
           - status: pending|satisfied|failed|waived
           - required
-          - linked_step_ids
           - linked_task_ids
           - verification_ids
           - coverage_status: uncovered|covered|ambiguous|blocked|waived
@@ -1783,7 +1750,7 @@ contracts:
         - errored
     task_extensions:
       - user_tasks gains plan_id for linked plan membership.
-      - user_tasks gains plan_step_id for current step traceability.
+      - user_tasks links directly to plan_id; task ordering derives the active lane without Plan step or current-task pointers.
       - user_tasks gains task_type with values work|verification.
       - user_tasks gains verification_id when task_type is verification.
   websocket:
@@ -1794,7 +1761,7 @@ contracts:
         - Client refreshes active plan surfaces for the chat and linked projects.
     - event: plan_activated
       direction: server_to_client
-      payload: "{ plan_id, chat_id?, project_id?, current_step_id?, current_task_id? }"
+      payload: "{ plan_id, chat_id?, project_id? }"
       behavior:
         - Client updates chat header and Tasks tab active Plan section.
     - event: active_plan_task_changed
@@ -1814,7 +1781,7 @@ contracts:
         - Plan UI updates the assumption card state, evidence count, progress bar, and open-chat action.
     - event: plan_phase_changed
       direction: server_to_client
-      payload: "{ plan_id, phase, status, progress_percent?, current_task_id?, blocker_count? }"
+      payload: "{ plan_id, phase, status, progress_percent?, blocker_count? }"
       behavior:
         - Chat header and plan cards show checking assumptions, working on tasks, running checks, blocked, or complete status.
     - event: plan_drift_detected
@@ -2616,7 +2583,7 @@ implementation_plan:
     - path: backend/core/directus/schemas/user_plans.yml
       reason: Durable plan, step, criterion, verification, activity, and artifact collections.
     - path: backend/core/directus/schemas/user_tasks.yml
-      reason: Add plan_id, plan_step_id, task_type, verification_id, and source learning provenance fields.
+      reason: Add plan_id, task_type, verification_id, and source learning provenance fields.
     - path: backend/core/api/app/routes/user_plans.py
       reason: User-facing /v1/user-plans API.
     - path: backend/core/api/app/services/user_plan_service.py

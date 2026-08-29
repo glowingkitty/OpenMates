@@ -16,7 +16,6 @@ from backend.core.api.app.services.user_plan_service import UserPlanConflictErro
 def plan_payload(**overrides):
     base = {
         "plan_id": "plan-1",
-        "encrypted_plan_key": "cipher-plan-key",
         "encrypted_title": "cipher-title",
         "encrypted_goal": "cipher-goal",
         "encrypted_scope_in": "cipher-scope-in",
@@ -27,6 +26,11 @@ def plan_payload(**overrides):
         "planner_focus_id": "openmates-plan",
         "created_at": 100,
         "updated_at": 100,
+        "key_wrappers": [
+            {"key_type": "master", "encrypted_plan_key": "cipher-master", "created_at": 100},
+            {"key_type": "chat", "hashed_chat_id": hash_id("chat-1"), "encrypted_plan_key": "cipher-chat", "created_at": 100},
+            {"key_type": "project", "hashed_project_id": hash_id("project-1"), "encrypted_plan_key": "cipher-project", "created_at": 100},
+        ],
     }
     base.update(overrides)
     return base
@@ -77,6 +81,7 @@ def learning_payload(**overrides):
     return base
 
 
+# contract-test: supporting surface=rest_api assertions=plans.content.client-encrypted,plans.project-links.encrypted
 @pytest.mark.asyncio
 async def test_create_plan_hashes_owner_and_projects_without_plaintext_content() -> None:
     directus = SimpleNamespace()
@@ -86,7 +91,7 @@ async def test_create_plan_hashes_owner_and_projects_without_plaintext_content()
     created = await methods.create_plan("user-1", plan_payload())
 
     assert created is not None
-    collection, record = directus.create_item.await_args.args
+    collection, record = directus.create_item.await_args_list[0].args
     assert collection == "user_plans"
     assert record["hashed_user_id"] == hash_id("user-1")
     assert record["hashed_primary_chat_id"] == hash_id("chat-1")
@@ -94,11 +99,12 @@ async def test_create_plan_hashes_owner_and_projects_without_plaintext_content()
     assert record["linked_project_hashes"] == [hash_id("project-1")]
     assert record["encrypted_linked_project_ids"] == "cipher-linked-project-ids"
     assert record["encrypted_title"] == "cipher-title"
-    assert record["encrypted_plan_key"] == "cipher-plan-key"
+    assert "encrypted_plan_key" not in record
     assert "title" not in record
     assert "goal" not in record
 
 
+# contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_create_plan_persists_key_wrappers_separately() -> None:
     directus = SimpleNamespace()
@@ -131,6 +137,30 @@ async def test_create_plan_persists_key_wrappers_separately() -> None:
     assert wrapper_record["key_type"] == "master"
 
 
+# contract-test: direct surface=rest_api assertions=plans.content.client-encrypted,plans.key-wrappers.contextual
+@pytest.mark.asyncio
+async def test_create_plan_requires_a_complete_key_wrapper_set() -> None:
+    directus = SimpleNamespace(create_item=AsyncMock())
+
+    created = await UserPlanMethods(directus).create_plan("user-1", plan_payload(key_wrappers=[]))
+
+    assert created is None
+    directus.create_item.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=plans.content.client-encrypted,plans.key-wrappers.contextual
+@pytest.mark.asyncio
+async def test_list_plans_hydrates_key_wrappers_for_client_decryption() -> None:
+    plan = {key: value for key, value in plan_payload().items() if key != "key_wrappers"}
+    wrappers = [{"key_type": "master", "encrypted_plan_key": "cipher-master"}]
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=[[plan], wrappers]))
+
+    plans = await UserPlanMethods(directus).list_plans("user-1")
+
+    assert plans[0]["key_wrappers"] == wrappers
+
+
+# contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted
 @pytest.mark.asyncio
 async def test_list_plans_filters_by_chat_and_project_hashes() -> None:
     directus = SimpleNamespace()
@@ -146,6 +176,7 @@ async def test_list_plans_filters_by_chat_and_project_hashes() -> None:
     assert params["filter[status][_eq]"] == "active"
 
 
+# contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_create_plan_rolls_back_row_and_wrappers_when_wrapper_write_fails() -> None:
     directus = SimpleNamespace()
@@ -173,6 +204,7 @@ async def test_create_plan_rolls_back_row_and_wrappers_when_wrapper_write_fails(
     assert directus.delete_item.await_args_list[1].args == ("user_plans", "plan-row")
 
 
+# contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_create_plan_rejects_raw_project_id_in_key_wrapper_hash_field() -> None:
     directus = SimpleNamespace()
@@ -196,6 +228,7 @@ async def test_create_plan_rejects_raw_project_id_in_key_wrapper_hash_field() ->
     directus.delete_item.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappers() -> None:
     directus = SimpleNamespace()
@@ -214,6 +247,7 @@ async def test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappe
     directus.delete_item.assert_awaited_once_with("user_plan_key_wrappers", "old-wrapper")
 
 
+# contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible
 @pytest.mark.asyncio
 async def test_update_rejects_stale_plan_version() -> None:
     directus = SimpleNamespace()
@@ -228,6 +262,7 @@ async def test_update_rejects_stale_plan_version() -> None:
     directus.update_item.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual,plans.project-links.encrypted
 @pytest.mark.asyncio
 async def test_update_plan_replaces_wrappers_with_project_hash_update() -> None:
     existing = {"id": "plan-row", "version": 2, "plan_id": "plan-1"}
@@ -252,7 +287,7 @@ async def test_update_plan_replaces_wrappers_with_project_hash_update() -> None:
         },
     )
 
-    assert updated == {"id": "plan-row", "version": 3}
+    assert updated == {"id": "plan-row", "version": 3, "key_wrappers": [{"id": "new-wrapper", "key_type": "project"}, {"id": "new-wrapper", "key_type": "project"}]}
     _, _, patch = directus.update_item.await_args.args
     assert patch["linked_project_hashes"] == [hash_id("project-2")]
     assert patch["encrypted_linked_project_ids"] == "cipher-linked-project-ids-v2"
@@ -261,6 +296,7 @@ async def test_update_plan_replaces_wrappers_with_project_hash_update() -> None:
     directus.delete_item.assert_awaited_once_with("user_plan_key_wrappers", "old-wrapper")
 
 
+# contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_update_plan_fails_visibly_when_old_wrapper_delete_fails() -> None:
     existing = {"id": "plan-row", "version": 2, "plan_id": "plan-1"}
@@ -290,6 +326,7 @@ async def test_update_plan_fails_visibly_when_old_wrapper_delete_fails() -> None
     directus.delete_item.assert_awaited_once_with("user_plan_key_wrappers", "old-wrapper")
 
 
+# contract-test: supporting surface=rest_api assertions=plans.project-links.encrypted,plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_update_plan_rejects_project_relink_without_replacement_wrappers() -> None:
     existing = {"id": "plan-row", "version": 2, "plan_id": "plan-1"}
@@ -309,6 +346,7 @@ async def test_update_plan_rejects_project_relink_without_replacement_wrappers()
     directus.update_item.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=plans.project-links.encrypted,plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_update_plan_rejects_project_relink_with_empty_replacement_wrappers() -> None:
     existing = {"id": "plan-row", "version": 2, "plan_id": "plan-1"}
@@ -333,6 +371,7 @@ async def test_update_plan_rejects_project_relink_with_empty_replacement_wrapper
     directus.update_item.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=plans.execution.gates-evidence,plans.lifecycle.visible
 @pytest.mark.asyncio
 async def test_completion_blocks_missing_required_verification() -> None:
     directus = SimpleNamespace()
@@ -354,6 +393,7 @@ async def test_completion_blocks_missing_required_verification() -> None:
     directus.update_item.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=plans.execution.gates-evidence
 @pytest.mark.asyncio
 async def test_red_phase_passed_unexpectedly_does_not_block_completion() -> None:
     directus = SimpleNamespace()
@@ -375,6 +415,7 @@ async def test_red_phase_passed_unexpectedly_does_not_block_completion() -> None
     assert result["plan"]["status"] == "completed"
 
 
+# contract-test: supporting surface=rest_api assertions=plans.execution.gates-evidence,plans.key-wrappers.contextual
 @pytest.mark.asyncio
 async def test_create_verification_can_create_linked_verification_task() -> None:
     plan_methods = SimpleNamespace()

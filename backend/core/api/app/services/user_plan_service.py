@@ -287,7 +287,6 @@ class UserPlanService:
             task_payload = {
                 "task_id": str(uuid.uuid4()),
                 "version": 1,
-                "encrypted_task_key": plan.get("encrypted_plan_key"),
                 "key_wrappers": task_key_wrappers,
                 "encrypted_title": learning.get("encrypted_title"),
                 "encrypted_description": learning.get("encrypted_task_draft"),
@@ -331,7 +330,6 @@ class UserPlanService:
                 "primary_chat_id": payload.get("primary_chat_id"),
                 "linked_project_ids": payload.get("linked_project_ids", []),
                 "plan_id": plan_id,
-                "plan_step_id": payload.get("plan_step_id"),
                 "task_type": "verification",
                 "verification_id": payload.get("verification_id"),
                 "created_at": payload.get("created_at"),
@@ -347,7 +345,6 @@ class UserPlanService:
             "encrypted_title",
             "primary_chat_id",
             "linked_project_ids",
-            "plan_step_id",
             "assignee_type",
             "assigned_to",
         ):

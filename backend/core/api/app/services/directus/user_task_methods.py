@@ -28,7 +28,7 @@ class TaskLockBusyError(RuntimeError):
 USER_TASK_FIELDS = (
     "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_hash,"
     "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,label_hashes,parent_task_id,"
-    "plan_id,plan_step_id,task_type,verification_id,source_plan_id,source_learning_id,"
+    "plan_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
     "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
     "encrypted_slug,slug_lookup_hash,encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
@@ -38,7 +38,7 @@ USER_TASK_FIELDS = (
 USER_TASK_METADATA_FIELDS = "task_id,status,updated_at,version"
 USER_TASK_ADMISSION_FIELDS = (
     "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,primary_chat_id,"
-    "plan_id,plan_step_id,due_at,priority,position,version,created_at,updated_at,"
+    "plan_id,due_at,priority,position,version,created_at,updated_at,"
     "started_at,blocked_reason_code,queue_state,ai_execution_state"
 )
 
@@ -316,6 +316,26 @@ class UserTaskMethods:
             return _with_short_id(response[0])
         return None
 
+    async def admission_blockers(self, task: dict[str, Any], user_id: str, *, owner_hash: str | None = None) -> list[dict[str, str]]:
+        from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods
+        from backend.core.api.app.services.user_work_control_service import DirectusWorkControlRepository, UserWorkControlService
+
+        repository = DirectusWorkControlRepository(
+            user_id=user_id,
+            plan_methods=UserPlanMethods(self.directus_service),
+            task_methods=self,
+            directus_service=self.directus_service,
+            cache_service=None,
+            owner_hash=owner_hash,
+        )
+        service = UserWorkControlService(repository)
+        task_id = str(task.get("task_id") or "")
+        blockers = await service.dependency_blockers(f"task:{task_id}")
+        plan_id = str(task.get("plan_id") or "")
+        if plan_id:
+            blockers.extend(await service.plan_execution_blockers(plan_id))
+        return blockers
+
     async def get_task_by_short_id(self, short_id: str, user_id: str, team_id: str | None = None) -> dict[str, Any] | None:
         matches: list[dict[str, Any]] = []
         for task in await self.list_tasks(user_id, team_id=team_id, limit=500):
@@ -444,19 +464,6 @@ class UserTaskMethods:
             if not next_cursor or next_cursor == task_id_cursor:
                 raise RuntimeError("User Task admission pagination did not advance")
             task_id_cursor = next_cursor
-
-    async def get_plan_for_hashed_admission(self, plan_id: str, scope: str, owner_hash: str) -> dict[str, Any] | None:
-        owner_field = "hashed_team_id" if scope == "team" else "hashed_user_id"
-        params: dict[str, Any] = {
-            "filter[plan_id][_eq]": plan_id,
-            f"filter[{owner_field}][_eq]": owner_hash,
-            "fields": "plan_id,current_task_id,status,continuation_state",
-            "limit": 1,
-        }
-        if scope == "personal":
-            params["filter[hashed_team_id][_null]"] = True
-        response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
-        return response[0] if response and isinstance(response, list) else None
 
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         key_wrappers = payload.pop("key_wrappers", []) or []

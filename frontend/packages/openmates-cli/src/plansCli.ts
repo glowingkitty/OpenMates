@@ -45,17 +45,57 @@ const LEARNING_LEVELS: UserPlanLearningLevel[] = ["low", "medium", "high"];
 const FINALIZED_LEARNING_STATUSES = new Set<UserPlanLearningStatus>(["proposed", "accepted", "applied"]);
 const DEFAULT_PLAN_PREFIX = "PLAN";
 
+export type UserPlanEvidenceReference =
+  | { kind: "embed"; embed_id: string; start_line?: number; end_line?: number }
+  | { kind: "file"; path: string; start_line?: number; end_line?: number }
+  | { kind: "url"; url: string };
+export interface UserPlanFlow {
+  flow_id: string;
+  title: string;
+  actor?: string;
+  steps: Array<{ step_id: string; text: string; references?: UserPlanEvidenceReference[] }>;
+  expected_outcome: string;
+  linked_task_ids?: string[];
+  linked_criterion_ids?: string[];
+}
+
+function validateUserFlows(value: UserPlanFlow[]): UserPlanFlow[] {
+  for (const flow of value) {
+    if (!flow.flow_id || !flow.title || !flow.expected_outcome || !Array.isArray(flow.steps) || flow.steps.some((step) => !step.step_id || !step.text)) {
+      throw new Error("Each user flow requires flow_id, title, ordered steps, and expected_outcome.");
+    }
+    for (const step of flow.steps) for (const reference of step.references ?? []) validateEvidenceReference(reference);
+  }
+  return value;
+}
+
+function validateEvidenceReference(reference: UserPlanEvidenceReference): void {
+  if (reference.kind === "url") {
+    if (new URL(reference.url).protocol !== "https:") throw new Error("Plan evidence URLs must use HTTPS.");
+    return;
+  }
+  if (reference.kind === "embed") {
+    if (!reference.embed_id.trim()) throw new Error("Plan evidence embed IDs must not be empty.");
+  } else if (!reference.path || reference.path.startsWith("/") || reference.path.split("/").includes("..")) {
+    throw new Error("Plan evidence file paths must be repository-relative.");
+  }
+  if (reference.start_line !== undefined && (!Number.isInteger(reference.start_line) || reference.start_line < 1)) {
+    throw new Error("Plan evidence start_line must be a positive integer.");
+  }
+  if (reference.end_line !== undefined && (!Number.isInteger(reference.end_line) || reference.end_line < (reference.start_line ?? 1))) {
+    throw new Error("Plan evidence end_line must be greater than or equal to start_line.");
+  }
+}
+
 export interface DecryptedUserPlan {
   planId: string;
   shortId: string;
   slug: string;
   title: string;
-  summary: string;
   goal: string;
   scopeIn: string;
   scopeOut: string;
-  userFlows: string;
-  currentFocus: string;
+  userFlows: UserPlanFlow[];
   assumptions: string;
   openQuestions: string;
   constraints: string;
@@ -66,9 +106,6 @@ export interface DecryptedUserPlan {
   status: UserPlanStatus;
   primaryChatId: string | null;
   linkedProjectIds: string[];
-  currentPhaseId: string | null;
-  currentStepId: string | null;
-  currentTaskId: string | null;
   plannerFocusId: string | null;
   version: number;
   createdAt: number;
@@ -104,12 +141,10 @@ export interface PlanCreateOptions {
   /** Stable ID is used only by validated local recovery restoration. */
   planId?: string;
   title: string;
-  summary?: string;
-  goal?: string;
+  goal: string;
   scopeIn?: string;
   scopeOut?: string;
-  userFlows?: string;
-  currentFocus?: string;
+  userFlows?: UserPlanFlow[];
   assumptions?: string;
   openQuestions?: string;
   constraints?: string;
@@ -122,21 +157,16 @@ export interface PlanCreateOptions {
   primaryChatKey?: Uint8Array | null;
   linkedProjectIds?: string[];
   linkedProjectKeys?: PlanProjectKey[];
-  currentPhaseId?: string | null;
-  currentStepId?: string | null;
-  currentTaskId?: string | null;
   plannerFocusId?: string | null;
   slug?: string;
 }
 
 export interface PlanUpdateOptions {
   title?: string;
-  summary?: string;
   goal?: string;
   scopeIn?: string;
   scopeOut?: string;
-  userFlows?: string;
-  currentFocus?: string;
+  userFlows?: UserPlanFlow[];
   assumptions?: string;
   openQuestions?: string;
   constraints?: string;
@@ -149,9 +179,6 @@ export interface PlanUpdateOptions {
   primaryChatKey?: Uint8Array | null;
   linkedProjectIds?: string[];
   linkedProjectKeys?: PlanProjectKey[];
-  currentPhaseId?: string | null;
-  currentStepId?: string | null;
-  currentTaskId?: string | null;
   plannerFocusId?: string | null;
   slug?: string;
 }
@@ -167,7 +194,6 @@ export interface PlanCriterionCreateOptions {
   type?: string;
   status?: string;
   required?: boolean;
-  linkedStepIds?: string[];
   linkedTaskIds?: string[];
   verificationIds?: string[];
 }
@@ -257,7 +283,7 @@ export interface PlanLearningUpdateOptions {
 }
 
 export type AssumptionProofInput =
-  | { kind: "embed"; embedId: string }
+  | { kind: "embed"; embedId: string; startLine?: number; endLine?: number }
   | { kind: "file"; path: string; startLine?: number; endLine?: number }
   | { kind: "url"; url: string };
 
@@ -266,7 +292,8 @@ export function serializeAssumptionProofInputs(inputs: AssumptionProofInput[]): 
   const normalized = inputs.map((input) => {
     if (input.kind === "embed") {
       if (!input.embedId.trim()) throw new Error("Assumption proof embed ID must not be empty.");
-      return { kind: input.kind, embed_id: input.embedId };
+      validateLineRange(input.startLine, input.endLine, "Assumption proof");
+      return { kind: input.kind, embed_id: input.embedId, ...(input.startLine !== undefined ? { start_line: input.startLine } : {}), ...(input.endLine !== undefined ? { end_line: input.endLine } : {}) };
     }
     if (input.kind === "url") {
       const url = new URL(input.url);
@@ -276,15 +303,15 @@ export function serializeAssumptionProofInputs(inputs: AssumptionProofInput[]): 
     if (!input.path || input.path.startsWith("/") || input.path.split("/").includes("..")) {
       throw new Error("Assumption proof file paths must be repository-relative.");
     }
-    if (input.startLine !== undefined && (!Number.isInteger(input.startLine) || input.startLine < 1)) {
-      throw new Error("Assumption proof startLine must be a positive integer.");
-    }
-    if (input.endLine !== undefined && (!Number.isInteger(input.endLine) || input.endLine < (input.startLine ?? 1))) {
-      throw new Error("Assumption proof endLine must be greater than or equal to startLine.");
-    }
+    validateLineRange(input.startLine, input.endLine, "Assumption proof");
     return { kind: input.kind, path: input.path, ...(input.startLine !== undefined ? { start_line: input.startLine } : {}), ...(input.endLine !== undefined ? { end_line: input.endLine } : {}) };
   });
   return JSON.stringify(normalized);
+}
+
+function validateLineRange(startLine: number | undefined, endLine: number | undefined, label: string): void {
+  if (startLine !== undefined && (!Number.isInteger(startLine) || startLine < 1)) throw new Error(`${label} startLine must be a positive integer.`);
+  if (endLine !== undefined && (!Number.isInteger(endLine) || endLine < (startLine ?? 1))) throw new Error(`${label} endLine must be greater than or equal to startLine.`);
 }
 
 export function normalizePlanStatus(value: string | undefined): UserPlanStatus | undefined {
@@ -319,7 +346,6 @@ export function normalizeLearningLevel(value: string | undefined): UserPlanLearn
 
 export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: PlanCreateOptions): Promise<UserPlanCreateInput> {
   const planKey = randomBytes(32);
-  const encryptedPlanKey = await encryptBytesWithAesGcm(planKey, masterKey);
   const timestamp = nowSeconds();
   const linkedProjectIds = input.linkedProjectIds ?? [];
   const slugMetadata = await buildEncryptedObjectSlugMetadata({
@@ -339,16 +365,13 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
   return {
     plan_id: input.planId ?? randomUUIDCompat(),
     version: 1,
-    encrypted_plan_key: encryptedPlanKey,
     encrypted_slug: slugMetadata.encrypted_slug,
     slug_lookup_hash: slugMetadata.slug_lookup_hash,
     encrypted_title: await encryptWithAesGcmCombined(input.title, planKey),
-    encrypted_summary: await encryptWithAesGcmCombined(input.summary ?? "", planKey),
     encrypted_goal: await encryptWithAesGcmCombined(input.goal ?? "", planKey),
     encrypted_scope_in: await encryptWithAesGcmCombined(input.scopeIn ?? "", planKey),
     encrypted_scope_out: await encryptWithAesGcmCombined(input.scopeOut ?? "", planKey),
-    encrypted_user_flows: await encryptWithAesGcmCombined(input.userFlows ?? "", planKey),
-    encrypted_current_focus: await encryptWithAesGcmCombined(input.currentFocus ?? "", planKey),
+    encrypted_user_flows: input.userFlows ? await encryptWithAesGcmCombined(JSON.stringify(validateUserFlows(input.userFlows)), planKey) : undefined,
     encrypted_assumptions: await encryptWithAesGcmCombined(input.assumptions ?? "", planKey),
     encrypted_open_questions: await encryptWithAesGcmCombined(input.openQuestions ?? "", planKey),
     encrypted_constraints: await encryptWithAesGcmCombined(input.constraints ?? "", planKey),
@@ -360,9 +383,6 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
     status: input.status ?? "draft",
     primary_chat_id: input.primaryChatId ?? null,
     linked_project_ids: linkedProjectIds,
-    current_phase_id: input.currentPhaseId ?? null,
-    current_step_id: input.currentStepId ?? null,
-    current_task_id: input.currentTaskId ?? null,
     planner_focus_id: input.plannerFocusId ?? null,
     created_at: timestamp,
     updated_at: timestamp,
@@ -383,12 +403,10 @@ export async function buildUpdateUserPlanInput(plan: DecryptedUserPlan, masterKe
     patch.slug_lookup_hash = slugMetadata.slug_lookup_hash;
   }
   if (input.title !== undefined) patch.encrypted_title = await encryptWithAesGcmCombined(input.title, planKey);
-  if (input.summary !== undefined) patch.encrypted_summary = await encryptWithAesGcmCombined(input.summary, planKey);
   if (input.goal !== undefined) patch.encrypted_goal = await encryptWithAesGcmCombined(input.goal, planKey);
   if (input.scopeIn !== undefined) patch.encrypted_scope_in = await encryptWithAesGcmCombined(input.scopeIn, planKey);
   if (input.scopeOut !== undefined) patch.encrypted_scope_out = await encryptWithAesGcmCombined(input.scopeOut, planKey);
-  if (input.userFlows !== undefined) patch.encrypted_user_flows = await encryptWithAesGcmCombined(input.userFlows, planKey);
-  if (input.currentFocus !== undefined) patch.encrypted_current_focus = await encryptWithAesGcmCombined(input.currentFocus, planKey);
+  if (input.userFlows !== undefined) patch.encrypted_user_flows = await encryptWithAesGcmCombined(JSON.stringify(validateUserFlows(input.userFlows)), planKey);
   if (input.assumptions !== undefined) patch.encrypted_assumptions = await encryptWithAesGcmCombined(input.assumptions, planKey);
   if (input.openQuestions !== undefined) patch.encrypted_open_questions = await encryptWithAesGcmCombined(input.openQuestions, planKey);
   if (input.constraints !== undefined) patch.encrypted_constraints = await encryptWithAesGcmCombined(input.constraints, planKey);
@@ -413,9 +431,6 @@ export async function buildUpdateUserPlanInput(plan: DecryptedUserPlan, masterKe
       linkedProjectKeys: input.linkedProjectKeys ?? [],
     });
   }
-  if (input.currentPhaseId !== undefined) patch.current_phase_id = input.currentPhaseId;
-  if (input.currentStepId !== undefined) patch.current_step_id = input.currentStepId;
-  if (input.currentTaskId !== undefined) patch.current_task_id = input.currentTaskId;
   if (input.plannerFocusId !== undefined) patch.planner_focus_id = input.plannerFocusId;
   return patch;
 }
@@ -466,12 +481,10 @@ export async function decryptUserPlan(record: UserPlanRecord, masterKey: Uint8Ar
     shortId: deriveShortId(record),
     slug: await decryptObjectSlug(record.encrypted_slug, planKey),
     title: await decryptOptional(record.encrypted_title, planKey) || "(untitled plan)",
-    summary: await decryptOptional(record.encrypted_summary, planKey),
     goal: await decryptOptional(record.encrypted_goal, planKey),
     scopeIn: await decryptOptional(record.encrypted_scope_in, planKey),
     scopeOut: await decryptOptional(record.encrypted_scope_out, planKey),
-    userFlows: await decryptOptional(record.encrypted_user_flows, planKey),
-    currentFocus: await decryptOptional(record.encrypted_current_focus, planKey),
+    userFlows: parseUserFlows(await decryptOptional(record.encrypted_user_flows, planKey)),
     assumptions: await decryptOptional(record.encrypted_assumptions, planKey),
     openQuestions: await decryptOptional(record.encrypted_open_questions, planKey),
     constraints: await decryptOptional(record.encrypted_constraints, planKey),
@@ -482,9 +495,6 @@ export async function decryptUserPlan(record: UserPlanRecord, masterKey: Uint8Ar
     status: record.status,
     primaryChatId: record.primary_chat_id ?? null,
     linkedProjectIds: linkedProjectIds.length > 0 ? linkedProjectIds : (record.linked_project_ids ?? []),
-    currentPhaseId: record.current_phase_id ?? null,
-    currentStepId: record.current_step_id ?? null,
-    currentTaskId: record.current_task_id ?? null,
     plannerFocusId: record.planner_focus_id ?? null,
     version: record.version,
     createdAt: record.created_at ?? 0,
@@ -601,7 +611,6 @@ export async function buildCreatePlanCriterionInput(plan: DecryptedUserPlan, mas
     type: input.type,
     status: input.status as UserPlanCriterionRecord["status"] | undefined,
     required: input.required,
-    linked_step_ids: input.linkedStepIds,
     linked_task_ids: input.linkedTaskIds,
     verification_ids: input.verificationIds,
     created_at: timestamp,
@@ -690,12 +699,10 @@ export function renderPlanDetail(plan: DecryptedUserPlan): string {
     `Plan ID: ${plan.planId}`,
     `Version: ${plan.version}`,
   ];
-  if (plan.summary) lines.push(`Summary: ${plan.summary}`);
   if (plan.goal) lines.push(`Goal: ${plan.goal}`);
   if (plan.scopeIn) lines.push(`Scope in: ${plan.scopeIn}`);
   if (plan.scopeOut) lines.push(`Scope out: ${plan.scopeOut}`);
-  if (plan.userFlows) lines.push(`User flows: ${plan.userFlows}`);
-  if (plan.currentFocus) lines.push(`Current focus: ${plan.currentFocus}`);
+  if (plan.userFlows.length) lines.push(`User flows: ${plan.userFlows.map((flow) => flow.title).join(", ")}`);
   if (plan.assumptions) lines.push(`Assumptions: ${plan.assumptions}`);
   if (plan.openQuestions) lines.push(`Open questions: ${plan.openQuestions}`);
   if (plan.constraints) lines.push(`Constraints: ${plan.constraints}`);
@@ -705,9 +712,6 @@ export function renderPlanDetail(plan: DecryptedUserPlan): string {
   if (plan.context) lines.push(`Context: ${plan.context}`);
   if (plan.primaryChatId) lines.push(`Chat: ${plan.primaryChatId}`);
   if (plan.linkedProjectIds.length > 0) lines.push(`Projects: ${plan.linkedProjectIds.join(", ")}`);
-  if (plan.currentPhaseId) lines.push(`Current phase: ${plan.currentPhaseId}`);
-  if (plan.currentStepId) lines.push(`Current step: ${plan.currentStepId}`);
-  if (plan.currentTaskId) lines.push(`Current task: ${plan.currentTaskId}`);
   if (plan.plannerFocusId) lines.push(`Planner focus: ${plan.plannerFocusId}`);
   if (plan.completedAt) lines.push(`Completed at: ${plan.completedAt}`);
   return lines.join("\n");
@@ -786,8 +790,9 @@ export function finalizedLearningNeedsTaskSafetyScan(learning: DecryptedPlanLear
 }
 
 export async function planKeyFromRecord(record: UserPlanRecord, masterKey: Uint8Array): Promise<Uint8Array> {
-  if (!record.encrypted_plan_key) throw new Error(`Plan ${record.plan_id} is missing encrypted plan key.`);
-  const planKey = await decryptBytesWithAesGcm(record.encrypted_plan_key, masterKey);
+  const wrapper = record.key_wrappers?.find((candidate) => candidate.key_type === "master" && typeof candidate.encrypted_plan_key === "string");
+  if (!wrapper || typeof wrapper.encrypted_plan_key !== "string") throw new Error(`Plan ${record.plan_id} is missing a master key wrapper.`);
+  const planKey = await decryptBytesWithAesGcm(wrapper.encrypted_plan_key, masterKey);
   if (!planKey) throw new Error(`Failed to decrypt plan key for ${record.plan_id}.`);
   return planKey;
 }
@@ -809,6 +814,13 @@ function parseStringArray(value: string): string[] {
   } catch {
     return [];
   }
+}
+
+function parseUserFlows(value: string): UserPlanFlow[] {
+  if (!value) return [];
+  const parsed = JSON.parse(value) as unknown;
+  if (!Array.isArray(parsed)) throw new Error("Plan user flows must be an array.");
+  return validateUserFlows(parsed as UserPlanFlow[]);
 }
 
 function deriveShortId(record: UserPlanRecord): string {

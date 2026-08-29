@@ -72,6 +72,7 @@ class FakeLockClient:
         self.values.pop(key, None)
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 def test_task_update_job_claim_binds_lease_to_owner_and_device() -> None:
     service = UserTaskUpdateJobService(clock=lambda: 100, lease_ttl_seconds=60, job_ttl_seconds=900)
     job = service.create_job(
@@ -97,6 +98,7 @@ def test_task_update_job_claim_binds_lease_to_owner_and_device() -> None:
         service.claim_job(job_id=job["job_id"], owner_id="other-user", device_hash="device-a")
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 def test_task_update_job_persist_accepts_only_client_encrypted_payload_and_is_idempotent() -> None:
     service = UserTaskUpdateJobService(clock=lambda: 100, lease_ttl_seconds=60, job_ttl_seconds=900)
     job = service.create_job(
@@ -117,7 +119,6 @@ def test_task_update_job_persist_accepts_only_client_encrypted_payload_and_is_id
         "primary_chat_id": "chat-1",
         "parent_task_id": "parent-task-1",
         "plan_id": "plan-1",
-        "plan_step_id": "step-1",
         "task_type": "verification",
         "verification_id": "verify-1",
         "due_at": 1780000000,
@@ -161,6 +162,7 @@ def test_task_update_job_persist_accepts_only_client_encrypted_payload_and_is_id
     assert "Launch plan" not in str(stored)
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 def test_task_update_job_rejects_plaintext_or_stale_commits() -> None:
     service = UserTaskUpdateJobService(clock=lambda: 100, lease_ttl_seconds=60, job_ttl_seconds=900)
     job = service.create_job(
@@ -210,6 +212,7 @@ def test_task_update_job_rejects_plaintext_or_stale_commits() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_update_job_persist_requires_expected_task_version() -> None:
     cache = FakeCache()
@@ -254,6 +257,7 @@ async def test_task_update_job_persist_requires_expected_task_version() -> None:
     directus.user_task.update_task_if_version.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_update_job_persist_requires_committed_task_version() -> None:
     cache = FakeCache()
@@ -299,6 +303,7 @@ async def test_task_update_job_persist_requires_committed_task_version() -> None
     directus.user_task.update_task_if_version.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_update_job_persist_is_idempotent_after_task_persisted() -> None:
     cache = FakeCache()
@@ -341,6 +346,7 @@ async def test_task_update_job_persist_is_idempotent_after_task_persisted() -> N
     directus.user_task.update_task_if_version.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_update_job_persist_accepts_already_applied_task_state() -> None:
     cache = FakeCache()
@@ -355,7 +361,6 @@ async def test_task_update_job_persist_accepts_already_applied_task_state() -> N
         "primary_chat_id": "chat-1",
         "parent_task_id": "parent-task-1",
         "plan_id": "plan-1",
-        "plan_step_id": "step-1",
         "task_type": "verification",
         "verification_id": "verify-1",
         "due_at": 1780000000,
@@ -424,6 +429,7 @@ async def test_task_update_job_persist_accepts_already_applied_task_state() -> N
     directus.user_task.get_task.assert_awaited_once_with("task-1", "user-1")
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_update_job_persist_continues_when_working_copy_ttl_extension_fails() -> None:
     cache = FakeCache()
@@ -476,6 +482,7 @@ async def test_task_update_job_persist_continues_when_working_copy_ttl_extension
     assert stored["client_encrypted_payload"] == encrypted_payload
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_task_update_job_event_confirm_requires_system_message_confirmation() -> None:
     cache = FakeCache()

@@ -841,7 +841,6 @@ export interface UserTaskRecord {
   linked_project_ids?: string[] | null;
   parent_task_id?: string | null;
   plan_id?: string | null;
-  plan_step_id?: string | null;
   task_type?: "work" | "verification" | null;
   verification_id?: string | null;
   source_plan_id?: string | null;
@@ -915,16 +914,13 @@ export type UserPlanLearningLevel = "low" | "medium" | "high";
 
 export interface UserPlanRecord {
   plan_id: string;
-  encrypted_plan_key?: string | null;
   encrypted_slug?: string | null;
   slug_lookup_hash?: string | null;
   encrypted_title: string;
-  encrypted_summary?: string | null;
-  encrypted_goal?: string | null;
+  encrypted_goal: string;
   encrypted_scope_in?: string | null;
   encrypted_scope_out?: string | null;
   encrypted_user_flows?: string | null;
-  encrypted_current_focus?: string | null;
   encrypted_assumptions?: string | null;
   encrypted_open_questions?: string | null;
   encrypted_constraints?: string | null;
@@ -937,9 +933,6 @@ export interface UserPlanRecord {
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   key_wrappers?: Array<Record<string, unknown>> | null;
-  current_phase_id?: string | null;
-  current_step_id?: string | null;
-  current_task_id?: string | null;
   planner_focus_id?: string | null;
   version?: number;
   created_at?: number;
@@ -957,7 +950,6 @@ export interface UserPlanCriterionRecord {
   type?: string;
   status?: UserPlanCriterionStatus;
   required?: boolean;
-  linked_step_ids?: string[];
   linked_task_ids?: string[];
   verification_ids?: string[];
   created_at?: number;
@@ -972,7 +964,6 @@ export interface UserPlanAssumptionRecord {
   required_before?: string;
   linked_sub_chat_id?: string | null;
   linked_task_id?: string | null;
-  linked_step_ids?: string[];
   linked_criterion_ids?: string[];
   source_count?: number;
   encrypted_corrected_text?: string | null;
@@ -1680,7 +1671,6 @@ function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): vo
     "linked_project_ids",
     "parent_task_id",
     "plan_id",
-    "plan_step_id",
     "position",
     "primary_chat_id",
     "priority",

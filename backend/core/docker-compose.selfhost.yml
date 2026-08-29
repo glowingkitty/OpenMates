@@ -179,7 +179,6 @@ services:
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
       ENCRYPTED_SLUG_MIGRATION_PATH: "/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql"
       SUB_CHAT_ORCHESTRATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql"
-      USER_CHAT_PREFERENCE_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql"
       AI_MEMORY_REMOVAL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_remove_ai_memories.sql"
     networks:
       - openmates

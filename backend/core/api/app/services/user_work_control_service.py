@@ -467,8 +467,9 @@ class UserWorkControlService:
 class DirectusWorkControlRepository:
     """Persists only safe work-control metadata beside encrypted records."""
 
-    def __init__(self, *, user_id: str, plan_methods: Any, task_methods: Any, directus_service: Any, cache_service: Any):
+    def __init__(self, *, user_id: str, plan_methods: Any, task_methods: Any, directus_service: Any, cache_service: Any, owner_hash: str | None = None):
         self.user_id = user_id
+        self.owner_hash = owner_hash
         self.plan_methods = plan_methods
         self.task_methods = task_methods
         self.directus_service = directus_service
@@ -558,6 +559,22 @@ class DirectusWorkControlRepository:
 
     async def get_item(self, ref: str) -> dict[str, Any] | None:
         kind, item_id = UserWorkControlService._parse_ref(ref)
+        if self.owner_hash:
+            collection = "user_plans" if kind == "plan" else "user_tasks"
+            id_field = "plan_id" if kind == "plan" else "task_id"
+            rows = await self.directus_service.get_items(
+                collection,
+                params={
+                    f"filter[{id_field}][_eq]": item_id,
+                    "filter[hashed_user_id][_eq]": self.owner_hash,
+                    "filter[hashed_team_id][_null]": True,
+                    "fields": "*",
+                    "limit": 1,
+                },
+                no_cache=True,
+            )
+            item = rows[0] if isinstance(rows, list) and rows else None
+            return {**item, "kind": kind, "id": item_id} if item else None
         item = (
             await self.plan_methods.get_plan(item_id, self.user_id)
             if kind == "plan"
@@ -595,6 +612,17 @@ class DirectusWorkControlRepository:
         return bool(rows and await self.directus_service.delete_item("user_work_dependencies", rows[0]["id"]))
 
     async def list_assumptions(self, plan_id: str) -> list[dict[str, Any]]:
+        if self.owner_hash:
+            rows = await self.directus_service.get_items(
+                "user_plan_assumptions",
+                params={
+                    "filter[plan_id][_eq]": plan_id,
+                    "fields": "*",
+                    "limit": -1,
+                },
+                no_cache=True,
+            )
+            return rows if isinstance(rows, list) else []
         return await self.plan_methods.list_assumptions(plan_id)
 
     async def list_revisions(self, plan_id: str) -> list[dict[str, Any]]:
@@ -657,6 +685,8 @@ class DirectusWorkControlRepository:
         return updated
 
     def _owner_hash(self) -> str:
+        if self.owner_hash:
+            return self.owner_hash
         from backend.core.api.app.services.directus.user_plan_methods import hash_id
 
         return hash_id(self.user_id)

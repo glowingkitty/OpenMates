@@ -315,7 +315,7 @@ contracts:
     version: 1
     status: draft
     path: features/plans
-    fingerprint: d01173bb197c10785ab4a38ad2e7ed8d5e007f9574b63194abd6abeafd3edb5e
+    fingerprint: 6a42e9757359de15b8d9f3f6b0e5800cd037e18da8caec14e07cdf5715ac76c2
     required_surfaces:
     - rest_api
     - cli
@@ -326,7 +326,7 @@ contracts:
     version: 1
     status: draft
     path: features/projects
-    fingerprint: 54ca5517b38531f84506878d1b4f48f3d5d249a8f2b832c67141712d6ddc38e9
+    fingerprint: c91dc55731fc97bd8307b07b94db4fd9845af9e87f60238ef7ab7969e3c179de
     required_surfaces:
     - rest_api
     - cli
@@ -352,7 +352,7 @@ contracts:
     version: 2
     status: draft
     path: features/tasks
-    fingerprint: 4f4ac8b662f9286d8f55f1e24435fab8c2fb9747b64cdc17cdd543d9d6964e2d
+    fingerprint: f1baa6746a675246dffaa13595468f883dde9ba99c16d4fb2d11aeafba4e5823
     required_surfaces:
     - rest_api
     - cli
@@ -408,7 +408,7 @@ contracts:
     version: 1
     status: draft
     path: surfaces/cli
-    fingerprint: c81cf22357b99e260947304f2b0df39d9f1cb5654370831a4aced1aa6ea8007d
+    fingerprint: 74cd28e61a9d531b2bfebe4bdd93276e9b467bfee1eb4c0d096c319a31d65e35
     required_surfaces:
     - rest_api
     - cli
@@ -3147,7 +3147,7 @@ assertions:
     contract: feature.plans@1
     contract_id: feature.plans
     type: privacy
-    fingerprint: 7cec3967ffd8e645ffc9109af1ba313462d8b312b955479d7705b766ae636d48
+    fingerprint: 948ec8baa0b90214793905971cd1869bf08796c45490c96ed85e05d722eb1c5e
     required_surfaces:
     - rest_api
     - cli
@@ -3158,7 +3158,7 @@ assertions:
     contract: feature.plans@1
     contract_id: feature.plans
     type: behavior
-    fingerprint: beeee07cfb66fb44d42982c7c6c11f3564e909a8e04eecd583d3d745fcfd4f39
+    fingerprint: f2a6895cf853c1b88a8add8e5ef7023ed8cd475ffee111edfd03459e1b2438ae
     required_surfaces:
     - rest_api
     - cli
@@ -3198,6 +3198,39 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  plans.dependencies.done-only:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: invariant
+    fingerprint: 3a0eec1b6edfdf0c944a950850a5f56ea9cb769bdc9719f26c6c109d78e7b8a8
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.assumptions.investigated-before-work:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: security
+    fingerprint: 4e915bbe90cb6804ffbdbd826df65404424d4fd99fe26e46e6170c3725fc15ef
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.approval.human-web-revision-bound:
+    contract: feature.plans@1
+    contract_id: feature.plans
+    type: security
+    fingerprint: 484452925fd9de6c5b07c6c7c1291256f8f5074b18b6b4daf644be9af9ea5740
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   plans.active-context.vault-boundary:
     contract: feature.plans@1
     contract_id: feature.plans
@@ -3213,7 +3246,7 @@ assertions:
     contract: feature.plans@1
     contract_id: feature.plans
     type: parity
-    fingerprint: 216c6219e2b2d38f476df3efe8e013842df0fb94a24f22ebd7a284fc8743926e
+    fingerprint: 1d75be911f2996be7b575d481dc7b6ae790b202251e75a1feee0131d6ba40ba0
     required_surfaces:
     - rest_api
     - cli
@@ -3258,6 +3291,17 @@ assertions:
     contract_id: feature.projects
     type: privacy
     fingerprint: 1ee21a6a449ccbad9e01878d391de1cf1db48fda7244d7d49b41b8f97bfb8606
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  projects.association.safe-metadata-encrypted-authority:
+    contract: feature.projects@1
+    contract_id: feature.projects
+    type: invariant
+    fingerprint: 4a58e484e0093ddb76361eabccb935376bd6ffa2e50a0d7187d8d1a159b69d22
     required_surfaces:
     - rest_api
     - cli
@@ -3500,6 +3544,17 @@ assertions:
     contract_id: feature.tasks
     type: invariant
     fingerprint: 0682e46e405bebef9cb3f915bd07e905e7b9c954a931ccdd1f617022c1e18103
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.dependencies.done-only:
+    contract: feature.tasks@2
+    contract_id: feature.tasks
+    type: invariant
+    fingerprint: 16f0e181b43977274a1d0ddcb7ad7ea0d4b8d079f55ecaf4b19cd66c87d786d5
     required_surfaces:
     - rest_api
     - cli
@@ -3972,6 +4027,39 @@ assertions:
     contract_id: surface.cli
     type: parity
     fingerprint: 5a9531c70c46d311f83ec2658e9f7caa0c9fe140af5dcb5f6366679ff6be747b
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.work-structure.complete:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: parity
+    fingerprint: b63585709b770c4713e4d503659ef9c2aa97c512b31d30f4521e5c03d84da5ad
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.plan-approval.web-only:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: security
+    fingerprint: 4e66ce5cc5012ad49523b6e6acf6b2922c4946c1029dd2b86207329001014774
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.recovery.yaml-explicit:
+    contract: surface.cli@1
+    contract_id: surface.cli
+    type: behavior
+    fingerprint: e60137ec93a78f59ea9c761f2089209eb8a4eb0528a646f35e749d426a999e97
     required_surfaces:
     - rest_api
     - cli

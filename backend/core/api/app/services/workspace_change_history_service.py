@@ -530,7 +530,7 @@ class WorkspaceChangeHistoryService:
             "encrypted_task_key", "encrypted_title", "encrypted_description", "encrypted_labels", "encrypted_tags",
             "encrypted_linked_project_ids", "encrypted_activity_summary", "encrypted_latest_instruction", "label_hashes",
             "status", "assignee_type", "assignee_hash", "primary_chat_id", "linked_project_ids", "parent_task_id", "plan_id",
-            "plan_step_id", "task_type", "verification_id", "due_at", "priority", "position", "created_at", "updated_at",
+            "task_type", "verification_id", "due_at", "priority", "position", "created_at", "updated_at",
             "started_at", "completed_at", "blocked_reason_code", "queue_state", "ai_execution_state", "key_wrappers",
         }
         return {key: value for key, value in snapshot.items() if key in allowed}

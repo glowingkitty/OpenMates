@@ -152,6 +152,10 @@ assertions:
       own records; none of these helpers create remote-access source rows or
       remote-copy proposals.
     depends_on: [models.ProjectItemLink, models.ProjectObjectAssociation, examples.project_item_links]
+  - id: projects.association.safe-metadata-encrypted-authority
+    type: invariant
+    must: Plan and Task Project associations expose only hashed Project routing metadata to the server while encrypted linked Project ids and Project-scoped key wrappers remain the client-authoritative private association data.
+    depends_on: [models.ProjectObjectAssociation, examples.project_item_links]
   - id: projects.uploads.project-wrapped
     type: privacy
     must: Files imported into a Project are represented as client-encrypted embeds with both master and Project embed-key wrappers before the Project item link is accepted, and the Project item itself stores only encrypted display metadata and hashed target ids.

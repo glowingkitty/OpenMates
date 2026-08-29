@@ -412,7 +412,6 @@ def _validate_encrypted_payload(payload: dict[str, Any]) -> None:
         "linked_project_ids",
         "parent_task_id",
         "plan_id",
-        "plan_step_id",
         "position",
         "primary_chat_id",
         "priority",

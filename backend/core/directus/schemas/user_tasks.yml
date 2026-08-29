@@ -68,11 +68,6 @@ user_tasks:
       nullable: true
       note: "Optional Plans V1 plan id this task belongs to."
 
-    plan_step_id:
-      type: string
-      nullable: true
-      note: "Optional Plans V1 step id this task executes or verifies."
-
     task_type:
       type: string
       nullable: true

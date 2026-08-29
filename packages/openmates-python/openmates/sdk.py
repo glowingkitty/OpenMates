@@ -1654,9 +1654,13 @@ def _task_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
 
 
 def _plan_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
-    encrypted_plan_key = record.get("encrypted_plan_key")
+    wrappers = record.get("key_wrappers") if isinstance(record.get("key_wrappers"), list) else []
+    encrypted_plan_key = next(
+        (wrapper.get("encrypted_plan_key") for wrapper in wrappers if isinstance(wrapper, dict) and wrapper.get("key_type") == "master" and isinstance(wrapper.get("encrypted_plan_key"), str)),
+        None,
+    )
     if not isinstance(encrypted_plan_key, str):
-        raise OpenMatesConfigError(f"Plan {record.get('plan_id')} is missing encrypted plan key")
+        raise OpenMatesConfigError(f"Plan {record.get('plan_id')} is missing a master plan key wrapper")
     plan_key = _decrypt_aes_gcm_bytes(encrypted_plan_key, master_key)
     if plan_key is None:
         raise OpenMatesConfigError(f"Failed to decrypt plan key for {record.get('plan_id')}")
@@ -1667,6 +1671,9 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     title = str(payload.get("title") or "").strip()
     if not title:
         raise OpenMatesConfigError("Plan title is required")
+    goal = payload.get("goal")
+    if not isinstance(goal, str) or not goal.strip():
+        raise OpenMatesConfigError("Plan goal is required")
     master_key = client._get_master_key()
     plan_key = os.urandom(32)
     now = int(time.time())
@@ -1682,16 +1689,13 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     return {
         "plan_id": str(payload.get("plan_id") or uuid.uuid4()),
         "version": 1,
-        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
         "encrypted_slug": slug_metadata["encrypted_slug"],
         "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
         "encrypted_title": _encrypt_aes_gcm_text(title, plan_key),
-        "encrypted_summary": _encrypt_aes_gcm_text(str(payload.get("summary") or ""), plan_key),
-        "encrypted_goal": _encrypt_aes_gcm_text(str(payload.get("goal") or ""), plan_key),
+        "encrypted_goal": _encrypt_aes_gcm_text(goal, plan_key),
         "encrypted_scope_in": _encrypt_aes_gcm_text(str(payload.get("scope_in") or payload.get("scopeIn") or ""), plan_key),
         "encrypted_scope_out": _encrypt_aes_gcm_text(str(payload.get("scope_out") or payload.get("scopeOut") or ""), plan_key),
-        "encrypted_user_flows": _encrypt_aes_gcm_text(str(payload.get("user_flows") or payload.get("userFlows") or ""), plan_key),
-        "encrypted_current_focus": _encrypt_aes_gcm_text(str(payload.get("current_focus") or payload.get("currentFocus") or ""), plan_key),
+        "encrypted_user_flows": _encrypt_aes_gcm_text(_serialize_plan_user_flows(payload.get("user_flows") if "user_flows" in payload else payload.get("userFlows")), plan_key) if ("user_flows" in payload or "userFlows" in payload) else None,
         "encrypted_assumptions": _encrypt_aes_gcm_text(str(payload.get("assumptions") or ""), plan_key),
         "encrypted_open_questions": _encrypt_aes_gcm_text(str(payload.get("open_questions") or payload.get("openQuestions") or ""), plan_key),
         "encrypted_constraints": _encrypt_aes_gcm_text(str(payload.get("constraints") or ""), plan_key),
@@ -1703,9 +1707,6 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
         "status": payload.get("status") or "draft",
         "primary_chat_id": primary_chat_id,
         "linked_project_ids": linked_project_ids,
-        "current_phase_id": payload.get("current_phase_id") or payload.get("currentPhaseId"),
-        "current_step_id": payload.get("current_step_id") or payload.get("currentStepId"),
-        "current_task_id": payload.get("current_task_id") or payload.get("currentTaskId"),
         "planner_focus_id": payload.get("planner_focus_id") or payload.get("plannerFocusId"),
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
@@ -1721,12 +1722,10 @@ def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "short_id": _derive_plan_short_id(record),
         "slug": _decrypt_object_slug(record.get("encrypted_slug"), plan_key),
         "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), plan_key) or "(untitled plan)",
-        "summary": _decrypt_aes_gcm_text(str(record.get("encrypted_summary") or ""), plan_key) or "",
         "goal": _decrypt_aes_gcm_text(str(record.get("encrypted_goal") or ""), plan_key) or "",
         "scope_in": _decrypt_aes_gcm_text(str(record.get("encrypted_scope_in") or ""), plan_key) or "",
         "scope_out": _decrypt_aes_gcm_text(str(record.get("encrypted_scope_out") or ""), plan_key) or "",
-        "user_flows": _decrypt_aes_gcm_text(str(record.get("encrypted_user_flows") or ""), plan_key) or "",
-        "current_focus": _decrypt_aes_gcm_text(str(record.get("encrypted_current_focus") or ""), plan_key) or "",
+        "user_flows": _parse_plan_user_flows(_decrypt_aes_gcm_text(str(record.get("encrypted_user_flows") or ""), plan_key) or ""),
         "assumptions": _decrypt_aes_gcm_text(str(record.get("encrypted_assumptions") or ""), plan_key) or "",
         "open_questions": _decrypt_aes_gcm_text(str(record.get("encrypted_open_questions") or ""), plan_key) or "",
         "constraints": _decrypt_aes_gcm_text(str(record.get("encrypted_constraints") or ""), plan_key) or "",
@@ -1737,9 +1736,6 @@ def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "status": record.get("status"),
         "primary_chat_id": record.get("primary_chat_id"),
         "linked_project_ids": linked_project_ids,
-        "current_phase_id": record.get("current_phase_id"),
-        "current_step_id": record.get("current_step_id"),
-        "current_task_id": record.get("current_task_id"),
         "planner_focus_id": record.get("planner_focus_id"),
         "version": int(record.get("version") or 1),
         "created_at": int(record.get("created_at") or 0),
@@ -1756,7 +1752,6 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
     patch: dict[str, Any] = {"version": int(plan.get("version") or source.get("version") or 1), "updated_at": int(time.time())}
     text_fields = {
         "title": "encrypted_title",
-        "summary": "encrypted_summary",
         "goal": "encrypted_goal",
         "scope_in": "encrypted_scope_in",
         "scopeIn": "encrypted_scope_in",
@@ -1764,8 +1759,6 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
         "scopeOut": "encrypted_scope_out",
         "user_flows": "encrypted_user_flows",
         "userFlows": "encrypted_user_flows",
-        "current_focus": "encrypted_current_focus",
-        "currentFocus": "encrypted_current_focus",
         "assumptions": "encrypted_assumptions",
         "open_questions": "encrypted_open_questions",
         "openQuestions": "encrypted_open_questions",
@@ -1778,7 +1771,8 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
     }
     for public_name, storage_name in text_fields.items():
         if public_name in payload:
-            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+            value = _serialize_plan_user_flows(payload.get(public_name)) if public_name in {"user_flows", "userFlows"} else str(payload.get(public_name) or "")
+            patch[storage_name] = _encrypt_aes_gcm_text(value, plan_key)
     if "slug" in payload:
         slug_metadata = _encrypted_object_slug_metadata(str(payload.get("slug") or ""), encryption_key=plan_key, lookup_key=master_key)
         patch["encrypted_slug"] = slug_metadata["encrypted_slug"]
@@ -1833,7 +1827,6 @@ def _public_plan_criterion(record: dict[str, Any], plan_key: bytes) -> dict[str,
         "type": record.get("type"),
         "status": record.get("status"),
         "required": record.get("required"),
-        "linked_step_ids": _string_list(record.get("linked_step_ids") or []),
         "linked_task_ids": _string_list(record.get("linked_task_ids") or []),
         "verification_ids": _string_list(record.get("verification_ids") or []),
         "created_at": record.get("created_at"),
@@ -1850,7 +1843,6 @@ def _public_plan_assumption(record: dict[str, Any], plan_key: bytes) -> dict[str
         "required_before": record.get("required_before"),
         "linked_sub_chat_id": record.get("linked_sub_chat_id"),
         "linked_task_id": record.get("linked_task_id"),
-        "linked_step_ids": _string_list(record.get("linked_step_ids") or []),
         "linked_criterion_ids": _string_list(record.get("linked_criterion_ids") or []),
         "source_count": record.get("source_count"),
         "corrected_text": _decrypt_plan_child_text(record, plan_key, "encrypted_corrected_text"),
@@ -1949,7 +1941,6 @@ def _build_plan_criterion_create_input(plan: dict[str, Any], master_key: bytes, 
         "type": _plan_child_value(payload, "type"),
         "status": _plan_child_value(payload, "status"),
         "required": _plan_child_value(payload, "required"),
-        "linked_step_ids": _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or []),
         "linked_task_ids": _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or []),
         "verification_ids": _string_list(_plan_child_value(payload, "verification_ids", "verificationIds") or []),
         "created_at": now,
@@ -1963,8 +1954,6 @@ def _build_plan_criterion_update_input(plan: dict[str, Any], master_key: bytes, 
     for public_name, storage_name in (("status", "status"), ("required", "required")):
         if public_name in payload:
             patch[storage_name] = payload.get(public_name)
-    if "linked_step_ids" in payload or "linkedStepIds" in payload:
-        patch["linked_step_ids"] = _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or [])
     if "linked_task_ids" in payload or "linkedTaskIds" in payload:
         patch["linked_task_ids"] = _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or [])
     if "verification_ids" in payload or "verificationIds" in payload:
@@ -2020,7 +2009,6 @@ def _build_plan_assumption_create_input(plan: dict[str, Any], master_key: bytes,
         "required_before": _plan_child_value(payload, "required_before", "requiredBefore"),
         "linked_sub_chat_id": _plan_child_value(payload, "linked_sub_chat_id", "linkedSubChatId"),
         "linked_task_id": _plan_child_value(payload, "linked_task_id", "linkedTaskId"),
-        "linked_step_ids": _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or []),
         "linked_criterion_ids": _string_list(_plan_child_value(payload, "linked_criterion_ids", "linkedCriterionIds") or []),
         "source_count": _plan_child_value(payload, "source_count", "sourceCount"),
         "created_at": now,
@@ -2398,6 +2386,55 @@ def _string_list(value: Any) -> list[str]:
 def _json_string_list(value: str | None) -> list[str]:
     parsed = _parse_maybe_json(value)
     return _string_list(parsed)
+
+
+def _serialize_plan_user_flows(value: Any) -> str:
+    if not isinstance(value, list):
+        raise OpenMatesConfigError("Plan user_flows must be a structured array")
+    for flow in value:
+        if not isinstance(flow, dict) or not all(isinstance(flow.get(field), str) and flow[field] for field in ("flow_id", "title", "expected_outcome")):
+            raise OpenMatesConfigError("Each Plan user flow requires flow_id, title, and expected_outcome")
+        steps = flow.get("steps")
+        if not isinstance(steps, list) or any(not isinstance(step, dict) or not isinstance(step.get("step_id"), str) or not isinstance(step.get("text"), str) for step in steps):
+            raise OpenMatesConfigError("Each Plan user flow requires ordered steps with step_id and text")
+        for step in steps:
+            references = step.get("references", [])
+            if not isinstance(references, list):
+                raise OpenMatesConfigError("Plan user flow references must be an array")
+            for reference in references:
+                _validate_plan_evidence_reference(reference)
+    return json.dumps(value, separators=(",", ":"), sort_keys=True)
+
+
+def _validate_plan_evidence_reference(reference: Any) -> None:
+    if not isinstance(reference, dict) or reference.get("kind") not in {"embed", "file", "url"}:
+        raise OpenMatesConfigError("Plan evidence references must be embed, file, or URL records")
+    kind = reference["kind"]
+    if kind == "embed" and not isinstance(reference.get("embed_id"), str):
+        raise OpenMatesConfigError("Plan embed references require embed_id")
+    if kind == "file":
+        path = reference.get("path")
+        if not isinstance(path, str) or not path or path.startswith("/") or ".." in path.split("/"):
+            raise OpenMatesConfigError("Plan file references require a repository-relative path")
+    if kind == "url" and (not isinstance(reference.get("url"), str) or not reference["url"].startswith("https://")):
+        raise OpenMatesConfigError("Plan URL references must use HTTPS")
+    start = reference.get("start_line")
+    end = reference.get("end_line")
+    if start is not None and (not isinstance(start, int) or isinstance(start, bool) or start < 1):
+        raise OpenMatesConfigError("Plan evidence start_line must be a positive integer")
+    if end is not None and (not isinstance(end, int) or isinstance(end, bool) or end < (start or 1)):
+        raise OpenMatesConfigError("Plan evidence end_line must be greater than or equal to start_line")
+
+
+def _parse_plan_user_flows(value: str) -> list[dict[str, Any]]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise OpenMatesConfigError("Plan user_flows ciphertext does not contain JSON") from exc
+    _serialize_plan_user_flows(parsed)
+    return parsed
 
 
 def _derive_task_short_id(record: dict[str, Any]) -> str:
@@ -3537,6 +3574,20 @@ class _PlanEncryptedFieldFacade:
         return self.update(plan_id, value)
 
 
+class _PlanUserFlowsFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def set(self, plan_id: str, value: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._plans.update(plan_id, {"user_flows": value})
+
+    def update(self, plan_id: str, value: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.set(plan_id, value)
+
+    def clear(self, plan_id: str) -> dict[str, Any]:
+        return self.set(plan_id, [])
+
+
 class _PlanSuccessCriteriaFacade:
     def __init__(self, plans: "OpenMatesPlans"):
         self._plans = plans
@@ -3664,10 +3715,9 @@ class OpenMatesPlans:
     def __init__(self, client: OpenMates):
         self._client = client
         self.goal = _PlanEncryptedFieldFacade(self, "encrypted_goal")
-        self.current_focus = _PlanEncryptedFieldFacade(self, "encrypted_current_focus")
         self.tasks = _PlanTasksFacade(client)
         self.success_criteria = _PlanSuccessCriteriaFacade(self)
-        self.user_flows = _PlanEncryptedFieldFacade(self, "encrypted_user_flows")
+        self.user_flows = _PlanUserFlowsFacade(self)
         self.checks = _PlanChecksFacade(self)
         self.scope_in = _PlanEncryptedFieldFacade(self, "encrypted_scope_in")
         self.scope_out = _PlanEncryptedFieldFacade(self, "encrypted_scope_out")

@@ -19,7 +19,7 @@ scope:
     - Workflow run projection items returned by the Tasks view as read-only task-shaped cards without creating user_tasks rows.
     - Default Task selection behavior in the web Tasks workspace: embed-style split-screen detail on larger viewports and full-screen detail overlay on smaller viewports while preserving board state.
     - Capacity-scoped AI task admission with separate personal and Team pools, reserved urgent capacity, restart-safe waiting, and automatic admission when capacity is released.
-    - Ordered execution lanes where chat ordering, Plan dependency readiness, and explicit user reordering determine eligibility before priority or capacity is applied.
+    - Ordered execution lanes where Plan tasks derive their head from position, created_at, and task_id without a persisted Plan current-task pointer; chat ordering and explicit user reordering determine eligibility before priority or capacity is applied.
     - Task-to-Project link mutations that keep safe Project hashes, encrypted raw Project ids, and authorized Task key wrappers in sync.
     - Task key wrappers for owner/master, chat, Project, Plan, and Team contexts where currently supported by backend storage and validation; client surfaces may still use row-level master-wrapped encrypted_task_key while wrapper parity is completed.
     - REST, CLI, npm SDK, and pip SDK semantics for encrypted task content, lifecycle actions, labels/priority metadata, Project links, and workflow projection handling where those surfaces expose the operation.
@@ -225,6 +225,10 @@ assertions:
     type: invariant
     must: Capacity and priority are applied only after lane eligibility; chat Tasks follow user-editable chat position, Plan Tasks follow user-editable Plan order and Plan dependency readiness, standalone Tasks are independent, no two AI Tasks execute concurrently in one chat, and neither urgent priority nor a free capacity slot may skip an unfinished predecessor or interleave ordinary chat Tasks into an active Plan lane.
     depends_on: [models.TaskExecutionAdmission, examples.task_execution_order]
+  - id: tasks.dependencies.done-only
+    type: invariant
+    must: Task dependency edges use the shared normalized Plan/Task graph and only unblock when every target is done or completed.
+    depends_on: [models.TaskRecord]
 
 surfaces:
   rest_api:
