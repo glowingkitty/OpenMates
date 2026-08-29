@@ -88,7 +88,7 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 	await expectAppsCatalogLoaded(settingsMenu);
 	await backToSettingsRoot(settingsMenu);
 
-	for (const pageName of ['AI', 'Memories', 'Interface']) {
+	for (const pageName of ['AI', 'Mates', 'Memories', 'Interface']) {
 		await openTopLevelSettingsPage(settingsMenu, pageName);
 		await backToSettingsRoot(settingsMenu);
 	}
