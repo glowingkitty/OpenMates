@@ -31,7 +31,7 @@ async function activateWikipediaSearch(
 	await source.click();
 	await expect(editor).toContainText('@wiki:', { timeout: 2_000 });
 	await expect(page.getByTestId('mention-dropdown-header')).toHaveText('Enter a term to search for on Wikipedia');
-	await page.keyboard.type(query, { delay: 50 });
+	await page.keyboard.insertText(query);
 	await expect(editor).toContainText(`@wiki:${query}`, { timeout: 2_000 });
 	return editor;
 }
