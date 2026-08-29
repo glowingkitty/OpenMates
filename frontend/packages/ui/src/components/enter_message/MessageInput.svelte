@@ -5,9 +5,15 @@
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { sanitizeText } from '../../utils/textSanitizer';
+    import { canonicalizeAiModelSelection, isAiModelSelectionUsable } from '../../utils/aiModelSelection';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import {
+        chatModelSelectionService,
+        registerChatModelSelectionSync,
+        type ChatModelSelection
+    } from '../../services/chatModelSelection';
     import { chatDB } from '../../services/db';
     import { isTeamAIInvocation } from '../../services/teamService';
     import { activeTeamId } from '../../stores/teamStore';
@@ -29,6 +35,7 @@
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+    import { isProviderHealthy } from '../../stores/appHealthStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
@@ -87,6 +94,7 @@
     import {
         buildProjectMentionSyntax,
         extractMentionQuery,
+        resolveModelMentionSelection,
         type AnyMentionResult,
         type MateMentionResult,
         type ProjectMentionResult
@@ -140,6 +148,7 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
+    import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
     interface UnclosedBlock {
@@ -254,6 +263,116 @@
     let showCamera = $state(false);
     let showMaps = $state(false);
     let showSketch = $state(false);
+    let modelSelection = $state<ChatModelSelection>('auto');
+    let modelSelectionReady = $state(true);
+    let modelSelectionChatId = $state<string | undefined>(undefined);
+    let modelSelectionUserId = $state<string | null>(null);
+    let pendingNewChatModelSelection = $state<{ selection: ChatModelSelection; draftChatId: string | null } | null>(null);
+
+    function isModelSelectionUsable(selection: string): boolean {
+        const profile = get(userProfile);
+        return isAiModelSelectionUsable(
+            selection,
+            {
+                disabledModels: profile.disabled_ai_models,
+                disabledServers: profile.disabled_ai_servers,
+            },
+            get(isProviderHealthy),
+        );
+    }
+
+    async function recoverModelSelection(
+        phase: UnavailableModelRecoveryPhase,
+        selection: ChatModelSelection,
+        userId: string,
+        chatId: string
+    ): Promise<ChatModelSelection> {
+        const canonicalSelection = canonicalizeAiModelSelection(selection) ?? selection;
+        const recoveredSelection = await recoverUnavailableModelSelection({
+            phase,
+            selection: canonicalSelection,
+            isUsable: isModelSelectionUsable,
+            notify: () => notificationStore.error($text('enter_message.model_selector.unavailable_reset')),
+            persistSelection: async () => {
+                await chatModelSelectionService.select({ userId, chatId, selection: 'auto' });
+            }
+        });
+        if (canonicalSelection !== selection && recoveredSelection === canonicalSelection) {
+            await chatModelSelectionService.select({ userId, chatId, selection: canonicalSelection });
+        }
+        return recoveredSelection;
+    }
+
+    $effect(() => {
+        const userId = $userProfile.user_id;
+        const chatId = currentChatId;
+        const pendingSelection = pendingNewChatModelSelection;
+        let cancelled = false;
+
+        if (!userId) {
+            modelSelection = 'auto';
+            modelSelectionUserId = null;
+            modelSelectionChatId = chatId;
+            modelSelectionReady = true;
+            pendingNewChatModelSelection = null;
+            return;
+        }
+        if (isIncognitoMode) {
+            const contextChanged = modelSelectionUserId !== userId || modelSelectionChatId !== chatId;
+            modelSelectionUserId = userId;
+            modelSelectionChatId = chatId;
+            if (contextChanged) modelSelection = 'auto';
+            modelSelectionReady = true;
+            return;
+        }
+        if (!chatId) {
+            modelSelectionUserId = userId;
+            modelSelectionChatId = chatId;
+            modelSelectionReady = true;
+            if (!chatId && !pendingSelection) modelSelection = 'auto';
+            return;
+        }
+        if (chatId === modelSelectionChatId && userId === modelSelectionUserId) return;
+
+        modelSelectionUserId = userId;
+        modelSelectionChatId = chatId;
+        modelSelectionReady = false;
+        if (pendingSelection && (!pendingSelection.draftChatId || pendingSelection.draftChatId === chatId)) {
+            modelSelection = pendingSelection.selection;
+            modelSelectionReady = true;
+            pendingNewChatModelSelection = null;
+            void chatModelSelectionService
+                .select({ userId, chatId, selection: pendingSelection.selection })
+                .catch((error) => {
+                    console.error('[MessageInput] Failed to persist new-chat model selection:', error);
+                    notificationStore.error($text('common.try_again'));
+                });
+        } else {
+            modelSelection = 'auto';
+            void chatModelSelectionService
+                .restore({ userId, chatId })
+                .then((selection) => recoverModelSelection('load', selection, userId, chatId))
+                .then((selection) => {
+                    if (!cancelled) modelSelection = selection;
+                })
+                .catch((error) => {
+                    console.error('[MessageInput] Failed to restore chat model selection:', error);
+                    notificationStore.error($text('common.try_again'));
+                })
+                .finally(() => {
+                    if (!cancelled) modelSelectionReady = true;
+                });
+        }
+
+        return () => { cancelled = true; };
+    });
+    $effect(() => {
+        const userId = $userProfile.user_id;
+        if (!userId || isIncognitoMode) return;
+        return registerChatModelSelectionSync(userId, (chatId, selection) => {
+            if (chatId === currentChatId) modelSelection = selection;
+        });
+    });
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
     // the parent (ActiveChat) can react to the map overlay opening/closing.
     $effect(() => { isMapsOpen = showMaps; });
@@ -2717,39 +2836,15 @@
             }
         }
 
-        if (result.type === 'model_alias') {
-            // Use the BestModelMention node for alias shortcuts (@best, @fast)
-            // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
-            const aliasResult = result as import('./services/mentionSearchService').ModelAliasMentionResult;
+        if (result.type === 'model_alias' || result.type === 'model') {
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
-                .setBestModelMention({
-                    category: aliasResult.aliasId,
-                    displayName: aliasResult.mentionDisplayName
-                })
-                .insertContent(' ')
                 .run();
-        } else if (result.type === 'model') {
-            // Use the custom AI model mention node for visual display
-            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id:provider
-            editor
-                .chain()
-                .focus()
-                .deleteRange({ from: atDocPosition, to: from })
-                .setAIModelMention({
-                    modelId: result.id,
-                    modelProvider: (result as import('./services/mentionSearchService').ModelMentionResult).providerId,
-                    displayName: result.mentionDisplayName
-                })
-                .insertContent(' ')
-                .run();
-            
-            // Debug: Log the editor state after insertion
-            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
-                JSON.stringify(editor.getJSON(), null, 2)
-            );
+            const selection = resolveModelMentionSelection(result);
+            if (selection) void persistModelSelection(selection);
+            else notificationStore.error($text('common.try_again'));
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
@@ -3232,7 +3327,6 @@
         window.addEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
-        messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
         // Handler for language change - updates placeholder text when language switches
         languageChangeHandler = () => {
             if (editor && !editor.isDestroyed) {
@@ -3472,7 +3566,6 @@
         window.removeEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
-        messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
         window.removeEventListener('language-changed-complete', languageChangeHandler);
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
@@ -4155,6 +4248,17 @@
         event.preventDefault();
         event.stopPropagation();
         toggleProjectMentionAccess(chip);
+    }
+
+    function handleMessageWrapperFocusIn(event: FocusEvent) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-preserve-composer-focus="true"]')) return;
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
     }
 
     /**
@@ -4894,6 +4998,10 @@
             sendRequestedWhilePending = true;
             return;
         }
+        if (!modelSelectionReady) {
+            notificationStore.error($text('common.try_again'));
+            return;
+        }
 
         if (sendClickInProgress) return;
         sendClickInProgress = true;
@@ -4972,6 +5080,33 @@
             }
         }
 
+        if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:') && !editor.getText().includes('@best-model:')) {
+            const userId = $userProfile.user_id;
+            try {
+                if (userId && currentChatId) {
+                    modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
+                }
+            } catch (error) {
+                console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
+                notificationStore.error($text('common.try_again'));
+                hasContent = !isContentEmptyExceptMention(editor);
+                refreshDraftPreviewState(editor);
+                awaitingAITaskStart = false;
+                if (awaitingAITaskTimeoutId) {
+                    clearTimeout(awaitingAITaskTimeoutId);
+                    awaitingAITaskTimeoutId = null;
+                }
+                sendClickInProgress = false;
+                return;
+            }
+            const separator = modelSelection.indexOf('/');
+            if (separator > 0) {
+                const provider = modelSelection.slice(0, separator);
+                const modelId = modelSelection.slice(separator + 1);
+                editor.commands.insertContentAt(0, `@ai-model:${modelId}:${provider} `);
+            }
+        }
+
         void handleSend(
             editor,
             dispatch,
@@ -5006,6 +5141,40 @@
     function handleBuyCreditsClick() {
         console.info('[MessageInput] User clicked Buy credits — opening billing/buy-credits settings');
         settingsDeepLink.set('billing/buy-credits');
+        panelState.openSettings();
+    }
+
+    async function persistModelSelection(selection: ChatModelSelection): Promise<void> {
+        modelSelection = selection;
+        if (isIncognitoMode) return;
+        const userId = $userProfile.user_id;
+        if (!userId || !currentChatId) {
+            pendingNewChatModelSelection = currentChatId
+                ? null
+                : { selection, draftChatId: get(draftEditorUIState).currentChatId };
+            return;
+        }
+
+        try {
+            modelSelection = await chatModelSelectionService.select({
+                userId,
+                chatId: currentChatId,
+                selection
+            });
+        } catch (error) {
+            console.error('[MessageInput] Failed to persist chat model selection:', error);
+            notificationStore.error($text('common.try_again'));
+        }
+    }
+
+    function handleModelSelect(event: CustomEvent<{ selection: string }>): void {
+        void persistModelSelection(event.detail.selection);
+    }
+
+    function handleModelDetails(event: CustomEvent<{ modelId: string }>): void {
+        isMessageFieldFocused = false;
+        isFocused = false;
+        settingsDeepLink.set(`ai/model/${event.detail.modelId}`);
         panelState.openSettings();
     }
 
@@ -5853,6 +6022,7 @@
     onmousedown={handleMessageWrapperMouseDown}
     onclick={handleMessageWrapperClick}
     onkeydown={handleMessageWrapperKeyDown}
+    onfocusin={handleMessageWrapperFocusIn}
     data-action="message-input"
     data-current-chat-id={currentChatId ?? 'new-chat'}
 >
@@ -6132,10 +6302,15 @@
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
                     isSketchOpen={showSketch}
+                    {modelSelection}
+                    showModelSelector={true}
+                    {modelSelectionReady}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sketchClick={handleSketchClick}
+                    on:modelSelect={handleModelSelect}
+                    on:modelDetails={handleModelDetails}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
                     on:buyCreditsClick={handleBuyCreditsClick}
