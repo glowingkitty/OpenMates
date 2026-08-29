@@ -97,7 +97,7 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		{
 			id: 'daily-inspiration.guest-isolated-after-force-logout',
 			checkpoint: 'session-b-guest-onboarding',
-			visual: 'Session B visibly shows the guest onboarding carousel and no stale chat header after force logout.',
+			visual: 'Session B visibly shows the expanded first guest intro covering the chat surface with no stale chat header after force logout.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -225,7 +225,7 @@ async function _isLoggedOut(page: any): Promise<boolean> {
 // Main test
 // ---------------------------------------------------------------------------
 
-// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated
+// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
 // eslint-disable-next-line no-empty-pattern
 test('session revoke: revoking session B from session A does not log out session A', async ({}, testInfo: any) => {
 	test.slow();
@@ -388,6 +388,23 @@ test('session revoke: revoking session B from session A does not log out session
 				'data-visible-inspiration-ids',
 				GUEST_ONBOARDING_IDS.join(',')
 			);
+			await expect(pageB.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
+			await expect(guestBannerB).toHaveAttribute('data-landing-intro-phase', 'expanded');
+			const geometry = await pageB.evaluate(() => {
+				const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+				if (!activeChat || !banner) throw new Error('Forced logout landing elements missing');
+				const activeRect = activeChat.getBoundingClientRect();
+				const bannerRect = banner.getBoundingClientRect();
+				return {
+					bottomDelta: Math.abs(activeRect.bottom - bannerRect.bottom),
+					leftDelta: Math.abs(activeRect.left - bannerRect.left),
+					rightDelta: Math.abs(activeRect.right - bannerRect.right)
+				};
+			});
+			expect(geometry.bottomDelta, 'forced logout intro must cover the active-chat bottom').toBeLessThanOrEqual(2);
+			expect(geometry.leftDelta, 'forced logout intro must cover the active-chat left edge').toBeLessThanOrEqual(2);
+			expect(geometry.rightDelta, 'forced logout intro must cover the active-chat right edge').toBeLessThanOrEqual(2);
 			await expect(pageB.getByTestId('chat-header-title')).toHaveCount(0, { timeout: 10000 });
 			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
 		});
