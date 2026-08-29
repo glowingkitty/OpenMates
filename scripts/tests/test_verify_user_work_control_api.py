@@ -10,3 +10,5 @@ def test_work_control_verifier_uses_master_wrapper_not_plan_row_key():
     assert '"encrypted_goal"' in script
     assert '"key_type": "master"' in script
     assert '"encrypted_plan_key": opaque()' in script
+    assert '"key_type": "plan"' in script
+    assert '"hashed_plan_id": hashed_id(plan_id)' in script

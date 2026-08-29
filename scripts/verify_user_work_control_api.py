@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -52,14 +53,18 @@ def timestamp() -> int:
     return int(time.time())
 
 
+def hashed_id(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
 def plan_payload(plan_id: str, project_id: str) -> dict[str, Any]:
     now = timestamp()
-    return {"plan_id": plan_id, "encrypted_title": opaque(), "encrypted_goal": opaque(), "linked_project_ids": [project_id], "status": "draft", "created_at": now, "updated_at": now, "key_wrappers": [{"key_type": "master", "encrypted_plan_key": opaque(), "created_at": now}]}
+    return {"plan_id": plan_id, "encrypted_title": opaque(), "encrypted_goal": opaque(), "linked_project_ids": [project_id], "status": "draft", "created_at": now, "updated_at": now, "key_wrappers": [{"key_type": "master", "encrypted_plan_key": opaque(), "created_at": now}, {"key_type": "project", "hashed_project_id": hashed_id(project_id), "encrypted_plan_key": opaque(), "created_at": now}]}
 
 
 def task_payload(task_id: str, plan_id: str, project_id: str) -> dict[str, Any]:
     now = timestamp()
-    return {"task_id": task_id, "encrypted_title": opaque(), "encrypted_task_key": opaque(), "plan_id": plan_id, "linked_project_ids": [project_id], "status": "todo", "version": 1, "created_at": now, "updated_at": now, "key_wrappers": []}
+    return {"task_id": task_id, "encrypted_title": opaque(), "encrypted_task_key": opaque(), "plan_id": plan_id, "linked_project_ids": [project_id], "status": "todo", "version": 1, "created_at": now, "updated_at": now, "key_wrappers": [{"key_type": "master", "encrypted_task_key": opaque(), "created_at": now}, {"key_type": "project", "hashed_project_id": hashed_id(project_id), "encrypted_task_key": opaque(), "created_at": now}, {"key_type": "plan", "hashed_plan_id": hashed_id(plan_id), "encrypted_task_key": opaque(), "created_at": now}]}
 
 
 def assumption_resolution_payload() -> dict[str, Any]:

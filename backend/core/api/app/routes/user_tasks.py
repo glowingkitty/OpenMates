@@ -41,7 +41,7 @@ router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[D
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["ai", "user"]
-KeyWrapperType = Literal["master", "chat", "project"]
+KeyWrapperType = Literal["master", "chat", "project", "plan"]
 
 
 class UserTaskKeyWrapperRequest(BaseModel):
@@ -49,6 +49,7 @@ class UserTaskKeyWrapperRequest(BaseModel):
     encrypted_task_key: str = Field(min_length=1)
     hashed_chat_id: str | None = None
     hashed_project_id: str | None = None
+    hashed_plan_id: str | None = None
     created_at: int
     expires_at: int | None = None
 
