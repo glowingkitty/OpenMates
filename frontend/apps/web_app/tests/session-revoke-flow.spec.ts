@@ -57,7 +57,7 @@ const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
 	: {};
 const PROOF_CAPTURE_END_HOLD_MS = 750;
 const PROOF_VIDEO_CRF = '32';
-const SESSION_STABILIZE_MS = IS_PROOF_CAPTURE ? 4000 : 8000;
+const SESSION_STABILIZE_MS = 8000;
 const GUEST_ONBOARDING_IDS = [
 	'openmates-intro',
 	'openmates-actionable-events',
