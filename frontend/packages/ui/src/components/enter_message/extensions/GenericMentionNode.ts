@@ -119,7 +119,7 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
       HTMLAttributes.colorStart && HTMLAttributes.colorEnd
         ? `--mention-color-start: ${HTMLAttributes.colorStart}; --mention-color-end: ${HTMLAttributes.colorEnd};`
         : HTMLAttributes.mentionType === "wikipedia"
-          ? "--mention-color-start: var(--color-font-secondary); --mention-color-end: var(--color-font-primary);"
+          ? "--mention-color-start: var(--color-app-study-start); --mention-color-end: var(--color-app-study-end);"
         : "";
 
     const attrs = mergeAttributes(HTMLAttributes, {
