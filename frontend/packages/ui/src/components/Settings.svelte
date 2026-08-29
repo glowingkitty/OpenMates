@@ -1678,6 +1678,9 @@ changes to the documentation (to keep the documentation up to date).
             dynamicPersonalDataEditRoutes = new Set(dynamicPersonalDataEditRoutes);
         }
 
+        // Let derived route maps expose newly registered components before activating the route.
+        await tick();
+
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
         
