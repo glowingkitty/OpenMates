@@ -107,7 +107,7 @@ def main() -> int:
                 if not api_key or not created_key_id:
                     raise RuntimeError("CLI did not return a revocable developer API key")
             project_id = identifier(cli(home, args.api_url, ["projects", "create", f"sdk-work-control-{suffix}"]), "project_id")
-            plan_id = identifier(cli(home, args.api_url, ["plans", "create", "--title", f"sdk-work-control-{suffix}", "--project", project_id]), "plan_id")
+            plan_id = identifier(cli(home, args.api_url, ["plans", "create", "--title", f"sdk-work-control-{suffix}", "--goal", "Verify SDK work control", "--project", project_id]), "plan_id")
             task_id = identifier(cli(home, args.api_url, ["tasks", "create", "--title", f"sdk-work-control-{suffix}", "--project", project_id, "--plan", plan_id]), "task_id")
             cli(home, args.api_url, ["plans", "assumptions", "create", plan_id, "--id", "proof", "--text", "typed proof"])
             env = {**os.environ, "OPENMATES_API_URL": args.api_url, "OPENMATES_SMOKE_API_KEY": api_key, "OPENMATES_WORK_PLAN": plan_id, "OPENMATES_WORK_TASK": task_id, "OPENMATES_SMOKE_DEVICE_ID": VERIFIER_DEVICE_ID}

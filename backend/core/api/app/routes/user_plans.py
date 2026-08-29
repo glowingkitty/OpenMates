@@ -745,7 +745,8 @@ async def update_user_plan(
         else:
             plan = await service.update_plan(plan_id, current_user.id, patch)
         if set(patch) - {"status", "updated_at", "version"}:
-            plan = await _invalidate_material_plan(request, current_user.id, plan_id, patch.get("updated_at"))
+            await _invalidate_material_plan(request, current_user.id, plan_id, patch.get("updated_at"))
+            plan = await service.get_plan(plan_id, current_user.id)
         history = await _record_plan_history(
             history_service,
             current_user.id,

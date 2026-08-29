@@ -47,6 +47,7 @@ from backend.core.api.app.services.user_plan_service import UserPlanNotFoundErro
 
 
 get_user_plan = getattr(user_plans.get_user_plan, "__wrapped__", user_plans.get_user_plan)
+update_user_plan = getattr(user_plans.update_user_plan, "__wrapped__", user_plans.update_user_plan)
 
 
 async def _current_user(_request: object, _response: Response) -> SimpleNamespace:
@@ -91,6 +92,34 @@ async def test_get_user_plan_checks_team_permission_before_team_lookup(monkeypat
     assert result == {"plan": plan}
     team.require_team_role.assert_awaited_once_with("team-1", "user-1", {"owner", "admin", "member", "viewer"})
     service.get_plan.assert_awaited_once_with("plan-1", "user-1", team_id="team-1")
+
+
+# contract-test: direct surface=rest_api assertions=plans.content.client-encrypted,plans.key-wrappers.contextual,plans.surface.semantic-parity
+@pytest.mark.asyncio
+async def test_update_user_plan_refetches_hydrated_record_after_material_invalidation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(user_plans, "_current_user", _current_user)
+    invalidated = {"plan_id": "plan-1", "encrypted_title": "cipher-new", "version": 3}
+    hydrated = {**invalidated, "key_wrappers": [{"key_type": "master", "encrypted_plan_key": "cipher-key"}]}
+    monkeypatch.setattr(user_plans, "_invalidate_material_plan", AsyncMock(return_value=invalidated))
+    monkeypatch.setattr(user_plans, "_work_control_service", lambda _request, _user_id: SimpleNamespace())
+    monkeypatch.setattr(user_plans, "_record_plan_history", AsyncMock(return_value={"entry_id": "history-1"}))
+    service = SimpleNamespace(
+        plan_methods=SimpleNamespace(get_plan=AsyncMock(return_value={"plan_id": "plan-1", "version": 1})),
+        update_plan=AsyncMock(return_value={"plan_id": "plan-1", "encrypted_title": "cipher-new", "version": 2}),
+        get_plan=AsyncMock(return_value=hydrated),
+    )
+
+    result = await update_user_plan(
+        request=SimpleNamespace(),
+        response=Response(),
+        plan_id="plan-1",
+        body=user_plans.UserPlanUpdateRequest(encrypted_title="cipher-new", version=1),
+        service=service,
+        history_service=SimpleNamespace(),
+    )
+
+    assert result["plan"] == hydrated
+    service.get_plan.assert_awaited_once_with("plan-1", "user-1")
 
 
 # contract-test: direct surface=rest_api assertions=plans.active-context.vault-boundary,plans.surface.semantic-parity

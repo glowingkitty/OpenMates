@@ -61,6 +61,14 @@ def identifier(payload: dict[str, Any], key: str) -> str:
     raise RuntimeError(f"CLI response did not include {key}")
 
 
+def _contains_identifier(value: Any, key: str, expected: str) -> bool:
+    if isinstance(value, dict):
+        return value.get(key) == expected or any(_contains_identifier(child, key, expected) for child in value.values())
+    if isinstance(value, list):
+        return any(_contains_identifier(child, key, expected) for child in value)
+    return False
+
+
 def cleanup(home: Path, api_url: str, task_id: str, plan_id: str, project_id: str) -> None:
     failures: list[str] = []
     for name, identifier_value, command in (
@@ -105,19 +113,23 @@ def main() -> int:
             cli(home, args.api_url, ["plans", "revisions", "submit-for-review", plan_id])
             cli(home, args.api_url, ["plans", "revisions", "status", plan_id])
             cli(home, args.api_url, ["plans", "revisions", "list", plan_id])
-            cli(home, args.api_url, ["plans", "list", "--project", project_id])
-            cli(home, args.api_url, ["tasks", "list", "--project", project_id])
+            scoped_plans = cli(home, args.api_url, ["plans", "list", "--project", project_id])
+            scoped_tasks = cli(home, args.api_url, ["tasks", "list", "--project", project_id])
+            if not _contains_identifier(scoped_plans, "plan_id", plan_id):
+                raise RuntimeError("project-scoped Plan list omitted the created fixture")
+            if not _contains_identifier(scoped_tasks, "task_id", task_id):
+                raise RuntimeError("project-scoped Task list omitted the created fixture")
             synced = cli(home, args.api_url, ["recovery", "full-sync", "--project", project_id, "--root", recovery_root])
             projection = str(synced.get("path") or Path(recovery_root) / f"{project_id}.yml")
             cli(home, args.api_url, ["recovery", "validate", "--file", projection])
-            dry_run = cli(home, args.api_url, ["recovery", "restore", "--file", projection, "--project", project_id, "--dry-run"])
-            if dry_run.get("conflicts"):
-                raise RuntimeError("recovery dry-run unexpectedly reported conflicts")
             restored_plan_id, restored_task_id = plan_id, task_id
             cli(home, args.api_url, ["tasks", "delete", task_id, "--confirm"])
             task_id = ""
             cli(home, args.api_url, ["plans", "delete", plan_id, "--confirm"])
             plan_id = ""
+            dry_run = cli(home, args.api_url, ["recovery", "restore", "--file", projection, "--project", project_id, "--dry-run"])
+            if dry_run.get("conflicts"):
+                raise RuntimeError("recovery dry-run unexpectedly reported conflicts after source deletion")
             restored = cli(home, args.api_url, ["recovery", "restore", "--file", projection, "--project", project_id, "--confirm-restore"])
             if restored.get("restored") is not True:
                 raise RuntimeError("recovery restore did not report semantic verification")
