@@ -97,8 +97,8 @@ async function assertProof(proof: any, assertionId: string, assertion: () => Pro
 	await assertion();
 }
 
-async function focusComposer(page: any): Promise<any> {
-	const editor = page.getByTestId('message-editor').last();
+async function focusComposer(page: any, composer: any): Promise<any> {
+	const editor = composer.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 20000 });
 	await page.waitForTimeout(600);
 	await editor.click();
@@ -140,8 +140,14 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await archiveExistingScreenshots(logCheckpoint);
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
-	const editor = await focusComposer(page);
-	const composer = page.getByTestId('message-field').last();
+	const messageInput = page.locator('[data-action="message-input"]').last();
+	const chatContextId = await messageInput.getAttribute('data-current-chat-id');
+	expect(chatContextId).toBeTruthy();
+	const composer = page
+		.locator(`[data-action="message-input"][data-current-chat-id="${chatContextId}"]`)
+		.last()
+		.getByTestId('message-field');
+	const editor = await focusComposer(page, composer);
 	const selector = composer.getByTestId('composer-model-selector');
 
 	await page.keyboard.insertText('How do I make ramen?');
@@ -294,7 +300,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
 	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
 
-	await focusComposer(page);
+	await focusComposer(page, composer);
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
 	const solMaxRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' });
