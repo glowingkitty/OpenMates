@@ -298,9 +298,9 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(composer).toHaveAttribute('data-focused', 'false');
 	await page.getByTestId('icon-button-close').click();
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
+	await focusComposer(page, composer);
 	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
 
-	await focusComposer(page, composer);
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
 	const solMaxRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' });
