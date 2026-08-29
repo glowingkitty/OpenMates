@@ -232,12 +232,13 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.plans.attach()` | `om.plans.attach()` | `id, chat_id` | `id, chat_id` | `object` |
 | `om.plans.complete()` | `om.plans.complete()` | `id` | `id` | `object` |
 | `om.plans.create()` | `om.plans.create()` | `input` | `input` | `object` |
-| `om.plans.createAssumption()` | `om.plans.create_assumption()` | `id, assumption_id, text, category, status, required_before, linked_sub_chat_id, linked_task_id, linked_step_ids, linked_criterion_ids, source_count, corrected_text, evidence_summary, blocker_reason, waiver_reason, sources` | `id, input` | `object` |
+| `om.plans.createAssumption()` | `om.plans.create_assumption()` | `id, assumption_id, text, category, status, required_before, linked_sub_chat_id, linked_task_id, linked_step_ids, linked_criterion_ids, source_count, corrected_text, evidence_summary, blocker_reason, waiver_reason, sources, proof_inputs` | `id, input` | `object` |
 | `om.plans.createCriterion()` | `om.plans.create_criterion()` | `id, input` | `id, input` | `object` |
 | `om.plans.createLearning()` | `om.plans.create_learning()` | `id, input` | `id, input` | `object` |
 | `om.plans.createLearningTasks()` | `om.plans.create_learning_tasks()` | `id, input` | `id, input` | `object` |
 | `om.plans.createReferencePattern()` | `om.plans.create_reference_pattern()` | `id, pattern_id, title, description, category, status, required_before, source_count, linked_task_ids, linked_check_ids, sources, match_rules, anti_patterns, evidence_summary, waiver_reason` | `id, input` | `object` |
 | `om.plans.createVerification()` | `om.plans.create_verification()` | `id, input` | `id, input` | `object` |
+| `om.plans.delete()` | `om.plans.delete()` | `id, confirmed` | `id, confirmed` | `object` |
 | `om.plans.deleteAssumption()` | `om.plans.delete_assumption()` | `id, assumption_id` | `id, assumption_id` | `object` |
 | `om.plans.deleteCriterion()` | `om.plans.delete_criterion()` | `id, criterion_id` | `id, criterion_id` | `object` |
 | `om.plans.deleteLearning()` | `om.plans.delete_learning()` | `id, learning_id` | `id, learning_id` | `object` |

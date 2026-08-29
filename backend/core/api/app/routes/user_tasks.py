@@ -15,7 +15,7 @@ from starlette.concurrency import run_in_threadpool
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_tasks_enabled
 from backend.core.api.app.services.limiter import limiter
@@ -26,6 +26,11 @@ from backend.core.api.app.services.user_task_service import (
     UserTaskService,
 )
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
+from backend.core.api.app.services.user_work_control_service import (
+    DirectusWorkControlRepository,
+    UserWorkControlService,
+    WorkControlPermissionError,
+)
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_task_projection_service import WorkflowTaskProjectionService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
@@ -176,6 +181,10 @@ class UserTaskRestoreRequest(BaseModel):
     state: Literal["before", "after"] = "after"
 
 
+class WorkDependencyRequest(BaseModel):
+    target_ref: str = Field(pattern=r"^(plan|task):[^:]+$")
+
+
 class UserTaskAskUpdateRequest(BaseModel):
     task_id: str = Field(min_length=1)
     patch: UserTaskUpdateRequest
@@ -240,6 +249,38 @@ async def _current_user(request: Request, response: Response) -> User:
     )
 
 
+async def _current_session_user(request: Request, response: Response) -> User:
+    """Dependency mutations are first-party session-only encrypted operations."""
+    return await get_current_user(
+        directus_service=request.app.state.directus_service,
+        cache_service=request.app.state.cache_service,
+        refresh_token=request.cookies.get("auth_refresh_token"),
+        response=response,
+        request=request,
+    )
+
+
+def _work_control_service(request: Request, user_id: str) -> UserWorkControlService:
+    return UserWorkControlService(
+        DirectusWorkControlRepository(
+            user_id=user_id,
+            plan_methods=request.app.state.directus_service.user_plan,
+            task_methods=request.app.state.directus_service.user_task,
+            directus_service=request.app.state.directus_service,
+            cache_service=request.app.state.cache_service,
+        )
+    )
+
+
+async def _ensure_linked_plan_execution(request: Request, user_id: str, task: dict[str, Any]) -> None:
+    plan_id = task.get("plan_id")
+    if not plan_id:
+        return
+    blockers = await _work_control_service(request, user_id).plan_execution_blockers(str(plan_id))
+    if blockers:
+        raise ValueError(f"Plan task execution is blocked: {blockers}")
+
+
 async def _require_task_team_role(request: Request, user_id: str, team_id: str | None) -> None:
     if team_id:
         await request.app.state.directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
@@ -254,6 +295,8 @@ def _handle_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=409, detail="TASK_SLUG_CONFLICT") from exc
     if isinstance(exc, UserTaskNotFoundError):
         raise HTTPException(status_code=404, detail="Task not found") from exc
+    if isinstance(exc, WorkControlPermissionError):
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
@@ -390,7 +433,21 @@ async def create_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
+        if body.plan_id and body.assignee_type == "ai":
+            await _ensure_linked_plan_execution(request, current_user.id, body.model_dump())
         task = await service.create_task(current_user.id, body.model_dump())
+        if task.get("plan_id"):
+            try:
+                await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                    None, task, updated_at=int(task.get("updated_at") or time.time())
+                )
+            except Exception:
+                await service.task_methods.delete_task(
+                    str(task["task_id"]),
+                    current_user.id,
+                    int(task.get("version") or 1),
+                )
+                raise
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -456,13 +513,29 @@ async def ask_user_tasks(
         action_type = "ask_create"
         summary = ""
         for encrypted_create in encrypted_creates:
+            if encrypted_create.plan_id and encrypted_create.assignee_type == "ai":
+                await _ensure_linked_plan_execution(request, current_user.id, encrypted_create.model_dump())
             task = await service.create_task(current_user.id, encrypted_create.model_dump())
+            if task.get("plan_id"):
+                try:
+                    await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                        None, task, updated_at=int(task.get("updated_at") or time.time())
+                    )
+                except Exception:
+                    await service.task_methods.delete_task(
+                        str(task["task_id"]), current_user.id, int(task.get("version") or 1)
+                    )
+                    raise
             tasks.append(task)
             entries.append({"object_type": "task", "object_id": task["task_id"], "operation": "create", "after": task})
         for encrypted_update in encrypted_updates:
             patch = encrypted_update.patch.model_dump(exclude_unset=True)
             before = await service.task_methods.get_task(encrypted_update.task_id, current_user.id)
             task = await service.update_task(encrypted_update.task_id, current_user.id, patch)
+            if "plan_id" in patch:
+                await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                    before, task, updated_at=int(patch.get("updated_at") or time.time())
+                )
             tasks.append(task)
             entries.append({
                 "object_type": "task",
@@ -473,9 +546,16 @@ async def ask_user_tasks(
             })
         for exact_delete in exact_deletes:
             before = await service.task_methods.get_task(exact_delete.task_id, current_user.id)
-            deleted = await service.task_methods.delete_task(exact_delete.task_id, current_user.id, exact_delete.version)
+            async with _work_control_service(request, current_user.id).delete_guard(f"task:{exact_delete.task_id}") as lease:
+                if lease is not None:
+                    await lease.assert_held()
+                deleted = await service.task_methods.delete_task(exact_delete.task_id, current_user.id, exact_delete.version)
             if not deleted:
                 raise HTTPException(status_code=404, detail="Task not found")
+            if before and before.get("plan_id"):
+                await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                    before, None, updated_at=int(time.time())
+                )
             entries.append({"object_type": "task", "object_id": exact_delete.task_id, "operation": "delete", "before": before})
         if encrypted_updates:
             action_type = "ask_update"
@@ -531,14 +611,14 @@ async def restore_user_task_from_history(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        result = await history_service.restore_object_to_entry(
-            user_id=current_user.id,
-            object_type="task",
-            object_id=task_id,
-            entry_id=body.entry_id,
-            state=body.state,
-            source="cli",
-        )
+        async with _work_control_service(request, current_user.id).restore_delete_guard(
+            history_service, user_id=current_user.id, object_type="task", object_id=task_id, entry_id=body.entry_id, state=body.state
+        ) as lease:
+            if lease is not None:
+                await lease.assert_held()
+            result = await history_service.restore_object_to_entry(
+                user_id=current_user.id, object_type="task", object_id=task_id, entry_id=body.entry_id, state=body.state, source="cli"
+            )
         return {"task": result.get("object"), "history": result}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -560,12 +640,17 @@ async def update_user_task(
     try:
         await _require_task_team_role(request, current_user.id, team_id)
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        patch = body.model_dump(exclude_unset=True)
         task = await service.update_task(
             task_id,
             current_user.id,
-            body.model_dump(exclude_unset=True),
+            patch,
             team_id=team_id,
         )
+        if not team_id and "plan_id" in patch:
+            await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                before, task, updated_at=int(patch.get("updated_at") or time.time())
+            )
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -575,6 +660,40 @@ async def update_user_task(
             redacted_summary="Updated 1 task",
         )
         return {"task": task, "history": history}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/dependencies")
+@limiter.limit("30/minute")
+async def add_task_dependency(request: Request, response: Response, task_id: str, body: WorkDependencyRequest) -> dict[str, Any]:
+    """First-party session or approved-device route; standard rate limit, no credits."""
+    current_user = await _current_user(request, response)
+    try:
+        edge = await _work_control_service(request, current_user.id).add_dependency(f"task:{task_id}", body.target_ref)
+        return {"dependency": edge}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.delete("/{task_id}/dependencies/{target_kind}/{target_id}")
+@limiter.limit("30/minute")
+async def remove_task_dependency(request: Request, response: Response, task_id: str, target_kind: Literal["plan", "task"], target_id: str) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        await _work_control_service(request, current_user.id).remove_dependency(f"task:{task_id}", f"{target_kind}:{target_id}")
+        return {"deleted": True}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.get("/{task_id}/dependencies")
+@limiter.limit("60/minute")
+async def list_task_dependencies(request: Request, response: Response, task_id: str) -> dict[str, Any]:
+    """First-party/API-key read; owner-scoped safe dependency metadata only."""
+    current_user = await _current_user(request, response)
+    try:
+        return await _work_control_service(request, current_user.id).dependency_read_model(f"task:{task_id}")
     except Exception as exc:
         _handle_task_error(exc)
 
@@ -593,6 +712,14 @@ async def start_user_task_ai(
     try:
         await _require_task_team_role(request, current_user.id, body.team_id)
         before = await service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        if body.team_id:
+            raise ValueError("Team work-control task execution is not supported in this slice")
+        if before:
+            blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
+            if blockers:
+                raise ValueError(f"Task execution is blocked: {blockers}")
+        if before:
+            await _ensure_linked_plan_execution(request, current_user.id, before)
         task = await service.start_ai(
             task_id,
             current_user.id,
@@ -622,6 +749,7 @@ async def move_user_task_to_team(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
+        await _work_control_service(request, current_user.id).ensure_unlinked(f"task:{task_id}")
         task = await move_workspace_record_to_team(
             directus_service=request.app.state.directus_service,
             actor_user_id=current_user.id,
@@ -658,7 +786,12 @@ async def delete_user_task(
         if skipped_projection is not None:
             return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
-        deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
+        if team_id:
+            raise ValueError("Team work-control task deletion is not supported in this slice")
+        async with _work_control_service(request, current_user.id).delete_guard(f"task:{task_id}") as lease:
+            if lease is not None:
+                await lease.assert_held()
+            deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Task not found")
         history = await _record_task_history(
@@ -669,6 +802,10 @@ async def delete_user_task(
             entries=[{"object_type": "task", "object_id": task_id, "operation": "delete", "before": before}],
             redacted_summary="Deleted 1 task",
         )
+        if before and before.get("plan_id"):
+            await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                before, None, updated_at=int(time.time())
+            )
     except Exception as exc:
         _handle_task_error(exc)
     return {"deleted": True, "task_id": task_id, "history": history}
@@ -688,6 +825,13 @@ async def complete_user_task(
     try:
         await _require_task_team_role(request, current_user.id, body.team_id)
         before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        if body.team_id:
+            raise ValueError("Team work-control task completion is not supported in this slice")
+        blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
+        if blockers:
+            raise ValueError(f"Task completion is blocked: {blockers}")
+        if before:
+            await _ensure_linked_plan_execution(request, current_user.id, before)
         task = await queue_service.complete_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,

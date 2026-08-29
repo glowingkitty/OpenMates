@@ -1207,6 +1207,7 @@ class DirectusService:
             "filter[id][_eq]": item_id,
             f"filter[{version_field}][_eq]": expected_version,
             "limit": 1,
+            "fields": "*",
         }
         if owner_hash_field and owner_hash:
             params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
@@ -1232,10 +1233,28 @@ class DirectusService:
             return None
         response_json = response_obj.json()
         data_value = response_json.get("data") if isinstance(response_json, dict) else None
-        if isinstance(data_value, list):
-            return data_value[0] if data_value else None
+        if isinstance(data_value, list) and data_value:
+            return data_value[0]
         if isinstance(data_value, dict):
             return data_value
+        rows = await self.get_items(
+            collection,
+            params={
+                "filter[id][_eq]": item_id,
+                "fields": "*",
+                "limit": 1,
+                **(
+                    {f"filter[{owner_hash_field}][_eq]": owner_hash}
+                    if owner_hash_field and owner_hash
+                    else {}
+                ),
+            },
+            no_cache=True,
+        )
+        candidate = rows[0] if isinstance(rows, list) and rows else None
+        if candidate and all(candidate.get(field) == value for field, value in data.items()):
+            return candidate
+        self.last_update_error = {"error": "conditional update response omitted the updated row"}
         return None
 
     # Assign the internal helper to the class

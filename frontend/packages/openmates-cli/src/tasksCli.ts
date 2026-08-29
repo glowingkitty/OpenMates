@@ -84,6 +84,8 @@ export function workflowProjectionDeleteGuidance(task: DecryptedUserTask): strin
 }
 
 export interface TaskCreateOptions {
+  /** Stable ID is used only by validated local recovery restoration. */
+  taskId?: string;
   title: string;
   description?: string;
   labels?: string[];
@@ -194,7 +196,7 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     lookupKey: masterKey,
   });
   return {
-    task_id: randomUUIDCompat(),
+    task_id: input.taskId ?? randomUUIDCompat(),
     short_id: undefined,
     version: 1,
     encrypted_task_key: encryptedTaskKey,
@@ -340,6 +342,23 @@ function workflowProjectionShortId(record: UserTaskRecord): string {
 export async function decryptUserTasks(records: UserTaskRecord[], masterKey: Uint8Array): Promise<DecryptedUserTask[]> {
   const output: DecryptedUserTask[] = [];
   for (const record of records) output.push(await decryptUserTask(record, masterKey));
+  return output;
+}
+
+export async function decryptUserTasksForCli(
+  records: UserTaskRecord[],
+  masterKey: Uint8Array,
+  warn: (message: string) => void,
+): Promise<DecryptedUserTask[]> {
+  const output: DecryptedUserTask[] = [];
+  for (const record of records) {
+    try {
+      output.push(await decryptUserTask(record, masterKey));
+    } catch {
+      const identifier = record.short_id || record.task_id || "unknown";
+      warn(`Warning: skipped undecryptable task ${identifier} (${record.task_id || "unknown"}).`);
+    }
+  }
   return output;
 }
 

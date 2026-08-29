@@ -88,6 +88,11 @@ USER_TASK_INDEXES = (
     'user_task_activity_task_created_idx',
     'user_task_archives_owner_archived_idx',
 )
+USER_WORK_CONTROL_MIGRATION_PATH = os.getenv(
+    'USER_WORK_CONTROL_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_user_work_control_indexes.sql',
+)
+USER_WORK_CONTROL_INDEXES = ('user_work_dependencies_source_target_uq',)
 USAGE_OVERVIEW_MIGRATION_PATH = os.getenv(
     'USAGE_OVERVIEW_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_usage_overview_indexes.sql',
@@ -188,6 +193,8 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'user_plan_key_wrappers',
     'user_task_key_wrappers',
     'user_chat_preferences',
+    'user_plan_revisions',
+    'user_work_dependencies',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -1225,6 +1232,27 @@ def apply_and_verify_user_task_indexes():
     print(f"Verified {len(USER_TASK_INDEXES)} user task indexes")
 
 
+def apply_and_verify_user_work_control_indexes():
+    """Apply the durable unique edge index before dependency routes are enabled."""
+    if not os.path.isfile(USER_WORK_CONTROL_MIGRATION_PATH):
+        raise RuntimeError(f"Required work-control migration is missing: {USER_WORK_CONTROL_MIGRATION_PATH}")
+    with open(USER_WORK_CONTROL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY(%s)",
+                (list(USER_WORK_CONTROL_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(USER_WORK_CONTROL_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError("Work-control index verification failed: " + ", ".join(sorted(missing_indexes)))
+    print(f"Verified {len(USER_WORK_CONTROL_INDEXES)} work-control indexes")
+
+
 def apply_and_verify_usage_overview_indexes():
     """Apply usage overview rollup and hot-path read indexes."""
     if not os.path.isfile(USAGE_OVERVIEW_MIGRATION_PATH):
@@ -1570,6 +1598,9 @@ def setup_schemas():
 
         print("\n--- Applying user task database indexes ---")
         apply_and_verify_user_task_indexes()
+
+        print("\n--- Applying user work-control database indexes ---")
+        apply_and_verify_user_work_control_indexes()
 
         print("\n--- Applying usage overview database indexes ---")
         apply_and_verify_usage_overview_indexes()

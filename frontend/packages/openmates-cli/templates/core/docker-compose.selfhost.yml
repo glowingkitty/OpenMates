@@ -148,6 +148,7 @@ services:
       STORAGE_REPLICATION_MIGRATION_PATH: /usr/src/app/migrations/migrate_storage_replication_indexes.sql
       WORKFLOW_RUNTIME_MIGRATION_PATH: /usr/src/app/migrations/migrate_workflow_runtime_indexes.sql
       USER_CHAT_PREFERENCE_MIGRATION_PATH: /usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql
+      USER_WORK_CONTROL_MIGRATION_PATH: /usr/src/app/migrations/migrate_user_work_control_indexes.sql
       AI_MEMORY_REMOVAL_MIGRATION_PATH: /usr/src/app/migrations/migrate_remove_ai_memories.sql
     networks: [openmates]
     depends_on: [cms]

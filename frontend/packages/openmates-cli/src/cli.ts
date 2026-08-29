@@ -48,6 +48,7 @@ import {
   type UserTaskRecord,
   type UserTaskStatus,
   type UserPlanCriterionRecord,
+  type UserPlanAssumptionRecord,
   type UserPlanRecord,
   type UserPlanStatus,
   type UserPlanVerificationStatus,
@@ -60,11 +61,12 @@ import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMeta
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
+import { parse as parseYaml } from "yaml";
 import WebSocket from "ws";
 
 import {
@@ -152,6 +154,7 @@ import {
   buildUpdateUserTaskInput,
   decryptUserTask,
   decryptUserTasks,
+  decryptUserTasksForCli,
   findTask,
   labelHashes as buildLabelHashes,
   normalizeLabels,
@@ -196,7 +199,10 @@ import {
   type DecryptedPlanLearning,
   type DecryptedUserPlan,
   type PlanProjectKey,
+  planKeyFromRecord,
+  serializeAssumptionProofInputs,
 } from "./plansCli.js";
+import { findRecoveryConflicts, projectPlanAssumption, projectPlanRevision, recoveryDocumentSemanticMismatchPaths, recoveryDocumentsSemanticallyEqual, validateWorkRecoveryDocument, writeWorkRecoveryAtomically, type WorkRecoveryDocument } from "./workRecovery.js";
 import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import { buildEncryptedObjectSlugMetadata, objectSlugMatches } from "./objectSlugs.js";
 import {
@@ -319,6 +325,10 @@ async function main(): Promise<void> {
     }
     if (command === "projects") {
       printProjectsHelp();
+      return;
+    }
+    if (command === "recovery") {
+      console.log("Recovery commands: full-sync --project <id> --root <external-root>; validate --file <projection.yml>; restore --file <projection.yml> --dry-run|--confirm-restore.");
       return;
     }
     if (command === "teams") {
@@ -490,6 +500,11 @@ async function main(): Promise<void> {
 
   if (command === "projects") {
     await handleProjects(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "recovery") {
+    await handleWorkRecovery(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -720,6 +735,33 @@ async function handleTasks(
     const updated = await client.updateUserTask(task.taskId, patch);
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
+  }
+
+  if (subcommand === "dependencies") {
+    const action = rest[0] ?? "list";
+    const task = await requiredResolvedTask(client, masterKey, rest[1], { ...scope, status: undefined }, `dependencies ${action}`);
+    if (action === "list") {
+      const result = await client.getTaskDependencies(task.taskId);
+      if (flags.json === true) printJson(result);
+      else printDependencies(result);
+      return;
+    }
+    const target = await resolveDependencyTarget(client, masterKey, flags.target ?? rest[2], scope, planScopeFromFlags(flags));
+    if (action === "add") {
+      const dependency = await client.addTaskDependency(task.taskId, `${target.kind}:${target.id}`);
+      if (flags.json === true) printJson({ dependency });
+      else console.log(`Task dependency added: ${dependency.target_ref}`);
+      await projectWorkRecoveryIfConfigured(client, masterKey, flags, task.linkedProjectIds);
+      return;
+    }
+    if (action === "remove") {
+      const result = await client.removeTaskDependency(task.taskId, target.kind, target.id);
+      if (flags.json === true) printJson(result);
+      else console.log(`Task dependency removed: ${target.kind}:${target.id}`);
+      await projectWorkRecoveryIfConfigured(client, masterKey, flags, task.linkedProjectIds);
+      return;
+    }
+    throw new Error("Usage: openmates tasks dependencies list|add|remove <task-id> [--target plan:<id>|task:<id>]");
   }
 
   if (subcommand === "list" || subcommand === "status") {
@@ -978,7 +1020,7 @@ async function loadTasks(
   scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
 ): Promise<DecryptedUserTask[]> {
   const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal });
-  const tasks = await decryptUserTasks(records, masterKey);
+  const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
 
@@ -1803,8 +1845,85 @@ async function handlePlans(
   }
 
   const masterKey = client.getMasterKeyBytes();
-  const statusBelongsToChild = ["tasks", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
+  const statusBelongsToChild = ["tasks", "assumptions", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
   const scope = await resolvePlanScope(client, masterKey, flags, planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild }));
+
+  if (subcommand === "dependencies") {
+    const action = rest[0] ?? "list";
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `dependencies ${action}`);
+    if (action === "list") {
+      const result = await client.getPlanDependencies(plan.planId);
+      if (flags.json === true) printJson(result); else printDependencies(result);
+      return;
+    }
+    const target = await resolveDependencyTarget(client, masterKey, flags.target ?? rest[2], taskScopeFromFlags(flags, masterKey), scope);
+    const result = action === "add"
+      ? await client.addPlanDependency(plan.planId, `${target.kind}:${target.id}`)
+      : action === "remove"
+        ? await client.removePlanDependency(plan.planId, target.kind, target.id)
+        : null;
+    if (!result) throw new Error("Usage: openmates plans dependencies list|add|remove <plan-id> --target plan:<id>|task:<id>");
+    if (flags.json === true) printJson(result); else console.log(`Plan dependency ${action}ed: ${target.kind}:${target.id}`);
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
+    return;
+  }
+
+  if (subcommand === "assumptions") {
+    const action = rest[0] ?? "list";
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `assumptions ${action}`);
+    if (action === "list") {
+      const assumptions = await client.listPlanAssumptions(plan.planId);
+      if (flags.json === true) printJson({ assumptions }); else console.log(JSON.stringify(assumptions, null, 2));
+      return;
+    }
+    const proof = parseAssumptionProofFlags(flags);
+    const encryptedSources = proof.length ? await encryptPlanAssumptionSources(plan, masterKey, proof) : undefined;
+    if (action === "create" || action === "add") {
+      const assumption = await client.createPlanAssumption(plan.planId, {
+        assumption_id: typeof flags.id === "string" ? flags.id : randomUUID(),
+        encrypted_text: await encryptPlanAssumptionSources(plan, masterKey, requiredStringFlag(flags.text ?? rest.slice(2).join(" "), "--text <assumption>")),
+        status: typeof flags.status === "string" ? flags.status : undefined,
+        linked_sub_chat_id: typeof flags["sub-chat"] === "string" ? flags["sub-chat"] : undefined,
+        encrypted_sources: encryptedSources,
+        created_at: nowSeconds(), updated_at: nowSeconds(),
+      });
+      if (flags.json === true) printJson({ assumption }); else console.log(`Plan assumption added: ${assumption.assumption_id}`);
+    } else if (action === "update") {
+      const assumptionId = requiredStringFlag(flags.assumption ?? rest[2], "--assumption <id>");
+      const patch: Record<string, unknown> = { updated_at: nowSeconds() };
+      if (typeof flags.status === "string") patch.status = flags.status;
+      if (typeof flags["sub-chat"] === "string") patch.linked_sub_chat_id = flags["sub-chat"];
+      if (typeof flags.corrected === "string") patch.encrypted_corrected_text = await encryptPlanAssumptionSources(plan, masterKey, flags.corrected);
+      if (encryptedSources) patch.encrypted_sources = encryptedSources;
+      const assumption = await client.updatePlanAssumption(plan.planId, assumptionId, patch);
+      if (flags.json === true) printJson({ assumption }); else console.log(`Plan assumption updated: ${assumption.assumption_id}`);
+    } else throw new Error("Usage: openmates plans assumptions list|create|update <plan-id> [--assumption <id>] [--proof-embed|--proof-file|--proof-url]");
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
+    return;
+  }
+
+  if (subcommand === "revisions") {
+    const action = rest[0] ?? "list";
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `revisions ${action}`);
+    if (action === "list") {
+      const revisions = await client.listPlanRevisions(plan.planId);
+      if (flags.json === true) printJson({ revisions }); else console.log(JSON.stringify(revisions, null, 2));
+      return;
+    }
+    if (action === "status") {
+      const approval = await client.getPlanApprovalStatus(plan.planId);
+      if (flags.json === true) printJson({ approval }); else console.log(JSON.stringify(approval, null, 2));
+      return;
+    }
+    if (action === "diff") throw new Error("Revision diffs are reviewed in the authenticated web review page; use submit-for-review to print its URL.");
+    if (action !== "submit-for-review") throw new Error("Usage: openmates plans revisions list|submit-for-review|status|diff <plan-id>");
+    const snapshot = JSON.stringify(planToJson(plan));
+    const revision = await client.submitPlanRevision(plan.planId, { fingerprint: createHash("sha256").update(snapshot).digest("hex"), encrypted_snapshot: await encryptPlanAssumptionSources(plan, masterKey, snapshot), created_at: nowSeconds() });
+    const reviewUrl = `${deriveAppUrl(client.apiUrl)}/plans/${plan.planId}/review?revision=${revision.revision_id}`;
+    if (flags.json === true) printJson({ revision, review_url: reviewUrl }); else console.log(`Plan revision submitted for web review: ${reviewUrl}`);
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
+    return;
+  }
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
@@ -1955,6 +2074,16 @@ async function handlePlans(
     });
     const created = await client.createUserPlan(input);
     printPlanOutput(await decryptUserPlan(created, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "delete");
+    if (flags.confirm !== true) throw new Error("Deleting a plan requires --confirm.");
+    const result = await client.deleteUserPlan(plan.planId, plan.version);
+    if (flags.json === true) printJson(result);
+    else console.log(`Plan deleted: ${plan.shortId}`);
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
     return;
   }
 
@@ -2367,6 +2496,198 @@ async function requiredResolvedPlan(
   return resolvePlan(client, masterKey, id, scope);
 }
 
+type DependencyTarget = { kind: "plan" | "task"; id: string };
+
+async function resolveDependencyTarget(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  raw: string | boolean | undefined,
+  taskScope: Parameters<typeof resolveTask>[3],
+  planScope: Parameters<typeof resolvePlan>[3],
+): Promise<DependencyTarget> {
+  if (typeof raw !== "string") throw new Error("Dependency target is required. Use --target plan:<id> or --target task:<id>.");
+  const match = /^(plan|task):(.+)$/.exec(raw);
+  if (!match) throw new Error("Dependency target must use plan:<id> or task:<id>.");
+  if (match[1] === "plan") return { kind: "plan", id: (await resolvePlan(client, masterKey, match[2], { ...planScope, status: undefined })).planId };
+  return { kind: "task", id: (await resolveTask(client, masterKey, match[2], { ...taskScope, status: undefined })).taskId };
+}
+
+function printDependencies(value: { dependencies: Array<{ target_ref: string; satisfied?: unknown }>; blockers: Array<{ source_ref: string; target_ref: string }> }): void {
+  if (value.dependencies.length === 0 && value.blockers.length === 0) {
+    console.log("No dependencies or blockers.");
+    return;
+  }
+  for (const dependency of value.dependencies) console.log(`Depends on: ${dependency.target_ref} (${dependency.satisfied === true ? "satisfied" : "open"})`);
+  for (const blocker of value.blockers) console.log(`Blocks: ${blocker.source_ref}`);
+}
+
+function parseAssumptionProofFlags(flags: Record<string, string | boolean>): Parameters<typeof serializeAssumptionProofInputs>[0] {
+  const proof: Parameters<typeof serializeAssumptionProofInputs>[0] = [];
+  for (const embedId of splitCsvFlag(flags["proof-embed"])) proof.push({ kind: "embed", embedId });
+  for (const url of splitCsvFlag(flags["proof-url"])) proof.push({ kind: "url", url });
+  for (const value of splitCsvFlag(flags["proof-file"])) {
+    const [path, startLine, endLine] = value.split(":");
+    proof.push({ kind: "file", path, ...(startLine ? { startLine: Number(startLine) } : {}), ...(endLine ? { endLine: Number(endLine) } : {}) });
+  }
+  return proof;
+}
+
+async function encryptPlanAssumptionSources(plan: DecryptedUserPlan, masterKey: Uint8Array, value: string | Parameters<typeof serializeAssumptionProofInputs>[0]): Promise<string> {
+  const key = await planKeyFromRecord(plan.encrypted, masterKey);
+  const plaintext = typeof value === "string" ? value : serializeAssumptionProofInputs(value);
+  return encryptWithAesGcmCombined(plaintext, key);
+}
+
+async function projectWorkRecoveryIfConfigured(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  projectIds: string[],
+): Promise<void> {
+  const root = typeof flags["recovery-root"] === "string" ? flags["recovery-root"] : process.env.OPENMATES_WORK_RECOVERY_ROOT;
+  if (!root || projectIds.length === 0) return;
+  for (const projectId of projectIds) await writeProjectWorkRecovery(client, masterKey, projectId, root);
+}
+
+async function writeProjectWorkRecovery(client: OpenMatesClient, masterKey: Uint8Array, projectId: string, root: string): Promise<void> {
+  writeWorkRecoveryAtomically(`${root.replace(/\/$/, "")}/${projectId}.yml`, await buildProjectWorkRecoveryDocument(client, masterKey, projectId));
+}
+
+async function handleWorkRecovery(client: OpenMatesClient, subcommand: string | undefined, rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const root = typeof flags.root === "string" ? flags.root : typeof flags["recovery-root"] === "string" ? flags["recovery-root"] : process.env.OPENMATES_WORK_RECOVERY_ROOT;
+  if (!subcommand || flags.help === true) {
+    console.log("Usage: openmates recovery full-sync --project <project-id> --root <external-root>; openmates recovery validate --file <path>; openmates recovery restore --file <path> --dry-run|--confirm-restore");
+    return;
+  }
+  if (subcommand === "validate" || subcommand === "restore") {
+    const path = requiredStringFlag(flags.file ?? rest[0], "--file <projection.yml>");
+    if (!existsSync(path)) throw new Error(`Recovery projection does not exist: ${path}`);
+    const document = parseYaml(readFileSync(path, "utf8"));
+    validateWorkRecoveryDocument(document);
+    if (subcommand === "validate") {
+      if (flags.json === true) printJson({ valid: true }); else console.log("Recovery projection is valid; no data was changed.");
+      return;
+    }
+    const projectId = requiredStringFlag(flags.project, "--project <project-id>");
+    const masterKey = client.getMasterKeyBytes();
+    const project = await requiredResolvedProject(client, masterKey, projectId, flags);
+    if (document.project.project_id !== project.projectId) throw new Error("Recovery restore --project must exactly match document.project.project_id.");
+    const [currentPlans, currentTasks] = await Promise.all([loadPlans(client, masterKey, { projectId: project.projectId }), loadTasks(client, masterKey, { projectId: project.projectId })]);
+    const conflicts = findRecoveryConflicts(document, project.projectId, { planIds: currentPlans.map((plan) => plan.planId), taskIds: currentTasks.map((task) => task.taskId) });
+    if (flags["dry-run"] === true) {
+      const report = { valid: true, dry_run: true, project_id: project.projectId, conflicts, would_restore: conflicts.length === 0 ? { plans: document.plans.length, tasks: document.tasks.length, assumptions: document.assumptions.length, dependencies: document.dependencies.length, revisions: document.revisions.length } : null };
+      if (flags.json === true) printJson(report); else console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    if (flags["confirm-restore"] !== true) throw new Error("Recovery restore requires --confirm-restore and an explicit --project. Use --dry-run first.");
+    if (conflicts.length > 0) throw new Error(`Recovery restore found conflicts and made no changes: ${JSON.stringify(conflicts)}`);
+    const applied: string[] = [];
+    try {
+      for (const record of document.plans) {
+        const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, { primaryChatId: typeof record.primary_chat_id === "string" ? record.primary_chat_id : null, linkedProjectIds: [project.projectId] });
+        const input = await buildCreateUserPlanInput(masterKey, recoveryPlanCreateOptions(record, linkContext));
+        await client.createUserPlan(input); applied.push(`plan:${input.plan_id}`);
+      }
+      for (const record of document.tasks) {
+        const input = await buildCreateUserTaskInput(masterKey, recoveryTaskCreateOptions(record, project.projectId));
+        await client.createUserTask(input); applied.push(`task:${input.task_id}`);
+      }
+      const restoredPlans = await loadPlans(client, masterKey, { projectId: project.projectId });
+      const planById = new Map(restoredPlans.map((plan) => [plan.planId, plan]));
+      for (const record of document.assumptions) {
+        const planId = recoveryString(record, "plan_id"); const plan = planById.get(planId);
+        if (!plan) throw new Error(`Restored plan ${planId} was not available for its assumption.`);
+        await client.createPlanAssumption(planId, await recoveryAssumptionInput(plan, masterKey, record)); applied.push(`assumption:${recoveryString(record, "assumption_id")}`);
+      }
+      for (const dependency of document.dependencies) {
+        const [kind, id] = dependency.source_ref.split(":", 2);
+        if (kind === "plan") await client.addPlanDependency(id, dependency.target_ref); else await client.addTaskDependency(id, dependency.target_ref);
+        applied.push(`dependency:${dependency.source_ref}->${dependency.target_ref}`);
+      }
+      for (const record of document.revisions) {
+        const planId = recoveryString(record, "plan_id"); const snapshot = JSON.stringify(record.snapshot);
+        const plan = planById.get(planId); if (!plan) throw new Error(`Restored plan ${planId} was not available for its revision.`);
+        await client.submitPlanRevision(planId, { fingerprint: recoveryString(record, "fingerprint"), encrypted_snapshot: await encryptPlanAssumptionSources(plan, masterKey, snapshot), created_at: nowSeconds() }); applied.push(`revision:${recoveryString(record, "revision_id")}`);
+      }
+    } catch (error) {
+      throw new Error(`Recovery restore partially applied (${applied.join(", ") || "nothing"}); it is not cross-object atomic. ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const restored = await buildProjectWorkRecoveryDocument(client, masterKey, project.projectId);
+    if (!recoveryDocumentsSemanticallyEqual(document, restored)) {
+      throw new Error(`Recovery restore completed but regenerated YAML is not semantically equal at: ${recoveryDocumentSemanticMismatchPaths(document, restored).join(", ")}.`);
+    }
+    if (flags.json === true) printJson({ restored: true, project_id: project.projectId, applied }); else console.log(`Recovery restored and verified: ${project.projectId}`);
+    return;
+  }
+  if (subcommand !== "full-sync") throw new Error("Unknown recovery command. Use full-sync, validate, or restore.");
+  if (!root) throw new Error("Recovery full-sync requires --root <external-root> or OPENMATES_WORK_RECOVERY_ROOT.");
+  const masterKey = client.getMasterKeyBytes();
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(flags.project ?? rest[0], "--project <project-id>"), flags);
+  await writeProjectWorkRecovery(client, masterKey, project.projectId, root);
+  if (flags.json === true) printJson({ project_id: project.projectId, path: `${root.replace(/\/$/, "")}/${project.projectId}.yml` });
+  else console.log(`Recovery projection synced: ${root.replace(/\/$/, "")}/${project.projectId}.yml`);
+}
+
+async function buildProjectWorkRecoveryDocument(client: OpenMatesClient, masterKey: Uint8Array, projectId: string): Promise<WorkRecoveryDocument> {
+  const [plans, tasks] = await Promise.all([loadPlans(client, masterKey, { projectId }), loadTasks(client, masterKey, { projectId })]);
+  const dependencies: WorkRecoveryDocument["dependencies"] = []; const assumptions: WorkRecoveryDocument["assumptions"] = []; const revisions: WorkRecoveryDocument["revisions"] = [];
+  for (const plan of plans) {
+    const [edges, rawAssumptions, rawRevisions] = await Promise.all([client.getPlanDependencies(plan.planId), client.listPlanAssumptions(plan.planId), client.listPlanRevisions(plan.planId)]);
+    dependencies.push(...edges.dependencies.map((edge) => ({ source_ref: `plan:${plan.planId}`, target_ref: edge.target_ref })));
+    assumptions.push(...await Promise.all(rawAssumptions.map((entry) => projectPlanAssumption(plan, masterKey, entry))));
+    revisions.push(...await Promise.all(rawRevisions.map((entry) => projectPlanRevision(plan, masterKey, entry))));
+  }
+  for (const task of tasks) { const edges = await client.getTaskDependencies(task.taskId); dependencies.push(...edges.dependencies.map((edge) => ({ source_ref: `task:${task.taskId}`, target_ref: edge.target_ref }))); }
+  return { schema_version: 1, project: { project_id: projectId }, plans: plans.map(planToJson), tasks: tasks.map(taskToJson), dependencies, assumptions, revisions };
+}
+
+function recoveryString(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  if (typeof value !== "string") throw new Error(`Recovery record requires ${key}.`);
+  return value;
+}
+
+function recoveryStrings(record: Record<string, unknown>, key: string): string[] {
+  const value = record[key];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) throw new Error(`Recovery record requires ${key} string array.`);
+  return value;
+}
+
+function recoveryPlanCreateOptions(record: Record<string, unknown>, linkContext: PlanLinkKeyContext): Parameters<typeof buildCreateUserPlanInput>[1] {
+  return {
+    planId: recoveryString(record, "plan_id"), title: recoveryString(record, "title"), summary: recoveryString(record, "summary"), goal: recoveryString(record, "goal"),
+    scopeIn: recoveryString(record, "scope_in"), scopeOut: recoveryString(record, "scope_out"), userFlows: recoveryString(record, "user_flows"), currentFocus: recoveryString(record, "current_focus"),
+    assumptions: recoveryString(record, "assumptions"), openQuestions: recoveryString(record, "open_questions"), constraints: recoveryString(record, "constraints"), decisions: recoveryString(record, "decisions"),
+    risks: recoveryString(record, "risks"), referencePatterns: recoveryString(record, "reference_patterns"), context: recoveryString(record, "context"),
+    status: recoveryString(record, "status") as UserPlanStatus, slug: typeof record.slug === "string" ? record.slug : undefined,
+    primaryChatId: linkContext.primaryChatId, primaryChatKey: linkContext.primaryChatKey,
+    linkedProjectIds: linkContext.linkedProjectIds, linkedProjectKeys: linkContext.linkedProjectKeys,
+    currentPhaseId: typeof record.current_phase_id === "string" ? record.current_phase_id : null, currentStepId: typeof record.current_step_id === "string" ? record.current_step_id : null,
+    currentTaskId: typeof record.current_task_id === "string" ? record.current_task_id : null, plannerFocusId: typeof record.planner_focus_id === "string" ? record.planner_focus_id : null,
+  };
+}
+
+function recoveryTaskCreateOptions(record: Record<string, unknown>, projectId: string): TaskCreateOptions {
+  return {
+    taskId: recoveryString(record, "task_id"), title: recoveryString(record, "title"), description: recoveryString(record, "description"), labels: recoveryStrings(record, "labels"),
+    status: recoveryString(record, "status") as UserTaskStatus, assign: typeof record.assignee_hash === "string" ? record.assignee_hash : recoveryString(record, "assignee_type"),
+    chatId: typeof record.primary_chat_id === "string" ? record.primary_chat_id : null, projectIds: [projectId], planId: typeof record.plan_id === "string" ? record.plan_id : null,
+    dueAt: typeof record.due_at === "number" ? record.due_at : null, priority: typeof record.priority === "number" ? record.priority : null, slug: typeof record.slug === "string" ? record.slug : undefined,
+  };
+}
+
+async function recoveryAssumptionInput(plan: DecryptedUserPlan, masterKey: Uint8Array, record: Record<string, unknown>): Promise<UserPlanAssumptionRecord> {
+  const encrypt = (key: string): Promise<string> => encryptPlanAssumptionSources(plan, masterKey, typeof record[key] === "string" ? record[key] as string : "");
+  return {
+    assumption_id: recoveryString(record, "assumption_id"), encrypted_text: await encrypt("text"), category: typeof record.category === "string" ? record.category : undefined,
+    status: typeof record.status === "string" ? record.status : undefined, required_before: typeof record.required_before === "string" ? record.required_before : undefined,
+    linked_sub_chat_id: typeof record.linked_sub_chat_id === "string" ? record.linked_sub_chat_id : null, linked_task_id: typeof record.linked_task_id === "string" ? record.linked_task_id : null,
+    linked_step_ids: Array.isArray(record.linked_step_ids) ? record.linked_step_ids as string[] : [], linked_criterion_ids: Array.isArray(record.linked_criterion_ids) ? record.linked_criterion_ids as string[] : [],
+    encrypted_corrected_text: await encrypt("corrected_text"), encrypted_evidence_summary: await encrypt("evidence_summary"), encrypted_blocker_reason: await encrypt("blocker_reason"),
+    encrypted_waiver_reason: await encrypt("waiver_reason"), encrypted_sources: await encryptPlanAssumptionSources(plan, masterKey, JSON.stringify(record.sources)), created_at: nowSeconds(), updated_at: nowSeconds(),
+  };
+}
+
 type PlanTextSection = {
   label: string;
   option: "goal" | "currentFocus" | "scopeIn" | "scopeOut" | "userFlows" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
@@ -2524,6 +2845,20 @@ async function handleProjects(
 
   const context = await resolveProjectContext(client, flags, subcommand === "files");
   const masterKey = client.getMasterKeyBytes();
+
+  if (subcommand === "plans" || subcommand === "tasks") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    if (subcommand === "plans") {
+      const plans = await loadPlans(client, masterKey, { projectId: project.projectId, ...teamContextFromFlags(flags) });
+      if (flags.json === true) printJson({ project_id: project.projectId, plans: plans.map(planToJson) });
+      else console.log(renderPlanList(plans));
+    } else {
+      const tasks = await loadTasks(client, masterKey, { projectId: project.projectId, ...teamContextFromFlags(flags) });
+      if (flags.json === true) printJson({ project_id: project.projectId, tasks: tasks.map(taskToJson) });
+      else console.log(renderTaskList(tasks));
+    }
+    return;
+  }
 
   if (subcommand === "list") {
     const projects = await loadProjects(client, masterKey, flags, context);
@@ -3568,11 +3903,15 @@ function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
     goal: plan.goal,
     scope_in: plan.scopeIn,
     scope_out: plan.scopeOut,
+    user_flows: plan.userFlows,
+    current_focus: plan.currentFocus,
     assumptions: plan.assumptions,
     open_questions: plan.openQuestions,
     constraints: plan.constraints,
     decisions: plan.decisions,
     risks: plan.risks,
+    reference_patterns: plan.referencePatterns,
+    context: plan.context,
     status: plan.status,
     primary_chat_id: plan.primaryChatId,
     linked_project_ids: plan.linkedProjectIds,
@@ -13124,6 +13463,8 @@ function printTasksHelp(): void {
   openmates tasks skip <task-id|short-id> [--json]
   openmates tasks done <task-id|short-id> [--json]
   openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
+  openmates tasks dependencies list <task-id|short-id> [--json]
+  openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
 
 Chat-scoped aliases:
   openmates chats <chat-id> tasks list
@@ -13161,6 +13502,12 @@ function printPlansHelp(): void {
   openmates plans resume <plan-id|short-id> [--json]
   openmates plans archive <plan-id|short-id> [--json]
   openmates plans complete <plan-id|short-id> [--json]
+  openmates plans delete <plan-id|short-id> --confirm [--recovery-root <external-root>] [--json]
+  openmates plans dependencies list <plan-id|short-id> [--json]
+  openmates plans dependencies add|remove <plan-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
+  openmates plans assumptions list <plan-id|short-id> [--json]
+  openmates plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat opencode:<session>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]
+  openmates plans revisions list|submit-for-review|status|diff <plan-id|short-id> [--json]
   openmates plans success-criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
   openmates plans criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
   openmates plans tasks list|add|edit|remove <plan-id|short-id> [...task options]
@@ -13237,6 +13584,8 @@ function printProjectsHelp(): void {
   openmates projects ask <name> [--description <text>] [--json]
   openmates projects history <project-id> [--limit <n>] [--json]
   openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]
+  openmates projects plans <project> [--json]
+  openmates projects tasks <project> [--json]
 
 Notes:
   Project metadata is encrypted by clients. History and restore operate on opaque encrypted snapshots.

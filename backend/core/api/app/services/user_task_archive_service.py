@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.core.api.app.services.directus.user_task_methods import USER_TASK_FIELDS, hash_id
+from backend.core.api.app.services.user_work_control_service import DirectusWorkControlRepository
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,11 @@ DEFAULT_TASK_ARCHIVE_LIMIT = 500
 
 
 class UserTaskArchiveService:
-    def __init__(self, *, directus_service: Any, s3_service: Any, encryption_service: Any):
+    def __init__(self, *, directus_service: Any, s3_service: Any, encryption_service: Any, cache_service: Any):
         self.directus_service = directus_service
         self.s3_service = s3_service
         self.encryption_service = encryption_service
+        self.cache_service = cache_service
 
     async def archive_completed_tasks(self, *, retention_days: int = DEFAULT_TASK_ARCHIVE_RETENTION_DAYS, limit: int = DEFAULT_TASK_ARCHIVE_LIMIT) -> dict[str, Any]:
         cutoff = int(time.time()) - int(retention_days) * 86_400
@@ -52,7 +54,7 @@ class UserTaskArchiveService:
             admin_required=True,
         )
         if not isinstance(tasks, list) or not tasks:
-            return {"checked": 0, "archived": 0, "archives": 0, "failed": 0}
+            return {"checked": 0, "archived": 0, "archives": 0, "failed": 0, "skipped_dependencies": 0}
 
         by_owner: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for task in tasks:
@@ -60,17 +62,43 @@ class UserTaskArchiveService:
             if isinstance(owner_hash, str) and owner_hash:
                 by_owner[owner_hash].append(task)
 
-        stats = {"checked": len(tasks), "archived": 0, "archives": 0, "failed": 0}
+        stats = {"checked": len(tasks), "archived": 0, "archives": 0, "failed": 0, "skipped_dependencies": 0}
         for owner_hash, owner_tasks in by_owner.items():
             try:
-                archived_count = await self._archive_owner_tasks(owner_hash, owner_tasks, cutoff=cutoff, retention_days=retention_days)
-                stats["archived"] += archived_count
-                if archived_count:
-                    stats["archives"] += 1
+                async with DirectusWorkControlRepository.owner_graph_lock_for_hash(self.cache_service, owner_hash):
+                    linked_task_ids = await self._linked_task_ids(owner_hash)
+                    eligible_tasks = [task for task in owner_tasks if str(task.get("task_id")) not in linked_task_ids]
+                    stats["skipped_dependencies"] += len(owner_tasks) - len(eligible_tasks)
+                    if not eligible_tasks:
+                        continue
+                    archived_count = await self._archive_owner_tasks(owner_hash, eligible_tasks, cutoff=cutoff, retention_days=retention_days)
+                    stats["archived"] += archived_count
+                    if archived_count:
+                        stats["archives"] += 1
             except Exception as exc:
                 stats["failed"] += len(owner_tasks)
                 logger.error("Task archive failed for owner hash %s: %s", owner_hash, exc, exc_info=True)
         return stats
+
+    async def _linked_task_ids(self, owner_hash: str) -> set[str]:
+        edges = await self.directus_service.get_items(
+            "user_work_dependencies",
+            params={
+                "filter[hashed_user_id][_eq]": owner_hash,
+                "filter[hashed_team_id][_null]": True,
+                "fields": "source_ref,target_ref",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+        )
+        refs = {
+            str(ref)
+            for edge in (edges if isinstance(edges, list) else [])
+            for ref in (edge.get("source_ref"), edge.get("target_ref"))
+            if isinstance(ref, str)
+        }
+        return {ref.removeprefix("task:") for ref in refs if ref.startswith("task:")}
 
     async def _archive_owner_tasks(self, owner_hash: str, tasks: list[dict[str, Any]], *, cutoff: int, retention_days: int) -> int:
         vault_key_id = await self._vault_key_id_for_owner_hash(owner_hash)

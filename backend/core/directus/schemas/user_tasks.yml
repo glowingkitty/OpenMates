@@ -257,6 +257,39 @@ user_task_key_wrappers:
       default: 1
       note: "Wrapper contract version."
 
+user_work_dependencies:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    edge_id:
+      type: string
+      options:
+        unique: true
+    source_ref:
+      type: string
+      note: "Normalized plan:<id> or task:<id> dependency source."
+    source_kind:
+      type: string
+    source_id:
+      type: string
+    target_ref:
+      type: string
+      note: "Normalized plan:<id> or task:<id> dependency target."
+    target_kind:
+      type: string
+    target_id:
+      type: string
+    dependency_project_hash:
+      type: string
+      note: "One deterministic shared Project hash selected from both dependency endpoints."
+    hashed_user_id:
+      type: string
+      note: "Owner hash used to keep dependencies within one personal workspace."
+    hashed_team_id:
+      type: string
+      nullable: true
+
 user_task_activity:
   type: collection
   fields:

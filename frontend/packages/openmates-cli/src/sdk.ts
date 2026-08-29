@@ -9,7 +9,7 @@
 
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -89,6 +89,7 @@ import {
   decryptUserPlan,
   decryptUserPlans,
   planKeyFromRecord,
+  serializeAssumptionProofInputs,
   type DecryptedPlanLearning,
   type DecryptedUserPlan,
   type PlanCriterionCreateOptions,
@@ -1711,7 +1712,9 @@ async function buildPlanAssumptionCreateInput(plan: DecryptedUserPlan, masterKey
     encrypted_evidence_summary: input.evidenceSummary !== undefined ? await encryptWithAesGcmCombined(input.evidenceSummary, planKey) : undefined,
     encrypted_blocker_reason: input.blockerReason !== undefined ? await encryptWithAesGcmCombined(input.blockerReason, planKey) : undefined,
     encrypted_waiver_reason: input.waiverReason !== undefined ? await encryptWithAesGcmCombined(input.waiverReason, planKey) : undefined,
-    encrypted_sources: input.sources !== undefined ? await encryptWithAesGcmCombined(input.sources, planKey) : undefined,
+    encrypted_sources: input.proofInputs !== undefined
+      ? await encryptWithAesGcmCombined(serializeAssumptionProofInputs(input.proofInputs), planKey)
+      : input.sources !== undefined ? await encryptWithAesGcmCombined(input.sources, planKey) : undefined,
     created_at: timestamp,
     updated_at: timestamp,
   };
@@ -1730,7 +1733,8 @@ async function buildPlanAssumptionUpdateInput(plan: DecryptedUserPlan, masterKey
   if (input.evidenceSummary !== undefined) patch.encrypted_evidence_summary = await encryptWithAesGcmCombined(input.evidenceSummary, planKey);
   if (input.blockerReason !== undefined) patch.encrypted_blocker_reason = await encryptWithAesGcmCombined(input.blockerReason, planKey);
   if (input.waiverReason !== undefined) patch.encrypted_waiver_reason = await encryptWithAesGcmCombined(input.waiverReason, planKey);
-  if (input.sources !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(input.sources, planKey);
+  if (input.proofInputs !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(serializeAssumptionProofInputs(input.proofInputs), planKey);
+  else if (input.sources !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(input.sources, planKey);
   return patch;
 }
 
@@ -1894,15 +1898,15 @@ export class OpenMatesChats {
   }
 
   async load(chatId: string): Promise<Record<string, unknown>> {
-    let payload: Record<string, unknown>;
+    const resolvedChatId = CANONICAL_UUID_PATTERN.test(chatId) ? chatId : await resolveSdkChatId(this.client, chatId);
     try {
-      payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}`);
+      const payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}`);
+      return this.client.decryptLoadedChatPayload(payload);
     } catch (error) {
       if (!isSdkChatNotFound(error)) throw error;
-      const resolvedChatId = await resolveSdkChatId(this.client, chatId);
-      payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}`);
+      if (resolvedChatId === chatId) throw error;
+      throw new OpenMatesConfigError(`Chat '${chatId}' was not found.`);
     }
-    return this.client.decryptLoadedChatPayload(payload);
   }
 
   async addToProject(chatId: string, projectId: string, options: { folder?: string } = {}): Promise<ProjectItemRecord> {
@@ -3543,9 +3547,29 @@ export class OpenMatesProjects {
 
 export class OpenMatesTasks {
   private readonly client: OpenMates;
+  readonly dependencies: {
+    add: (taskId: string, target: WorkDependencyTarget, filters?: TaskListFilters) => Promise<Record<string, unknown>>;
+    remove: (taskId: string, target: WorkDependencyTarget, filters?: TaskListFilters) => Promise<Record<string, unknown>>;
+    list: (taskId: string, filters?: TaskListFilters) => Promise<{ dependencies: Record<string, unknown>[]; blockers: Record<string, unknown>[] }>;
+  };
 
   constructor(client: OpenMates) {
     this.client = client;
+    this.dependencies = {
+      add: async (taskId, target, filters = {}) => {
+        const task = await this.resolve(taskId, filters);
+        return client.request(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/dependencies`, { target_ref: `${target.kind}:${target.id}` });
+      },
+      remove: async (taskId, target, filters = {}) => {
+        const task = await this.resolve(taskId, filters);
+        return client.delete(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/dependencies/${target.kind}/${encodeURIComponent(target.id)}`);
+      },
+      list: async (taskId, filters = {}) => {
+        const task = await this.resolve(taskId, filters);
+        const response = await client.get<{ dependencies?: Record<string, unknown>[]; blockers?: Record<string, unknown>[] }>(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/dependencies`);
+        return { dependencies: response.dependencies ?? [], blockers: response.blockers ?? [] };
+      },
+    };
   }
 
   async list(filters: TaskListFilters = {}): Promise<TaskRecord[]> {
@@ -3858,7 +3882,14 @@ export interface PlanAssumptionCreateOptions {
   blockerReason?: string;
   waiverReason?: string;
   sources?: string;
+  proofInputs?: PlanAssumptionProofInput[];
 }
+
+export type WorkDependencyTarget = { kind: "plan" | "task"; id: string };
+export type PlanAssumptionProofInput =
+  | { kind: "embed"; embedId: string }
+  | { kind: "file"; path: string; startLine?: number; endLine?: number }
+  | { kind: "url"; url: string };
 
 export type PlanAssumptionUpdateOptions = Partial<Omit<PlanAssumptionCreateOptions, "assumptionId" | "text">>;
 
@@ -3969,6 +4000,10 @@ export class OpenMatesPlans {
   };
   readonly context: { artifacts: PlanTextSectionFacade };
   readonly activity: { list: (planId: string, options?: { limit?: number }) => Promise<Record<string, unknown>[]> };
+  readonly dependencies: { add: (planId: string, target: WorkDependencyTarget) => Promise<Record<string, unknown>>; remove: (planId: string, target: WorkDependencyTarget) => Promise<Record<string, unknown>>; list: (planId: string) => Promise<{ dependencies: Record<string, unknown>[]; blockers: Record<string, unknown>[] }> };
+  readonly revisions: { create: (planId: string) => Promise<Record<string, unknown>>; list: (planId: string) => Promise<Record<string, unknown>[]> };
+  readonly review: { submit: (planId: string) => Promise<{ revision: Record<string, unknown>; reviewUrl: string }> };
+  readonly approval: { status: (planId: string) => Promise<PlanRecord> };
 
   constructor(client: OpenMates) {
     this.client = client;
@@ -4036,6 +4071,17 @@ export class OpenMatesPlans {
     };
     this.context = { artifacts: this.textSectionFacade("context") };
     this.activity = { list: (planId, options = {}) => this.history(planId, options) };
+    this.dependencies = {
+      add: (planId, target) => this.addDependency(planId, target),
+      remove: (planId, target) => this.removeDependency(planId, target),
+      list: (planId) => this.listDependencies(planId),
+    };
+    this.revisions = {
+      create: (planId) => this.createRevision(planId),
+      list: (planId) => this.listRevisions(planId),
+    };
+    this.review = { submit: (planId) => this.submitForReview(planId) };
+    this.approval = { status: (planId) => this.show(planId) };
   }
 
   private textSectionFacade(field: keyof PlanUpdateOptions): PlanTextSectionFacade {
@@ -4196,6 +4242,57 @@ export class OpenMatesPlans {
     const existing = await this.getRawPlan(planId);
     const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(existing.plan_id)}/complete`, { version: existing.version });
     return toPublicPlan(await decryptUserPlan(response.plan ?? await this.getRawPlan(planId), await this.client.masterKey()));
+  }
+
+  async delete(planId: string, options: ConfirmedMutationOptions = {}): Promise<Record<string, unknown>> {
+    requireConfirmed(options, "Plan deletion");
+    const plan = await this.getRawPlan(planId);
+    return this.client.delete(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}?version=${encodeURIComponent(String(plan.version))}`);
+  }
+
+  private async addDependency(planId: string, target: WorkDependencyTarget): Promise<Record<string, unknown>> {
+    const plan = await this.getRawPlan(planId);
+    return this.client.request(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/dependencies`, { target_ref: `${target.kind}:${target.id}` });
+  }
+
+  private async removeDependency(planId: string, target: WorkDependencyTarget): Promise<Record<string, unknown>> {
+    const plan = await this.getRawPlan(planId);
+    return this.client.delete(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/dependencies/${target.kind}/${encodeURIComponent(target.id)}`);
+  }
+
+  private async listDependencies(planId: string): Promise<{ dependencies: Record<string, unknown>[]; blockers: Record<string, unknown>[] }> {
+    const plan = await this.getRawPlan(planId);
+    const response = await this.client.get<{ dependencies?: Record<string, unknown>[]; blockers?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/dependencies`);
+    return { dependencies: response.dependencies ?? [], blockers: response.blockers ?? [] };
+  }
+
+  private async listRevisions(planId: string): Promise<Record<string, unknown>[]> {
+    const plan = await this.getRawPlan(planId);
+    const response = await this.client.get<{ revisions?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/revisions`);
+    return response.revisions ?? [];
+  }
+
+  private async createRevision(planId: string): Promise<Record<string, unknown>> {
+    const plan = await this.show(planId);
+    const canonical = JSON.stringify(plan, Object.keys(plan).sort());
+    const masterKey = await this.client.masterKey();
+    const fingerprint = createHmac("sha256", masterKey).update(canonical).digest("hex");
+    const raw = await this.getRawPlan(planId);
+    const planKey = await planKeyFromRecord(raw, masterKey);
+    const encryptedSnapshot = await encryptWithAesGcmCombined(canonical, planKey);
+    return this.client.request(`/v1/user-plans/${encodeURIComponent(raw.plan_id)}/revisions`, {
+      fingerprint,
+      encrypted_snapshot: encryptedSnapshot,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+  }
+
+  private async submitForReview(planId: string): Promise<{ revision: Record<string, unknown>; reviewUrl: string }> {
+    const response = await this.createRevision(planId);
+    const revision = response.revision as Record<string, unknown> | undefined;
+    if (!revision?.revision_id) throw new OpenMatesApiError(500, { detail: "Plan revision response missing revision" });
+    const plan = await this.getRawPlan(planId);
+    return { revision, reviewUrl: `${this.client.webOrigin()}/plans/${encodeURIComponent(plan.plan_id)}/review?revision=${encodeURIComponent(String(revision.revision_id))}` };
   }
 
   private async decryptedPlanForChildren(planId: string, masterKey: Uint8Array): Promise<DecryptedUserPlan> {

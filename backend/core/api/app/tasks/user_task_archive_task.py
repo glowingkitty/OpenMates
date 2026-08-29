@@ -37,6 +37,7 @@ async def _archive_completed_user_tasks(task: BaseServiceTask, *, retention_days
             directus_service=task.directus_service,
             s3_service=task.s3_service,
             encryption_service=task.encryption_service,
+            cache_service=task.cache_service,
         )
         return await service.archive_completed_tasks(retention_days=retention_days, limit=limit)
     except Exception as exc:

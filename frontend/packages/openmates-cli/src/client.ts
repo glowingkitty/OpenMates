@@ -984,6 +984,20 @@ export interface UserPlanAssumptionRecord {
   updated_at?: number;
 }
 
+export interface WorkDependencyRecord {
+  source_ref: string;
+  target_ref: string;
+  [key: string]: unknown;
+}
+
+export interface UserPlanRevisionRecord {
+  revision_id: string;
+  fingerprint: string;
+  encrypted_snapshot: string;
+  created_at: number;
+  [key: string]: unknown;
+}
+
 export interface UserPlanReferencePatternRecord {
   pattern_id: string;
   encrypted_title: string;
@@ -9435,6 +9449,27 @@ export class OpenMatesClient {
     return response.data;
   }
 
+  async addTaskDependency(taskId: string, targetRef: string): Promise<WorkDependencyRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ dependency?: WorkDependencyRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, { target_ref: targetRef }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.dependency) throw new Error(`Task dependency add failed with HTTP ${response.status}`);
+    return response.data.dependency;
+  }
+
+  async removeTaskDependency(taskId: string, targetKind: "plan" | "task", targetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies/${targetKind}/${encodeURIComponent(targetId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Task dependency remove failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getTaskDependencies(taskId: string): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Task dependency list failed with HTTP ${response.status}`);
+    return { dependencies: response.data.dependencies ?? [], blockers: response.data.blockers ?? [] };
+  }
+
   async completeUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
     return this.postUserTaskAction(taskId, "complete", input);
   }
@@ -9586,6 +9621,55 @@ export class OpenMatesClient {
     }
     response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
+  }
+
+  async deleteUserPlan(planId: string, version: number): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}?version=${encodeURIComponent(String(version))}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async addPlanDependency(planId: string, targetRef: string): Promise<WorkDependencyRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ dependency?: WorkDependencyRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/dependencies`, { target_ref: targetRef }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.dependency) throw new Error(`Plan dependency add failed with HTTP ${response.status}`);
+    return response.data.dependency;
+  }
+
+  async removePlanDependency(planId: string, targetKind: "plan" | "task", targetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/dependencies/${targetKind}/${encodeURIComponent(targetId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Plan dependency remove failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getPlanDependencies(planId: string): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/dependencies`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Plan dependency list failed with HTTP ${response.status}`);
+    return { dependencies: response.data.dependencies ?? [], blockers: response.data.blockers ?? [] };
+  }
+
+  async listPlanRevisions(planId: string): Promise<UserPlanRevisionRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ revisions?: UserPlanRevisionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/revisions`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Plan revision list failed with HTTP ${response.status}`);
+    return response.data.revisions ?? [];
+  }
+
+  async getPlanApprovalStatus(planId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ approval?: Record<string, unknown> }>(`/v1/user-plans/${encodeURIComponent(planId)}/approval-status`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.approval) throw new Error(`Plan approval status read failed with HTTP ${response.status}`);
+    return response.data.approval;
+  }
+
+  async submitPlanRevision(planId: string, input: { fingerprint: string; encrypted_snapshot: string; created_at: number }): Promise<UserPlanRevisionRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ revision?: UserPlanRevisionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/revisions`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.revision) throw new Error(`Plan revision submission failed with HTTP ${response.status}`);
+    return response.data.revision;
   }
 
   async createPlanCriterion(planId: string, input: UserPlanCriterionRecord): Promise<UserPlanCriterionRecord> {

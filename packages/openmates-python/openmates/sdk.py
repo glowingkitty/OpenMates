@@ -35,6 +35,7 @@ import requests
 
 from .generated.app_skills import GeneratedAppSkills
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
+from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
 
 DEFAULT_API_URL = "https://api.openmates.org"
@@ -51,6 +52,8 @@ class AiModelDefaults(TypedDict):
     default_ai_model_simple: NotRequired[str | None]
     default_ai_model_complex: NotRequired[str | None]
     default_ai_model_most_demanding: NotRequired[str | None]
+
+
 SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500
 CODE_RUN_POLL_INTERVAL_SECONDS = 1.0
 CODE_RUN_POLL_TIMEOUT_SECONDS = 1200.0
@@ -189,6 +192,49 @@ def _safe_response_json(response: requests.Response) -> Any:
         return response.json()
     except ValueError:
         return {}
+
+
+class _PlanRevisionsFacade:
+    def __init__(self, plans: Any):
+        self._plans = plans
+
+    def create(self, plan_id: str) -> dict[str, Any]:
+        plan = self._plans.show(plan_id)
+        canonical = json.dumps(plan, sort_keys=True, separators=(",", ":"))
+        raw = self._plans._get_raw_plan(plan_id)
+        master_key = self._plans._client._get_master_key()
+        fingerprint = hmac.new(master_key, canonical.encode("utf-8"), hashlib.sha256).hexdigest()
+        encrypted_snapshot = _encrypt_aes_gcm_text(canonical, _plan_key_from_record(raw, master_key))
+        return self._plans._client._post(
+            f"/v1/user-plans/{_quote(str(raw['plan_id']))}/revisions",
+            {"fingerprint": fingerprint, "encrypted_snapshot": encrypted_snapshot, "created_at": int(time.time())},
+        )
+
+    def list(self, plan_id: str) -> list[dict[str, Any]]:
+        raw = self._plans._get_raw_plan(plan_id)
+        return self._plans._client._get(f"/v1/user-plans/{_quote(str(raw['plan_id']))}/revisions").get("revisions", [])
+
+
+class _PlanReviewFacade:
+    def __init__(self, plans: Any):
+        self._plans = plans
+
+    def submit(self, plan_id: str) -> dict[str, Any]:
+        result = self._plans.revisions.create(plan_id)
+        revision = result.get("revision") if isinstance(result.get("revision"), dict) else None
+        if not revision or not revision.get("revision_id"):
+            raise OpenMatesApiError(500, {"detail": "Plan revision response missing revision"})
+        raw = self._plans._get_raw_plan(plan_id)
+        return {"revision": revision, "review_url": f"{self._plans._client._web_origin()}/plans/{raw['plan_id']}/review?revision={revision['revision_id']}"}
+
+
+class _PlanApprovalFacade:
+    def __init__(self, plans: Any):
+        self._plans = plans
+
+    def status(self, plan_id: str) -> dict[str, Any]:
+        raw = self._plans._get_raw_plan(plan_id)
+        return self._plans._client._get(f"/v1/user-plans/{_quote(str(raw['plan_id']))}/approval-status").get("approval", {})
 
 
 class OpenMates:
@@ -1929,6 +1975,40 @@ def _build_plan_criterion_update_input(plan: dict[str, Any], master_key: bytes, 
     return patch
 
 
+def _serialize_assumption_proof_inputs(value: Any) -> str:
+    if not isinstance(value, list) or not value:
+        raise OpenMatesConfigError("proof_inputs must contain at least one typed proof")
+    normalized: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict) or item.get("kind") not in {"embed", "file", "url"}:
+            raise OpenMatesConfigError("proof_inputs entries must use embed, file, or url kinds")
+        kind = str(item["kind"])
+        if kind == "embed":
+            embed_id = str(item.get("embed_id") or item.get("embedId") or "").strip()
+            if not embed_id:
+                raise OpenMatesConfigError("embed proof requires embed_id")
+            normalized.append({"kind": kind, "embed_id": embed_id})
+        elif kind == "url":
+            url = str(item.get("url") or "")
+            if urlparse(url).scheme != "https":
+                raise OpenMatesConfigError("URL proof requires HTTPS")
+            normalized.append({"kind": kind, "url": url})
+        else:
+            path = str(item.get("path") or "")
+            if not path or path.startswith("/") or ".." in path.split("/"):
+                raise OpenMatesConfigError("file proof path must be repository-relative")
+            entry: dict[str, Any] = {"kind": kind, "path": path}
+            for source, target in (("start_line", "start_line"), ("startLine", "start_line"), ("end_line", "end_line"), ("endLine", "end_line")):
+                if source in item:
+                    if not isinstance(item[source], int) or item[source] < 1:
+                        raise OpenMatesConfigError(f"file proof {source} must be a positive integer")
+                    entry[target] = item[source]
+            if entry.get("end_line", 0) < entry.get("start_line", 1):
+                raise OpenMatesConfigError("file proof end_line must not precede start_line")
+            normalized.append(entry)
+    return json.dumps(normalized, separators=(",", ":"), sort_keys=True)
+
+
 def _build_plan_assumption_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
     plan_key = _plan_key_from_record(plan.get("encrypted") if isinstance(plan.get("encrypted"), dict) else plan, master_key)
     now = int(time.time())
@@ -1946,6 +2026,8 @@ def _build_plan_assumption_create_input(plan: dict[str, Any], master_key: bytes,
         "created_at": now,
         "updated_at": now,
     }
+    if "proof_inputs" in payload or "proofInputs" in payload:
+        output["encrypted_sources"] = _encrypt_aes_gcm_text(_serialize_assumption_proof_inputs(payload.get("proof_inputs") or payload.get("proofInputs")), plan_key)
     for public_name, storage_name in (("corrected_text", "encrypted_corrected_text"), ("correctedText", "encrypted_corrected_text"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("blocker_reason", "encrypted_blocker_reason"), ("blockerReason", "encrypted_blocker_reason"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason"), ("sources", "encrypted_sources")):
         if public_name in payload:
             output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
@@ -1958,6 +2040,8 @@ def _build_plan_assumption_update_input(plan: dict[str, Any], master_key: bytes,
     for public_name, storage_name in (("category", "category"), ("status", "status"), ("required_before", "required_before"), ("requiredBefore", "required_before"), ("linked_sub_chat_id", "linked_sub_chat_id"), ("linkedSubChatId", "linked_sub_chat_id"), ("linked_task_id", "linked_task_id"), ("linkedTaskId", "linked_task_id"), ("source_count", "source_count"), ("sourceCount", "source_count")):
         if public_name in payload:
             patch[storage_name] = payload.get(public_name)
+    if "proof_inputs" in payload or "proofInputs" in payload:
+        patch["encrypted_sources"] = _encrypt_aes_gcm_text(_serialize_assumption_proof_inputs(payload.get("proof_inputs") or payload.get("proofInputs")), plan_key)
     for public_name, storage_name in (("corrected_text", "encrypted_corrected_text"), ("correctedText", "encrypted_corrected_text"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("blocker_reason", "encrypted_blocker_reason"), ("blockerReason", "encrypted_blocker_reason"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason"), ("sources", "encrypted_sources")):
         if public_name in payload:
             patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
@@ -3596,6 +3680,10 @@ class OpenMatesPlans:
         self.learnings = _PlanLearningsFacade(self)
         self.context = type("PlanContextFacade", (), {"artifacts": _PlanEncryptedFieldFacade(self, "encrypted_context")})()
         self.activity = type("PlanActivityFacade", (), {"list": lambda _self, plan_id, limit=None: self.history(plan_id, limit=limit)})()
+        self.dependencies = _WorkDependenciesFacade(client, "plan")
+        self.revisions = _PlanRevisionsFacade(self)
+        self.review = _PlanReviewFacade(self)
+        self.approval = _PlanApprovalFacade(self)
 
     def list(
         self,
@@ -3794,6 +3882,11 @@ class OpenMatesPlans:
             plan = self._get_raw_plan(plan_id)
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
+    def delete(self, plan_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Plan deletion")
+        existing = self._get_raw_plan(plan_id)
+        return self._client._delete(f"/v1/user-plans/{_quote(str(existing.get('plan_id')))}?version={_quote(str(existing.get('version')))}")
+
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
@@ -3920,6 +4013,7 @@ class OpenMatesTasks:
 
     def __init__(self, client: OpenMates):
         self._client = client
+        self.dependencies = _WorkDependenciesFacade(client, "task")
 
     def list(
         self,
@@ -5527,10 +5621,10 @@ class OpenMatesDocs:
 
 class OpenMatesWikipedia:
     def __init__(self, client: OpenMates): self._client = client
-    def search(self, query: str, *, language: str = "en", limit: int | None = None) -> dict[str, Any]:
-        return self._client._get(_with_query("/v1/wikipedia/search", query=query, language=language, limit=limit))
-    def summary(self, title: str, *, language: str = "en") -> dict[str, Any]:
-        return self._client._get(_with_query("/v1/wikipedia/summary", title=title, language=language))
+    def search(self, query: str, *, language: str | None = "en", limit: int | None = None) -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/search", query=query, language=language or "en", limit=limit))
+    def summary(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/summary", title=title, language=language or "en"))
 
 
 class OpenMatesEmbeds:

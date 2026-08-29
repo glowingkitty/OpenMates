@@ -101,6 +101,8 @@ export interface DecryptedPlanLearning {
 }
 
 export interface PlanCreateOptions {
+  /** Stable ID is used only by validated local recovery restoration. */
+  planId?: string;
   title: string;
   summary?: string;
   goal?: string;
@@ -254,6 +256,37 @@ export interface PlanLearningUpdateOptions {
   rejectionReason?: string;
 }
 
+export type AssumptionProofInput =
+  | { kind: "embed"; embedId: string }
+  | { kind: "file"; path: string; startLine?: number; endLine?: number }
+  | { kind: "url"; url: string };
+
+export function serializeAssumptionProofInputs(inputs: AssumptionProofInput[]): string {
+  if (inputs.length === 0) throw new Error("At least one typed assumption proof input is required.");
+  const normalized = inputs.map((input) => {
+    if (input.kind === "embed") {
+      if (!input.embedId.trim()) throw new Error("Assumption proof embed ID must not be empty.");
+      return { kind: input.kind, embed_id: input.embedId };
+    }
+    if (input.kind === "url") {
+      const url = new URL(input.url);
+      if (url.protocol !== "https:") throw new Error("Assumption proof URLs must use HTTPS.");
+      return { kind: input.kind, url: url.toString() };
+    }
+    if (!input.path || input.path.startsWith("/") || input.path.split("/").includes("..")) {
+      throw new Error("Assumption proof file paths must be repository-relative.");
+    }
+    if (input.startLine !== undefined && (!Number.isInteger(input.startLine) || input.startLine < 1)) {
+      throw new Error("Assumption proof startLine must be a positive integer.");
+    }
+    if (input.endLine !== undefined && (!Number.isInteger(input.endLine) || input.endLine < (input.startLine ?? 1))) {
+      throw new Error("Assumption proof endLine must be greater than or equal to startLine.");
+    }
+    return { kind: input.kind, path: input.path, ...(input.startLine !== undefined ? { start_line: input.startLine } : {}), ...(input.endLine !== undefined ? { end_line: input.endLine } : {}) };
+  });
+  return JSON.stringify(normalized);
+}
+
 export function normalizePlanStatus(value: string | undefined): UserPlanStatus | undefined {
   if (value === undefined) return undefined;
   if (PLAN_STATUSES.includes(value as UserPlanStatus)) return value as UserPlanStatus;
@@ -304,7 +337,7 @@ export async function buildCreateUserPlanInput(masterKey: Uint8Array, input: Pla
     linkedProjectKeys: input.linkedProjectKeys ?? [],
   });
   return {
-    plan_id: randomUUIDCompat(),
+    plan_id: input.planId ?? randomUUIDCompat(),
     version: 1,
     encrypted_plan_key: encryptedPlanKey,
     encrypted_slug: slugMetadata.encrypted_slug,

@@ -12,7 +12,9 @@ COPY schemas /usr/src/app/schemas
 COPY setup/migrate_chat_recovery_unique_indexes.sql /usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql
 COPY setup/migrate_storage_replication_indexes.sql /usr/src/app/migrations/migrate_storage_replication_indexes.sql
 COPY setup/migrate_workflow_runtime_indexes.sql /usr/src/app/migrations/migrate_workflow_runtime_indexes.sql
+COPY setup/migrate_user_chat_preferences_indexes.sql /usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql
 COPY setup/migrate_user_task_indexes.sql /usr/src/app/migrations/migrate_user_task_indexes.sql
+COPY setup/migrate_user_work_control_indexes.sql /usr/src/app/migrations/migrate_user_work_control_indexes.sql
 COPY setup/migrate_usage_overview_indexes.sql /usr/src/app/migrations/migrate_usage_overview_indexes.sql
 COPY setup/migrate_project_owner_context.sql /usr/src/app/migrations/migrate_project_owner_context.sql
 COPY setup/migrate_encrypted_slug_indexes.sql /usr/src/app/migrations/migrate_encrypted_slug_indexes.sql

@@ -52,7 +52,23 @@ user_plans:
     approval_state:
       type: string
       nullable: true
-      note: "Safe approval state: draft, approved, rejected, or autoconfirmed."
+      note: "Safe approval state: draft, awaiting_review, approved, changes_required, or rejected."
+    submitted_revision_id:
+      type: string
+      nullable: true
+      note: "Latest immutable encrypted revision submitted for human review."
+    approved_revision_id:
+      type: string
+      nullable: true
+      note: "Immutable revision approved through an authenticated browser session."
+    approved_at:
+      type: integer
+      nullable: true
+      note: "Server-recorded approval timestamp."
+    approved_by_hash:
+      type: string
+      nullable: true
+      note: "Server-derived SHA256(user_id) of the approving browser-session user."
     planner_focus_id:
       type: string
       nullable: true
@@ -177,6 +193,50 @@ user_plan_key_wrappers:
       type: integer
       default: 1
       note: "Wrapper contract version."
+
+user_plan_revisions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    plan_id:
+      type: string
+      note: "Plan owning this immutable encrypted revision."
+    revision_id:
+      type: string
+      options:
+        unique: true
+    revision_number:
+      type: integer
+    fingerprint:
+      type: string
+      note: "Client-provided keyed fingerprint of the encrypted revision snapshot."
+      options:
+        unique: true
+    approval_state:
+      type: string
+      note: "submitted, approved, superseded, or changes_required."
+    approved_at:
+      type: integer
+      nullable: true
+    approved_by_hash:
+      type: string
+      nullable: true
+    hashed_user_id:
+      type: string
+      note: "Owner hash copied from the Plan for tenant-scoped revision queries."
+    hashed_team_id:
+      type: string
+      nullable: true
+    linked_project_hashes:
+      type: json
+      nullable: true
+      note: "Safe Plan Project scope copied into the immutable revision."
+    created_at:
+      type: integer
+    encrypted_snapshot:
+      type: text
+      note: "Client-encrypted immutable revision content; never decrypted server-side."
 
 user_plan_steps:
   type: collection

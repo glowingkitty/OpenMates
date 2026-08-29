@@ -141,6 +141,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `plans` | `om.plans.createLearningTasks()` | `om.plans.create_learning_tasks()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.createReferencePattern()` | `om.plans.create_reference_pattern()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.createVerification()` | `om.plans.create_verification()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
+| `plans` | `om.plans.delete()` | `om.plans.delete()` | direct | direct |
 | `plans` | `om.plans.deleteAssumption()` | `om.plans.delete_assumption()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.deleteCriterion()` | `om.plans.delete_criterion()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.deleteLearning()` | `om.plans.delete_learning()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
