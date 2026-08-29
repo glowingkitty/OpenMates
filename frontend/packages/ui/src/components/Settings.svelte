@@ -105,6 +105,7 @@ changes to the documentation (to keep the documentation up to date).
     import { clearSettingsPathFromHash, getSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
 
     const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
+    const AI_MODEL_SETTING_TIERS = ['simple', 'complex', 'most-demanding'] as const;
 
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore, resetSettingsNavigation } from '../stores/settingsNavigationStore';
@@ -316,6 +317,19 @@ changes to the documentation (to keep the documentation up to date).
                     const createRoute = `apps/${appId}/settings_memories/${category.id}/create`;
                     views[createRoute] = AppDetailsWrapper;
                 }
+            }
+        }
+
+        const aiProviderIds = new Set<string>();
+        for (const model of modelsMetadata.filter((model) => model.for_app_skill === 'ai.ask')) {
+            views[`ai/model/${model.id}`] = AiModelDetailsWrapper;
+            aiProviderIds.add(model.provider_id);
+            views[`ai/provider/${model.provider_id}`] = AiProviderDetailsWrapper;
+        }
+        for (const tier of AI_MODEL_SETTING_TIERS) {
+            views[`ai/tier/${tier}`] = AiTierSettings;
+            for (const providerId of aiProviderIds) {
+                views[`ai/tier/${tier}/provider/${providerId}`] = AiTierSettings;
             }
         }
         
@@ -1612,28 +1626,6 @@ changes to the documentation (to keep the documentation up to date).
             // Dynamically registered model detail route: settingsPath
         }
 
-        // Check if this is a top-level AI model detail route that needs to be registered
-        // Pattern: ai/model/{model_id} (from SettingsAI page)
-        const aiModelDetailPattern = /^ai\/model\/[^/]+$/;
-        if (aiModelDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
-            dynamicEntryRoutes.add(settingsPath);
-            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
-        }
-
-        // Check if this is a top-level AI server-provider detail route
-        // Pattern: ai/provider/{provider_id} (from SettingsAI page)
-        const aiProviderDetailPattern = /^ai\/provider\/[^/]+$/;
-        if (aiProviderDetailPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
-            dynamicEntryRoutes.add(settingsPath);
-            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
-        }
-
-        const aiTierPattern = /^ai\/tier\/(simple|complex|most-demanding)(?:\/provider\/[^/]+)?$/;
-        if (aiTierPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
-            dynamicEntryRoutes.add(settingsPath);
-            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
-        }
-
         const projectSettingsPattern = /^projects\/[^/]+$/;
         if (projectSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
@@ -1677,9 +1669,6 @@ changes to the documentation (to keep the documentation up to date).
             dynamicPersonalDataEditRoutes.add(settingsPath);
             dynamicPersonalDataEditRoutes = new Set(dynamicPersonalDataEditRoutes);
         }
-
-        // Let derived route maps expose newly registered components before activating the route.
-        await tick();
 
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
