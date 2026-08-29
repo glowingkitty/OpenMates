@@ -2728,23 +2728,6 @@ changes to the documentation (to keep the documentation up to date).
                 },
                 afterLocalLogout: async () => {
                     // Actions after local state is reset but before server cleanup starts
-                    // CRITICAL: Clear chats and load demo chat BEFORE database deletion
-                    // Dispatch event to clear user chats and load demo chat
-                    // Dispatching userLoggingOut event to clear chats and load demo
-                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
-
-                     // CRITICAL: Force ActiveChat back to the welcome screen by clearing activeChatStore directly.
-                     // Small delay to ensure auth state changes are processed first
-                     // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
-                     const isOgMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1';
-                     if (!isOgMode) {
-                          await new Promise(resolve => setTimeout(resolve, 50));
-                          const { activeChatStore } = await import('@repo/ui');
-                          activeChatStore.clearActiveChat();
-                      } else {
-                          // Skipping welcome reset during logout - og=1 mode
-                      }
-                    
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
                     // This prevents "Loading chats..." from showing after logout
                     phasedSyncState.markSyncCompleted();

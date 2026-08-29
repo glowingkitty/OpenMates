@@ -830,14 +830,6 @@ export async function checkAuth(
         // this shared prevents future drift between manual and auto logout paths.
         resetLocalLogoutState();
 
-        // CRITICAL: Dispatch logout event IMMEDIATELY to clear component-local UI
-        // state (currentMessages, fullscreen embeds, input draft, etc.). This must
-        // happen before database deletion to ensure UI updates right away.
-        console.debug(
-          "[AuthSessionActions] Dispatching userLoggingOut event to clear UI state immediately",
-        );
-        window.dispatchEvent(new CustomEvent("userLoggingOut"));
-
         console.debug(
           "[AuthSessionActions] Completed shared local logout cleanup on session expiry",
         );
