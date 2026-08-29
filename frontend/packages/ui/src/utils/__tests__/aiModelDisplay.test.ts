@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { AIModelMetadata } from '../../data/modelsMetadata';
+import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
 import {
     compareAiModels,
     compareAiProviders,
@@ -66,6 +66,13 @@ describe('AI model settings display contract', () => {
         expect(getModelCapabilityLevel(model('b', 'B', 'medium'))).toBe('medium');
         expect(getModelCapabilityLevel(model('c', 'C', 'high'))).toBe('high');
         expect(getModelCapabilityLevel(model('d', 'D', 'max'))).toBe('max');
+    });
+
+    // contract-test: direct surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants
+    it('includes explicit capabilities in generated AI model metadata', () => {
+        const aiModels = modelsMetadata.filter((candidate) => candidate.for_app_skill === 'ai.ask');
+        expect(aiModels.length).toBeGreaterThan(0);
+        expect(aiModels.filter((candidate) => !candidate.capability_level).map((candidate) => candidate.id)).toEqual([]);
     });
 
     // contract-test: supporting surface=gui.web assertions=ai-model-routing.catalog.capability-recommendation-variants

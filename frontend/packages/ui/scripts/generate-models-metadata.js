@@ -273,6 +273,12 @@ function generateTypeScript(models) {
 
       lines.push(`        tier: ${JSON.stringify(model.tier)},`);
 
+      if (model.capability_level) {
+        lines.push(
+          `        capability_level: ${JSON.stringify(model.capability_level)},`,
+        );
+      }
+
       // Add release_date if present
       if (model.release_date) {
         lines.push(
@@ -405,6 +411,8 @@ export interface AIModelMetadata {
     reasoning?: boolean;
     /** Model tier for cost indication: economy, standard, premium */
     tier: 'economy' | 'standard' | 'premium';
+    /** Explicit product capability used by model routing settings */
+    capability_level?: 'low' | 'medium' | 'high' | 'max';
     /** Release date of the model (ISO 8601 format) */
     release_date?: string;
     /** Available servers/providers for this model */
