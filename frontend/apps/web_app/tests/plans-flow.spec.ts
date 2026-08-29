@@ -92,9 +92,12 @@ async function runPlanLifecycle(page: any, markReady?: () => void): Promise<void
 	await expect(page.getByTestId('plans-page')).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('plans-workspace-home')).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('plan-greeting')).toContainText(/what is your next plan\?/i, { timeout: 15000 });
+	await expect(page.getByTestId('plans-loading')).toHaveCount(0, { timeout: 30000 });
 	await expect(page.getByTestId('plan-board')).toBeVisible({ timeout: 30000 });
 	await expect(page.getByTestId('task-create-form')).toHaveCount(0);
+	await page.waitForTimeout(800);
 	markReady?.();
+	if (markReady) await page.waitForTimeout(1200);
 
 	const createResponse = page.waitForResponse((response: any) => {
 		if (!response.url().includes('/v1/user-plans') || response.request().method() !== 'POST') return false;
@@ -122,6 +125,7 @@ async function runPlanLifecycle(page: any, markReady?: () => void): Promise<void
 	await page.getByTestId('plan-workspace-input').fill(`delete ${renamedPlanTitle}`);
 	await page.getByTestId('plan-workspace-submit').click();
 	await expect(page.getByTestId('plan-archive-confirmation')).toBeVisible({ timeout: 15000 });
+	if (markReady) await page.waitForTimeout(1200);
 	await Promise.all([
 		page.waitForResponse((response: any) => response.request().method() === 'PATCH' && response.url().includes('/v1/user-plans/') && response.ok()),
 		page.getByTestId('plan-archive-confirm').click()

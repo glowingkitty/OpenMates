@@ -17223,12 +17223,12 @@ assertions:
       surface: rest_api
     - &id1964
       path: frontend/apps/web_app/tests/plans-flow.spec.ts
-      line: 135
+      line: 139
       name: creates and archives an encrypted plan from the Plans workspace
       surface: gui.web
     - &id1965
       path: frontend/apps/web_app/tests/plans-flow.spec.ts
-      line: 144
+      line: 148
       name: records ${viewport.name} Plan lifecycle proof
       surface: gui.web
     - &id1967
@@ -17332,12 +17332,12 @@ assertions:
       surface: rest_api
     - &id1977
       path: frontend/apps/web_app/tests/plans-flow.spec.ts
-      line: 135
+      line: 139
       name: creates and archives an encrypted plan from the Plans workspace
       surface: gui.web
     - &id1978
       path: frontend/apps/web_app/tests/plans-flow.spec.ts
-      line: 144
+      line: 148
       name: records ${viewport.name} Plan lifecycle proof
       surface: gui.web
     - &id1979
@@ -17892,12 +17892,12 @@ assertions:
       surface: rest_api
     - &id2036
       path: frontend/apps/web_app/tests/plans-flow.spec.ts
-      line: 135
+      line: 139
       name: creates and archives an encrypted plan from the Plans workspace
       surface: gui.web
     - &id2037
       path: frontend/apps/web_app/tests/plans-flow.spec.ts
-      line: 144
+      line: 148
       name: records ${viewport.name} Plan lifecycle proof
       surface: gui.web
     - &id2039
