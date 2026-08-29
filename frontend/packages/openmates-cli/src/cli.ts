@@ -184,6 +184,7 @@ import {
   decryptPlanLearnings,
   decryptUserPlan,
   decryptUserPlans,
+  decryptUserPlansForCli,
   finalizedLearningNeedsTaskSafetyScan,
   findPlan,
   findPlanLearning,
@@ -2456,7 +2457,7 @@ async function loadPlans(
   scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
 ): Promise<DecryptedUserPlan[]> {
   const records = await client.listUserPlans(scope);
-  return decryptUserPlans(records, masterKey);
+  return decryptUserPlansForCli(records, masterKey, console.error);
 }
 
 async function loadPlanLearnings(client: OpenMatesClient, masterKey: Uint8Array, plan: DecryptedUserPlan): Promise<DecryptedPlanLearning[]> {

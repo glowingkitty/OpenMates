@@ -23,6 +23,7 @@ import {
   decryptPlanLearning,
   buildUpdateUserPlanInput,
   decryptUserPlan,
+  decryptUserPlansForCli,
   renderPlanDetail,
 } from "../src/plansCli.ts";
 
@@ -84,6 +85,19 @@ async function withServer(
 }
 
 describe("OpenMatesClient user plans", () => {
+  // contract-test: supporting surface=cli assertions=plans.content.client-encrypted,plans.surface.semantic-parity
+  it("skips undecryptable plans without hiding the warning", async () => {
+    const masterKey = Buffer.alloc(32);
+    const valid = await buildCreateUserPlanInput(masterKey, { title: "Valid", goal: "Continue safely" });
+    const invalid = { ...valid, plan_id: "invalid-plan", key_wrappers: [{ key_type: "master" as const, encrypted_plan_key: "invalid" }] };
+    const warnings: string[] = [];
+
+    const plans = await decryptUserPlansForCli([invalid, valid], masterKey, (message) => warnings.push(message));
+
+    assert.deepEqual(plans.map((plan) => plan.title), ["Valid"]);
+    assert.deepEqual(warnings, ["Warning: skipped undecryptable plan invalid-plan."]);
+  });
+
   // contract-test: direct surface=cli assertions=plans.content.client-encrypted,plans.key-wrappers.contextual,plans.surface.semantic-parity
   it("encrypts, decrypts, and renders local plan payloads", async () => {
     const client = new OpenMatesClient({ apiUrl: "http://127.0.0.1", session: testSession() });

@@ -228,6 +228,7 @@ class UserTaskMethods:
         team_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
+        requested_limit = max(1, min(limit, 500))
         if team_id:
             filter_terms: list[dict[str, Any]] = [{"hashed_team_id": {"_eq": hash_id(team_id)}}]
         else:
@@ -236,14 +237,12 @@ class UserTaskMethods:
         params: dict[str, Any] = {
             "fields": USER_TASK_FIELDS,
             "sort": "position,created_at",
-            "limit": max(1, min(limit, 500)),
+            "limit": -1 if project_id else requested_limit,
         }
         if status:
             filter_terms.append({"status": {"_eq": status}})
         if chat_id:
             filter_terms.append({"hashed_primary_chat_id": {"_eq": hash_id(chat_id)}})
-        if project_id:
-            filter_terms.append({"linked_project_hashes": {"_contains": hash_id(project_id)}})
         if assignee_hash:
             filter_terms.append({"assignee_hash": {"_eq": assignee_hash}})
         if priority is not None:
@@ -255,7 +254,12 @@ class UserTaskMethods:
         params["filter"] = {"_and": filter_terms} if len(filter_terms) > 1 else filter_terms[0]
 
         response = await self.directus_service.get_items("user_tasks", params=params, no_cache=True)
-        return [_with_short_id(task) for task in response] if isinstance(response, list) else []
+        tasks = response if isinstance(response, list) else []
+        if project_id:
+            project_hash = hash_id(project_id)
+            tasks = [task for task in tasks if project_hash in _coerce_hashes(task.get("linked_project_hashes"))]
+            tasks = tasks[:requested_limit]
+        return [_with_short_id(task) for task in tasks]
 
     async def summarize_task_metadata(self, user_id: str, team_id: str | None = None) -> dict[str, Any]:
         if team_id:

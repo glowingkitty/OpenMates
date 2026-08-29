@@ -163,17 +163,24 @@ async def test_list_plans_hydrates_key_wrappers_for_client_decryption() -> None:
 # contract-test: supporting surface=rest_api assertions=plans.lifecycle.visible,plans.project-links.encrypted
 @pytest.mark.asyncio
 async def test_list_plans_filters_by_chat_and_project_hashes() -> None:
+    project_hash = hash_id("project-1")
+    matching = {key: value for key, value in plan_payload(plan_id="plan-1").items() if key != "key_wrappers"}
+    matching["linked_project_hashes"] = [project_hash]
+    nonmatching = {**matching, "plan_id": "plan-2", "linked_project_hashes": [hash_id("project-2")]}
+    wrappers = [{"key_type": "master", "encrypted_plan_key": "cipher-master"}]
     directus = SimpleNamespace()
-    directus.get_items = AsyncMock(return_value=[])
+    directus.get_items = AsyncMock(side_effect=[[matching, nonmatching], wrappers])
 
     methods = UserPlanMethods(directus)
-    await methods.list_plans("user-1", chat_id="chat-1", project_id="project-1", status="active")
+    plans = await methods.list_plans("user-1", chat_id="chat-1", project_id="project-1", status="active")
 
-    params = directus.get_items.await_args.kwargs["params"]
+    params = directus.get_items.await_args_list[0].kwargs["params"]
     assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
     assert params["filter[hashed_primary_chat_id][_eq]"] == hash_id("chat-1")
-    assert params["filter[linked_project_hashes][_contains]"] == hash_id("project-1")
+    assert "filter[linked_project_hashes][_contains]" not in params
     assert params["filter[status][_eq]"] == "active"
+    assert params["limit"] == -1
+    assert [plan["plan_id"] for plan in plans] == ["plan-1"]
 
 
 # contract-test: supporting surface=rest_api assertions=plans.key-wrappers.contextual

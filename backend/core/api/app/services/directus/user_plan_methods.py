@@ -246,10 +246,11 @@ class UserPlanMethods:
         team_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
+        requested_limit = max(1, min(limit, 500))
         params: dict[str, Any] = {
             "fields": USER_PLAN_FIELDS,
             "sort": "-updated_at",
-            "limit": max(1, min(limit, 500)),
+            "limit": -1 if project_id else requested_limit,
         }
         if team_id:
             params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
@@ -262,10 +263,12 @@ class UserPlanMethods:
             params["filter[status][_in]"] = ["active", "executing", "blocked"]
         if chat_id:
             params["filter[hashed_primary_chat_id][_eq]"] = hash_id(chat_id)
-        if project_id:
-            params["filter[linked_project_hashes][_contains]"] = hash_id(project_id)
         response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
         plans = response if isinstance(response, list) else []
+        if project_id:
+            project_hash = hash_id(project_id)
+            plans = [plan for plan in plans if project_hash in _coerce_hashes(plan.get("linked_project_hashes"))]
+            plans = plans[:requested_limit]
         for plan in plans:
             if "key_wrappers" not in plan:
                 plan["key_wrappers"] = await self.list_plan_key_wrappers(user_id, str(plan.get("plan_id") or ""))

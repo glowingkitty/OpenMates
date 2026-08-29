@@ -510,6 +510,22 @@ export async function decryptUserPlans(records: UserPlanRecord[], masterKey: Uin
   return output;
 }
 
+export async function decryptUserPlansForCli(
+  records: UserPlanRecord[],
+  masterKey: Uint8Array,
+  warn: (message: string) => void,
+): Promise<DecryptedUserPlan[]> {
+  const output: DecryptedUserPlan[] = [];
+  for (const record of records) {
+    try {
+      output.push(await decryptUserPlan(record, masterKey));
+    } catch {
+      warn(`Warning: skipped undecryptable plan ${record.plan_id || "unknown"}.`);
+    }
+  }
+  return output;
+}
+
 export async function buildCreatePlanLearningInput(plan: DecryptedUserPlan, masterKey: Uint8Array, input: PlanLearningCreateOptions): Promise<UserPlanLearningRecord> {
   const planKey = await planKeyFromRecord(plan.encrypted, masterKey);
   const timestamp = nowSeconds();

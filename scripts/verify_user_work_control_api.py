@@ -148,9 +148,15 @@ def run(api_url: str, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
         require(unauthenticated.request("GET", "/v1/user-plans", scenario="unauthenticated"), 401, "unauthenticated")
         scenarios["unauthenticated"] = {"status": "passed"}
         require(client.request("POST", "/v1/projects", body=project_payload(project_id), scenario="project_create"), 200, "project_create")
-        plan_response = client.request("POST", "/v1/user-plans", body=plan_payload(plan_id, project_id), scenario="plan_create")
+        plan_input = plan_payload(plan_id, project_id)
+        plan_response = client.request("POST", "/v1/user-plans", body=plan_input, scenario="plan_create")
         require(plan_response, 200, "plan_create")
         record(plan_response, "plan", "plan_create")
+        persisted_plan = record(client.request("GET", f"/v1/user-plans/{plan_id}", scenario="plan_wrapper_round_trip"), "plan", "plan_wrapper_round_trip")
+        expected_master_wrapper = next(wrapper for wrapper in plan_input["key_wrappers"] if wrapper["key_type"] == "master")
+        persisted_master_wrapper = next((wrapper for wrapper in persisted_plan.get("key_wrappers", []) if wrapper.get("key_type") == "master"), None)
+        if not persisted_master_wrapper or persisted_master_wrapper.get("encrypted_plan_key") != expected_master_wrapper["encrypted_plan_key"]:
+            raise VerificationFailure("plan_wrapper_round_trip", "master_wrapper_ciphertext_changed")
         task_response = client.request("POST", "/v1/user-tasks", body=task_payload(task_id, plan_id, project_id), scenario="task_create")
         require(task_response, 200, "task_create")
         task = record(task_response, "task", "task_create")

@@ -467,18 +467,24 @@ async def test_update_task_fails_closed_when_lock_backend_is_unavailable() -> No
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.project-links.encrypted,tasks.surface.semantic-parity
 @pytest.mark.asyncio
 async def test_list_tasks_filters_by_chat_and_project_hashes() -> None:
+    project_hash = hash_id("project-1")
     directus = SimpleNamespace()
-    directus.get_items = AsyncMock(return_value=[])
+    directus.get_items = AsyncMock(return_value=[
+        {"task_id": "task-1", "linked_project_hashes": [project_hash]},
+        {"task_id": "task-2", "linked_project_hashes": [hash_id("project-2")]},
+    ])
 
     methods = UserTaskMethods(directus)
-    await methods.list_tasks("user-1", chat_id="chat-1", project_id="project-1", status="todo")
+    tasks = await methods.list_tasks("user-1", chat_id="chat-1", project_id="project-1", status="todo")
 
     params = directus.get_items.await_args.kwargs["params"]
     filter_terms = params["filter"]["_and"]
     assert {"hashed_user_id": {"_eq": hash_id("user-1")}} in filter_terms
     assert {"hashed_primary_chat_id": {"_eq": hash_id("chat-1")}} in filter_terms
-    assert {"linked_project_hashes": {"_contains": hash_id("project-1")}} in filter_terms
+    assert {"linked_project_hashes": {"_contains": project_hash}} not in filter_terms
     assert {"status": {"_eq": "todo"}} in filter_terms
+    assert params["limit"] == -1
+    assert [task["task_id"] for task in tasks] == ["task-1"]
 
 
 # contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible
