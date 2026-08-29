@@ -140,13 +140,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await archiveExistingScreenshots(logCheckpoint);
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 	await startNewChat(page, logCheckpoint);
-	const messageInput = page.locator('[data-action="message-input"]').last();
-	const chatContextId = await messageInput.getAttribute('data-current-chat-id');
-	expect(chatContextId).toBeTruthy();
-	const composer = page
-		.locator(`[data-action="message-input"][data-current-chat-id="${chatContextId}"]`)
-		.last()
-		.getByTestId('message-field');
+	const composer = page.getByTestId('active-chat-container').getByTestId('message-field').last();
 	const editor = await focusComposer(page, composer);
 	const selector = composer.getByTestId('composer-model-selector');
 
