@@ -22121,7 +22121,7 @@ assertions:
       surface: rest_api
     - &id2546
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 93
+      line: 97
       name: Wiki alternatives and provider failures stay visible before inference
       surface: gui.web
     - &id2547
@@ -22263,7 +22263,7 @@ assertions:
       surface: rest_api
     - &id2560
       path: frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
-      line: 93
+      line: 97
       name: Wiki alternatives and provider failures stay visible before inference
       surface: gui.web
     - &id2561

@@ -67,6 +67,10 @@ test('Wiki discovery selects a canonical article and completes with source conte
 	const mention = editor.locator('[data-mention-type="wikipedia"]');
 	await expect(mention).toBeVisible();
 	await expect(mention).toHaveAttribute('data-mention-syntax', '@wikipedia:en:Albert_Einstein');
+	await expect(mention).toHaveAttribute(
+		'style',
+		/--mention-color-start: var\(--color-app-study-start\); --mention-color-end: var\(--color-app-study-end\);/
+	);
 	await page.keyboard.insertText(' Summarize his most important contribution and identify Wikipedia as the source.');
 	await screenshot(page, 'wiki-selected-mention');
 
