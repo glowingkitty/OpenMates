@@ -180,3 +180,78 @@ def test_current_evidence_requires_mapped_test_hashed_report_and_subject_commit(
         registry(), evidence_index(), evidence, repo_root=tmp_path, expected_subject_commit="abc1234"
     )
     assert any("tested subject commit" in error for error in errors)
+
+
+# contract-test: tooling
+def test_current_evidence_allows_metadata_only_followup_commit(tmp_path, monkeypatch):
+    module = load_module()
+    report = {
+        "run_id": "run-1",
+        "subject_commit": "tested",
+        "tests": [{"path": "tests/test_api.py", "name": "test_valid", "status": "passed"}],
+    }
+    report_path = tmp_path / "run.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    evidence = [{
+        "assertion": "feature.valid",
+        "assertion_fingerprint": "valid-hash",
+        "classification": "direct",
+        "surface": "rest_api",
+        "status": "passed",
+        "subject_commit": "tested",
+        "run_id": "run-1",
+        "test_path": "tests/test_api.py",
+        "test_name": "test_valid",
+        "run_artifact": "run.json",
+        "run_artifact_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+    }]
+    monkeypatch.setattr(
+        module,
+        "_metadata_only_evidence_paths_since",
+        lambda *_args: [
+            "contracts/generated/assertion-index.yml",
+            "docs/specs/example/spec.yml",
+            "docs/specs/example/evidence/run.json",
+            "tests/test_api.py",
+        ],
+    )
+    monkeypatch.setattr(module, "_is_contract_test_metadata_only_change", lambda *_args: True)
+
+    result, errors = module.apply_evidence(
+        registry(), evidence_index(), evidence, repo_root=tmp_path, expected_subject_commit="head"
+    )
+
+    assert errors == []
+    assert result["assertions"]["feature.valid"]["current_direct_proof"] is True
+
+
+# contract-test: tooling
+def test_current_evidence_rejects_stale_product_commit(tmp_path, monkeypatch):
+    module = load_module()
+    report = {
+        "run_id": "run-1",
+        "subject_commit": "tested",
+        "tests": [{"path": "tests/test_api.py", "name": "test_valid", "status": "passed"}],
+    }
+    report_path = tmp_path / "run.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    evidence = [{
+        "assertion": "feature.valid",
+        "assertion_fingerprint": "valid-hash",
+        "classification": "direct",
+        "surface": "rest_api",
+        "status": "passed",
+        "subject_commit": "tested",
+        "run_id": "run-1",
+        "test_path": "tests/test_api.py",
+        "test_name": "test_valid",
+        "run_artifact": "run.json",
+        "run_artifact_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+    }]
+    monkeypatch.setattr(module, "_metadata_only_evidence_paths_since", lambda *_args: ["backend/app.py"])
+
+    _, errors = module.apply_evidence(
+        registry(), evidence_index(), evidence, repo_root=tmp_path, expected_subject_commit="head"
+    )
+
+    assert any("tested subject commit" in error for error in errors)

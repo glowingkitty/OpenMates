@@ -51,6 +51,12 @@ VALID_ASSERTION_TYPES = {
     "validation",
 }
 REQUIRED_SURFACES = ("rest_api", "cli", "sdks", "gui")
+CONTRACT_GENERATED_PATHS = {
+    "contracts/generated/assertion-index.yml",
+    "contracts/generated/coverage.yml",
+    "contracts/generated/registry.yml",
+}
+SPEC_EVIDENCE_PATH = re.compile(r"^docs/specs/[^/]+/(?:spec\.yml|evidence/[^/]+\.(?:json|ya?ml))$")
 
 
 class ContractError(ValueError):
@@ -608,8 +614,14 @@ def _validate_evidence_attestation(
     test_name = record.get("test_name")
     if not any(test.get("path") == test_path and test.get("name") == test_name for test in mapped_tests):
         return "test_path and test_name must identify a mapped test"
-    if expected_subject_commit and record.get("subject_commit") != expected_subject_commit:
-        return f"tested subject commit must be {expected_subject_commit}"
+    subject_commit = record.get("subject_commit")
+    if expected_subject_commit and subject_commit != expected_subject_commit:
+        if not _evidence_subject_commit_is_current_enough(
+            repo_root,
+            str(subject_commit or ""),
+            expected_subject_commit,
+        ):
+            return f"tested subject commit must be {expected_subject_commit}"
     artifact_ref = record.get("run_artifact")
     artifact_hash = record.get("run_artifact_sha256")
     if not isinstance(artifact_ref, str) or not artifact_ref or not isinstance(artifact_hash, str) or not artifact_hash:
@@ -711,6 +723,60 @@ def _is_test_file(path: str) -> bool:
         or (name.startswith("test_") and name.endswith(".py"))
         or name.endswith("_test.py")
     )
+
+
+def _evidence_subject_commit_is_current_enough(repo_root: Path, subject_commit: str, expected_commit: str) -> bool:
+    """Allow evidence-only commits to store proof for the product commit they prove."""
+
+    if not subject_commit or not expected_commit:
+        return False
+    changed_paths = _metadata_only_evidence_paths_since(repo_root, subject_commit, expected_commit)
+    if changed_paths is None:
+        return False
+    return all(_is_evidence_metadata_path(path) or _is_contract_test_metadata_only_change(repo_root, subject_commit, expected_commit, path) for path in changed_paths)
+
+
+def _metadata_only_evidence_paths_since(repo_root: Path, subject_commit: str, expected_commit: str) -> list[str] | None:
+    result = subprocess.run(
+        ["git", "diff", "--name-only", f"{subject_commit}..{expected_commit}"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def _is_evidence_metadata_path(path: str) -> bool:
+    return path in CONTRACT_GENERATED_PATHS or bool(SPEC_EVIDENCE_PATH.fullmatch(path))
+
+
+def _is_contract_test_metadata_only_change(repo_root: Path, subject_commit: str, expected_commit: str, path: str) -> bool:
+    if not _is_test_file(path):
+        return False
+    result = subprocess.run(
+        ["git", "diff", "--unified=0", f"{subject_commit}..{expected_commit}", "--", path],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    return _diff_only_changes_contract_test_markers(result.stdout)
+
+
+def _diff_only_changes_contract_test_markers(diff_text: str) -> bool:
+    changed_lines = []
+    for line in diff_text.splitlines():
+        if not line or line.startswith(("diff --git", "index ", "@@ ", "--- ", "+++ ")):
+            continue
+        if line[0] not in {"+", "-"}:
+            continue
+        changed_lines.append(line[1:])
+    return bool(changed_lines) and all(_MARKER.search(line) or _FILE_MARKER.search(line) for line in changed_lines)
 
 
 def _bundle_for_changed_contract_path(path: Path, contracts_root: Path) -> Path | None:

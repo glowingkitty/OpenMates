@@ -45,7 +45,7 @@ def test_count_bucket_is_bounded_and_low_cardinality():
     assert count_bucket(100000) == "50k_plus"
 
 
-# contract-test: direct surface=rest_api assertions=ai-request-observability.waterfall.complete
+# contract-test: direct surface=cli assertions=ai-request-observability.waterfall.complete
 def test_phase_spans_form_a_content_free_hierarchy(phase_exporter):
     with ai_phase_span("turn"):
         with ai_phase_span("preprocess"):
@@ -60,7 +60,7 @@ def test_phase_spans_form_a_content_free_hierarchy(phase_exporter):
     }
 
 
-# contract-test: direct surface=rest_api assertions=ai-request-observability.waterfall.complete,ai-request-observability.structural-traces.content-free
+# contract-test: direct surface=cli assertions=ai-request-observability.waterfall.complete,ai-request-observability.structural-traces.content-free
 def test_queue_span_uses_internal_timestamp_without_request_identity(phase_exporter):
     assert record_ai_queue_span(1_000_000_000)
 
@@ -136,7 +136,7 @@ def test_provider_purpose_is_reviewed_and_content_free(phase_exporter):
             pass
 
 
-# contract-test: direct surface=rest_api assertions=ai-request-observability.waterfall.complete,ai-request-observability.structural-traces.content-free
+# contract-test: direct surface=cli assertions=ai-request-observability.waterfall.complete,ai-request-observability.structural-traces.content-free
 def test_completion_timing_uses_reviewed_terminal_class(phase_exporter):
     with ai_phase_span("turn") as span:
         record_ai_completion_timing(

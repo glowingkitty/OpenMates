@@ -41,6 +41,7 @@ def _write_cache_file(root: Path, group: str, name: str, body: str) -> None:
     )
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.cache.manual-transactional-promotion
 def test_validation_failure_leaves_all_canonical_groups_untouched(tmp_path, monkeypatch) -> None:
     module = _load_import_script()
     source_root = tmp_path / "candidate"
@@ -59,6 +60,7 @@ def test_validation_failure_leaves_all_canonical_groups_untouched(tmp_path, monk
     assert not (canonical_root / "valid" / "llm__test-model" / "new.json").exists()
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.cache.manual-transactional-promotion
 def test_promotion_replaces_group_only_after_staging_candidate(tmp_path, monkeypatch) -> None:
     module = _load_import_script()
     source_root = tmp_path / "candidate"
@@ -75,6 +77,7 @@ def test_promotion_replaces_group_only_after_staging_candidate(tmp_path, monkeyp
     assert not list(canonical_root.glob(".search.*"))
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.cache.manual-transactional-promotion
 def test_main_refuses_promotion_without_both_pass_receipts(tmp_path, monkeypatch) -> None:
     module = _load_import_script()
     source_root = tmp_path / "candidate"

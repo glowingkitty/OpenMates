@@ -31,7 +31,7 @@ const PROMPTS = [
 	'Give one concise tip for writing a clear project status update.'
 ];
 
-// contract-test: direct surface=gui.web assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.real.semantic-signal,daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.isolation.ordinary-inference-unchanged
+// contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.real.semantic-signal,daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.isolation.ordinary-inference-unchanged
 test('daily rotating real-inference canary completes its selected semantic scenario', async ({ page }) => {
 	test.setTimeout(180_000);
 	if (!getTestAccount().email) {

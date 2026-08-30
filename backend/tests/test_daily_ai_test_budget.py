@@ -112,6 +112,7 @@ def test_resolve_live_marker_treats_production_literal_text_as_ordinary(monkeypa
     assert resolve_live_marker_or_raise("literal <<<TEST_LIVE_REAL:daily_canary_20260830>>>", "user") is None
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.reporting.content-free
 def test_real_budget_fails_before_thirteenth_default_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -135,6 +136,7 @@ def test_real_budget_fails_before_thirteenth_default_call(
         deactivate_mock_mode()
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.isolation.ordinary-inference-unchanged
 def test_ordinary_requests_do_not_consult_test_budget() -> None:
     deactivate_mock_mode()
     for _ in range(20):
@@ -158,6 +160,7 @@ def test_invalid_budget_configuration_fails_closed(
         activate_mock_mode("real", current_daily_real_group())
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.budget.shared-hard-cap
 def test_real_llm_wrapper_reserves_before_dispatch(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "memory")
     provider_calls = 0
@@ -210,6 +213,7 @@ def test_real_non_stream_llm_wrapper_reserves_and_clamps_before_dispatch(tmp_pat
     assert observed_max_tokens == MAX_REAL_LLM_OUTPUT_TOKENS
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.cache.manual-transactional-promotion
 def test_record_llm_wrapper_reserves_and_clamps_before_dispatch(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "memory")
     monkeypatch.setenv("DAILY_AI_TEST_BUDGET_EUR", "0.0005")
@@ -254,6 +258,7 @@ def test_real_llm_input_reservation_uses_utf8_byte_upper_bound() -> None:
     assert bound > len(message["content"])
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.replay.cache-miss-fails-closed
 def test_real_http_wrapper_is_rejected_before_dispatch(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "memory")
     class RealTransport(httpx.AsyncBaseTransport):
@@ -284,6 +289,7 @@ def test_real_http_wrapper_is_rejected_before_dispatch(tmp_path, monkeypatch) ->
     assert asyncio.run(run()) == 0
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.cache-miss-fails-closed,daily-ai-tests.isolation.ordinary-inference-unchanged
 def test_live_context_rejects_unregistered_raw_httpx_dispatch(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "memory")
 
@@ -299,6 +305,7 @@ def test_live_context_rejects_unregistered_raw_httpx_dispatch(tmp_path, monkeypa
     asyncio.run(run())
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.cache-miss-fails-closed,daily-ai-tests.isolation.ordinary-inference-unchanged
 def test_live_context_rejects_unregistered_requests_send_dispatch(tmp_path, monkeypatch) -> None:
     requests = pytest.importorskip("requests")
     monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "memory")
@@ -335,6 +342,7 @@ def test_live_context_rejects_unregistered_requests_send_dispatch(tmp_path, monk
     assert adapter.calls == 1
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.isolation.ordinary-inference-unchanged
 def test_ws_auth_cached_profile_enables_signed_daily_real_budget_path(tmp_path, monkeypatch) -> None:
     redis_module = ModuleType("redis")
     redis_asyncio_module = ModuleType("redis.asyncio")

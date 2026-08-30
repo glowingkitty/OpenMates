@@ -26,7 +26,7 @@ const {
 
 const PROMPT = 'In one short sentence, explain why deterministic tests are useful.';
 
-// contract-test: direct surface=gui.web assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.real.semantic-signal,daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.isolation.ordinary-inference-unchanged
+// contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.real.semantic-signal,daily-ai-tests.budget.shared-hard-cap,daily-ai-tests.isolation.ordinary-inference-unchanged
 test('daily fixed real-inference canary completes the full chat pipeline', async ({ page }) => {
 	test.setTimeout(180_000);
 	if (!getTestAccount().email) {

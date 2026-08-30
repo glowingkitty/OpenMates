@@ -34,6 +34,7 @@ def load_module(name: str, path: Path):
     return module
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.validation.conditional-real-gate
 def test_manifest_marks_costly_real_inference_specs_manual_expensive():
     policy = load_module("daily_ai_policy_classifications", POLICY_PATH)
 
@@ -45,6 +46,7 @@ def test_manifest_marks_costly_real_inference_specs_manual_expensive():
     assert manifest["daily_canaries"]["rotating"] == ["daily-ai-rotating-canary.spec.ts"]
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating
 def test_daily_canaries_fail_closed_when_credentials_are_missing():
     policy = load_module("daily_ai_policy_canary_prereqs", POLICY_PATH)
     manifest = policy.load_manifest()
@@ -56,6 +58,7 @@ def test_daily_canaries_fail_closed_when_credentials_are_missing():
         assert "requires configured test-account credentials" in source
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.validation.conditional-real-gate
 def test_discovery_keeps_replay_and_non_ai_specs_but_excludes_unmarked_ai(tmp_path):
     policy = load_module("daily_ai_policy_discovery", POLICY_PATH)
 
@@ -75,6 +78,7 @@ def test_discovery_keeps_replay_and_non_ai_specs_but_excludes_unmarked_ai(tmp_pa
     assert discovered == ["cached-ai.spec.ts", "ordinary-non-ai.spec.ts"]
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating
 def test_daily_plan_selects_one_fixed_and_utc_deterministic_rotating_canary():
     policy = load_module("daily_ai_policy_plan", POLICY_PATH)
     manifest = {
@@ -105,6 +109,7 @@ def test_daily_plan_selects_one_fixed_and_utc_deterministic_rotating_canary():
     )
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.validation.conditional-real-gate
 def test_daily_plan_omits_absent_canaries_and_rejects_scheduled_record_mode():
     policy = load_module("daily_ai_policy_rejections", POLICY_PATH)
     manifest = {"schema_version": 1, "specs": {}, "daily_canaries": {"fixed": ["missing.spec.ts"], "rotating": []}}
@@ -115,6 +120,7 @@ def test_daily_plan_omits_absent_canaries_and_rejects_scheduled_record_mode():
         policy.daily_plan([], date(2026, 8, 30), scheduled=True, record_mode=True, manifest=manifest)
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.validation.conditional-real-gate
 def test_runner_daily_discovery_uses_policy_and_rejects_record_mode(monkeypatch, tmp_path):
     run_tests = load_module("daily_ai_runner", RUN_TESTS_PATH)
     spec_dir = tmp_path / "tests"

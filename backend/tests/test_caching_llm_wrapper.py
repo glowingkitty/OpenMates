@@ -158,6 +158,7 @@ async def _replay(cache, messages):
         deactivate_mock_mode()
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls
 def test_cached_stream_provider_remains_awaitable():
     provider_calls = 0
 
@@ -216,6 +217,7 @@ def test_cached_stream_provider_accepts_model_id_alias():
     assert provider_calls == 0
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls
 def test_cached_non_stream_provider_replays_cached_response_without_real_provider():
     provider_calls = 0
     cache = FakeNonStreamCache({
@@ -313,6 +315,7 @@ def test_record_non_stream_provider_raises_when_cache_save_fails(budgeted_record
     assert provider_calls == 1
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls,daily-ai-tests.replay.cache-miss-fails-closed
 def test_cached_stream_provider_raises_on_fingerprint_miss_without_real_provider():
     provider_calls = 0
     cache = FakeFallbackCache()
@@ -349,6 +352,7 @@ def test_cached_stream_provider_raises_on_fingerprint_miss_without_real_provider
     assert cache.fallback_summary is None
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls,daily-ai-tests.replay.cache-miss-fails-closed
 def test_cached_non_stream_provider_raises_on_fingerprint_miss_without_real_provider():
     provider_calls = 0
     cache = FakeNonStreamFallbackCache()
@@ -448,6 +452,7 @@ def test_record_stream_provider_awaits_real_provider_before_iterating_and_saving
     assert cache.saved_response == {"type": "stream", "body": "recorded", "chunk_count": 2}
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.cache.manual-transactional-promotion
 def test_record_stream_provider_writes_candidate_without_reading_canonical_cache(tmp_path, budgeted_record_mode):
     canonical_root = tmp_path / "canonical"
     candidate_root = tmp_path / "candidate"
