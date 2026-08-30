@@ -17327,7 +17327,7 @@ assertions:
     current_direct_proof: false
   plans.content.client-encrypted:
     contract: feature.plans@1
-    fingerprint: 948ec8baa0b90214793905971cd1869bf08796c45490c96ed85e05d722eb1c5e
+    fingerprint: 21861e75d6827ebd0eaa2b4c9ccf42f38a77afd127f81bb716d7ffdc361b1496
     direct_tests:
     - &id1960
       path: backend/tests/test_user_plans_api.py
@@ -17441,7 +17441,7 @@ assertions:
     current_direct_proof: false
   plans.lifecycle.visible:
     contract: feature.plans@1
-    fingerprint: f2a6895cf853c1b88a8add8e5ef7023ed8cd475ffee111edfd03459e1b2438ae
+    fingerprint: ab2ca80b7c3d88f9a0f83c8c38539cc9d2645ab027783249d343f39b65118a1f
     direct_tests:
     - &id1974
       path: backend/tests/test_user_plans_route_detail.py
@@ -17546,96 +17546,49 @@ assertions:
         - *id1982
         supporting_tests: []
     current_direct_proof: false
-  plans.key-wrappers.contextual:
+  plans.approval.revision-bound:
     contract: feature.plans@1
-    fingerprint: f3a1a29f2d4f58af4b27dd815f99858f54cfc4bc3cb7b48f585884605f76f4ed
+    fingerprint: fc329e20fa0deeb8ceb98cb501248e09d95a5e6d1bdbd7736070d0e68745a3b7
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  plans.approval.human-web-revision-bound:
+    contract: feature.plans@1
+    fingerprint: 90897ba9d8f08a3ae764edd58468a8fb4af621e878e00c6cac31bfc601aa0582
     direct_tests:
+    - &id1983
+      path: backend/tests/test_user_task_admission.py
+      line: 196
+      name: test_plan_gate_blockers_prevent_automatic_admission
+      surface: rest_api
     - &id1984
-      path: backend/tests/test_user_plans_api.py
-      line: 142
-      name: test_create_plan_requires_a_complete_key_wrapper_set
+      path: backend/tests/test_user_task_admission.py
+      line: 208
+      name: test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates
       surface: rest_api
     - &id1985
-      path: backend/tests/test_user_plans_api.py
-      line: 153
-      name: test_list_plans_hydrates_key_wrappers_for_client_decryption
-      surface: rest_api
-    - &id1994
-      path: backend/tests/test_user_plans_route_detail.py
-      line: 77
-      name: test_get_user_plan_checks_team_permission_before_team_lookup
-      surface: rest_api
-    - &id1995
-      path: backend/tests/test_user_plans_route_detail.py
-      line: 99
-      name: test_update_user_plan_refetches_hydrated_record_after_material_invalidation
-      surface: rest_api
-    - &id1996
-      path: frontend/packages/openmates-cli/tests/plans.test.ts
-      line: 102
-      name: encrypts, decrypts, and renders local plan payloads
-      surface: cli
-    - &id1997
-      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
-      line: 100
-      name: manages encrypted plans through the shared API contract
-      surface: sdks.npm
-    - &id1998
-      path: packages/openmates-python/tests/test_plans.py
-      line: 29
-      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
-      surface: sdks.pip
-    - &id1999
-      path: packages/openmates-python/tests/test_plans.py
-      line: 182
-      name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
-      surface: sdks.pip
-    supporting_tests:
-    - &id1983
-      path: backend/tests/test_user_plans_api.py
-      line: 109
-      name: test_create_plan_persists_key_wrappers_separately
+      path: backend/tests/test_user_work_control.py
+      line: 86
+      name: test_evidence_gates_and_material_edits_invalidate_revision_approval
       surface: rest_api
     - &id1986
-      path: backend/tests/test_user_plans_api.py
-      line: 188
-      name: test_create_plan_rolls_back_row_and_wrappers_when_wrapper_write_fails
+      path: backend/tests/test_user_work_control.py
+      line: 101
+      name: test_hashed_scheduler_plan_gates_use_only_valid_assumption_fields
       surface: rest_api
     - &id1987
-      path: backend/tests/test_user_plans_api.py
-      line: 216
-      name: test_create_plan_rejects_raw_project_id_in_key_wrapper_hash_field
+      path: backend/tests/test_user_work_control_routes.py
+      line: 9
+      name: test_approval_requires_authenticated_trusted_browser_session
       surface: rest_api
     - &id1988
-      path: backend/tests/test_user_plans_api.py
-      line: 240
-      name: test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappers
-      surface: rest_api
-    - &id1989
-      path: backend/tests/test_user_plans_api.py
-      line: 274
-      name: test_update_plan_replaces_wrappers_with_project_hash_update
-      surface: rest_api
-    - &id1990
-      path: backend/tests/test_user_plans_api.py
-      line: 308
-      name: test_update_plan_fails_visibly_when_old_wrapper_delete_fails
-      surface: rest_api
-    - &id1991
-      path: backend/tests/test_user_plans_api.py
-      line: 338
-      name: test_update_plan_rejects_project_relink_without_replacement_wrappers
-      surface: rest_api
-    - &id1992
-      path: backend/tests/test_user_plans_api.py
-      line: 358
-      name: test_update_plan_rejects_project_relink_with_empty_replacement_wrappers
-      surface: rest_api
-    - &id1993
-      path: backend/tests/test_user_plans_api.py
-      line: 427
-      name: test_create_verification_can_create_linked_verification_task
-      surface: rest_api
+      path: packages/openmates-python/tests/test_work_control.py
+      line: 9
+      name: test_pip_work_control_facades_exclude_plan_approval
+      surface: sdks.pip
+    supporting_tests: []
     tests:
     - *id1983
     - *id1984
@@ -17643,160 +17596,217 @@ assertions:
     - *id1986
     - *id1987
     - *id1988
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id1983
+        - *id1984
+        - *id1985
+        - *id1986
+        - *id1987
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id1988
+        supporting_tests: []
+    current_direct_proof: false
+  plans.contract-links.contextual:
+    contract: feature.plans@1
+    fingerprint: 089a5efd6e6ec9c0d13e63521a8e7317583d7baf505406df2096386773e27dea
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  plans.tasks.only-execution-units:
+    contract: feature.plans@1
+    fingerprint: a6c8bc60f2fd24e57ffd72c7a2d1a14095b5e46293ade1d3d209972e06f399f7
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  plans.dependencies.done-only:
+    contract: feature.plans@1
+    fingerprint: aabb6d5a25c26bdbfced67e1430581b5a2e173231a0dd5e5ce28056700f2d354
+    direct_tests:
+    - &id1989
+      path: backend/tests/test_user_task_admission.py
+      line: 208
+      name: test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates
+      surface: rest_api
+    - &id1990
+      path: backend/tests/test_user_work_control.py
+      line: 71
+      name: test_mixed_dependencies_are_scoped_acyclic_and_done_only
+      surface: rest_api
+    - &id1991
+      path: frontend/packages/openmates-cli/tests/work-control.test.ts
+      line: 8
+      name: exposes dependency and revision operations but not approval
+      surface: cli
+    supporting_tests: []
+    tests:
     - *id1989
     - *id1990
     - *id1991
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id1989
+        - *id1990
+        supporting_tests: []
+      cli:
+        direct_tests:
+        - *id1991
+        supporting_tests: []
+    current_direct_proof: false
+  plans.assumptions.investigated-before-work:
+    contract: feature.plans@1
+    fingerprint: 0f5f4ee460b108b75fd96f0c811ad85801cf39d69b762aa79670514cb91c0c9b
+    direct_tests:
+    - &id1993
+      path: backend/tests/test_user_task_admission.py
+      line: 196
+      name: test_plan_gate_blockers_prevent_automatic_admission
+      surface: rest_api
+    - &id1994
+      path: backend/tests/test_user_work_control.py
+      line: 86
+      name: test_evidence_gates_and_material_edits_invalidate_revision_approval
+      surface: rest_api
+    - &id1995
+      path: backend/tests/test_user_work_control.py
+      line: 101
+      name: test_hashed_scheduler_plan_gates_use_only_valid_assumption_fields
+      surface: rest_api
+    - &id1996
+      path: backend/tests/test_user_work_control_routes.py
+      line: 18
+      name: test_resolved_assumption_requires_encrypted_typed_proofs
+      surface: rest_api
+    supporting_tests:
+    - &id1992
+      path: backend/tests/test_plan_assumption_workflow.py
+      line: 33
+      name: test_assumption_result_merge_persists_corrections_and_sources
+      surface: rest_api
+    tests:
     - *id1992
     - *id1993
     - *id1994
     - *id1995
     - *id1996
-    - *id1997
-    - *id1998
-    - *id1999
     surfaces:
       rest_api:
         direct_tests:
-        - *id1984
-        - *id1985
+        - *id1993
         - *id1994
         - *id1995
-        supporting_tests:
-        - *id1983
-        - *id1986
-        - *id1987
-        - *id1988
-        - *id1989
-        - *id1990
-        - *id1991
-        - *id1992
-        - *id1993
-      cli:
-        direct_tests:
         - *id1996
-        supporting_tests: []
-      sdks.npm:
-        direct_tests:
-        - *id1997
-        supporting_tests: []
-      sdks.pip:
-        direct_tests:
-        - *id1998
-        - *id1999
-        supporting_tests: []
+        supporting_tests:
+        - *id1992
     current_direct_proof: false
-  plans.project-links.encrypted:
+  plans.key-wrappers.contextual:
     contract: feature.plans@1
-    fingerprint: 5134bfe11e6fbf33d2c40152ced780a4a79d2ab9a0b0e8bd9e5b4b5d6f804a59
+    fingerprint: db756550d5506890296f2626c02ce413b451021212f770bd51efde7fd494c900
     direct_tests:
-    - &id2005
+    - &id1998
+      path: backend/tests/test_user_plans_api.py
+      line: 142
+      name: test_create_plan_requires_a_complete_key_wrapper_set
+      surface: rest_api
+    - &id1999
+      path: backend/tests/test_user_plans_api.py
+      line: 153
+      name: test_list_plans_hydrates_key_wrappers_for_client_decryption
+      surface: rest_api
+    - &id2008
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 77
+      name: test_get_user_plan_checks_team_permission_before_team_lookup
+      surface: rest_api
+    - &id2009
+      path: backend/tests/test_user_plans_route_detail.py
+      line: 99
+      name: test_update_user_plan_refetches_hydrated_record_after_material_invalidation
+      surface: rest_api
+    - &id2010
+      path: frontend/packages/openmates-cli/tests/plans.test.ts
+      line: 102
+      name: encrypts, decrypts, and renders local plan payloads
+      surface: cli
+    - &id2011
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 100
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id2012
+      path: packages/openmates-python/tests/test_plans.py
+      line: 29
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    - &id2013
       path: packages/openmates-python/tests/test_plans.py
       line: 182
       name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
       surface: sdks.pip
     supporting_tests:
+    - &id1997
+      path: backend/tests/test_user_plans_api.py
+      line: 109
+      name: test_create_plan_persists_key_wrappers_separately
+      surface: rest_api
     - &id2000
       path: backend/tests/test_user_plans_api.py
-      line: 86
-      name: test_create_plan_hashes_owner_and_projects_without_plaintext_content
+      line: 188
+      name: test_create_plan_rolls_back_row_and_wrappers_when_wrapper_write_fails
       surface: rest_api
     - &id2001
       path: backend/tests/test_user_plans_api.py
-      line: 165
-      name: test_list_plans_filters_by_chat_and_project_hashes
+      line: 216
+      name: test_create_plan_rejects_raw_project_id_in_key_wrapper_hash_field
       surface: rest_api
     - &id2002
+      path: backend/tests/test_user_plans_api.py
+      line: 240
+      name: test_replace_plan_key_wrappers_creates_new_set_then_deletes_old_wrappers
+      surface: rest_api
+    - &id2003
       path: backend/tests/test_user_plans_api.py
       line: 274
       name: test_update_plan_replaces_wrappers_with_project_hash_update
       surface: rest_api
-    - &id2003
+    - &id2004
+      path: backend/tests/test_user_plans_api.py
+      line: 308
+      name: test_update_plan_fails_visibly_when_old_wrapper_delete_fails
+      surface: rest_api
+    - &id2005
       path: backend/tests/test_user_plans_api.py
       line: 338
       name: test_update_plan_rejects_project_relink_without_replacement_wrappers
       surface: rest_api
-    - &id2004
+    - &id2006
       path: backend/tests/test_user_plans_api.py
       line: 358
       name: test_update_plan_rejects_project_relink_with_empty_replacement_wrappers
       surface: rest_api
+    - &id2007
+      path: backend/tests/test_user_plans_api.py
+      line: 427
+      name: test_create_verification_can_create_linked_verification_task
+      surface: rest_api
     tests:
+    - *id1997
+    - *id1998
+    - *id1999
     - *id2000
     - *id2001
     - *id2002
     - *id2003
     - *id2004
     - *id2005
-    surfaces:
-      rest_api:
-        direct_tests: []
-        supporting_tests:
-        - *id2000
-        - *id2001
-        - *id2002
-        - *id2003
-        - *id2004
-      sdks.pip:
-        direct_tests:
-        - *id2005
-        supporting_tests: []
-    current_direct_proof: false
-  plans.execution.gates-evidence:
-    contract: feature.plans@1
-    fingerprint: 1f4a55a60d285f06cbf8a6e554cf6d9aa3c019f043a1c76327d74d7647364179
-    direct_tests:
-    - &id2011
-      path: frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
-      line: 16
-      name: covers an acceptance criterion with a check and evidence
-      surface: gui.web
-    - &id2012
-      path: frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
-      line: 16
-      name: creates and confirms an encrypted plan assumption
-      surface: gui.web
-    - &id2013
-      path: frontend/packages/openmates-cli/tests/plans.test.ts
-      line: 166
-      name: manages encrypted user plans and verification evidence
-      surface: cli
-    - &id2014
-      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
-      line: 100
-      name: manages encrypted plans through the shared API contract
-      surface: sdks.npm
-    - &id2015
-      path: packages/openmates-python/tests/test_plans.py
-      line: 29
-      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
-      surface: sdks.pip
-    supporting_tests:
-    - &id2006
-      path: backend/tests/test_plan_assumption_workflow.py
-      line: 14
-      name: test_required_assumptions_block_implementation_until_resolved
-      surface: rest_api
-    - &id2007
-      path: backend/tests/test_plan_assumption_workflow.py
-      line: 63
-      name: test_failed_required_check_moves_plan_back_to_blocked_loop
-      surface: rest_api
-    - &id2008
-      path: backend/tests/test_user_plans_api.py
-      line: 383
-      name: test_completion_blocks_missing_required_verification
-      surface: rest_api
-    - &id2009
-      path: backend/tests/test_user_plans_api.py
-      line: 405
-      name: test_red_phase_passed_unexpectedly_does_not_block_completion
-      surface: rest_api
-    - &id2010
-      path: backend/tests/test_user_plans_api.py
-      line: 427
-      name: test_create_verification_can_create_linked_verification_task
-      surface: rest_api
-    tests:
     - *id2006
     - *id2007
     - *id2008
@@ -17805,152 +17815,153 @@ assertions:
     - *id2011
     - *id2012
     - *id2013
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id1998
+        - *id1999
+        - *id2008
+        - *id2009
+        supporting_tests:
+        - *id1997
+        - *id2000
+        - *id2001
+        - *id2002
+        - *id2003
+        - *id2004
+        - *id2005
+        - *id2006
+        - *id2007
+      cli:
+        direct_tests:
+        - *id2010
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
+        - *id2011
+        supporting_tests: []
+      sdks.pip:
+        direct_tests:
+        - *id2012
+        - *id2013
+        supporting_tests: []
+    current_direct_proof: false
+  plans.project-links.encrypted:
+    contract: feature.plans@1
+    fingerprint: da9ce99fff5093a742567fc47b82cff2f3594ca0e38d16052ca70322bfe65c90
+    direct_tests:
+    - &id2019
+      path: packages/openmates-python/tests/test_plans.py
+      line: 182
+      name: test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids
+      surface: sdks.pip
+    supporting_tests:
+    - &id2014
+      path: backend/tests/test_user_plans_api.py
+      line: 86
+      name: test_create_plan_hashes_owner_and_projects_without_plaintext_content
+      surface: rest_api
+    - &id2015
+      path: backend/tests/test_user_plans_api.py
+      line: 165
+      name: test_list_plans_filters_by_chat_and_project_hashes
+      surface: rest_api
+    - &id2016
+      path: backend/tests/test_user_plans_api.py
+      line: 274
+      name: test_update_plan_replaces_wrappers_with_project_hash_update
+      surface: rest_api
+    - &id2017
+      path: backend/tests/test_user_plans_api.py
+      line: 338
+      name: test_update_plan_rejects_project_relink_without_replacement_wrappers
+      surface: rest_api
+    - &id2018
+      path: backend/tests/test_user_plans_api.py
+      line: 358
+      name: test_update_plan_rejects_project_relink_with_empty_replacement_wrappers
+      surface: rest_api
+    tests:
     - *id2014
     - *id2015
+    - *id2016
+    - *id2017
+    - *id2018
+    - *id2019
     surfaces:
       rest_api:
         direct_tests: []
         supporting_tests:
-        - *id2006
-        - *id2007
-        - *id2008
-        - *id2009
-        - *id2010
-      gui.web:
-        direct_tests:
-        - *id2011
-        - *id2012
-        supporting_tests: []
-      cli:
-        direct_tests:
-        - *id2013
-        supporting_tests: []
-      sdks.npm:
-        direct_tests:
         - *id2014
-        supporting_tests: []
-      sdks.pip:
-        direct_tests:
         - *id2015
-        supporting_tests: []
-    current_direct_proof: false
-  plans.dependencies.done-only:
-    contract: feature.plans@1
-    fingerprint: 3a0eec1b6edfdf0c944a950850a5f56ea9cb769bdc9719f26c6c109d78e7b8a8
-    direct_tests:
-    - &id2016
-      path: backend/tests/test_user_task_admission.py
-      line: 208
-      name: test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates
-      surface: rest_api
-    - &id2017
-      path: backend/tests/test_user_work_control.py
-      line: 71
-      name: test_mixed_dependencies_are_scoped_acyclic_and_done_only
-      surface: rest_api
-    - &id2018
-      path: frontend/packages/openmates-cli/tests/work-control.test.ts
-      line: 8
-      name: exposes dependency and revision operations but not approval
-      surface: cli
-    supporting_tests: []
-    tests:
-    - *id2016
-    - *id2017
-    - *id2018
-    surfaces:
-      rest_api:
-        direct_tests:
         - *id2016
         - *id2017
-        supporting_tests: []
-      cli:
-        direct_tests:
         - *id2018
+      sdks.pip:
+        direct_tests:
+        - *id2019
         supporting_tests: []
     current_direct_proof: false
-  plans.assumptions.investigated-before-work:
+  plans.execution.gates-evidence:
     contract: feature.plans@1
-    fingerprint: 4e915bbe90cb6804ffbdbd826df65404424d4fd99fe26e46e6170c3725fc15ef
+    fingerprint: f2bcc752e66bce49d4a8e482c4945caf3930fbf17e2ca79b2af2a09cbe352e8a
     direct_tests:
+    - &id2025
+      path: frontend/apps/web_app/tests/plan-acceptance-checks-flow.spec.ts
+      line: 16
+      name: covers an acceptance criterion with a check and evidence
+      surface: gui.web
+    - &id2026
+      path: frontend/apps/web_app/tests/plan-assumptions-flow.spec.ts
+      line: 16
+      name: creates and confirms an encrypted plan assumption
+      surface: gui.web
+    - &id2027
+      path: frontend/packages/openmates-cli/tests/plans.test.ts
+      line: 166
+      name: manages encrypted user plans and verification evidence
+      surface: cli
+    - &id2028
+      path: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      line: 100
+      name: manages encrypted plans through the shared API contract
+      surface: sdks.npm
+    - &id2029
+      path: packages/openmates-python/tests/test_plans.py
+      line: 29
+      name: test_pip_sdk_user_plan_methods_use_shared_plans_api
+      surface: sdks.pip
+    supporting_tests:
     - &id2020
-      path: backend/tests/test_user_task_admission.py
-      line: 196
-      name: test_plan_gate_blockers_prevent_automatic_admission
+      path: backend/tests/test_plan_assumption_workflow.py
+      line: 14
+      name: test_required_assumptions_block_implementation_until_resolved
       surface: rest_api
     - &id2021
-      path: backend/tests/test_user_work_control.py
-      line: 86
-      name: test_evidence_gates_and_material_edits_invalidate_revision_approval
+      path: backend/tests/test_plan_assumption_workflow.py
+      line: 63
+      name: test_failed_required_check_moves_plan_back_to_blocked_loop
       surface: rest_api
     - &id2022
-      path: backend/tests/test_user_work_control.py
-      line: 101
-      name: test_hashed_scheduler_plan_gates_use_only_valid_assumption_fields
+      path: backend/tests/test_user_plans_api.py
+      line: 383
+      name: test_completion_blocks_missing_required_verification
       surface: rest_api
     - &id2023
-      path: backend/tests/test_user_work_control_routes.py
-      line: 18
-      name: test_resolved_assumption_requires_encrypted_typed_proofs
+      path: backend/tests/test_user_plans_api.py
+      line: 405
+      name: test_red_phase_passed_unexpectedly_does_not_block_completion
       surface: rest_api
-    supporting_tests:
-    - &id2019
-      path: backend/tests/test_plan_assumption_workflow.py
-      line: 33
-      name: test_assumption_result_merge_persists_corrections_and_sources
+    - &id2024
+      path: backend/tests/test_user_plans_api.py
+      line: 427
+      name: test_create_verification_can_create_linked_verification_task
       surface: rest_api
     tests:
-    - *id2019
     - *id2020
     - *id2021
     - *id2022
     - *id2023
-    surfaces:
-      rest_api:
-        direct_tests:
-        - *id2020
-        - *id2021
-        - *id2022
-        - *id2023
-        supporting_tests:
-        - *id2019
-    current_direct_proof: false
-  plans.approval.human-web-revision-bound:
-    contract: feature.plans@1
-    fingerprint: 484452925fd9de6c5b07c6c7c1291256f8f5074b18b6b4daf644be9af9ea5740
-    direct_tests:
-    - &id2024
-      path: backend/tests/test_user_task_admission.py
-      line: 196
-      name: test_plan_gate_blockers_prevent_automatic_admission
-      surface: rest_api
-    - &id2025
-      path: backend/tests/test_user_task_admission.py
-      line: 208
-      name: test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates
-      surface: rest_api
-    - &id2026
-      path: backend/tests/test_user_work_control.py
-      line: 86
-      name: test_evidence_gates_and_material_edits_invalidate_revision_approval
-      surface: rest_api
-    - &id2027
-      path: backend/tests/test_user_work_control.py
-      line: 101
-      name: test_hashed_scheduler_plan_gates_use_only_valid_assumption_fields
-      surface: rest_api
-    - &id2028
-      path: backend/tests/test_user_work_control_routes.py
-      line: 9
-      name: test_approval_requires_authenticated_trusted_browser_session
-      surface: rest_api
-    - &id2029
-      path: packages/openmates-python/tests/test_work_control.py
-      line: 9
-      name: test_pip_work_control_facades_exclude_plan_approval
-      surface: sdks.pip
-    supporting_tests: []
-    tests:
     - *id2024
     - *id2025
     - *id2026
@@ -17959,11 +17970,24 @@ assertions:
     - *id2029
     surfaces:
       rest_api:
-        direct_tests:
+        direct_tests: []
+        supporting_tests:
+        - *id2020
+        - *id2021
+        - *id2022
+        - *id2023
         - *id2024
+      gui.web:
+        direct_tests:
         - *id2025
         - *id2026
+        supporting_tests: []
+      cli:
+        direct_tests:
         - *id2027
+        supporting_tests: []
+      sdks.npm:
+        direct_tests:
         - *id2028
         supporting_tests: []
       sdks.pip:
@@ -17973,7 +17997,7 @@ assertions:
     current_direct_proof: false
   plans.active-context.vault-boundary:
     contract: feature.plans@1
-    fingerprint: da365afc864fa91e75b7db0486be49be48af8bfc5cda83affe29c0eca5813f03
+    fingerprint: d1c1cbb3251dae78dd86bb26916e1f79333e2f1cd2537f89d6330668ebfe478e
     direct_tests:
     - &id2030
       path: backend/tests/test_user_plans_route_detail.py
@@ -17989,9 +18013,17 @@ assertions:
         - *id2030
         supporting_tests: []
     current_direct_proof: false
+  plans.ui.edit-approve-resume:
+    contract: feature.plans@1
+    fingerprint: 48603484da51e01de88a481ac5d0334e5853f88b54b62c9c98eccd943b5a4049
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   plans.surface.semantic-parity:
     contract: feature.plans@1
-    fingerprint: 1d75be911f2996be7b575d481dc7b6ae790b202251e75a1feee0131d6ba40ba0
+    fingerprint: a6b5e9abadaf6ce805128927f291bfcccd57e6a679a32c258f4177d0429a5c86
     direct_tests:
     - &id2031
       path: backend/tests/test_user_plans_route_detail.py
@@ -18147,7 +18179,7 @@ assertions:
     current_direct_proof: false
   projects.access.explicit-context:
     contract: feature.projects@1
-    fingerprint: 15e50e02417c5c3fc66496f7a38c6c690510dcfdb5bd592b44ad326df1da8b0f
+    fingerprint: bea95f0cc607099aa8b97cacdbfaaf1f47cff42dc50bea9f1fd38f8c83b4567c
     direct_tests:
     - &id2050
       path: backend/tests/test_teams_move_authorization.py
@@ -18241,7 +18273,7 @@ assertions:
     current_direct_proof: false
   projects.lifecycle.encrypted-crud:
     contract: feature.projects@1
-    fingerprint: 1b0847d3e97b7d28431a8f4c3517ddb521e117e59597d06d0d5f20fa2d8e2adb
+    fingerprint: b9e4f4883e99ec3e448849b0fccb946875ede44f9bdd8a17563f6db7c350c93e
     direct_tests:
     - &id2062
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
@@ -18279,7 +18311,7 @@ assertions:
     current_direct_proof: false
   projects.keys.client-wrapped:
     contract: feature.projects@1
-    fingerprint: f9dd6762c20b5394eeaca1dd940598da4b4b45da775d2c6a8fa2cecf14036f55
+    fingerprint: aff17f650811ff6ac68f2db08cd0055774aad740127abea79428a716bb684c6d
     direct_tests:
     - &id2064
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
@@ -18307,7 +18339,7 @@ assertions:
     current_direct_proof: false
   projects.links.openmates-only-encrypted:
     contract: feature.projects@1
-    fingerprint: 1ee21a6a449ccbad9e01878d391de1cf1db48fda7244d7d49b41b8f97bfb8606
+    fingerprint: d4b094ae139151c6498f9feed290b451662c749a5e7c00cf61cc16c305be7014
     direct_tests:
     - &id2066
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
@@ -18336,7 +18368,31 @@ assertions:
     current_direct_proof: false
   projects.association.safe-metadata-encrypted-authority:
     contract: feature.projects@1
-    fingerprint: 4a58e484e0093ddb76361eabccb935376bd6ffa2e50a0d7187d8d1a159b69d22
+    fingerprint: 2f9d6d338eb193d6c1ca32ed9a9f9ec442b6fdbba87c241b75ee2726eb380028
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.workspace.contract-plan-task-check-chain:
+    contract: feature.projects@1
+    fingerprint: fccc8cb184c3180d6f0f1c3d54ae599d483902f5474d35f441883ef09fa5da44
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.checks.lazy-materialization:
+    contract: feature.projects@1
+    fingerprint: 7b5bf4b688a87c837007495b6cef0ec11a393f33cd2b32fd3420359f7d28a097
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  projects.items.responsive-embeds:
+    contract: feature.projects@1
+    fingerprint: bc3bd9cc3136497b2778eeefe256f8d5054b11e8b4b7804e8542d019f17b2908
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -18344,7 +18400,7 @@ assertions:
     current_direct_proof: false
   projects.uploads.project-wrapped:
     contract: feature.projects@1
-    fingerprint: c0bf8a9877d568d66551cc2e423f3ed510c1dd00801f800a734e788f7d6f9439
+    fingerprint: b132e0a28972e1b5e13d6037ebc63b1a609e3945e92bedfa8f6c9b2c8c90e285
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -18352,7 +18408,7 @@ assertions:
     current_direct_proof: false
   projects.surface.semantic-parity:
     contract: feature.projects@1
-    fingerprint: 6945e35f093fa801853a4b533106d77b2ce6a7c5208efe1cad429ae8d99338f0
+    fingerprint: 0cc1ccce7429ff4d2bc3232407873816819ffe993424899c9d8cd92c956367fe
     direct_tests:
     - &id2069
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
@@ -19670,7 +19726,7 @@ assertions:
     current_direct_proof: false
   tasks.content.client-encrypted:
     contract: feature.tasks@2
-    fingerprint: e6fc398c991570fc06386096638457f60510e20d135ff612ebdc37b503db32e8
+    fingerprint: 8dad012be38895ff87794559d9d4af9e2c7e5ec67b7d15a904945a6cbc882d54
     direct_tests:
     - &id2224
       path: backend/tests/test_task_main_processor_tools.py
@@ -19854,7 +19910,7 @@ assertions:
     current_direct_proof: false
   tasks.lifecycle.visible:
     contract: feature.tasks@2
-    fingerprint: 3a1262b916d9b0b2fab31c487ab1166d23012ff6310dd90745880cd6856dfb7d
+    fingerprint: f8dd1146482b3e926e6c12bba3704f01ba0bcc3f8e57948188bad91a718852c5
     direct_tests:
     - &id2250
       path: backend/tests/test_task_main_processor_tools.py
@@ -20379,9 +20435,33 @@ assertions:
         - *id2311
         supporting_tests: []
     current_direct_proof: false
+  tasks.structure.flat-dependencies:
+    contract: feature.tasks@2
+    fingerprint: 4efc4edf6af6334f85373e6dbe877670a4a80488aef9e114ea3771a181b5ac41
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.plan.execution-unit:
+    contract: feature.tasks@2
+    fingerprint: 65563e4ea16d34132bbcb63f8794786816868d92d6a2083ada561ce55cb9c2fd
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.check-work.not-proof:
+    contract: feature.tasks@2
+    fingerprint: dd619551a240fef49d0c393c8379c727572e538bc4fa83bbf133a282bf4ad237
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   tasks.project-links.encrypted:
     contract: feature.tasks@2
-    fingerprint: 57c1abc2d98e76ee877c83e89fc2ac0144c5650e7c0462019c2563e1665c0fc2
+    fingerprint: 526937b41189f9a789794d62356c8cec7d3c9b028d516af1f1987299adc6224f
     direct_tests:
     - &id2319
       path: backend/tests/test_user_tasks_api.py
@@ -20478,7 +20558,7 @@ assertions:
     current_direct_proof: false
   tasks.key-wrappers.context-scoped:
     contract: feature.tasks@2
-    fingerprint: 45d7dace1ef42880916d6f6c529bcbbeb58ba7f1eff178f2f2e85fe369a168bf
+    fingerprint: 9968a6cb3bfbcf0ab01c79a6bd37ac36fb0777b5c683703238a9c9b8641293f8
     direct_tests:
     - &id2330
       path: backend/tests/test_user_tasks_api.py
@@ -20566,7 +20646,7 @@ assertions:
     current_direct_proof: false
   tasks.workflow-projections.read-only:
     contract: feature.tasks@2
-    fingerprint: d0eff9453cf4e57e9d2d51270a9573516b1d8f9e223a996812610c0faf93006c
+    fingerprint: c4f30e243326459c83e282f876182aef7812c2eb1b8cd4448313a43c1e925a1c
     direct_tests:
     - &id2341
       path: backend/tests/test_user_task_admission.py
@@ -20692,7 +20772,7 @@ assertions:
     current_direct_proof: false
   tasks.detail.embed-responsive:
     contract: feature.tasks@2
-    fingerprint: e0165dcc8f0241f64669c9e28c39452fa09934ea4a2412c4ea1448b6590f94a7
+    fingerprint: b93eb0a8f9ad913f82aff3294aa536cacf5a6ae41cc791a8d0afa02b017ddd34
     direct_tests:
     - &id2356
       path: frontend/apps/web_app/tests/workflows-ready-run-tasks.spec.ts
@@ -20709,201 +20789,216 @@ assertions:
         - *id2356
         supporting_tests: []
     current_direct_proof: false
-  tasks.surface.semantic-parity:
+  tasks.execution.capacity-scoped:
     contract: feature.tasks@2
-    fingerprint: 44441be587ea8631c9af1ce35610070cd9ce4fdbb3cb09aa9d61fdcb8f994fbe
+    fingerprint: 05668f99f873b85a322247d41a33c19fdb0c59746fd65675ce68b5d614cacb25
     direct_tests:
-    - &id2372
-      path: backend/tests/test_user_tasks_api.py
-      line: 118
-      name: test_list_tasks_filters_labels_with_and_semantics_and_priority
-      surface: rest_api
-    - &id2374
-      path: backend/tests/test_user_tasks_api.py
-      line: 150
-      name: test_task_short_id_lookup_rejects_ambiguous_collisions
-      surface: rest_api
-    - &id2375
-      path: backend/tests/test_user_tasks_api.py
-      line: 469
-      name: test_list_tasks_filters_by_chat_and_project_hashes
-      surface: rest_api
-    - &id2376
-      path: backend/tests/test_user_tasks_api.py
-      line: 699
-      name: test_product_task_helpers_do_not_use_celery_tasks_collection
-      surface: rest_api
-    - &id2378
-      path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
-      line: 128
-      name: manages decrypted tasks through API-key master-key recovery
-      surface: sdks.npm
-    - &id2379
-      path: frontend/packages/openmates-cli/tests/tasks.test.ts
-      line: 81
-      name: lists, creates, updates, and starts encrypted user tasks
-      surface: cli
-    - &id2380
-      path: frontend/packages/openmates-cli/tests/tasks.test.ts
-      line: 117
-      name: rejects ambiguous short task IDs
-      surface: cli
-    - &id2381
-      path: frontend/packages/openmates-cli/tests/tasks.test.ts
-      line: 128
-      name: renders workflow task projections without decrypting task ciphertext
-      surface: cli
-    - &id2382
-      path: frontend/packages/openmates-cli/tests/tasks.test.ts
-      line: 163
-      name: gives workflow projection deletion guidance
-      surface: cli
-    - &id2384
-      path: frontend/packages/openmates-cli/tests/work-recovery.test.ts
-      line: 29
-      name: validates typed pointerless Plan projections
-      surface: cli
-    - &id2387
-      path: packages/openmates-python/tests/test_tasks.py
-      line: 14
-      name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
-      surface: sdks.pip
-    - &id2388
-      path: packages/openmates-python/tests/test_tasks.py
-      line: 139
-      name: test_pip_sdk_keeps_workflow_projection_metadata
-      surface: sdks.pip
-    supporting_tests:
     - &id2357
       path: backend/tests/test_task_main_processor_tools.py
-      line: 49
-      name: test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks
+      line: 126
+      name: test_team_task_context_and_completion_stay_in_team_scope
       surface: rest_api
     - &id2358
       path: backend/tests/test_task_main_processor_tools.py
-      line: 67
-      name: test_attached_tasks_enable_update_reorder_block_complete_and_move_tools
+      line: 652
+      name: test_direct_task_complete_marks_next_task_active_in_turn_context
       surface: rest_api
     - &id2359
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 100
-      name: test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 29
+      name: test_post_turn_guard_starts_next_task_before_plan_continuation
       surface: rest_api
     - &id2360
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 165
-      name: test_blocked_attached_tasks_enable_unblock_tool
+      path: backend/tests/test_user_task_admission.py
+      line: 49
+      name: test_official_cloud_policy_uses_fixed_personal_and_team_limits
       surface: rest_api
     - &id2361
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 190
-      name: test_task_runtime_tools_merge_with_existing_main_processor_tools_without_duplicates
+      path: backend/tests/test_user_task_admission.py
+      line: 65
+      name: test_self_host_policy_accepts_explicit_capacity_and_rejects_invalid_values
       surface: rest_api
     - &id2362
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 226
-      name: test_reorder_tool_is_not_advertised_until_atomic_persistence_exists
+      path: backend/tests/test_user_task_admission.py
+      line: 85
+      name: test_personal_pool_starts_two_urgent_overflow_tasks_but_not_sixth_normal
       surface: rest_api
     - &id2363
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 243
-      name: test_task_tool_allow_list_preserves_provider_emitted_name
+      path: backend/tests/test_user_task_admission.py
+      line: 104
+      name: test_team_pool_has_hard_maximum_ten_and_is_independent_from_personal_pool
       surface: rest_api
     - &id2364
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 253
-      name: test_tasks_app_skill_names_are_not_legacy_task_runtime_tools
+      path: backend/tests/test_user_task_admission.py
+      line: 208
+      name: test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates
       surface: rest_api
     - &id2365
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 261
-      name: test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools
+      path: backend/tests/test_user_task_admission.py
+      line: 239
+      name: test_admission_reads_only_user_task_rows_not_workflow_projections
       surface: rest_api
     - &id2366
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 281
-      name: test_tasks_app_skill_mentions_resolve_from_backend_wire_syntax
+      path: backend/tests/test_user_task_admission.py
+      line: 252
+      name: test_admission_queries_are_bounded_and_paginated_without_truncation
       surface: rest_api
     - &id2367
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 288
-      name: test_tasks_app_skill_mentions_resolve_from_user_overrides
+      path: backend/tests/test_user_task_admission.py
+      line: 270
+      name: test_team_admission_finds_staged_context_without_personal_owner_hash
       surface: rest_api
     - &id2368
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 295
-      name: test_explicit_tasks_app_skill_expands_assigned_app_allowlist
+      path: backend/tests/test_user_task_admission.py
+      line: 292
+      name: test_waiting_task_execution_context_is_vault_encrypted_and_dispatched_once_admitted
       surface: rest_api
     - &id2369
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 309
-      name: test_explicit_tasks_app_skill_accepts_legacy_singular_tool_aliases
+      path: backend/tests/test_user_task_admission.py
+      line: 331
+      name: test_scheduler_admission_blocks_claim_without_execution_context_and_releases_slot
       surface: rest_api
     - &id2370
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 742
-      name: test_task_tool_accepts_model_formatted_task_id_and_version
+      path: backend/tests/test_user_task_admission.py
+      line: 349
+      name: test_scheduler_dispatch_failure_blocks_claim_and_releases_slot
       surface: rest_api
     - &id2371
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 209
-      name: test_task_queue_post_turn_prompt_prefers_short_id
+      path: backend/tests/test_user_task_admission.py
+      line: 366
+      name: test_execution_context_decrypt_failure_blocks_claim_and_releases_slot
+      surface: rest_api
+    - &id2372
+      path: backend/tests/test_user_task_admission.py
+      line: 382
+      name: test_failed_dispatch_immediately_refills_released_capacity
       surface: rest_api
     - &id2373
-      path: backend/tests/test_user_tasks_api.py
-      line: 142
-      name: test_task_short_id_matches_cli_derivation
-      surface: cli
+      path: backend/tests/test_user_task_admission.py
+      line: 410
+      name: test_admission_releases_scope_lock_before_dispatch_callback
+      surface: rest_api
+    - &id2374
+      path: backend/tests/test_user_task_runtime_tools.py
+      line: 24
+      name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
+      surface: rest_api
+    - &id2375
+      path: backend/tests/test_user_task_runtime_tools.py
+      line: 51
+      name: test_block_pauses_queue_with_safe_reason
+      surface: rest_api
+    - &id2376
+      path: backend/tests/test_user_task_runtime_tools.py
+      line: 85
+      name: test_complete_starts_next_eligible_ai_task
+      surface: rest_api
     - &id2377
-      path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
-      line: 52
-      name: exposes task app-skill child embeds and pending client search state
-      surface: sdks.npm
+      path: backend/tests/test_user_task_runtime_tools.py
+      line: 186
+      name: test_complete_refills_scope_capacity_even_when_source_chat_is_blocked
+      surface: rest_api
+    - &id2378
+      path: backend/tests/test_user_task_runtime_tools.py
+      line: 219
+      name: test_team_completion_updates_team_row_and_refills_team_pool
+      surface: rest_api
+    - &id2379
+      path: backend/tests/test_user_tasks_api.py
+      line: 638
+      name: test_ai_task_without_execution_context_waits_without_consuming_capacity
+      surface: rest_api
+    - &id2380
+      path: backend/tests/test_user_tasks_api.py
+      line: 654
+      name: test_ai_task_create_with_transient_context_claims_and_dispatches
+      surface: rest_api
+    - &id2381
+      path: backend/tests/test_user_tasks_api.py
+      line: 681
+      name: test_second_ai_task_without_due_date_waits_for_active_chat_task
+      surface: rest_api
+    - &id2382
+      path: backend/tests/test_user_tasks_api.py
+      line: 768
+      name: test_start_ai_waits_when_another_task_is_active_in_same_chat
+      surface: rest_api
     - &id2383
-      path: frontend/packages/openmates-cli/tests/tasks.test.ts
-      line: 177
-      name: formats task child embeds for CLI output
-      surface: cli
+      path: backend/tests/test_user_tasks_api.py
+      line: 798
+      name: test_team_start_ai_scopes_update_admission_and_dispatch_payload
+      surface: rest_api
+    - &id2384
+      path: backend/tests/test_user_tasks_api.py
+      line: 857
+      name: test_team_task_updates_share_one_team_scoped_write_lock
+      surface: rest_api
     - &id2385
-      path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
-      line: 83
-      name: uses global and namespace-specific history endpoints
-      surface: sdks.npm
+      path: backend/tests/test_user_tasks_api.py
+      line: 874
+      name: test_start_ai_stages_execution_context_before_becoming_admission_eligible
+      surface: rest_api
     - &id2386
-      path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
-      line: 137
-      name: uses namespace-specific ask endpoints
-      surface: sdks.npm
+      path: backend/tests/test_user_tasks_api.py
+      line: 908
+      name: test_start_ai_staging_failure_moves_task_to_visible_blocked_state
+      surface: rest_api
+    - &id2387
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 48
+      name: test_process_due_ai_tasks_starts_due_rows
+      surface: rest_api
+    - &id2388
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 71
+      name: test_due_ai_query_uses_durable_filters
+      surface: rest_api
     - &id2389
-      path: scripts/tests/test_task_live_smoke_cleanup.py
-      line: 31
-      name: test_created_chat_and_task_are_registered_immediately
-      surface: cli
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 85
+      name: test_stale_queued_query_only_selects_expired_dispatch_leases
+      surface: rest_api
     - &id2390
-      path: scripts/tests/test_task_live_smoke_cleanup.py
-      line: 49
-      name: test_cleanup_deletes_tasks_before_chats
-      surface: cli
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 102
+      name: test_process_due_ai_tasks_skips_rows_without_version
+      surface: rest_api
     - &id2391
-      path: scripts/tests/test_task_live_smoke_cleanup.py
-      line: 68
-      name: test_cleanup_failure_is_not_silent
-      surface: cli
-    - &id2392
-      path: scripts/tests/test_task_live_smoke_cleanup.py
-      line: 78
-      name: test_cleanup_continues_after_delete_raises
-      surface: cli
-    - &id2393
-      path: scripts/tests/test_task_live_smoke_cleanup.py
-      line: 99
-      name: test_cleanup_does_not_replace_primary_smoke_failure
-      surface: cli
-    - &id2394
-      path: scripts/tests/test_task_live_smoke_cleanup.py
+      path: backend/tests/test_user_tasks_scheduler.py
       line: 117
-      name: test_sdk_smoke_has_npm_and_pip_finally_cleanup
-      surface: cli
+      name: test_scheduler_reconciles_waiting_todo_scope_without_due_task
+      surface: rest_api
+    - &id2392
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 131
+      name: test_scheduler_fails_stale_queued_task_before_refill
+      surface: rest_api
+    - &id2393
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 183
+      name: test_delayed_worker_claim_requires_task_to_still_be_queued
+      surface: rest_api
+    - &id2394
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 208
+      name: test_stale_sweep_treats_worker_claim_lock_as_healthy_contention
+      surface: rest_api
+    - &id2395
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 233
+      name: test_ai_worker_exits_when_delayed_user_task_dispatch_loses_fence
+      surface: rest_api
+    - &id2396
+      path: backend/tests/test_user_tasks_scheduler.py
+      line: 244
+      name: test_reconciliation_uses_dedicated_user_tasks_queue
+      surface: rest_api
+    - &id2397
+      path: backend/tests/test_user_work_control.py
+      line: 101
+      name: test_hashed_scheduler_plan_gates_use_only_valid_assumption_fields
+      surface: rest_api
+    supporting_tests: []
     tests:
     - *id2357
     - *id2358
@@ -20943,14 +21038,12 @@ assertions:
     - *id2392
     - *id2393
     - *id2394
+    - *id2395
+    - *id2396
+    - *id2397
     surfaces:
       rest_api:
         direct_tests:
-        - *id2372
-        - *id2374
-        - *id2375
-        - *id2376
-        supporting_tests:
         - *id2357
         - *id2358
         - *id2359
@@ -20966,249 +21059,200 @@ assertions:
         - *id2369
         - *id2370
         - *id2371
-      cli:
-        direct_tests:
+        - *id2372
+        - *id2373
+        - *id2374
+        - *id2375
+        - *id2376
+        - *id2377
+        - *id2378
         - *id2379
         - *id2380
         - *id2381
         - *id2382
-        - *id2384
-        supporting_tests:
-        - *id2373
         - *id2383
+        - *id2384
+        - *id2385
+        - *id2386
+        - *id2387
+        - *id2388
         - *id2389
         - *id2390
         - *id2391
         - *id2392
         - *id2393
         - *id2394
-      sdks.npm:
-        direct_tests:
-        - *id2378
-        supporting_tests:
-        - *id2377
-        - *id2385
-        - *id2386
-      sdks.pip:
-        direct_tests:
-        - *id2387
-        - *id2388
+        - *id2395
+        - *id2396
+        - *id2397
         supporting_tests: []
     current_direct_proof: false
-  tasks.execution.capacity-scoped:
+  tasks.execution.order-preserved:
     contract: feature.tasks@2
-    fingerprint: 7d3ff83a06028e80d8115bec0e045cba9b4b213faae91db613e36b084004f9dc
+    fingerprint: 51ae027189cefa71565451ed85631d398f20ffbcd16d853732d8c0dc65edd8eb
     direct_tests:
-    - &id2395
+    - &id2398
       path: backend/tests/test_task_main_processor_tools.py
-      line: 126
-      name: test_team_task_context_and_completion_stay_in_team_scope
+      line: 393
+      name: test_repeated_task_create_calls_get_monotonic_positions_in_same_turn
       surface: rest_api
-    - &id2396
+    - &id2399
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 582
+      name: test_repeated_direct_task_complete_returns_event_noop
+      surface: rest_api
+    - &id2400
       path: backend/tests/test_task_main_processor_tools.py
       line: 652
       name: test_direct_task_complete_marks_next_task_active_in_turn_context
       surface: rest_api
-    - &id2397
+    - &id2401
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 697
+      name: test_direct_task_complete_uses_store_already_applied_state_after_conflict
+      surface: rest_api
+    - &id2402
       path: backend/tests/test_task_queue_auto_continuation.py
       line: 29
       name: test_post_turn_guard_starts_next_task_before_plan_continuation
       surface: rest_api
-    - &id2398
-      path: backend/tests/test_user_task_admission.py
-      line: 49
-      name: test_official_cloud_policy_uses_fixed_personal_and_team_limits
-      surface: rest_api
-    - &id2399
-      path: backend/tests/test_user_task_admission.py
-      line: 65
-      name: test_self_host_policy_accepts_explicit_capacity_and_rejects_invalid_values
-      surface: rest_api
-    - &id2400
-      path: backend/tests/test_user_task_admission.py
-      line: 85
-      name: test_personal_pool_starts_two_urgent_overflow_tasks_but_not_sixth_normal
-      surface: rest_api
-    - &id2401
-      path: backend/tests/test_user_task_admission.py
-      line: 104
-      name: test_team_pool_has_hard_maximum_ten_and_is_independent_from_personal_pool
-      surface: rest_api
-    - &id2402
-      path: backend/tests/test_user_task_admission.py
-      line: 208
-      name: test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates
-      surface: rest_api
-    - &id2403
-      path: backend/tests/test_user_task_admission.py
-      line: 239
-      name: test_admission_reads_only_user_task_rows_not_workflow_projections
-      surface: rest_api
-    - &id2404
-      path: backend/tests/test_user_task_admission.py
-      line: 252
-      name: test_admission_queries_are_bounded_and_paginated_without_truncation
-      surface: rest_api
-    - &id2405
-      path: backend/tests/test_user_task_admission.py
-      line: 270
-      name: test_team_admission_finds_staged_context_without_personal_owner_hash
-      surface: rest_api
-    - &id2406
-      path: backend/tests/test_user_task_admission.py
-      line: 292
-      name: test_waiting_task_execution_context_is_vault_encrypted_and_dispatched_once_admitted
-      surface: rest_api
-    - &id2407
-      path: backend/tests/test_user_task_admission.py
-      line: 331
-      name: test_scheduler_admission_blocks_claim_without_execution_context_and_releases_slot
-      surface: rest_api
     - &id2408
       path: backend/tests/test_user_task_admission.py
-      line: 349
-      name: test_scheduler_dispatch_failure_blocks_claim_and_releases_slot
+      line: 120
+      name: test_urgent_chat_task_cannot_skip_user_ordered_predecessor
       surface: rest_api
     - &id2409
       path: backend/tests/test_user_task_admission.py
-      line: 366
-      name: test_execution_context_decrypt_failure_blocks_claim_and_releases_slot
+      line: 135
+      name: test_user_reorder_changes_next_chat_task_without_preemption
       surface: rest_api
     - &id2410
       path: backend/tests/test_user_task_admission.py
-      line: 382
-      name: test_failed_dispatch_immediately_refills_released_capacity
+      line: 150
+      name: test_plan_lane_uses_first_open_task_without_plan_pointer_lookup
       surface: rest_api
     - &id2411
       path: backend/tests/test_user_task_admission.py
-      line: 410
-      name: test_admission_releases_scope_lock_before_dispatch_callback
+      line: 167
+      name: test_unsatisfied_dependency_blocks_automatic_admission
       surface: rest_api
     - &id2412
+      path: backend/tests/test_user_task_admission.py
+      line: 180
+      name: test_active_plan_task_prevents_another_plan_task_after_reorder
+      surface: rest_api
+    - &id2413
+      path: backend/tests/test_user_task_admission.py
+      line: 196
+      name: test_plan_gate_blockers_prevent_automatic_admission
+      surface: rest_api
+    - &id2414
+      path: backend/tests/test_user_task_admission.py
+      line: 223
+      name: test_active_task_prevents_second_task_in_same_chat
+      surface: rest_api
+    - &id2415
       path: backend/tests/test_user_task_runtime_tools.py
       line: 24
       name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
       surface: rest_api
-    - &id2413
+    - &id2416
       path: backend/tests/test_user_task_runtime_tools.py
-      line: 51
-      name: test_block_pauses_queue_with_safe_reason
+      line: 106
+      name: test_complete_uses_ordered_chat_queue_for_next_ai_task
       surface: rest_api
-    - &id2414
+    - &id2417
       path: backend/tests/test_user_task_runtime_tools.py
-      line: 85
-      name: test_complete_starts_next_eligible_ai_task
+      line: 132
+      name: test_complete_pauses_on_blocking_human_task_before_later_ai_task
       surface: rest_api
-    - &id2415
+    - &id2418
       path: backend/tests/test_user_task_runtime_tools.py
       line: 186
       name: test_complete_refills_scope_capacity_even_when_source_chat_is_blocked
       surface: rest_api
-    - &id2416
-      path: backend/tests/test_user_task_runtime_tools.py
-      line: 219
-      name: test_team_completion_updates_team_row_and_refills_team_pool
-      surface: rest_api
-    - &id2417
+    - &id2419
       path: backend/tests/test_user_tasks_api.py
       line: 638
       name: test_ai_task_without_execution_context_waits_without_consuming_capacity
       surface: rest_api
-    - &id2418
-      path: backend/tests/test_user_tasks_api.py
-      line: 654
-      name: test_ai_task_create_with_transient_context_claims_and_dispatches
-      surface: rest_api
-    - &id2419
+    - &id2420
       path: backend/tests/test_user_tasks_api.py
       line: 681
       name: test_second_ai_task_without_due_date_waits_for_active_chat_task
       surface: rest_api
-    - &id2420
+    - &id2421
       path: backend/tests/test_user_tasks_api.py
       line: 768
       name: test_start_ai_waits_when_another_task_is_active_in_same_chat
       surface: rest_api
-    - &id2421
-      path: backend/tests/test_user_tasks_api.py
-      line: 798
-      name: test_team_start_ai_scopes_update_admission_and_dispatch_payload
-      surface: rest_api
     - &id2422
-      path: backend/tests/test_user_tasks_api.py
-      line: 857
-      name: test_team_task_updates_share_one_team_scoped_write_lock
-      surface: rest_api
-    - &id2423
-      path: backend/tests/test_user_tasks_api.py
-      line: 874
-      name: test_start_ai_stages_execution_context_before_becoming_admission_eligible
-      surface: rest_api
-    - &id2424
-      path: backend/tests/test_user_tasks_api.py
-      line: 908
-      name: test_start_ai_staging_failure_moves_task_to_visible_blocked_state
-      surface: rest_api
-    - &id2425
       path: backend/tests/test_user_tasks_scheduler.py
       line: 48
       name: test_process_due_ai_tasks_starts_due_rows
       surface: rest_api
-    - &id2426
+    - &id2423
       path: backend/tests/test_user_tasks_scheduler.py
       line: 71
       name: test_due_ai_query_uses_durable_filters
       surface: rest_api
-    - &id2427
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 85
-      name: test_stale_queued_query_only_selects_expired_dispatch_leases
-      surface: rest_api
-    - &id2428
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 102
-      name: test_process_due_ai_tasks_skips_rows_without_version
-      surface: rest_api
-    - &id2429
+    - &id2424
       path: backend/tests/test_user_tasks_scheduler.py
       line: 117
       name: test_scheduler_reconciles_waiting_todo_scope_without_due_task
       surface: rest_api
-    - &id2430
+    - &id2425
       path: backend/tests/test_user_tasks_scheduler.py
       line: 131
       name: test_scheduler_fails_stale_queued_task_before_refill
       surface: rest_api
-    - &id2431
+    - &id2426
       path: backend/tests/test_user_tasks_scheduler.py
       line: 183
       name: test_delayed_worker_claim_requires_task_to_still_be_queued
       surface: rest_api
-    - &id2432
+    - &id2427
       path: backend/tests/test_user_tasks_scheduler.py
       line: 208
       name: test_stale_sweep_treats_worker_claim_lock_as_healthy_contention
       surface: rest_api
-    - &id2433
+    - &id2428
       path: backend/tests/test_user_tasks_scheduler.py
       line: 233
       name: test_ai_worker_exits_when_delayed_user_task_dispatch_loses_fence
       surface: rest_api
-    - &id2434
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 244
-      name: test_reconciliation_uses_dedicated_user_tasks_queue
+    supporting_tests:
+    - &id2403
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 58
+      name: test_post_turn_guard_retries_active_task_without_mutating_metadata
       surface: rest_api
-    - &id2435
-      path: backend/tests/test_user_work_control.py
-      line: 101
-      name: test_hashed_scheduler_plan_gates_use_only_valid_assumption_fields
+    - &id2404
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 86
+      name: test_post_turn_guard_blocks_plan_on_human_gate_without_retry
       surface: rest_api
-    supporting_tests: []
+    - &id2405
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 122
+      name: test_task_context_blocks_plan_creation_for_open_chat_tasks
+      surface: rest_api
+    - &id2406
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 141
+      name: test_task_context_allows_plan_creation_when_tasks_are_closed
+      surface: rest_api
+    - &id2407
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 218
+      name: test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state
+      surface: rest_api
+    - &id2429
+      path: scripts/tests/test_task_live_smoke_cleanup.py
+      line: 128
+      name: test_auto_continuation_accepts_fast_terminal_completion
+      surface: cli
     tests:
-    - *id2395
-    - *id2396
-    - *id2397
     - *id2398
     - *id2399
     - *id2400
@@ -21241,28 +21285,14 @@ assertions:
     - *id2427
     - *id2428
     - *id2429
-    - *id2430
-    - *id2431
-    - *id2432
-    - *id2433
-    - *id2434
-    - *id2435
     surfaces:
       rest_api:
         direct_tests:
-        - *id2395
-        - *id2396
-        - *id2397
         - *id2398
         - *id2399
         - *id2400
         - *id2401
         - *id2402
-        - *id2403
-        - *id2404
-        - *id2405
-        - *id2406
-        - *id2407
         - *id2408
         - *id2409
         - *id2410
@@ -21284,181 +21314,257 @@ assertions:
         - *id2426
         - *id2427
         - *id2428
+        supporting_tests:
+        - *id2403
+        - *id2404
+        - *id2405
+        - *id2406
+        - *id2407
+      cli:
+        direct_tests: []
+        supporting_tests:
         - *id2429
-        - *id2430
-        - *id2431
-        - *id2432
-        - *id2433
-        - *id2434
-        - *id2435
-        supporting_tests: []
     current_direct_proof: false
-  tasks.execution.order-preserved:
+  tasks.dependencies.done-only:
     contract: feature.tasks@2
-    fingerprint: 0682e46e405bebef9cb3f915bd07e905e7b9c954a931ccdd1f617022c1e18103
+    fingerprint: 670c91a42575a55fd9ecc20978a5eeb3c4d0f5415758805c1efa052e1721435d
     direct_tests:
-    - &id2436
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 393
-      name: test_repeated_task_create_calls_get_monotonic_positions_in_same_turn
-      surface: rest_api
-    - &id2437
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 582
-      name: test_repeated_direct_task_complete_returns_event_noop
-      surface: rest_api
-    - &id2438
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 652
-      name: test_direct_task_complete_marks_next_task_active_in_turn_context
-      surface: rest_api
-    - &id2439
-      path: backend/tests/test_task_main_processor_tools.py
-      line: 697
-      name: test_direct_task_complete_uses_store_already_applied_state_after_conflict
-      surface: rest_api
-    - &id2440
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 29
-      name: test_post_turn_guard_starts_next_task_before_plan_continuation
-      surface: rest_api
-    - &id2446
-      path: backend/tests/test_user_task_admission.py
-      line: 120
-      name: test_urgent_chat_task_cannot_skip_user_ordered_predecessor
-      surface: rest_api
-    - &id2447
-      path: backend/tests/test_user_task_admission.py
-      line: 135
-      name: test_user_reorder_changes_next_chat_task_without_preemption
-      surface: rest_api
-    - &id2448
-      path: backend/tests/test_user_task_admission.py
-      line: 150
-      name: test_plan_lane_uses_first_open_task_without_plan_pointer_lookup
-      surface: rest_api
-    - &id2449
+    - &id2430
       path: backend/tests/test_user_task_admission.py
       line: 167
       name: test_unsatisfied_dependency_blocks_automatic_admission
       surface: rest_api
-    - &id2450
-      path: backend/tests/test_user_task_admission.py
-      line: 180
-      name: test_active_plan_task_prevents_another_plan_task_after_reorder
+    - &id2431
+      path: backend/tests/test_user_task_archive_dependencies.py
+      line: 48
+      name: test_archive_skips_tasks_with_incoming_or_outgoing_dependencies
+      surface: rest_api
+    - &id2432
+      path: backend/tests/test_user_work_control.py
+      line: 71
+      name: test_mixed_dependencies_are_scoped_acyclic_and_done_only
+      surface: rest_api
+    - &id2433
+      path: frontend/packages/openmates-cli/tests/work-control.test.ts
+      line: 8
+      name: exposes dependency and revision operations but not approval
+      surface: cli
+    supporting_tests: []
+    tests:
+    - *id2430
+    - *id2431
+    - *id2432
+    - *id2433
+    surfaces:
+      rest_api:
+        direct_tests:
+        - *id2430
+        - *id2431
+        - *id2432
+        supporting_tests: []
+      cli:
+        direct_tests:
+        - *id2433
+        supporting_tests: []
+    current_direct_proof: false
+  tasks.surface.semantic-parity:
+    contract: feature.tasks@2
+    fingerprint: 0fcbe85e5d166e462bb16fa73ccf67af726105f1e3db2078ebfaa1b88c1e4d91
+    direct_tests:
+    - &id2449
+      path: backend/tests/test_user_tasks_api.py
+      line: 118
+      name: test_list_tasks_filters_labels_with_and_semantics_and_priority
       surface: rest_api
     - &id2451
-      path: backend/tests/test_user_task_admission.py
-      line: 196
-      name: test_plan_gate_blockers_prevent_automatic_admission
+      path: backend/tests/test_user_tasks_api.py
+      line: 150
+      name: test_task_short_id_lookup_rejects_ambiguous_collisions
       surface: rest_api
     - &id2452
-      path: backend/tests/test_user_task_admission.py
-      line: 223
-      name: test_active_task_prevents_second_task_in_same_chat
+      path: backend/tests/test_user_tasks_api.py
+      line: 469
+      name: test_list_tasks_filters_by_chat_and_project_hashes
       surface: rest_api
     - &id2453
-      path: backend/tests/test_user_task_runtime_tools.py
-      line: 24
-      name: test_skip_marks_backlog_skipped_and_starts_next_ai_task
-      surface: rest_api
-    - &id2454
-      path: backend/tests/test_user_task_runtime_tools.py
-      line: 106
-      name: test_complete_uses_ordered_chat_queue_for_next_ai_task
+      path: backend/tests/test_user_tasks_api.py
+      line: 699
+      name: test_product_task_helpers_do_not_use_celery_tasks_collection
       surface: rest_api
     - &id2455
-      path: backend/tests/test_user_task_runtime_tools.py
-      line: 132
-      name: test_complete_pauses_on_blocking_human_task_before_later_ai_task
-      surface: rest_api
+      path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      line: 128
+      name: manages decrypted tasks through API-key master-key recovery
+      surface: sdks.npm
     - &id2456
-      path: backend/tests/test_user_task_runtime_tools.py
-      line: 186
-      name: test_complete_refills_scope_capacity_even_when_source_chat_is_blocked
-      surface: rest_api
+      path: frontend/packages/openmates-cli/tests/tasks.test.ts
+      line: 81
+      name: lists, creates, updates, and starts encrypted user tasks
+      surface: cli
     - &id2457
-      path: backend/tests/test_user_tasks_api.py
-      line: 638
-      name: test_ai_task_without_execution_context_waits_without_consuming_capacity
-      surface: rest_api
-    - &id2458
-      path: backend/tests/test_user_tasks_api.py
-      line: 681
-      name: test_second_ai_task_without_due_date_waits_for_active_chat_task
-      surface: rest_api
-    - &id2459
-      path: backend/tests/test_user_tasks_api.py
-      line: 768
-      name: test_start_ai_waits_when_another_task_is_active_in_same_chat
-      surface: rest_api
-    - &id2460
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 48
-      name: test_process_due_ai_tasks_starts_due_rows
-      surface: rest_api
-    - &id2461
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 71
-      name: test_due_ai_query_uses_durable_filters
-      surface: rest_api
-    - &id2462
-      path: backend/tests/test_user_tasks_scheduler.py
+      path: frontend/packages/openmates-cli/tests/tasks.test.ts
       line: 117
-      name: test_scheduler_reconciles_waiting_todo_scope_without_due_task
-      surface: rest_api
-    - &id2463
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 131
-      name: test_scheduler_fails_stale_queued_task_before_refill
-      surface: rest_api
+      name: rejects ambiguous short task IDs
+      surface: cli
+    - &id2458
+      path: frontend/packages/openmates-cli/tests/tasks.test.ts
+      line: 128
+      name: renders workflow task projections without decrypting task ciphertext
+      surface: cli
+    - &id2459
+      path: frontend/packages/openmates-cli/tests/tasks.test.ts
+      line: 163
+      name: gives workflow projection deletion guidance
+      surface: cli
+    - &id2461
+      path: frontend/packages/openmates-cli/tests/work-recovery.test.ts
+      line: 29
+      name: validates typed pointerless Plan projections
+      surface: cli
     - &id2464
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 183
-      name: test_delayed_worker_claim_requires_task_to_still_be_queued
-      surface: rest_api
+      path: packages/openmates-python/tests/test_tasks.py
+      line: 14
+      name: test_pip_sdk_decrypted_task_helpers_use_api_key_master_key
+      surface: sdks.pip
     - &id2465
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 208
-      name: test_stale_sweep_treats_worker_claim_lock_as_healthy_contention
-      surface: rest_api
-    - &id2466
-      path: backend/tests/test_user_tasks_scheduler.py
-      line: 233
-      name: test_ai_worker_exits_when_delayed_user_task_dispatch_loses_fence
-      surface: rest_api
+      path: packages/openmates-python/tests/test_tasks.py
+      line: 139
+      name: test_pip_sdk_keeps_workflow_projection_metadata
+      surface: sdks.pip
     supporting_tests:
+    - &id2434
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 49
+      name: test_create_only_task_tool_is_injected_when_chat_has_no_visible_tasks
+      surface: rest_api
+    - &id2435
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 67
+      name: test_attached_tasks_enable_update_reorder_block_complete_and_move_tools
+      surface: rest_api
+    - &id2436
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 100
+      name: test_bare_short_id_mentions_resolve_active_chat_tasks_as_attached
+      surface: rest_api
+    - &id2437
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 165
+      name: test_blocked_attached_tasks_enable_unblock_tool
+      surface: rest_api
+    - &id2438
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 190
+      name: test_task_runtime_tools_merge_with_existing_main_processor_tools_without_duplicates
+      surface: rest_api
+    - &id2439
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 226
+      name: test_reorder_tool_is_not_advertised_until_atomic_persistence_exists
+      surface: rest_api
+    - &id2440
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 243
+      name: test_task_tool_allow_list_preserves_provider_emitted_name
+      surface: rest_api
     - &id2441
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 58
-      name: test_post_turn_guard_retries_active_task_without_mutating_metadata
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 253
+      name: test_tasks_app_skill_names_are_not_legacy_task_runtime_tools
       surface: rest_api
     - &id2442
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 86
-      name: test_post_turn_guard_blocks_plan_on_human_gate_without_retry
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 261
+      name: test_explicit_tasks_app_skill_suppresses_legacy_task_runtime_tools
       surface: rest_api
     - &id2443
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 122
-      name: test_task_context_blocks_plan_creation_for_open_chat_tasks
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 281
+      name: test_tasks_app_skill_mentions_resolve_from_backend_wire_syntax
       surface: rest_api
     - &id2444
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 141
-      name: test_task_context_allows_plan_creation_when_tasks_are_closed
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 288
+      name: test_tasks_app_skill_mentions_resolve_from_user_overrides
       surface: rest_api
     - &id2445
-      path: backend/tests/test_task_queue_auto_continuation.py
-      line: 218
-      name: test_refresh_task_tool_context_reloads_tasks_and_preserves_turn_state
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 295
+      name: test_explicit_tasks_app_skill_expands_assigned_app_allowlist
       surface: rest_api
+    - &id2446
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 309
+      name: test_explicit_tasks_app_skill_accepts_legacy_singular_tool_aliases
+      surface: rest_api
+    - &id2447
+      path: backend/tests/test_task_main_processor_tools.py
+      line: 742
+      name: test_task_tool_accepts_model_formatted_task_id_and_version
+      surface: rest_api
+    - &id2448
+      path: backend/tests/test_task_queue_auto_continuation.py
+      line: 209
+      name: test_task_queue_post_turn_prompt_prefers_short_id
+      surface: rest_api
+    - &id2450
+      path: backend/tests/test_user_tasks_api.py
+      line: 142
+      name: test_task_short_id_matches_cli_derivation
+      surface: cli
+    - &id2454
+      path: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      line: 52
+      name: exposes task app-skill child embeds and pending client search state
+      surface: sdks.npm
+    - &id2460
+      path: frontend/packages/openmates-cli/tests/tasks.test.ts
+      line: 177
+      name: formats task child embeds for CLI output
+      surface: cli
+    - &id2462
+      path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
+      line: 83
+      name: uses global and namespace-specific history endpoints
+      surface: sdks.npm
+    - &id2463
+      path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
+      line: 137
+      name: uses namespace-specific ask endpoints
+      surface: sdks.npm
+    - &id2466
+      path: scripts/tests/test_task_live_smoke_cleanup.py
+      line: 31
+      name: test_created_chat_and_task_are_registered_immediately
+      surface: cli
     - &id2467
       path: scripts/tests/test_task_live_smoke_cleanup.py
-      line: 128
-      name: test_auto_continuation_accepts_fast_terminal_completion
+      line: 49
+      name: test_cleanup_deletes_tasks_before_chats
+      surface: cli
+    - &id2468
+      path: scripts/tests/test_task_live_smoke_cleanup.py
+      line: 68
+      name: test_cleanup_failure_is_not_silent
+      surface: cli
+    - &id2469
+      path: scripts/tests/test_task_live_smoke_cleanup.py
+      line: 78
+      name: test_cleanup_continues_after_delete_raises
+      surface: cli
+    - &id2470
+      path: scripts/tests/test_task_live_smoke_cleanup.py
+      line: 99
+      name: test_cleanup_does_not_replace_primary_smoke_failure
+      surface: cli
+    - &id2471
+      path: scripts/tests/test_task_live_smoke_cleanup.py
+      line: 117
+      name: test_sdk_smoke_has_npm_and_pip_finally_cleanup
       surface: cli
     tests:
+    - *id2434
+    - *id2435
     - *id2436
     - *id2437
     - *id2438
@@ -21491,72 +21597,6 @@ assertions:
     - *id2465
     - *id2466
     - *id2467
-    surfaces:
-      rest_api:
-        direct_tests:
-        - *id2436
-        - *id2437
-        - *id2438
-        - *id2439
-        - *id2440
-        - *id2446
-        - *id2447
-        - *id2448
-        - *id2449
-        - *id2450
-        - *id2451
-        - *id2452
-        - *id2453
-        - *id2454
-        - *id2455
-        - *id2456
-        - *id2457
-        - *id2458
-        - *id2459
-        - *id2460
-        - *id2461
-        - *id2462
-        - *id2463
-        - *id2464
-        - *id2465
-        - *id2466
-        supporting_tests:
-        - *id2441
-        - *id2442
-        - *id2443
-        - *id2444
-        - *id2445
-      cli:
-        direct_tests: []
-        supporting_tests:
-        - *id2467
-    current_direct_proof: false
-  tasks.dependencies.done-only:
-    contract: feature.tasks@2
-    fingerprint: 16f0e181b43977274a1d0ddcb7ad7ea0d4b8d079f55ecaf4b19cd66c87d786d5
-    direct_tests:
-    - &id2468
-      path: backend/tests/test_user_task_admission.py
-      line: 167
-      name: test_unsatisfied_dependency_blocks_automatic_admission
-      surface: rest_api
-    - &id2469
-      path: backend/tests/test_user_task_archive_dependencies.py
-      line: 48
-      name: test_archive_skips_tasks_with_incoming_or_outgoing_dependencies
-      surface: rest_api
-    - &id2470
-      path: backend/tests/test_user_work_control.py
-      line: 71
-      name: test_mixed_dependencies_are_scoped_acyclic_and_done_only
-      surface: rest_api
-    - &id2471
-      path: frontend/packages/openmates-cli/tests/work-control.test.ts
-      line: 8
-      name: exposes dependency and revision operations but not approval
-      surface: cli
-    supporting_tests: []
-    tests:
     - *id2468
     - *id2469
     - *id2470
@@ -21564,13 +21604,53 @@ assertions:
     surfaces:
       rest_api:
         direct_tests:
+        - *id2449
+        - *id2451
+        - *id2452
+        - *id2453
+        supporting_tests:
+        - *id2434
+        - *id2435
+        - *id2436
+        - *id2437
+        - *id2438
+        - *id2439
+        - *id2440
+        - *id2441
+        - *id2442
+        - *id2443
+        - *id2444
+        - *id2445
+        - *id2446
+        - *id2447
+        - *id2448
+      cli:
+        direct_tests:
+        - *id2456
+        - *id2457
+        - *id2458
+        - *id2459
+        - *id2461
+        supporting_tests:
+        - *id2450
+        - *id2460
+        - *id2466
+        - *id2467
         - *id2468
         - *id2469
         - *id2470
-        supporting_tests: []
-      cli:
-        direct_tests:
         - *id2471
+      sdks.npm:
+        direct_tests:
+        - *id2455
+        supporting_tests:
+        - *id2454
+        - *id2462
+        - *id2463
+      sdks.pip:
+        direct_tests:
+        - *id2464
+        - *id2465
         supporting_tests: []
     current_direct_proof: false
   teams.lifecycle.encrypted-profiled:

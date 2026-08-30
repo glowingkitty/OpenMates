@@ -2,155 +2,68 @@ schema_version: 1
 contract: feature.tasks@2
 
 task_private_content:
-  - id: encrypted-task-row-with-safe-metadata
-    durable_state:
-      contains:
-        - task_id
-        - status
-        - priority
-        - position
-        - label_hashes
-        - linked_project_hashes
-        - encrypted_title
-        - encrypted_description
-        - encrypted_labels
-        - encrypted_linked_project_ids
-      forbidden:
-        - plaintext_title
-        - plaintext_description
-        - plaintext_label_names
-        - plaintext_linked_project_ids
-        - raw_task_key
-  - id: labels-filter-by-blind-indexes
-    input: {labels: [sdk, urgent], priority: high}
-    expect:
-      request_query_contains: [label_hash, priority]
-      request_query_forbidden: [label, plaintext_label, title]
-      local_output_contains: [labels, priority_level]
-  - id: share-bundle-is-fragment-key-scoped
-    durable_state:
-      contains: [encrypted_task_record, chat_scoped_task_key_wrapper]
-      forbidden: [persistent_share_wrapper, url_fragment_key, optional_password, raw_task_key, decrypted_task_fields]
+  - id: encrypted-task
+    input: {title: Fix hydrated Plan response, description: Return key wrappers after mutation}
+    expect: {durable_plaintext_title: false, durable_plaintext_description: false, raw_task_key: absent}
 
 task_lifecycle:
-  - id: manual-create-defaults-to-todo
-    input: {operation: create, assignee_type: user, status: omitted}
-    expect: {status: todo, queue_state: none, version: 1}
-  - id: ai-create-or-start-is-explicit
-    input: {operation: start_ai, assignee_type: ai, due_at: null, expected_version: current}
-    expect: {status: in_progress, ai_execution_state: queued, started_at_set: true, plaintext_instruction_persisted: false}
-  - id: block-pauses-queue
-    input: {operation: block, blocked_reason_code: needs_user_input}
-    expect: {status: blocked, queue_state: waiting_for_user, ai_execution_state: waiting_for_user, private_reason_text_persisted: false}
-  - id: skip-is-backlog-plus-queue-metadata
-    input: {operation: skip, linked_chat: true}
-    expect: {status: backlog, queue_state: skipped, skipped_column_created: false, chat_link_preserved: true, next_eligible_task_may_start: true}
-  - id: stale-version-rejected
-    input: {operation: update, expected_version: 2, current_version: 3}
-    expect_error: {code: TASK_VERSION_CONFLICT, partial_mutation: false}
+  - id: explicit-block
+    input: {task: task-1, status: in_progress, blocker: waiting_for_user}
+    expect: {status_after: blocked, blocked_reason_visible: true}
+  - id: prose-does-not-complete
+    input: {assistant_message: The task is done, task_status: in_progress}
+    expect: {task_status_after_message: in_progress}
+
+task_dependencies:
+  - id: flat-blocked-by
+    input: {task_2_blocked_by: task-1, task_1_status: todo}
+    expect: {task_2_eligible: false, child_task_collection_created: false}
+  - id: reject-cycle
+    input: {dependencies: [task-1->task-2, task-2->task-1]}
+    expect_error: {code: TASK_DEPENDENCY_CYCLE, mutation: false}
+
+task_plan_links:
+  - id: phase-is-presentation-only
+    input: {plan: plan-1, phase: implementation, task: task-1}
+    expect: {task_owns_status: true, phase_owns_status: false, executable_step_created: false}
+
+task_check_links:
+  - id: failed-check-creates-fix-task
+    input: {check: check-1, failed_run: run-1, task: fix-check-1}
+    expect: {task_source_check_id: check-1, check_status_after_task_done: failed}
+  - id: human-check-work-task
+    input: {check: physical-device-check, task: inspect-device, assignee: user}
+    expect: {task_is_normal_task: true, human_confirmation_still_required: true}
 
 task_project_links:
-  - id: project-relink-updates-three-representations
-    input: {operation: update, linked_project_ids: [project-2], key_wrappers: [master, project]}
-    expect:
-      linked_project_hashes_updated: true
-      encrypted_linked_project_ids_updated: true
-      old_key_wrappers_replaced_after_new_wrappers_created: true
-  - id: project-relink-without-encrypted-owner-list-rejected
-    input: {operation: update, linked_project_ids: [project-2], encrypted_linked_project_ids: null, key_wrappers: [master, project]}
-    expect_error: {code: failed_update_or_400, linked_project_hashes_changed: false, key_wrappers_changed: false}
-  - id: invalid-wrapper-scope-rejected
-    input: {key_type: project, hashed_project_id: raw-project-id}
-    expect_error: {code: invalid_task_key_wrappers, wrapper_persisted: false, task_row_created: false}
-  - id: plan-and-team-wrapper-validation
-    input: {plan_id: plan-1, key_wrappers: [master, plan, team], team_key_epoch: 3}
-    expect: {plan_wrapper_scope_matches_plan_id: true, team_wrapper_has_epoch: true, raw_task_key_persisted: false}
+  - id: encrypted-project-link
+    input: {task: task-1, project: project-1}
+    expect: {raw_project_id_plaintext: false, project_hash_present: true, project_wrapper_present: true}
 
 task_workflow_projections:
-  - id: list-merges-owner-workflow-projection
-    input: {operation: list_user_tasks, filters: none, workflow_run_status: running}
-    expect: {contains_user_task_rows: true, contains_workflow_run_projection: true, projection_status: in_progress, projection_read_only: true}
-  - id: multi-step-run-projects-one-task
-    input: {operation: list_user_tasks, workflow_run_id: run-1, workflow_node_ids: [trigger-1, fetch-1, decision-1, notify-1]}
-    expect: {workflow_run_projection_count: 1, projection_task_id: 'workflow-run:run-1', workflow_node_task_count: 0, node_statuses_location: workflow_run_detail}
-  - id: contextual-list-excludes-workflow-projections
-    input: {operation: list_user_tasks, chat_id: chat-1}
-    expect: {contains_workflow_run_projection: false}
-  - id: future-scheduled-projection-skip-does-not-delete-user-task
-    input: {operation: delete_task, task_id: workflow-schedule:trigger-1:1000}
-    expect: {workflow_run_marked_skipped: true, user_task_delete_called: false}
-  - id: projection-content-redacted
-    durable_state:
-      contains: [workflow_id, workflow_run_id, projection_kind, run_status, can_cancel, read_only]
-      forbidden: [encrypted_workflow_content, private_workflow_plaintext, copied_user_task_row]
+  - id: workflow-run-card
+    input: {workflow_run: run-1, projection: current_run}
+    expect: {user_task_row_created: false, read_only: true, nodes_inside_run_detail: true}
 
 task_detail_presentation:
-  - id: regular-task-opens-responsive-detail
-    given: {workspace: tasks, selected_task: task-1, board_scroll_position: 640, filters: [in_progress]}
-    expect:
-      larger_viewport: {presentation: split_screen, board_visible: true}
-      smaller_viewport: {presentation: full_screen_overlay, board_visible: false}
-      after_close: {board_scroll_position: 640, filters: [in_progress]}
-  - id: workflow-run-task-opens-live-run-detail
-    given: {workspace: tasks, selected_task_id: 'workflow-run:run-1', workflow_run_id: run-1, run_status: running}
-    when: {select_task: true, node_status_changes: completed}
-    expect: {detail_target: workflow_run, selected_workflow_run_id: run-1, task_route_replacement: false, run_status_updates_live: true, node_status_updates_inside_detail: true}
-
-task_surface_parity:
-  - id: cli-rest-namespace
-    input: {surface: cli, operation: list_create_update_start}
-    expect: {uses_user_tasks_namespace: true, uses_celery_tasks_namespace: false, local_decryption_before_human_output: true}
-  - id: npm-sdk-public-task-output
-    input: {surface: sdks.npm, operation: create_list_edit_block_unblock_skip_done_reorder_project_link}
-    expect: {plaintext_public_result_after_local_decrypt: true, encrypted_internal_record_hidden: true, label_hashes_sent_for_label_filters: true}
-  - id: pip-sdk-public-task-output
-    input: {surface: sdks.pip, operation: create_list_edit_block_unblock_skip_done_reorder_project_link}
-    expect: {plaintext_public_result_after_local_decrypt: true, encrypted_internal_record_hidden: true, label_hashes_sent_for_label_filters: true}
-  - id: wrapper-parity-boundary-visible
-    input: {surface: cli_or_sdk, operation: create_task_with_project_or_plan_context}
-    expect:
-      row_level_encrypted_task_key_still_supported: true
-      missing_context_wrapper_must_not_be_silently_claimed_as_written: true
-      follow_up_required_for_full_wrapper_write_parity: true
+  - id: laptop-split-detail
+    input: {viewport: laptop, selected_task: task-1}
+    expect: {workspace_visible: true, detail_beside_workspace: true}
+  - id: phone-fullscreen-detail
+    input: {viewport: phone, selected_task: task-1}
+    expect: {fullscreen_overlay: true, close_restores_board: true}
 
 task_execution_capacity:
-  - id: official-cloud-personal-reserves-urgent-capacity
-    input: {scope: personal, active_normal: 5, active_urgent: 0, waiting_normal: 1, waiting_urgent: 2}
-    expect:
-      admitted_normal: 0
-      admitted_urgent: 2
-      active_total: 7
-      waiting_normal_state: waiting_for_capacity
-  - id: official-cloud-team-hard-cap-is-ten
-    input: {scope: team, active_normal: 8, active_urgent: 2, waiting_urgent: 1}
-    expect: {active_total: 10, newly_admitted: 0, waiting_state: waiting_for_capacity}
-  - id: completion-refills-released-scope-slot
-    input: {scope: personal, active_total: 7, operation: complete_one_task, eligible_waiting_lane_heads: 3}
-    expect: {released_slots: 1, automatically_admitted: 1, active_total_after_admission: 7}
-  - id: workflow-runs-are-not-capacity-counted
-    input: {active_user_tasks: 5, active_workflow_runs: 20, scope: personal}
-    expect: {counted_active_tasks: 5, workflow_runs_limited: false}
-  - id: self-host-capacity-is-configurable
-    input: {deployment: self_host, personal_normal: 3, personal_urgent_reserve: 1, team_normal: 12, team_urgent_reserve: 3}
-    expect: {personal_hard_maximum: 4, team_hard_maximum: 15, configuration_source: environment}
+  - id: capacity-wait
+    input: {scope: personal, capacity_available: false, task: task-1}
+    expect: {status: todo, waiting_state: waiting_for_capacity, auto_reconsider: true}
 
 task_execution_order:
-  - id: urgent-chat-task-cannot-skip-predecessor
-    input:
-      lane: chat:chat-1
-      ordered_tasks:
-        - {task_id: task-1, priority: normal, status: todo}
-        - {task_id: task-2, priority: urgent, status: todo}
-    expect: {eligible_lane_head: task-1, task_2_state: waiting_for_previous_task}
-  - id: user-reorder-changes-next-chat-task
-    input: {lane: chat:chat-1, user_order_before: [task-1, task-2], user_order_after: [task-2, task-1]}
-    expect: {next_eligible_task: task-2, running_task_preempted: false}
-  - id: plan-service-owns-plan-readiness
-    input: {lane: plan:plan-1, plan_order: [step-1, step-2], dependency_ready: [step-1], linked_chat_id: chat-1}
-    expect: {eligible_lane_head: step-1, generic_task_allocator_infers_dependencies: false}
-  - id: active-plan-does-not-mix-ordinary-chat-tasks
-    input: {active_lane: plan:plan-1, linked_chat_id: chat-1, ordinary_chat_task_waiting: true}
-    expect: {ordinary_chat_task_admitted: false, one_active_ai_task_in_chat: true}
-  - id: standalone-workspace-tasks-are-independent-lanes
-    input: {tasks: [standalone-1, standalone-2], available_personal_slots: 2}
-    expect: {admitted: [standalone-1, standalone-2]}
+  - id: dependency-before-priority
+    input: {task_1_priority: low, task_2_priority: urgent, task_2_blocked_by: task-1}
+    expect: {next_task: task-1, urgent_bypass: false}
+
+task_surface_parity:
+  - id: same-dependency-blocker
+    input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-2}
+    expect: {same_status: blocked, same_dependency: task-1, visible_failure: true}

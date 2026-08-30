@@ -4,239 +4,169 @@ version: 2
 status: draft
 title: Tasks
 summary: >
-  OpenMates Tasks are authenticated, user-owned work items with client-encrypted
-  private content, fixed lifecycle and queue metadata, project/chat/plan routing
-  metadata, read-only Workflow projections, and semantic REST, CLI, npm SDK, and
-  pip SDK task-management parity where each surface is implemented.
+  Tasks are encrypted, independently trackable units of human or agent work.
+  They own execution status, ordering, dependencies, assignment, and activity
+  while Plans explain why the work exists and Checks prove its outcomes.
+
+purpose:
+  outcomes:
+    - Provide one canonical execution unit across standalone, chat, Plan, Project, and Team work.
+    - Keep work status independent from Plan presentation and Check results.
+    - Scale through flat Tasks and explicit dependencies instead of recursive subtask trees.
 
 scope:
   includes:
-    - Authenticated /v1/user-tasks create, list, show-through-list/short-id resolution, update, reorder, block, unblock, skip, complete, delete, start-ai, ask, history, restore, extraction, and key-wrapper routes.
-    - Durable user_tasks rows, user_task_activity rows, user_task_key_wrappers, short-lived user_task_execution_contexts, task history change sets, and encrypted share-bundle task records.
-    - Fixed task statuses backlog, todo, in_progress, blocked, and done plus queue_state, ai_execution_state, blocked_reason_code, due_at, priority, position, and version metadata.
-    - Client-encrypted titles, descriptions, labels/tags, activity summaries, latest instructions, linked Project id lists, and per-task key material.
-    - Server-visible safe routing and filter metadata, including primary_chat_id, hashed_primary_chat_id, linked_project_hashes, plan_id, task_type, verification_id, label_hashes, priority, assignee_type, assignee_hash, and team routing metadata.
-    - Workflow run projection items returned by the Tasks view as read-only task-shaped cards without creating user_tasks rows.
-    - Default Task selection behavior in the web Tasks workspace: embed-style split-screen detail on larger viewports and full-screen detail overlay on smaller viewports while preserving board state.
-    - Capacity-scoped AI task admission with separate personal and Team pools, reserved urgent capacity, restart-safe waiting, and automatic admission when capacity is released.
-    - Ordered execution lanes where Plan tasks derive their head from position, created_at, and task_id without a persisted Plan current-task pointer; chat ordering and explicit user reordering determine eligibility before priority or capacity is applied.
-    - Task-to-Project link mutations that keep safe Project hashes, encrypted raw Project ids, and authorized Task key wrappers in sync.
-    - Task key wrappers for owner/master, chat, Project, Plan, and Team contexts where currently supported by backend storage and validation; client surfaces may still use row-level master-wrapped encrypted_task_key while wrapper parity is completed.
-    - REST, CLI, npm SDK, and pip SDK semantics for encrypted task content, lifecycle actions, labels/priority metadata, Project links, and workflow projection handling where those surfaces expose the operation.
+    - Create, list, show, update, reorder, assign, block, unblock, skip, complete, delete, start-AI, ask, history, and restore behavior.
+    - Backlog, todo, in-progress, blocked, and done lifecycle with explicit queue and AI execution state.
+    - Human and AI assignment, priority, due dates, labels, Project/Plan/chat links, activity, and optimistic versions.
+    - Flat Tasks with optional dependency links and Plan phase grouping; no recursive child Task ownership.
+    - Verification work created from a Check or failed Check as normal Tasks while the linked Check remains the source of proof status.
+    - Workflow run projections as read-only task-shaped items without creating Task records.
+    - Responsive Project/Tasks workspace detail behavior and encrypted content/key wrappers.
   excludes:
-    - /v1/tasks Celery/background task polling.
-    - Plan subresource behavior except Plan-created task references, plan_id, task_type=verification, verification_id, and Plan key-wrapper contexts for connected tasks.
-    - Workflow run execution semantics beyond read-only task projections and scheduled-run skip/delete behavior exposed through Tasks.
-    - GUI layout beyond the contracted responsive Task detail presentation, Figma visual parity, drag/drop mechanics, and Apple-native task UI.
-    - Public task sharing, Team collaboration semantics beyond Team-owned task admission capacity, or durable share-specific task wrappers.
-    - Workflow run concurrency limits; Workflow execution is independent from user Task admission capacity.
-    - Server-side full-text search or decryption over private task title, description, labels, activity, latest instruction, or encrypted linked Project ids.
+    - Plan goals, scope, approval, assumptions, Success Criteria, or Plan execution state.
+    - Check definitions, Check Runs, evaluator results, human confirmation decisions, or proof artifact history.
+    - Recursive subtasks or a second status model embedded in Plan steps.
+    - Workflow node execution records represented as independent Tasks.
+    - Server-side plaintext search over private Task content.
+
+relationships:
+  related_contracts: [feature.plans, feature.checks, feature.projects]
+
+actors:
+  - id: task_owner
+    role: Owns or shares the workspace containing the Task.
+  - id: human_assignee
+    role: Performs or confirms work outside automated execution.
+  - id: ai_assignee
+    role: Executes authorized work through the Task queue.
 
 models:
   TaskRecord:
-    task_id:
-      type: stable_id
-      required: true
-    status:
-      type: enum
-      values: [backlog, todo, in_progress, blocked, done]
-      required: true
-    encrypted_title:
-      type: client_ciphertext
-      required: true
-      constraints: {plaintext_private_content: forbidden}
-    encrypted_description:
-      type: client_ciphertext
-      nullable: true
-      constraints: {plaintext_private_content: forbidden}
-    encrypted_labels:
-      type: client_ciphertext
-      nullable: true
-      constraints: {official_field: true, plaintext_label_names: forbidden}
-    encrypted_tags:
-      type: client_ciphertext
-      nullable: true
-      constraints: {compatibility_alias_for_labels: true, plaintext_label_names: forbidden}
-    encrypted_linked_project_ids:
-      type: client_ciphertext
-      nullable: true
-      constraints: {raw_project_ids_plaintext: forbidden}
-    linked_project_hashes:
-      type: blind_or_sha256_hash_array
-      nullable: true
-      constraints: {server_visible_filter_metadata: true}
-    label_hashes:
-      type: blind_index_array
-      nullable: true
-      constraints: {hmac_sha256_with_master_key_derived_index_key: true, and_filter_semantics: true}
-    priority:
-      type: integer
-      values: [0, 1, 2, 3, 4]
-      required: true
-      constraints: {labels: [none, low, medium, high, urgent], server_visible_sort_metadata: true}
-    version:
-      type: integer
-      required: true
-      constraints: {monotonic: true, stale_mutations_rejected: true}
+    task_id: {type: stable_id, required: true}
+    status: {type: enum, values: [backlog, todo, in_progress, blocked, done], required: true}
+    assignee_type: {type: enum, values: [user, ai, unassigned], required: true}
+    priority: {type: integer, values: [0, 1, 2, 3, 4], required: true}
+    position: {type: integer, required: true}
+    due_at: {type: timestamp_or_null, nullable: true}
+    primary_chat_id: {type: chat_id_or_null, nullable: true}
+    hashed_primary_chat_id: {type: hashed_id_or_null, nullable: true}
+    plan_id: {type: stable_id_or_null, nullable: true}
+    plan_phase_id: {type: stable_id_or_null, nullable: true, constraints: {presentation_group_only: true}}
+    source_check_id: {type: stable_id_or_null, nullable: true}
+    encrypted_labels: {type: client_ciphertext_or_null, nullable: true, constraints: {plaintext_label_names: forbidden}}
+    encrypted_activity_summary: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_latest_instruction: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_linked_project_ids: {type: client_ciphertext_or_null, nullable: true, constraints: {raw_project_ids_plaintext: forbidden}}
+    linked_project_hashes: {type: hashed_id_list, nullable: true, constraints: {server_visible_filter_metadata: true}}
+    label_hashes: {type: blind_index_array, nullable: true, constraints: {and_filter_semantics: true}}
+    hashed_team_id: {type: hashed_id_or_null, nullable: true}
+    encrypted_title: {type: client_ciphertext, required: true}
+    encrypted_description: {type: client_ciphertext_or_null, nullable: true}
+    version: {type: integer, required: true, constraints: {monotonic: true, stale_mutations_rejected: true}}
+
+  TaskDependency:
+    task_id: {type: stable_id, required: true}
+    blocked_by_task_id: {type: stable_id, required: true}
+    relation: {type: enum, values: [finish_before_start], required: true}
+    constraints: {type: dependency_constraints, required: true, constraints: {cycles: forbidden, recursive_ownership: forbidden}}
 
   TaskLifecycleState:
-    queue_state:
-      type: enum_or_null
-      values: [none, waiting, active, skipped, waiting_for_user]
-    ai_execution_state:
-      type: enum_or_string_or_null
-      constraints: {safe_routing_metadata: true}
-    blocked_reason_code:
-      type: enum_or_string_or_null
-      constraints: {plaintext_private_content: forbidden, safe_reason_code: true}
-    started_at:
-      type: unix_timestamp_or_null
-    completed_at:
-      type: unix_timestamp_or_null
+    queue_state: {type: enum_or_null, values: [none, waiting, active, skipped, waiting_for_user]}
+    ai_execution_state: {type: enum_or_string_or_null, constraints: {safe_routing_metadata: true}}
+    blocked_reason_code: {type: enum_or_string_or_null, constraints: {plaintext_private_content: forbidden}}
+    started_at: {type: timestamp_or_null, nullable: true}
+    completed_at: {type: timestamp_or_null, nullable: true}
 
   TaskExecutionAdmission:
-    capacity_scope:
-      type: enum
-      values: [personal, team]
-      constraints: {personal_and_team_pools_independent: true}
-    execution_lane:
-      type: derived_identifier
-      constraints:
-        precedence: [plan_id, primary_chat_id, standalone_task_id]
-        one_active_ai_task_per_chat: true
-    waiting_state:
-      type: enum
-      values: [waiting_for_previous_task, waiting_for_plan_dependency, waiting_for_capacity]
-    official_cloud_limits:
-      type: fixed_capacity_policy
-      constraints:
-        personal: {normal: 5, urgent_reserve: 2, hard_maximum: 7}
-        team: {normal: 8, urgent_reserve: 2, hard_maximum: 10}
-    self_host_limits:
-      type: positive_integer_environment_configuration
-      constraints: {normal_and_urgent_reserve_configurable: true, invalid_values_fail_visibly: true}
+    capacity_scope: {type: enum, values: [personal, team], required: true}
+    execution_lane: {type: derived_identifier, required: true, constraints: {precedence: [plan_id, primary_chat_id, standalone_task_id]}}
+    waiting_state: {type: enum, values: [waiting_for_previous_task, waiting_for_plan_dependency, waiting_for_capacity], required: true}
 
   TaskKeyWrapper:
-    key_type:
-      type: enum
-      values: [master, chat, project, plan, team]
-      required: true
-    encrypted_task_key:
-      type: wrapped_key_ciphertext
-      required: true
-      constraints: {raw_task_key: forbidden}
-    hashed_task_id:
-      type: sha256_hex
-      required: true
-    hashed_chat_id:
-      type: sha256_hex_or_null
-    hashed_project_id:
-      type: sha256_hex_or_null
-    hashed_plan_id:
-      type: sha256_hex_or_null
-    hashed_team_id:
-      type: sha256_hex_or_null
-    team_key_epoch:
-      type: integer_or_null
-      constraints: {required_when_key_type_team: true}
+    key_type: {type: enum, values: [master, chat, project, plan, team], required: true}
+    encrypted_task_key: {type: wrapped_key_ciphertext, required: true, constraints: {raw_task_key: forbidden}}
+    hashed_task_id: {type: hashed_id, required: true}
+    hashed_chat_id: {type: hashed_id_or_null, nullable: true}
+    hashed_project_id: {type: hashed_id_or_null, nullable: true}
+    hashed_plan_id: {type: hashed_id_or_null, nullable: true}
+    hashed_team_id: {type: hashed_id_or_null, nullable: true}
+    team_key_epoch: {type: integer_or_null, nullable: true, constraints: {required_when_key_type_team: true}}
 
   WorkflowTaskProjection:
-    task_id:
-      type: stable_projection_id
-      required: true
-      constraints: {one_projection_per_displayed_run: true, workflow_nodes_create_task_items: false}
-    source:
-      type: enum
-      values: [workflow_run]
-      required: true
-    projection_kind:
-      type: enum
-      values: [last_run, current_run, next_run]
-      required: true
-    status:
-      type: enum
-      values: [todo, in_progress, blocked, done]
-      required: true
-    read_only:
-      type: boolean
-      required: true
-      constraints: {must_be_true: true, not_user_task_row: true}
-    can_cancel:
-      type: boolean
-      required: true
-    can_delete:
-      type: boolean
-      required: true
+    task_id: {type: stable_projection_id, required: true}
+    source: {type: literal, value: workflow_run, required: true}
+    projection_kind: {type: enum, values: [last_run, current_run, next_run], required: true}
+    status: {type: enum, values: [todo, in_progress, blocked, done], required: true}
+    read_only: {type: boolean, required: true, constraints: {must_be_true: true}}
 
   TaskDetailPresentation:
-    responsive_surface:
-      type: embed_style_detail_surface
-      required: true
-      constraints: {opens_by_default_on_task_selection: true, larger_viewports: split_screen, smaller_viewports: full_screen_overlay, breakpoint_behavior_reuses_embed_logic: true}
-    workspace_continuity:
-      type: preserved_workspace_state
-      required: true
-      constraints: {board_position_preserved: true, filters_preserved: true, column_state_preserved: true, close_returns_to_same_board_state: true}
-    workflow_run_detail:
-      type: selected_run_detail
-      required: true
-      constraints: {exact_workflow_run_selected: true, live_status_updates: true, node_statuses_remain_inside_run_detail: true}
+    responsive_surface: {type: embed_style_detail_surface, required: true}
+    workspace_continuity: {type: preserved_workspace_state, required: true}
 
 assertions:
   - id: tasks.content.client-encrypted
     type: privacy
-    must: Task titles, descriptions, labels/tags, activity summaries, latest instructions, raw linked Project ids, and task keys are encrypted before durable persistence; server-visible status, priority, queue, assignee, chat/project/plan routing metadata, and label_hashes remain limited safe metadata for authorization, filtering, sorting, and execution.
-    depends_on: [models.TaskRecord, examples.task_private_content]
+    must: Task title, description, labels, activity, instructions, raw Project links, and key material remain client-encrypted while server-visible fields contain only safe lifecycle, assignment, ordering, routing, filtering, and version metadata.
+    depends_on: [models.TaskRecord, models.TaskKeyWrapper, examples.task_private_content]
   - id: tasks.lifecycle.visible
     type: behavior
-    must: Create, update, reorder, block, unblock, skip, complete, delete, start-ai, ask, restore, and scheduler/queue transitions preserve explicit status, version, position, queue_state, blocked_reason_code, ai_execution_state, started_at, and completed_at semantics; assistant prose alone is never a task completion, blocker, skip, or unblock signal.
-    depends_on: [models.TaskRecord.status, models.TaskLifecycleState, examples.task_lifecycle]
+    must: Task creation, update, reorder, assignment, blocking, skipping, completion, deletion, AI start, restoration, and queue transitions preserve explicit status, timestamps, conflict versions, and visible blockers; assistant prose never changes Task state by itself.
+    depends_on: [models.TaskRecord, models.TaskLifecycleState, examples.task_lifecycle]
+  - id: tasks.structure.flat-dependencies
+    type: invariant
+    must: Tasks are flat independently addressable records; ordering and acyclic blocked-by links express execution relationships, while recursive subtasks and Plan-owned duplicate task status are forbidden.
+    depends_on: [models.TaskDependency, examples.task_dependencies]
+  - id: tasks.plan.execution-unit
+    type: invariant
+    must: A Plan executes through linked Tasks only; optional Plan phases group Tasks for presentation but do not become executable steps or own lifecycle state.
+    depends_on: [models.TaskRecord.plan_id, models.TaskRecord.plan_phase_id, examples.task_plan_links]
+  - id: tasks.check-work.not-proof
+    type: behavior
+    must: A Check may create or link a normal human/AI Task for required work, but completing that Task does not mark the Check passed; only a valid Check Run or explicit waiver changes proof state.
+    depends_on: [models.TaskRecord.source_check_id, examples.task_check_links]
   - id: tasks.project-links.encrypted
     type: invariant
-    must: Task Project-link mutations update server-filterable linked_project_hashes, client-encrypted linked Project id lists, and replacement Task key wrappers together, rejecting relinks that would leave Project metadata, encrypted owner-visible ids, or access wrappers out of sync.
-    depends_on: [models.TaskRecord.encrypted_linked_project_ids, models.TaskRecord.linked_project_hashes, models.TaskKeyWrapper, examples.task_project_links]
+    must: Project-link mutations update safe Project hashes, encrypted raw Project ids, and authorized Task key wrappers together or fail without partial relinking.
+    depends_on: [models.TaskRecord.encrypted_linked_project_ids, models.TaskRecord.linked_project_hashes, models.TaskKeyWrapper.hashed_project_id, examples.task_project_links]
   - id: tasks.key-wrappers.context-scoped
     type: security
-    must: Task keys are never stored raw; wrapper rows are scoped to exactly one authorized master, chat, Project, Plan, or Team context, team wrappers include a valid team_key_epoch, and share/export task access uses URL-fragment bundle wrapping rather than persistent share-specific server wrappers.
-    depends_on: [models.TaskKeyWrapper, examples.task_private_content, examples.task_project_links]
+    must: Task keys are never stored raw and wrappers are scoped to exactly one authorized owner, chat, Project, Plan, or Team context.
+    depends_on: [models.TaskKeyWrapper, examples.task_private_content]
   - id: tasks.workflow-projections.read-only
     type: invariant
-    must: Workflow run items in the Tasks view are owner-scoped, metadata-only, read-only projections derived from Workflow state; each displayed run maps to one task-view item keyed by workflow_run_id, Workflow nodes never create separate Task items and remain visible through run detail, projections do not create user_tasks rows or expose encrypted Workflow content, and they only expose Workflow-owned open, cancel, or scheduled-skip actions.
+    must: Workflow run items are read-only projections keyed by run, never Task rows; Workflow nodes stay inside run detail and projections expose only Workflow-owned actions.
     depends_on: [models.WorkflowTaskProjection, examples.task_workflow_projections]
   - id: tasks.detail.embed-responsive
     type: behavior
-    must: >
-      Selecting any Task in the web Tasks workspace opens its detail with the
-      same responsive presentation policy as chat embeds: a side-by-side split
-      screen on larger viewports and a full-screen overlay on smaller viewports;
-      closing detail restores the unchanged board position, filters, and column
-      state, and selecting a Workflow-run projection shows that exact run with
-      live run and node status updates inside the detail surface.
+    must: Selecting a Task opens embed-style detail beside the workspace when space allows and as a fullscreen overlay on compact viewports; closing restores board position, filters, and column state.
     depends_on: [models.TaskDetailPresentation, examples.task_detail_presentation]
-  - id: tasks.surface.semantic-parity
-    type: parity
-    must: REST, CLI, npm SDK, and pip SDK surfaces preserve the same encrypted-content, label/priority metadata, lifecycle, Project-link, workflow-projection, version-conflict, and local-decryption semantics for every Task operation that surface implements; unsupported contexts must fail visibly or remain explicitly out of scope.
-    depends_on: [models, examples, surfaces]
   - id: tasks.execution.capacity-scoped
     type: behavior
-    must: AI-assigned user Tasks use independent owner-scoped personal or Team admission pools; official cloud admits at most five normal plus two additional urgent personal Tasks and eight normal plus two additional urgent Team Tasks, self-host deployments may configure both pool sizes, capacity-full Tasks remain todo with waiting_for_capacity until automatically reconsidered, and Workflow runs or projections never consume these slots.
+    must: AI Tasks use independent owner-scoped personal or Team capacity pools; capacity-full Tasks wait visibly and are reconsidered automatically, while Workflow projections do not consume Task capacity.
     depends_on: [models.TaskExecutionAdmission, examples.task_execution_capacity]
   - id: tasks.execution.order-preserved
     type: invariant
-    must: Capacity and priority are applied only after lane eligibility; chat Tasks follow user-editable chat position, Plan Tasks follow user-editable Plan order and Plan dependency readiness, standalone Tasks are independent, no two AI Tasks execute concurrently in one chat, and neither urgent priority nor a free capacity slot may skip an unfinished predecessor or interleave ordinary chat Tasks into an active Plan lane.
-    depends_on: [models.TaskExecutionAdmission, examples.task_execution_order]
+    must: Dependency and lane eligibility are resolved before priority or capacity; no urgent or free-capacity Task may bypass an unfinished required predecessor or run concurrently in a single-task lane.
+    depends_on: [models.TaskDependency, models.TaskExecutionAdmission, examples.task_execution_order]
   - id: tasks.dependencies.done-only
     type: invariant
-    must: Task dependency edges use the shared normalized Plan/Task graph and only unblock when every target is done or completed.
-    depends_on: [models.TaskRecord]
+    must: Task dependency edges use the shared normalized Plan/Task graph, reject self, duplicate, and cyclic edges, and unblock only when every target Task is done or target Plan is completed.
+    depends_on: [models.TaskDependency, examples.task_dependencies]
+  - id: tasks.surface.semantic-parity
+    type: parity
+    must: REST, CLI, SDK, and web preserve encrypted content, flat dependencies, assignment, lifecycle, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
+    depends_on: [models, examples, surfaces]
 
 surfaces:
   rest_api:
     required: true
-    role: Authenticated /v1/user-tasks routes own persistence, metadata filtering, lifecycle actions, history, wrapper validation, and workflow projection reads without decrypting private task content.
+    role: First-party authenticated routes own Task persistence, lifecycle, dependency validation, assignment, queue admission, encrypted links, history, and wrapper authorization.
   cli:
     required: true
     parity: semantic
+    requirements:
+      - List, show, create, edit, assign, reorder, depend, block, skip, start, complete, and inspect Task blockers.
   sdks:
     required: true
     parity: semantic
@@ -245,12 +175,28 @@ surfaces:
       pip: {required: true}
   gui:
     required: true
-    role: Web task UI consumes the same encrypted task service and owns the contracted embed-responsive Task detail presentation; other GUI layout and visual parity remain outside this contract bundle.
+    parity: semantic
     implementations:
-      web: {required: true}
+      web:
+        required: true
+        requirements:
+          - id: tasks.gui.card
+            elements: [title, status, assignee, priority, due_state, plan_or_check_context, blocked_indicator]
+            interactions: [open_detail, move_status, reorder_when_allowed]
+          - id: tasks.gui.detail
+            elements: [header, description, status, assignee, dependencies, project_links, plan_link, source_check_link, activity]
+            interactions: [edit, assign, block, unblock, skip, complete, open_plan, open_check]
+            states: [backlog, todo, in_progress, blocked, done, waiting_for_capacity, waiting_for_dependency, error]
+            accessibility: [keyboard_board_alternative, semantic_status, dependency_labels, non_color_priority]
+            responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
+            design_references: optional
       apple: {required: false}
-    exceptions: []
+    exceptions:
+      - id: apple-task-board-deferred
+        implementation: apple
+        reason: Rich board and dependency authoring starts on web.
+        equivalent_outcome: Apple must preserve Task lifecycle, assignment, dependency blockers, and links when implemented.
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_project_links, task_workflow_projections, task_detail_presentation, task_surface_parity, task_execution_capacity, task_execution_order]
+  required_groups: [task_private_content, task_lifecycle, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_execution_capacity, task_execution_order, task_surface_parity]

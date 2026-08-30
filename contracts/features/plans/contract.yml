@@ -4,295 +4,210 @@ version: 1
 status: draft
 title: Plans
 summary: >
-  OpenMates Plans persist encrypted multi-step user goals with explicit lifecycle
-  state, contextual key wrappers, Project/chat links, verification gates,
-  active-plan context, and CLI/SDK/web semantic parity.
+  Plans are encrypted, approval-bound coordination records that propose and
+  execute bounded changes through assumptions, success criteria, linked Tasks,
+  and linked reusable Checks while guarding against scope drift.
+
+purpose:
+  outcomes:
+    - Turn complex requests into reviewable and resumable work without duplicating Contract truth.
+    - Give users one stable editable Plan URL and explicit control over material scope.
+    - Keep agents working until required assumptions, Tasks, and Checks are honestly resolved.
 
 scope:
   includes:
-    - Authenticated /v1/user-plans list, get/detail, create, update, activate, complete, active-context, execution-context, key-wrapper, criteria, verification, assumption, reference-pattern, learning, and evidence routes.
-    - CLI and SDK plan facades for list, show, create, edit/update, attach, start, resume, complete, ask, Success Criteria, Checks, assumptions, reference patterns, learnings, and Project link helpers.
-    - Client-encrypted durable Plan titles, goals, scope, focus, questions, criteria, assumptions, reference patterns, learnings, evidence, run details, and private metadata.
-    - Primary-chat, linked-Project, and owner/master key-wrapper semantics for per-plan keys, plus implemented plan/team wrapper context fields where used.
-    - Short-lived Vault-encrypted active-plan execution context and missing-context blockers for assistant continuation.
-    - Web, chat, and Project plan surfaces that render and mutate the same encrypted records.
+    - Draft creation after bounded research and clarification for bug fixes, features, and non-code projects.
+    - Goal, expected and actual behavior when relevant, scope, user flows, assumptions, success criteria, Tasks, Checks, decisions, risks, references, context, activity, and continuation policy.
+    - Optional Contract links for ordinary user Plans and required Contract discovery/linking for governed implementation work when a matching Contract exists.
+    - Exact revision approval through a stable Plan URL, browser editing, undo, save-and-approve, and automatic waiting-agent continuation.
+    - Separate approval and execution state so approval remains understandable throughout assumption checking, execution, and reapproval.
+    - Tasks as the only executable work units; optional phases are presentation groups and never duplicate Task status or create recursive Plan steps.
+    - Required assumption gates, Success Criteria coverage, reusable Check links, failed-Check follow-up Tasks, completion blockers, and revision-bound evidence summaries.
+    - Client-encrypted content, contextual key wrappers, Project/chat links, short-lived active execution context, and REST/CLI/SDK/web parity.
   excludes:
-    - Task execution scheduling beyond Plan-created task references and verification task records.
-    - Project CRUD outside Plan-to-Project linking, filtering, and wrapper replacement.
-    - GUI layout, visual design, and board geometry details for /plans.
-    - Durable public share grants or server-readable share wrappers; share decrypt authority stays URL-fragment scoped.
-    - Server-side decryption, full-text search, or plaintext indexing of private Plan content.
+    - Copying complete Contract rules, user flows, or models into a Plan when exact references are available.
+    - Recursive subtasks, a second Plan-step execution engine, or embedded task status owned by the Plan.
+    - Owning reusable Check definitions, Check Run history, or raw test artifacts inside Plan records.
+    - Reapproval for non-material implementation detail, Task splitting, equivalent refactoring, stronger proof, or follow-up debugging within approved scope.
+    - Automatic production, payment, destructive, credential, or external-account authority from ordinary Plan approval.
+
+relationships:
+  related_contracts: [feature.contracts, feature.checks, feature.tasks, feature.projects]
+  contract_link_policy: >
+    Contract linking is optional for general user Plans. Agents implementing a
+    governed product or Project must search for applicable Contracts and link
+    exact revisions/rules when found; a new or amended Contract is required when
+    the Plan intentionally changes durable product truth.
+
+actors:
+  - id: plan_author
+    role: User or agent that drafts and refines the Plan before approval.
+  - id: plan_approver
+    role: User who approves an exact Plan revision or requests more refinement.
+  - id: task_executor
+    role: Human or agent that performs linked Tasks under the approved scope.
+  - id: check_runner
+    role: Automated, AI, or human actor that produces a linked Check Run.
 
 models:
   PlanRecord:
-    plan_id:
-      type: stable_id
-      required: true
-    status:
-      type: enum
-      values: [draft, checking_assumptions, awaiting_confirmation, active, executing, running_checks, blocked, completed, archived]
-      required: true
-    version:
-      type: integer
-      required: true
-      constraints: {monotonic_server_authoritative: true, conflict_checked: true}
-    primary_chat_id:
-      type: chat_id
-      nullable: true
-      constraints: {required_for_active_or_executable: true}
-    linked_project_hashes:
-      type: hashed_id_list
-      nullable: true
+    plan_id: {type: stable_id, required: true}
+    current_revision_id: {type: stable_id, required: true}
+    approval_state: {type: enum, values: [draft, approved, reapproval_required, rejected], required: true}
+    execution_state: {type: enum, values: [not_started, checking_assumptions, ready, executing, running_checks, blocked, completed, cancelled], required: true}
+    primary_chat_id: {type: chat_id_or_null, nullable: true, constraints: {required_when_execution_state: [checking_assumptions, ready, executing, running_checks, blocked]}}
+    linked_project_hashes: {type: hashed_id_list, nullable: true}
+    encrypted_linked_project_ids: {type: client_ciphertext_or_null, nullable: true, constraints: {raw_project_ids_plaintext: forbidden}}
+    version: {type: integer, required: true, constraints: {monotonic_server_authoritative: true}}
+
+  PlanRevision:
+    revision_id: {type: stable_id, required: true}
+    revision_number: {type: integer, required: true, constraints: {monotonic: true}}
+    content_hash: {type: sha256_hex, required: true}
+    change_class: {type: enum, values: [initial, non_material, material], required: true}
+    encrypted_plan_document: {type: client_ciphertext, required: true}
 
   PlanPrivateContent:
-    encrypted_title:
-      type: encrypted_string
-      required: true
-      constraints: {plaintext: forbidden}
-    encrypted_goal:
-      type: encrypted_string
-      required: true
-      constraints: {plaintext: forbidden}
-    encrypted_scope_in:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
-    encrypted_user_flows:
-      type: encrypted_json_array
-      nullable: true
-      constraints: {flow_shape: "flow_id,title,actor?,steps[step_id,text,references?],expected_outcome,linked_task_ids?,linked_criterion_ids?", plaintext: forbidden}
-    encrypted_open_questions:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
-    encrypted_assumptions:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
-    encrypted_reference_patterns:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
+    encrypted_title: {type: client_ciphertext, required: true}
+    encrypted_goal: {type: client_ciphertext, required: true}
+    encrypted_scope_in: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_scope_out: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_user_flows: {type: encrypted_json_array, nullable: true, constraints: {flow_shape: "flow_id,title,actor?,steps[step_id,text,references?],expected_outcome,linked_task_ids?,linked_criterion_ids?"}}
+    encrypted_open_questions: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_decisions: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_risks: {type: client_ciphertext_or_null, nullable: true}
 
-  PlanProjectLink:
-    linked_project_ids:
-      type: request_only_raw_ids
-      nullable: true
-      constraints: {durable_plaintext: forbidden}
-    encrypted_linked_project_ids:
-      type: encrypted_string
-      nullable: true
-      constraints: {owner_decryptable_raw_ids: true}
-    linked_project_hashes:
-      type: hashed_id_list
-      nullable: true
-      constraints: {filter_metadata_only: true}
+  PlanContractLink:
+    contract_id: {type: semantic_contract_id, required: true, constraints: {format_example: feature.plans}}
+    contract_revision: {type: exact_contract_version_or_hash, required: true, constraints: {immutable: true}}
+    rule_ids: {type: stable_id_list, nullable: true}
+    relation: {type: enum, values: [implements, restores, changes, depends_on], required: true}
 
-  PlanKeyWrapper:
-    key_type:
-      type: enum
-      values: [master, chat, project, plan, team]
-      required: true
-    encrypted_plan_key:
-      type: wrapped_content_key
-      required: true
-      constraints: {raw_key: forbidden}
-    hashed_plan_id:
-      type: hashed_id
-      required: true
-    hashed_chat_id:
-      type: hashed_id
-      nullable: true
-    hashed_project_id:
-      type: hashed_id
-      nullable: true
-    hashed_context_plan_id:
-      type: hashed_id
-      nullable: true
-    hashed_team_id:
-      type: hashed_id
-      nullable: true
-    team_key_epoch:
-      type: integer
-      nullable: true
-      constraints: {required_when_key_type_team: true}
+  PlanAssumption:
+    assumption_id: {type: stable_id, required: true}
+    status: {type: enum, values: [unchecked, checking, confirmed, corrected, contradicted, blocked, waived], required: true}
+    required_before: {type: enum, values: [implementation, task_execution, completion, never], required: true}
+    encrypted_statement: {type: client_ciphertext, required: true}
+    encrypted_correction: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_sources: {type: client_ciphertext_or_null, nullable: true}
+    source_proof_count: {type: integer, required: true}
 
   PlanCriterion:
-    criterion_id:
-      type: stable_id
-      required: true
-    encrypted_text:
-      type: encrypted_string
-      required: true
-      constraints: {plaintext: forbidden}
-    status:
-      type: enum
-      values: [pending, satisfied, failed, waived]
-    coverage_status:
-      type: enum
-      values: [uncovered, covered, ambiguous, blocked, waived]
-    verification_ids:
-      type: stable_id_list
-      nullable: true
+    criterion_id: {type: stable_id, required: true}
+    required: {type: boolean, required: true}
+    status: {type: enum, values: [pending, satisfied, failed, waived], required: true}
+    coverage_status: {type: enum, values: [uncovered, covered, ambiguous, blocked, waived], required: true}
+    encrypted_statement: {type: client_ciphertext, required: true}
 
-  PlanVerification:
-    verification_id:
-      type: stable_id
-      required: true
-    kind:
-      type: enum_or_string
-      constraints: {supports_ai_manual_deterministic_and_runner_checks: true}
-    status:
-      type: enum
-      values: [proposed, pending, passed, failed, passed_unexpectedly, skipped, skipped_with_reason, not_applicable, waived]
-    required_for_done:
-      type: boolean
-      default: true
-    linked_task_id:
-      type: stable_id
-      nullable: true
-    linked_sub_chat_id:
-      type: chat_id
-      nullable: true
-    encrypted_command:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
-    encrypted_result_summary:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
+  PlanTaskLink:
+    task_id: {type: stable_id, required: true}
+    phase_id: {type: stable_id_or_null, nullable: true, constraints: {presentation_group_only: true}}
+    position: {type: integer, required: true}
+    dependency_task_ids: {type: stable_id_list, nullable: true, constraints: {recursive_children: forbidden}}
+    head_selection: {type: derived_order, required: true, constraints: {precedence: [position, created_at, task_id], persisted_current_task_pointer: forbidden}}
 
-  PlanVerificationRun:
-    run_id:
-      type: stable_id
-      required: true
-    runner_kind:
-      type: string
-      required: true
-    status:
-      type: enum_or_string
-      required: true
-    encrypted_stdout:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
-    encrypted_environment:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden}
+  PlanCheckLink:
+    check_id: {type: stable_id, required: true}
+    check_revision_id: {type: stable_id, required: true}
+    subject_revision: {type: immutable_revision_reference, required: true}
+    criterion_ids: {type: stable_id_list, required: true}
+    required_for_completion: {type: boolean, required: true}
+    latest_run_id: {type: stable_id_or_null, nullable: true}
+    latest_run_check_revision_id: {type: stable_id_or_null, nullable: true, constraints: {must_equal_referenced_latest_run_check_revision: true}}
+    latest_run_subject_revision: {type: immutable_revision_reference_or_null, nullable: true, constraints: {must_equal_referenced_latest_run_subject_revision: true}}
+    latest_run_status: {type: enum_or_null, values: [passed, failed, error, cancelled, skipped, waived], nullable: true, constraints: {must_equal_referenced_latest_run_status: true}}
+    freshness: {type: enum, values: [missing, current, stale], required: true, constraints: {derived_from_referenced_latest_run: true, current_requires_latest_run_check_revision_equals_check_revision: true, current_requires_latest_run_subject_revision_equals_subject_revision: true}}
 
-  PlanExecutionContext:
-    vault_encrypted_context:
-      type: vault_ciphertext
-      required: true
-      constraints: {durable_directus_plaintext: forbidden}
-    hashed_primary_chat_id:
-      type: hashed_id
-      required: true
-    expires_at:
-      type: timestamp
-      required: true
+  PlanReferencePattern:
+    pattern_id: {type: stable_id, required: true}
+    status: {type: enum, values: [proposed, required, inspected, matched, drift_detected, waived, blocked], required: true}
+    required_before: {type: enum, values: [implementation, task_execution, completion, never], required: true}
+    encrypted_sources: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_match_rules: {type: client_ciphertext_or_null, nullable: true}
 
   PlanLearning:
-    learning_id:
-      type: stable_id
-      required: true
-    type:
-      type: enum
-      values: [workflow_improvement, agent_instruction_improvement]
-    status:
-      type: enum
-      values: [draft, proposed, accepted, applied, rejected, duplicate, merged]
-    encrypted_title:
-      type: encrypted_string
-      required: true
-      constraints: {plaintext: forbidden}
-    encrypted_task_draft:
-      type: encrypted_string
-      nullable: true
-      constraints: {plaintext: forbidden, one_suggested_task_draft: true}
+    learning_id: {type: stable_id, required: true}
+    status: {type: enum, values: [draft, proposed, accepted, applied, rejected, duplicate, merged], required: true}
+    encrypted_title: {type: client_ciphertext, required: true}
+    encrypted_task_draft: {type: client_ciphertext_or_null, nullable: true, constraints: {one_suggested_task_draft: true}}
+
+  PlanKeyWrapper:
+    key_type: {type: enum, values: [master, chat, project, plan, team], required: true}
+    encrypted_plan_key: {type: wrapped_content_key, required: true, constraints: {raw_key: forbidden}}
+    hashed_context_id: {type: hashed_id_or_null, nullable: true}
+
+  PlanExecutionContext:
+    vault_encrypted_context: {type: vault_ciphertext, required: true, constraints: {durable_directus_plaintext: forbidden}}
+    hashed_primary_chat_id: {type: hashed_id, required: true}
+    expires_at: {type: timestamp, required: true}
 
 assertions:
   - id: plans.content.client-encrypted
     type: privacy
-    must: >
-      Durable Plan rows and child records store private titles, goals, scope,
-      focus, questions, criteria, assumptions, reference patterns, learnings,
-      evidence, run output, and private metadata only as client ciphertext or
-      Vault ciphertext; server-visible fields stay limited to safe IDs, hashes,
-      status, routing, coverage, version, and timestamps.
-    depends_on: [models.PlanPrivateContent, models.PlanCriterion.encrypted_text, models.PlanVerification, models.PlanVerificationRun, models.PlanLearning, examples.plan_private_content]
+    must: Durable Plan revisions, assumptions, criteria, links, decisions, risks, references, and private metadata remain client-encrypted; server-visible fields are limited to safe ids, hashes, state, routing, version, and timestamps.
+    depends_on: [models.PlanRevision, models.PlanPrivateContent, models.PlanAssumption, models.PlanCriterion, examples.plan_private_content]
   - id: plans.lifecycle.visible
     type: behavior
-    must: >
-      Plan list, owner-scoped REST get/detail, show/detail facades, create, update, activate/attach, start,
-      resume, complete, and active-context flows preserve stable IDs, explicit
-      lifecycle state, primary-chat requirements for active/executable Plans,
-      visible completion blockers, and optimistic version conflict metadata.
+    must: Plan creation, refinement, approval, assumption checking, readiness, execution, Check loops, blocking, completion, cancellation, and resumption preserve separate visible approval and execution state with explicit blockers and optimistic conflicts.
     depends_on: [models.PlanRecord, examples.plan_lifecycle]
+  - id: plans.approval.revision-bound
+    type: invariant
+    must: Approval binds an exact immutable Plan revision; material changes require reapproval while non-material implementation detail, Task decomposition, and stronger in-scope Checks may continue without repeated approval.
+    depends_on: [models.PlanRevision, examples.plan_approval]
+  - id: plans.approval.human-web-revision-bound
+    type: security
+    must: Immutable encrypted Plan revisions are approved only through an authenticated trusted browser session, and every material edit invalidates approval until the new exact revision is approved.
+    depends_on: [models.PlanRecord, models.PlanRevision, examples.plan_approval]
+  - id: plans.contract-links.contextual
+    type: behavior
+    must: General user Plans may exist without a Contract, but governed implementation work must discover and link applicable Contract revisions/rules when present, and intentional durable behavior changes require an approved Contract amendment rather than copied Plan text.
+    depends_on: [models.PlanContractLink, examples.plan_contract_links]
+  - id: plans.tasks.only-execution-units
+    type: invariant
+    must: Linked Tasks are the only executable work units; phases may group Tasks for presentation, but Plans contain no recursive subtasks or independently executable step records and never duplicate Task lifecycle state.
+    depends_on: [models.PlanTaskLink, examples.plan_tasks]
+  - id: plans.dependencies.done-only
+    type: invariant
+    must: Mixed Plan/Task blocked-by edges are owner- and shared-Project-scoped, reject self, duplicate, and cyclic edges, and satisfy only when their target Task is done or target Plan is completed.
+    depends_on: [models.PlanTaskLink, examples.plan_tasks]
+  - id: plans.assumptions.investigated-before-work
+    type: security
+    must: Confirmed or corrected required assumptions include encrypted typed source/evidence proofs before dependent work can proceed; unsupported status text alone cannot satisfy the gate.
+    depends_on: [models.PlanAssumption, examples.plan_completion_gates]
   - id: plans.key-wrappers.contextual
     type: invariant
-    must: >
-      A per-plan key is wrapped for exactly the valid owner/context set: master
-      is required; primary-chat and linked-Project wrappers match hashed context
-      metadata; plan/team wrappers follow the unified wrapper rules when used;
-      replacement wrappers are created and validated before obsolete wrappers
-      are deleted; raw keys and durable share wrappers are forbidden.
+    must: A per-Plan key is wrapped only for authorized owner, chat, Project, Plan, or Team contexts; replacement wrappers are accepted before obsolete wrappers are removed and raw keys are never durable.
     depends_on: [models.PlanKeyWrapper, examples.plan_context_wrappers]
   - id: plans.project-links.encrypted
     type: privacy
-    must: >
-      Project link mutations treat raw linked_project_ids as request-only input,
-      persist linked_project_hashes for filtering, persist
-      encrypted_linked_project_ids for owner-side client use, and replace
-      Project Plan wrappers in the same accepted mutation.
-    depends_on: [models.PlanProjectLink, models.PlanKeyWrapper, examples.plan_project_links]
+    must: Raw linked Project ids remain request-only or client-encrypted while server-visible hashes support filtering and Project-scoped wrappers preserve authorized decryption.
+    depends_on: [models.PlanRecord.linked_project_hashes, models.PlanRecord.encrypted_linked_project_ids, models.PlanKeyWrapper, examples.plan_project_links]
   - id: plans.execution.gates-evidence
     type: invariant
-    must: >
-      Required criteria coverage, required checks/evidence, required
-      assumptions, required reference patterns, and 1-5 finalized learnings gate
-      implementation and completion; failed required checks move the Plan back
-      to a visible blocked/work loop; verification task, AI-evaluator, run,
-      artifact, and learning-task provenance stays explicit.
-    depends_on: [models.PlanCriterion, models.PlanVerification, models.PlanVerificationRun, models.PlanLearning, examples.plan_completion_gates]
-  - id: plans.dependencies.done-only
-    type: invariant
-    must: Mixed Plan/Task blocked_by edges are owner- and shared-Project-scoped, reject self, duplicate, and cyclic edges, and satisfy only when their target is done or completed.
-    depends_on: [models.PlanRecord]
-  - id: plans.assumptions.investigated-before-work
-    type: security
-    must: Confirmed or corrected required assumptions include encrypted typed source/evidence proofs before dependent work can proceed.
-    depends_on: [models.PlanPrivateContent]
-  - id: plans.approval.human-web-revision-bound
-    type: security
-    must: Immutable encrypted Plan revisions are approved only through an authenticated trusted browser session, and material edits invalidate approval.
-    depends_on: [models.PlanRecord]
+    must: Required assumptions, Success Criteria coverage, linked Task completion, current revision-bound required Check Runs, required reference patterns, and 1-5 finalized learnings gate execution and completion; failed Checks create or propose follow-up Tasks and return the Plan to the visible work loop until passed, waived, or explicitly blocked.
+    depends_on: [models.PlanAssumption, models.PlanCriterion, models.PlanTaskLink, models.PlanCheckLink, models.PlanReferencePattern, models.PlanLearning, examples.plan_completion_gates]
   - id: plans.active-context.vault-boundary
     type: privacy
-    must: >
-      Active assistant context for a primary-chat Plan comes from short-lived
-      Vault-encrypted execution context or fresh client-supplied context, never
-      backend decryption of durable Directus Plan fields; missing or expired
-      context returns a visible blocker instead of fabricated Plan state.
+    must: Active assistant context comes from short-lived Vault-encrypted execution context or fresh client-supplied context, never backend decryption of durable Plan content; missing context is a visible blocker.
     depends_on: [models.PlanExecutionContext, examples.plan_active_context]
+  - id: plans.ui.edit-approve-resume
+    type: behavior
+    must: The fullscreen Plan editor uses one stable URL, readable sections, draft editing, undo, Approve Plan or Save and Approve actions, immutable revision identity, and automatic continuation of an authorized waiting agent after approval.
+    depends_on: [examples.plan_ui_review, surfaces.gui]
   - id: plans.surface.semantic-parity
     type: parity
-    must: >
-      REST, CLI, npm SDK, pip SDK, and web preserve the same encrypted-content,
-      lifecycle, key-wrapper, Project-link, completion-gate, evidence,
-      active-context, and learning-provenance semantics where each surface
-      implements Plans.
+    must: REST, CLI, SDK, and web preserve the same encrypted content, revision approval, Contract links, assumption gates, Task links, Check links, completion blockers, and visible failures wherever Plan operations are exposed.
     depends_on: [models, examples, surfaces]
 
 surfaces:
   rest_api:
     required: true
-    role: Authenticated /v1/user-plans routes own persistence, owner-scoped detail lookup, lifecycle, child records, active context, and authorization boundaries without plaintext private content.
+    role: First-party authenticated routes persist encrypted Plans, revisions, links, gates, and execution context without decrypting private content.
   cli:
     required: true
     parity: semantic
+    requirements:
+      - Create, refine, link, wait for approval, attach, start, resume, inspect blockers, and complete Plans through stable human-facing commands.
   sdks:
     required: true
     parity: semantic
@@ -303,10 +218,26 @@ surfaces:
     required: true
     parity: semantic
     implementations:
-      web: {required: true}
+      web:
+        required: true
+        requirements:
+          - id: plans.gui.preview
+            elements: [title, approval_state, execution_state, progress, current_task, blocked_summary]
+            interactions: [open_fullscreen, open_current_task]
+          - id: plans.gui.fullscreen-editor
+            elements: [header, goal, contract_links, scope, user_flows, assumptions, success_criteria, tasks, checks, decisions, risks, references, activity, approve_action]
+            interactions: [edit_sections, undo_unsaved_changes, approve_plan, save_and_approve, request_more_refinement, open_contract, open_task, open_check]
+            states: [draft_unchanged, draft_edited, saving, awaiting_approval, approved, reapproval_required, executing, running_checks, blocked, completed, error]
+            accessibility: [semantic_section_headings, keyboard_editing, announced_unsaved_state, announced_approval_revision, status_not_color_only]
+            responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports, sticky_primary_approval_action]
+            design_references: optional
       apple: {required: false}
-    exceptions: []
+    exceptions:
+      - id: apple-plan-authoring-deferred
+        implementation: apple
+        reason: Rich Plan authoring starts with shared contracts and web review.
+        equivalent_outcome: Apple must preserve readable Plan state, Task/Check links, approval revision, and user confirmation when implemented.
 
 examples:
   file: examples.yml
-  required_groups: [plan_private_content, plan_lifecycle, plan_context_wrappers, plan_project_links, plan_completion_gates, plan_active_context, plan_surface_parity]
+  required_groups: [plan_private_content, plan_lifecycle, plan_approval, plan_contract_links, plan_tasks, plan_context_wrappers, plan_project_links, plan_completion_gates, plan_active_context, plan_ui_review, plan_surface_parity]
