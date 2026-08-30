@@ -250,6 +250,28 @@ contracts:
     - cli
     - gui.web
     - gui.apple
+  feature.checks:
+    version: 1
+    status: draft
+    path: features/checks
+    fingerprint: ddacb1331f1b0963b0f0f7587a4d14a058f7094e0dee723f85e8f8c4a1b39aee
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  feature.contracts:
+    version: 1
+    status: draft
+    path: features/contracts
+    fingerprint: d33b14d41083800f5dc036359e79e55e43d742d108964a448b00cbaac06fa8f8
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.daily-inspiration:
     version: 1
     status: approved
@@ -2690,6 +2712,182 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  checks.definition.reusable-revisioned:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: invariant
+    fingerprint: dc6560a6ba3ee334348ad30f5e31c977e4a0e3453df885fd957f6d235fb7f423
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.catalog.lazy-materialization:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: behavior
+    fingerprint: ec418e1beff80b59f3f395d37404cd59256f3dd16bdd2cefa6b94a291e389967
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.runs.revision-bound:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: invariant
+    fingerprint: 64288cdc63f4177b2fb83dc99b3ef007edeca77518aee1ff9f79f16a12fd3f31
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.types.explicit:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: behavior
+    fingerprint: a057eb943635ca6b12b21ac0f60507ab55a7b51f52372d82db78f239fb54d8d3
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.ai.structured-bounded:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: invariant
+    fingerprint: a4e1f7a851404d75c4bab7846c9cab011f153a7ef0f87cff2fe05cc16b76aeb5
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.human.explicit-confirmation:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: behavior
+    fingerprint: 8f5a1a9ab30c567112d6b5bad305dd371b071359e2aab3e9c3ee753d800557d6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.artifacts.private-traceable:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: privacy
+    fingerprint: b689a05ab255431db48bb574be73722b18540c72c3a1ac30cc07fd23967690d9
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.project.encrypted-embed:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: behavior
+    fingerprint: b3a350e45a91eb489e7b0d381d3f6054f613ff63044534c0b79b78a0d66eedd5
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  checks.surface.semantic-parity:
+    contract: feature.checks@1
+    contract_id: feature.checks
+    type: parity
+    fingerprint: 989d8fe25e09d5309b50a6c8b6ac5b5b0304f911fe3c29cbca37c648f8d80de0
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.definition.durable-truth:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: invariant
+    fingerprint: 3196bf97df40278ad676beb3606a567149f474908ca08bb75faf898962ce39b9
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.revision.exact-approval:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: invariant
+    fingerprint: ac6bc3a964cd4cd2979220f10fc603661325cfccdb2e6b9d7bb5f8836f611d38
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.composition.capability-first:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: behavior
+    fingerprint: 7befe2862634632299e398b42926d95a298a0b50fb2d03c297e646652476def1
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.ui.structured-interactions:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: behavior
+    fingerprint: f150db22606e8874e402adf7e3a85e65c0c23357c48099769b381b502f9b9ebe
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.project.encrypted-embed:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: privacy
+    fingerprint: 066591bca8a546ee1ed613b7ca5aaaf0925b41cefb32f72a061c48da59f8c7ec
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.links.revision-traceable:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: invariant
+    fingerprint: 6782dd23a12712fb9a31f9ead22ee557c6d72e9aae20fe5e39ce1087d2fc97d6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.surface.semantic-parity:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: parity
+    fingerprint: 80960b1b8a61b160615e230d88c18933ee52d03ce527a218ae474e64382d8fc8
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   daily-inspiration.authenticated-continuity:
     contract: feature.daily-inspiration@1
     contract_id: feature.daily-inspiration

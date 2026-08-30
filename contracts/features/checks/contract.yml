@@ -1,0 +1,203 @@
+schema_version: 1
+id: feature.checks
+version: 1
+status: draft
+title: Checks
+summary: >
+  Checks are reusable proof definitions that verify Contract rules or Plan
+  success criteria through deterministic execution, structured AI evaluation,
+  or explicit human confirmation, with revision-bound Runs and private artifacts.
+
+purpose:
+  outcomes:
+    - Prove claims without copying test definitions into every Plan.
+    - Keep thousands of repository tests discoverable without creating thousands of Project cards.
+    - Preserve auditable run history and make stale proof visible.
+
+scope:
+  includes:
+    - Independent Check definitions with stable ids, immutable revisions, descriptions, covered claims, execution type, source bindings, and ownership context.
+    - Deterministic, AI evaluation, and human confirmation Check types.
+    - Immutable Check Runs bound to the exact Check revision and subject revision being evaluated.
+    - Encrypted result summaries, evaluator feedback, human confirmation notes, logs, screenshots, video, traces, reports, and other artifacts.
+    - A scalable test catalog that indexes repository test sources without materializing every discovered test as a Check record.
+    - Project Check previews/fullscreen detail, run history, status, stale-proof state, and links to Plans, Contracts, Tasks, sources, and evaluator sub-chats.
+    - OpenMates-managed sandbox, connected CI, remote-access, and human execution contexts.
+  excludes:
+    - Automatically creating a Project Check for every discovered test file or test case.
+    - Treating an AI score as deterministic proof for security, privacy, permissions, encryption, migrations, or exact API behavior.
+    - Treating a linked Task completion as proof that a Check passed.
+    - Requiring browser video when a deterministic non-visual result is sufficiently represented by structured output.
+
+relationships:
+  related_contracts: [feature.contracts, feature.plans, feature.tasks, feature.projects]
+
+actors:
+  - id: check_author
+    role: Defines what claim is verified and which execution method is valid.
+  - id: automated_runner
+    role: Executes deterministic Checks in an authorized environment.
+  - id: ai_evaluator
+    role: Reviews an exact input revision against a structured qualitative rubric.
+  - id: human_confirmer
+    role: Confirms physical, subjective, or externally inaccessible outcomes.
+
+models:
+  CheckDefinition:
+    check_id: {type: stable_id, required: true}
+    current_revision_id: {type: stable_id, required: true}
+    kind: {type: enum, values: [deterministic, ai_evaluation, human_confirmation], required: true}
+    status: {type: enum, values: [draft, ready, archived], required: true}
+    linked_project_hashes: {type: hashed_id_list, nullable: true}
+    encrypted_title: {type: client_ciphertext, required: true}
+    encrypted_description: {type: client_ciphertext, required: true}
+
+  CheckRevision:
+    revision_id: {type: stable_id, required: true}
+    revision_number: {type: integer, required: true, constraints: {monotonic: true}}
+    kind: {type: enum, values: [deterministic, ai_evaluation, human_confirmation], required: true, constraints: {must_match_check_definition_kind: true}}
+    definition_hash: {type: sha256_hex, required: true}
+    covered_contract_rules: {type: revision_bound_rule_reference_list, nullable: true}
+    covered_plan_criteria: {type: revision_bound_criterion_reference_list, nullable: true}
+    encrypted_execution_definition: {type: client_ciphertext, required: true}
+
+  CheckRun:
+    run_id: {type: stable_id, required: true}
+    check_revision_id: {type: stable_id, required: true}
+    subject_revision: {type: immutable_revision_reference, required: true}
+    status: {type: enum, values: [queued, running, passed, failed, blocked, error, cancelled, skipped, waived], required: true}
+    result_kind: {type: enum, values: [deterministic, ai_evaluation, human_confirmation], required: true, constraints: {must_match_check_revision_kind: true}}
+    result_id: {type: stable_id_or_null, nullable: true, constraints: {required_when_terminal_except_cancelled: true, must_reference_result_type_matching_result_kind: true}}
+    started_at: {type: timestamp_or_null, nullable: true}
+    finished_at: {type: timestamp_or_null, nullable: true}
+    encrypted_result: {type: client_ciphertext, nullable: true}
+
+  CheckArtifact:
+    artifact_id: {type: stable_id, required: true}
+    run_id: {type: stable_id, required: true}
+    kind: {type: enum_or_string, values: [stdout, stderr, screenshot, video, trace, report, source, attachment], required: true}
+    encrypted_storage_reference: {type: client_ciphertext, required: true}
+    content_hash: {type: sha256_hex, required: true}
+    thumbnail_reference: {type: client_ciphertext_or_null, nullable: true}
+
+  DeterministicResult:
+    deterministic_result_id: {type: stable_id, required: true}
+    run_id: {type: stable_id, required: true, constraints: {one_to_one_with_check_run: true}}
+    exit_code: {type: integer_or_null, nullable: true}
+    verdict: {type: enum, values: [passed, failed, error], required: true}
+    constraints: {type: result_status_mapping, required: true, constraints: {passed_maps_to_run_passed: true, failed_maps_to_run_failed: true, error_maps_to_run_error: true}}
+
+  TestCatalogEntry:
+    catalog_entry_id: {type: stable_id, required: true}
+    repository_ref: {type: encrypted_repository_reference, required: true}
+    source_path: {type: encrypted_string, required: true}
+    framework: {type: enum_or_string, required: true}
+    discovered_test_count: {type: integer, required: true}
+    materialized_check_ids: {type: stable_id_list, nullable: true}
+
+  AiEvaluationResult:
+    evaluation_result_id: {type: stable_id, required: true}
+    run_id: {type: stable_id, required: true, constraints: {one_to_one_with_check_run: true}}
+    evaluator_model: {type: model_id, required: true}
+    evaluator_model_version: {type: model_version, required: true}
+    evaluator_instruction_hash: {type: sha256_hex, required: true}
+    rubric_hash: {type: sha256_hex, required: true}
+    input_revision: {type: immutable_revision_reference, required: true, constraints: {must_equal_check_run_subject_revision: true}}
+    verdict: {type: enum, values: [passed, failed, error], required: true}
+    score: {type: integer, required: true, constraints: {minimum: 0, maximum: 100}}
+    threshold: {type: integer, required: true, constraints: {minimum: 0, maximum: 100}}
+    criteria_scores: {type: structured_score_list, required: true}
+    encrypted_feedback: {type: client_ciphertext, required: true}
+    encrypted_required_fixes: {type: client_ciphertext, nullable: true}
+    constraints: {type: result_status_mapping, required: true, constraints: {passed_maps_to_run_passed: true, failed_maps_to_run_failed: true, error_maps_to_run_error: true}}
+
+  HumanConfirmationResult:
+    confirmation_result_id: {type: stable_id, required: true}
+    run_id: {type: stable_id, required: true, constraints: {one_to_one_with_check_run: true}}
+    subject_revision: {type: immutable_revision_reference, required: true, constraints: {must_equal_check_run_subject_revision: true}}
+    confirmer_hash: {type: hashed_actor_id, required: true}
+    decision: {type: enum, values: [confirmed, rejected, blocked, waived], required: true}
+    confirmed_at: {type: timestamp, required: true}
+    encrypted_note: {type: client_ciphertext, nullable: true}
+    constraints: {type: result_status_mapping, required: true, constraints: {confirmed_maps_to_run_passed: true, rejected_maps_to_run_failed: true, blocked_maps_to_run_blocked: true, waived_maps_to_run_waived: true}}
+
+assertions:
+  - id: checks.definition.reusable-revisioned
+    type: invariant
+    must: A Check is an independent reusable definition with immutable revisions and explicit covered claims; a Run never mutates the definition it executed.
+    depends_on: [models.CheckDefinition, models.CheckRevision, examples.check_reuse]
+  - id: checks.catalog.lazy-materialization
+    type: behavior
+    must: Repository tests are indexed in a searchable catalog, but a Check record is materialized only when a user or agent explicitly creates one or when a Plan, Contract rule, or Project promotes a catalog entry.
+    depends_on: [models.TestCatalogEntry, examples.test_catalog]
+  - id: checks.runs.revision-bound
+    type: invariant
+    must: Every Check Run identifies the exact Check revision and exact subject revision; proof becomes stale when either materially changes and old Runs remain visible only as history.
+    depends_on: [models.CheckRun, examples.check_runs]
+  - id: checks.types.explicit
+    type: behavior
+    must: Deterministic, AI evaluation, and human confirmation are distinct Check types with type-appropriate definitions, execution, results, and failure states.
+    depends_on: [models.CheckDefinition.kind, examples.check_types]
+  - id: checks.ai.structured-bounded
+    type: invariant
+    must: AI evaluation binds model, evaluator instructions, rubric, input revision, score threshold, criteria scores, verdict, feedback, and required fixes; it cannot substitute for deterministic proof where exact behavior is testable.
+    depends_on: [models.CheckRun, models.AiEvaluationResult, examples.ai_evaluation]
+  - id: checks.human.explicit-confirmation
+    type: behavior
+    must: Physical-device, subjective-approval, and inaccessible-external-system claims may require a named human confirmation result with timestamp, decision, optional note, and visible blocking or waiver state.
+    depends_on: [models.CheckRun, models.HumanConfirmationResult, examples.human_confirmation]
+  - id: checks.artifacts.private-traceable
+    type: privacy
+    must: Run output and artifact references remain client-encrypted, hash-bound, access-controlled, and traceable to one Run; previews expose only authorized thumbnails and safe status metadata.
+    depends_on: [models.CheckArtifact, examples.check_artifacts]
+  - id: checks.project.encrypted-embed
+    type: behavior
+    must: Materialized Checks appear in Projects as preview/fullscreen embeds with type, covered claims, latest result, stale state, run history, source, artifacts, and context-appropriate actions.
+    depends_on: [models.CheckDefinition, examples.check_project_embed, surfaces.gui]
+  - id: checks.surface.semantic-parity
+    type: parity
+    must: REST, CLI, SDK, and web preserve the same Check definitions, revisions, run provenance, type semantics, artifacts, links, and visible failures wherever Check operations are exposed.
+    depends_on: [models, examples, surfaces]
+
+surfaces:
+  rest_api:
+    required: true
+    role: First-party authenticated routes persist encrypted definitions, immutable Runs, artifact metadata, catalog promotions, and authorization state; runners use scoped execution grants.
+  cli:
+    required: true
+    parity: semantic
+    requirements:
+      - Search the test catalog, create or promote Checks, execute supported Checks, watch Runs, and print structured results.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+        requirements:
+          - id: checks.gui.preview
+            elements: [title, type, latest_status, covered_claims_summary, last_run_time, stale_indicator]
+            interactions: [open_fullscreen, run_again_when_authorized]
+          - id: checks.gui.fullscreen
+            elements: [definition, covered_claims, source, latest_result, run_history, artifacts, evaluator_or_confirmer_details]
+            interactions: [run, cancel, open_artifact, open_evaluator_sub_chat, confirm_or_reject_human_check, promote_catalog_entry]
+            states: [draft, ready, queued, running, passed, failed, error, stale, blocked, waived]
+            accessibility: [status_text_not_color_only, artifact_labels, keyboard_run_history, confirmation_actor_and_time_announced]
+            responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
+            design_references: optional
+      apple: {required: false}
+    exceptions:
+      - id: apple-check-authoring-deferred
+        implementation: apple
+        reason: Rich Check authoring and runner artifacts start on web after shared contracts stabilize.
+        equivalent_outcome: Apple must preserve Check status, provenance, human confirmation, and accessible artifact viewing when implemented.
+
+examples:
+  file: examples.yml
+  required_groups: [check_reuse, test_catalog, check_runs, check_types, ai_evaluation, human_confirmation, check_artifacts, check_project_embed, check_surface_parity]

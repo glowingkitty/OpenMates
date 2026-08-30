@@ -1,0 +1,163 @@
+schema_version: 1
+id: feature.contracts
+version: 1
+status: draft
+title: Contracts
+summary: >
+  Contracts are versioned, approval-bound definitions of durable product truth.
+  They describe capability rules, domain states, user flows, and equivalent
+  behavior across interfaces without becoming implementation plans or test logs.
+
+purpose:
+  outcomes:
+    - Give users and agents one durable source for what a capability must do.
+    - Make UI, API, CLI, SDK, privacy, and accessibility obligations traceable to stable rules.
+    - Let Projects display Contracts as encrypted, editable file-like embeds with reviewable revisions.
+
+scope:
+  includes:
+    - Contract identity, purpose, scope, actors, concepts, states, models, stable rules, user-flow examples, surface requirements, relationships, revisions, and approvals.
+    - Capability-first composition with optional links to independently reusable or independently versioned Contracts.
+    - Structured GUI requirements for elements, interactions, states, accessibility, responsive behavior, and optional Figma or Penpot references.
+    - Project-linked Contract preview and fullscreen embed experiences with draft editing, revision comparison, approval, coverage, and history.
+    - Links from Plans, Checks, documentation, implementation sources, and other Contracts to exact Contract revisions or rule ids.
+    - Client-encrypted private Contract content and minimal server-visible identity, revision, approval, routing, and relationship metadata.
+  excludes:
+    - Implementation Tasks, execution scheduling, Check Run output, and mutable work progress.
+    - Requiring a separate Contract for every screen, component, user-flow step, or visual state.
+    - Treating Figma, Penpot, source code, tests, or user guides as replacements for approved product truth.
+    - Pixel geometry, decorative styling, or transient implementation details unless they are required for accessibility or behavior.
+
+relationships:
+  composition_rule: >
+    Keep related capability behavior, including its UI flows, in one primary
+    Contract. Link a sub-Contract only when the behavior is reused by multiple
+    capabilities, has an independent lifecycle or approval boundary, or would
+    otherwise make ownership materially ambiguous.
+  related_contracts:
+    - feature.projects
+    - feature.plans
+    - feature.checks
+
+actors:
+  - id: contract_author
+    role: Creates and refines a draft Contract revision.
+  - id: contract_approver
+    role: Approves an exact immutable revision after reviewing its material rules.
+  - id: implementer
+    role: Uses approved rules and surface requirements while executing a linked Plan.
+  - id: product_user
+    role: Reads understandable behavior and flow descriptions without needing source code or YAML knowledge.
+
+models:
+  ContractRecord:
+    contract_id: {type: stable_id, required: true}
+    current_revision_id: {type: stable_id, required: true}
+    status: {type: enum, values: [draft, approved, superseded, archived], required: true}
+    linked_project_hashes: {type: hashed_id_list, nullable: true}
+    encrypted_title: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+    encrypted_summary: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+
+  ContractRevision:
+    revision_id: {type: stable_id, required: true}
+    revision_number: {type: integer, required: true, constraints: {monotonic: true}}
+    content_hash: {type: sha256_hex, required: true}
+    approval_state: {type: enum, values: [draft, approved, rejected, superseded], required: true}
+    supersedes_revision_id: {type: stable_id_or_null, nullable: true}
+    encrypted_contract_document: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+
+  ContractRule:
+    rule_id: {type: stable_semantic_id, required: true}
+    category: {type: enum, values: [behavior, invariant, privacy, security, accessibility, parity], required: true}
+    importance: {type: enum, values: [required, recommended], required: true}
+    encrypted_statement: {type: client_ciphertext, required: true, constraints: {human_readable: true}}
+
+  ContractSurfaceRequirement:
+    requirement_id: {type: stable_semantic_id, required: true}
+    surface: {type: enum, values: [rest_api, cli, sdk_npm, sdk_pip, gui_web, gui_apple], required: true}
+    rule_ids: {type: stable_id_list, required: true}
+    elements: {type: encrypted_structured_list, nullable: true}
+    interactions: {type: encrypted_structured_list, nullable: true}
+    states: {type: encrypted_structured_list, nullable: true}
+    accessibility: {type: encrypted_structured_list, nullable: true}
+    responsive_behavior: {type: encrypted_structured_list, nullable: true}
+    design_references: {type: encrypted_reference_list, nullable: true, constraints: {optional: true, providers: [figma, penpot, image, project_embed]}}
+
+  ContractLink:
+    relation: {type: enum, values: [requires, extends, governs, implements, verifies, documents, supersedes], required: true}
+    target_type: {type: enum, values: [contract, contract_rule, plan, check, project, source, documentation], required: true}
+    target_id: {type: encrypted_or_hashed_reference, required: true}
+    target_revision: {type: revision_or_hash_or_null, nullable: true}
+
+assertions:
+  - id: contracts.definition.durable-truth
+    type: invariant
+    must: A Contract defines durable product truth through stable rules and flows; it never owns implementation Tasks, execution progress, or Check Run results.
+    depends_on: [models.ContractRule, examples.contract_boundaries]
+  - id: contracts.revision.exact-approval
+    type: invariant
+    must: Approval binds an immutable Contract revision and content hash; later material edits create a new draft revision and cannot inherit approval from superseded content.
+    depends_on: [models.ContractRevision, examples.contract_revisions]
+  - id: contracts.composition.capability-first
+    type: behavior
+    must: One primary capability Contract contains its related domain and UI flows; sub-Contracts are linked only for independently reusable, independently versioned, or independently approved behavior, never merely because a feature has several screens.
+    depends_on: [examples.contract_composition]
+  - id: contracts.ui.structured-interactions
+    type: behavior
+    must: GUI obligations can describe named elements, interactions, visible states, accessibility, responsive behavior, and optional design references while preserving surface-neutral canonical rules and usable behavior when no design artboard exists.
+    depends_on: [models.ContractSurfaceRequirement, examples.contract_ui_requirements, surfaces.gui]
+  - id: contracts.project.encrypted-embed
+    type: privacy
+    must: Contracts appear in Projects as client-encrypted preview/fullscreen embeds with readable sections, edit and approval state, revision history, linked coverage, and no durable plaintext private Contract content.
+    depends_on: [models.ContractRecord, models.ContractRevision, examples.contract_project_embed]
+  - id: contracts.links.revision-traceable
+    type: invariant
+    must: Plans, Checks, sources, documentation, and related Contracts link to exact Contract revisions or stable rule ids so changes and stale proof can be identified without copying Contract text.
+    depends_on: [models.ContractLink, examples.contract_links]
+  - id: contracts.surface.semantic-parity
+    type: parity
+    must: REST, CLI, SDK, web, and later Apple surfaces preserve the same revision, approval, composition, linking, encryption, and visible-failure semantics wherever Contract operations are exposed.
+    depends_on: [models, examples, surfaces]
+
+surfaces:
+  rest_api:
+    required: true
+    role: First-party authenticated routes persist encrypted Contract records, immutable revisions, approvals, relationships, and safe routing metadata without decrypting private content.
+  cli:
+    required: true
+    parity: semantic
+    requirements:
+      - Create, inspect, revise, link, validate, and request approval for Contracts without requiring users to edit raw YAML.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+        requirements:
+          - id: contracts.gui.preview
+            elements: [title, status, version, scope_summary, coverage_summary]
+            interactions: [open_fullscreen]
+            states: [draft, approved, superseded, stale_coverage, loading, error]
+          - id: contracts.gui.fullscreen
+            elements: [header, overview, rules, user_flows, surfaces, coverage, history, approve_action]
+            interactions: [edit_draft, undo_unsaved_changes, compare_revisions, approve_exact_revision, open_linked_check]
+            accessibility: [keyboard_reachable_sections, semantic_headings, announced_approval_state, non_color_status_labels]
+            responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
+            design_references: optional
+      apple: {required: false}
+    exceptions:
+      - id: apple-contract-editor-deferred
+        implementation: apple
+        reason: Contract authoring starts with REST, CLI, SDK, and web; Apple may initially provide read-only Contract detail.
+        equivalent_outcome: Apple must preserve the same readable rules, revision identity, approval state, and links when implemented.
+
+examples:
+  file: examples.yml
+  required_groups: [contract_boundaries, contract_revisions, contract_composition, contract_ui_requirements, contract_project_embed, contract_links, contract_surface_parity]

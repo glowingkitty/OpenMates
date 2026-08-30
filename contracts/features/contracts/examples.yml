@@ -1,0 +1,63 @@
+schema_version: 1
+contract: feature.contracts@1
+
+contract_boundaries:
+  - id: contract-is-not-a-plan
+    input: {record: feature.teams, contains: [purpose, rules, flows, surfaces]}
+    expect: {tasks: absent, execution_progress: absent, check_run_logs: absent}
+  - id: plan-references-contract
+    input: {plan: add_team_invites, contract_rule: teams.invites.fragment-key-web-flow}
+    expect: {rule_text_copied_into_plan: false, exact_rule_reference_present: true}
+
+contract_revisions:
+  - id: approve-exact-revision
+    input: {contract: feature.teams, revision: 4, content_hash: hash-4}
+    expect: {revision_4_approved: true, editable_in_place: false}
+  - id: edit-approved-contract
+    input: {contract: feature.teams, approved_revision: 4, edit: add_viewer_permission}
+    expect: {new_revision: 5, revision_5_state: draft, revision_4_unchanged: true}
+
+contract_composition:
+  - id: teams-ui-stays-in-teams
+    input: {capability: teams, flows: [create_team, invite_member, switch_context, team_chat]}
+    expect: {primary_contract: feature.teams, one_contract_per_screen: false}
+  - id: shared-auth-remains-linked
+    input: {capability: teams, dependency: authentication}
+    expect: {linked_contract: feature.auth, copied_auth_contract: false}
+  - id: split-independent-subsystem
+    input: {capability: teams, subsystem: enterprise_sso, independent_release_and_approval: true}
+    expect: {subcontract_allowed: true, parent_contract_link_required: true}
+
+contract_ui_requirements:
+  - id: ui-without-artboard
+    input:
+      rule: contracts.ui.structured-interactions
+      elements: [plan_header, approve_button, undo_button]
+      interactions: [edit_plan, undo_edit, approve_revision]
+      states: [unchanged_draft, edited_draft, saving, approved, error]
+      design_reference: omitted
+    expect: {implementable_without_artboard: true, missing_design_reference_error: false}
+  - id: ui-with-figma
+    input: {same_requirements_as: ui-without-artboard, design_reference: 'figma://<PLACEHOLDER>/frame/<FRAME_ID>'}
+    expect: {logical_requirements_unchanged: true, visual_reference_available: true}
+
+contract_project_embed:
+  - id: contract-preview-in-project
+    input: {project: project-1, item: feature.teams, viewport: laptop}
+    expect: {preview_visible: true, title_visible: true, approval_state_visible: true, opens_fullscreen: true}
+  - id: compact-contract-detail
+    input: {project: project-1, item: feature.teams, viewport: phone}
+    expect: {fullscreen_overlay: true, all_primary_actions_reachable: true, horizontal_overflow: false}
+
+contract_links:
+  - id: check-links-rule-and-revision
+    input: {check: teams-viewer-read-only, contract: feature.teams, revision: 4, rule: teams.membership.role-gated}
+    expect: {stale_when_rule_changes: true, copied_rule_text_required: false}
+  - id: documentation-links-rule
+    input: {guide: teams-user-guide, rule: teams.context.full-switch-local}
+    expect: {claim_traceable: true, tutorial_prose_owned_by_contract: false}
+
+contract_surface_parity:
+  - id: same-approval-semantics
+    input: {operation: approve_revision, surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web]}
+    expect: {exact_hash_required: true, stale_revision_rejected: true, visible_failure: true}

@@ -15316,6 +15316,134 @@ assertions:
         - *id1777
         supporting_tests: []
     current_direct_proof: false
+  checks.definition.reusable-revisioned:
+    contract: feature.checks@1
+    fingerprint: dc6560a6ba3ee334348ad30f5e31c977e4a0e3453df885fd957f6d235fb7f423
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.catalog.lazy-materialization:
+    contract: feature.checks@1
+    fingerprint: ec418e1beff80b59f3f395d37404cd59256f3dd16bdd2cefa6b94a291e389967
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.runs.revision-bound:
+    contract: feature.checks@1
+    fingerprint: 64288cdc63f4177b2fb83dc99b3ef007edeca77518aee1ff9f79f16a12fd3f31
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.types.explicit:
+    contract: feature.checks@1
+    fingerprint: a057eb943635ca6b12b21ac0f60507ab55a7b51f52372d82db78f239fb54d8d3
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.ai.structured-bounded:
+    contract: feature.checks@1
+    fingerprint: a4e1f7a851404d75c4bab7846c9cab011f153a7ef0f87cff2fe05cc16b76aeb5
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.human.explicit-confirmation:
+    contract: feature.checks@1
+    fingerprint: 8f5a1a9ab30c567112d6b5bad305dd371b071359e2aab3e9c3ee753d800557d6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.artifacts.private-traceable:
+    contract: feature.checks@1
+    fingerprint: b689a05ab255431db48bb574be73722b18540c72c3a1ac30cc07fd23967690d9
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.project.encrypted-embed:
+    contract: feature.checks@1
+    fingerprint: b3a350e45a91eb489e7b0d381d3f6054f613ff63044534c0b79b78a0d66eedd5
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.surface.semantic-parity:
+    contract: feature.checks@1
+    fingerprint: 989d8fe25e09d5309b50a6c8b6ac5b5b0304f911fe3c29cbca37c648f8d80de0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.definition.durable-truth:
+    contract: feature.contracts@1
+    fingerprint: 3196bf97df40278ad676beb3606a567149f474908ca08bb75faf898962ce39b9
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.revision.exact-approval:
+    contract: feature.contracts@1
+    fingerprint: ac6bc3a964cd4cd2979220f10fc603661325cfccdb2e6b9d7bb5f8836f611d38
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.composition.capability-first:
+    contract: feature.contracts@1
+    fingerprint: 7befe2862634632299e398b42926d95a298a0b50fb2d03c297e646652476def1
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.ui.structured-interactions:
+    contract: feature.contracts@1
+    fingerprint: f150db22606e8874e402adf7e3a85e65c0c23357c48099769b381b502f9b9ebe
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.project.encrypted-embed:
+    contract: feature.contracts@1
+    fingerprint: 066591bca8a546ee1ed613b7ca5aaaf0925b41cefb32f72a061c48da59f8c7ec
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.links.revision-traceable:
+    contract: feature.contracts@1
+    fingerprint: 6782dd23a12712fb9a31f9ead22ee557c6d72e9aae20fe5e39ce1087d2fc97d6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.surface.semantic-parity:
+    contract: feature.contracts@1
+    fingerprint: 80960b1b8a61b160615e230d88c18933ee52d03ce527a218ae474e64382d8fc8
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   daily-inspiration.authenticated-continuity:
     contract: feature.daily-inspiration@1
     fingerprint: ec8361dad848aa2c0f861b0558dd5de8b8f53877da5f02ebfe28452364eec0f7
