@@ -10203,7 +10203,7 @@ assertions:
       surface: gui.web
     - &id1130
       path: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
-      line: 116
+      line: 117
       name: 'settings buy credits: completes Stripe Managed Payments (Checkout Session)
         flow without page reload'
       surface: gui.web
@@ -10990,7 +10990,7 @@ assertions:
       surface: gui.web
     - &id1264
       path: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
-      line: 116
+      line: 117
       name: 'settings buy credits: completes Stripe Managed Payments (Checkout Session)
         flow without page reload'
       surface: gui.web
@@ -11333,7 +11333,7 @@ assertions:
       surface: gui.web
     - &id1280
       path: frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
-      line: 116
+      line: 117
       name: 'settings buy credits: completes Stripe Managed Payments (Checkout Session)
         flow without page reload'
       surface: gui.web
