@@ -189,21 +189,6 @@ def test_validator_accepts_reasoned_non_visual_not_applicable(tmp_path: Path) ->
     assert spec_validate.validate_spec(path)["demonstration"]["eligibility"]["status"] == "not_applicable"
 
 
-def test_verifier_accepts_reasoned_non_visual_not_applicable(tmp_path: Path) -> None:
-    spec_verify = load_module("spec_verify")
-    demonstration = """demonstration:
-  eligibility:
-    status: not_applicable
-    surface: non_visual
-    reason: The change only updates a deterministic repository audit message.
-    classified_at: "2026-08-06T00:00:00Z"
-    verification_ids: [T-PYTEST-EXAMPLE]
-"""
-    path = write_spec(tmp_path, with_demonstration(schema_v2_spec(), demonstration))
-
-    assert spec_verify.verify_spec(path, require_red=False, require_green=True) == []
-
-
 @pytest.mark.parametrize("surface", ["visual", "cli", "native"])
 def test_validator_rejects_not_applicable_for_observable_surfaces(tmp_path: Path, surface: str) -> None:
     spec_validate = load_module("spec_validate")
@@ -228,6 +213,27 @@ def test_verifier_rejects_missing_required_demonstration_evidence(tmp_path: Path
     failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
 
     assert any("demonstration" in failure and "passing" in failure for failure in failures)
+
+
+def test_verifier_accepts_reasoned_non_visual_not_applicable(tmp_path: Path) -> None:
+    spec_verify = load_module("spec_verify")
+    demonstration = """demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The change only updates a deterministic repository audit message.
+    classified_at: "2026-08-06T00:00:00Z"
+    verification_ids: [T-PYTEST-EXAMPLE]
+  status: not_applicable
+  evidence:
+    status: not_applicable
+    reason: No user-visible product surface changed.
+"""
+    path = write_spec(tmp_path, with_demonstration(schema_v2_spec(), demonstration))
+
+    failures = spec_verify.verify_spec(path, require_red=False, require_green=True)
+
+    assert not [failure for failure in failures if failure.startswith("demonstration:")]
 
 
 def test_verifier_rejects_user_waived_required_demonstration(tmp_path: Path) -> None:

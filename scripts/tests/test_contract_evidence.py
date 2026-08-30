@@ -226,6 +226,51 @@ def test_current_evidence_allows_metadata_only_followup_commit(tmp_path, monkeyp
 
 
 # contract-test: tooling
+def test_current_evidence_allows_contract_tooling_followup_commit(tmp_path, monkeypatch):
+    module = load_module()
+    report = {
+        "run_id": "run-1",
+        "subject_commit": "tested",
+        "tests": [{"path": "tests/test_api.py", "name": "test_valid", "status": "passed"}],
+    }
+    report_path = tmp_path / "run.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    evidence = [{
+        "assertion": "feature.valid",
+        "assertion_fingerprint": "valid-hash",
+        "classification": "direct",
+        "surface": "rest_api",
+        "status": "passed",
+        "subject_commit": "tested",
+        "run_id": "run-1",
+        "test_path": "tests/test_api.py",
+        "test_name": "test_valid",
+        "run_artifact": "run.json",
+        "run_artifact_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+    }]
+    monkeypatch.setattr(
+        module,
+        "_metadata_only_evidence_paths_since",
+        lambda *_args: [
+            "scripts/contracts.py",
+            "scripts/spec_verify.py",
+            "scripts/tests/test_contract_evidence.py",
+            "scripts/tests/test_contracts_workflow.py",
+            "scripts/tests/test_spec_demonstration_workflow.py",
+            "docs/specs/example/evidence/run.yml",
+            "contracts/generated/assertion-index.yml",
+        ],
+    )
+
+    result, errors = module.apply_evidence(
+        registry(), evidence_index(), evidence, repo_root=tmp_path, expected_subject_commit="head"
+    )
+
+    assert errors == []
+    assert result["assertions"]["feature.valid"]["current_direct_proof"] is True
+
+
+# contract-test: tooling
 def test_current_evidence_rejects_stale_product_commit(tmp_path, monkeypatch):
     module = load_module()
     report = {

@@ -8,6 +8,7 @@ Architecture: docs/specs/contract-driven-development/spec.yml
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sys
@@ -180,6 +181,63 @@ def test_coverage_keeps_inventory_mapping_proof_and_surfaces_separate(tmp_path):
     assert coverage["assertions_with_tests"] == 0
     assert coverage["assertions_with_current_proof"] == 0
     assert coverage["surface_parity"]["rest_api"]["required"] == 1
+
+
+# contract-test: tooling
+def test_generate_contract_artifacts_replays_spec_evidence_files(tmp_path, monkeypatch):
+    module = load_module()
+    contracts_root = tmp_path / "contracts"
+    write_bundle(contracts_root)
+    monkeypatch.setattr(module, "_git_head", lambda _root: "head123")
+    test_path = tmp_path / "tests" / "test_api.py"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text(
+        "# contract-test: direct surface=rest_api assertions=web-search.request.validated\n"
+        "def test_valid():\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+    report_path = tmp_path / "docs" / "specs" / "example" / "evidence" / "report.json"
+    report_path.parent.mkdir(parents=True)
+    report = {
+        "run_id": "run-1",
+        "subject_commit": "head123",
+        "tests": [{"path": "tests/test_api.py", "name": "test_valid", "status": "passed"}],
+    }
+    report_path.write_text(json.dumps(report, sort_keys=True), encoding="utf-8")
+    fingerprint = module.build_registry(contracts_root)["assertions"]["web-search.request.validated"]["fingerprint"]
+    (report_path.parent / "evidence.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "evidence": [
+                    {
+                        "assertion": "web-search.request.validated",
+                        "assertion_fingerprint": fingerprint,
+                        "classification": "direct",
+                        "surface": "rest_api",
+                        "status": "passed",
+                        "subject_commit": "head123",
+                        "run_id": "run-1",
+                        "test_path": "tests/test_api.py",
+                        "test_name": "test_valid",
+                        "run_artifact": "docs/specs/example/evidence/report.json",
+                        "run_artifact_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    module.generate_contract_artifacts(tmp_path)
+
+    index = yaml.safe_load((contracts_root / "generated" / "assertion-index.yml").read_text(encoding="utf-8"))
+    surface = index["assertions"]["web-search.request.validated"]["surfaces"]["rest_api"]
+    assert index["assertions"]["web-search.request.validated"]["current_direct_proof"] is True
+    assert surface["current_direct_proof"] is True
+    assert surface["evidence_history"][0]["run_id"] == "run-1"
 
 
 # contract-test: tooling

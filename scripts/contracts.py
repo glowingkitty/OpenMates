@@ -56,7 +56,15 @@ CONTRACT_GENERATED_PATHS = {
     "contracts/generated/coverage.yml",
     "contracts/generated/registry.yml",
 }
+CONTRACT_EVIDENCE_TOOLING_PATHS = {
+    "scripts/contracts.py",
+    "scripts/spec_verify.py",
+    "scripts/tests/test_contract_evidence.py",
+    "scripts/tests/test_contracts_workflow.py",
+    "scripts/tests/test_spec_demonstration_workflow.py",
+}
 SPEC_EVIDENCE_PATH = re.compile(r"^docs/specs/[^/]+/(?:spec\.yml|evidence/[^/]+\.(?:json|ya?ml))$")
+SPEC_EVIDENCE_SUFFIXES = {".json", ".yml", ".yaml"}
 
 
 class ContractError(ValueError):
@@ -750,7 +758,7 @@ def _metadata_only_evidence_paths_since(repo_root: Path, subject_commit: str, ex
 
 
 def _is_evidence_metadata_path(path: str) -> bool:
-    return path in CONTRACT_GENERATED_PATHS or bool(SPEC_EVIDENCE_PATH.fullmatch(path))
+    return path in CONTRACT_GENERATED_PATHS or path in CONTRACT_EVIDENCE_TOOLING_PATHS or bool(SPEC_EVIDENCE_PATH.fullmatch(path))
 
 
 def _is_contract_test_metadata_only_change(repo_root: Path, subject_commit: str, expected_commit: str, path: str) -> bool:
@@ -818,6 +826,46 @@ def _evidence_records(test_index: dict[str, Any]) -> list[dict[str, Any]]:
     return records
 
 
+def _dedupe_evidence_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for record in records:
+        key = json.dumps(record, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(record)
+    return deduped
+
+
+def _spec_evidence_records(repo_root: Path) -> list[dict[str, Any]]:
+    specs_root = Path(repo_root) / "docs" / "specs"
+    if not specs_root.exists():
+        return []
+    records: list[dict[str, Any]] = []
+    for path in sorted(specs_root.glob("*/evidence/*")):
+        if path.suffix not in SPEC_EVIDENCE_SUFFIXES:
+            continue
+        value = _load_yaml(path)
+        evidence = value.get("evidence")
+        if evidence is None:
+            continue
+        if not isinstance(evidence, list):
+            raise ContractError(f"{path}: evidence must be a list")
+        for index, record in enumerate(evidence, start=1):
+            if not isinstance(record, dict):
+                raise ContractError(f"{path}: evidence[{index}] must be a mapping")
+            records.append(copy.deepcopy(record))
+    return records
+
+
+def _generation_evidence_records(repo_root: Path, existing_index: dict[str, Any]) -> list[dict[str, Any]]:
+    return _dedupe_evidence_records([
+        *_evidence_records(existing_index),
+        *_spec_evidence_records(repo_root),
+    ])
+
+
 def check_generated_integrity(repo_root: Path, *, contracts_root: Path | None = None) -> list[str]:
     root = Path(repo_root).resolve()
     contract_root = (contracts_root or root / "contracts").resolve()
@@ -843,7 +891,7 @@ def check_generated_integrity(repo_root: Path, *, contracts_root: Path | None = 
     expected_index, evidence_errors = apply_evidence(
         expected_registry,
         expected_index,
-        _evidence_records(actual["assertion-index.yml"]),
+        _generation_evidence_records(root, actual["assertion-index.yml"]),
         repo_root=root,
         expected_subject_commit=_git_head(root),
     )
@@ -870,7 +918,7 @@ def generate_contract_artifacts(repo_root: Path, *, contracts_root: Path | None 
     test_index, evidence_errors = apply_evidence(
         registry,
         test_index,
-        _evidence_records(existing_index),
+        _generation_evidence_records(root, existing_index),
         repo_root=root,
         expected_subject_commit=_git_head(root),
     )

@@ -196,6 +196,10 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
         return ["demonstration: every implemented executable spec requires embedded proof-video evidence"]
     eligibility = demonstration.get("eligibility")
     if isinstance(eligibility, dict) and eligibility.get("status") == "not_applicable":
+        if not isinstance(eligibility.get("reason"), str) or not eligibility["reason"].strip():
+            return ["demonstration: not_applicable eligibility requires a reason"]
+        if eligibility.get("surface") != "non_visual":
+            return ["demonstration: not_applicable eligibility requires non_visual surface"]
         return []
     if not isinstance(eligibility, dict) or eligibility.get("status") != "required":
         return ["demonstration: implemented executable specs cannot complete without required proof-video evidence"]
