@@ -491,6 +491,20 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		.first();
 	await expect(latestManagedInvoice).toBeVisible({ timeout: 10000 });
 
+	const documentDownloadButton = latestManagedInvoice.getByRole('button', {
+		name: /payment confirmation/i
+	});
+	await expect(documentDownloadButton).toBeVisible({ timeout: 10000 });
+	await expect(documentDownloadButton).toBeEnabled({ timeout: 10000 });
+	const documentDownloadPromise = page.waitForEvent('download', { timeout: 120000 });
+	await documentDownloadButton.click();
+	const documentDownload = await documentDownloadPromise;
+	expect(await documentDownload.failure(), 'Managed payment confirmation download must succeed').toBeNull();
+	expect(documentDownload.suggestedFilename()).toMatch(/payment_confirmation.*\.pdf$/i);
+	log('Managed payment confirmation downloaded successfully.', {
+		filename: documentDownload.suggestedFilename()
+	});
+
 	const refundButton = latestManagedInvoice.getByRole('button', { name: /refund/i });
 	await expect(refundButton).toBeVisible({ timeout: 10000 });
 	await expect(refundButton).toBeEnabled({ timeout: 10000 });
