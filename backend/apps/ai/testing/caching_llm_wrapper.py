@@ -13,13 +13,11 @@
 # Architecture context: See docs/architecture/live-mock-testing.md
 
 import asyncio
-import copy
 import hashlib
 import inspect
 import importlib
 import json
 import logging
-import re
 from typing import Any, AsyncIterator, Callable, List
 
 from backend.shared.testing.api_response_cache import (
@@ -27,9 +25,13 @@ from backend.shared.testing.api_response_cache import (
     MockCacheMiss,
 )
 from backend.shared.testing.mock_context import (
+    MAX_REAL_LLM_OUTPUT_TOKENS,
+    conservative_llm_reservation_eur,
     get_mock_group,
     is_mock_active,
+    is_real_mode,
     is_record_mode,
+    reserve_real_provider_call,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,16 +52,6 @@ CHARS_PER_CHUNK = 20
 MIXED_STREAM_RESPONSE_TYPE = "mixed_stream"
 NON_STREAM_RESPONSE_TYPE = "non_stream"
 STREAM_CHUNK_FORMAT_VERSION = 1
-
-_EMBED_REF_TOKEN = r"[A-Za-z0-9][A-Za-z0-9._-]*"
-_TOOL_EMBED_REF_LINE_RE = re.compile(
-    rf"(?m)^[ \t]*(?:-[ \t]+)?embed_ref:[ \t]*(?:\"({_EMBED_REF_TOKEN})\"|'({_EMBED_REF_TOKEN})'|({_EMBED_REF_TOKEN}))[ \t]*$"
-)
-_RESULTS_VIEW_BLOCK_RE = re.compile(r"```embeds_results_view\s*\n(.*?)```", re.DOTALL)
-_RESULTS_VIEW_EMBEDS_LINE_RE = re.compile(r"(?m)^[ \t]*embeds:[ \t]*(.+?)[ \t]*$")
-_INLINE_EMBED_LINK_RE = re.compile(rf"\(embed:({_EMBED_REF_TOKEN})\)")
-_RANDOM_EMBED_REF_SUFFIX_RE = re.compile(r"[A-Za-z0-9]{3}")
-
 
 def wrap_provider_with_cache(
     provider_fn: Callable,
@@ -88,6 +80,12 @@ def wrap_provider_with_cache(
                 yield chunk
             return
 
+        if is_real_mode():
+            await _reserve_real_llm_call(kwargs, "llm")
+            async for chunk in _provider_stream(**kwargs):
+                yield chunk
+            return
+
         group_id = get_mock_group()
         model = _model_from_kwargs(kwargs)
         category = f"llm/{model}"
@@ -104,25 +102,10 @@ def wrap_provider_with_cache(
             temperature=temperature,
             tool_choice=tool_choice,
         )
-        request_summary = _build_llm_request_summary(kwargs, model)
-
-        # Try cache first
-        cached = cache.load(group_id, category, fingerprint)
-        is_compatible_fallback = False
-        if cached is None and not is_record_mode():
-            compatible_loader = getattr(cache, "load_compatible_llm_response", None)
-            if callable(compatible_loader):
-                cached = compatible_loader(
-                    group_id,
-                    category,
-                    request_summary,
-                    excluded_fingerprint=fingerprint,
-                )
-                is_compatible_fallback = cached is not None
+        # Recording always captures a fresh live response and never reads cassettes.
+        cached = None if is_record_mode() else cache.load(group_id, category, fingerprint)
         if cached is not None:
             response_data = cached.get("response", {})
-            if is_compatible_fallback:
-                response_data = _remap_compatible_fallback_embed_refs(response_data, messages)
             response_body = response_data.get("body", "")
             response_type = response_data.get("type", "stream")
 
@@ -148,6 +131,7 @@ def wrap_provider_with_cache(
             )
 
         # Record mode: call real provider, collect all chunks, save to cache
+        await _reserve_real_llm_call(kwargs, "llm")
         logger.info(
             f"[LiveMock] LLM Cache MISS (recording): {category}/{fingerprint} "
             f"— model={model}, messages={len(messages)}"
@@ -172,6 +156,10 @@ def wrap_provider_with_cache(
         if not is_mock_active():
             return await provider_fn(**kwargs)
 
+        if is_real_mode():
+            await _reserve_real_llm_call(kwargs, "llm_non_stream")
+            return await provider_fn(**kwargs)
+
         group_id = get_mock_group()
         model = _model_from_kwargs(kwargs)
         category = f"llm_non_stream/{model}"
@@ -183,18 +171,7 @@ def wrap_provider_with_cache(
             temperature=kwargs.get("temperature"),
             tool_choice=kwargs.get("tool_choice"),
         )
-        request_summary = _build_llm_request_summary(kwargs, model)
-
-        cached = cache.load(group_id, category, fingerprint)
-        if cached is None and not is_record_mode():
-            compatible_loader = getattr(cache, "load_compatible_llm_response", None)
-            if callable(compatible_loader):
-                cached = compatible_loader(
-                    group_id,
-                    category,
-                    request_summary,
-                    excluded_fingerprint=fingerprint,
-                )
+        cached = None if is_record_mode() else cache.load(group_id, category, fingerprint)
         if cached is not None:
             return _deserialize_non_stream_response(cached.get("response", {}))
 
@@ -205,6 +182,7 @@ def wrap_provider_with_cache(
                 details=f"model={model}, messages={len(messages)}",
             )
 
+        await _reserve_real_llm_call(kwargs, "llm_non_stream")
         response = await provider_fn(**kwargs)
         _save_non_stream_to_cache(cache, group_id, category, fingerprint, response, kwargs)
         return response
@@ -219,130 +197,6 @@ def wrap_provider_with_cache(
     setattr(cached_provider, "_live_mock_cache_wrapped", True)
     setattr(cached_provider, "_live_mock_original_provider", provider_fn)
     return cached_provider
-
-
-def _remap_compatible_fallback_embed_refs(response_data: Any, messages: Any) -> Any:
-    """Align fallback cassette refs with refs generated by current tool results."""
-    if not isinstance(response_data, dict):
-        return response_data
-
-    response_body = response_data.get("body")
-    if not isinstance(response_body, str):
-        return response_data
-
-    cached_refs = _extract_response_embed_refs(response_body)
-    if not cached_refs:
-        return response_data
-
-    current_refs = _extract_tool_message_embed_refs(messages)
-    replacements = _match_current_embed_refs(cached_refs, current_refs)
-    if replacements is None:
-        logger.warning(
-            "[LiveMock] Compatible LLM fallback cannot safely remap %d cached embed refs "
-            "to %d current tool refs; replaying stale refs visibly",
-            len(cached_refs),
-            len(current_refs),
-        )
-        return response_data
-
-    remapped = copy.deepcopy(response_data)
-    remapped["body"] = _replace_embed_ref_tokens(response_body, replacements)
-
-    chunks = remapped.get("chunks")
-    if isinstance(chunks, list):
-        text_chunks = [chunk for chunk in chunks if isinstance(chunk, dict) and chunk.get("kind") == "text"]
-        joined_text = "".join(str(chunk.get("value", "")) for chunk in text_chunks)
-        rewritten_text = _replace_embed_ref_tokens(joined_text, replacements)
-        offset = 0
-        for index, chunk in enumerate(text_chunks):
-            if index == len(text_chunks) - 1:
-                chunk["value"] = rewritten_text[offset:]
-                break
-            original_length = len(str(chunk.get("value", "")))
-            chunk["value"] = rewritten_text[offset:offset + original_length]
-            offset += original_length
-
-    return remapped
-
-
-def _match_current_embed_refs(cached_refs: list[str], current_refs: list[str]) -> dict[str, str] | None:
-    if len(current_refs) < len(cached_refs):
-        return None
-
-    current_refs_by_prefix: dict[str, list[str]] = {}
-    for current_ref in current_refs:
-        current_refs_by_prefix.setdefault(_stable_embed_ref_prefix(current_ref), []).append(current_ref)
-
-    replacements: dict[str, str] = {}
-    used_current_refs: set[str] = set()
-    for cached_ref in cached_refs:
-        candidates = current_refs_by_prefix.get(_stable_embed_ref_prefix(cached_ref), [])
-        if len(candidates) != 1 or candidates[0] in used_current_refs:
-            return None
-        replacements[cached_ref] = candidates[0]
-        used_current_refs.add(candidates[0])
-    return replacements
-
-
-def _stable_embed_ref_prefix(embed_ref: str) -> str:
-    prefix, separator, suffix = embed_ref.rpartition("-")
-    # A domain identifies a source, not a specific website/news result.
-    if separator and prefix and "." not in prefix and _RANDOM_EMBED_REF_SUFFIX_RE.fullmatch(suffix):
-        return prefix
-    return embed_ref
-
-
-def _extract_tool_message_embed_refs(messages: Any) -> list[str]:
-    refs: list[str] = []
-    if not isinstance(messages, list):
-        return refs
-
-    for message in messages:
-        if not isinstance(message, dict) or message.get("role") != "tool":
-            continue
-        content = message.get("content")
-        if not isinstance(content, str):
-            continue
-        for match in _TOOL_EMBED_REF_LINE_RE.finditer(content):
-            ref = next(group for group in match.groups() if group is not None)
-            if ref not in refs:
-                refs.append(ref)
-    return refs
-
-
-def _extract_response_embed_refs(response_body: str) -> list[str]:
-    matches: list[tuple[int, str]] = []
-    for block in _RESULTS_VIEW_BLOCK_RE.finditer(response_body):
-        block_body = block.group(1)
-        for embeds_line in _RESULTS_VIEW_EMBEDS_LINE_RE.finditer(block_body):
-            line_value = embeds_line.group(1)
-            line_refs = line_value.split(",")
-            if any(not re.fullmatch(_EMBED_REF_TOKEN, raw_ref.strip()) for raw_ref in line_refs):
-                logger.warning("[LiveMock] Ignoring malformed embeds_results_view refs during fallback replay")
-                continue
-            cursor = 0
-            for raw_ref in line_refs:
-                ref = raw_ref.strip()
-                ref_offset = line_value.index(ref, cursor)
-                matches.append((block.start(1) + embeds_line.start(1) + ref_offset, ref))
-                cursor = ref_offset + len(ref)
-
-    matches.extend((match.start(1), match.group(1)) for match in _INLINE_EMBED_LINK_RE.finditer(response_body))
-    refs: list[str] = []
-    for _, ref in sorted(matches):
-        if ref not in refs:
-            refs.append(ref)
-    return refs
-
-
-def _replace_embed_ref_tokens(text: str, replacements: dict[str, str]) -> str:
-    if not replacements:
-        return text
-    pattern = re.compile(
-        rf"(?<![A-Za-z0-9._-])({'|'.join(re.escape(ref) for ref in replacements)})(?![A-Za-z0-9._-])"
-    )
-    return pattern.sub(lambda match: replacements[match.group(1)], text)
-
 
 def _save_to_cache(
     cache: ApiResponseCache,
@@ -423,22 +277,13 @@ def _save_cache_entry(
     request_summary: dict[str, Any],
     response_data: dict[str, Any],
 ) -> None:
-    try:
-        cache.save(
-            group_id=group_id,
-            category=category,
-            fingerprint=fingerprint,
-            request_summary=request_summary,
-            response_data=response_data,
-        )
-    except OSError as exc:
-        logger.warning(
-            "[LiveMock] Failed to save cache entry %s/%s (group=%s): %s",
-            category,
-            fingerprint,
-            group_id,
-            exc,
-        )
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=fingerprint,
+        request_summary=request_summary,
+        response_data=response_data,
+    )
 
 
 def _deserialize_non_stream_response(response_data: Any) -> Any:
@@ -655,6 +500,35 @@ def _model_from_kwargs(kwargs: dict[str, Any]) -> str:
     """Return the provider model name regardless of the caller's parameter spelling."""
     model = kwargs.get("model") or kwargs.get("model_id") or "unknown"
     return str(model)
+
+
+async def _reserve_real_llm_call(kwargs: dict[str, Any], category_prefix: str) -> str:
+    model = _model_from_kwargs(kwargs)
+    requested_max_tokens = kwargs.get("max_tokens")
+    kwargs["max_tokens"] = min(
+        requested_max_tokens
+        if isinstance(requested_max_tokens, int) and requested_max_tokens > 0
+        else MAX_REAL_LLM_OUTPUT_TOKENS,
+        MAX_REAL_LLM_OUTPUT_TOKENS,
+    )
+    request_input_token_upper_bound = _real_request_input_token_upper_bound(kwargs)
+    reservation = conservative_llm_reservation_eur(
+        model,
+        input_token_upper_bound=request_input_token_upper_bound,
+        max_output_tokens=kwargs["max_tokens"],
+    )
+    await reserve_real_provider_call(f"{category_prefix}/{model}", reservation)
+    return model
+
+
+def _real_request_input_token_upper_bound(kwargs: dict[str, Any]) -> int:
+    return len(
+        json.dumps(
+            {"messages": kwargs.get("messages", []), "tools": kwargs.get("tools")},
+            ensure_ascii=False,
+            default=str,
+        ).encode("utf-8")
+    )
 
 
 def _build_llm_request_summary(kwargs: dict[str, Any], model: str) -> dict[str, Any]:

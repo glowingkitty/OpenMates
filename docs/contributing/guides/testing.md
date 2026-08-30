@@ -364,11 +364,7 @@ python3 scripts/tests.py run --daily --dry-run-notify
 
 Hourly/prod archives: `test-results/hourly-dev/run-*.json`, `test-results/hourly-prod/run-*.json`, `test-results/prod-paid-chat/run-*.json`, and `test-results/prod-app-skill/run-*.json` (rotated to last 7 days).
 
-Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) through a dynamic queue of up to 20 account lanes. Each active spec atomically leases a separate persistent account; a lane takes its next spec as soon as artifact collection finishes, without waiting for a batch-wide barrier. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Fail-fast stops new dispatches while allowing already-running jobs to finish.
-
-Browser phases share a read lease on the stable dev runtime. Docker restarts, rebuilds, migrations, and restores take the exclusive form of that lease. The Apple host is deliberately different: its 8 GB machine runs exactly one repository-sync/Xcode/simulator command at a time behind the host-wide Apple lock. Never create parallel simulators, concurrent native builds, or persistent per-chat Mac worktrees to increase throughput.
-
-Install or audit the checked-in dev, production-monitoring, and nightly schedule with `python3 scripts/test_schedule_setup.py --install` or `--check`. These host jobs call the private engineering wrapper only; they do not change the self-hosted images or public `openmates` CLI.
+Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of up to 20 concurrent runners, each with a separate test account. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Batch-level fail-fast: current batch finishes, then stops if any failures.
 
 Run `python3 scripts/tests.py run --spec test-account-preflight.spec.ts` to validate all 27 configured slots. In default `OPENMATES_ACCOUNT_PREFLIGHT_MODE=auto`, the runner uses `scripts/verify_test_account_login.py` when the target slots have complete local credentials; otherwise it keeps the GitHub/Playwright preflight so repository secrets can supply missing slots. The fast API preflight checks password/TOTP login, `/v1/auth/session`, and `users.account_id` without storing a CLI session. Pass `--account N` to isolate one slot. Set `OPENMATES_ACCOUNT_PREFLIGHT_MODE=api` to force the local API path, or `OPENMATES_ACCOUNT_PREFLIGHT_MODE=browser` when the web login UI itself needs browser evidence.
 
@@ -598,7 +594,16 @@ Convention: `{app}_{skill}_{context}` where context is `web`, `cli`, or a descri
 
 ### Legacy Fixture System
 
-The old `withMockMarker()` / fixture replay system still exists in `backend/apps/ai/testing/mock_replay.py` and `fixtures/` for backward compatibility. It skips the entire pipeline and replays pre-recorded Redis events. **Do not use it for new tests** — use `withLiveMockMarker()` instead.
+The old `withMockMarker()` / fixture replay system still exists in `backend/apps/ai/testing/mock_replay.py` and `fixtures/` for backward compatibility. It skips model execution and replays cached preprocessing, response, and postprocessing Redis events. The worker never runs live postprocessing after fixture replay. **Do not use it for new tests**; use `withLiveMockMarker()` instead.
+
+### Daily AI Cost Policy
+
+- `scripts/daily_ai_test_manifest.json` excludes manual, expensive, missing-cache, and canary specs from ordinary discovery.
+- Scheduled chat-driving specs must use `withMockMarker()` or `withLiveMockMarker()`; unmarked AI specs fail closed by exclusion.
+- One fixed and one UTC-rotating canary are added only for `--daily` and share the `TEST_LIVE_REAL` Dragonfly budget.
+- `--daily --record-live-fixtures` is rejected. Cache refresh is always manual.
+- Run `python3 scripts/audit_daily_ai_test_inference.py` before changing daily classification, marker helpers, or cache groups.
+- See `docs/architecture/live-mock-testing.md` for recording and promotion.
 
 ---
 

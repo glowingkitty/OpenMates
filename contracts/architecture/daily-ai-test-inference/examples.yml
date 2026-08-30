@@ -1,0 +1,73 @@
+schema_version: 1
+contract: architecture.daily-ai-test-inference@1
+
+replay_runs:
+  - id: complete-chat-replays-every-provider-phase
+    given: {mode: replay, scenario: authenticated_chat, reviewed_cache_complete: true}
+    expect:
+      local_phases_executed: [preprocess, main, tool, postprocess, translation, safety, compression, delivery, persistence]
+      real_provider_calls: 0
+      result: passed
+  - id: postprocess-cache-miss-stops-before-mistral
+    given: {mode: replay, phase: postprocess, matching_cache_entry: false}
+    expect: {provider_dispatch_started: false, result: failed, failure_class: cache_miss, phase_reported: postprocess}
+
+real_canaries:
+  - id: fixed-short-chat
+    given: {utc_day: "2026-08-30", fixed_scenarios: 1, rotating_allowlist: [tool_chat, multilingual_chat, multi_turn_chat]}
+    expect: {fixed_runs: 1, rotating_runs: 1, expensive_runs: 0, full_pipeline: true}
+  - id: rotating-selection-is-repeatable
+    given: {utc_day: "2026-08-30", rotating_allowlist: [tool_chat, multilingual_chat, multi_turn_chat]}
+    expect: {same_day_selection_stable: true, next_day_may_advance: true, retries_do_not_change_selection: true}
+  - id: semantic-output-check
+    given: {real_response_text: "A valid but nondeterministic answer", terminal_state: completed}
+    expect: {exact_text_compared: false, usable_content: true, postprocess_schema_valid: true, raw_protocol_error_visible: false}
+
+budget_enforcement:
+  - id: shared-budget-blocks-next-call
+    given: {daily_cap_eur: 0.25, reconciled_eur: 0.21, next_call_reserved_max_eur: 0.05}
+    expect: {next_call_dispatched: false, fallback_dispatched: false, run_failed: true, maximum_exceeded: false}
+  - id: concurrent-workers-reserve-atomically
+    given: {daily_cap_eur: 0.25, remaining_eur: 0.08, concurrent_reservations_eur: [0.06, 0.06]}
+    expect: {accepted_reservations: 1, rejected_reservations: 1, possible_total_above_cap: false}
+
+isolation:
+  - id: ordinary-dev-user-is-unrestricted
+    given: {environment: development, account: ordinary_user, signed_daily_run: absent}
+    expect: {daily_test_budget_consulted: false, replay_activated: false, inference_processed_normally: true}
+  - id: production-rejects-test-control
+    given: {environment: production, account: dedicated_test_account, signed_daily_run: present}
+    expect: {test_control_activated: false, cache_recording_allowed: false}
+  - id: signed-run-requires-test-account
+    given: {environment: development, account: ordinary_user, signed_daily_run: valid}
+    expect: {test_control_activated: false, failure_class: test_identity_not_allowed}
+
+cache_lifecycle:
+  - id: failed-real-run-preserves-known-good
+    given: {mode: record_candidate, real_spec_result: failed, known_good_cache: present}
+    expect: {candidate_discarded: true, known_good_modified: false, promotion: absent}
+  - id: passing-candidate-replays-before-valid
+    given: {mode: record_candidate, real_spec_result: passed, promotion_requested_manually: true}
+    expect: {promotion_atomic: true, immediate_replay_required: true, valid_after_zero_call_replay_only: true}
+  - id: scheduled-recording-forbidden
+    given: {initiator: daily_schedule, requested_mode: record_candidate}
+    expect: {recording_started: false, paid_calls: 0, failure_class: manual_recording_required}
+
+change_classification:
+  - id: selector-fix-uses-existing-cache
+    given: {changed_behavior: playwright_selector_only, replay_result: passed}
+    expect: {real_validation_required: false, cache_refresh_required: false}
+  - id: postprocessor-prompt-change-requires-real
+    given: {changed_behavior: postprocessor_prompt, replay_result: passed}
+    expect: {real_validation_required: true, candidate_promotion_required: true, replay_after_promotion_required: true}
+  - id: tool-schema-change-requires-real
+    given: {changed_behavior: external_tool_contract, replay_result: passed}
+    expect: {real_validation_required: true, exact_text_assertion_required: false}
+
+reporting:
+  - id: daily-summary-is-actionable-and-content-free
+    given:
+      available_fields: [mode, phase, provider, model, cache_key, cache_status, calls, tokens, estimated_eur, prompt, response, user_id, raw_error]
+    expect:
+      included: [mode, phase, provider, model, cache_status, calls, tokens, estimated_eur, normalized_failure_class]
+      excluded: [cache_key, prompt, response, user_id, raw_error]

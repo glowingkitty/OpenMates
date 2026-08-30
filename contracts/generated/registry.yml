@@ -19,6 +19,13 @@ contracts:
     - sdks.pip
     - gui.web
     - gui.apple
+  architecture.daily-ai-test-inference:
+    version: 1
+    status: draft
+    path: architecture/daily-ai-test-inference
+    fingerprint: 54a6af7286399b1db9064b8aa3a914d6127db3b0a2bc62c235bc94a50051aa36
+    required_surfaces:
+    - cli
   architecture.drafts:
     version: 1
     status: approved
@@ -590,6 +597,69 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  daily-ai-tests.replay.zero-paid-calls:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: invariant
+    fingerprint: fba7ba809f9292862938c991e2952e8a117439feba9f59efbe85b26c73881fba
+    required_surfaces:
+    - cli
+  daily-ai-tests.replay.cache-miss-fails-closed:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: failure
+    fingerprint: a82255af8df3a927e6ffb3881ee4800b792cefe71db9599750ca20ab75b886b8
+    required_surfaces:
+    - cli
+  daily-ai-tests.real.fixed-plus-rotating:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: behavior
+    fingerprint: 9f3e63f78cbc26def2c90830e1dce8fe839623d46299bbbe6328f8a4abb8bc3a
+    required_surfaces:
+    - cli
+  daily-ai-tests.real.semantic-signal:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: invariant
+    fingerprint: 10d38ca160f44d1a8f0d8a655ca2c56e68706cf6918f888586cb960f70c6badf
+    required_surfaces:
+    - cli
+  daily-ai-tests.budget.shared-hard-cap:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: invariant
+    fingerprint: 35579d43999dda3351d1e8e0c2c459b6d8420062fb29369f8d62785f50cf2549
+    required_surfaces:
+    - cli
+  daily-ai-tests.isolation.ordinary-inference-unchanged:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: security
+    fingerprint: e840d08ea5657eecb0b164abb8604ed6acd7a1d226515770f912386759b7f2e3
+    required_surfaces:
+    - cli
+  daily-ai-tests.cache.manual-transactional-promotion:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: invariant
+    fingerprint: e8c76d3e6e44498879959162702b444cd27e0b72e740f3ec12c99548fb0a684e
+    required_surfaces:
+    - cli
+  daily-ai-tests.validation.conditional-real-gate:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: behavior
+    fingerprint: 36659ac266978bb815bd07f76fe1a77f778d8680fe7ae96e874738c4f01f7968
+    required_surfaces:
+    - cli
+  daily-ai-tests.reporting.content-free:
+    contract: architecture.daily-ai-test-inference@1
+    contract_id: architecture.daily-ai-test-inference
+    type: privacy
+    fingerprint: a7440f8ae2669cc996ebed7cde5cc1ceb242196bab51e8967bbfa4f6318631f5
+    required_surfaces:
+    - cli
   drafts.access.first-party-encrypted:
     contract: architecture.drafts@1
     contract_id: architecture.drafts

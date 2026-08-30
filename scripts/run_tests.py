@@ -72,9 +72,11 @@ from zoneinfo import ZoneInfo
 
 try:
     from scripts import sessions as session_control
+    from scripts import daily_ai_test_policy
     from scripts.spec_demo import sweep_publications as _sweep_spec_demo_publications
 except ModuleNotFoundError:
     import sessions as session_control
+    import daily_ai_test_policy
     from spec_demo import sweep_publications as _sweep_spec_demo_publications
 
 # ---------------------------------------------------------------------------
@@ -1938,6 +1940,7 @@ class GitHubActionsClient:
         allow_credential_updates: bool = True,
         seeded_gift_card_code: Optional[str] = None,
         proof_video_profile: str = "",
+        daily_ai_run_id: str = "",
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
@@ -1952,6 +1955,7 @@ class GitHubActionsClient:
             allow_credential_updates=allow_credential_updates,
             seeded_gift_card_code=seeded_gift_card_code,
             proof_video_profile=proof_video_profile,
+            daily_ai_run_id=daily_ai_run_id,
         )
         if dispatch_token is None:
             return None
@@ -1967,6 +1971,7 @@ class GitHubActionsClient:
         allow_credential_updates: bool = True,
         seeded_gift_card_code: Optional[str] = None,
         proof_video_profile: str = "",
+        daily_ai_run_id: str = "",
     ) -> Optional[str]:
         """Submit a workflow without serially waiting for GitHub's run ID."""
         self.last_dispatch_error = None
@@ -1996,6 +2001,8 @@ class GitHubActionsClient:
             command.extend(["-f", f"seeded_gift_card_code={seeded_gift_card_code}"])
         if proof_video_profile:
             command.extend(["-f", f"proof_video_profile={proof_video_profile}"])
+        if daily_ai_run_id:
+            command.extend(["-f", f"daily_ai_run_id={daily_ai_run_id}"])
 
         self.dispatch_circuit.wait_for_mutating_request_slot()
         rc = subprocess.run(
@@ -2423,6 +2430,7 @@ class BatchRunner:
         allow_credential_updates: bool = True,
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
+        daily_ai_run_id: str = "",
         progress_callback: Optional[Callable[[SuiteResult], None]] = None,
         coordinate_accounts: bool | None = None,
     ) -> None:
@@ -2437,6 +2445,7 @@ class BatchRunner:
         self.allow_credential_updates = allow_credential_updates
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
+        self.daily_ai_run_id = daily_ai_run_id
         self.progress_callback = progress_callback
         external_account_lease_held = os.environ.get(PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV) == "1"
         self.coordinate_accounts = (
@@ -2653,6 +2662,7 @@ class BatchRunner:
                     allow_credential_updates=self.allow_credential_updates,
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                     proof_video_profile=self.proof_video_profile,
+                    daily_ai_run_id=self.daily_ai_run_id,
                 )
             else:
                 run_id = self.client.dispatch_spec(
@@ -2664,6 +2674,7 @@ class BatchRunner:
                     allow_credential_updates=self.allow_credential_updates,
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                     proof_video_profile=self.proof_video_profile,
+                    daily_ai_run_id=self.daily_ai_run_id,
                 )
                 dispatch_token = f"immediate:{run_id}" if run_id is not None else None
             circuit = getattr(self.client, "dispatch_circuit", None)
@@ -2687,6 +2698,7 @@ class BatchRunner:
                         allow_credential_updates=self.allow_credential_updates,
                         seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                         proof_video_profile=self.proof_video_profile,
+                        daily_ai_run_id=self.daily_ai_run_id,
                     )
                 else:
                     run_id = self.client.dispatch_spec(
@@ -2698,6 +2710,7 @@ class BatchRunner:
                         allow_credential_updates=self.allow_credential_updates,
                         seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                         proof_video_profile=self.proof_video_profile,
+                        daily_ai_run_id=self.daily_ai_run_id,
                     )
                     dispatch_token = f"immediate:{run_id}" if run_id is not None else None
 
@@ -7958,6 +7971,11 @@ class TestOrchestrator:
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
+            daily_ai_run_id=(
+                f"daily_canary_{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+                if getattr(self, "daily", False)
+                else ""
+            ),
             progress_callback=self._save_playwright_progress_snapshot,
             coordinate_accounts=self.account is None,
         )
@@ -8369,17 +8387,8 @@ class TestOrchestrator:
         except Exception as e:
             _log(f"merge_storage_audits failed to run: {e}", "WARN")
 
-    # Specs excluded from daily / all-spec runs.
-    # These are utility specs (e.g. account provisioning) that should only be
-    # triggered manually via --spec.
-    EXCLUDED_SPECS = {
-        "create-test-account.spec.ts",
-        PROVISION_AUTH_ACCOUNTS_SPEC,
-        "default-model-settings-proof.spec.ts",
-        "proof-audio-speech-example.spec.ts",
-        "selfhost-smoke.spec.ts",
-        ACCOUNT_PREFLIGHT_SPEC,
-    }
+    # Canonical policy also keeps costly real-inference scenarios manual-only.
+    EXCLUDED_SPECS = daily_ai_test_policy.excluded_specs()
 
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
@@ -8410,9 +8419,21 @@ class TestOrchestrator:
                 _log(f"Found {len(specs)} previously failed spec(s)")
             return specs
 
-        # All specs, minus excluded utility specs
+        # All ordinary specs, minus manual utility/proof/expensive policy entries.
         spec_files = sorted(SPEC_DIR.glob("*.spec.ts"))
-        return [f.name for f in spec_files if f.name not in self.EXCLUDED_SPECS]
+        specs = daily_ai_test_policy.discover_specs(
+            (file.name for file in spec_files), spec_dir=SPEC_DIR
+        )
+        if not self.daily:
+            return specs
+
+        canaries = daily_ai_test_policy.daily_plan(
+            (file.name for file in spec_files),
+            datetime.now(timezone.utc).date(),
+            scheduled=True,
+            record_mode=self.record_live_fixtures,
+        )
+        return [*specs, *(spec for spec in canaries.selected if spec not in specs)]
 
     def _daily_gate(self) -> bool:
         """Check if daily run should proceed. Returns False to skip."""
@@ -8677,6 +8698,9 @@ def main() -> int:
         args.suite = "playwright"
     if args.no_mocks and args.record_live_fixtures:
         _log("--record-live-fixtures requires live-mock markers; do not combine it with --no-mocks", "ERROR")
+        return 2
+    if args.daily and args.record_live_fixtures:
+        _log("--daily cannot use --record-live-fixtures; scheduled record mode is forbidden", "ERROR")
         return 2
 
     # Always source .env into the process so cron jobs (which only run via

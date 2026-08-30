@@ -66,7 +66,6 @@ from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
 from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
-from backend.apps.ai.processing.model_routing import explicit_api_model_override
 
 # Import embed service for cleanup on task failure
 from backend.core.api.app.services.embed_service import EmbedService
@@ -1144,19 +1143,6 @@ async def _async_process_ai_skill_ask_task(
                     f"skills={user_overrides.skills}, "
                     f"focus_modes={user_overrides.focus_modes}"
                 )
-
-        explicit_override = explicit_api_model_override(
-            request_data.user_preferences,
-            user_overrides.model_id if user_overrides else None,
-        )
-        if explicit_override:
-            user_overrides = user_overrides or UserOverrides()
-            user_overrides.model_id, user_overrides.model_provider = explicit_override
-            user_overrides.has_overrides = True
-            logger.info(
-                f"[Task ID: {task_id}] USER_OVERRIDE: Applied explicit API model parameter. "
-                f"model_id={user_overrides.model_id}, provider={user_overrides.model_provider}"
-            )
     except Exception as e_override:
         logger.warning(
             f"[Task ID: {task_id}] Failed to parse user overrides (non-fatal): {e_override}. "
@@ -1203,23 +1189,37 @@ async def _async_process_ai_skill_ask_task(
     # with cached record-and-replay responses. This tests everything except the parts
     # that cost money.
     # SECURITY: Only works when SERVER_ENVIRONMENT != "production" AND MOCK_EXTERNAL_APIS=true.
-    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and not _test_marker:
-        from backend.shared.testing.mock_context import detect_live_marker, strip_live_marker, activate_mock_mode
-        if request_data.message_history:
-            last_user_msg = next(
-                (m for m in reversed(request_data.message_history) if m.role == "user"),
-                None,
-            )
-            if last_user_msg:
-                _live_marker = detect_live_marker(last_user_msg.content)
-                if _live_marker:
-                    live_mode, live_group = _live_marker
-                    last_user_msg.content = strip_live_marker(last_user_msg.content)
-                    activate_mock_mode(live_mode, live_group)
-                    logger.info(
-                        f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
-                        f"group='{live_group}' — full pipeline with cached API responses"
+    _live_marker = None
+    from backend.shared.testing.mock_context import resolve_live_marker_or_raise, strip_live_marker, activate_mock_mode
+
+    if request_data.message_history:
+        last_user_msg = next(
+            (m for m in reversed(request_data.message_history) if m.role == "user"),
+            None,
+        )
+        if last_user_msg:
+            _live_marker = resolve_live_marker_or_raise(last_user_msg.content, request_data.user_id)
+            if _live_marker and _test_marker:
+                raise RuntimeError("Cannot combine TEST_MOCK/TEST_RECORD with TEST_LIVE marker")
+            if _live_marker:
+                live_mode, live_group = _live_marker
+                last_user_msg.content = strip_live_marker(last_user_msg.content)
+                candidate_root = None
+                if live_mode == "record":
+                    from pathlib import Path
+
+                    candidate_base = Path(
+                        os.getenv(
+                            "LIVE_MOCK_CANDIDATE_ROOT",
+                            "/tmp/openmates-live-mock-candidates",
+                        )
                     )
+                    candidate_root = candidate_base / task_id
+                activate_mock_mode(live_mode, live_group, candidate_root=candidate_root)
+                logger.info(
+                    f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
+                    f"group='{live_group}' — full pipeline with cached API responses"
+                )
 
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
@@ -2282,7 +2282,12 @@ async def _async_process_ai_skill_ask_task(
 
         # CRITICAL: chat_summary is required for post-processing
         # If missing, log detailed information to understand why the preprocessing LLM didn't return it
-        if preprocessing_failed or not chat_summary:
+        if _test_marker and _test_marker[0] == "mock":
+            # replay_fixture already published cached postprocessing metadata.
+            # Running the live postprocessor here duplicated that event and made
+            # multiple paid LLM calls during otherwise deterministic daily tests.
+            postprocessing_result = None
+        elif preprocessing_failed or not chat_summary:
             # Determine the specific reason for failure
             if preprocessing_failed:
                 failure_reason = (
@@ -2479,6 +2484,7 @@ async def _async_process_ai_skill_ask_task(
                 and not getattr(request_data, 'is_incognito', False)
                 and cache_service_instance
                 and secrets_manager
+                and not _live_marker
             ):
                 try:
                     from backend.core.api.app.tasks.daily_inspiration_tasks import trigger_first_run_inspirations

@@ -48,6 +48,10 @@ on:
         description: "Unique token from scripts/run_tests.py used to identify this dispatch."
         type: string
         default: ""
+      daily_ai_run_id:
+        description: "Content-free shared budget identity for the two daily AI canaries."
+        type: string
+        default: ""
       seeded_gift_card_code:
         description: "Disposable dev-only gift-card code seeded by scripts/run_tests.py for real redemption specs."
         type: string
@@ -160,12 +164,10 @@ jobs:
         with:
           ref: ${{ inputs.checkout_ref }}
           persist-credentials: false
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+      - uses: pnpm/action-setup@v4
       - name: Load selected test account credentials
         env:
           DIRECT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
@@ -396,12 +398,6 @@ jobs:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
       - name: Install Playwright browsers
         if: inputs.spec != '__cli_integration_code_docs__'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - name: Ensure Playwright browser and system dependencies
-        if: inputs.spec != '__cli_integration_code_docs__'
         run: |
           npx playwright install --with-deps chromium
           sudo apt-get update
@@ -474,9 +470,8 @@ jobs:
           PLAYWRIGHT_WORKER_SLOT: "1"
           OPENMATES_CLI_RECORD_E2E: "1"
           OPENMATES_E2E_SPEC: ${{ inputs.spec }}
-          PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile || (inputs.spec == 'proof-video-architecture.spec.ts' && 'web-laptop') || '' }}
-          PLAYWRIGHT_VIDEO_WIDTH: ${{ inputs.proof_video_profile == 'web-phone' && '390' || (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '1440' || '' }}
-          PLAYWRIGHT_VIDEO_HEIGHT: ${{ inputs.proof_video_profile == 'web-phone' && '630' || (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '900' || '' }}
+          PLAYWRIGHT_VIDEO_WIDTH: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '1440' || inputs.proof_video_profile == 'web-phone' && '390' || '' }}
+          PLAYWRIGHT_VIDEO_HEIGHT: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '900' || inputs.proof_video_profile == 'web-phone' && '844' || '' }}
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
@@ -497,6 +492,7 @@ jobs:
           E2E_RECORD_FIXTURES: ${{ inputs.record_fixtures && '1' || '' }}
           E2E_USE_LIVE_MOCKS: ${{ inputs.use_live_mocks && '1' || '' }}
           E2E_RECORD_LIVE_FIXTURES: ${{ inputs.record_live_fixtures && '1' || '' }}
+          E2E_DAILY_AI_RUN_ID: ${{ inputs.daily_ai_run_id }}
           CREATE_ACCOUNT_SLOT: ${{ inputs.create_account_slot }}
       - name: Show results
         if: always()

@@ -41,12 +41,13 @@ logger = logging.getLogger(__name__)
 TEST_MOCK_MARKER_PREFIX = "<<<TEST_MOCK:"
 TEST_LIVE_MOCK_MARKER_PREFIX = "<<<TEST_LIVE_MOCK:"
 TEST_LIVE_RECORD_MARKER_PREFIX = "<<<TEST_LIVE_RECORD:"
+TEST_LIVE_REAL_MARKER_PREFIX = "<<<TEST_LIVE_REAL:"
 TEST_MOCK_MARKER_SUFFIX = ">>>"
 
 
 def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
     """Return a dev-only marker that routes E2E proof requests to fixture replay."""
-    if os.getenv("SERVER_ENVIRONMENT", "production") == "production":
+    if _is_production_environment():
         return None
     if not isinstance(value, str):
         return None
@@ -55,6 +56,7 @@ def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
         TEST_MOCK_MARKER_PREFIX,
         TEST_LIVE_MOCK_MARKER_PREFIX,
         TEST_LIVE_RECORD_MARKER_PREFIX,
+        TEST_LIVE_REAL_MARKER_PREFIX,
     )
     if not marker.startswith(allowed_prefixes) or not marker.endswith(TEST_MOCK_MARKER_SUFFIX):
         return None
@@ -62,12 +64,44 @@ def _sanitize_test_mock_marker(value: Any) -> Optional[str]:
         return None
     return marker
 
+
+def _looks_like_live_test_marker(value: Any) -> bool:
+    if _is_production_environment():
+        return False
+    if not isinstance(value, str):
+        return False
+    return value.strip().startswith("<<<TEST_LIVE_")
+
+
+def _is_production_environment() -> bool:
+    return os.getenv("SERVER_ENVIRONMENT", "production").strip().lower() in {"production", "prod"}
+
+
+def _prepare_test_mock_marker(
+    marker: str,
+    user_id: str,
+    *,
+    is_allowlisted_test_account: bool,
+) -> str:
+    if marker.startswith(TEST_MOCK_MARKER_PREFIX):
+        return marker
+    if marker.startswith((TEST_LIVE_MOCK_MARKER_PREFIX, TEST_LIVE_RECORD_MARKER_PREFIX, TEST_LIVE_REAL_MARKER_PREFIX)):
+        from backend.shared.testing.mock_context import sign_live_marker
+
+        signed_marker = sign_live_marker(
+            marker,
+            user_id,
+            is_allowlisted_test_account=is_allowlisted_test_account,
+        )
+        if signed_marker:
+            return signed_marker
+    raise ValueError("Invalid or unauthorized dev E2E test marker")
+
 AI_USER_PREFERENCE_FIELDS = [
     "timezone",
     "language",
     "default_ai_model_simple",
     "default_ai_model_complex",
-    "default_ai_model_most_demanding",
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
     "quick_tips_enabled",
@@ -257,6 +291,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
     device_fingerprint_hash: str,
     payload: Dict[str, Any], # Expected: {"chat_id": "...", "message": {"message_id": ..., "sender": ..., "content": ..., "timestamp": ...}}
     user_otel_attrs: dict = None,
+    is_allowlisted_test_account: bool = False,
 ):
     """
     Handles a new message sent from the client (now via "chat_message_added" type).
@@ -291,7 +326,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         encrypted_chat_key_from_client = payload.get("encrypted_chat_key")
         # Check if this is an incognito chat
         is_incognito = payload.get("is_incognito", False)
-        test_mock_marker = _sanitize_test_mock_marker(payload.get("test_mock_marker"))
+        raw_test_mock_marker = payload.get("test_mock_marker")
+        test_mock_marker = _sanitize_test_mock_marker(raw_test_mock_marker)
+        if test_mock_marker:
+            test_mock_marker = _prepare_test_mock_marker(
+                test_mock_marker,
+                str(user_id),
+                is_allowlisted_test_account=is_allowlisted_test_account,
+            )
+        elif _looks_like_live_test_marker(raw_test_mock_marker):
+            raise ValueError("Invalid or unauthorized dev E2E test marker")
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
             payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
@@ -1851,6 +1895,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         except Exception as e_hist:
             logger.error(f"Failed to construct message history for AI for chat {chat_id}: {e_hist}", exc_info=True)
+            if test_mock_marker:
+                raise
             # Proceed with at least the current message if history construction failed
             message_history_for_ai = [
                 AIHistoryMessage(sender_name="user", content=content_plain, created_at=client_timestamp_unix)
@@ -1935,10 +1981,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             if default_model_complex:
                 user_preferences_dict["default_ai_model_complex"] = default_model_complex
                 logger.debug(f"Including default complex model '{default_model_complex}' in AI request for user {user_id}")
-            default_model_most_demanding = user_data_for_prefs.get("default_ai_model_most_demanding")
-            if default_model_most_demanding:
-                user_preferences_dict["default_ai_model_most_demanding"] = default_model_most_demanding
-                logger.debug(f"Including default most-demanding model '{default_model_most_demanding}' in AI request for user {user_id}")
             default_app_skill_models = user_data_for_prefs.get("default_app_skill_models")
             if isinstance(default_app_skill_models, dict):
                 user_preferences_dict["default_app_skill_models"] = default_app_skill_models

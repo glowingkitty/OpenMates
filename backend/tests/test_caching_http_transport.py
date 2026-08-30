@@ -2,9 +2,9 @@
 # backend/tests/test_caching_http_transport.py
 # Regression coverage for shared live-mock HTTP response replay.
 #
-# Cached provider responses are written as decoded JSON/text cassettes while
-# preserving safe provider headers for debugging. Replay must strip wire-level
-# compression headers so httpx does not try to decode plain text.
+# Replay must strip wire-level compression headers so httpx does not try to
+# decode plain text. Record/real modes must reject variable-price HTTP providers
+# before network dispatch until provider-specific pricing is available.
 
 from __future__ import annotations
 
@@ -13,7 +13,11 @@ import pytest
 
 from backend.shared.testing.api_response_cache import ApiResponseCache
 from backend.shared.testing.caching_http_transport import CachingHTTPTransport
-from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+from backend.shared.testing.mock_context import (
+    DailyAITestBudgetExceeded,
+    activate_mock_mode,
+    deactivate_mock_mode,
+)
 
 
 class _StaticAsyncTransport(httpx.AsyncBaseTransport):
@@ -28,9 +32,23 @@ class _StaticAsyncTransport(httpx.AsyncBaseTransport):
         return response
 
 
-class _FailingSaveCache(ApiResponseCache):
-    def save(self, **_kwargs):
-        raise PermissionError("cache path is read-only")
+def test_record_mode_requires_request_scoped_candidate_root(tmp_path) -> None:
+    cache = ApiResponseCache(root=tmp_path / "canonical")
+
+    activate_mock_mode("record", "missing_candidate")
+    try:
+        with pytest.raises(RuntimeError, match="request-scoped candidate cache root"):
+            cache.save(
+                group_id="missing_candidate",
+                category="events",
+                fingerprint="fingerprint",
+                request_summary={},
+                response_data={},
+            )
+    finally:
+        deactivate_mock_mode()
+
+    assert not cache.root.exists()
 
 
 @pytest.mark.asyncio
@@ -73,23 +91,11 @@ async def test_cached_replay_strips_compression_headers_for_decoded_body(tmp_pat
 
 
 @pytest.mark.asyncio
-async def test_record_mode_refreshes_existing_http_cache(tmp_path) -> None:
+async def test_record_mode_rejects_variable_price_http_before_dispatch(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
-    group_id = "refresh_existing_body"
+    group_id = "reject_http_record"
     category = "rewe"
     url = "https://shop.rewe.de/api/products?search=bio+joghurt"
-    fingerprint = cache.fingerprint_http_request(method="GET", url=url)
-    cache.save(
-        group_id=group_id,
-        category=category,
-        fingerprint=fingerprint,
-        request_summary={"method": "GET", "url": url},
-        response_data={
-            "status_code": 301,
-            "headers": {"location": "https://www.rewe.de/shop/api/products"},
-            "body": "",
-        },
-    )
     real_transport = _StaticAsyncTransport(
         {
             url: httpx.Response(
@@ -100,29 +106,25 @@ async def test_record_mode_refreshes_existing_http_cache(tmp_path) -> None:
         }
     )
 
-    activate_mock_mode("record", group_id)
+    activate_mock_mode("record", group_id, tmp_path / "candidate")
     try:
-        async with httpx.AsyncClient(
-            transport=CachingHTTPTransport(real_transport, cache, category)
-        ) as client:
-            response = await client.get(url)
+        with pytest.raises(DailyAITestBudgetExceeded, match="variable-price HTTP providers"):
+            async with httpx.AsyncClient(
+                transport=CachingHTTPTransport(real_transport, cache, category)
+            ) as client:
+                await client.get(url)
     finally:
         deactivate_mock_mode()
 
-    assert response.json()["products"] == [{"id": "fresh"}]
-    cached = cache.load(group_id, category, fingerprint)
-    assert cached is not None
-    assert cached["response"]["status_code"] == 200
-    assert "fresh" in cached["response"]["body"]
+    assert real_transport.requests == []
 
 
 @pytest.mark.asyncio
-async def test_record_mode_omits_set_cookie_response_header(tmp_path) -> None:
+async def test_real_mode_rejects_variable_price_http_before_dispatch(tmp_path) -> None:
     cache = ApiResponseCache(root=tmp_path)
-    group_id = "omit_set_cookie"
+    group_id = "reject_http_real"
     category = "rewe"
     url = "https://www.rewe.de/shop/api/products?search=bio+joghurt"
-    fingerprint = cache.fingerprint_http_request(method="GET", url=url)
     real_transport = _StaticAsyncTransport(
         {
             url: httpx.Response(
@@ -136,49 +138,17 @@ async def test_record_mode_omits_set_cookie_response_header(tmp_path) -> None:
         }
     )
 
-    activate_mock_mode("record", group_id)
+    activate_mock_mode("real", group_id)
     try:
-        async with httpx.AsyncClient(
-            transport=CachingHTTPTransport(real_transport, cache, category)
-        ) as client:
-            response = await client.get(url)
+        with pytest.raises(DailyAITestBudgetExceeded, match="variable-price HTTP providers"):
+            async with httpx.AsyncClient(
+                transport=CachingHTTPTransport(real_transport, cache, category)
+            ) as client:
+                await client.get(url)
     finally:
         deactivate_mock_mode()
 
-    assert response.json()["products"] == [{"id": "safe"}]
-    cached = cache.load(group_id, category, fingerprint)
-    assert cached is not None
-    assert cached["response"]["headers"].get("content-type") == "application/json"
-    assert "set-cookie" not in cached["response"]["headers"]
-
-
-@pytest.mark.asyncio
-async def test_record_mode_returns_live_response_when_cache_save_fails(caplog) -> None:
-    group_id = "write_failure"
-    category = "events"
-    url = "https://events.example.test/search?q=ai"
-    real_transport = _StaticAsyncTransport(
-        {
-            url: httpx.Response(
-                200,
-                headers={"content-type": "application/json"},
-                content=b'{"events":[{"id":"1"}]}',
-            )
-        }
-    )
-
-    activate_mock_mode("record", group_id)
-    try:
-        async with httpx.AsyncClient(
-            transport=CachingHTTPTransport(real_transport, _FailingSaveCache(), category)
-        ) as client:
-            response = await client.get(url)
-    finally:
-        deactivate_mock_mode()
-
-    assert response.status_code == 200
-    assert response.json()["events"] == [{"id": "1"}]
-    assert "Failed to save HTTP cache entry events/" in caplog.text
+    assert real_transport.requests == []
 
 
 @pytest.mark.asyncio

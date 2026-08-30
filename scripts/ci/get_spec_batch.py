@@ -23,18 +23,16 @@ Output:
     dynamically.
 """
 
-import glob
 import math
 import os
 import sys
+from pathlib import Path
 
-EXCLUDED_SPECS = {
-    "create-test-account.spec.ts",
-    "deep-research-real-inference.spec.ts",
-    "default-model-settings-proof.spec.ts",
-    "proof-audio-speech-example.spec.ts",
-    "sub-chats-real-inference.spec.ts",
-}
+PROJECT_ROOT_PATH = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT_PATH) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT_PATH))
+
+from scripts import daily_ai_test_policy  # noqa: E402
 
 
 def main():
@@ -46,12 +44,12 @@ def main():
     batch_size = int(sys.argv[2])
 
     # Discover spec files
-    project_root = os.environ.get(
+    project_root = Path(os.environ.get(
         "PROJECT_ROOT",
-        os.path.join(os.path.dirname(__file__), "..", ".."),
-    )
-    spec_dir = os.path.join(project_root, "frontend", "apps", "web_app", "tests")
-    spec_files = sorted(glob.glob(os.path.join(spec_dir, "*.spec.ts")))
+        str(PROJECT_ROOT_PATH),
+    ))
+    spec_dir = project_root / "frontend" / "apps" / "web_app" / "tests"
+    spec_files = sorted(spec_dir.glob("*.spec.ts"))
 
     if not spec_files:
         print("No spec files found", file=sys.stderr)
@@ -61,7 +59,9 @@ def main():
         sys.exit(0)
 
     # Extract basenames
-    basenames = [os.path.basename(f) for f in spec_files if os.path.basename(f) not in EXCLUDED_SPECS]
+    basenames = daily_ai_test_policy.discover_specs(
+        (file.name for file in spec_files), spec_dir=spec_dir
+    )
 
     # Compute batch
     total_batches = math.ceil(len(basenames) / batch_size)

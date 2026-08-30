@@ -95,3 +95,17 @@ def is_non_production_e2e_user_profile(profile: Mapping[str, Any] | None) -> boo
 
     hashed_email = profile.get("hashed_email")
     return isinstance(hashed_email, str) and hashed_email in configured_test_account_hashes()
+
+
+def is_configured_test_account_profile(profile: Mapping[str, Any] | None) -> bool:
+    """Strict test-account check for dev-only controls that can affect spend."""
+    if not is_non_production_environment() or not profile:
+        return False
+
+    configured_emails = _configured_test_account_emails()
+    for email_key in ("email", "user_email", "contact_email"):
+        if _normalized_email(profile.get(email_key)) in configured_emails:
+            return True
+
+    hashed_email = profile.get("hashed_email")
+    return isinstance(hashed_email, str) and hashed_email in configured_test_account_hashes()

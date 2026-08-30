@@ -2,8 +2,8 @@
 # Custom httpx transport with record-and-replay caching for skill providers.
 #
 # When live mock mode is active (per-request via contextvars), this transport
-# intercepts outgoing HTTP requests and either returns cached responses or
-# forwards to the real API and records the response.
+# intercepts outgoing HTTP requests and returns cached responses. Record/real
+# modes fail closed until provider-specific HTTP pricing is available.
 #
 # When mock mode is NOT active (regular user requests), all requests pass
 # through to the real transport with zero overhead beyond a single contextvar check.
@@ -15,7 +15,7 @@
 import json
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 
@@ -25,8 +25,10 @@ from backend.shared.testing.api_response_cache import (
     get_shared_cache,
 )
 from backend.shared.testing.mock_context import (
+    DailyAITestBudgetExceeded,
     get_mock_group,
     is_mock_active,
+    is_real_mode,
     is_record_mode,
 )
 
@@ -38,10 +40,6 @@ _DECODED_BODY_HEADER_NAMES = {
     "transfer-encoding",
 }
 
-_RECORDED_RESPONSE_HEADER_DENYLIST = {
-    "set-cookie",
-}
-
 
 class CachingHTTPTransport(httpx.AsyncBaseTransport):
     """
@@ -50,7 +48,7 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
     Wraps a real transport (httpx.AsyncHTTPTransport). For each request:
     - If live mock mode is OFF: passes through to real transport unchanged.
     - If mode is "mock": returns cached response or raises MockCacheMiss.
-    - If mode is "record": calls real API, caches response, returns it.
+    - If mode is "record" or "real": rejects variable-price HTTP providers.
 
     Usage:
         transport = CachingHTTPTransport(
@@ -77,6 +75,11 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
         if not is_mock_active():
             return await self._real_transport.handle_async_request(request)
 
+        if is_real_mode() or is_record_mode():
+            raise DailyAITestBudgetExceeded(
+                f"Daily AI real/record tests do not allow variable-price HTTP providers: {self._category}"
+            )
+
         group_id = get_mock_group()
 
         # Read and buffer the request body for fingerprinting. Redirected httpx
@@ -90,13 +93,7 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             body=body_bytes,
         )
 
-        # In explicit record mode, always refresh the cassette. This prevents a
-        # stale or malformed cached response from making re-recording a no-op.
-        cached = (
-            None
-            if is_record_mode()
-            else self._cache.load(group_id, self._category, fingerprint)
-        )
+        cached = self._cache.load(group_id, self._category, fingerprint)
         if cached is not None:
             response_data = cached.get("response", {})
             return httpx.Response(
@@ -106,69 +103,11 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
                 request=request,
             )
 
-        # Cache miss
-        if not is_record_mode():
-            raise MockCacheMiss(
-                category=self._category,
-                fingerprint=fingerprint,
-                details=f"URL: {request.method} {request.url}",
-            )
-
-        # Record mode: call real API and save response
-        logger.info(
-            f"[LiveMock] Cache MISS (recording): {self._category}/{fingerprint} "
-            f"— {request.method} {request.url}"
+        raise MockCacheMiss(
+            category=self._category,
+            fingerprint=fingerprint,
+            details=f"URL: {request.method} {request.url}",
         )
-        response = await self._real_transport.handle_async_request(request)
-
-        # Read the response stream fully before accessing content.
-        # The real transport returns a streaming response — we must call .read()
-        # to buffer it before accessing .content.
-        await response.aread()
-
-        # Read response body
-        response_body = response.content.decode("utf-8", errors="replace")
-
-        # Build request summary for debugging
-        request_summary = {
-            "method": str(request.method),
-            "url": str(request.url),
-        }
-        if body_bytes:
-            try:
-                request_summary["body_preview"] = json.loads(
-                    body_bytes.decode("utf-8", errors="replace")
-                )
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                request_summary["body_preview"] = body_bytes[:500].decode(
-                    "utf-8", errors="replace"
-                )
-
-        # Build response data
-        response_data = {
-            "status_code": response.status_code,
-            "headers": self._recorded_response_headers(response.headers),
-            "body": response_body,
-        }
-
-        try:
-            self._cache.save(
-                group_id=group_id,
-                category=self._category,
-                fingerprint=fingerprint,
-                request_summary=request_summary,
-                response_data=response_data,
-            )
-        except OSError as exc:
-            logger.warning(
-                "[LiveMock] Failed to save HTTP cache entry %s/%s (group=%s): %s",
-                self._category,
-                fingerprint,
-                group_id,
-                exc,
-            )
-
-        return response
 
     async def aclose(self) -> None:
         """Close the underlying transport."""
@@ -186,7 +125,7 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
         return str(body).encode("utf-8")
 
     @staticmethod
-    def _replay_headers(headers: Any) -> Dict[str, str]:
+    def _replay_headers(headers: Any) -> dict[str, str]:
         """Return cached headers safe for a decoded replay body."""
         if not isinstance(headers, dict):
             return {}
@@ -195,16 +134,6 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             for name, value in headers.items()
             if str(name).lower() not in _DECODED_BODY_HEADER_NAMES
         }
-
-    @staticmethod
-    def _recorded_response_headers(headers: httpx.Headers) -> Dict[str, str]:
-        """Return provider response headers safe to persist in cache fixtures."""
-        return {
-            str(name): str(value)
-            for name, value in dict(headers).items()
-            if str(name).lower() not in _RECORDED_RESPONSE_HEADER_DENYLIST
-        }
-
 
 def create_http_client(category: str, **httpx_kwargs: Any) -> httpx.AsyncClient:
     """
@@ -232,7 +161,7 @@ def create_http_client(category: str, **httpx_kwargs: Any) -> httpx.AsyncClient:
         # Extract proxy from kwargs — it must go on the real transport, not the client
         # (httpx doesn't allow both transport= and proxy= on the same client)
         proxy = httpx_kwargs.pop("proxy", None)
-        transport_kwargs: Dict[str, Any] = {}
+        transport_kwargs: dict[str, Any] = {}
         if proxy:
             transport_kwargs["proxy"] = proxy
         real_transport = httpx.AsyncHTTPTransport(**transport_kwargs)
