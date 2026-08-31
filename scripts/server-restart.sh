@@ -6,7 +6,9 @@
 
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_CHECKOUT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GIT_COMMON_DIR="$(git -C "$SCRIPT_CHECKOUT" rev-parse --path-format=absolute --git-common-dir)"
+PROJECT_DIR="$(dirname "$GIT_COMMON_DIR")"
 ZELLIJ_SESSION="${OPENCODE_ZELLIJ_SESSION:-code}"
 PORT="${OPENCODE_PORT:-4096}"
 SERVER_URL="${OPENCODE_SERVER_URL:-http://127.0.0.1:${PORT}}"
@@ -39,7 +41,7 @@ command -v jq >/dev/null || { echo "Error: jq is required." >&2; exit 1; }
 command -v curl >/dev/null || { echo "Error: curl is required." >&2; exit 1; }
 
 mkdir -p "$MANIFEST_DIR"
-python3 "$PROJECT_DIR/scripts/sessions.py" opencode-restart capture --manifest "$MANIFEST"
+python3 "$SCRIPT_CHECKOUT/scripts/sessions.py" opencode-restart capture --manifest "$MANIFEST"
 
 pane_json="$(zellij --session "$ZELLIJ_SESSION" action list-panes --json --command --state)"
 mapfile -t server_panes < <(
@@ -77,7 +79,7 @@ zellij --session "$ZELLIJ_SESSION" action new-tab \
     --name opencode-server \
     --cwd "$PROJECT_DIR" \
     --close-on-exit \
-    -- "$PROJECT_DIR/scripts/start-opencode-server.sh" "$PORT" \
+    -- env OPENCODE_PROJECT_ROOT="$PROJECT_DIR" "$SCRIPT_CHECKOUT/scripts/start-opencode-server.sh" "$PORT" \
     >/dev/null
 
 for _ in $(seq 1 120); do
@@ -92,5 +94,5 @@ if ! curl -fsS --max-time 2 "$SERVER_URL/session/status" >/dev/null; then
     exit 1
 fi
 
-python3 "$PROJECT_DIR/scripts/sessions.py" opencode-restart resume --manifest "$MANIFEST"
+python3 "$SCRIPT_CHECKOUT/scripts/sessions.py" opencode-restart resume --manifest "$MANIFEST"
 echo "OpenCode restart completed without abandoning the captured busy chat set."

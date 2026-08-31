@@ -210,6 +210,31 @@ def test_restart_capture_keeps_only_busy_top_level_sessions(tmp_path: Path, monk
     assert json.loads(manifest_path.read_text(encoding="utf-8")) == manifest
 
 
+def test_opencode_api_requests_are_pinned_to_canonical_project(monkeypatch) -> None:
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(sessions.urllib.request, "urlopen", fake_urlopen)
+
+    assert sessions._opencode_api_json("/session/status") == {}
+    assert captured["timeout"] == 15
+    assert f"directory={sessions.urllib.parse.quote(str(sessions.CONTROL_PLANE_ROOT), safe='')}" in captured["url"]
+
+
 def test_restart_resume_is_exactly_once_and_verified(tmp_path: Path, monkeypatch) -> None:
     manifest_path = tmp_path / "restart.json"
     manifest_path.write_text(json.dumps({
@@ -365,6 +390,8 @@ def test_server_restart_captures_exact_busy_set_and_never_rebuilds_docker() -> N
     assert "command -v jq" in source
     assert "docker compose" not in source
     assert "tmux" not in source
+    assert 'GIT_COMMON_DIR="$(git -C "$SCRIPT_CHECKOUT" rev-parse --path-format=absolute --git-common-dir)"' in source
+    assert 'OPENCODE_PROJECT_ROOT="$PROJECT_DIR"' in source
 
 
 def test_active_automation_never_spawns_claude_cli() -> None:

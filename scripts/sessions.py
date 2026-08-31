@@ -16116,7 +16116,9 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
 
 
 def _opencode_api_json(path: str, timeout: int = 15) -> Any:
-    request = urllib.request.Request(f"{OPENCODE_SERVER_URL}{path}", method="GET")
+    separator = "&" if "?" in path else "?"
+    routed_path = f"{path}{separator}{urllib.parse.urlencode({'directory': str(CONTROL_PLANE_ROOT)})}"
+    request = urllib.request.Request(f"{OPENCODE_SERVER_URL}{routed_path}", method="GET")
     with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
         return json.load(response)
 
