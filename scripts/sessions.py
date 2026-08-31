@@ -7909,6 +7909,7 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
 
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
+    recreated = False
     initial = _mutate_sessions(lambda data: data)
     initial_session_id = _resolve_session_id(initial, opencode_session_id=opencode_session_id)
     initial_session = initial["sessions"][initial_session_id]
@@ -7939,6 +7940,7 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
             recovered["recovered_at"] = _now_iso()
 
         _mutate_sessions(record_recovery)
+        recreated = True
 
     def update(data: dict) -> dict:
         session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
@@ -7962,6 +7964,9 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session["last_active"] = _now_iso()
         if worktree.get("status") in {"changes_pending", "merged"}:
             worktree["status"] = "active"
+        if recreated:
+            session["workspace_state"] = "clean"
+            session.pop("auto_integration", None)
         worktree["last_active"] = session["last_active"]
         return {
             "session_id": session_id,

@@ -230,6 +230,8 @@ def test_routing_repair_recovers_invalid_already_merged_worktree(monkeypatch, tm
         "sessions": {
             "abcd": {
                 "opencode_session_id": "ses_parent",
+                "workspace_state": "recovery_needed",
+                "auto_integration": {"status": "blocked", "block_reason": "stale checkpoint"},
                 "worktree": {
                     "path": str(worktree_path),
                     "status": "merged",
@@ -261,6 +263,8 @@ def test_routing_repair_recovers_invalid_already_merged_worktree(monkeypatch, tm
     assert result["worktree_path"] == str(worktree_path)
     assert (archive / "preserved.txt").read_text(encoding="utf-8") == "preserve me"
     assert ["git", "worktree", "add", str(worktree_path), "current"] in commands
+    assert data["sessions"]["abcd"]["workspace_state"] == "clean"
+    assert "auto_integration" not in data["sessions"]["abcd"]
 
 
 def test_routing_repair_failure_is_actionable(monkeypatch) -> None:
