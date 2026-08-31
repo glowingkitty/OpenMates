@@ -171,13 +171,13 @@ export const OPENMATES_EVENTS: OpenMatesEvent[] = [
     "online_url": "https://meet.openmates.org"
   },
   {
-    "embed_id": "cli-sdk-webinar-2026-10-28",
-    "id": "cli-sdk-webinar-2026-10-28",
-    "slug": "cli-sdk-webinar-2026-10-28",
+    "embed_id": "spec-driven-development-webinar-2026-10-28",
+    "id": "spec-driven-development-webinar-2026-10-28",
+    "slug": "spec-driven-development-webinar-2026-10-28",
     "provider": "luma",
-    "title": "OpenMates CLI and SDK for developers - All chats and features included",
-    "description": "This presentation and Q&A introduces the official OpenMates CLI plus npm and pip SDKs, cross-device access, broad feature parity, and practical recommendations for integrating OpenMates into software workflows.",
-    "url": "https://luma.com/8kquidf1",
+    "title": "Beyond vibe coding - Introduction to spec-driven development",
+    "description": "This presentation and Q&A introduces OpenMates Projects, Plans, and Tasks for structured agentic coding beyond vibe coding, including enforced planning and recommendations for improving development workflows.",
+    "url": "https://luma.com/vj8dq9qs",
     "date_start": "2026-10-28T19:00:00+01:00",
     "date_end": "2026-10-28T19:50:00+01:00",
     "timezone": "Europe/Berlin",
@@ -193,24 +193,24 @@ export const OPENMATES_EVENTS: OpenMatesEvent[] = [
       "slug": "openmates"
     },
     "is_paid": false,
-    "image_url": "/event-assets/openmates/cli-sdk-webinar-2026-10-28.jpg",
+    "image_url": "/event-assets/openmates/spec-driven-development-webinar-2026-10-28.jpg",
     "keywords": [
       "OpenMates",
       "OpenMates Events",
-      "OpenMates CLI and SDK for developers - All chats and features included",
+      "Beyond vibe coding - Introduction to spec-driven development",
       "Webinar"
     ],
-    "summary": "Learn to use OpenMates chats, app skills, projects, tasks, workflows, memories, teams, and settings through the CLI and SDKs.",
+    "summary": "Learn how plans, tasks, projects, and enforced rules can make agentic coding more reliable and secure.",
     "online_url": "https://meet.openmates.org"
   },
   {
-    "embed_id": "spec-driven-development-webinar-2026-11-11",
-    "id": "spec-driven-development-webinar-2026-11-11",
-    "slug": "spec-driven-development-webinar-2026-11-11",
+    "embed_id": "cli-sdk-webinar-2026-11-11",
+    "id": "cli-sdk-webinar-2026-11-11",
+    "slug": "cli-sdk-webinar-2026-11-11",
     "provider": "luma",
-    "title": "Beyond vibe coding - Introduction to spec-driven development",
-    "description": "This presentation and Q&A introduces OpenMates Projects, Plans, and Tasks for structured agentic coding beyond vibe coding, including enforced planning and recommendations for improving development workflows.",
-    "url": "https://luma.com/vj8dq9qs",
+    "title": "OpenMates CLI and SDK for developers - All chats and features included",
+    "description": "This presentation and Q&A introduces the official OpenMates CLI plus npm and pip SDKs, cross-device access, broad feature parity, and practical recommendations for integrating OpenMates into software workflows.",
+    "url": "https://luma.com/8kquidf1",
     "date_start": "2026-11-11T19:00:00+01:00",
     "date_end": "2026-11-11T19:50:00+01:00",
     "timezone": "Europe/Berlin",
@@ -226,14 +226,14 @@ export const OPENMATES_EVENTS: OpenMatesEvent[] = [
       "slug": "openmates"
     },
     "is_paid": false,
-    "image_url": "/event-assets/openmates/spec-driven-development-webinar-2026-11-11.jpg",
+    "image_url": "/event-assets/openmates/cli-sdk-webinar-2026-11-11.jpg",
     "keywords": [
       "OpenMates",
       "OpenMates Events",
-      "Beyond vibe coding - Introduction to spec-driven development",
+      "OpenMates CLI and SDK for developers - All chats and features included",
       "Webinar"
     ],
-    "summary": "Learn how plans, tasks, projects, and enforced rules can make agentic coding more reliable and secure.",
+    "summary": "Learn to use OpenMates chats, app skills, projects, tasks, workflows, memories, teams, and settings through the CLI and SDKs.",
     "online_url": "https://meet.openmates.org"
   },
   {

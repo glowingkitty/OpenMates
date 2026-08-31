@@ -106,12 +106,12 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png, alt: OpenMates for teams webinar event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png, alt: OpenMates für Teams Webinar Eventkarte}
-  - id: spec-driven-development-webinar-2026-11-11
-    slug: spec-driven-development-webinar-2026-11-11
+  - id: spec-driven-development-webinar-2026-10-28
+    slug: spec-driven-development-webinar-2026-10-28
     status: published
     event_type: webinar
-    starts_at: "2026-11-11T19:00:00+01:00"
-    ends_at: "2026-11-11T19:50:00+01:00"
+    starts_at: "2026-10-28T19:00:00+01:00"
+    ends_at: "2026-10-28T19:50:00+01:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -129,12 +129,12 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png, alt: Spec-driven development webinar event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png, alt: Spec-driven development Webinar Eventkarte}
-  - id: cli-sdk-webinar-2026-10-28
-    slug: cli-sdk-webinar-2026-10-28
+  - id: cli-sdk-webinar-2026-11-11
+    slug: cli-sdk-webinar-2026-11-11
     status: published
     event_type: webinar
-    starts_at: "2026-10-28T19:00:00+01:00"
-    ends_at: "2026-10-28T19:50:00+01:00"
+    starts_at: "2026-11-11T19:00:00+01:00"
+    ends_at: "2026-11-11T19:50:00+01:00"
     timezone: Europe/Berlin
     localized_content:
       en:
