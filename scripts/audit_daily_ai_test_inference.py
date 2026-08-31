@@ -247,6 +247,10 @@ def _audit_backfill_guards() -> list[str]:
             errors.append(f"bounded backfill guard is incomplete in {path.relative_to(PROJECT_ROOT)}")
     if "shutil.rmtree(run_root" in sources[RUNNER_PATH]:
         errors.append("daily runner must not delete the durable per-day backfill claim")
+    backfill_call = sources[RUNNER_PATH].find("self.cache_backfill = self._run_daily_cache_backfill()")
+    playwright_call = sources[RUNNER_PATH].find('suites["playwright"] = self._run_playwright()')
+    if backfill_call < 0 or playwright_call < 0 or backfill_call > playwright_call:
+        errors.append("daily cache backfill must run before the broad Playwright queue")
     return errors
 
 

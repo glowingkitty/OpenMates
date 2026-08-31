@@ -7395,17 +7395,17 @@ class TestOrchestrator:
                 suites["cli"] = self._run_cli_integration()
                 self._save_progress_snapshot(suites, start_time, "CLI integration")
 
-            if self.suite in ("all", "playwright"):
-                self.current_phase = "Playwright"
-                suites["playwright"] = self._run_playwright()
-                self._save_progress_snapshot(suites, start_time, "Playwright")
-
             if self.daily and not self.spec and self.suite == "all":
                 self.current_phase = "cache backfill"
                 self.cache_backfill = self._run_daily_cache_backfill()
                 if self.cache_backfill.get("status") == "failed":
                     _log(f"Daily cache backfill failed: {self.cache_backfill.get('detail', 'unknown error')}", "ERROR")
                 self._save_progress_snapshot(suites, start_time, "cache backfill")
+
+            if self.suite in ("all", "playwright"):
+                self.current_phase = "Playwright"
+                suites["playwright"] = self._run_playwright()
+                self._save_progress_snapshot(suites, start_time, "Playwright")
 
             if not parallel_daily and not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
                 self.current_phase = "Apple remote"
