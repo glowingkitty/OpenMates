@@ -100,6 +100,7 @@ from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     handle_get_compressed_chat_old_messages,
     handle_store_chat_compression_checkpoint,
 )
+from .handlers.websocket_handlers.chat_model_preference_handler import handle_chat_model_preference
 
 logger = logging.getLogger(__name__)
 
@@ -2946,6 +2947,34 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "get_chat_model_preference":
+                await handle_chat_model_preference(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    operation="get",
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "update_chat_model_preference":
+                await handle_chat_model_preference(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    operation="update",
                     user_otel_attrs=user_otel_attrs,
                 )
 
