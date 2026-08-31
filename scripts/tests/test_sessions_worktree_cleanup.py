@@ -707,7 +707,7 @@ def _deployed_source_fixture(tmp_path: Path) -> tuple[Path, Path, str, str]:
     return source, integration, base, deployed
 
 
-def test_deploy_sync_updates_only_selected_path_without_moving_source_head(monkeypatch, tmp_path):
+def test_deploy_sync_advances_fully_deployed_source_head(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     source, integration, base, deployed = _deployed_source_fixture(tmp_path)
     monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "patch-1")
@@ -721,8 +721,8 @@ def test_deploy_sync_updates_only_selected_path_without_moving_source_head(monke
     )
 
     assert warning == ""
-    assert _git(source, "rev-parse", "HEAD") == base
-    assert _git(source, "status", "--porcelain") == "M deployed.txt"
+    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert _git(source, "status", "--porcelain") == ""
 
 
 def test_deploy_sync_preserves_source_edits_made_during_integration(monkeypatch, tmp_path):
@@ -763,6 +763,25 @@ def test_deploy_sync_preserves_unselected_post_checkpoint_work(monkeypatch, tmp_
     assert _git(source, "rev-parse", "HEAD") == base
     assert (source / "remaining.txt").read_text(encoding="utf-8") == "post-checkpoint\n"
     assert _git(source, "status", "--porcelain").splitlines() == ["M deployed.txt", " M remaining.txt"]
+
+
+def test_deploy_sync_does_not_advance_when_unselected_untracked_work_exists(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source, integration, base, _deployed = _deployed_source_fixture(tmp_path)
+    (source / "new-note.txt").write_text("keep me\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "original-patch")
+
+    warning = sessions._sync_deployed_files_to_source(
+        {"path": str(source), "base_commit": base},
+        integration,
+        ["deployed.txt"],
+        ["deployed.txt"],
+        "original-patch",
+    )
+
+    assert warning == ""
+    assert _git(source, "rev-parse", "HEAD") == base
+    assert (source / "new-note.txt").read_text(encoding="utf-8") == "keep me\n"
 
 
 def test_deploy_sync_never_captures_or_rewrites_unselected_staged_work(monkeypatch, tmp_path):

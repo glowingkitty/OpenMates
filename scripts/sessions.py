@@ -12771,7 +12771,7 @@ def _sync_deployed_files_to_source(
     patch_files: list[str],
     expected_patch_id: str,
 ) -> str:
-    """Copy only deployed paths while preserving every other live worktree path."""
+    """Copy deployed paths and advance a source checkout only when fully deployed."""
     source_root = Path(str(source_metadata.get("path") or ""))
     try:
         if _worktree_patch_id(source_metadata, patch_files) != expected_patch_id:
@@ -12786,6 +12786,32 @@ def _sync_deployed_files_to_source(
                 temporary.replace(source_path)
             elif source_path.exists() or source_path.is_symlink():
                 source_path.unlink()
+        # A complete deploy must also refresh the source checkout's base.  Leaving
+        # HEAD on its original commit makes the next edit run against stale code
+        # even though all local content was just deployed.  Never advance a
+        # partial checkout: unselected work must retain its original base and
+        # index until it is integrated separately.
+        remaining = set(_worktree_changed_files(source_metadata))
+        if remaining.issubset(set(files)):
+            rc, deployed_commit, stderr = _run_cmd(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(checkout_root),
+            )
+            if rc != 0 or not deployed_commit.strip():
+                return f"Deployed files were synchronized, but the deployed commit could not be resolved: {stderr}"
+            # Mixed reset advances HEAD/index without overwriting working-tree
+            # bytes.  A concurrent edit therefore remains visible as a new diff
+            # instead of being destroyed.
+            rc, _stdout, stderr = _run_cmd(
+                ["git", "reset", "--mixed", deployed_commit.strip()],
+                cwd=str(source_root),
+                timeout=120,
+            )
+            if rc != 0:
+                return (
+                    "Deployed files were synchronized, but the source worktree could not be advanced safely: "
+                    f"{stderr}"
+                )
     except (OSError, RuntimeError) as exc:
         return f"Could not synchronize deployed files into the source worktree: {exc}"
     return ""
