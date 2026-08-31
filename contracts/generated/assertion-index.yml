@@ -13056,7 +13056,7 @@ assertions:
     direct_tests:
     - &id1459
       path: frontend/apps/web_app/tests/application-preview-share.spec.ts
-      line: 32
+      line: 49
       name: shared recipient starts an isolated application preview session
       surface: gui.web
     - &id1460
@@ -13114,7 +13114,7 @@ assertions:
     direct_tests:
     - &id1471
       path: frontend/apps/web_app/tests/application-preview-share.spec.ts
-      line: 32
+      line: 49
       name: shared recipient starts an isolated application preview session
       surface: gui.web
     - &id1472

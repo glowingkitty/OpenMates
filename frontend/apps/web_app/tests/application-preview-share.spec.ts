@@ -28,6 +28,23 @@ const {
 } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+const MIN_LARGE_APPLICATION_EMBED_WIDTH_PX = 400;
+const GENERATED_APPLICATION_FALLBACK_PROSE = 'I created a runnable Svelte application.';
+
+async function expectRenderedApplicationPresentation(page: any, embed: any): Promise<void> {
+	const largeEmbed = page.getByTestId('embed-preview-large').filter({ has: embed });
+	await expect(largeEmbed).toBeVisible({ timeout: 30_000 });
+	const bounds = await largeEmbed.boundingBox();
+	expect(bounds?.width ?? 0).toBeGreaterThan(MIN_LARGE_APPLICATION_EMBED_WIDTH_PX);
+
+	const screenshot = embed.getByTestId('application-preview-screenshot-image');
+	await expect(screenshot).toBeVisible({ timeout: 180_000 });
+	await expect.poll(
+		() => screenshot.evaluate((image: HTMLImageElement) => image.naturalWidth),
+		{ timeout: 30_000 }
+	).toBeGreaterThan(0);
+}
+
 // contract-test: direct surface=gui.web assertions=chat-share-settings.generated-link-controls,chat-share-settings.shared-link-open
 test('shared recipient starts an isolated application preview session', async ({ browser, page }: { browser: any; page: any }) => {
 	test.slow();
@@ -61,7 +78,9 @@ test('shared recipient starts an isolated application preview session', async ({
 		'application-preview-share'
 	);
 
-	await waitForEmbedFinished(page, 'code', 'application', 180_000);
+	const creatorEmbed = await waitForEmbedFinished(page, 'code', 'application', 180_000);
+	await expect(page.getByText(GENERATED_APPLICATION_FALLBACK_PROSE, { exact: true })).toBeVisible();
+	await expectRenderedApplicationPresentation(page, creatorEmbed);
 
 	await page.getByTestId('chat-share-button').click();
 	const generateLinkButton = page.getByTestId('share-generate-link');
@@ -88,6 +107,8 @@ test('shared recipient starts an isolated application preview session', async ({
 		await recipientPage.goto(shareUrl, { waitUntil: 'load' });
 
 		const recipientEmbed = await waitForEmbedFinished(recipientPage, 'code', 'application', 180_000);
+		await expect(recipientPage.getByText(GENERATED_APPLICATION_FALLBACK_PROSE, { exact: true })).toBeVisible();
+		await expectRenderedApplicationPresentation(recipientPage, recipientEmbed);
 		const recipientFullscreen = await openFullscreen(recipientPage, recipientEmbed);
 		const previewStartResponse = recipientPage.waitForResponse(
 			(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
