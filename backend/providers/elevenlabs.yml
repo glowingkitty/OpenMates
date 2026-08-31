@@ -70,7 +70,7 @@ models:
 
   - id: "eleven_multilingual_v2"
     name: "ElevenLabs Multilingual v2"
-    description: "Premium high-quality text-to-speech model used as the default by audio.speak."
+    description: "Stable multilingual text-to-speech model available when explicitly selected by audio.speak."
     country_origin: "US"
     for_app_skill: "audio.speak"
     input_types:
@@ -90,5 +90,30 @@ models:
         price: 0.001667
         currency: USD
         source: "ElevenLabs API pricing lists Multilingual v2/v3 TTS at roughly $0.10/minute."
+    features:
+      max_input_characters: 2000
+
+  - id: "eleven_v3"
+    name: "Eleven v3"
+    description: "Highest-quality expressive multilingual text-to-speech model used as the default by audio.speak."
+    country_origin: "US"
+    for_app_skill: "audio.speak"
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_v3"
+        region: "US"
+    pricing:
+      per_second: 4
+    costs:
+      output_per_second:
+        price: 0.001667
+        currency: USD
+        source: "ElevenLabs API pricing lists v3 TTS at roughly $0.10/minute."
     features:
       max_input_characters: 2000

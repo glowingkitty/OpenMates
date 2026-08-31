@@ -8,6 +8,7 @@
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest
 
 
+# contract-test: supporting surface=rest_api assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.segmentation.immutable-source
 def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     request = AskSkillRequest(
         chat_id="chat-1",
@@ -24,6 +25,8 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
         connected_account_directory=[{"provider": "calendar"}],
         connected_account_token_refs=[{"turn_token_ref": "ref-1"}],
         has_image_upload_embed=True,
+        auto_speak_response=True,
+        assistant_response_source_revision=7,
     )
 
     dumped = request.model_dump()
@@ -33,3 +36,5 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     assert dumped["connected_account_directory"] == [{"provider": "calendar"}]
     assert dumped["connected_account_token_refs"] == [{"turn_token_ref": "ref-1"}]
     assert dumped["has_image_upload_embed"] is True
+    assert dumped["auto_speak_response"] is True
+    assert dumped["assistant_response_source_revision"] == 7

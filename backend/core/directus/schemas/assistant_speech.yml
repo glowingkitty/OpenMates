@@ -1,0 +1,44 @@
+# Durable assistant-response speech metadata. These records never contain
+# speakable plaintext, provider credentials, encryption keys, or raw audio.
+# Audio itself is encrypted in chatfiles and indexed once in upload_files.
+assistant_speech_manifests:
+  type: collection
+  fields:
+    id: {type: uuid}
+    manifest_id: {type: string, options: {unique: true}}
+    user_id: {type: string}
+    chat_id: {type: string}
+    assistant_message_id: {type: string}
+    source_version: {type: integer}
+    voice_profile_key: {type: string}
+    voice_profile_version: {type: integer}
+    ordered_segment_ids: {type: json}
+    status: {type: string}
+    execution_version: {type: integer}
+
+assistant_speech_segments:
+  type: collection
+  fields:
+    id: {type: uuid}
+    segment_id: {type: string, options: {unique: true}}
+    manifest_id: {type: string}
+    user_id: {type: string}
+    chat_id: {type: string}
+    assistant_message_id: {type: string}
+    source_version: {type: integer}
+    sequence: {type: integer}
+    kind: {type: string}
+    source_hash: {type: string}
+    voice_profile_key: {type: string}
+    voice_profile_version: {type: integer}
+    status: {type: string}
+    execution_version: {type: integer}
+    generated_asset_id: {type: string, nullable: true}
+    duration_seconds: {type: decimal, nullable: true}
+    pending_generated_asset_id: {type: string, nullable: true}
+    pending_duration_seconds: {type: decimal, nullable: true}
+    billing_usage_id: {type: string, nullable: true}
+    lease_id: {type: string, nullable: true}
+    lease_expires_at: {type: timestamp, nullable: true}
+    error: {type: string, nullable: true}
+    retryable: {type: boolean, nullable: true}

@@ -136,7 +136,7 @@ contracts:
     version: 1
     status: approved
     path: features/app-skills/audio-speak
-    fingerprint: 6928e06478ea7825934d912179dd361b9b7fe7cf6c7e7051c31f5e293cfd8999
+    fingerprint: c58a24337e4bd6095a9eedd81da823645540266c28fb45d66ab0777b5db7cf86
     required_surfaces:
     - rest_api
     - cli
@@ -210,6 +210,15 @@ contracts:
     fingerprint: 10cac1f364d96c32dd5b438cbd58eb8849482ed50e4b4a9ce59a479cf4a0017b
     required_surfaces:
     - rest_api
+    - gui.apple
+  feature.assistant-response-speech:
+    version: 1
+    status: draft
+    path: features/assistant-response-speech
+    fingerprint: c49e523b71fcd4be3ddd819b1612f33a13219cae12ea8b71e36d43217f1b7288
+    required_surfaces:
+    - rest_api
+    - gui.web
     - gui.apple
   feature.auth:
     version: 1
@@ -1622,7 +1631,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: validation
-    fingerprint: 3983074c3f27d3b60437806b0754e51c11d340e3f632c8b96c762c03abc1d2bc
+    fingerprint: f75ffeba33e4bfec309b3c65b7ab8850f0de1a334e07c6206ae878382982a384
     required_surfaces:
     - rest_api
     - cli
@@ -1634,7 +1643,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 3d8701228a80c17aeeba898ca05d8de41ef9445ada17d5efd8f4ce803a92b9ee
+    fingerprint: 916c9cf71def4624e3abcb84648616e4bfea8cae5c3f3e2a5511a48aad4c6765
     required_surfaces:
     - rest_api
     - cli
@@ -1646,7 +1655,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 3f2ef55fefcc3c883b4804efb67566d534796d0eb1f76a9fe9134fde8b02843e
+    fingerprint: bf815a4c9fb98ce697a3e10fef0a82d9bec5900e7b81bb7f40a50b230bc8f762
     required_surfaces:
     - rest_api
     - cli
@@ -1682,7 +1691,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: security
-    fingerprint: 992e132c26ab757033df43a498ed579e7225b52e5f9841315c491129977c5359
+    fingerprint: 0446e44d65d11ef1c5efd41e5af23b57b01e244788c5d9aa96290198dee2eb5e
     required_surfaces:
     - rest_api
     - cli
@@ -1694,7 +1703,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: security
-    fingerprint: 583d59ab1ef4c3d0ffb4caebd07454c19de51373623c1db2da6ba5eac857499f
+    fingerprint: d7f28e75c35784ba5cac0a55460fad00b9d746b82c5d9f80fcf9e461afefc282
     required_surfaces:
     - rest_api
     - cli
@@ -1706,7 +1715,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: privacy
-    fingerprint: 6c22d46f20c2c467fbf9752f88c75faa35ef26ea894b8809403117e457bce591
+    fingerprint: 70307c8c5da5154f562448dd857f7571116c9a9609de22a59718234ccc7be1ce
     required_surfaces:
     - rest_api
     - cli
@@ -1718,7 +1727,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: 0697b83503d669e01d1af619c3eb9aa1f3d9bfedc7cc75b019f3787884c5246f
+    fingerprint: 0f91446d5d2df6e696b8552d4611d7cf9f2fac195fa521ca50aa708a6f40109e
     required_surfaces:
     - rest_api
     - cli
@@ -1730,7 +1739,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: behavior
-    fingerprint: 60cb71d510b68d4b6ce0e682740d299c5f4aaef318ed758984b9ee81c1c5c08b
+    fingerprint: 36d398d8d5bb0b966c137f3d1e74cfaed3e516edcafa56fed14ef4f944b5504c
     required_surfaces:
     - rest_api
     - cli
@@ -1742,7 +1751,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: privacy
-    fingerprint: fa4c7b81b70a7a02e8d36db77d832b3f544f25f66ae3af3160dfd1cd56eb881c
+    fingerprint: f566e7966815b4ab6288b9b47668e0ba544a62d2a4d708ee36a5f1adc8975059
     required_surfaces:
     - rest_api
     - cli
@@ -1754,7 +1763,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: a87a005a6085ef479d75d5a07abf58ff051fa8329b9936353a01483568d99014
+    fingerprint: 1f07a82b5bea975d3f83ed65486dca02352d21208aeac60464f9814139077715
     required_surfaces:
     - rest_api
     - cli
@@ -1766,7 +1775,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: failure
-    fingerprint: 36a973ac39d941642f2448b7126a75ee47a6695f86906bbafa473dd459fc5ae3
+    fingerprint: 978b3ef7ff6c482b3813fa98f74c6169399ff532b7038a54d7ea0feba949784c
     required_surfaces:
     - rest_api
     - cli
@@ -1778,7 +1787,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: invariant
-    fingerprint: b8a96dcc31755a4f01841e62d586dbd522eb5fe686b6c94a23f2a2b39fa21571
+    fingerprint: a6610a422c0193722c89c756ff3ab951c9a308dff7c91cdca6c31ebabb8c47e8
     required_surfaces:
     - rest_api
     - cli
@@ -1790,7 +1799,7 @@ assertions:
     contract: feature.app-skill.audio-speak@1
     contract_id: feature.app-skill.audio-speak
     type: parity
-    fingerprint: 55f57cc90577b596e48186445990368fba7404fe796fd49c056d953cd2b2ef74
+    fingerprint: ebce345cece94cb63a269de12be59f2b531119f45ca10075f2a15bc843b8c6f5
     required_surfaces:
     - rest_api
     - cli
@@ -2327,6 +2336,204 @@ assertions:
     fingerprint: b3c0994b188b14bfaee7b2c014274aa020b69eb04f6481b7c9a27954e2ff3a0d
     required_surfaces:
     - rest_api
+    - gui.apple
+  assistant-speech.preference.chat-scoped-default-off:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: 148542f594f9abc4c5fdc93f176d5ff8e8875176f47bb3a5e62eb7affbc69177
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.preference.voice-recording-visible-activation:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: 6f19e3f1b5a3915027e63bdaa4516a9f0e8398b9825c913a59d5be850526703a
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.acknowledgement.deterministic-free:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: invariant
+    fingerprint: 22fccc7bcb9c9239438a1de4869503c1bfadf24df9f43bd5e7e467b5a7abfe86
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.voice.fixed-versioned-mate-profile:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: security
+    fingerprint: 16563787288146205047e010984c888d3a64abdaeb99f4c062b59196ba9f9f92
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.segmentation.one-file-per-segment:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: invariant
+    fingerprint: 6b267c8f15d88dcb358b956ec2239ff657d1a3f5f3442556e87b67a0f0f290f0
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.segmentation.immutable-source:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: invariant
+    fingerprint: 49e1d4c07c13ba9ff15ea51ab0382b1e638c1815c1b10e675fad551f2b61e7e1
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.projection.deterministic-semantic:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: privacy
+    fingerprint: dd71ca709413c96339aeb1d2c31d56915086f1dfd09c9dcb063bf8536f9ebd60
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.projection.no-cleanup-inference:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: privacy
+    fingerprint: aa329031468d7d007a10ab1d8f2a35a7026df8635a54c339fcb5c02941399294
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.execution.text-stream-independent:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: invariant
+    fingerprint: 997de6b146591516202ec361082f05eb716ae04c97c68bf33a91121f091f4007
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.execution.first-segment-progressive:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: 62559153b8a04bc57f93d86a9033f46cdd177b058a0ca3a5e626d1e5eaeb437e
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.playback.single-queue-segment-control:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: c5f994a16296133fd2aa18680a7e49a4d86e389c8aaf6dcb4c49c31847ec8cda
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.playback.pinned-full-response-waveform:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: 1db3f338533505e882a44576288c196c86eb4090df26719c42aba39e46020625
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.playback.os-controls-best-effort:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: parity
+    fingerprint: 6e66fbee9fc6763e3d8c0b16b0e61fdf519dd76a210419c466d53de4d5e65e92
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.playback.autoplay-recovery-visible:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: failure
+    fingerprint: 98c5c46b99c086fbcab13b00230b4426ce03137414faa1fb98aa87cdcb8904b5
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.on-demand.generate-missing-only:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: 95254580910937ac3d270c5b4c436124695c82163b9e22e864e0035aa76394ec
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.access.first-party-owner-scoped:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: security
+    fingerprint: c35936e3efd4109712d7ad9aefdfc81bdb03ee36fea1ea13fddd481054197248
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.safety.provider-after-approval:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: security
+    fingerprint: 9d47e64d777ad6f5b45349c8dd18505a9858145bd43118826718477d7a0dcc37
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.privacy.transient-plaintext-encrypted-audio:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: privacy
+    fingerprint: 19cb93956903df4811009796d6c6696050ac5c6394ea6da5c4b785a97e9f7d4a
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.billing.segment-success-once:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: invariant
+    fingerprint: 15e1b9f4bec20bcc9548b00eaaef0606096d84a7228a2bd7fbc0b99c8c88cde5
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.failure.nonblocking-visible-resumable:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: failure
+    fingerprint: bedd31ef9b42cd9e99be6cb418b896e711f018e1c96cbdeee8ff1083f2088a7e
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.lifecycle.disable-delete-invalidate:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: privacy
+    fingerprint: 8b4a509b7de96b61e7467455281da92e7d23f07118c0e67a0de10061a1b5662d
+    required_surfaces:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.surface.semantic-parity:
+    contract: feature.assistant-response-speech@1
+    contract_id: feature.assistant-response-speech
+    type: parity
+    fingerprint: 1c7f0c32d6ce65aa930eb7ee5447d7e9eb4861a47fc65c6b24911b123d8b1a71
+    required_surfaces:
+    - rest_api
+    - gui.web
     - gui.apple
   auth.signup.current-flow:
     contract: feature.auth@1

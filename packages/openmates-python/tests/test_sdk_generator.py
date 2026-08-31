@@ -79,12 +79,13 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
         "calm_narrator",
     ]
     assert audio_speak["schema"]["properties"]["requests"]["items"]["properties"]["model"]["enum"] == [
+        "eleven_v3",
         "eleven_multilingual_v2",
         "eleven_flash_v2_5",
     ]
     assert (
         audio_speak["schema"]["properties"]["requests"]["items"]["properties"]["model"]["default"]
-        == "eleven_multilingual_v2"
+        == "eleven_v3"
     )
 
     assert web_search["app_namespace_py"] == "web"

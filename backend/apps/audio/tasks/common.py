@@ -89,6 +89,7 @@ async def charge_audio_generation_credits(
     device_hash: Optional[str],
     api_key_name: Optional[str],
     log_prefix: str,
+    raise_on_failure: bool = False,
 ) -> None:
     """Charge generated-audio usage after successful provider output."""
     if credits <= 0:
@@ -130,6 +131,8 @@ async def charge_audio_generation_credits(
         logger.info("%s Charged %s credits for audio generation", log_prefix, credits)
     except Exception as exc:
         logger.error("%s Failed to charge audio generation credits: %s", log_prefix, exc, exc_info=True)
+        if raise_on_failure:
+            raise
 
 
 async def ensure_audio_credit_headroom(

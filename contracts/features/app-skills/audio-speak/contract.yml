@@ -16,7 +16,7 @@ scope:
   includes:
     - Explicit user-invoked text-to-speech generation
     - OpenMates voice preset, accent, and style fields mapped internally to provider voice IDs
-    - Higher-quality ElevenLabs Multilingual v2 text-to-speech as the default model, with Flash v2.5 available only by explicit selection
+    - Higher-quality Eleven v3 text-to-speech as the default model, with Multilingual v2 and Flash v2.5 available by explicit selection
     - Task-based generated-asset responses for every successful generated speech output
     - Encrypted private chatfiles S3 storage indexed in upload_files with short-lived generated-asset downloads
     - Playable generated-audio app-skill embeds and downloads with binary fields excluded from model inference
@@ -100,8 +100,8 @@ models:
       values: [mp3_22050_32, mp3_24000_48, mp3_44100_32, mp3_44100_64, mp3_44100_96, mp3_44100_128, mp3_44100_192]
     model:
       type: enum
-      default: eleven_multilingual_v2
-      values: [eleven_multilingual_v2, eleven_flash_v2_5]
+      default: eleven_v3
+      values: [eleven_v3, eleven_multilingual_v2, eleven_flash_v2_5]
 
   GeneratedAudioFileVariant:
     s3_key:
@@ -266,7 +266,7 @@ assertions:
     depends_on: [models.AudioSpeakRequestItem.text, examples.successful_outputs, examples.error_outputs]
   - id: audio-speak.model.high-quality-default
     type: invariant
-    must: audio.speak defaults to ElevenLabs Multilingual v2 for higher-quality speech; Flash v2.5 remains available only as an explicit lower-cost request model and must not be silently substituted for default requests.
+    must: audio.speak defaults to Eleven v3 for the highest-quality expressive speech; Multilingual v2 remains available as an explicit stable multilingual model and Flash v2.5 remains available as an explicit lower-cost model, with no silent model substitution.
     depends_on: [models.AudioSpeakRequestItem.model, examples.valid_inputs, examples.successful_outputs]
   - id: audio-speak.output.playable-audio
     type: behavior

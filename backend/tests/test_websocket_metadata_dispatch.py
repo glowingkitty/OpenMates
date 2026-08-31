@@ -9,6 +9,7 @@ otherwise a send can time out before its durable ACK is emitted.
 
 import importlib
 import asyncio
+import hashlib
 import sys
 from types import ModuleType, SimpleNamespace
 
@@ -103,6 +104,7 @@ def _install_websockets_import_stubs(monkeypatch):
             "handle_get_compressed_chat_old_messages",
             "handle_store_chat_compression_checkpoint",
         ],
+        "assistant_speech_handler": ["handle_assistant_speech_event"],
     }
     for module_name, names in handler_modules.items():
         _stub_module(monkeypatch, f"{base}.{module_name}", **{name: _noop_async for name in names})
@@ -144,6 +146,88 @@ def _load_websockets_module(monkeypatch):
         if routes_package is not None and getattr(routes_package, "websockets", None) is module:
             delattr(routes_package, "websockets")
     return importlib.import_module(module_name)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status", "extra_status"),
+    [
+        ("queued", {}),
+        ("ready", {"generated_asset_id": "asset-1", "duration_seconds": 1.2}),
+        ("error", {"error": "Speech is temporarily unavailable.", "retryable": True}),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.failure.nonblocking-visible-resumable
+async def test_assistant_speech_status_listener_routes_safe_updates_only_to_owner_active_chat(
+    monkeypatch,
+    status,
+    extra_status,
+):
+    websockets = _load_websockets_module(monkeypatch)
+    owner_id = "owner-1"
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    sent = []
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return object()
+
+            return connected_client()
+
+        async def subscribe_to_channel(self, channel):
+            assert channel == "chat_stream::*"
+            yield {
+                "channel": "chat_stream::chat-1",
+                "data": {
+                    "type": "assistant_speech_status",
+                    "chat_id": "chat-1",
+                    "user_id_hash": owner_hash,
+                    "message_id": "message-1",
+                    "payload": {
+                        "segment_id": "segment-1",
+                        "status": status,
+                        "speakable_text": "must not leave the worker",
+                        **extra_status,
+                    },
+                },
+            }
+
+    class Manager:
+        active_connections = {
+            owner_id: {"owner-active": object(), "owner-other-chat": object()},
+            "other-user": {"other-active": object()},
+        }
+
+        def get_connections_for_user(self, user_id):
+            return self.active_connections.get(user_id, {})
+
+        def get_active_chat(self, _user_id, device_hash):
+            return {"owner-active": "chat-1", "owner-other-chat": "chat-2", "other-active": "chat-1"}.get(device_hash)
+
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    monkeypatch.setattr(websockets, "manager", Manager())
+    await websockets.listen_for_ai_chat_streams(SimpleNamespace(state=SimpleNamespace(cache_service=Cache())))
+
+    assert sent == [
+        (
+            {
+                "type": "assistant_speech_status",
+                "payload": {
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
+                    "segment_id": "segment-1",
+                    "status": status,
+                    **extra_status,
+                },
+            },
+            owner_id,
+            "owner-active",
+        ),
+    ]
 
 
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only

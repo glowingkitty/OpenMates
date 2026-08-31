@@ -11,7 +11,7 @@ valid_inputs:
           accent: en_us
           style: friendly
           speed: 1.0
-    expect: {groups: 1, generation_type: speech, voice_preset: warm_neutral, model: eleven_multilingual_v2, semantic_safeguard: allowed, initial_status: processing}
+    expect: {groups: 1, generation_type: speech, voice_preset: warm_neutral, model: eleven_v3, semantic_safeguard: allowed, initial_status: processing}
   - id: correlated-speech-batch
     input:
       requests:
@@ -28,6 +28,13 @@ valid_inputs:
           style: friendly
           model: eleven_flash_v2_5
     expect: {groups: 1, generation_type: speech, model: eleven_flash_v2_5, semantic_safeguard: allowed, explicit_low_cost_model: true}
+  - id: explicit-stable-multilingual-speech
+    input:
+      requests:
+        - text: OpenMates can also use the stable Multilingual v2 model when explicitly selected.
+          provider: elevenlabs
+          model: eleven_multilingual_v2
+    expect: {groups: 1, generation_type: speech, model: eleven_multilingual_v2, semantic_safeguard: allowed, explicit_model: true}
 
 invalid_inputs:
   - id: missing-requests
@@ -76,7 +83,7 @@ successful_outputs:
           accent: en_us
           style: natural
           provider: ElevenLabs
-          model: eleven_multilingual_v2
+          model: eleven_v3
           mime_type: audio/mpeg
           duration_seconds: 1.6
           byte_length: 9800
@@ -96,7 +103,7 @@ successful_outputs:
           vault_wrapped_aes_key: <VAULT_WRAPPED_AES_KEY>
           credits_charged: 7
           error: null
-    expect: {embed_type: app_skill_use, app_id: audio, skill_id: speak, audio_player_visible: true, upload_files_indexed: true, audio_base64_absent: true, default_model_used: eleven_multilingual_v2}
+    expect: {embed_type: app_skill_use, app_id: audio, skill_id: speak, audio_player_visible: true, upload_files_indexed: true, audio_base64_absent: true, default_model_used: eleven_v3}
 
 error_outputs:
   - id: missing-voice-mapping
@@ -110,7 +117,7 @@ error_outputs:
           accent: en_us
           style: natural
           provider: ElevenLabs
-          model: eleven_multilingual_v2
+          model: eleven_v3
           mime_type: audio/mpeg
           duration_seconds: null
           byte_length: 0
@@ -139,7 +146,7 @@ error_outputs:
           accent: en_us
           style: natural
           provider: ElevenLabs
-          model: eleven_multilingual_v2
+          model: eleven_v3
           mime_type: audio/mpeg
           duration_seconds: null
           byte_length: 0
@@ -159,7 +166,7 @@ boundary_cases:
     expect: accepted
   - id: async-generated-asset-required
     input: {requests: [{text: Welcome back. Your message has been sent., provider: elevenlabs, voice: warm_neutral, accent: en_us}]}
-    expect: {initial_status: processing, default_model: eleven_multilingual_v2, audio_base64_absent: true, completed_result_has_encrypted_files: true, upload_files_indexed: true}
+    expect: {initial_status: processing, default_model: eleven_v3, audio_base64_absent: true, completed_result_has_encrypted_files: true, upload_files_indexed: true}
 
 safety_rejections:
   - id: public-figure-voice

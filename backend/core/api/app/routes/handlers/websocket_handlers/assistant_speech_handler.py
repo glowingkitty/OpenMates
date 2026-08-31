@@ -1,0 +1,308 @@
+# backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+#
+# First-party, owner-scoped core for assistant-response speech requests.
+# The future WebSocket route supplies real authorization, limits, and dispatch;
+# this unit-testable handler rejects invalid work before dispatching plaintext.
+# Client results retain only safe status and encrypted asset metadata.
+
+from __future__ import annotations
+
+import inspect
+from collections.abc import Awaitable, Callable, Mapping
+from typing import Any
+
+from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
+
+MAX_SEGMENTS_PER_REQUEST = 20
+MAX_SPEAKABLE_TEXT_LENGTH = 2_000
+SAFE_RESULT_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_seconds", "error", "retryable")
+
+
+async def handle_assistant_speech_request(
+    *,
+    user_id: str | None,
+    payload: Mapping[str, object],
+    authorize: Callable[..., Awaitable[Mapping[str, object]]],
+    rate_limit: Callable[..., bool | Awaitable[bool]],
+    budget_preflight: Callable[..., bool | Awaitable[bool]],
+    dispatch: Callable[..., Awaitable[Mapping[str, object] | None]],
+) -> dict[str, object]:
+    """Authorize bounded transient segments and return a plaintext-free status."""
+    if not user_id:
+        return _error("authentication_required")
+
+    chat_id = str(payload.get("chat_id") or "")
+    assistant_message_id = str(payload.get("assistant_message_id") or "")
+    segments = payload.get("segments")
+    if not isinstance(segments, list) or not segments:
+        return _error("invalid_segments")
+    if len(segments) > MAX_SEGMENTS_PER_REQUEST:
+        return _error("too_many_segments")
+    authorization = await authorize(
+        user_id=user_id,
+        chat_id=chat_id,
+        assistant_message_id=assistant_message_id,
+    )
+    if authorization.get("chat_owner_id") != user_id:
+        return _error("forbidden")
+    if authorization.get("message_role") != "assistant":
+        return _error("assistant_message_required")
+    if any(not isinstance(segment, Mapping) or len(str(segment.get("speakable_text") or "")) > MAX_SPEAKABLE_TEXT_LENGTH for segment in segments):
+        return _error("segment_text_too_long")
+    if any(
+        not isinstance(segment, Mapping)
+        or not str(segment.get("speakable_text") or "").strip()
+        or not isinstance(segment.get("source_version"), int)
+        or not isinstance(segment.get("sequence"), int)
+        or not str(segment.get("kind") or "")
+        or not str(segment.get("source_hash") or "")
+        for segment in segments
+    ):
+        return _error("canonical_segment_required")
+    if not await _resolve(rate_limit(user_id=user_id, chat_id=chat_id, segment_count=len(segments))):
+        return _error("rate_limited")
+    for segment in segments:
+        if not isinstance(segment, Mapping) or not await _resolve(
+            budget_preflight(user_id=user_id, chat_id=chat_id, segment=segment),
+        ):
+            return _error("insufficient_budget")
+
+    dispatched = await dispatch(
+        user_id=user_id,
+        chat_id=chat_id,
+        assistant_message_id=assistant_message_id,
+        segments=segments,
+    )
+    results = dispatched if isinstance(dispatched, list) else [dispatched]
+    return {"status": "accepted", "segments": [_safe_result(result) for result in results if result]}
+
+
+def _error(error: str) -> dict[str, str]:
+    return {"status": "error", "error": error}
+
+
+async def _resolve(value: bool | Awaitable[bool]) -> bool:
+    return bool(await value) if inspect.isawaitable(value) else bool(value)
+
+
+def _safe_result(result: Mapping[str, object]) -> dict[str, object]:
+    return {field: result[field] for field in SAFE_RESULT_FIELDS if field in result}
+
+
+async def handle_assistant_speech_websocket(
+    *,
+    manager: object,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: Mapping[str, object],
+    authorize: Callable[..., Awaitable[Mapping[str, object]]],
+    rate_limit: Callable[..., bool | Awaitable[bool]],
+    budget_preflight: Callable[..., bool | Awaitable[bool]],
+    dispatch: Callable[..., Awaitable[Mapping[str, object] | None]],
+    retry: Callable[..., Awaitable[Mapping[str, object] | None]],
+    cancel: Callable[..., Awaitable[None]],
+    delete: Callable[..., Awaitable[None]],
+) -> None:
+    """Route first-party request, retry, and deletion actions without echoing text."""
+    action = str(payload.get("action") or "request")
+    if action == "request":
+        result = await handle_assistant_speech_request(
+            user_id=user_id,
+            payload=payload,
+            authorize=authorize,
+            rate_limit=rate_limit,
+            budget_preflight=budget_preflight,
+            dispatch=dispatch,
+        )
+    elif action == "retry":
+        result = await retry(user_id=user_id, chat_id=payload.get("chat_id"), assistant_message_id=payload.get("assistant_message_id"), segment_ids=payload.get("segment_ids") or [])
+        result = {"status": "accepted", "segments": [_safe_result(result)]} if result else _error("retry_unavailable")
+    elif action in {"delete", "cancel"}:
+        authorization = await authorize(
+            user_id=user_id,
+            chat_id=str(payload.get("chat_id") or ""),
+            assistant_message_id=str(payload.get("assistant_message_id") or ""),
+        )
+        if authorization.get("chat_owner_id") != user_id:
+            result = _error("forbidden")
+        else:
+            lifecycle_action = cancel if action == "cancel" else delete
+            await lifecycle_action(user_id=user_id, chat_id=payload.get("chat_id"), assistant_message_id=payload.get("assistant_message_id"))
+            result = {"status": "cancelled" if action == "cancel" else "deleted"}
+    else:
+        result = _error("invalid_action")
+    await manager.send_personal_message({"type": "assistant_speech_status", "payload": result}, user_id, device_fingerprint_hash)
+
+
+async def handle_assistant_speech_event(
+    *,
+    manager: Any,
+    directus_service: Any,
+    cache_service: Any,
+    user_id: str,
+    device_fingerprint_hash: str,
+    payload: Mapping[str, object],
+) -> None:
+    """Bind the first-party WebSocket action to Directus, billing, and Celery."""
+    from backend.apps.audio.pricing import (
+        ASSISTANT_RESPONSE_SPEECH_MODEL,
+        calculate_speech_credits,
+        estimate_speech_duration_seconds,
+    )
+    from backend.apps.audio.tasks.common import ensure_audio_credit_headroom
+    from backend.core.api.app.tasks.celery_config import app
+
+    async def authorize(**kwargs: object) -> Mapping[str, object]:
+        chat_id = str(kwargs["chat_id"])
+        message_id = str(kwargs["assistant_message_id"])
+        owned = await directus_service.chat.check_chat_ownership(chat_id, user_id)
+        messages = await directus_service.get_items(
+            "messages",
+            params={"filter[chat_id][_eq]": chat_id, "filter[client_message_id][_eq]": message_id, "fields": "role", "limit": 1},
+            no_cache=True,
+        )
+        return {"chat_owner_id": user_id if owned else None, "message_role": messages[0].get("role") if messages else None}
+
+    async def rate_limit(**kwargs: object) -> bool:
+        client = await cache_service.client
+        if not client:
+            return False
+        key = f"assistant-speech:rate:{_speech_source_identity(user_id)}:{kwargs['chat_id']}"
+        segment_count = int(kwargs["segment_count"])
+        count = await client.incrby(key, segment_count)
+        if count == segment_count:
+            await client.expire(key, 60)
+        return count <= MAX_SEGMENTS_PER_REQUEST
+
+    async def budget_preflight(**kwargs: object) -> bool:
+        segment = kwargs["segment"]
+        if not isinstance(segment, Mapping):
+            return False
+        text = str(segment.get("speakable_text") or "")
+        if not text:
+            return False
+        try:
+            await ensure_audio_credit_headroom(
+                user_id=user_id,
+                estimated_credits=calculate_speech_credits(
+                    model=ASSISTANT_RESPONSE_SPEECH_MODEL,
+                    duration_seconds=estimate_speech_duration_seconds(text),
+                ),
+                operation_name="assistant response speech",
+                log_prefix="[assistant-speech]",
+            )
+            return True
+        except Exception:
+            return False
+
+    async def dispatch(**kwargs: object) -> list[dict[str, object]]:
+        segments = kwargs["segments"]
+        if not isinstance(segments, list):
+            return []
+        # Speak can only use a manifest emitted while the server observed the
+        # response. The transient text proves the persisted source hash; it never
+        # creates a new canonical segment or selects a client-controlled voice.
+        normalized = []
+        for segment in segments:
+            if not isinstance(segment, Mapping):
+                continue
+            text = str(segment.get("speakable_text") or "").strip()
+            source_hash = _speech_source_identity(text)
+            rows = await directus_service.get_items(
+                "assistant_speech_segments",
+                params={
+                    "filter[user_id][_eq]": user_id,
+                    "filter[chat_id][_eq]": kwargs["chat_id"],
+                    "filter[assistant_message_id][_eq]": kwargs["assistant_message_id"],
+                    "filter[source_version][_eq]": segment["source_version"],
+                    "filter[sequence][_eq]": segment["sequence"],
+                    "filter[kind][_eq]": segment["kind"],
+                    "filter[source_hash][_eq]": source_hash,
+                    "limit": 1,
+                },
+                no_cache=True,
+            )
+            if not rows:
+                continue
+            row = rows[0]
+            if str(row.get("status") or "") in {"cancelled", "deleted", "invalidated", "ready"}:
+                continue
+            normalized.append({
+                "segment_id": str(row["segment_id"]),
+                "source_version": int(row["source_version"]),
+                "sequence": int(row["sequence"]),
+                "kind": str(row["kind"]),
+                "source_hash": source_hash,
+                "speakable_text": text,
+                "voice_profile_key": str(row["voice_profile_key"]),
+                "voice_profile_version": int(row["voice_profile_version"]),
+            })
+        for segment in normalized:
+            app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**segment, "user_id": user_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
+        return [{"segment_id": segment["segment_id"], "status": "queued"} for segment in normalized]
+
+    async def retry(**kwargs: object) -> Mapping[str, object] | None:
+        segment_ids = kwargs.get("segment_ids")
+        if not isinstance(segment_ids, list) or not segment_ids:
+            return None
+        rows = await directus_service.get_items(
+            "assistant_speech_segments",
+            params={
+                "filter[user_id][_eq]": user_id,
+                "filter[chat_id][_eq]": kwargs["chat_id"],
+                "filter[assistant_message_id][_eq]": kwargs["assistant_message_id"],
+                "filter[status][_eq]": "settlement_pending",
+                "filter[segment_id][_in]": ",".join(str(segment_id) for segment_id in segment_ids),
+                "limit": MAX_SEGMENTS_PER_REQUEST,
+            },
+            no_cache=True,
+        )
+        if not rows:
+            return None
+        for row in rows:
+            app.send_task(
+                "apps.audio.tasks.assistant_speech_segment",
+                kwargs={
+                    "arguments": {
+                        "segment_id": row["segment_id"],
+                        "user_id": user_id,
+                        "chat_id": kwargs["chat_id"],
+                        "assistant_message_id": kwargs["assistant_message_id"],
+                        "source_hash": row["source_hash"],
+                        "voice_profile_key": row["voice_profile_key"],
+                        "voice_profile_version": row["voice_profile_version"],
+                    },
+                },
+                queue="app_music",
+            )
+        return {"segment_id": str(rows[0]["segment_id"]), "status": "queued"}
+
+    async def delete(**kwargs: object) -> None:
+        from backend.apps.audio.assistant_speech.persistence import tombstone_speech_assets
+
+        await tombstone_speech_assets(
+            directus_service,
+            user_id=user_id,
+            chat_id=str(kwargs["chat_id"]),
+            assistant_message_id=str(kwargs["assistant_message_id"]),
+        )
+        app.send_task(
+            "apps.audio.tasks.assistant_speech_delete",
+            kwargs={"arguments": {"user_id": user_id, "chat_id": str(kwargs["chat_id"]), "assistant_message_id": str(kwargs["assistant_message_id"])}},
+            queue="app_music",
+        )
+
+    async def cancel(**kwargs: object) -> None:
+        from backend.apps.audio.assistant_speech.persistence import cancel_queued_speech_assets
+
+        await cancel_queued_speech_assets(
+            directus_service,
+            user_id=user_id,
+            chat_id=str(kwargs["chat_id"]),
+            assistant_message_id=str(kwargs["assistant_message_id"]),
+        )
+
+    await handle_assistant_speech_websocket(
+        manager=manager, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+        authorize=authorize, rate_limit=rate_limit, budget_preflight=budget_preflight, dispatch=dispatch, retry=retry, cancel=cancel, delete=delete,
+    )

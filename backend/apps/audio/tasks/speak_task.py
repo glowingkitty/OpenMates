@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from backend.apps.audio.pricing import DEFAULT_SPEECH_MODEL, calculate_speech_credits, estimate_speech_duration_seconds
-from backend.apps.audio.skills.speak_skill import VOICE_PRESET_TO_ELEVENLABS_ID, classify_audio_speech_safety
+from backend.apps.audio.skills.speak_skill import classify_audio_speech_safety
 from backend.apps.audio.tasks.common import (
     charge_audio_generation_credits,
     ensure_audio_credit_headroom,
@@ -20,6 +20,7 @@ from backend.apps.audio.tasks.common import (
     send_audio_error_embed,
     store_generated_audio_asset,
 )
+from backend.apps.audio.voice_presets import VOICE_PRESET_TO_ELEVENLABS_ID
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient

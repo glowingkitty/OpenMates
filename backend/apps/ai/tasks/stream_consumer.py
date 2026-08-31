@@ -24,6 +24,7 @@ from backend.core.api.app.services.sub_chat_orchestration_service import SubChat
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.assistant_speech.streaming import ImmutableSpeechBoundaryTracker
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -119,6 +120,58 @@ def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
 
 def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
     return getattr(request_data, "continuation_message_id", None) or task_id
+
+
+async def _dispatch_automatic_assistant_speech_segment(
+    *,
+    segment: dict[str, object],
+    directus_service: Optional[DirectusService],
+    user_id: str,
+    user_vault_key_id: Optional[str],
+    voice_profile: dict[str, object],
+    auto_speak: bool,
+) -> None:
+    """Persist and queue one immutable segment outside the authoritative text path."""
+    if directus_service is None:
+        return
+    from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments
+
+    manifest = await create_manifest_and_segments(
+        directus_service,
+        user_id=user_id,
+        chat_id=str(segment["chat_id"]),
+        assistant_message_id=str(segment["assistant_message_id"]),
+        source_version=int(segment["source_version"]),
+        voice_profile=voice_profile,
+        segments=[segment],
+    )
+    if not auto_speak or str(segment["segment_id"]) not in set(manifest["dispatch_segment_ids"]):
+        return
+    celery_config.app.send_task(
+        "apps.audio.tasks.assistant_speech_segment",
+        kwargs={
+            "arguments": {
+                **segment,
+                "user_id": user_id,
+                "user_vault_key_id": user_vault_key_id,
+                "voice_profile_key": voice_profile["key"],
+                "voice_profile_version": voice_profile["version"],
+            },
+        },
+        queue="app_music",
+    )
+
+
+async def _invalidate_automatic_assistant_speech_segment(
+    *,
+    segment: dict[str, object],
+    directus_service: Optional[DirectusService],
+) -> None:
+    if directus_service is None:
+        return
+    from backend.apps.audio.assistant_speech.persistence import invalidate_speech_segment
+
+    await invalidate_speech_segment(directus_service, str(segment["segment_id"]))
 
 
 async def _finalize_legacy_cutover_before_final_marker(
@@ -568,7 +621,7 @@ async def _dispatch_sub_chat_parent_continuation(
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
         continuation_message_id=original_request.continuation_message_id,
-        recovery_inference_task_id=None,
+        recovery_inference_task_id=original_request.recovery_task_id or original_request.recovery_inference_task_id,
         recovery_preflight_id=original_request.recovery_preflight_id,
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
@@ -4960,6 +5013,56 @@ async def _consume_main_processing_stream(
         ),
         completion_timing.mark_first_visible_content if completion_timing else None,
     )
+    speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
+    if not request_data.is_external and not request_data.is_incognito:
+        selected_mate = next(
+            (
+                mate
+                for mate in all_mates_configs
+                if mate.id == (preprocessing_result.selected_mate_id or request_data.mate_id)
+            ),
+            None,
+        )
+        voice_profile = {
+            "key": selected_mate.voice_profile.key if selected_mate else "warm_neutral",
+            "version": selected_mate.voice_profile.version if selected_mate else 1,
+        }
+        speech_metadata = {
+            "chat_id": request_data.chat_id,
+            "assistant_message_id": assistant_message_id,
+            "source_version": request_data.assistant_response_source_revision,
+            "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
+            "language": preprocessing_result.output_language
+            or (request_data.user_preferences or {}).get("language", "en"),
+        }
+        speech_tracker = ImmutableSpeechBoundaryTracker(
+            metadata=speech_metadata,
+            dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
+                segment=segment,
+                directus_service=directus_service,
+                user_id=request_data.user_id,
+                user_vault_key_id=user_vault_key_id,
+                voice_profile=voice_profile,
+                auto_speak=request_data.auto_speak_response,
+            ),
+            invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
+                segment=segment,
+                directus_service=directus_service,
+            ),
+            report_status=lambda status: _publish_to_redis(
+                cache_service,
+                redis_channel_name,
+                {
+                    "type": "assistant_speech_status",
+                    "chat_id": request_data.chat_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "message_id": assistant_message_id,
+                    "payload": status,
+                },
+                log_prefix,
+                "assistant speech status",
+            ),
+        )
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
     
     # Thinking content tracking for thinking models (Gemini, Anthropic)
@@ -8032,6 +8135,9 @@ async def _consume_main_processing_stream(
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
 
+                if speech_tracker is not None:
+                    speech_tracker.observe("".join(final_response_chunks))
+
                 # CRITICAL: Publish chunk IMMEDIATELY without buffering
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
                 if cache_service:
@@ -9204,6 +9310,8 @@ async def _consume_main_processing_stream(
             )
     
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
+    if speech_tracker is not None:
+        speech_tracker.observe(aggregated_response, is_final=True)
     stream_error_message_for_log: Optional[str] = None
 
     if was_revoked_during_stream:

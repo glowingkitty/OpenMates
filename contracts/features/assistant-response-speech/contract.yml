@@ -1,0 +1,370 @@
+schema_version: 1
+id: feature.assistant-response-speech
+version: 1
+status: draft
+title: Assistant Response Speech
+summary: >
+  Let authenticated users hear assistant responses as ordered, independently
+  generated speech paragraphs while text streaming remains authoritative,
+  uninterrupted, private, replayable, and charged exactly once per generated
+  paragraph.
+
+scope:
+  includes:
+    - A chat-scoped Auto speak response preference that is off by default and synchronized across the user's first-party clients.
+    - Visible automatic activation when the user adds a voice-recording embed to the chat composer.
+    - Deterministic selection of a prerecorded acknowledgement by mate voice, response language, and preprocessor request category.
+    - Immutable speakable prose paragraphs, app-use announcements, and structured summaries generated independently from the visual response stream.
+    - One ElevenLabs generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
+    - Ordered automatic playback that starts when the first generated paragraph is ready and continues as later paragraph files become ready.
+    - A bar pinned to the top of the active-chat container that visualizes the full response waveform, highlights the current paragraph region, and exposes direct paragraph navigation.
+    - A Speak action on every assistant response that generates only missing paragraph audio and reuses durable existing files.
+    - In-app paragraph controls and best-effort operating-system media controls for play, pause, previous paragraph, and next paragraph.
+    - Successful-generation-only credit charging tied to the originating chat, assistant message, and paragraph segment.
+    - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
+    - Web and Apple semantic parity after the approved first-party server contract is complete.
+  excludes:
+    - A combined message-level audio file containing the whole assistant response.
+    - User-selectable or cloned voices, raw provider voice IDs, and impersonation of real people.
+    - Reading raw JSON, protocol fences, raw URLs, code syntax, or complete table markup aloud by default.
+    - A general-purpose LLM rewrite, compression, or cleanup pass before text-to-speech generation.
+    - Browser speech synthesis or another provider as a silent fallback.
+    - Public, anonymous, developer-API, CLI, or SDK access to assistant-response speech generation in version 1.
+    - Changing the explicit user-invoked audio.speak app-skill contract.
+
+models:
+  ChatSpeechPreference:
+    chat_id:
+      type: chat_id
+      required: true
+    enabled:
+      type: boolean
+      required: true
+      default: false
+      constraints: {chat_scoped: true, user_disable_required: true}
+    activation_source:
+      type: enum
+      required: true
+      values: [manual, voice_recording]
+    synchronized_state:
+      type: client_encrypted_chat_setting
+      required: true
+      constraints: {cross_device: true, server_plaintext_chat_preference_not_required: true}
+
+  MateVoiceProfile:
+    profile_id:
+      type: stable_id
+      required: true
+      constraints: {product_curated: true}
+    mate_id:
+      type: stable_id
+      required: true
+    profile_version:
+      type: integer
+      required: true
+      constraints: {minimum: 1, invalidates_changed_segments: true}
+    supported_languages:
+      type: array
+      required: true
+      items: language_code
+      constraints: {min_items: 1}
+    fallback_profile_id:
+      type: stable_id
+      required: true
+    provider:
+      type: enum
+      required: true
+      values: [elevenlabs]
+    provider_voice_id:
+      type: server_secret_reference
+      required: true
+      constraints: {client_exposure: forbidden, logs: forbidden}
+    model:
+      type: server_configured_model
+      required: true
+      constraints: {silent_substitution: forbidden}
+
+  AcknowledgementClip:
+    clip_id:
+      type: stable_id
+      required: true
+    voice_profile_version:
+      type: integer
+      required: true
+    language:
+      type: language_code
+      required: true
+    request_category:
+      type: enum
+      required: true
+      values: [lookup, reasoning, action, general]
+    audio_asset:
+      type: product_static_audio
+      required: true
+      constraints: {prerecorded: true, runtime_generation: false, runtime_credit_charge: false}
+
+  SpeechManifest:
+    manifest_id:
+      type: stable_id
+      required: true
+    chat_id:
+      type: chat_id
+      required: true
+    assistant_message_id:
+      type: message_id
+      required: true
+    source_version:
+      type: integer
+      required: true
+      constraints: {authoritative_message_revision: true}
+    voice_profile_id:
+      type: stable_id
+      required: true
+    voice_profile_version:
+      type: integer
+      required: true
+    ordered_segment_ids:
+      type: array
+      required: true
+      items: stable_id
+      constraints: {unique: true, preserves_speech_order: true, combined_audio_file: forbidden}
+
+  SpeechSegment:
+    segment_id:
+      type: stable_id
+      required: true
+      constraints: {idempotent_generation_identity: true}
+    sequence:
+      type: integer
+      required: true
+      constraints: {minimum: 0, unique_within_manifest: true}
+    kind:
+      type: enum
+      required: true
+      values: [prose_paragraph, app_use_announcement, embed_summary, code_summary, table_summary]
+    source_hash:
+      type: sha256
+      required: true
+      constraints: {covers_speakable_text_and_voice_profile_version: true}
+    speakable_text:
+      type: transient_plaintext
+      required: true
+      constraints: {blank: false, durable_backend_storage: forbidden, logs: forbidden, unrelated_chat_context: forbidden}
+    status:
+      type: enum
+      required: true
+      values: [queued, generating, ready, error, cancelled]
+    encrypted_audio:
+      type: encrypted_generated_asset
+      nullable: true
+      constraints: {required_when_ready: true, exactly_one_s3_object: true, aes_gcm: true, private_chatfiles: true}
+    waveform:
+      type: encrypted_waveform_summary
+      nullable: true
+      constraints: {required_when_ready: true, normalized_samples: true, duration_aligned: true, plaintext_server_logs: forbidden}
+    duration_seconds:
+      type: number
+      nullable: true
+      constraints: {required_when_ready: true, minimum: 0}
+    provider_request_id:
+      type: string
+      nullable: true
+      constraints: {server_only: true, continuity_input_for_later_segments: true}
+    billing_usage_id:
+      type: stable_id
+      nullable: true
+      constraints: {required_when_charged: true, chat_and_message_attributed: true}
+    error:
+      type: string
+      nullable: true
+      constraints: {safe_user_visible: true, secrets: forbidden, raw_provider_diagnostics: forbidden}
+
+  SpeechGenerationRequest:
+    access_model:
+      type: enum
+      required: true
+      values: [first_party_authenticated]
+    chat_id:
+      type: chat_id
+      required: true
+      constraints: {owner_authorization_required: true}
+    assistant_message_id:
+      type: message_id
+      required: true
+      constraints: {belongs_to_chat: true, assistant_role_required: true}
+    segments:
+      type: array
+      required: true
+      items: SpeechSegment
+      constraints: {min_items: 1, rate_limited: true, budget_preflight_per_segment: true}
+
+  PlaybackQueue:
+    manifest_id:
+      type: stable_id
+      required: true
+    current_segment_id:
+      type: stable_id
+      nullable: true
+    state:
+      type: enum
+      required: true
+      values: [waiting, playing, paused, blocked_by_autoplay, stopped, completed, error]
+    controls:
+      type: array
+      required: true
+      constraints: {values: [play, pause, previous_segment, next_segment, stop]}
+
+  ResponseSpeechBar:
+    placement:
+      type: layout_invariant
+      required: true
+      constraints: {pinned_to_active_chat_top: true, global_viewport_fixed: false, transcript_obstruction: forbidden}
+    waveform:
+      type: composite_waveform
+      required: true
+      constraints: {includes_all_known_segments: true, complete_manifest_shows_full_response: true, duration_proportional_segments: true, reuses_recording_waveform_visual_language: true}
+    active_segment:
+      type: highlighted_waveform_region
+      nullable: true
+      constraints: {matches_current_playback_segment: true, generating_segments_distinguishable: true}
+    interactions:
+      type: array
+      required: true
+      constraints: {values: [play_pause, stop, previous_segment, next_segment, select_segment_region]}
+    visibility:
+      type: playback_surface_state
+      required: true
+      constraints: {visible_while_waiting_playing_paused_blocked_or_error: true, dismissible_when_stopped_or_completed: true}
+
+assertions:
+  - id: assistant-speech.preference.chat-scoped-default-off
+    type: behavior
+    must: Auto speak response is off for a chat until the user enables it, remains enabled only for that chat until explicitly disabled, and synchronizes as an encrypted chat-scoped preference across the user's first-party clients without enabling unrelated chats.
+    depends_on: [models.ChatSpeechPreference, examples.preferences]
+  - id: assistant-speech.preference.voice-recording-visible-activation
+    type: behavior
+    must: Adding a completed voice-recording embed enables Auto speak response for that chat before send, and the composer makes the transition visible by briefly highlighting the speech control without blocking recording, transcription, editing, or send.
+    depends_on: [models.ChatSpeechPreference.activation_source, examples.preferences]
+  - id: assistant-speech.acknowledgement.deterministic-free
+    type: invariant
+    must: The initial processing acknowledgement is selected deterministically from prerecorded clips using the resolved mate voice profile, response language, and preprocessor request category; missing exact matches use a documented deterministic fallback, never invoke runtime TTS or another inference pass, and incur no runtime generation credit charge.
+    depends_on: [models.AcknowledgementClip, models.MateVoiceProfile, examples.acknowledgements]
+  - id: assistant-speech.voice.fixed-versioned-mate-profile
+    type: security
+    must: Each mate resolves to one product-curated, versioned voice profile with a deterministic language-compatible fallback; clients cannot submit or discover raw provider voice IDs, request voice cloning, or silently substitute an unapproved provider or model.
+    depends_on: [models.MateVoiceProfile, examples.voice_profiles]
+  - id: assistant-speech.segmentation.one-file-per-segment
+    type: invariant
+    must: Every immutable speakable prose paragraph, app-use announcement, or structured non-prose summary has one stable segment ID, one ElevenLabs generation request, and exactly one independently encrypted private S3 audio object; a message-level combined audio object is forbidden.
+    depends_on: [models.SpeechManifest, models.SpeechSegment, examples.segmentation]
+  - id: assistant-speech.segmentation.immutable-source
+    type: invariant
+    must: Automatic generation begins only for an immutable speech segment whose source hash and message revision are fixed; later authoritative text or voice-profile changes invalidate only affected segment files and never leave mismatched audio presented as current.
+    depends_on: [models.SpeechManifest.source_version, models.SpeechSegment.source_hash, examples.segmentation, examples.lifecycle]
+  - id: assistant-speech.projection.deterministic-semantic
+    type: privacy
+    must: >
+      Speakable text is derived deterministically from semantic response blocks:
+      natural-language prose is preserved, labeled links and citations remain
+      human-readable, raw URLs and internal protocol are removed, and code,
+      tables, maps, calendars, and other embeds use producer-supplied structured
+      speech summaries or localized factual fallback announcements rather than
+      raw payloads.
+    depends_on: [models.SpeechSegment.kind, models.SpeechSegment.speakable_text, examples.projection]
+  - id: assistant-speech.projection.no-cleanup-inference
+    type: privacy
+    must: Assistant-response speech adds no general-purpose LLM rewrite, correction, compression, or coherence pass; any semantic summary is created by the original response or skill producer, while the speech path performs deterministic projection and a non-rewriting safety decision only.
+    depends_on: [models.SpeechSegment.speakable_text, examples.projection, examples.privacy]
+  - id: assistant-speech.execution.text-stream-independent
+    type: invariant
+    must: Acknowledgement playback, speech projection, safety checks, provider generation, encrypted storage, charging, and playback execute independently from assistant text streaming and final persistence; speech slowness, failure, cancellation, or autoplay blocking never delays, truncates, rewrites, or fails the text response.
+    depends_on: [models.SpeechSegment.status, models.PlaybackQueue.state, examples.failures]
+  - id: assistant-speech.execution.first-segment-progressive
+    type: behavior
+    must: Playback may start as soon as the first ordered generated segment is ready, does not wait for the complete response or all paragraph files, waits visibly when the next ordered segment is still generating, and automatically continues in manifest order when it becomes ready.
+    depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue, examples.playback]
+  - id: assistant-speech.playback.single-queue-segment-control
+    type: behavior
+    must: Only one assistant-response speech queue plays at a time; in-app controls always support play, pause, stop, previous segment, and next segment, where a segment is one prose paragraph or structured summary, and starting another response queue stops the previous queue without deleting generated files.
+    depends_on: [models.PlaybackQueue, examples.playback]
+  - id: assistant-speech.playback.pinned-full-response-waveform
+    type: behavior
+    must: >
+      The active chat displays one speech bar pinned below its top chrome while a
+      response queue is waiting, playing, paused, autoplay-blocked, or failed.
+      The bar concatenates duration-proportional waveform summaries for every
+      known paragraph or summary segment, expands as streaming discovers later
+      segments, shows the complete response after the manifest is final, visually
+      highlights the current segment, distinguishes segments still generating,
+      and lets the user select or skip paragraph regions without merging the
+      underlying audio files or covering transcript content.
+    depends_on: [models.ResponseSpeechBar, models.SpeechSegment.waveform, models.PlaybackQueue, examples.playback]
+  - id: assistant-speech.playback.os-controls-best-effort
+    type: parity
+    must: Web clients register supported Media Session play, pause, previous-track, and next-track actions to the active segment queue and retain complete in-app controls when the browser or operating system lacks them; Apple clients expose equivalent native background and lock-screen controls where the platform permits.
+    depends_on: [models.PlaybackQueue.controls, examples.playback, surfaces.gui]
+  - id: assistant-speech.playback.autoplay-recovery-visible
+    type: failure
+    must: Browser autoplay rejection keeps Auto speak response enabled, preserves the ready queue, and shows one explicit user action to continue playback; it is not reported as a provider failure and never triggers regeneration or another charge.
+    depends_on: [models.PlaybackQueue.state, examples.failures]
+  - id: assistant-speech.on-demand.generate-missing-only
+    type: behavior
+    must: Every assistant response exposes a Speak action; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
+    depends_on: [models.SpeechManifest, models.SpeechSegment.source_hash, examples.on_demand]
+  - id: assistant-speech.access.first-party-owner-scoped
+    type: security
+    must: Assistant-response speech generation is a rate-limited, authenticated first-party client surface only; each request is owner-authorized to its chat and assistant message, cannot target another user's content, and is not exposed through public, anonymous, developer API-key, CLI, or SDK contracts in version 1.
+    depends_on: [models.SpeechGenerationRequest, examples.privacy, surfaces]
+  - id: assistant-speech.safety.provider-after-approval
+    type: security
+    must: Runtime-generated segment text receives deterministic safety checks and a minimal non-rewriting semantic safety decision before ElevenLabs execution; rejected or safety-error segments call no speech provider, charge no credits, expose a safe visible error, and do not affect the text response.
+    depends_on: [models.SpeechSegment.speakable_text, models.SpeechSegment.status, examples.failures, examples.privacy]
+  - id: assistant-speech.privacy.transient-plaintext-encrypted-audio
+    type: privacy
+    must: The server and ElevenLabs receive only the current speakable segment text and required voice settings; unrelated chat state, encryption material, provider credentials, safety reasoning, and raw embed payloads are excluded, segment plaintext is not durably stored or logged, and every generated paragraph audio file is encrypted before private S3 persistence.
+    depends_on: [models.SpeechSegment, models.MateVoiceProfile.provider_voice_id, examples.privacy]
+  - id: assistant-speech.billing.segment-success-once
+    type: invariant
+    must: Each runtime-generated segment performs a credit preflight before provider dispatch and creates at most one idempotent successful charge tied to chat ID, assistant message ID, segment ID, provider, model, and actual duration; failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits.
+    depends_on: [models.SpeechSegment.billing_usage_id, models.AcknowledgementClip.audio_asset, examples.billing]
+  - id: assistant-speech.failure.nonblocking-visible-resumable
+    type: failure
+    must: Insufficient credits, safety rejection, provider failure, storage failure, or generation failure stops playback at the affected segment, preserves earlier ready files, disables Auto speak response for that chat, and shows one safe visible status with retry and chat-usage actions; retry resumes from the first failed or missing segment without duplicating successful work or charges.
+    depends_on: [models.SpeechSegment.status, models.SpeechSegment.error, models.PlaybackQueue.state, examples.failures]
+  - id: assistant-speech.lifecycle.disable-delete-invalidate
+    type: privacy
+    must: Disabling Auto speak immediately stops playback and cancels undispatched queued segments, while an already provider-accepted segment may finish, persist, and charge once; deleting an assistant message or chat deletes its generated speech manifests and audio files, and changed message or voice versions invalidate only affected files.
+    depends_on: [models.ChatSpeechPreference, models.SpeechManifest, models.SpeechSegment, examples.lifecycle]
+  - id: assistant-speech.surface.semantic-parity
+    type: parity
+    must: The first-party server, web, and Apple implementations preserve chat-scoped preference, visible recording activation, deterministic acknowledgement, fixed mate voice, one-file-per-segment generation, the pinned full-response waveform bar, progressive queueing, on-demand reuse, billing, privacy, lifecycle, and visible failure semantics, with only documented platform media-control differences.
+    depends_on: [models, examples, surfaces]
+
+surfaces:
+  rest_api:
+    required: true
+    role: Authenticated first-party API or WebSocket operations own segment generation, status, encrypted generated-asset delivery, retry, deletion, rate limiting, and budget enforcement; no public or developer API surface is created.
+  cli:
+    required: false
+    role: Version 1 does not add assistant-response audio playback or generation commands to the terminal client.
+  sdks:
+    required: false
+    role: Version 1 does not expose assistant-response speech generation through public npm or pip SDK facades.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions:
+      - id: web-media-session-limited-availability
+        implementation: gui.web
+        reason: Browser and operating-system Media Session support is not universal and autoplay policies are user-agent controlled.
+        equivalent_outcome: Web always exposes complete in-app segment controls and a visible tap-to-continue state when OS controls or autoplay are unavailable.
+
+examples:
+  file: examples.yml
+  required_groups: [preferences, acknowledgements, voice_profiles, segmentation, projection, playback, on_demand, billing, failures, privacy, lifecycle]

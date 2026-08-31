@@ -6,16 +6,16 @@ status: implementing
 contract_refs:
   - id: feature.app-skill.audio-generate
     version: 1
-    role: primary
+    role: inherited
     fingerprint: c4757dad3e92978a5975b26786be66d7f7d3a0af2325f34635606b8ab977a5d8
   - id: feature.app-skill.audio-speak
     version: 1
-    role: inherited
-    fingerprint: 6928e06478ea7825934d912179dd361b9b7fe7cf6c7e7051c31f5e293cfd8999
+    role: primary
+    fingerprint: c58a24337e4bd6095a9eedd81da823645540266c28fb45d66ab0777b5db7cf86
   - id: feature.public-example-chats
-    version: 1
+    version: 2
     role: inherited
-    fingerprint: 29f82e9f3500d0e18907b4436e6a99d482a200431c691a0264d0b4e6dc8a289a
+    fingerprint: 848d07ed04bed51d98b28f50bf7874971fcd3b382ab9bac74c4e234ab5f87fef
 
 contract_impact:
   classification: semantic_change
@@ -161,7 +161,8 @@ implementation_state:
 approvals:
   product_contract:
     status: approved
-    approved_at: "2026-08-09T14:11:06Z"
+    approved_at: "2026-08-31T00:00:00Z"
+    reason: User explicitly approved Eleven v3 as the audio.speak default with selectable v3, Multilingual v2, and Flash v2.5 models in session 6d4a.
   implementation_plan:
     status: approved
     approved_at: "2026-08-09T14:11:06Z"
@@ -193,10 +194,15 @@ decisions:
     reason: Generated audio should match image, music, and video storage/privacy/indexing semantics and must not add new inline audio_base64 payloads to chat sync.
     decided_at: "2026-08-11T00:00:00Z"
   - id: D-6
-    status: active
+    status: superseded
     decision: audio.speak defaults to ElevenLabs Multilingual v2, while Flash v2.5 remains an explicit lower-cost model selection.
-    reason: User-approved product direction prioritizes higher-quality default speech output.
+    reason: Superseded on 2026-08-31 by the user-approved Eleven v3 default and three-model selection contract.
     decided_at: "2026-08-11T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: audio.speak defaults to Eleven v3 and allows explicit selection of Eleven v3, Multilingual v2, or Flash v2.5.
+    reason: Eleven v3 is the highest-quality option at the same published price as Multilingual v2; Multilingual v2 and Flash remain available for stability and lower-cost use cases.
+    decided_at: "2026-08-31T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -257,12 +263,18 @@ attempts:
     outcome: succeeded
     recorded_at: "2026-08-11T22:24:44Z"
     evidence: test-results/proof-videos/f6c1/audio-example-generated-assets-phone/manifest.json
+  - id: ATTEMPT-11
+    task_id: TASK-9
+    approach: Update the audio.speak contract and tests first to require an Eleven v3 default and explicit three-model selection, then capture the expected failures before implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-31T00:00:00Z"
+    evidence: Three targeted pytest cases failed because v3 was absent from provider metadata, request defaults, and generated SDK catalogs.
 
 handoff:
-  current_task_id: TASK-7
-  next_action: Resolve the installed CLI package live-execution blocker, collect user confirmation, then run Apple parity or record an explicit waiver before closing the spec.
-  command: python3 scripts/spec_verify.py docs/specs/elevenlabs-audio-skills/spec.yml --phase complete
-  expected_outcome: Spec remains active until CLI, user confirmation, and Apple parity gates are passed, waived, or explicitly blocked.
+  current_task_id: TASK-9
+  next_action: Verify the v3 default and explicit v3, Multilingual v2, and Flash selection across backend metadata, generated SDK catalogs, and the real dev API before resuming TASK-7.
+  command: python3 -m pytest backend/tests/test_rest_api_audio.py packages/openmates-python/tests/test_sdk_generator.py
+  expected_outcome: Backend and generated pip metadata tests pass with Eleven v3 as the default and all three models selectable.
   blocker: null
   last_verified_commit: 21ebe73ea1f28bfb057a596b0c504afaa674fa5e
 
@@ -600,7 +612,7 @@ tests:
       - REST validation rejects unsupported providers, invalid durations, raw voice IDs, and excessive batches.
       - Safe requests return processing task/embed IDs first, then encrypted generated-asset metadata or safe provider-unavailable errors without secrets.
       - Successful generated audio creates upload_files records with encrypted private chatfiles metadata and no inline audio_base64.
-      - audio.speak defaults to eleven_multilingual_v2 while explicit eleven_flash_v2_5 remains accepted.
+      - audio.speak defaults to eleven_v3 while explicit eleven_multilingual_v2 and eleven_flash_v2_5 remain accepted.
       - Rejected speech requests call no ElevenLabs provider and charge no credits.
     contract_assertions:
       - audio-generate.request.validated
@@ -949,8 +961,8 @@ demonstration:
       scenario_ids: [S-1, S-8]
       acceptance_criteria: [AC-1, AC-8]
     - id: NARR-2
-      purpose: Show audio.speak accepting a safe assistant-response sample with the default Multilingual v2 model only after GPT OSS safeguard approval.
-      expected_proof: Evidence shows safeguard approved before ElevenLabs TTS, processing task dispatch, default eleven_multilingual_v2 metadata, encrypted generated-asset storage, and playable speech MP3 output.
+      purpose: Show audio.speak accepting a safe assistant-response sample with the default Eleven v3 model only after GPT OSS safeguard approval.
+      expected_proof: Evidence shows safeguard approved before ElevenLabs TTS, processing task dispatch, default eleven_v3 metadata, encrypted generated-asset storage, and playable speech MP3 output.
       scenario_ids: [S-2, S-8]
       acceptance_criteria: [AC-2, AC-8]
     - id: NARR-3
@@ -1291,6 +1303,41 @@ tasks:
         - frontend/packages/ui/src/components/embeds/audio
         - frontend/packages/ui/src/demo_chats/data/example_chats
         - frontend/apps/web_app/static/store-examples
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-9
+    title: Make Eleven v3 the selectable audio.speak default
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-5, S-8]
+      acceptance_criteria: [AC-2, AC-5, AC-8]
+    expected_files:
+      - contracts/features/app-skills/audio-speak/contract.yml
+      - contracts/features/app-skills/audio-speak/examples.yml
+      - backend/apps/audio/app.yml
+      - backend/apps/audio/pricing.py
+      - backend/apps/audio/skills/speak_skill.py
+      - backend/providers/elevenlabs.yml
+      - backend/shared/providers/elevenlabs/client.py
+      - frontend/packages/openmates-cli/src/generated/appSkills.ts
+      - packages/openmates-python/openmates/generated/app_skills.py
+    verification_ids: [T-PY-REST-AUDIO, T-NODE-SDK-GEN, T-PY-SDK-GEN, T-AUDIT-SDK-CLI, V-REST-CLI-SDK-DEV]
+    dependencies: [TASK-8]
+    ownership:
+      files:
+        - contracts/features/app-skills/audio-speak/contract.yml
+        - contracts/features/app-skills/audio-speak/examples.yml
+        - backend/apps/audio/app.yml
+        - backend/apps/audio/pricing.py
+        - backend/apps/audio/skills/speak_skill.py
+        - backend/providers/elevenlabs.yml
+        - backend/shared/providers/elevenlabs/client.py
+        - frontend/packages/openmates-cli/src/generated/appSkills.ts
+        - packages/openmates-python/openmates/generated/app_skills.py
+      shared_files: []
     blockers: []
     follow_up_tasks: []
     independently_deployable: false

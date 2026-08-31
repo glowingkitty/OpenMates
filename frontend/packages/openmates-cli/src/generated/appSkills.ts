@@ -222,11 +222,12 @@ export const APP_SKILL_METADATA = [
               "model": {
                 "type": "string",
                 "enum": [
+                  "eleven_v3",
                   "eleven_multilingual_v2",
                   "eleven_flash_v2_5"
                 ],
-                "default": "eleven_multilingual_v2",
-                "description": "ElevenLabs TTS model. Multilingual v2 is the higher-quality default; Flash v2.5 is the lower-cost explicit option."
+                "default": "eleven_v3",
+                "description": "ElevenLabs TTS model. Eleven v3 is the highest-quality default; Multilingual v2 provides stable long-form speech and Flash v2.5 is the lower-cost option."
               }
             },
             "required": [
@@ -429,7 +430,7 @@ export const APP_SKILL_METADATA = [
     "app_namespace_py": "code",
     "skill_method_py": "run",
     "description_key": "app_skills.code.run.description",
-    "description": "Run a code embed in an isolated E2B sandbox. Use automatically only for code the assistant created or edited in the current turn; ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox receives code files from the current chat, installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artifact metadata. Pricing is 5 credits per started minute of sandbox runtime.",
+    "description": "Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif",
     "schema": {
       "type": "object",
       "properties": {
@@ -4279,7 +4280,7 @@ export class CodeAppSkills {
     return this.runSkill<T>("code", "remove_secrets", input, options);
   }
   /**
-   * Run a code embed in an isolated E2B sandbox. Use automatically only for code the assistant created or edited in the current turn; ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox receives code files from the current chat, installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artifact metadata. Pricing is 5 credits per started minute of sandbox runtime.
+   * Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif
    * Description key: app_skills.code.run.description
    * Skill: code/run
    */

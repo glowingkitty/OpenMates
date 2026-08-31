@@ -121,22 +121,29 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'preserved '
                                                                                         'in the '
                                                                                         'result.'},
-                                                                  'model': {'default': 'eleven_multilingual_v2',
+                                                                  'model': {'default': 'eleven_v3',
                                                                             'description': 'ElevenLabs '
                                                                                            'TTS '
                                                                                            'model. '
-                                                                                           'Multilingual '
-                                                                                           'v2 is '
+                                                                                           'Eleven '
+                                                                                           'v3 is '
                                                                                            'the '
-                                                                                           'higher-quality '
+                                                                                           'highest-quality '
                                                                                            'default; '
+                                                                                           'Multilingual '
+                                                                                           'v2 '
+                                                                                           'provides '
+                                                                                           'stable '
+                                                                                           'long-form '
+                                                                                           'speech '
+                                                                                           'and '
                                                                                            'Flash '
                                                                                            'v2.5 '
                                                                                            'is the '
                                                                                            'lower-cost '
-                                                                                           'explicit '
                                                                                            'option.',
-                                                                            'enum': ['eleven_multilingual_v2',
+                                                                            'enum': ['eleven_v3',
+                                                                                     'eleven_multilingual_v2',
                                                                                      'eleven_flash_v2_5'],
                                                                             'type': 'string'},
                                                                   'output_format': {'default': 'mp3_44100_128',
@@ -357,13 +364,13 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
-  'description': 'Run a code embed in an isolated E2B sandbox. Use automatically only for code the '
-                 'assistant created or edited in the current turn; ask the user before running '
-                 'unmodified user-supplied code or after the initial run plus two unprompted '
-                 'reruns. The sandbox receives code files from the current chat, installs '
+  'description': 'Run code in an isolated E2B sandbox. When running code the assistant is creating '
+                 'in this same turn, pass the source through files[].code plus entry_path; do not '
+                 'invent a target_embed_id from a filename. Use target_embed_id only for an '
+                 'existing chat code embed. Ask the user before running unmodified user-supplied '
+                 'code or after the initial run plus two unprompted reruns. The sandbox installs '
                  'supported dependency manifests, executes the selected file, streams terminal '
-                 'status, and returns safe artifact metadata. Pricing is 5 credits per started '
-                 'minute of sandbox runtime.',
+                 'status, and returns safe artif',
   'description_key': 'app_skills.code.run.description',
   'output_schema': {'properties': {'results': {'items': {'properties': {'credits_per_minute': {'type': 'integer'},
                                                                         'execution_id': {'type': 'string'},
@@ -5930,7 +5937,7 @@ class CodeAppSkills:
         return self._run_skill("code", "remove_secrets", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def run(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Run a code embed in an isolated E2B sandbox. Use automatically only for code the assistant created or edited in the current turn; ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox receives code files from the current chat, installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artifact metadata. Pricing is 5 credits per started minute of sandbox runtime.
+        """Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif
 
         Description key: app_skills.code.run.description
         Skill: code/run

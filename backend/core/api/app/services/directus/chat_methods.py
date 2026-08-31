@@ -66,8 +66,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -76,7 +76,7 @@ CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join
     for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
     if field != "metadata_v"
 )
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
 CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
@@ -112,6 +112,7 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "encrypted_follow_up_request_suggestions,"
     "encrypted_top_recommended_apps_for_chat,"
     "encrypted_quick_tip_slugs,"
+    "encrypted_auto_speak_response,"
     "encrypted_icon,"
     "encrypted_category,"
     "encrypted_shared_short_url,"
@@ -149,6 +150,7 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_follow_up_request_suggestions,"
     "encrypted_top_recommended_apps_for_chat,"
     "encrypted_quick_tip_slugs,"
+    "encrypted_auto_speak_response,"
     "encrypted_icon,"
     "encrypted_category,"
     "encrypted_shared_short_url,"
@@ -1574,6 +1576,7 @@ class ChatMethods:
         """
         logger.info(f"Attempting to delete all messages for chat_id: {chat_id} from Directus.")
         try:
+            await self.cleanup_assistant_speech_for_chat(chat_id)
             # Query for all messages belonging to this chat
             message_params = {
                 'filter[chat_id][_eq]': chat_id,
@@ -1614,6 +1617,7 @@ class ChatMethods:
         """
         logger.info(f"Attempting to delete message with client_message_id: {client_message_id} from chat: {chat_id}")
         try:
+            await self.cleanup_assistant_speech_for_message(chat_id, client_message_id)
             # Query for the message by client_message_id AND chat_id (safety check)
             message_params = {
                 'filter[client_message_id][_eq]': client_message_id,
@@ -1649,6 +1653,7 @@ class ChatMethods:
         """
         logger.info(f"Attempting to delete chat {chat_id} from Directus.")
         try:
+            await self.cleanup_assistant_speech_for_chat(chat_id)
             success = await self.directus_service.delete_item(collection='chats', item_id=chat_id)
             if success:
                 logger.info(f"Successfully deleted chat {chat_id} from Directus.")
@@ -1659,6 +1664,44 @@ class ChatMethods:
         except Exception as e:
             logger.error(f"Error deleting chat {chat_id} from Directus: {e}", exc_info=True)
             return False
+
+    async def cleanup_assistant_speech_for_chat(self, chat_id: str) -> None:
+        """Tombstone and enqueue speech cleanup before any chat-content deletion."""
+        await self._cleanup_assistant_speech(chat_id)
+
+    async def cleanup_assistant_speech_for_message(self, chat_id: str, assistant_message_id: str) -> None:
+        """Tombstone and enqueue speech cleanup before one message is deleted."""
+        await self._cleanup_assistant_speech(chat_id, assistant_message_id=assistant_message_id)
+
+    async def _cleanup_assistant_speech(self, chat_id: str, *, assistant_message_id: str | None = None) -> None:
+        from backend.apps.audio.assistant_speech.persistence import tombstone_speech_assets
+        from backend.core.api.app.tasks.celery_config import app
+
+        params: Dict[str, Any] = {
+            "filter[chat_id][_eq]": chat_id,
+            "fields": "user_id,assistant_message_id",
+            "limit": -1,
+        }
+        if assistant_message_id:
+            params["filter[assistant_message_id][_eq]"] = assistant_message_id
+        manifests = await self.directus_service.get_items("assistant_speech_manifests", params=params, no_cache=True)
+        for manifest in manifests or []:
+            user_id = manifest.get("user_id")
+            message_id = manifest.get("assistant_message_id")
+            if not user_id or not message_id:
+                continue
+            changed = await tombstone_speech_assets(
+                self.directus_service,
+                user_id=str(user_id),
+                chat_id=chat_id,
+                assistant_message_id=str(message_id),
+            )
+            if changed:
+                app.send_task(
+                    "apps.audio.tasks.assistant_speech_delete",
+                    kwargs={"arguments": {"user_id": str(user_id), "chat_id": chat_id, "assistant_message_id": str(message_id)}},
+                    queue="app_music",
+                )
 
     async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
         """

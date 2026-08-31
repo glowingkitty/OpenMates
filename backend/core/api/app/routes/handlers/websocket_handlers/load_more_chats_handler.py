@@ -257,6 +257,7 @@ def _build_chat_wrapper_from_cache(chat_id: str, cached_list_item, cached_versio
         "encrypted_quick_tip_slugs": cached_list_item.encrypted_quick_tip_slugs,
         "encrypted_shared_short_url": cached_list_item.encrypted_shared_short_url,
         "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+        "encrypted_auto_speak_response": cached_list_item.encrypted_auto_speak_response,
         "last_message_timestamp": cached_list_item.last_message_timestamp,
         "pinned": cached_list_item.pinned,
         "is_shared": cached_list_item.is_shared,

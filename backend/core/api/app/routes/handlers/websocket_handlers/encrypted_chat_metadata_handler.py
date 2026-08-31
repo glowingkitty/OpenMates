@@ -142,6 +142,7 @@ async def handle_encrypted_chat_metadata(
             encrypted_icon = payload.get("encrypted_icon")
             encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
+            encrypted_auto_speak_response = payload.get("encrypted_auto_speak_response")
             encrypted_chat_key = payload.get("encrypted_chat_key")
             # Explicit opt-in for key rotation (e.g., hidden chat hide/unhide flows).
             # This prevents accidental chat key overwrites from misconfigured devices.
@@ -423,7 +424,7 @@ async def handle_encrypted_chat_metadata(
             # Store encrypted chat metadata from preprocessing
             chat_update_fields = {}
             accepted_versions = None
-            if encrypted_title or encrypted_chat_summary:
+            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response:
                 accepted_versions = await allocate_chat_metadata_versions(
                     cache_service,
                     directus_service,
@@ -444,6 +445,8 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["encrypted_category"] = encrypted_chat_category
             if encrypted_chat_tags:
                 chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
+            if encrypted_auto_speak_response:
+                chat_update_fields["encrypted_auto_speak_response"] = encrypted_auto_speak_response
             if encrypted_chat_key:
                 chat_update_fields["encrypted_chat_key"] = encrypted_chat_key
                 # Pass rotation intent to persistence task (these flags are stripped before Directus update).
@@ -567,6 +570,8 @@ async def handle_encrypted_chat_metadata(
                     broadcast_payload["payload"]["encrypted_title"] = encrypted_title
                 if encrypted_chat_summary:
                     broadcast_payload["payload"]["encrypted_chat_summary"] = encrypted_chat_summary
+                if encrypted_auto_speak_response:
+                    broadcast_payload["payload"]["encrypted_auto_speak_response"] = encrypted_auto_speak_response
                 if encrypted_icon:
                     broadcast_payload["payload"]["encrypted_icon"] = encrypted_icon
                 if encrypted_chat_category:

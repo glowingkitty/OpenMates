@@ -46,6 +46,9 @@ class _FakeCelery:
 
         return decorator
 
+    def send_task(self, *_args, **_kwargs):
+        return None
+
 
 class _FakeBaseServiceTask:
     pass
@@ -66,6 +69,55 @@ celery_exceptions_stub = ModuleType("celery.exceptions")
 celery_exceptions_stub.Ignore = type("Ignore", (Exception,), {})
 celery_exceptions_stub.SoftTimeLimitExceeded = type("SoftTimeLimitExceeded", (Exception,), {})
 sys.modules.setdefault("celery.exceptions", celery_exceptions_stub)
+
+celery_states_stub = ModuleType("celery.states")
+celery_states_stub.REVOKED = "REVOKED"
+sys.modules.setdefault("celery.states", celery_states_stub)
+
+redis_stub = ModuleType("redis")
+redis_async_stub = ModuleType("redis.asyncio")
+redis_async_stub.Redis = object
+redis_stub.asyncio = redis_async_stub
+redis_stub.exceptions = SimpleNamespace(ConnectionError=ConnectionError)
+sys.modules.setdefault("redis", redis_stub)
+sys.modules.setdefault("redis.asyncio", redis_async_stub)
+
+
+class _FakeSpan:
+    def end(self, **_kwargs):
+        return None
+
+    def set_attribute(self, *_args, **_kwargs):
+        return None
+
+    def set_status(self, *_args, **_kwargs):
+        return None
+
+
+class _FakeTracer:
+    def start_span(self, *_args, **_kwargs):
+        return _FakeSpan()
+
+    def start_as_current_span(self, *_args, **_kwargs):
+        class SpanContext:
+            def __enter__(self):
+                return _FakeSpan()
+
+            def __exit__(self, *_exc_info):
+                return False
+
+        return SpanContext()
+
+
+opentelemetry_stub = ModuleType("opentelemetry")
+opentelemetry_trace_stub = ModuleType("opentelemetry.trace")
+opentelemetry_trace_stub.get_tracer = lambda *_args, **_kwargs: _FakeTracer()
+opentelemetry_trace_stub.Span = _FakeSpan
+opentelemetry_trace_stub.Status = lambda *_args, **_kwargs: object()
+opentelemetry_trace_stub.StatusCode = SimpleNamespace(ERROR="ERROR")
+opentelemetry_stub.trace = opentelemetry_trace_stub
+sys.modules.setdefault("opentelemetry", opentelemetry_stub)
+sys.modules.setdefault("opentelemetry.trace", opentelemetry_trace_stub)
 
 celery_schedules_stub = ModuleType("celery.schedules")
 celery_schedules_stub.crontab = lambda *_args, **_kwargs: None
@@ -106,7 +158,17 @@ class RateLimitScheduledException(Exception):
     pass
 
 
+async def check_rate_limit(*_args, **_kwargs):
+    return None
+
+
+async def wait_for_rate_limit(*_args, **_kwargs):
+    return None
+
+
 rate_limiting_stub.RateLimitScheduledException = RateLimitScheduledException
+rate_limiting_stub.check_rate_limit = check_rate_limit
+rate_limiting_stub.wait_for_rate_limit = wait_for_rate_limit
 sys.modules.setdefault("backend.apps.ai.processing.rate_limiting", rate_limiting_stub)
 
 AUDIO_APP_DIR = Path(__file__).resolve().parents[1] / "apps" / "audio"
@@ -131,6 +193,7 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
     assert provider_yml["logo_svg"] == "logos/elevenlabs.svg"
     assert provider_models["eleven_flash_v2_5"]["pricing"] == {"per_second": 2}
     assert provider_models["eleven_multilingual_v2"]["pricing"] == {"per_second": 4}
+    assert provider_models["eleven_v3"]["pricing"] == {"per_second": 4}
     for skill_id in ("generate", "speak"):
         skill = skills[skill_id]
         assert skill["api_config"] == {"expose_get": True, "expose_post": True}
@@ -139,10 +202,11 @@ def test_audio_app_metadata_exposes_generate_and_speak_contracts():
         assert request_item["properties"]["provider"]["enum"] == ["elevenlabs"]
         if skill_id == "speak":
             assert request_item["properties"]["model"]["enum"] == [
+                "eleven_v3",
                 "eleven_multilingual_v2",
                 "eleven_flash_v2_5",
             ]
-            assert request_item["properties"]["model"]["default"] == "eleven_multilingual_v2"
+            assert request_item["properties"]["model"]["default"] == "eleven_v3"
         assert "audio_base64" in skill["exclude_fields_for_llm"]
         assert "aes_key" in skill["exclude_fields_for_llm"]
         assert "vault_wrapped_aes_key" in skill["exclude_fields_for_llm"]
@@ -164,7 +228,7 @@ def test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id():
     from backend.apps.audio.skills.speak_skill import AudioSpeakRequest
 
     request = AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs"}])
-    assert request.requests[0].model == "eleven_multilingual_v2"
+    assert request.requests[0].model == "eleven_v3"
 
     with pytest.raises(ValidationError):
         AudioSpeakRequest(requests=[{"text": "Hello", "provider": "other"}])
@@ -176,13 +240,20 @@ def test_audio_speak_request_rejects_unsupported_provider_and_raw_voice_id():
         AudioSpeakRequest(requests=[{"text": "Hello", "provider": "elevenlabs", "model": "unsupported_tts_model"}])
 
 
+class _FakeStorage:
+    async def check_availability(self):
+        return "available"
+
+
 class _FakeAudioTask:
     def __init__(self, task_id: str = "task-audio-1"):
         self.request = SimpleNamespace(id=task_id)
         self._secrets_manager = object()
         self._cache_service = object()
+        self._directus_service = object()
+        self._s3_service = _FakeStorage()
 
-    async def initialize_services(self):
+    async def initialize_core_services(self):
         return None
 
     async def cleanup_services(self):
@@ -348,7 +419,7 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
             return ElevenLabsAudioResult(
                 audio_bytes=b"voice-mp3",
                 mime_type="audio/mpeg",
-                model="eleven_multilingual_v2",
+                model="eleven_v3",
                 duration_seconds=2.1,
             )
 
@@ -394,17 +465,15 @@ async def test_audio_speak_calls_provider_only_after_safeguard_approval(monkeypa
             "voice": "warm_neutral",
             "accent": "en_us",
             "style": "natural",
-            "model": "eleven_multilingual_v2",
-            "full_model_reference": "elevenlabs/eleven_multilingual_v2",
         },
     )
 
     assert calls == [
         ("safeguard", text.strip()),
         ("preflight", 60),
-        ("tts", text.strip(), "eleven_multilingual_v2"),
-        ("store", "eleven_multilingual_v2", 2.1),
-        ("charge", 9, "elevenlabs/eleven_multilingual_v2"),
+        ("tts", text.strip(), "eleven_v3"),
+        ("store", "eleven_v3", 2.1),
+        ("charge", 9, "elevenlabs/eleven_v3"),
     ]
     assert result["status"] == "finished"
     assert result["generation_type"] == "speech"

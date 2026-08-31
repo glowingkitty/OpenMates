@@ -70,6 +70,11 @@ chats:
       type: string
       note: "[Client-encrypted permanent storage] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'), encrypted with the chat-specific key before storage in Directus."
 
+    encrypted_auto_speak_response:
+      type: string
+      nullable: true
+      note: "[Client-encrypted permanent storage, Nullable] Chat-scoped assistant-response speech preference. Missing ciphertext means disabled for legacy chats."
+
     encrypted_chat_summary:
       type: text
       note: "[Client-encrypted permanent storage] Chat summary (max 20 words) generated during post-processing, encrypted with the chat-specific key before storage in Directus"
