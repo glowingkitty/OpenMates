@@ -35,6 +35,7 @@ def load_sessions_module():
     [
         "scripts/sessions.py",
         "scripts/start-opencode-server.sh",
+        "scripts/server-restart.sh",
         "scripts/opencode_permission_watcher.py",
         "scripts/opencode_credential_migration.py",
         "scripts/opencode_runtime_release.py",

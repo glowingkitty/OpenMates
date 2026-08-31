@@ -674,6 +674,9 @@ def resume_opencode_session(
     cwd: str,
     prompt: str = "The server restarted and this session was interrupted. Continue where you left off.",
     permission_mode: str = "plan",
+    provider_id: str | None = None,
+    model_id: str | None = None,
+    variant: str | None = None,
 ) -> bool:
     """Send a continuation directly through the existing OpenCode Web API.
 
@@ -689,8 +692,12 @@ def resume_opencode_session(
     if permission_mode not in {"plan", "execute", "execute-readonly"}:
         print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
         return False
-    provider_id, separator, model_id = OPENCODE_EXECUTE_MODEL.partition("/")
-    if permission_mode != "plan" and (not separator or not provider_id or not model_id):
+    configured_provider_id, _separator, configured_model_id = OPENCODE_EXECUTE_MODEL.partition("/")
+    if provider_id is None:
+        provider_id = configured_provider_id
+    if model_id is None:
+        model_id = configured_model_id
+    if permission_mode != "plan" and (not provider_id or not model_id):
         print(f"Warning: invalid OpenCode execute model '{OPENCODE_EXECUTE_MODEL}'.", file=sys.stderr)
         return False
     body: dict[str, object] = {
@@ -699,7 +706,7 @@ def resume_opencode_session(
     }
     if permission_mode != "plan":
         body["model"] = {"providerID": provider_id, "modelID": model_id}
-        body["variant"] = OPENCODE_EXECUTE_VARIANT
+        body["variant"] = variant or OPENCODE_EXECUTE_VARIANT
     # The server selects project-local plugins from this directory. Always
     # start resumed generations from the clean deployed runtime so old source
     # worktrees cannot load stale orchestration code; the hook routes product

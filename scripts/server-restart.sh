@@ -1,167 +1,96 @@
 #!/bin/bash
-# server-restart.sh — Full server restart: rebuild Docker + launch OpenCode tmux workspace
-#
-# Usage:
-#   ./scripts/server-restart.sh              # restore last 8 OpenCode sessions
-#   ./scripts/server-restart.sh --fresh      # start fresh OpenCode sessions instead
-#   ./scripts/server-restart.sh --no-docker  # skip Docker rebuild, just launch tmux
-#
-# Creates tmux session "opencode" with 2 windows × 4 panes each (side by side),
-# all in ~/projects/OpenMates attached to the local OpenCode server.
+# Restart the OpenCode Web server without abandoning in-flight top-level chats.
+# The exact busy set is persisted before Zellij receives Ctrl-C, then every
+# captured chat is resumed once and verified after the replacement is healthy.
+# This script intentionally does not touch the OpenMates Docker stack.
 
 set -euo pipefail
 
-PROJECT_DIR="$HOME/projects/OpenMates"
-TMUX_SESSION="opencode"
-OPENCODE_SERVER_URL="${OPENCODE_SERVER_URL:-http://127.0.0.1:4096}"
-OPENCODE_MODEL="${OPENCODE_MODEL:-openai/gpt-5.6-sol}"
-OPENCODE_RESTART_TIMEOUT_SECONDS="${OPENCODE_RESTART_TIMEOUT_SECONDS:-7200}"
-DOCKER_ENV="$PROJECT_DIR/.env"
-COMPOSE_BASE="$PROJECT_DIR/backend/core/docker-compose.yml"
-COMPOSE_OVERRIDE="$PROJECT_DIR/backend/core/docker-compose.override.yml"
-COMPOSE_CMD="docker compose --env-file $DOCKER_ENV -f $COMPOSE_BASE -f $COMPOSE_OVERRIDE"
-PANES_PER_WINDOW=4
-NUM_WINDOWS=2
-TOTAL_PANES=$((PANES_PER_WINDOW * NUM_WINDOWS))
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ZELLIJ_SESSION="${OPENCODE_ZELLIJ_SESSION:-code}"
+PORT="${OPENCODE_PORT:-4096}"
+SERVER_URL="${OPENCODE_SERVER_URL:-http://127.0.0.1:${PORT}}"
+MANIFEST_DIR="$PROJECT_DIR/scripts/.tmp"
+MANIFEST="$MANIFEST_DIR/opencode-restart-$(date -u +%Y%m%dT%H%M%SZ).json"
 
-# --- Parse flags ---
-FRESH=false
-SKIP_DOCKER=false
 for arg in "$@"; do
     case "$arg" in
-        --fresh)     FRESH=true ;;
-        --no-docker) SKIP_DOCKER=true ;;
+        --no-docker)
+            echo "Note: --no-docker is now implicit; this workflow never restarts Docker."
+            ;;
         -h|--help)
-            echo "Usage: $0 [--fresh] [--no-docker]"
-            echo "  --fresh      Start fresh OpenCode sessions (default: restore recent)"
-            echo "  --no-docker  Skip Docker rebuild, only launch tmux"
+            echo "Usage: $0 [--no-docker]"
+            echo "Captures busy top-level chats, restarts OpenCode in Zellij, then resumes and verifies them."
             exit 0
+            ;;
+        --fresh)
+            echo "Error: --fresh was removed because it silently abandoned running chats." >&2
+            exit 2
+            ;;
+        *)
+            echo "Error: unknown argument: $arg" >&2
+            exit 2
             ;;
     esac
 done
 
-# --- Collect session IDs for restore ---
-SESSION_IDS=()
-if ! $FRESH; then
-    command -v opencode >/dev/null || { echo "Error: opencode is required." >&2; exit 1; }
-    command -v jq >/dev/null || { echo "Error: jq is required." >&2; exit 1; }
-    echo "Finding last $TOTAL_PANES OpenCode sessions to restore..."
-    CURRENT_SID="${OPENCODE_SESSION_ID:-}"
-    if ! session_json="$(opencode session list -n "$((TOTAL_PANES + 1))" --format json)"; then
-        echo "Error: failed to list OpenCode sessions; refusing to start fresh sessions implicitly." >&2
-        exit 1
-    fi
-    if ! session_id_lines="$(jq -r '.[].id' <<< "$session_json")"; then
-        echo "Error: invalid OpenCode session data; refusing to start fresh sessions implicitly." >&2
-        exit 1
-    fi
-    while IFS= read -r session_id; do
-        if [ -n "$session_id" ] && [ "$session_id" != "$CURRENT_SID" ]; then
-            SESSION_IDS+=("$session_id")
-        fi
-        [ ${#SESSION_IDS[@]} -ge "$TOTAL_PANES" ] && break
-    done <<< "$session_id_lines"
-    if [ ${#SESSION_IDS[@]} -eq 0 ]; then
-        echo "  No sessions found to restore. Starting fresh."
-        FRESH=true
-    else
-        echo "  Found ${#SESSION_IDS[@]} sessions:"
-        for i in "${!SESSION_IDS[@]}"; do
-            echo "    [$((i+1))] ${SESSION_IDS[$i]}"
-        done
-    fi
+command -v zellij >/dev/null || { echo "Error: zellij is required." >&2; exit 1; }
+command -v jq >/dev/null || { echo "Error: jq is required." >&2; exit 1; }
+command -v curl >/dev/null || { echo "Error: curl is required." >&2; exit 1; }
+
+mkdir -p "$MANIFEST_DIR"
+python3 "$PROJECT_DIR/scripts/sessions.py" opencode-restart capture --manifest "$MANIFEST"
+
+pane_json="$(zellij --session "$ZELLIJ_SESSION" action list-panes --json --command --state)"
+mapfile -t server_panes < <(
+    jq -r --arg port "$PORT" '
+        .[]
+        | select(.is_plugin == false)
+        | select((.pane_command // "") | contains("start-opencode-server.sh"))
+        | select((.pane_command // "") | contains($port))
+        | "terminal_\(.id)"
+    ' <<< "$pane_json"
+)
+if [ "${#server_panes[@]}" -ne 1 ]; then
+    echo "Error: expected exactly one OpenCode server pane in Zellij '$ZELLIJ_SESSION'; found ${#server_panes[@]}." >&2
+    echo "Restart not attempted. Captured manifest: $MANIFEST" >&2
+    exit 1
 fi
 
-# --- Docker rebuild ---
-if ! $SKIP_DOCKER; then
-    echo ""
-    echo "Rebuilding Docker (running in background)..."
-    echo "  down -> rm cache volume -> build -> up"
-    (
-        cd "$PROJECT_DIR"
-        $COMPOSE_CMD down
-        docker volume rm openmates-cache-data 2>/dev/null || true
-        $COMPOSE_CMD build
-        $COMPOSE_CMD up -d
-        echo ""
-        echo "Docker rebuild complete!"
-    ) &
-    DOCKER_PID=$!
-    echo "  Docker PID: $DOCKER_PID"
-else
-    echo "Skipping Docker rebuild (--no-docker)"
-fi
+server_pane="${server_panes[0]}"
+echo "Stopping OpenCode server in $ZELLIJ_SESSION/$server_pane..."
+zellij --session "$ZELLIJ_SESSION" action send-keys --pane-id "$server_pane" "Ctrl c"
 
-# --- Kill existing tmux session if any ---
-if tmux has-session -t "$TMUX_SESSION" 2>/dev/null; then
-    echo ""
-    echo "Killing existing tmux session '$TMUX_SESSION'..."
-    tmux kill-session -t "$TMUX_SESSION"
-fi
-
-# --- Build OpenCode command for each pane ---
-build_opencode_cmd() {
-    local pane_index=$1
-    local -a opencode_args=(opencode run --attach "$OPENCODE_SERVER_URL" --interactive)
-    local -a bounded_args
-    local quoted_dir command_text
-
-    if ! $FRESH && [ $pane_index -lt ${#SESSION_IDS[@]} ]; then
-        opencode_args+=(--session "${SESSION_IDS[$pane_index]}" --agent plan "Resume this OpenCode session in read-only plan mode.")
-    else
-        opencode_args+=(--title "server-restart-$pane_index" --agent build --model "$OPENCODE_MODEL" --auto "Start a fresh OpenMates coding session. Run sessions.py start before mutating work.")
+for _ in $(seq 1 60); do
+    if ! curl -fsS --max-time 1 "$SERVER_URL/session/status" >/dev/null 2>&1; then
+        break
     fi
-    printf -v quoted_dir '%q' "$PROJECT_DIR"
-    bounded_args=(timeout "$OPENCODE_RESTART_TIMEOUT_SECONDS" "${opencode_args[@]}")
-    printf -v command_text '%q ' "${bounded_args[@]}"
-    printf 'cd %s && %s' "$quoted_dir" "$command_text"
-}
-
-# --- Create tmux session with horizontal panes ---
-echo ""
-echo "Creating tmux session '$TMUX_SESSION' ($NUM_WINDOWS windows x $PANES_PER_WINDOW panes)..."
-
-pane_counter=0
-
-for win in $(seq 0 $((NUM_WINDOWS - 1))); do
-    if [ $win -eq 0 ]; then
-        tmux new-session -d -s "$TMUX_SESSION" -n "work-$((win + 1))" -c "$PROJECT_DIR"
-    else
-        tmux new-window -t "$TMUX_SESSION" -n "work-$((win + 1))" -c "$PROJECT_DIR"
-    fi
-
-    # First pane (index 0) already exists — launch OpenCode in it
-    tmux send-keys -t "$TMUX_SESSION:$win.0" "$(build_opencode_cmd $pane_counter)" Enter
-    pane_counter=$((pane_counter + 1))
-
-    # Split horizontally 3 more times to get 4 side-by-side panes
-    for _ in $(seq 1 $((PANES_PER_WINDOW - 1))); do
-        tmux split-window -h -t "$TMUX_SESSION:$win" -c "$PROJECT_DIR"
-        # After split, the new pane is selected — send OpenCode command to it
-        tmux send-keys -t "$TMUX_SESSION:$win" "$(build_opencode_cmd $pane_counter)" Enter
-        pane_counter=$((pane_counter + 1))
-    done
-
-    # Distribute panes evenly (equal width, side by side)
-    tmux select-layout -t "$TMUX_SESSION:$win" even-horizontal
+    sleep 0.5
 done
-
-# Select first window, first pane
-tmux select-window -t "$TMUX_SESSION:0"
-tmux select-pane -t "$TMUX_SESSION:0.0"
-
-echo ""
-echo "tmux session '$TMUX_SESSION' ready!"
-echo "  $NUM_WINDOWS windows x $PANES_PER_WINDOW panes = $TOTAL_PANES OpenCode instances"
-if ! $FRESH; then
-    echo "  Restoring ${#SESSION_IDS[@]} previous sessions"
+if curl -fsS --max-time 1 "$SERVER_URL/session/status" >/dev/null 2>&1; then
+    echo "Error: OpenCode server did not stop; replacement not started. Manifest: $MANIFEST" >&2
+    exit 1
 fi
-echo ""
-echo "  Attach with:  tmux attach -t $TMUX_SESSION"
 
-# --- Wait for Docker if it was started ---
-if ! $SKIP_DOCKER; then
-    echo ""
-    echo "Docker rebuild still running (PID $DOCKER_PID)..."
-    echo "  You can attach to tmux now — Docker will finish in background."
+zellij --session "$ZELLIJ_SESSION" action close-pane --pane-id "$server_pane" >/dev/null 2>&1 || true
+zellij --session "$ZELLIJ_SESSION" action new-tab \
+    --name opencode-server \
+    --cwd "$PROJECT_DIR" \
+    --close-on-exit \
+    -- "$PROJECT_DIR/scripts/start-opencode-server.sh" "$PORT" \
+    >/dev/null
+
+for _ in $(seq 1 120); do
+    if curl -fsS --max-time 1 "$SERVER_URL/session/status" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.5
+done
+if ! curl -fsS --max-time 2 "$SERVER_URL/session/status" >/dev/null; then
+    echo "Error: replacement OpenCode server did not become healthy. Manifest: $MANIFEST" >&2
+    echo "After recovery, run: python3 scripts/sessions.py opencode-restart resume --manifest '$MANIFEST'" >&2
+    exit 1
 fi
+
+python3 "$PROJECT_DIR/scripts/sessions.py" opencode-restart resume --manifest "$MANIFEST"
+echo "OpenCode restart completed without abandoning the captured busy chat set."

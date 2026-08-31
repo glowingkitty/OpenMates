@@ -152,22 +152,25 @@ test("test dispatches use the deployed control-plane runtime", async () => {
   for (const command of [
     "python3 scripts/tests.py run --spec chat-flow.spec.ts",
     "OPENCODE_SESSION_ID=test-session python3 scripts/tests.py run --suite vitest",
-    "COMMIT=$(git rev-parse origin/dev) && OPENCODE_SESSION_ID=test-session python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit $COMMIT",
   ]) {
     const { executionArgs } = await runBeforeShellWithExecutionArgs(command);
     assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
   }
+  await assert.rejects(
+    runBeforeShellWithExecutionArgs(
+      "COMMIT=$(git rev-parse origin/dev) && OPENCODE_SESSION_ID=test-session python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit $COMMIT",
+    ),
+    /canonical sessions\.py\/tests\.py command is mixed with another shell command/,
+  );
 });
 
-test("loaded hook binds chained sessions.py start before later commands", async () => {
-  const { executionArgs } = await runBeforeShellWithExecutionArgs(
-    'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" && python3 scripts/issues.py show BTWQJ --env dev',
+test("loaded hook rejects chained sessions.py start before later commands", async () => {
+  await assert.rejects(
+    runBeforeShellWithExecutionArgs(
+      'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" && python3 scripts/issues.py show BTWQJ --env dev',
+    ),
+    /canonical sessions\.py\/tests\.py command is mixed with another shell command/,
   );
-  assert.match(
-    executionArgs.command,
-    /python3 scripts\/sessions\.py start --mode bug --task "Investigate A && B" --opencode-session test-session && python3 scripts\/issues\.py show BTWQJ --env dev/,
-  );
-  assert.equal(executionArgs.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
 });
 
 test("hook subprocesses have a bounded lifetime", async () => {

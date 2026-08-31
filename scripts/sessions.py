@@ -134,6 +134,8 @@ OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-s
 OPENCODE_PRESENCE_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.json"
 OPENCODE_PRESENCE_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.lock"
 OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
+OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
+OPENCODE_RESTART_ACTIVE_STATUSES = {"busy", "retry"}
 OPENCODE_WEB_BASE_URL = os.environ.get("OPENCODE_WEB_BASE_URL", "https://code.dev.openmates.org")
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
@@ -168,6 +170,7 @@ PROTECTED_CONTROL_PLANE_EXACT_PATHS = frozenset(
         "scripts/opencode_runtime_release.py",
         "scripts/sync_opencode_runtime_hook.py",
         "scripts/sessions.py",
+        "scripts/server-restart.sh",
         "scripts/start-opencode-server.sh",
     }
 )
@@ -16072,6 +16075,165 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _opencode_api_json(path: str, timeout: int = 15) -> Any:
+    request = urllib.request.Request(f"{OPENCODE_SERVER_URL}{path}", method="GET")
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        return json.load(response)
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def capture_opencode_restart_manifest(path: Path) -> dict[str, Any]:
+    """Persist every busy top-level chat before an intentional server restart."""
+    statuses = _opencode_api_json("/session/status")
+    if not isinstance(statuses, dict):
+        raise RuntimeError("OpenCode returned invalid session status data; restart capture aborted")
+
+    captured: list[dict[str, Any]] = []
+    for session_id, status in statuses.items():
+        status_type = status.get("type") if isinstance(status, dict) else None
+        if status_type not in OPENCODE_RESTART_ACTIVE_STATUSES:
+            continue
+        session = _opencode_api_json(f"/session/{urllib.parse.quote(str(session_id), safe='')}")
+        if not isinstance(session, dict) or session.get("id") != session_id:
+            raise RuntimeError(f"Could not resolve active OpenCode session {session_id}; restart capture aborted")
+        if session.get("parentID"):
+            continue
+
+        messages = _opencode_api_json(
+            f"/session/{urllib.parse.quote(str(session_id), safe='')}/message?limit=10"
+        )
+        last_info = {}
+        if isinstance(messages, list):
+            for message in reversed(messages):
+                candidate = message.get("info") if isinstance(message, dict) else None
+                if isinstance(candidate, dict) and candidate.get("role") == "assistant":
+                    last_info = candidate
+                    break
+        agent = str(last_info.get("agent") or "plan")
+        captured.append({
+            "session_id": str(session_id),
+            "title": str(session.get("title") or "(untitled session)"),
+            "directory": str(session.get("directory") or CONTROL_PLANE_ROOT),
+            "updated_before_restart": int((session.get("time") or {}).get("updated") or 0),
+            "status_before_restart": status_type,
+            "permission_mode": "plan" if agent == "plan" else "execute",
+            "provider_id": last_info.get("providerID"),
+            "model_id": last_info.get("modelID"),
+            "variant": last_info.get("variant"),
+            "resume_sent_at": None,
+            "resume_verified_at": None,
+        })
+
+    manifest = {
+        "version": 1,
+        "captured_at": _now_iso(),
+        "server_url": OPENCODE_SERVER_URL,
+        "sessions": sorted(captured, key=lambda item: item["session_id"]),
+    }
+    _write_json_atomic(path, manifest)
+    return manifest
+
+
+def _restore_prompt(restore: dict[str, Any], prompt: str) -> str:
+    return (
+        f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
+        f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
+        "For every shared Docker or test operation, use the current routed coordinator: "
+        "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree. "
+        "A temporary shared lock is not a terminal blocker: run the intended canonical command directly so it queues, "
+        "or run `python3 scripts/sessions.py wait-lock --session <repository-session-id> --type <docker|vercel> "
+        "--follow --poll 10` with a long tool timeout, wait for OPENMATES_WAIT_READY, and continue in this same response.\n\n"
+        + prompt
+    )
+
+
+def resume_opencode_restart_manifest(path: Path) -> dict[str, Any]:
+    """Resume each captured chat once and durably record accepted continuations."""
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read OpenCode restart manifest {path}: {exc}") from exc
+    sessions = manifest.get("sessions")
+    if manifest.get("version") != 1 or not isinstance(sessions, list):
+        raise RuntimeError(f"Unsupported OpenCode restart manifest: {path}")
+
+    scripts_dir = str(PROJECT_ROOT / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from _zellij_utils import resume_opencode_session
+
+    for entry in sessions:
+        if not isinstance(entry, dict) or not entry.get("session_id"):
+            raise RuntimeError(f"Invalid session entry in OpenCode restart manifest: {path}")
+        if entry.get("resume_sent_at"):
+            continue
+        session_id = str(entry["session_id"])
+        restore = prepare_opencode_restore(session_id)
+        accepted = resume_opencode_session(
+            session_name=f"restart-{session_id[:8]}",
+            opencode_session_id=session_id,
+            cwd=restore["cwd"],
+            prompt=_restore_prompt(
+                restore,
+                "The OpenCode server was intentionally restarted while this turn was running. "
+                "Continue the interrupted turn from its existing state and finish the original task. "
+                "Do not restart the task or repeat completed work.",
+            ),
+            permission_mode=str(entry.get("permission_mode") or "plan"),
+            provider_id=entry.get("provider_id"),
+            model_id=entry.get("model_id"),
+            variant=entry.get("variant"),
+        )
+        if not accepted:
+            raise RuntimeError(f"OpenCode rejected continuation for {session_id}; manifest retained at {path}")
+        entry["resume_sent_at"] = _now_iso()
+        _write_json_atomic(path, manifest)
+
+    deadline = time.monotonic() + 20
+    pending = {entry["session_id"] for entry in sessions if not entry.get("resume_verified_at")}
+    while pending and time.monotonic() < deadline:
+        statuses = _opencode_api_json("/session/status")
+        for entry in sessions:
+            session_id = entry["session_id"]
+            if session_id not in pending:
+                continue
+            status = statuses.get(session_id) if isinstance(statuses, dict) else None
+            current = _opencode_api_json(f"/session/{urllib.parse.quote(session_id, safe='')}")
+            updated = int((current.get("time") or {}).get("updated") or 0) if isinstance(current, dict) else 0
+            if (isinstance(status, dict) and status.get("type") in OPENCODE_RESTART_ACTIVE_STATUSES) or updated > int(entry.get("updated_before_restart") or 0):
+                entry["resume_verified_at"] = _now_iso()
+                pending.remove(session_id)
+                _write_json_atomic(path, manifest)
+        if pending:
+            time.sleep(0.5)
+    if pending:
+        joined = ", ".join(sorted(pending))
+        raise RuntimeError(f"Continuation was sent but not verified for: {joined}. Inspect manifest {path}; do not resend blindly.")
+    return manifest
+
+
+def cmd_opencode_restart(args: argparse.Namespace) -> None:
+    manifest_path = Path(args.manifest).expanduser().resolve()
+    try:
+        if args.restart_action == "capture":
+            manifest = capture_opencode_restart_manifest(manifest_path)
+            print(f"Captured {len(manifest['sessions'])} busy top-level OpenCode session(s): {manifest_path}")
+            for entry in manifest["sessions"]:
+                print(f"  {entry['session_id']}  {entry['title']}")
+        else:
+            manifest = resume_opencode_restart_manifest(manifest_path)
+            print(f"Verified {len(manifest['sessions'])} resumed OpenCode session(s): {manifest_path}")
+    except (OSError, RuntimeError, urllib.error.URLError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
 def _discover_interrupted_sessions(
     max_age_hours: int = 24,
     limit: int = 15,
@@ -16419,16 +16581,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
-    prompt = (
-        f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
-        f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
-        "For every shared Docker or test operation, use the current routed coordinator: "
-        "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree. "
-        "A temporary shared lock is not a terminal blocker: run the intended canonical command directly so it queues, "
-        "or run `python3 scripts/sessions.py wait-lock --session <repository-session-id> --type <docker|vercel> "
-        "--follow --poll 10` with a long tool timeout, wait for OPENMATES_WAIT_READY, and continue in this same response.\n\n"
-        + prompt
-    )
+    prompt = _restore_prompt(restore, prompt)
 
     success = resume_opencode_session(
         session_name=restore_name,
@@ -17578,6 +17731,15 @@ def main() -> None:
         help="Show completed/in-review sessions too (default: hidden)",
     )
 
+    p_opencode_restart = sub.add_parser(
+        "opencode-restart",
+        help="Capture or resume the exact busy top-level chat set around a server restart",
+    )
+    p_opencode_restart_sub = p_opencode_restart.add_subparsers(dest="restart_action", required=True)
+    for restart_action in ("capture", "resume"):
+        p_restart_action = p_opencode_restart_sub.add_parser(restart_action)
+        p_restart_action.add_argument("--manifest", required=True, help="Durable restart manifest path")
+
     # task-show
     p_task_show = sub.add_parser(
         "task-show",
@@ -17682,6 +17844,7 @@ def main() -> None:
         "task-track": cmd_task_track,
         "spawn-chat": cmd_spawn_chat,
         "restore": cmd_restore,
+        "opencode-restart": cmd_opencode_restart,
         "git-stats": cmd_git_stats,
     }
 

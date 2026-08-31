@@ -89,6 +89,7 @@ const PROTECTED_CONTROL_PLANE_PATHS = [
   "scripts/opencode_runtime_release.py",
   "scripts/sync_opencode_runtime_hook.py",
   "scripts/patches/opencode-",
+  "scripts/server-restart.sh",
   "scripts/sessions.py",
   "scripts/start-opencode-server.sh",
 ];
@@ -2423,7 +2424,7 @@ function secretConfigPathForTest(value, cwd = activeCwd()) {
 
 function commandReferencesProtectedControlPlaneForTest(command) {
   const value = String(command || "").replaceAll("\\", "/");
-  return /(?:^|[\s'"/])(?:\.opencode\/|backend\/engineering_control_plane\/|opencode\.json\b|scripts\/(?:sessions\.py\b|start-opencode-server\.sh\b|sync_opencode_runtime_hook\.py\b|opencode_(?:permission_watcher|credential_migration|runtime_release)\.py\b|patches\/opencode-))/.test(value);
+  return /(?:^|[\s'"/])(?:\.opencode\/|backend\/engineering_control_plane\/|opencode\.json\b|scripts\/(?:sessions\.py\b|server-restart\.sh\b|start-opencode-server\.sh\b|sync_opencode_runtime_hook\.py\b|opencode_(?:permission_watcher|credential_migration|runtime_release)\.py\b|patches\/opencode-))/.test(value);
 }
 
 function commandReferencesSecretConfigForTest(command) {
