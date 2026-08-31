@@ -14,12 +14,12 @@ campaign:
         mobile_path: shared/events/assets/newsletter/events-newsletter-header-mobile_de.png
         alt: Roter OpenMates Events Newsletter Header
 events:
-  - id: openmates-community-hour-2026-08-25
-    slug: openmates-community-hour-2026-08-25
+  - id: openmates-community-hour-2026-09-29
+    slug: openmates-community-hour-2026-09-29
     status: published
     event_type: online_community_hour
-    starts_at: "2026-08-25T19:00:00+02:00"
-    ends_at: "2026-08-25T20:00:00+02:00"
+    starts_at: "2026-09-29T19:00:00+02:00"
+    ends_at: "2026-09-29T20:00:00+02:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -31,41 +31,18 @@ events:
         summary: Komm zum monatlichen OpenMates Video Call, stelle Fragen, melde Probleme und gestalte die Entwicklung direkt mit.
         description: Du suchst eine Alternative zu Big-Tech KI Chatbots und Agenten oder nutzt OpenMates bereits im Alltag? Komm zum monatlichen Community Video Call mit Fragen, gefundenen Problemen und Wünschen, die OpenMates für alle verbessern können.
     online_url: https://meet.openmates.org
-    luma_url: https://luma.com/qfwdd70e
+    luma_url: https://luma.com/frepqvmi
     openmates_url:
     assets:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour.png, alt: OpenMates Monthly Community Hour event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_community_hour.png, alt: OpenMates monatlicher Community Call Eventkarte}
-  - id: ai-everyday-tasks-webinar-2026-08-27
-    slug: ai-everyday-tasks-webinar-2026-08-27
-    status: published
-    event_type: webinar
-    starts_at: "2026-08-27T19:00:00+02:00"
-    ends_at: "2026-08-27T19:50:00+02:00"
-    timezone: Europe/Berlin
-    localized_content:
-      en:
-        title: AI for everyday tasks - Find events, doctors, trains and more
-        summary: Learn how AI agents can reduce frustrating research for events, appointments, apartments, and travel from hours to minutes.
-        description: This presentation and Q&A introduces OpenMates agents for time-consuming everyday searches, requires no coding or AI expertise, and includes practical tips plus personal recommendations during the Q&A.
-      de:
-        title: KI für Alltagsaufgaben - Events, Ärzte, Züge und mehr finden
-        summary: Lerne, wie KI Agenten frustrierende Recherchen für Events, Termine, Wohnungen und Reisen von Stunden auf Minuten verkürzen können.
-        description: Diese Präsentation mit Q&A stellt OpenMates Agenten für zeitaufwendige Alltagssuchen vor, erfordert keine Programmier- oder KI-Erfahrung und bietet praktische Tipps sowie persönliche Empfehlungen im Q&A.
-    online_url: https://meet.openmates.org
-    luma_url: https://luma.com/0t0r74sh
-    openmates_url:
-    assets:
-      card:
-        en: {path: shared/events/assets/newsletter/events-newsletter-card_ai_for_everyday_tasks.png, alt: AI for everyday tasks webinar event card}
-        de: {path: shared/events/assets/newsletter/events-newsletter-card_ai_for_everyday_tasks.png, alt: KI für Alltagsaufgaben Webinar Eventkarte}
-  - id: openmates-berlin-meetup-2026-08-29
-    slug: openmates-berlin-meetup-2026-08-29
+  - id: openmates-berlin-meetup-2026-09-26
+    slug: openmates-berlin-meetup-2026-09-26
     status: published
     event_type: in_person_meetup
-    starts_at: "2026-08-29T15:00:00+02:00"
-    ends_at: "2026-08-29T17:00:00+02:00"
+    starts_at: "2026-09-26T16:00:00+02:00"
+    ends_at: "2026-09-26T18:00:00+02:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -77,18 +54,18 @@ events:
         summary: Triff OpenMates Nutzer und Beitragende in Berlin, lerne bessere Nutzung und beeinflusse die Entwicklung direkt.
         description: Komm zu einem entspannten monatlichen Meetup für Menschen, die eine europäische Alternative zu Big-Tech KI suchen oder OpenMates bereits nutzen. Bring Fragen, Probleme und Feature-Wünsche mit und triff andere bei einem Getränk.
     venue: xHain Glitch, Grünberger Str. 20, 10243 Berlin
-    luma_url: https://luma.com/4rwaol33
+    luma_url: https://luma.com/dtz982h1
     openmates_url:
     assets:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png, alt: OpenMates Monthly Meetup Berlin event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png, alt: OpenMates monatliches Meetup Berlin Eventkarte}
-  - id: everyday-workflows-webinar-2026-09-01
-    slug: everyday-workflows-webinar-2026-09-01
+  - id: everyday-workflows-webinar-2026-09-30
+    slug: everyday-workflows-webinar-2026-09-30
     status: published
     event_type: webinar
-    starts_at: "2026-09-01T19:00:00+02:00"
-    ends_at: "2026-09-01T19:50:00+02:00"
+    starts_at: "2026-09-30T19:00:00+02:00"
+    ends_at: "2026-09-30T19:50:00+02:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -106,12 +83,12 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png, alt: Everyday workflow automation webinar event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png, alt: Alltags-Workflow Automatisierung Webinar Eventkarte}
-  - id: openmates-teams-webinar-2026-09-03
-    slug: openmates-teams-webinar-2026-09-03
+  - id: openmates-teams-webinar-2026-10-14
+    slug: openmates-teams-webinar-2026-10-14
     status: published
     event_type: webinar
-    starts_at: "2026-09-03T19:00:00+02:00"
-    ends_at: "2026-09-03T19:50:00+02:00"
+    starts_at: "2026-10-14T19:00:00+02:00"
+    ends_at: "2026-10-14T19:50:00+02:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -129,12 +106,12 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png, alt: OpenMates for teams webinar event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png, alt: OpenMates für Teams Webinar Eventkarte}
-  - id: spec-driven-development-webinar-2026-09-08
-    slug: spec-driven-development-webinar-2026-09-08
+  - id: spec-driven-development-webinar-2026-11-11
+    slug: spec-driven-development-webinar-2026-11-11
     status: published
     event_type: webinar
-    starts_at: "2026-09-08T19:00:00+02:00"
-    ends_at: "2026-09-08T19:50:00+02:00"
+    starts_at: "2026-11-11T19:00:00+01:00"
+    ends_at: "2026-11-11T19:50:00+01:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -152,12 +129,12 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png, alt: Spec-driven development webinar event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png, alt: Spec-driven development Webinar Eventkarte}
-  - id: cli-sdk-webinar-2026-09-10
-    slug: cli-sdk-webinar-2026-09-10
+  - id: cli-sdk-webinar-2026-10-28
+    slug: cli-sdk-webinar-2026-10-28
     status: published
     event_type: webinar
-    starts_at: "2026-09-10T19:00:00+02:00"
-    ends_at: "2026-09-10T19:50:00+02:00"
+    starts_at: "2026-10-28T19:00:00+01:00"
+    ends_at: "2026-10-28T19:50:00+01:00"
     timezone: Europe/Berlin
     localized_content:
       en:
@@ -175,12 +152,12 @@ events:
       card:
         en: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png, alt: OpenMates CLI and SDK webinar event card}
         de: {path: shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png, alt: OpenMates CLI und SDK Webinar Eventkarte}
-  - id: self-hosting-webinar-2026-09-15
-    slug: self-hosting-webinar-2026-09-15
+  - id: self-hosting-webinar-2026-11-25
+    slug: self-hosting-webinar-2026-11-25
     status: published
     event_type: webinar
-    starts_at: "2026-09-15T19:00:00+02:00"
-    ends_at: "2026-09-15T19:50:00+02:00"
+    starts_at: "2026-11-25T19:00:00+01:00"
+    ends_at: "2026-11-25T19:50:00+01:00"
     timezone: Europe/Berlin
     localized_content:
       en:
