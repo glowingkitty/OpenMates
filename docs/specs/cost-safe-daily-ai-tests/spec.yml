@@ -1,13 +1,13 @@
 schema_version: 3
 id: cost-safe-daily-ai-tests
 title: Cost-Safe Meaningful Daily AI Tests
-status: verified
+status: implementing
 
 contract_refs:
   - id: architecture.daily-ai-test-inference
-    version: 1
+    version: 2
     role: primary
-    fingerprint: 54a6af7286399b1db9064b8aa3a914d6127db3b0a2bc62c235bc94a50051aa36
+    fingerprint: 8e340e096114f9956ce9509464aadb8e0e9f92e6ee50800b0cddcd88a3b80452
   - id: architecture.ai-request-observability
     version: 1
     role: inherited
@@ -24,6 +24,7 @@ contract_impact:
     - daily-ai-tests.budget.shared-hard-cap
     - daily-ai-tests.isolation.ordinary-inference-unchanged
     - daily-ai-tests.cache.manual-transactional-promotion
+    - daily-ai-tests.cache.bounded-automatic-backfill
     - daily-ai-tests.validation.conditional-real-gate
     - daily-ai-tests.reporting.content-free
     - ai-request-observability.waterfall.complete
@@ -68,14 +69,14 @@ scope:
     - Enforce one distributed EUR 0.25 budget across both real canaries.
     - Restrict daily-test controls to non-production signed run identity and dedicated test accounts.
     - Preserve normal development, manual, self-hosted, and production inference behavior.
-    - Record cache data manually into an isolated candidate and promote only after passing real and replay runs.
+    - Record cache data manually or for one manifest-allowlisted scheduled candidate into isolated persistent storage and promote only after passing real and zero-call replay runs.
     - Classify existing Playwright AI specs as replay, bounded rotating canary, manual expensive, or non-AI.
     - Produce content-free daily call, token, estimated-cost, phase, provider, model, and cache summaries.
   out:
     - Changing prompts, normal model routing, tool planning, user billing, or product response behavior.
     - Public or developer API access to test controls or cache management.
     - npm or pip SDK methods for test orchestration.
-    - Automatic cache recording or scheduled cassette refresh.
+    - Implicit recording after cache misses, unbounded scheduled recording, or more than one scheduled candidate per UTC day.
     - Daily deep-research, generated-media, long-chat, or other expensive inference.
     - Exact generated-text assertions for real canaries.
     - Web or Apple product UI changes.
@@ -89,7 +90,7 @@ context_discovery:
     - docs/specs/free-testing-credits-budget/spec.yml
     - docs/specs/ai-request-observability/spec.yml
   contracts:
-    - architecture.daily-ai-test-inference@1 approved in session fd78 with fingerprint 54a6af7286399b1db9064b8aa3a914d6127db3b0a2bc62c235bc94a50051aa36.
+    - architecture.daily-ai-test-inference@2 approved in session fd78 with fingerprint 8e340e096114f9956ce9509464aadb8e0e9f92e6ee50800b0cddcd88a3b80452.
     - architecture.ai-request-observability@1 provides content-free provider-purpose and phase telemetry requirements.
   code_patterns:
     - backend/apps/ai/tasks/ask_skill_task.py currently skips preprocessing and main inference for TEST_MOCK but explicitly performs real postprocessing.
@@ -122,14 +123,14 @@ clarification:
     - question: What is the initial combined daily budget?
       answer: EUR 0.25, configurable only through test-specific configuration.
     - question: How are caches refreshed?
-      answer: Manual-only; daily runs are replay-only and cache misses fail closed.
+      answer: Cache misses always fail closed; one manifest-allowlisted missing-cache scenario may be recorded automatically per daily run and promoted only after receipt validation and zero-call candidate replay.
     - question: When does a repaired spec require real inference and cache promotion?
       answer: Require it only for AI contract changes; UI-only repairs may remain replay-only, and promotion follows a passing real run plus immediate replay verification.
   vision_summary: >
     Daily coverage should execute meaningful OpenMates orchestration broadly but
     spend only on two bounded canaries. Test controls are isolated from ordinary
-    traffic, caches never update automatically, and known-good cassettes cannot
-    be replaced by a failing recording.
+    traffic, scheduled backfill is limited to one reviewed candidate, and known-good
+    cassettes cannot be replaced by a failing recording or replay.
   approved_by_user: true
 
 apple_impact:
@@ -215,6 +216,18 @@ scenarios:
     then:
       - The summary includes mode, phase, provider, model, cache totals, calls, tokens, estimated EUR cost, budget state, and normalized failures.
       - It excludes prompts, responses, cache keys, tool payloads, identities, credentials, and raw provider errors.
+  - id: S-8
+    title: One missing-cache scenario becomes verified replay coverage automatically
+    given:
+      - A manifest entry is explicitly classified as backfill_pending with an audited cache group.
+      - Persistent candidate storage and the daily EUR budget are available.
+    when:
+      - The daily runner selects its one scheduled backfill candidate.
+    then:
+      - The passing real run writes only to the isolated candidate root and emits content-free receipts.
+      - The same spec replays directly from that candidate with zero misses and zero real provider calls.
+      - Runtime and source cache groups are promoted atomically and persisted through an exact-scope sessions.py deployment.
+      - Any failure remains visible while known-good cache data and the ordinary nightly suite remain unchanged.
 
 acceptance_criteria:
   - id: AC-1
@@ -299,14 +312,23 @@ acceptance_criteria:
     verification_scope: custom
     verification_ids: [T-PYTEST-TEST-BUDGET, T-PYTEST-DAILY-POLICY]
   - id: AC-10
-    scenario: S-5
-    contract_assertions: [daily-ai-tests.cache.manual-transactional-promotion]
-    text: Scheduled daily execution cannot enter record mode, while the explicit manual command remains auditable and budgeted.
+    scenario: S-8
+    contract_assertions: [daily-ai-tests.cache.bounded-automatic-backfill]
+    text: Daily execution may record at most one explicitly pending candidate and never records implicitly after a replay miss.
     required: true
-    status: satisfied
+    status: pending
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [T-PYTEST-CACHE-PROMOTION, T-PYTEST-DAILY-POLICY]
+    verification_ids: [T-PYTEST-CACHE-PROMOTION, T-PYTEST-DAILY-POLICY, T-PYTEST-AUTO-BACKFILL]
+  - id: AC-11
+    scenario: S-8
+    contract_assertions: [daily-ai-tests.cache.bounded-automatic-backfill, daily-ai-tests.reporting.content-free]
+    text: A candidate becomes replay coverage only after hash-bound real and replay receipts prove a passing real run, zero replay misses, zero replay provider calls, atomic runtime promotion, and exact-scope dev persistence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PYTEST-AUTO-BACKFILL, T-E2E-CACHE-BACKFILL]
 
 assumptions:
   - id: A-1
@@ -398,11 +420,12 @@ tests:
       - daily-ai-tests.budget.shared-hard-cap
       - daily-ai-tests.isolation.ordinary-inference-unchanged
       - daily-ai-tests.cache.manual-transactional-promotion
+      - daily-ai-tests.cache.bounded-automatic-backfill
       - daily-ai-tests.validation.conditional-real-gate
       - daily-ai-tests.reporting.content-free
     file: contracts/architecture/daily-ai-test-inference/contract.yml
     command: python3 scripts/contracts.py validate contracts/architecture/daily-ai-test-inference
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]
     assertions:
       - Contract and examples remain schema-valid and generated indexes remain synchronized.
     red_phase: {required: false, expected: pass, evidence: {status: not_applicable}}
@@ -512,43 +535,54 @@ tests:
       - Successful promotion triggers and passes immediate zero-call replay.
     red_phase: {required: true, expected: fail, evidence: {status: missing_test, reason: "No durable pre-implementation manual-cache red run was retained before the pass-gated importer behavior was added.", run_id: "fd78-manual-cache-red-not-retained", timestamp: "2026-08-30T00:00:00Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: passed, reason: "Validated a throwaway cache candidate in dry-run mode with both required pass flags; transactional promotion and rollback are covered by T-PYTEST-CACHE-PROMOTION.", command: "python3 scripts/import_live_mock_cache.py /tmp/opencode/fd78-cache-import-smoke/source --group fd78_import_smoke --dry-run --passed-real-run --passed-zero-call-replay", run_id: "local-cache-import-dry-run-20260830T1625Z", subject_commit: "3432ef7d02451b3af37cd71916716e557de07992", timestamp: "2026-08-30T16:25:00Z"}}
+  - id: T-PYTEST-AUTO-BACKFILL
+    type: pytest
+    contract_assertions: [daily-ai-tests.cache.bounded-automatic-backfill, daily-ai-tests.reporting.content-free]
+    file: scripts/tests/test_daily_ai_cache_backfill.py; scripts/tests/test_daily_ai_test_policy.py; backend/tests/test_caching_llm_wrapper.py; backend/tests/test_caching_http_transport.py
+    command: python3 -m pytest scripts/tests/test_daily_ai_cache_backfill.py scripts/tests/test_daily_ai_test_policy.py backend/tests/test_caching_llm_wrapper.py backend/tests/test_caching_http_transport.py -q
+    covers: [AC-10, AC-11]
+    assertions:
+      - One deterministic pending spec is selected and recording never follows an ordinary replay miss.
+      - Candidate receipts are content-free, hash-bound, budgeted, and require zero-call replay.
+      - Failed validation rolls back while successful validation promotes runtime and source groups atomically.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, reason: "No durable automated backfill test existed before implementation; the prior manifest and runner rejected scheduled recording.", run_id: "fd78-auto-backfill-red-not-retained", timestamp: "2026-08-30T23:30:00Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-E2E-CACHE-BACKFILL
+    type: playwright
+    contract_assertions: [daily-ai-tests.cache.bounded-automatic-backfill, daily-ai-tests.replay.zero-paid-calls]
+    file: frontend/apps/web_app/tests/application-preview-share.spec.ts
+    command: python3 scripts/tests.py run --spec application-preview-share.spec.ts --gate-deploy --expected-commit <COMMIT>
+    target: app.dev.openmates.org
+    covers: [AC-11]
+    assertions:
+      - The real candidate run passes and writes the declared cache group to persistent isolated storage.
+      - Candidate replay passes with zero misses and zero real provider calls.
+      - The resulting content-free daily record reports runtime and dev promotion identities.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, reason: "The deployed runner had no scheduled backfill path before implementation, so no automated pre-implementation E2E run was retained.", run_id: "fd78-auto-backfill-e2e-red-not-retained", timestamp: "2026-08-30T23:30:00Z"}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
 
 verifications:
   - id: V-CONTRACT-GENERATED
     kind: automated_test
     phase: green
     required_for_done: true
-    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
-    status: passed
-    evidence: {status: passed, command: "python3 scripts/contracts.py generate && python3 scripts/contracts.py check-generated", run_id: "local-contract-generated-20260830T1550Z", subject_commit: "3432ef7d02451b3af37cd71916716e557de07992", timestamp: "2026-08-30T15:50:00Z"}
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]
+    status: pending
+    evidence: {status: pending}
   - id: V-ZERO-SPEND-REPLAY
     kind: artifact_review
     phase: green
     required_for_done: true
     covers: [AC-1, AC-2, AC-8, AC-9]
-    status: passed
-    evidence:
-      status: passed
-      command: python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_caching_llm_wrapper.py backend/tests/test_daily_ai_test_budget.py backend/tests/test_import_live_mock_cache.py scripts/tests/test_daily_ai_test_policy.py -q && python3 scripts/audit_daily_ai_test_inference.py
-      run_id: fd78-current-direct-proof-20260830T1705Z
-      subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-      timestamp: "2026-08-30T17:05:07Z"
-      summary: Focused CLI-surface proof and audit prove replay misses fail before provider dispatch, test budgets stay isolated, cache promotion is pass-gated, and AI request observability remains content-free.
+    status: pending
+    evidence: {status: pending}
   - id: V-CANARY-BUDGET
     kind: artifact_review
     phase: green
     required_for_done: true
     covers: [AC-3, AC-4, AC-9]
-    status: passed
-    evidence:
-      status: passed
-      command: python3 scripts/tests.py run --spec daily-ai-fixed-canary.spec.ts --gate-deploy --expected-commit 40f16fb9042651581fe6f876c15ea587b88a3904 && python3 scripts/tests.py run --spec daily-ai-rotating-canary.spec.ts --gate-deploy --expected-commit 40f16fb9042651581fe6f876c15ea587b88a3904
-      run_id: GitHub Actions 33324072487 and 33324074011
-      subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-      timestamp: "2026-08-30T17:05:07Z"
-      target: app.dev.openmates.org
-      deployment_reference: Vercel dpl_4jfMsrbdeRarYdVUidXeZnoPodzN
-      summary: Fixed and rotating canaries passed through the signed daily real path at the current proof commit; backend budget tests prove conservative reservations cap the shared group at EUR 0.25.
+    status: pending
+    evidence: {status: pending}
 demonstration:
   eligibility:
     status: not_applicable
@@ -601,7 +635,7 @@ approvals:
   product_contract:
     status: approved
     approved_at: "2026-08-30T00:00:00Z"
-    reason: User explicitly approved contract fingerprint 54a6af7286399b1db9064b8aa3a914d6127db3b0a2bc62c235bc94a50051aa36.
+    reason: User explicitly approved bounded scheduled backfill contract fingerprint 8e340e096114f9956ce9509464aadb8e0e9f92e6ee50800b0cddcd88a3b80452.
   implementation_plan:
     status: approved
     approved_at: "2026-08-30T00:00:00Z"
@@ -619,10 +653,15 @@ decisions:
     reason: A hard provider-boundary ceiling prevents silent cost growth.
     decided_at: "2026-08-30T00:00:00Z"
   - id: D-3
-    status: active
+    status: superseded
     decision: Keep daily cache use replay-only and cache refresh manual-only.
     reason: Scheduled recording can silently spend and normalize regressions.
     decided_at: "2026-08-30T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Allow one manifest-allowlisted automatic cache backfill per daily run, with persistent candidate storage, content-free receipts, candidate replay, atomic promotion, and exact-scope dev deployment.
+    reason: Missing replay caches should converge automatically without turning ordinary cache misses into paid calls or risking known-good data.
+    decided_at: "2026-08-30T23:30:00Z"
   - id: D-4
     status: active
     decision: Require real validation only when AI request, processing, tool, model, prompt, or assertion contracts change.
@@ -649,21 +688,21 @@ attempts:
     recorded_at: "2026-08-30T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-8
-  next_action: Deploy final evidence metadata and regenerated contract artifacts.
-  command: python3 scripts/spec_verify.py docs/specs/cost-safe-daily-ai-tests/spec.yml --phase complete --json
-  expected_outcome: The verified spec remains complete after current direct-proof evidence is committed and generated artifacts are rebuilt.
+  current_task_id: TASK-9
+  next_action: Deploy bounded scheduled backfill, rebuild the AI worker, and run the record-to-replay pilot.
+  command: python3 scripts/tests.py run --spec application-preview-share.spec.ts --gate-deploy --expected-commit <SUBJECT_COMMIT>
+  expected_outcome: One candidate records, replays with zero real calls, promotes atomically, and persists as replay coverage.
   blocker: null
   last_verified_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
 
 implementation_plan:
   spec_path: docs/specs/cost-safe-daily-ai-tests/spec.yml
   governing_contracts:
-    - architecture.daily-ai-test-inference@1
+    - architecture.daily-ai-test-inference@2
     - architecture.ai-request-observability@1
   contract_change:
     classification: semantic_change
-    approved_fingerprint: 54a6af7286399b1db9064b8aa3a914d6127db3b0a2bc62c235bc94a50051aa36
+    approved_fingerprint: 8e340e096114f9956ce9509464aadb8e0e9f92e6ee50800b0cddcd88a3b80452
     affected_assertions:
       - daily-ai-tests.replay.zero-paid-calls
       - daily-ai-tests.replay.cache-miss-fails-closed
@@ -984,6 +1023,31 @@ tasks:
     dependencies: [TASK-4, TASK-6, TASK-7]
     ownership:
       files: [docs/architecture/live-mock-testing.md, docs/contributing/guides/testing.md]
+      shared_files: [docs/specs/cost-safe-daily-ai-tests/spec.yml]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-9
+    title: Automate one receipt-gated daily cache backfill
+    status: in_progress
+    phase: working_tasks
+    contract_assertions: [daily-ai-tests.cache.bounded-automatic-backfill, daily-ai-tests.replay.zero-paid-calls, daily-ai-tests.reporting.content-free]
+    surfaces: [cli, infrastructure]
+    covers:
+      scenarios: [S-2, S-8]
+      acceptance_criteria: [AC-10, AC-11]
+    expected_files:
+      - scripts/daily_ai_cache_backfill.py
+      - scripts/run_tests.py
+      - backend/shared/testing/mock_context.py
+      - backend/shared/testing/api_response_cache.py
+      - backend/core/docker-compose.yml
+    command: python3 -m pytest scripts/tests/test_daily_ai_cache_backfill.py backend/tests/test_daily_ai_test_budget.py backend/tests/test_caching_http_transport.py -q
+    verification: [T-PYTEST-AUTO-BACKFILL, T-E2E-CACHE-BACKFILL, V-CONTRACT-GENERATED]
+    verification_ids: [T-PYTEST-AUTO-BACKFILL, T-E2E-CACHE-BACKFILL, V-CONTRACT-GENERATED]
+    dependencies: [TASK-8]
+    ownership:
+      files: [scripts/daily_ai_cache_backfill.py, scripts/run_tests.py, backend/shared/testing/mock_context.py, backend/shared/testing/api_response_cache.py, backend/core/docker-compose.yml]
       shared_files: [docs/specs/cost-safe-daily-ai-tests/spec.yml]
     blockers: []
     follow_up_tasks: []

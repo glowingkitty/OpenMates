@@ -72,10 +72,12 @@ from zoneinfo import ZoneInfo
 
 try:
     from scripts import sessions as session_control
+    from scripts import daily_ai_cache_backfill
     from scripts import daily_ai_test_policy
     from scripts.spec_demo import sweep_publications as _sweep_spec_demo_publications
 except ModuleNotFoundError:
     import sessions as session_control
+    import daily_ai_cache_backfill
     import daily_ai_test_policy
     from spec_demo import sweep_publications as _sweep_spec_demo_publications
 
@@ -805,6 +807,18 @@ def _plain_notification_text(value: str) -> str:
         .replace("🟢", "OK")
         .replace("•", "-")
     )
+
+
+def _cache_backfill_notification_line(result: RunResult) -> str | None:
+    """Render structural cache-backfill state without forwarding failure details."""
+    backfill = result.flags.get("cache_backfill")
+    if not isinstance(backfill, dict):
+        return None
+    status = str(backfill.get("status") or "unknown")
+    spec = str(backfill.get("spec") or "")
+    group = str(backfill.get("cache_group") or "")
+    suffix = f" ({spec}, {group})" if spec and group else ""
+    return f"Cache backfill: {status}{suffix}"
 
 
 def _limit_discord_failure_embeds(embeds: list[dict], color: int) -> list[dict]:
@@ -4209,6 +4223,9 @@ class NotificationService:
             f"**Skipped:** {s['skipped']}",
             f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
         ]
+        cache_backfill_line = _cache_backfill_notification_line(result)
+        if cache_backfill_line:
+            description_parts.append(f"**{cache_backfill_line}**")
         if run_url:
             description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
         description = _fit_discord_description(description_parts)
@@ -5023,6 +5040,9 @@ class NotificationService:
 <tr><td style="padding:4px 12px 4px 0;color:#888">Git</td><td>{git_ref}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Environment</td><td>{environment}</td></tr>
 </table>"""
+        cache_backfill_line = _cache_backfill_notification_line(result)
+        if cache_backfill_line:
+            html += f"<p>{escape(cache_backfill_line)}</p>"
 
         if problem_count:
             html += '<h3 style="color:#ef4444;margin-top:20px">Failures by suite and product area</h3>'
@@ -5061,6 +5081,9 @@ class NotificationService:
             f"Git: {result.git_sha}@{result.git_branch}",
             "",
         ]
+        cache_backfill_line = _cache_backfill_notification_line(result)
+        if cache_backfill_line:
+            lines.extend([cache_backfill_line, ""])
 
         if _problem_count(s) > 0:
             lines.append("Failures by suite and product area:")
@@ -7173,7 +7196,71 @@ class TestOrchestrator:
         critical_phase = getattr(self, "critical_phase", None)
         if critical_phase:
             flags["critical_phase"] = critical_phase
+        cache_backfill = getattr(self, "cache_backfill", None)
+        if cache_backfill:
+            flags["cache_backfill"] = cache_backfill
         return flags
+
+    def _run_daily_cache_backfill(self) -> dict[str, object]:
+        """Backfill one receipt-proven cache candidate without blocking the suite."""
+        plan = daily_ai_test_policy.daily_backfill_plan(datetime.now(timezone.utc).date())
+        if plan is None:
+            return {"status": "skipped", "reason": "no_backfill_pending_specs"}
+        runtime_root = os.getenv("DAILY_AI_RUNTIME_CACHE_ROOT", "").strip()
+        if not runtime_root:
+            runtime_root = str(PROJECT_ROOT.parent / ".openmates-runtime/product-stack/backend/apps/ai/testing/api_cache")
+        default_candidate_root = (
+            PROJECT_ROOT.parent / ".openmates-runtime/product-stack/test-results/live-mock-candidates"
+        )
+        candidate_root = Path(os.getenv("DAILY_AI_CANDIDATE_ROOT", str(default_candidate_root)))
+        run_root = candidate_root / plan.candidate_run_id
+        claim_root = candidate_root / f"daily-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+
+        client = GitHubActionsClient(git_sha=self.git_sha)
+
+        def dispatch(spec: str, record: bool, candidate_run_id: str) -> tuple[dict[str, object], Path]:
+            run_id = client.dispatch_spec(
+                spec,
+                account=NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0],
+                use_mocks=True,
+                record_live_fixtures=record,
+                daily_ai_run_id=candidate_run_id,
+            )
+            if run_id is None:
+                raise daily_ai_cache_backfill.BackfillValidationError(
+                    client.last_dispatch_error or "candidate dispatch failed"
+                )
+            outcome = client.wait_for_runs([run_id], fail_fast=True).get(run_id, {})
+            if outcome.get("conclusion") != "success":
+                raise daily_ai_cache_backfill.BackfillValidationError("candidate Playwright run did not pass")
+            return daily_ai_cache_backfill.build_receipt(
+                run_root, plan, mode="record" if record else "replay"
+            )
+
+        deployed_commit: list[str] = []
+
+        def persist(expected_cache_sha256: str) -> str:
+            commit = daily_ai_cache_backfill.deploy_candidate_cache(
+                PROJECT_ROOT,
+                Path(runtime_root) / plan.cache_group,
+                plan,
+                expected_cache_sha256,
+            )
+            deployed_commit.append(commit)
+            return commit
+
+        result = daily_ai_cache_backfill.run_backfill(
+            plan,
+            dispatch=dispatch,
+            runtime_cache_root=Path(runtime_root),
+            source_cache_root=None,
+            claim_root=claim_root,
+            candidate_run_root=run_root,
+            persist=persist,
+        )
+        if result.get("status") == "runtime_promoted" and deployed_commit:
+            return {**result, "status": "promoted", "commit_sha": deployed_commit[0]}
+        return result
 
     def _save_progress_snapshot(
         self,
@@ -7312,6 +7399,13 @@ class TestOrchestrator:
                 self.current_phase = "Playwright"
                 suites["playwright"] = self._run_playwright()
                 self._save_progress_snapshot(suites, start_time, "Playwright")
+
+            if self.daily and not self.spec and self.suite == "all":
+                self.current_phase = "cache backfill"
+                self.cache_backfill = self._run_daily_cache_backfill()
+                if self.cache_backfill.get("status") == "failed":
+                    _log(f"Daily cache backfill failed: {self.cache_backfill.get('detail', 'unknown error')}", "ERROR")
+                self._save_progress_snapshot(suites, start_time, "cache backfill")
 
             if not parallel_daily and not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
                 self.current_phase = "Apple remote"
@@ -7508,7 +7602,7 @@ class TestOrchestrator:
             "gh", "workflow", "run", workflow_file,
             "--repo", GH_REPO,
             "--ref", GH_BRANCH,
-            "-f", f"checkout_ref={_full_git_sha(self.git_sha)}",
+            "-f", f"checkout_ref={_full_git_sha(getattr(self, 'git_sha', ''))}",
         ]
         if self.campaign_test_labels and workflow_file in {"pytest-unit.yml", "vitest.yml"}:
             input_name = "test_targets_json" if workflow_file == "pytest-unit.yml" else "test_files_json"

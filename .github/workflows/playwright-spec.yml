@@ -173,6 +173,9 @@ jobs:
           DIRECT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
           DIRECT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
           DIRECT_OTP_KEY: ${{ secrets.TEST_ACCOUNT_OTP_KEY != '' && secrets.TEST_ACCOUNT_OTP_KEY || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account)] }}
+          SECONDARY_EMAIL: ${{ secrets.OPENMATES_TEST_ACCOUNT_2_EMAIL }}
+          SECONDARY_PASSWORD: ${{ secrets.OPENMATES_TEST_ACCOUNT_2_PASSWORD }}
+          SECONDARY_OTP_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_2_OTP_KEY }}
           EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
         run: |
           set -euo pipefail
@@ -224,6 +227,20 @@ jobs:
             echo "OPENMATES_TEST_ACCOUNT_1_PASSWORD=$PASSWORD"
             echo "OPENMATES_TEST_ACCOUNT_1_OTP_KEY=$OTP_KEY"
           } >> "$GITHUB_ENV"
+          if [ "${{ inputs.spec }}" = "application-preview-share.spec.ts" ]; then
+            if [ -z "$SECONDARY_EMAIL" ] || [ -z "$SECONDARY_PASSWORD" ] || [ -z "$SECONDARY_OTP_KEY" ]; then
+              echo "application-preview-share.spec.ts requires configured account 2 credentials." >&2
+              exit 1
+            fi
+            echo "::add-mask::$SECONDARY_EMAIL"
+            echo "::add-mask::$SECONDARY_PASSWORD"
+            echo "::add-mask::$SECONDARY_OTP_KEY"
+            {
+              echo "OPENMATES_TEST_ACCOUNT_2_EMAIL=$SECONDARY_EMAIL"
+              echo "OPENMATES_TEST_ACCOUNT_2_PASSWORD=$SECONDARY_PASSWORD"
+              echo "OPENMATES_TEST_ACCOUNT_2_OTP_KEY=$SECONDARY_OTP_KEY"
+            } >> "$GITHUB_ENV"
+          fi
       - name: Migrate expanded account secrets to consolidated bundle
         if: inputs.migrate_account_secrets_to_expanded_bundle
         env:

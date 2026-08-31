@@ -3,7 +3,7 @@
 #
 # Verifies the dev-only real-inference canary budget fails before provider
 # dispatch, remains request-scoped, and never changes ordinary inference.
-# Contract: architecture.daily-ai-test-inference@1.
+# Contract: architecture.daily-ai-test-inference@2.
 
 import asyncio
 import base64
@@ -14,6 +14,8 @@ from types import ModuleType, SimpleNamespace
 
 import httpx
 import pytest
+
+import backend.shared.testing.mock_context as mock_context
 
 from backend.apps.ai.testing.caching_llm_wrapper import (
     _real_request_input_token_upper_bound,
@@ -36,6 +38,29 @@ from backend.shared.testing.mock_context import (
 )
 
 
+@pytest.mark.asyncio
+async def test_backfill_record_shares_the_daily_canary_budget_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: list[str] = []
+
+    async def reserve(_state, group_id, _category, amount):
+        captured.append(group_id)
+        return amount
+
+    monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "redis")
+    monkeypatch.setattr(mock_context, "_reserve_in_redis", reserve)
+    activate_mock_mode(
+        "record",
+        "application_preview_share",
+        candidate_run_id="daily-cache-backfill-20260831-0123456789ab",
+    )
+    try:
+        await reserve_real_provider_call("llm/test", Decimal("0.01"))
+    finally:
+        deactivate_mock_mode()
+
+    assert captured == ["daily_canary_20260831"]
+
+
 def _hash_email(email: str) -> str:
     return base64.b64encode(hashlib.sha256(email.lower().strip().encode()).digest()).decode()
 
@@ -52,10 +77,11 @@ def test_real_marker_is_dev_only(monkeypatch: pytest.MonkeyPatch) -> None:
         is_allowlisted_test_account=True,
     )
     assert signed is not None
-    assert detect_live_marker(f"hello {signed}", "test-user") == (
-        "real",
-        group,
-    )
+    detected = detect_live_marker(f"hello {signed}", "test-user")
+    assert detected is not None
+    assert detected.mode == "real"
+    assert detected.group_id == group
+    assert detected.run_id is None
     assert sign_live_marker(
         "<<<TEST_LIVE_REAL:daily_canary_other>>>",
         "test-user",
@@ -78,6 +104,29 @@ def test_live_real_marker_signing_requires_mock_boundary(monkeypatch: pytest.Mon
         "test-user",
         is_allowlisted_test_account=True,
     ) is None
+
+
+def test_live_record_marker_requires_signed_run_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
+    monkeypatch.setenv("DAILY_AI_TEST_CONTEXT_SECRET", "test-secret")
+
+    assert sign_live_marker(
+        "<<<TEST_LIVE_RECORD:wikipedia_search>>>",
+        "test-user",
+        is_allowlisted_test_account=True,
+    ) is None
+    signed = sign_live_marker(
+        "<<<TEST_LIVE_RECORD:wikipedia_search:nightly-20260831>>>",
+        "test-user",
+        is_allowlisted_test_account=True,
+    )
+    assert signed is not None
+    detected = detect_live_marker(signed, "test-user")
+    assert detected is not None
+    assert detected.mode == "record"
+    assert detected.group_id == "wikipedia_search"
+    assert detected.run_id == "nightly-20260831"
 
 
 def test_disabled_live_marker_rejection_is_non_production_only(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -424,7 +473,10 @@ def test_ws_auth_cached_profile_enables_signed_daily_real_budget_path(tmp_path, 
         )
         assert signed_marker is not None
         detected = detect_live_marker(signed_marker, user_id)
-        assert detected == ("real", group)
+        assert detected is not None
+        assert detected.mode == "real"
+        assert detected.group_id == group
+        assert detected.run_id is None
 
         provider_calls = 0
 
@@ -437,7 +489,7 @@ def test_ws_auth_cached_profile_enables_signed_daily_real_budget_path(tmp_path, 
 
             return stream()
 
-        activate_mock_mode(*detected)
+        activate_mock_mode(detected.mode, detected.group_id, candidate_run_id=detected.run_id)
         try:
             wrapped = wrap_provider_with_cache(provider, ApiResponseCache(root=tmp_path))
             response = await wrapped(model="gemma-4-31b", messages=[], stream=True)

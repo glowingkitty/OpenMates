@@ -31,6 +31,8 @@ from backend.shared.testing.mock_context import (
     is_mock_active,
     is_real_mode,
     is_record_mode,
+    record_cache_miss,
+    record_real_provider_call,
     reserve_real_provider_call,
 )
 
@@ -82,6 +84,7 @@ def wrap_provider_with_cache(
 
         if is_real_mode():
             await _reserve_real_llm_call(kwargs, "llm")
+            record_real_provider_call()
             async for chunk in _provider_stream(**kwargs):
                 yield chunk
             return
@@ -131,7 +134,9 @@ def wrap_provider_with_cache(
             )
 
         # Record mode: call real provider, collect all chunks, save to cache
+        record_cache_miss()
         await _reserve_real_llm_call(kwargs, "llm")
+        record_real_provider_call()
         logger.info(
             f"[LiveMock] LLM Cache MISS (recording): {category}/{fingerprint} "
             f"— model={model}, messages={len(messages)}"
@@ -158,6 +163,7 @@ def wrap_provider_with_cache(
 
         if is_real_mode():
             await _reserve_real_llm_call(kwargs, "llm_non_stream")
+            record_real_provider_call()
             return await provider_fn(**kwargs)
 
         group_id = get_mock_group()
@@ -182,7 +188,9 @@ def wrap_provider_with_cache(
                 details=f"model={model}, messages={len(messages)}",
             )
 
+        record_cache_miss()
         await _reserve_real_llm_call(kwargs, "llm_non_stream")
+        record_real_provider_call()
         response = await provider_fn(**kwargs)
         _save_non_stream_to_cache(cache, group_id, category, fingerprint, response, kwargs)
         return response

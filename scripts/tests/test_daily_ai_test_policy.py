@@ -40,8 +40,9 @@ def test_manifest_marks_costly_real_inference_specs_manual_expensive():
 
     manifest = policy.load_manifest()
 
-    assert manifest["specs"]["deep-research-real-inference.spec.ts"] == policy.MANUAL_EXPENSIVE
-    assert manifest["specs"]["sub-chats-real-inference.spec.ts"] == policy.MANUAL_EXPENSIVE
+    assert manifest["specs"]["deep-research-real-inference.spec.ts"]["classification"] == policy.MANUAL_EXPENSIVE
+    assert manifest["specs"]["sub-chats-real-inference.spec.ts"]["classification"] == policy.MANUAL_EXPENSIVE
+    assert manifest["specs"]["application-preview-share.spec.ts"]["classification"] == policy.BACKFILL_PENDING
     assert manifest["daily_canaries"]["fixed"] == ["daily-ai-fixed-canary.spec.ts"]
     assert manifest["daily_canaries"]["rotating"] == ["daily-ai-rotating-canary.spec.ts"]
 
@@ -67,7 +68,7 @@ def test_discovery_keeps_replay_and_non_ai_specs_but_excludes_unmarked_ai(tmp_pa
     (tmp_path / "unmarked-ai.spec.ts").write_text("sendMessage(page, 'real')")
     with pytest.raises(RuntimeError, match="Unclassified AI spec"):
         policy.discover_specs(["unmarked-ai.spec.ts"], manifest={
-            "schema_version": 1,
+            "schema_version": 2,
             "specs": {},
             "daily_canaries": {"fixed": [], "rotating": []},
         }, spec_dir=tmp_path)
@@ -82,7 +83,7 @@ def test_discovery_keeps_replay_and_non_ai_specs_but_excludes_unmarked_ai(tmp_pa
 def test_daily_plan_selects_one_fixed_and_utc_deterministic_rotating_canary():
     policy = load_module("daily_ai_policy_plan", POLICY_PATH)
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "specs": {},
         "daily_canaries": {
             "fixed": ["fixed-a.spec.ts"],
@@ -112,7 +113,7 @@ def test_daily_plan_selects_one_fixed_and_utc_deterministic_rotating_canary():
 # contract-test: direct surface=cli assertions=daily-ai-tests.real.fixed-plus-rotating,daily-ai-tests.validation.conditional-real-gate
 def test_daily_plan_omits_absent_canaries_and_rejects_scheduled_record_mode():
     policy = load_module("daily_ai_policy_rejections", POLICY_PATH)
-    manifest = {"schema_version": 1, "specs": {}, "daily_canaries": {"fixed": ["missing.spec.ts"], "rotating": []}}
+    manifest = {"schema_version": 2, "specs": {}, "daily_canaries": {"fixed": ["missing.spec.ts"], "rotating": []}}
 
     with pytest.raises(ValueError, match="requires at least one rotating"):
         policy.daily_plan([], date(2026, 8, 30), scheduled=True, record_mode=False, manifest=manifest)

@@ -163,9 +163,7 @@ services:
       CHAT_RECOVERY_MIGRATION_PATH: "/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql"
       STORAGE_REPLICATION_MIGRATION_PATH: "/usr/src/app/migrations/migrate_storage_replication_indexes.sql"
       WORKFLOW_RUNTIME_MIGRATION_PATH: "/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql"
-      USER_CHAT_PREFERENCE_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql"
       USER_TASK_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_task_indexes.sql"
-      USER_WORK_CONTROL_MIGRATION_PATH: "/usr/src/app/migrations/migrate_user_work_control_indexes.sql"
       USAGE_OVERVIEW_MIGRATION_PATH: "/usr/src/app/migrations/migrate_usage_overview_indexes.sql"
       PROJECT_OWNER_CONTEXT_MIGRATION_PATH: "/usr/src/app/migrations/migrate_project_owner_context.sql"
       ENCRYPTED_SLUG_MIGRATION_PATH: "/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql"
@@ -176,14 +174,11 @@ services:
       - ./directus/setup/migrate_chat_recovery_unique_indexes.sql:/usr/src/app/migrations/migrate_chat_recovery_unique_indexes.sql:ro
       - ./directus/setup/migrate_storage_replication_indexes.sql:/usr/src/app/migrations/migrate_storage_replication_indexes.sql:ro
       - ./directus/setup/migrate_workflow_runtime_indexes.sql:/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql:ro
-      - ./directus/setup/migrate_user_chat_preferences_indexes.sql:/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql:ro
       - ./directus/setup/migrate_user_task_indexes.sql:/usr/src/app/migrations/migrate_user_task_indexes.sql:ro
-      - ./directus/setup/migrate_user_work_control_indexes.sql:/usr/src/app/migrations/migrate_user_work_control_indexes.sql:ro
       - ./directus/setup/migrate_usage_overview_indexes.sql:/usr/src/app/migrations/migrate_usage_overview_indexes.sql:ro
       - ./directus/setup/migrate_project_owner_context.sql:/usr/src/app/migrations/migrate_project_owner_context.sql:ro
       - ./directus/setup/migrate_encrypted_slug_indexes.sql:/usr/src/app/migrations/migrate_encrypted_slug_indexes.sql:ro
       - ./directus/setup/migrate_sub_chat_orchestration_indexes.sql:/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql:ro
-      - ./directus/setup/migrate_user_chat_preferences_indexes.sql:/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql:ro
       - ./directus/setup/migrate_remove_ai_memories.sql:/usr/src/app/migrations/migrate_remove_ai_memories.sql:ro
     networks:
       - openmates
@@ -236,8 +231,8 @@ services:
       E2E_TEST_PROD_BASE_URL: "${E2E_TEST_PROD_BASE_URL:-https://openmates.org}"
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && \
-             mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
-             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+              mkdir -p /app/logs /app/backend/core/api/logs /app/backend/apps/ai/testing/api_cache && \
+              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
              find /app/backend/apps/ai/testing/api_cache -type d -exec chmod 777 {} + && \
              find /app/backend/apps/ai/testing/api_cache -type f -exec chmod 666 {} + && \
@@ -394,9 +389,9 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9108"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && \
-             mkdir -p /app/logs /app/backend/core/api/logs && \
-             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+       sh -c "chown -R celeryuser:celeryuser /vault-data && \
+              mkdir -p /app/logs /app/backend/core/api/logs && \
+              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
@@ -493,14 +488,15 @@ services:
       OPENMATES_CLOUD_OVERLAY_PACKAGE: "${OPENMATES_CLOUD_OVERLAY_PACKAGE:-}"
       OPENMATES_DEPLOYMENT_MODE: "${OPENMATES_DEPLOYMENT_MODE:-self_host}"
       MOCK_EXTERNAL_APIS: "true"
+      LIVE_MOCK_CANDIDATE_ROOT: "/live-mock-candidates"
       CELERY_QUEUES: "app_ai" # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}" # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}" # Minimum concurrent processes (default: 3)
       CELERY_METRICS_PORT: "9102" # Port for prometheus_client metrics server — scraped by Prometheus
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && \
-             mkdir -p /app/logs /app/backend/core/api/logs && \
-             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+       sh -c "chown -R celeryuser:celeryuser /vault-data && \
+              mkdir -p /app/logs /app/backend/core/api/logs /live-mock-candidates && \
+              chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs /live-mock-candidates && \
              chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
@@ -511,6 +507,7 @@ services:
              --prefetch-multiplier=1"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ../../test-results/live-mock-candidates:/live-mock-candidates
       # Mount apps directory for hot-reloading during development
       # This overrides the code copied during Docker build
       - ../../backend/apps:/app/apps

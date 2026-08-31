@@ -3,7 +3,7 @@
  * Daily bounded real-inference baseline canary.
  * Exercises encrypted web chat through preprocessing, main inference, streaming,
  * postprocessing, and persistence without asserting nondeterministic wording.
- * Contract: architecture.daily-ai-test-inference@1.
+ * Contract: architecture.daily-ai-test-inference@2.
  */
 // proof-video: not_required reason=account_health
 export {};

@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 
@@ -17,6 +19,8 @@ from backend.shared.testing.mock_context import (
     DailyAITestBudgetExceeded,
     activate_mock_mode,
     deactivate_mock_mode,
+    get_live_mock_receipt,
+    write_live_mock_receipt,
 )
 
 
@@ -117,6 +121,102 @@ async def test_record_mode_rejects_variable_price_http_before_dispatch(tmp_path)
         deactivate_mock_mode()
 
     assert real_transport.requests == []
+
+
+@pytest.mark.asyncio
+async def test_record_mode_allows_allowlisted_free_http_and_sanitizes_cached_headers(tmp_path) -> None:
+    cache = ApiResponseCache(root=tmp_path / "canonical")
+    run_root = tmp_path / "candidates" / "nightly-20260831"
+    candidate_root = run_root / "task-1"
+    group_id = "wikipedia_search"
+    category = "wikipedia"
+    url = "https://en.wikipedia.org/w/api.php?action=query"
+    real_transport = _StaticAsyncTransport(
+        {
+            url: httpx.Response(
+                200,
+                headers={
+                    "content-type": "application/json",
+                    "set-cookie": "session=secret",
+                    "authorization": "Bearer secret",
+                    "x-request-id": "private-request-id",
+                },
+                content=b'{"query":{"pages":[]}}',
+            )
+        }
+    )
+
+    activate_mock_mode(
+        "record",
+        group_id,
+        candidate_root=candidate_root,
+        candidate_run_id="nightly-20260831",
+        task_id="task-1",
+    )
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(real_transport, cache, category)
+        ) as client:
+            assert (await client.get(url)).json() == {"query": {"pages": []}}
+        receipt = get_live_mock_receipt()
+        receipt_path = write_live_mock_receipt()
+    finally:
+        deactivate_mock_mode()
+
+    saved_paths = list(candidate_root.glob(f"{group_id}/{category}/*.json"))
+    assert len(real_transport.requests) == 1
+    assert len(saved_paths) == 1
+    assert json.loads(saved_paths[0].read_text(encoding="utf-8"))["response"]["headers"] == {
+        "content-type": "application/json"
+    }
+    assert receipt_path == run_root / "receipts" / "task-1.json"
+    assert receipt_path.read_text(encoding="utf-8") == (
+        '{"cache_hits":0,"cache_misses":1,"estimated_eur":0.0,"mode":"record",'
+        '"real_provider_calls":1,"run_id":"nightly-20260831","task_id":"task-1"}'
+    )
+    assert receipt == {
+        "mode": "record",
+        "run_id": "nightly-20260831",
+        "task_id": "task-1",
+        "cache_hits": 0,
+        "cache_misses": 1,
+        "real_provider_calls": 1,
+        "estimated_eur": 0.0,
+    }
+
+
+@pytest.mark.asyncio
+async def test_replay_reads_selected_candidate_run_without_canonical_fallback(tmp_path) -> None:
+    canonical_root = tmp_path / "canonical"
+    run_root = tmp_path / "candidates" / "nightly-20260831"
+    cache = ApiResponseCache(root=canonical_root)
+    group_id = "wikipedia_search"
+    category = "wikipedia"
+    url = "https://en.wikipedia.org/w/api.php?action=query"
+    fingerprint = cache.fingerprint_http_request(method="GET", url=url)
+    cache.save(group_id, category, fingerprint, {}, {"body": "canonical"})
+    candidate_cache = ApiResponseCache(root=run_root)
+    candidate_cache.save(group_id, category, fingerprint, {}, {"body": "candidate"})
+
+    activate_mock_mode(
+        "mock",
+        group_id,
+        candidate_root=run_root,
+        candidate_run_id="nightly-20260831",
+        task_id="replay-task",
+    )
+    try:
+        async with httpx.AsyncClient(
+            transport=CachingHTTPTransport(httpx.AsyncHTTPTransport(), cache, category)
+        ) as client:
+            response = await client.get(url)
+        receipt = get_live_mock_receipt()
+    finally:
+        deactivate_mock_mode()
+
+    assert response.text == "candidate"
+    assert receipt["cache_hits"] == 1
+    assert receipt["cache_misses"] == 0
 
 
 @pytest.mark.asyncio

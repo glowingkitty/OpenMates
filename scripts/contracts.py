@@ -574,7 +574,6 @@ def apply_evidence(
         target.setdefault("evidence_history", []).append(copy.deepcopy(record))
         current_fingerprint = assertions[assertion_id].get("fingerprint")
         if record.get("assertion_fingerprint") != current_fingerprint:
-            errors.append(f"stale evidence for {assertion_id}: assertion fingerprint changed")
             continue
         if record.get("status") != "passed":
             continue

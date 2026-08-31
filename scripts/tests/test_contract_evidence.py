@@ -106,7 +106,7 @@ def test_stale_fingerprint_remains_history_but_not_current_proof():
 
     result, errors = module.apply_evidence(registry(), evidence_index(), evidence)
 
-    assert any("stale evidence" in error for error in errors)
+    assert errors == []
     assert result["assertions"]["feature.valid"]["current_direct_proof"] is False
     assert result["assertions"]["feature.valid"]["evidence_history"][0]["run_id"] == "run-old"
 

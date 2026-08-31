@@ -1,7 +1,7 @@
 # Cost-Safe AI Test Replay
 
 Daily AI coverage has two explicit modes governed by
-`architecture.daily-ai-test-inference@1`.
+`architecture.daily-ai-test-inference@2`.
 
 ## Scheduled Replay
 

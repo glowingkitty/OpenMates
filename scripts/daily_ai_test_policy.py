@@ -15,10 +15,14 @@ from datetime import date
 from pathlib import Path
 from typing import Iterable
 
+from scripts import daily_ai_cache_backfill
+
 
 MANIFEST_PATH = Path(__file__).with_name("daily_ai_test_manifest.json")
 DEFAULT_SPEC_DIR = Path(__file__).resolve().parents[1] / "frontend" / "apps" / "web_app" / "tests"
 MANUAL_EXPENSIVE = "manual_expensive"
+BACKFILL_PENDING = "backfill_pending"
+REPLAY = "replay"
 _AI_ACTION_MARKERS = ("sendMessage(", "'chats', 'new'", "custom-send-message")
 _REPLAY_MARKERS = ("withMockMarker", "withLiveMockMarker", "testMockMarker")
 
@@ -41,13 +45,29 @@ def load_manifest(path: Path = MANIFEST_PATH) -> dict:
         manifest = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError(f"Invalid daily AI test manifest: {exc}") from exc
-    if manifest.get("schema_version") != 1:
-        raise RuntimeError("Daily AI test manifest must use schema_version 1")
+    if manifest.get("schema_version") not in {1, 2}:
+        raise RuntimeError("Daily AI test manifest must use schema_version 1 or 2")
     if not isinstance(manifest.get("specs"), dict):
         raise RuntimeError("Daily AI test manifest specs must be an object")
     canaries = manifest.get("daily_canaries")
     if not isinstance(canaries, dict) or not all(isinstance(canaries.get(key), list) for key in ("fixed", "rotating")):
         raise RuntimeError("Daily AI test manifest daily_canaries must define fixed and rotating lists")
+    # Schema 1 used string classifications. Normalize it in memory so callers
+    # can safely consume structured classifications during the transition.
+    if manifest["schema_version"] == 1:
+        manifest = {
+            **manifest,
+            "schema_version": 2,
+            "specs": {
+                spec: {"classification": classification}
+                for spec, classification in manifest["specs"].items()
+            },
+        }
+    for spec, entry in manifest["specs"].items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("classification"), str):
+            raise RuntimeError(f"Daily AI spec {spec} requires a structured classification")
+        if entry["classification"] == BACKFILL_PENDING and not isinstance(entry.get("cache_group"), str):
+            raise RuntimeError(f"Backfill-pending spec {spec} requires cache_group")
     return manifest
 
 
@@ -55,9 +75,12 @@ def excluded_specs(manifest: dict | None = None) -> frozenset[str]:
     """Return manually invoked specs excluded from ordinary automatic discovery."""
     manifest = manifest or load_manifest()
     canaries = manifest["daily_canaries"]
-    return frozenset(
-        [*manifest["specs"], *canaries["fixed"], *canaries["rotating"]]
-    )
+    manual_specs = [
+        spec
+        for spec, entry in manifest["specs"].items()
+        if entry["classification"] != REPLAY
+    ]
+    return frozenset([*manual_specs, *canaries["fixed"], *canaries["rotating"]])
 
 
 def discover_specs(
@@ -120,3 +143,14 @@ def daily_plan(
         else ()
     )
     return DailyAISpecPlan(fixed=fixed, rotating=rotating)
+
+
+def daily_backfill_plan(utc_date: date, manifest: dict | None = None) -> daily_ai_cache_backfill.BackfillPlan | None:
+    """Select exactly one deterministic pending cache backfill for a daily run."""
+    manifest = manifest or load_manifest()
+    entries = [
+        {"spec": spec, **entry}
+        for spec, entry in manifest["specs"].items()
+        if entry["classification"] == BACKFILL_PENDING
+    ]
+    return daily_ai_cache_backfill.select_backfill_plan(entries, utc_date.isoformat())

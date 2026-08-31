@@ -1,6 +1,6 @@
 schema_version: 1
 id: architecture.daily-ai-test-inference
-version: 1
+version: 2
 status: draft
 title: Cost-Safe Daily AI Inference Testing
 summary: >
@@ -17,11 +17,11 @@ scope:
       tools, postprocessing, translation, safety, compression, delivery, and persistence.
     - One fixed and one deterministic rotating full-pipeline real-inference canary per UTC day.
     - Test-only identity, paid-call isolation, distributed budget enforcement, and content-free reporting.
-    - Manual candidate recording, pass-gated atomic cache promotion, and immediate replay verification.
+    - Manual candidate recording and one bounded scheduled backfill candidate per UTC day, with pass-gated atomic cache promotion and immediate replay verification.
     - Conditional real validation after changes that affect AI request or response contracts.
   excludes:
     - Any cost limit, throttling, marker, or cache behavior applied to ordinary user or manual inference.
-    - Automatic daily or weekly cache recording.
+    - Implicit cache recording after a replay miss or more than one scheduled backfill candidate per UTC day.
     - Daily deep-research, generated-media, or other explicitly expensive inference scenarios.
     - Exact-text assertions for nondeterministic real model output.
     - Public or developer access to test controls, cache management, or test-run budgets.
@@ -103,7 +103,7 @@ models:
     promotion:
       type: atomic_operation
       required: true
-      constraints: {real_spec_pass_required: true, manual_invocation_required: true}
+      constraints: {real_spec_pass_required: true, hash_bound_receipt_required: true, known_good_rollback_required: true}
     replay_verification:
       type: immediate_required_check
       required: true
@@ -138,6 +138,10 @@ assertions:
     type: invariant
     must: Cache recording is manual-only, writes to an isolated candidate, preserves known-good entries on failure, promotes atomically only after the real spec passes, and becomes valid only after the promoted scenario immediately passes replay with zero paid calls.
     depends_on: [models.CacheCandidate, examples.cache_lifecycle]
+  - id: daily-ai-tests.cache.bounded-automatic-backfill
+    type: invariant
+    must: Each scheduled daily run may record at most one manifest-allowlisted missing-cache scenario into persistent isolated candidate storage, promote it only after a passing real run and zero-call candidate replay, and persist the exact verified group through the scoped dev deployment lock; any failure leaves known-good cache data and ordinary inference unchanged.
+    depends_on: [models.CacheCandidate, models.TestInferenceBudget, examples.cache_lifecycle]
   - id: daily-ai-tests.validation.conditional-real-gate
     type: behavior
     must: Changes to prompts, models, routing, processing phases, external tool contracts, or AI semantic assertions require passing real validation followed by candidate promotion and replay verification; UI-only, selector, timing, or account-state repairs may use existing replay data.

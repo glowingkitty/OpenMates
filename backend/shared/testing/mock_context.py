@@ -17,6 +17,7 @@
 import contextvars
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -26,7 +27,7 @@ from dataclasses import dataclass, field
 from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, NamedTuple, Optional
 
 import yaml
 
@@ -50,11 +51,19 @@ mock_candidate_root_var: contextvars.ContextVar[Optional[Path]] = contextvars.Co
 )
 # Recordings are isolated from committed cassettes until an explicit promotion step.
 
+class LiveMarker(NamedTuple):
+    """Validated, signed live-test marker with an optional candidate run."""
+
+    mode: str
+    group_id: str
+    run_id: Optional[str]
+
 DEFAULT_REAL_BUDGET_EUR = Decimal("0.25")
 MAX_REAL_BUDGET_EUR = Decimal("0.25")
 MAX_REAL_LLM_OUTPUT_TOKENS = 1200
 USD_TO_EUR_SAFETY_MULTIPLIER = Decimal("1.25")
 DAILY_REAL_GROUP_PREFIX = "daily_canary_"
+DAILY_BACKFILL_RUN_PATTERN = re.compile(r"^daily-cache-backfill-([0-9]{8})-[a-f0-9]{12}$")
 
 
 class DailyAITestBudgetExceeded(RuntimeError):
@@ -69,8 +78,21 @@ class _RealBudgetState:
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
+@dataclass
+class _LiveMockReceiptState:
+    mode: str
+    run_id: Optional[str]
+    task_id: Optional[str]
+    cache_hits: int = 0
+    cache_misses: int = 0
+    real_provider_calls: int = 0
+
+
 real_budget_state_var: contextvars.ContextVar[Optional[_RealBudgetState]] = contextvars.ContextVar(
     "daily_ai_real_budget_state", default=None
+)
+live_mock_receipt_var: contextvars.ContextVar[Optional[_LiveMockReceiptState]] = contextvars.ContextVar(
+    "live_mock_receipt", default=None
 )
 _raw_http_guard_lock = threading.Lock()
 _raw_http_guard_installed = False
@@ -79,16 +101,17 @@ _raw_http_guard_installed = False
 # Format: <<<TEST_LIVE_MOCK:group_id>>> or <<<TEST_LIVE_RECORD:group_id>>>
 _LIVE_MARKER_PATTERN = re.compile(
     r"<<<TEST_LIVE_(MOCK|RECORD|REAL):([a-zA-Z0-9_-]+)"
+    r"(?::([a-zA-Z][a-zA-Z0-9_-]{0,79}))?"
     r"(?::([0-9]+):([a-f0-9]{64}))?\s*>>>"
 )
 
 
-def detect_live_marker(content: str, user_id: Optional[str] = None) -> Optional[Tuple[str, str]]:
+def detect_live_marker(content: str, user_id: Optional[str] = None) -> Optional[LiveMarker]:
     """
     Detect a TEST_LIVE_MOCK or TEST_LIVE_RECORD marker in message content.
 
     Returns:
-        Tuple of (mode, group_id) where:
+        LiveMarker with mode, group_id, and optional candidate run identity.
             mode: "mock" or "record"
             group_id: identifier for namespacing cached responses
         Returns None if no marker found, or if in production, or if feature flag not set.
@@ -107,17 +130,20 @@ def detect_live_marker(content: str, user_id: Optional[str] = None) -> Optional[
 
     mode = match.group(1).lower()  # "mock" or "record"
     group_id = match.group(2)
-    expiry = match.group(3)
-    signature = match.group(4)
+    run_id = match.group(3)
+    expiry = match.group(4)
+    signature = match.group(5)
     if not user_id or not expiry or not signature:
+        return None
+    if mode == "record" and not run_id:
         return None
     if int(expiry) < int(time.time()):
         return None
-    expected = _live_marker_signature(mode, group_id, expiry, user_id)
+    expected = _live_marker_signature(mode, group_id, run_id, expiry, user_id)
     if not hmac.compare_digest(signature, expected):
         return None
 
-    return (mode, group_id)
+    return LiveMarker(mode, group_id, run_id)
 
 
 def strip_live_marker(content: str) -> str:
@@ -144,18 +170,24 @@ def sign_live_marker(
         return None
     mode = match.group(1).lower()
     group_id = match.group(2)
+    run_id = match.group(3)
     if mode == "real" and not _is_current_daily_real_group(group_id):
         return None
+    if mode == "record" and not run_id:
+        return None
     expiry = str(int(time.time()) + ttl_seconds)
-    signature = _live_marker_signature(mode, group_id, expiry, user_id)
-    return f"<<<TEST_LIVE_{mode.upper()}:{group_id}:{expiry}:{signature}>>>"
+    signature = _live_marker_signature(mode, group_id, run_id, expiry, user_id)
+    run_segment = f":{run_id}" if run_id else ""
+    return f"<<<TEST_LIVE_{mode.upper()}:{group_id}{run_segment}:{expiry}:{signature}>>>"
 
 
-def _live_marker_signature(mode: str, group_id: str, expiry: str, user_id: str) -> str:
+def _live_marker_signature(
+    mode: str, group_id: str, run_id: Optional[str], expiry: str, user_id: str
+) -> str:
     secret = os.getenv("DAILY_AI_TEST_CONTEXT_SECRET") or os.getenv("DRAGONFLY_PASSWORD")
     if not secret:
         raise RuntimeError("Daily AI test context signing secret is not configured")
-    payload = f"{mode}:{group_id}:{expiry}:{user_id}".encode("utf-8")
+    payload = f"{mode}:{group_id}:{run_id or ''}:{expiry}:{user_id}".encode("utf-8")
     return hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
 
 
@@ -181,7 +213,7 @@ def should_reject_disabled_live_marker(content: str) -> bool:
 def resolve_live_marker_or_raise(
     content: str,
     user_id: Optional[str] = None,
-) -> Optional[Tuple[str, str]]:
+) -> Optional[LiveMarker]:
     """Return a valid signed live marker or fail closed for attempted live controls."""
     if _is_production_environment():
         return None
@@ -195,14 +227,21 @@ def resolve_live_marker_or_raise(
     raise RuntimeError("Invalid or unauthorized TEST_LIVE marker")
 
 
-def activate_mock_mode(mode: str, group_id: str, candidate_root: Optional[Path] = None) -> None:
+def activate_mock_mode(
+    mode: str,
+    group_id: str,
+    candidate_root: Optional[Path] = None,
+    *,
+    candidate_run_id: Optional[str] = None,
+    task_id: Optional[str] = None,
+) -> None:
     """
     Set context vars for current task. Call from ask_skill_task.py after marker detection.
 
     Args:
         mode: "mock" (replay), "record" (real API + save), or "real" (bounded real API)
         group_id: Namespace for cached responses
-        candidate_root: Root directory for isolated record-mode cassettes.
+        candidate_root: Record task root or selected replay run root.
     """
     resolved_candidate_root = candidate_root.resolve() if candidate_root else None
     budget_state = _new_real_budget_state() if mode in {"record", "real"} else None
@@ -211,6 +250,9 @@ def activate_mock_mode(mode: str, group_id: str, candidate_root: Optional[Path] 
     mock_group_var.set(group_id)
     mock_candidate_root_var.set(resolved_candidate_root)
     real_budget_state_var.set(budget_state)
+    live_mock_receipt_var.set(
+        _LiveMockReceiptState(mode=mode, run_id=candidate_run_id, task_id=task_id)
+    )
     logger.info(
         f"[LiveMock] Activated: mode={mode}, group={group_id}"
     )
@@ -222,6 +264,7 @@ def deactivate_mock_mode() -> None:
     mock_group_var.set("")
     mock_candidate_root_var.set(None)
     real_budget_state_var.set(None)
+    live_mock_receipt_var.set(None)
 
 
 def is_mock_active() -> bool:
@@ -247,6 +290,72 @@ def get_mock_group() -> str:
 def get_record_candidate_root() -> Optional[Path]:
     """Get the request-scoped root used to isolate recorded cassettes."""
     return mock_candidate_root_var.get()
+
+
+def get_replay_candidate_root() -> Optional[Path]:
+    """Return an explicitly selected candidate-run root for mock replay."""
+    return mock_candidate_root_var.get() if mock_mode_var.get() == "mock" else None
+
+
+def record_cache_hit() -> None:
+    state = live_mock_receipt_var.get()
+    if state is not None:
+        state.cache_hits += 1
+
+
+def record_cache_miss() -> None:
+    state = live_mock_receipt_var.get()
+    if state is not None:
+        state.cache_misses += 1
+
+
+def record_real_provider_call() -> None:
+    state = live_mock_receipt_var.get()
+    if state is not None:
+        state.real_provider_calls += 1
+
+
+def get_live_mock_receipt() -> dict[str, Any]:
+    """Return content-free counters for the active live-test task."""
+    state = live_mock_receipt_var.get()
+    budget = get_real_budget_summary()
+    if state is None:
+        return {
+            "mode": "off",
+            "run_id": None,
+            "task_id": None,
+            "cache_hits": 0,
+            "cache_misses": 0,
+            "real_provider_calls": 0,
+        }
+    return {
+        "mode": state.mode,
+        "run_id": state.run_id,
+        "task_id": state.task_id,
+        "cache_hits": state.cache_hits,
+        "cache_misses": state.cache_misses,
+        "real_provider_calls": state.real_provider_calls,
+        "estimated_eur": budget.get("reserved_eur", 0.0),
+    }
+
+
+def write_live_mock_receipt() -> Optional[Path]:
+    """Persist one content-free receipt under the selected candidate run."""
+    state = live_mock_receipt_var.get()
+    root = mock_candidate_root_var.get()
+    if state is None or root is None or not state.run_id or not state.task_id:
+        return None
+    run_root = root.parent
+    receipt_dir = run_root / "receipts"
+    receipt_dir.mkdir(parents=True, exist_ok=True)
+    receipt_path = receipt_dir / f"{state.task_id}.json"
+    temporary_path = receipt_path.with_suffix(".tmp")
+    temporary_path.write_text(
+        json.dumps(get_live_mock_receipt(), sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    temporary_path.replace(receipt_path)
+    return receipt_path
 
 
 def _install_raw_http_guard_once() -> None:
@@ -366,7 +475,12 @@ async def reserve_real_provider_call(category: str, amount_eur: Decimal) -> None
     if os.getenv("DAILY_AI_TEST_BUDGET_BACKEND", "redis") == "memory":
         next_reserved = _reserve_in_memory(state, category, amount_eur)
     else:
-        next_reserved = await _reserve_in_redis(state, get_mock_group(), category, amount_eur)
+        group_id = get_mock_group()
+        receipt = live_mock_receipt_var.get()
+        backfill_match = DAILY_BACKFILL_RUN_PATTERN.fullmatch(receipt.run_id or "") if receipt else None
+        if backfill_match:
+            group_id = f"{DAILY_REAL_GROUP_PREFIX}{backfill_match.group(1)}"
+        next_reserved = await _reserve_in_redis(state, group_id, category, amount_eur)
         with state.lock:
             state.reserved_eur = next_reserved
             state.provider_calls += 1

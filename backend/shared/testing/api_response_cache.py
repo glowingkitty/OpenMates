@@ -19,7 +19,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from backend.shared.testing.mock_context import get_record_candidate_root, is_record_mode
+from backend.shared.testing.mock_context import (
+    get_record_candidate_root,
+    get_replay_candidate_root,
+    is_record_mode,
+    record_cache_hit,
+    record_cache_miss,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,10 +107,15 @@ class ApiResponseCache:
         """
         if is_record_mode():
             # Recording must never consume committed cassettes.
+            record_cache_miss()
             return None
 
+        selected_run_root = get_replay_candidate_root()
         path = self._cache_path(group_id, category, fingerprint)
+        if selected_run_root is not None:
+            path = self._cache_path(group_id, category, fingerprint, root=selected_run_root)
         if not path.exists():
+            record_cache_miss()
             return None
 
         try:
@@ -114,9 +125,11 @@ class ApiResponseCache:
                 f"[LiveMock] Cache HIT: {category}/{fingerprint} "
                 f"(group={group_id}, recorded={data.get('recorded_at', '?')})"
             )
+            record_cache_hit()
             return data
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"[LiveMock] Failed to load cache {path}: {e}")
+            record_cache_miss()
             return None
 
     def save(

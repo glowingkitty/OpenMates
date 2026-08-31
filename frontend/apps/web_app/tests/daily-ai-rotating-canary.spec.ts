@@ -3,7 +3,7 @@
  * Daily bounded rotating real-inference canary.
  * Selects one reviewed low-cost semantic prompt by UTC date while preserving the
  * same distributed daily budget group as the fixed canary.
- * Contract: architecture.daily-ai-test-inference@1.
+ * Contract: architecture.daily-ai-test-inference@2.
  */
 // proof-video: not_required reason=account_health
 export {};

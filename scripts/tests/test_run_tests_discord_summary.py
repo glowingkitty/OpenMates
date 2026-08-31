@@ -187,6 +187,29 @@ def test_discord_summary_payload_uses_grouped_failure_embeds(monkeypatch):
     assert captured["timeout"] == 30
 
 
+def test_daily_notifications_include_structural_cache_backfill_status_without_detail():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={"total": 1, "passed": 1, "failed": 0, "dispatch_error": 0, "timeout": 0, "result_unknown": 0, "skipped": 0, "not_started": 0},
+        suites={},
+        flags={"cache_backfill": {"status": "failed", "spec": "cache.spec.ts", "cache_group": "cache_group", "detail": "secret prompt must not be sent"}},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+
+    text = service._build_summary_text(result)
+    html = service._build_summary_html(result)
+
+    assert "Cache backfill: failed (cache.spec.ts, cache_group)" in text
+    assert "Cache backfill: failed (cache.spec.ts, cache_group)" in html
+    assert "secret prompt" not in text
+    assert "secret prompt" not in html
+
+
 def test_summary_email_prefers_direct_brevo_when_both_transports_are_configured(monkeypatch):
     run_tests = load_run_tests_module()
     result = run_tests.RunResult(
@@ -625,7 +648,6 @@ def test_failed_unit_workflow_is_not_masked_by_passing_partial_artifact(monkeypa
     run_tests = load_run_tests_module()
     orchestrator = run_tests.TestOrchestrator.__new__(run_tests.TestOrchestrator)
     orchestrator.campaign_test_labels = []
-    orchestrator.git_sha = "abc123"
     recent_calls = 0
 
     class FakeClient:

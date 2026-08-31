@@ -589,7 +589,7 @@ assertions:
     surfaces: {}
     current_direct_proof: false
   daily-ai-tests.replay.zero-paid-calls:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: fba7ba809f9292862938c991e2952e8a117439feba9f59efbe85b26c73881fba
     direct_tests:
     - &id053
@@ -655,7 +655,7 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.replay.cache-miss-fails-closed:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: a82255af8df3a927e6ffb3881ee4800b792cefe71db9599750ca20ab75b886b8
     direct_tests:
     - &id057
@@ -670,17 +670,17 @@ assertions:
       surface: cli
     - &id059
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 262
+      line: 311
       name: test_real_http_wrapper_is_rejected_before_dispatch
       surface: cli
     - &id060
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 293
+      line: 342
       name: test_live_context_rejects_unregistered_raw_httpx_dispatch
       surface: cli
     - &id061
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 309
+      line: 358
       name: test_live_context_rejects_unregistered_requests_send_dispatch
       surface: cli
     supporting_tests: []
@@ -728,7 +728,7 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.real.fixed-plus-rotating:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: 9f3e63f78cbc26def2c90830e1dce8fe839623d46299bbbe6328f8a4abb8bc3a
     direct_tests:
     - &id062
@@ -748,22 +748,22 @@ assertions:
       surface: cli
     - &id065
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 50
+      line: 51
       name: test_daily_canaries_fail_closed_when_credentials_are_missing
       surface: cli
     - &id066
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 82
+      line: 83
       name: test_daily_plan_selects_one_fixed_and_utc_deterministic_rotating_canary
       surface: cli
     - &id067
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 113
+      line: 114
       name: test_daily_plan_omits_absent_canaries_and_rejects_scheduled_record_mode
       surface: cli
     - &id068
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 124
+      line: 125
       name: test_runner_daily_discovery_uses_policy_and_rejects_record_mode
       surface: cli
     supporting_tests: []
@@ -841,7 +841,7 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.real.semantic-signal:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: 10d38ca160f44d1a8f0d8a655ca2c56e68706cf6918f888586cb960f70c6badf
     direct_tests:
     - &id069
@@ -919,32 +919,32 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.budget.shared-hard-cap:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: 35579d43999dda3351d1e8e0c2c459b6d8420062fb29369f8d62785f50cf2549
     direct_tests:
     - &id071
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 116
+      line: 165
       name: test_real_budget_fails_before_thirteenth_default_call
       surface: cli
     - &id072
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 164
+      line: 213
       name: test_real_llm_wrapper_reserves_before_dispatch
       surface: cli
     - &id073
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 217
+      line: 266
       name: test_record_llm_wrapper_reserves_and_clamps_before_dispatch
       surface: cli
     - &id074
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 262
+      line: 311
       name: test_real_http_wrapper_is_rejected_before_dispatch
       surface: cli
     - &id075
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 346
+      line: 395
       name: test_ws_auth_cached_profile_enables_signed_daily_real_budget_path
       surface: cli
     - &id076
@@ -1006,27 +1006,27 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.isolation.ordinary-inference-unchanged:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: e840d08ea5657eecb0b164abb8604ed6acd7a1d226515770f912386759b7f2e3
     direct_tests:
     - &id078
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 140
+      line: 189
       name: test_ordinary_requests_do_not_consult_test_budget
       surface: cli
     - &id079
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 293
+      line: 342
       name: test_live_context_rejects_unregistered_raw_httpx_dispatch
       surface: cli
     - &id080
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 309
+      line: 358
       name: test_live_context_rejects_unregistered_requests_send_dispatch
       surface: cli
     - &id081
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 346
+      line: 395
       name: test_ws_auth_cached_profile_enables_signed_daily_real_budget_path
       surface: cli
     - &id085
@@ -1152,8 +1152,8 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.cache.manual-transactional-promotion:
-    contract: architecture.daily-ai-test-inference@1
-    fingerprint: e8c76d3e6e44498879959162702b444cd27e0b72e740f3ec12c99548fb0a684e
+    contract: architecture.daily-ai-test-inference@2
+    fingerprint: b6a453cc64ef3f2db390b035dc18a700e865739c9318581dd5fa01a4c8780b11
     direct_tests:
     - &id093
       path: backend/tests/test_caching_llm_wrapper.py
@@ -1162,7 +1162,7 @@ assertions:
       surface: cli
     - &id094
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 217
+      line: 266
       name: test_record_llm_wrapper_reserves_and_clamps_before_dispatch
       surface: cli
     - &id095
@@ -1196,21 +1196,7 @@ assertions:
         - *id096
         - *id097
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.cache.manual-transactional-promotion
-          assertion_fingerprint: e8c76d3e6e44498879959162702b444cd27e0b72e740f3ec12c99548fb0a684e
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_import_live_mock_cache.py
-          test_name: test_promotion_replaces_group_only_after_staging_candidate
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.cache.manual-transactional-promotion
       assertion_fingerprint: e8c76d3e6e44498879959162702b444cd27e0b72e740f3ec12c99548fb0a684e
@@ -1224,8 +1210,16 @@ assertions:
       timestamp: '2026-08-30T17:05:07Z'
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
+  daily-ai-tests.cache.bounded-automatic-backfill:
+    contract: architecture.daily-ai-test-inference@2
+    fingerprint: 3448ad2319e985935b17bd9b7657e5f041c78f8f8a64f83cd00130740856456c
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   daily-ai-tests.validation.conditional-real-gate:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: 36659ac266978bb815bd07f76fe1a77f778d8680fe7ae96e874738c4f01f7968
     direct_tests:
     - &id098
@@ -1235,17 +1229,17 @@ assertions:
       surface: cli
     - &id099
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 62
+      line: 63
       name: test_discovery_keeps_replay_and_non_ai_specs_but_excludes_unmarked_ai
       surface: cli
     - &id100
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 113
+      line: 114
       name: test_daily_plan_omits_absent_canaries_and_rejects_scheduled_record_mode
       surface: cli
     - &id101
       path: scripts/tests/test_daily_ai_test_policy.py
-      line: 124
+      line: 125
       name: test_runner_daily_discovery_uses_policy_and_rejects_record_mode
       surface: cli
     supporting_tests: []
@@ -1291,12 +1285,12 @@ assertions:
       run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
       run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
   daily-ai-tests.reporting.content-free:
-    contract: architecture.daily-ai-test-inference@1
+    contract: architecture.daily-ai-test-inference@2
     fingerprint: a7440f8ae2669cc996ebed7cde5cc1ceb242196bab51e8967bbfa4f6318631f5
     direct_tests:
     - &id102
       path: backend/tests/test_daily_ai_test_budget.py
-      line: 116
+      line: 165
       name: test_real_budget_fails_before_thirteenth_default_call
       surface: cli
     supporting_tests: []

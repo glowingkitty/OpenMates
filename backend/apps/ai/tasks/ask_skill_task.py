@@ -14,6 +14,7 @@ import logging
 import asyncio
 import time
 import os
+from pathlib import Path
 import uuid
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
@@ -1202,20 +1203,21 @@ async def _async_process_ai_skill_ask_task(
             if _live_marker and _test_marker:
                 raise RuntimeError("Cannot combine TEST_MOCK/TEST_RECORD with TEST_LIVE marker")
             if _live_marker:
-                live_mode, live_group = _live_marker
+                live_mode, live_group, live_run_id = _live_marker
                 last_user_msg.content = strip_live_marker(last_user_msg.content)
                 candidate_root = None
-                if live_mode == "record":
-                    from pathlib import Path
-
-                    candidate_base = Path(
-                        os.getenv(
-                            "LIVE_MOCK_CANDIDATE_ROOT",
-                            "/tmp/openmates-live-mock-candidates",
-                        )
-                    )
-                    candidate_root = candidate_base / task_id
-                activate_mock_mode(live_mode, live_group, candidate_root=candidate_root)
+                candidate_base = Path(
+                    os.getenv("LIVE_MOCK_CANDIDATE_ROOT", "/tmp/openmates-live-mock-candidates")
+                )
+                if live_mode in {"record", "mock"} and live_run_id:
+                    candidate_root = candidate_base / live_run_id / "cache"
+                activate_mock_mode(
+                    live_mode,
+                    live_group,
+                    candidate_root=candidate_root,
+                    candidate_run_id=live_run_id,
+                    task_id=task_id,
+                )
                 logger.info(
                     f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
                     f"group='{live_group}' — full pipeline with cached API responses"
@@ -2932,7 +2934,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         # Clean up live mock context vars (no-op if not activated)
         if os.getenv("MOCK_EXTERNAL_APIS") == "true":
             try:
-                from backend.shared.testing.mock_context import deactivate_mock_mode
+                from backend.shared.testing.mock_context import deactivate_mock_mode, write_live_mock_receipt
+                write_live_mock_receipt()
                 deactivate_mock_mode()
             except ImportError:
                 pass

@@ -27,6 +27,11 @@ SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 CACHE_DIR = PROJECT_ROOT / "backend" / "apps" / "ai" / "testing" / "api_cache"
 SPEC_PATH = PROJECT_ROOT / "docs" / "specs" / "cost-safe-daily-ai-tests" / "spec.yml"
 MOCK_CONTEXT_PATH = PROJECT_ROOT / "backend" / "shared" / "testing" / "mock_context.py"
+BACKFILL_PATH = PROJECT_ROOT / "scripts" / "daily_ai_cache_backfill.py"
+RUNNER_PATH = PROJECT_ROOT / "scripts" / "run_tests.py"
+COMPOSE_PATH = PROJECT_ROOT / "backend" / "core" / "docker-compose.yml"
+WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "playwright-spec.yml"
+API_CACHE_PATH = PROJECT_ROOT / "backend" / "shared" / "testing" / "api_response_cache.py"
 LIVE_RE = re.compile(r"withLiveMockMarker\([^;]*?,\s*['\"]([A-Za-z0-9_-]+)['\"]", re.DOTALL)
 PATHLIKE_SUFFIXES = (".py", ".ts", ".svelte", ".yml", ".yaml", ".json", ".md")
 
@@ -74,6 +79,7 @@ def audit() -> list[str]:
 
     errors.extend(_audit_spec_references())
     errors.extend(_audit_raw_http_dispatch_guard())
+    errors.extend(_audit_backfill_guards())
 
     return errors
 
@@ -209,6 +215,39 @@ def _audit_raw_http_dispatch_guard() -> list[str]:
     if missing:
         return ["raw httpx transport guard is incomplete in backend/shared/testing/mock_context.py"]
     return []
+
+
+def _audit_backfill_guards() -> list[str]:
+    """Reject drift in the bounded candidate-to-promotion control path."""
+    sources: dict[Path, str] = {}
+    for path in (BACKFILL_PATH, RUNNER_PATH, COMPOSE_PATH, WORKFLOW_PATH, API_CACHE_PATH):
+        try:
+            sources[path] = path.read_text(encoding="utf-8")
+        except OSError:
+            return [f"missing backfill control source: {path.relative_to(PROJECT_ROOT)}"]
+    required = {
+        BACKFILL_PATH: (
+            "os.O_EXCL",
+            '"cache_sha256"',
+            "SENSITIVE_CONTENT_PATTERN",
+            "SAFE_GROUP_PATTERN",
+            "persist(expected_cache_sha256)",
+        ),
+        RUNNER_PATH: ("claim_root=claim_root", "candidate_run_root=run_root", "persist=persist"),
+        COMPOSE_PATH: (
+            "../../test-results/live-mock-candidates:/live-mock-candidates",
+            'LIVE_MOCK_CANDIDATE_ROOT: "/live-mock-candidates"',
+        ),
+        WORKFLOW_PATH: ("E2E_DAILY_AI_RUN_ID: ${{ inputs.daily_ai_run_id }}",),
+        API_CACHE_PATH: ("root=selected_run_root",),
+    }
+    errors: list[str] = []
+    for path, fragments in required.items():
+        if any(fragment not in sources[path] for fragment in fragments):
+            errors.append(f"bounded backfill guard is incomplete in {path.relative_to(PROJECT_ROOT)}")
+    if "shutil.rmtree(run_root" in sources[RUNNER_PATH]:
+        errors.append("daily runner must not delete the durable per-day backfill claim")
+    return errors
 
 
 def _read(path: Path, errors: list[str]) -> str:

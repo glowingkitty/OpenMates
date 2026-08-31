@@ -1,5 +1,5 @@
 schema_version: 1
-contract: architecture.daily-ai-test-inference@1
+contract: architecture.daily-ai-test-inference@2
 
 replay_runs:
   - id: complete-chat-replays-every-provider-phase
@@ -49,9 +49,15 @@ cache_lifecycle:
   - id: passing-candidate-replays-before-valid
     given: {mode: record_candidate, real_spec_result: passed, promotion_requested_manually: true}
     expect: {promotion_atomic: true, immediate_replay_required: true, valid_after_zero_call_replay_only: true}
-  - id: scheduled-recording-forbidden
-    given: {initiator: daily_schedule, requested_mode: record_candidate}
-    expect: {recording_started: false, paid_calls: 0, failure_class: manual_recording_required}
+  - id: one-scheduled-candidate-is-receipt-gated
+    given: {initiator: daily_schedule, manifest_status: backfill_pending, selected_candidates: 1}
+    expect: {recording_started: true, isolated_candidate: true, zero_call_replay_required: true, scoped_dev_deploy_required: true}
+  - id: replay-miss-never-auto-records
+    given: {initiator: replay_cache_miss, requested_mode: replay}
+    expect: {recording_started: false, paid_calls: 0, failure_class: cache_miss}
+  - id: second-scheduled-candidate-is-forbidden
+    given: {initiator: daily_schedule, candidates_already_attempted: 1}
+    expect: {recording_started: false, paid_calls: 0, failure_class: daily_backfill_limit}
 
 change_classification:
   - id: selector-fix-uses-existing-cache

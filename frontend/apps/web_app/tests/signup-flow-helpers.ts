@@ -1223,13 +1223,15 @@ function withRecordMarker(message: string, fixtureId: string): string {
  *   await page.keyboard.type(withLiveMockMarker('Search for flights to Paris', 'travel_search'));
  */
 function withLiveMockMarker(message: string, groupId: string): string {
+	const candidateRunId = process.env.E2E_DAILY_AI_RUN_ID;
+	const candidateSuffix = candidateRunId ? `:${candidateRunId}` : '';
 	if (process.env.E2E_RECORD_LIVE_FIXTURES) {
 		// Record mode: run real APIs and cache responses for future replay
-		return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+		return `${message} <<<TEST_LIVE_RECORD:${groupId}${candidateSuffix}>>>`;
 	}
 	if (process.env.E2E_USE_LIVE_MOCKS) {
 		// Replay mode: use cached API responses (zero cost)
-		return `${message} <<<TEST_LIVE_MOCK:${groupId}>>>`;
+		return `${message} <<<TEST_LIVE_MOCK:${groupId}${candidateSuffix}>>>`;
 	}
 	// No env var set: send message without marker (real APIs, real costs)
 	return message;

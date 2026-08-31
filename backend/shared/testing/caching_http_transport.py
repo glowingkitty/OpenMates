@@ -30,6 +30,8 @@ from backend.shared.testing.mock_context import (
     is_mock_active,
     is_real_mode,
     is_record_mode,
+    record_cache_miss,
+    record_real_provider_call,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,8 @@ _DECODED_BODY_HEADER_NAMES = {
     "content-length",
     "transfer-encoding",
 }
+_SAFE_RECORDED_RESPONSE_HEADERS = {"cache-control", "content-language", "content-type", "etag", "last-modified", "location", "retry-after"}
+_RECORDABLE_HTTP_CATEGORIES = frozenset({"wikipedia", "wikidata"})
 
 
 class CachingHTTPTransport(httpx.AsyncBaseTransport):
@@ -75,10 +79,36 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
         if not is_mock_active():
             return await self._real_transport.handle_async_request(request)
 
-        if is_real_mode() or is_record_mode():
+        if is_real_mode():
             raise DailyAITestBudgetExceeded(
                 f"Daily AI real/record tests do not allow variable-price HTTP providers: {self._category}"
             )
+
+        if is_record_mode():
+            if self._category not in _RECORDABLE_HTTP_CATEGORIES:
+                raise DailyAITestBudgetExceeded(
+                    f"Daily AI record tests do not allow variable-price HTTP providers or unlisted categories: {self._category}"
+                )
+            record_cache_miss()
+            request_body = await request.aread()
+            fingerprint = self._cache.fingerprint_http_request(
+                str(request.method), str(request.url), request_body or None
+            )
+            response = await self._real_transport.handle_async_request(request)
+            body = await response.aread()
+            self._cache.save(
+                get_mock_group(),
+                self._category,
+                fingerprint,
+                {"method": str(request.method), "url": str(request.url)},
+                {
+                    "status_code": response.status_code,
+                    "headers": self._record_headers(response.headers),
+                    "body": body.decode("utf-8", errors="replace"),
+                },
+            )
+            record_real_provider_call()
+            return response
 
         group_id = get_mock_group()
 
@@ -133,6 +163,15 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
             str(name): str(value)
             for name, value in headers.items()
             if str(name).lower() not in _DECODED_BODY_HEADER_NAMES
+        }
+
+    @staticmethod
+    def _record_headers(headers: Any) -> dict[str, str]:
+        """Persist only replay-safe, non-sensitive response headers."""
+        return {
+            str(name): str(value)
+            for name, value in headers.items()
+            if str(name).lower() in _SAFE_RECORDED_RESPONSE_HEADERS
         }
 
 def create_http_client(category: str, **httpx_kwargs: Any) -> httpx.AsyncClient:
