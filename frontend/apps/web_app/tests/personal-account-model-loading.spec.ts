@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /*
- * Account-health regression for reported issue 4NPP9.
- * Uses only the configured base personal test-account credentials.
- * Verifies login and real-chat hydration never surface the retry notification
- * and that the composer model selector leaves its loading state.
+ * Authenticated account-health regression for reported issue 4NPP9.
+ * Opens a persisted chat because account-scoped model preference restoration
+ * does not run on the new-chat welcome surface. Verifies restoration completes
+ * without the retry notification or a permanently loading model selector.
  * proof-video: not_required reason=account_health
  */
 
@@ -13,19 +13,18 @@ const { test, expect, attachConsoleListeners, attachNetworkListeners } = require
 const { createSignupLogger, createStepScreenshotter } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
-const EXPECTED_EMAIL = 'jan41139@openmates.org';
-const PERSONAL_CREDENTIALS = {
+const TEST_CREDENTIALS = {
 	email: process.env.OPENMATES_TEST_ACCOUNT_EMAIL || '',
 	password: process.env.OPENMATES_TEST_ACCOUNT_PASSWORD || '',
 	otpKey: process.env.OPENMATES_TEST_ACCOUNT_OTP_KEY || ''
 };
 
 // contract-test: supporting surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
-test('personal dev account loads its chat model selector without retry errors', async ({ page }) => {
+test('authenticated account loads its chat model selector without retry errors', async ({ page }) => {
 	test.setTimeout(180000);
-	expect(PERSONAL_CREDENTIALS.email.toLowerCase()).toBe(EXPECTED_EMAIL);
-	expect(PERSONAL_CREDENTIALS.password).not.toBe('');
-	expect(PERSONAL_CREDENTIALS.otpKey).not.toBe('');
+	expect(TEST_CREDENTIALS.email).not.toBe('');
+	expect(TEST_CREDENTIALS.password).not.toBe('');
+	expect(TEST_CREDENTIALS.otpKey).not.toBe('');
 
 	const logCheckpoint = createSignupLogger('PERSONAL_ACCOUNT_MODEL_LOADING');
 	const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
@@ -51,12 +50,25 @@ test('personal dev account loads its chat model selector without retry errors', 
 	});
 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot, {
-		credentials: PERSONAL_CREDENTIALS,
-		waitForEditor: true
+		credentials: TEST_CREDENTIALS,
+		waitForEditor: false
 	});
 
 	const activeChat = page.getByTestId('active-chat-container');
+	const continueCard = page
+		.getByTestId('recent-chats-scroll-container')
+		.first()
+		.getByRole('button')
+		.first();
+	await expect(continueCard).toBeVisible({ timeout: 60000 });
+	await continueCard.click();
+	await expect(activeChat).toHaveAttribute('data-current-chat-id', /.+/, { timeout: 60000 });
+
 	const composer = activeChat.getByTestId('message-field').last();
+	const editor = composer.getByTestId('message-editor');
+	await expect(editor).toBeVisible({ timeout: 60000 });
+	await editor.click();
+
 	const selector = composer.getByTestId('composer-model-selector');
 	await expect(selector).toBeVisible({ timeout: 30000 });
 	await expect(selector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });

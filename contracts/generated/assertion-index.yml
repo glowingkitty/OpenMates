@@ -6427,8 +6427,8 @@ assertions:
     supporting_tests:
     - &id731
       path: frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
-      line: 24
-      name: personal dev account loads its chat model selector without retry errors
+      line: 23
+      name: authenticated account loads its chat model selector without retry errors
       surface: gui.web
     tests:
     - *id726
