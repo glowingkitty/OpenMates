@@ -1,6 +1,6 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onMount, onDestroy, tick, untrack } from 'svelte';
     import { Editor } from '@tiptap/core';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
@@ -307,6 +307,10 @@
         const userId = $userProfile.user_id;
         const chatId = currentChatId;
         const pendingSelection = pendingNewChatModelSelection;
+        const previousContext = untrack(() => ({
+            userId: modelSelectionUserId,
+            chatId: modelSelectionChatId
+        }));
         let cancelled = false;
 
         if (!userId) {
@@ -318,7 +322,7 @@
             return;
         }
         if (isIncognitoMode) {
-            const contextChanged = modelSelectionUserId !== userId || modelSelectionChatId !== chatId;
+            const contextChanged = previousContext.userId !== userId || previousContext.chatId !== chatId;
             modelSelectionUserId = userId;
             modelSelectionChatId = chatId;
             if (contextChanged) modelSelection = 'auto';
@@ -332,7 +336,7 @@
             if (!chatId && !pendingSelection) modelSelection = 'auto';
             return;
         }
-        if (chatId === modelSelectionChatId && userId === modelSelectionUserId) return;
+        if (chatId === previousContext.chatId && userId === previousContext.userId) return;
 
         modelSelectionUserId = userId;
         modelSelectionChatId = chatId;
