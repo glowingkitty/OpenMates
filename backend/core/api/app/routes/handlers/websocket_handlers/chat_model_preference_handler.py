@@ -21,7 +21,7 @@ from backend.core.api.app.services.directus.chat_model_preference_methods import
     ChatModelPreferenceValidationError,
 )
 from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,10 @@ async def _can_write_chat_preference(
     team_id: str | None,
 ) -> bool:
     if team_id:
-        await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+        try:
+            await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+        except TeamPermissionError:
+            return False
         chat = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
         return not chat or chat.get("hashed_team_id") == hash_id(team_id)
 
@@ -89,6 +92,13 @@ async def handle_chat_model_preference(
         team_id = team_id.strip() if isinstance(team_id, str) and team_id.strip() else None
 
         if not await _can_write_chat_preference(directus_service, user_id, chat_id, team_id):
+            if operation == "get":
+                await manager.send_personal_message(
+                    {"type": "chat_model_preference", "payload": {"chat_id": chat_id, "preference": None}},
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
             await manager.send_personal_message(
                 {"type": "error", "payload": {"code": "chat_model_preference_forbidden", "message": "You do not have permission to update this chat preference.", "chat_id": chat_id}},
                 user_id,
