@@ -301,6 +301,7 @@
                             await userDB.saveUserData(data.user);
                             
                             const userProfileData = {
+                                user_id: data.user.id || null,
                                 username: data.user.username || '',
                                 profile_image_url: data.user.profile_image_url || null,
                                 credits: data.user.credits || 0,
@@ -384,6 +385,7 @@
                             await userDB.saveUserData(data.user);
                             
                             const userProfileData = {
+                                user_id: data.user.id || null,
                                 username: data.user.username || '',
                                 profile_image_url: data.user.profile_image_url || null,
                                 credits: data.user.credits || 0,
@@ -667,6 +669,7 @@
                 }
 
                 const userProfileData = {
+                    user_id: data.user.id || null,
                     username: data.user.username || '',
                     profile_image_url: data.user.profile_image_url || null,
                     credits: data.user.credits || 0,
