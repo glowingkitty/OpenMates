@@ -31,6 +31,7 @@ const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
 const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
 const CHAT_PREFLIGHT_ACK_TIMEOUT_MS = 60_000;
 const SEND_ACCEPTED_TIMEOUT_MS = CHAT_PREFLIGHT_ACK_TIMEOUT_MS + 15_000;
+const TRAILING_LIVE_TEST_MARKER = /\s*(<<<TEST_LIVE_(?:MOCK|RECORD):[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)?>>>)\s*$/;
 
 type LoginResponseDiagnostic = {
 	status: number;
@@ -114,6 +115,15 @@ function visibleMessageAnchors(message: string): string[] {
 
 function normalizeEditorDraftText(text: string | null | undefined): string {
 	return (text ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function extractLiveTestMarker(message: string): { message: string; testMockMarker?: string } {
+	const match = message.match(TRAILING_LIVE_TEST_MARKER);
+	if (!match) return { message };
+	return {
+		message: message.slice(0, match.index).trimEnd(),
+		testMockMarker: match[1]
+	};
 }
 
 export async function fillMessageEditor(page: any, messageEditor: any, message: string): Promise<void> {
@@ -978,6 +988,9 @@ async function sendMessage(
 	stepLabel: string = 'msg',
 	options: SendMessageOptions = {}
 ): Promise<void> {
+	const extractedMessage = extractLiveTestMarker(message);
+	message = extractedMessage.message;
+	const testMockMarker = options.testMockMarker ?? extractedMessage.testMockMarker;
 	const currentChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 	const startedFromNewChat = !currentChatId;
 	const currentChatInput = currentChatId
@@ -1071,7 +1084,6 @@ async function sendMessage(
 		});
 	};
 	const dispatchSyntheticSend = async (reason: string) => {
-		const testMockMarker = options.testMockMarker;
 		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement, marker?: string) => {
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', {
 				bubbles: true,
@@ -1127,7 +1139,7 @@ async function sendMessage(
 	};
 	try {
 		await expect(sendButton).toBeVisible({ timeout: 5000 });
-		if (options.testMockMarker) {
+		if (testMockMarker) {
 			await dispatchSyntheticSend('with E2E server content override');
 		} else {
 			await sendButton.click({ timeout: 5000 });
@@ -1612,6 +1624,7 @@ module.exports = {
 	createIsolatedBrowserContext,
 	fillMessageEditor,
 	focusMessageEditor,
+	extractLiveTestMarker,
 	loginToTestAccount,
 	submitPasswordAndHandleOtp,
 	openSignupInterface,

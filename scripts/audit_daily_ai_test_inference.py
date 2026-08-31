@@ -32,6 +32,7 @@ RUNNER_PATH = PROJECT_ROOT / "scripts" / "run_tests.py"
 COMPOSE_PATH = PROJECT_ROOT / "backend" / "core" / "docker-compose.yml"
 WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "playwright-spec.yml"
 API_CACHE_PATH = PROJECT_ROOT / "backend" / "shared" / "testing" / "api_response_cache.py"
+CHAT_TEST_HELPER_PATH = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests" / "helpers" / "chat-test-helpers.ts"
 LIVE_RE = re.compile(r"withLiveMockMarker\([^;]*?,\s*['\"]([A-Za-z0-9_-]+)['\"]", re.DOTALL)
 PATHLIKE_SUFFIXES = (".py", ".ts", ".svelte", ".yml", ".yaml", ".json", ".md")
 
@@ -220,7 +221,7 @@ def _audit_raw_http_dispatch_guard() -> list[str]:
 def _audit_backfill_guards() -> list[str]:
     """Reject drift in the bounded candidate-to-promotion control path."""
     sources: dict[Path, str] = {}
-    for path in (BACKFILL_PATH, RUNNER_PATH, COMPOSE_PATH, WORKFLOW_PATH, API_CACHE_PATH):
+    for path in (BACKFILL_PATH, RUNNER_PATH, COMPOSE_PATH, WORKFLOW_PATH, API_CACHE_PATH, CHAT_TEST_HELPER_PATH):
         try:
             sources[path] = path.read_text(encoding="utf-8")
         except OSError:
@@ -246,6 +247,11 @@ def _audit_backfill_guards() -> list[str]:
         ),
         WORKFLOW_PATH: ("E2E_DAILY_AI_RUN_ID: ${{ inputs.daily_ai_run_id }}",),
         API_CACHE_PATH: ("root=selected_run_root",),
+        CHAT_TEST_HELPER_PATH: (
+            "TRAILING_LIVE_TEST_MARKER",
+            "extractLiveTestMarker(message)",
+            "options.testMockMarker ?? extractedMessage.testMockMarker",
+        ),
     }
     errors: list[str] = []
     for path, fragments in required.items():
