@@ -79,8 +79,9 @@ def test_status_projects_persisted_child_role_onto_existing_presence():
     assert view["session"]["children"][0]["child_role"] == "reviewer"
 
 
-def test_infrastructure_view_exposes_active_and_recent_docker_operations():
+def test_infrastructure_view_exposes_active_and_recent_docker_operations(monkeypatch):
     durable, presence = fixtures()
+    monkeypatch.setattr(sessions, "_list_persistent_docker_operations", lambda: [])
     durable["infrastructure"] = {
         "test_leases": {
             "run-1": {"lease_id": "run-1", "owner": "tests", "resources": ["dev-stack"]},

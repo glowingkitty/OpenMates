@@ -2281,9 +2281,23 @@ function continuationSuppressedForTest(state) {
   );
 }
 
-function reconcilePresenceStatesForTest(states, authoritativeStatuses, { now = isoNow() } = {}) {
+function reconcilePresenceStatesForTest(
+  states,
+  authoritativeStatuses,
+  { now = isoNow(), authoritativePending = null } = {},
+) {
   const reconciled = [];
-  for (const state of states) {
+  for (const originalState of states) {
+    const state = authoritativePending
+      ? {
+          ...originalState,
+          pending_permission_ids: (originalState.pending_permission_ids || []).filter((id) =>
+            authoritativePending.permissionIDs.has(id)),
+          pending_question_ids: (originalState.pending_question_ids || []).filter((id) =>
+            authoritativePending.questionIDs.has(id)),
+        }
+      : originalState;
+    if (authoritativePending) state.attention = attentionFromPending(state);
     if (!PRESENCE_LIVE_EXECUTION.has(state?.execution) && state?.turn !== "streaming") continue;
     const status = authoritativeStatuses?.[state.session_id];
     const type = status?.type || status?.status?.type || "idle";
@@ -3087,11 +3101,32 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     if (typeof client?.session?.status !== "function") return;
     const response = await client.session.status();
     const statuses = response?.data || response || {};
+    let authoritativePending = null;
+    if (typeof client?.permission?.list === "function" && typeof client?.question?.list === "function") {
+      const [permissionResult, questionResult] = await Promise.allSettled([
+        client.permission.list(),
+        client.question.list(),
+      ]);
+      if (permissionResult.status === "fulfilled" && questionResult.status === "fulfilled") {
+        const permissions = permissionResult.value?.data || permissionResult.value || [];
+        const questions = questionResult.value?.data || questionResult.value || [];
+        if (Array.isArray(permissions) && Array.isArray(questions)) {
+          authoritativePending = {
+            permissionIDs: new Set(permissions.map((item) => item?.id).filter(Boolean)),
+            questionIDs: new Set(questions.map((item) => item?.id).filter(Boolean)),
+          };
+        }
+      }
+    }
     const persistedSessions = presenceData().sessions || {};
     for (const [sessionID, record] of Object.entries(persistedSessions)) {
       if (!presenceStates.has(sessionID)) presenceStates.set(sessionID, record);
     }
-    for (const record of reconcilePresenceStatesForTest([...presenceStates.values()], statuses)) {
+    for (const record of reconcilePresenceStatesForTest(
+      [...presenceStates.values()],
+      statuses,
+      { authoritativePending },
+    )) {
       schedulePresence(record);
     }
   };
