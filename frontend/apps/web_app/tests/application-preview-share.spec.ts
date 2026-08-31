@@ -99,7 +99,9 @@ test('shared recipient starts an isolated application preview session', async ({
 
 		const payload = await response.json();
 		expect(payload.session_id).toBeTruthy();
-		expect(payload.preview_url).toContain('/p/');
+		const previewUrl = new URL(payload.preview_url);
+		expect(previewUrl.protocol).toBe('https:');
+		expect(previewUrl.hostname).toMatch(/^preview-[a-z0-9]+\.dev\.openmatesusercontent\.org$/);
 		expect(payload.preview_url).not.toContain('e2b.dev');
 		await expect(recipientFullscreen.getByTestId('application-preview-iframe')).toBeVisible({ timeout: 180_000 });
 		await closeFullscreen(recipientPage, recipientFullscreen);
