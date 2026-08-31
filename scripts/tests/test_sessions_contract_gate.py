@@ -258,3 +258,49 @@ def test_deploy_commit_preflight_rejects_missing_or_multiline_trailers():
             {},
             files,
         )
+
+
+def test_contract_approval_pdf_uses_current_tooling_with_session_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    checkout = tmp_path / "agent-abcd"
+    checkout.mkdir()
+    calls = []
+    old_root = tmp_path / "control"
+    fake = SimpleNamespace(
+        REPO_ROOT=old_root,
+        contracts=SimpleNamespace(REPO_ROOT=old_root),
+        main=lambda argv: calls.append(argv) or 0,
+    )
+    import scripts as scripts_package
+
+    monkeypatch.setattr(scripts_package, "contract_approval_pdf", fake, raising=False)
+    monkeypatch.setitem(sys.modules, "scripts.contract_approval_pdf", fake)
+    monkeypatch.setattr(
+        sessions,
+        "_load_sessions",
+        lambda: {"sessions": {"abcd": {"worktree": {"path": str(checkout)}}}},
+    )
+
+    sessions.cmd_contract(
+        SimpleNamespace(
+            contract_action="approval-pdf",
+            session="abcd",
+            bundle="contracts/features/example",
+            baseline_ref="HEAD",
+            new_contract=True,
+            no_upload=True,
+            dry_run_upload=False,
+            json=True,
+        )
+    )
+
+    assert calls == [[
+        str(checkout / "contracts/features/example"),
+        "--baseline-ref",
+        "HEAD",
+        "--new-contract",
+        "--no-upload",
+        "--json",
+    ]]
+    assert fake.REPO_ROOT == old_root
+    assert fake.contracts.REPO_ROOT == old_root

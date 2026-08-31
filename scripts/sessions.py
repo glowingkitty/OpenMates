@@ -13919,6 +13919,50 @@ def cmd_worktree(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
+def cmd_contract(args: argparse.Namespace) -> None:
+    """Run current Contract workflow tooling against one routed worktree."""
+    if args.contract_action != "approval-pdf":
+        print(f"Unknown contract action: {args.contract_action}", file=sys.stderr)
+        sys.exit(2)
+    try:
+        data = _load_sessions()
+        session_id = _resolve_session_id(data, session_id=args.session)
+        checkout_root = _session_checkout_root(data["sessions"][session_id]).resolve()
+        if Path(args.bundle).is_absolute():
+            raise ValueError("Contract bundle must be a repository-relative path")
+        relative_bundle = _canonical_stored_repo_path(args.bundle)
+        bundle = (checkout_root / relative_bundle).resolve()
+        bundle.relative_to(checkout_root)
+
+        # Import from the immutable current control plane, but bind all source
+        # and Git-baseline reads to the selected session checkout.
+        from scripts import contract_approval_pdf
+
+        original_contract_root = contract_approval_pdf.contracts.REPO_ROOT
+        original_module_root = contract_approval_pdf.REPO_ROOT
+        contract_approval_pdf.contracts.REPO_ROOT = checkout_root
+        contract_approval_pdf.REPO_ROOT = checkout_root
+        command = [str(bundle), "--baseline-ref", args.baseline_ref]
+        if args.new_contract:
+            command.append("--new-contract")
+        if args.no_upload:
+            command.append("--no-upload")
+        if args.dry_run_upload:
+            command.append("--dry-run-upload")
+        if args.json:
+            command.append("--json")
+        try:
+            result = contract_approval_pdf.main(command)
+        finally:
+            contract_approval_pdf.contracts.REPO_ROOT = original_contract_root
+            contract_approval_pdf.REPO_ROOT = original_module_root
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(2)
+    if result:
+        sys.exit(result)
+
+
 
 def cmd_context(args: argparse.Namespace) -> None:
     """Load and print a specific doc on demand (instruction doc or architecture doc)."""
@@ -17025,6 +17069,20 @@ def main() -> None:
     )
     p_worktree_readiness.add_argument("--format", choices=["text", "json"], default="text")
 
+    p_contract = sub.add_parser("contract", help="Run current Contract tooling against a session worktree")
+    p_contract_sub = p_contract.add_subparsers(dest="contract_action", required=True)
+    p_contract_approval = p_contract_sub.add_parser(
+        "approval-pdf",
+        help="Render and publish an exact-fingerprint approval PDF from current tooling",
+    )
+    p_contract_approval.add_argument("--session", "-s", required=True, help="sessions.py session ID")
+    p_contract_approval.add_argument("--bundle", required=True, help="Repository-relative Contract bundle")
+    p_contract_approval.add_argument("--baseline-ref", default="HEAD", help="Worktree Git ref used to highlight changes")
+    p_contract_approval.add_argument("--new-contract", action="store_true", help="Allow a bundle absent from the baseline")
+    p_contract_approval.add_argument("--no-upload", action="store_true", help="Generate without publishing")
+    p_contract_approval.add_argument("--dry-run-upload", action="store_true", help="Use a fake media upload")
+    p_contract_approval.add_argument("--json", action="store_true", help="Print structured output")
+
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
     p_lock.add_argument(
@@ -17596,6 +17654,7 @@ def main() -> None:
         "media": cmd_media,
         "docker": cmd_docker,
         "worktree": cmd_worktree,
+        "contract": cmd_contract,
         "lock": cmd_lock,
         "unlock": cmd_unlock,
         "wait-lock": cmd_wait_lock,
