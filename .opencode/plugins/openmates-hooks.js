@@ -1401,38 +1401,51 @@ async function recordWorktreeRouting(opencodeSessionID) {
   return true;
 }
 
-function scheduleWorktreeCheckpoint(opencodeSessionID, event) {
-  if (!opencodeSessionID || !["idle", "closed"].includes(event)) return;
-  // Root checkout is the OpenMates control plane; sessions.py resolves the routed source worktree.
-  const child = spawn(
-    "python3",
-    [
-      "scripts/sessions.py",
-      "worktree",
-      "checkpoint",
-      "--opencode-session",
-      opencodeSessionID,
-      "--event",
-      event,
-    ],
-    { cwd: PROJECT_ROOT, env: process.env, detached: true, stdio: "ignore" },
-  );
-  child.on("error", (error) => {
-    warnOnceForTest(
-      `${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`,
-      { sessionID: opencodeSessionID },
+function createWorktreeCheckpointSchedulerForTest({ spawnProcess = spawn, warn = warnOnceForTest } = {}) {
+  const inFlight = new Map();
+  return (opencodeSessionID, event) => {
+    if (!opencodeSessionID || !["idle", "closed"].includes(event)) return false;
+    if (inFlight.has(opencodeSessionID)) return false;
+    // Use the pinned clean control plane; sessions.py resolves shared state and the routed source worktree.
+    const child = spawnProcess(
+      "python3",
+      [
+        "scripts/sessions.py",
+        "worktree",
+        "checkpoint",
+        "--opencode-session",
+        opencodeSessionID,
+        "--event",
+        event,
+      ],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT, env: process.env, detached: true, stdio: "ignore" },
     );
-  });
-  child.on("close", (code) => {
-    if (code !== 0) {
-      warnOnceForTest(
-        `${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`,
+    inFlight.set(opencodeSessionID, child);
+    const clear = () => {
+      if (inFlight.get(opencodeSessionID) === child) inFlight.delete(opencodeSessionID);
+    };
+    child.on("error", (error) => {
+      clear();
+      warn(
+        `${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`,
         { sessionID: opencodeSessionID },
       );
-    }
-  });
-  child.unref();
+    });
+    child.on("close", (code) => {
+      clear();
+      if (code !== 0) {
+        warn(
+          `${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`,
+          { sessionID: opencodeSessionID },
+        );
+      }
+    });
+    child.unref();
+    return true;
+  };
 }
+
+const scheduleWorktreeCheckpoint = createWorktreeCheckpointSchedulerForTest();
 
 function pathInProjectRoot(file) {
   if (!file) return false;
@@ -3325,6 +3338,7 @@ OpenMatesHooks.test = Object.freeze({
   continuationSignalForTest,
   continuationSuppressedForTest,
   controlPlaneToolDecisionForTest,
+  createWorktreeCheckpointSchedulerForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,

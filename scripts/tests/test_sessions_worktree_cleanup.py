@@ -707,68 +707,85 @@ def _deployed_source_fixture(tmp_path: Path) -> tuple[Path, Path, str, str]:
     return source, integration, base, deployed
 
 
-def test_deploy_sync_advances_unchanged_source_patch_to_clean_deployed_head(monkeypatch, tmp_path):
+def test_deploy_sync_updates_only_selected_path_without_moving_source_head(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     source, integration, base, deployed = _deployed_source_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "patch-1")
 
     warning = sessions._sync_deployed_files_to_source(
-        "ses_test",
         {"path": str(source), "base_commit": base},
         integration,
         ["deployed.txt"],
         ["deployed.txt"],
         "patch-1",
-        deployed,
-        deployed,
     )
 
     assert warning == ""
-    assert _git(source, "rev-parse", "HEAD") == deployed
-    assert _git(source, "status", "--porcelain") == ""
+    assert _git(source, "rev-parse", "HEAD") == base
+    assert _git(source, "status", "--porcelain") == "M deployed.txt"
 
 
 def test_deploy_sync_preserves_source_edits_made_during_integration(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     source, integration, base, deployed = _deployed_source_fixture(tmp_path)
     (source / "deployed.txt").write_text("later edit\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "later-patch")
 
     warning = sessions._sync_deployed_files_to_source(
-        "ses_test",
         {"path": str(source), "base_commit": base},
         integration,
         ["deployed.txt"],
         ["deployed.txt"],
         "original-patch",
-        deployed,
-        deployed,
     )
 
-    assert warning == ""
-    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert warning == "Source worktree changed during deploy; deployed files were not synchronized."
+    assert _git(source, "rev-parse", "HEAD") == base
     assert (source / "deployed.txt").read_text(encoding="utf-8") == "later edit\n"
-    assert _git(source, "status", "--porcelain") == "M  deployed.txt"
+    assert _git(source, "status", "--porcelain") == "M deployed.txt"
 
 
-def test_deploy_sync_preserves_unselected_post_checkpoint_work(tmp_path):
+def test_deploy_sync_preserves_unselected_post_checkpoint_work(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     source, integration, base, deployed = _deployed_source_fixture(tmp_path)
     (source / "remaining.txt").write_text("post-checkpoint\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "original-patch")
 
     warning = sessions._sync_deployed_files_to_source(
-        "ses_test",
         {"path": str(source), "base_commit": base},
         integration,
         ["deployed.txt"],
         ["deployed.txt"],
         "original-patch",
-        deployed,
-        deployed,
     )
 
     assert warning == ""
-    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert _git(source, "rev-parse", "HEAD") == base
     assert (source / "remaining.txt").read_text(encoding="utf-8") == "post-checkpoint\n"
-    assert _git(source, "status", "--porcelain") == "M  remaining.txt"
+    assert _git(source, "status", "--porcelain").splitlines() == ["M deployed.txt", " M remaining.txt"]
+
+
+def test_deploy_sync_never_captures_or_rewrites_unselected_staged_work(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source, integration, base, _deployed = _deployed_source_fixture(tmp_path)
+    (source / "remaining.txt").write_text("operator work\n", encoding="utf-8")
+    _git(source, "add", "remaining.txt")
+    index_before = _git(source, "write-tree")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "selected-patch")
+
+    warning = sessions._sync_deployed_files_to_source(
+        {"path": str(source), "base_commit": base},
+        integration,
+        ["deployed.txt"],
+        ["deployed.txt"],
+        "selected-patch",
+    )
+
+    assert warning == ""
+    assert _git(source, "rev-parse", "HEAD") == base
+    assert _git(source, "write-tree") == index_before
+    assert (source / "remaining.txt").read_text(encoding="utf-8") == "operator work\n"
+    assert _git(source, "status", "--porcelain").splitlines() == ["M deployed.txt", "M  remaining.txt"]
 
 
 def test_chat_deduplication_blocks_lease_acquired_after_discovery(monkeypatch):

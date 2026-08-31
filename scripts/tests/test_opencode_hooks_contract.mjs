@@ -5,6 +5,7 @@
 // Run: node --test scripts/tests/test_opencode_hooks_contract.mjs.
 
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { after, test } from "node:test";
 
@@ -34,6 +35,31 @@ async function runBeforeShell(command) {
   const result = await runBeforeShellWithExecutionArgs(command);
   return result.executionArgs;
 }
+
+test("worktree checkpoint scheduling is single-flight per OpenCode session", () => {
+  const children = [];
+  const spawns = [];
+  const scheduler = pluginModule.OpenMatesHooks.test.createWorktreeCheckpointSchedulerForTest({
+    spawnProcess: (...args) => {
+      const child = new EventEmitter();
+      child.unref = () => {};
+      children.push(child);
+      spawns.push(args);
+      return child;
+    },
+    warn: () => {},
+  });
+
+  assert.equal(scheduler("ses_test", "idle"), true);
+  assert.equal(scheduler("ses_test", "idle"), false);
+  assert.equal(scheduler("ses_test", "closed"), false);
+  assert.equal(children.length, 1);
+  assert.equal(spawns[0][2].cwd, "/home/superdev/projects/.openmates-runtime/opencode-server");
+
+  children[0].emit("close", 0);
+  assert.equal(scheduler("ses_test", "closed"), true);
+  assert.equal(children.length, 2);
+});
 
 async function runBeforeShellWithExecutionArgs(command) {
   const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });

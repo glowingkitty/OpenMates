@@ -12567,141 +12567,30 @@ def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> N
         )
 
 
-def _git_commit_tree(repo: Path, commit: str) -> str:
-    """Resolve the tree identity for a retained snapshot commit."""
-    rc, tree, stderr = _run_cmd(["git", "rev-parse", f"{commit}^{{tree}}"], cwd=str(repo))
-    if rc != 0 or not tree.strip():
-        raise RuntimeError(f"Could not resolve snapshot tree: {stderr}")
-    return tree.strip()
-
-
-def _snapshot_worktree_to_commit(source_root: Path, base_commit: str, *, message: str) -> str:
-    """Capture tracked and non-ignored untracked source state without touching its real index."""
-    with tempfile.TemporaryDirectory(prefix="openmates-deploy-snapshot-") as temp_dir:
-        env = {
-            **os.environ,
-            "GIT_INDEX_FILE": str(Path(temp_dir) / "index"),
-            "GIT_AUTHOR_NAME": os.environ.get("GIT_AUTHOR_NAME", "OpenMates Recovery"),
-            "GIT_AUTHOR_EMAIL": os.environ.get("GIT_AUTHOR_EMAIL", "recovery@openmates.org"),
-            "GIT_COMMITTER_NAME": os.environ.get("GIT_COMMITTER_NAME", "OpenMates Recovery"),
-            "GIT_COMMITTER_EMAIL": os.environ.get("GIT_COMMITTER_EMAIL", "recovery@openmates.org"),
-        }
-        read_tree = subprocess.run(
-            ["git", "read-tree", base_commit],
-            cwd=str(source_root),
-            env=env,
-            capture_output=True,
-            timeout=120,
-        )
-        if read_tree.returncode != 0:
-            raise RuntimeError(read_tree.stderr.decode("utf-8", errors="replace").strip())
-        add = subprocess.run(
-            ["git", "add", "-A", "--", "."],
-            cwd=str(source_root),
-            env=env,
-            capture_output=True,
-            timeout=120,
-        )
-        if add.returncode != 0:
-            raise RuntimeError(add.stderr.decode("utf-8", errors="replace").strip())
-        tree = subprocess.run(
-            ["git", "write-tree"],
-            cwd=str(source_root),
-            env=env,
-            capture_output=True,
-            timeout=120,
-        )
-        tree_hash = tree.stdout.decode("utf-8", errors="replace").strip()
-        if tree.returncode != 0 or not tree_hash:
-            raise RuntimeError(tree.stderr.decode("utf-8", errors="replace").strip())
-        commit = subprocess.run(
-            ["git", "commit-tree", tree_hash, "-p", base_commit, "-m", message],
-            cwd=str(source_root),
-            env=env,
-            capture_output=True,
-            timeout=120,
-        )
-        commit_hash = commit.stdout.decode("utf-8", errors="replace").strip()
-        if commit.returncode != 0 or not commit_hash:
-            raise RuntimeError(commit.stderr.decode("utf-8", errors="replace").strip())
-        return commit_hash
-
-
 def _sync_deployed_files_to_source(
-    session_id: str,
     source_metadata: dict,
     checkout_root: Path,
     files: list[str],
     patch_files: list[str],
     expected_patch_id: str,
-    checkpoint_commit: str,
-    deployed_commit: str,
 ) -> str:
-    """Advance to the deploy and reapply only work remaining after its checkpoint."""
+    """Copy only deployed paths while preserving every other live worktree path."""
     source_root = Path(str(source_metadata.get("path") or ""))
     try:
-        if not checkpoint_commit or not deployed_commit:
-            return "Checkpoint or deployed commit is missing; source worktree was not advanced."
-        snapshot_commit = _snapshot_worktree_to_commit(
-            source_root,
-            checkpoint_commit,
-            message=f"recovery: preserve post-checkpoint work for {session_id}",
-        )
-        safe_session = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:48] or "unknown"
-        recovery_ref = f"refs/openmates/deploy-recovery/{safe_session}-{snapshot_commit[:12]}"
-        rc, _stdout, stderr = _run_cmd(
-            ["git", "update-ref", recovery_ref, snapshot_commit],
-            cwd=str(source_root),
-        )
-        if rc != 0:
-            return f"Could not retain source recovery ref: {stderr}"
-        diff_result = subprocess.run(
-            ["git", "diff", "--binary", checkpoint_commit, snapshot_commit, "--"],
-            cwd=str(source_root),
-            capture_output=True,
-            timeout=120,
-        )
-        if diff_result.returncode != 0:
-            return diff_result.stderr.decode("utf-8", errors="replace").strip()
-        remainder = diff_result.stdout
-        if remainder:
-            validate = subprocess.run(
-                ["git", "apply", "--3way", "--whitespace=nowarn", "-"],
-                cwd=str(checkout_root),
-                input=remainder,
-                capture_output=True,
-                timeout=120,
-            )
-            _run_cmd(["git", "reset", "--hard", deployed_commit], cwd=str(checkout_root))
-            if validate.returncode != 0:
-                detail = validate.stderr.decode("utf-8", errors="replace").strip()
-                return f"Post-checkpoint work could not be rebased; preserved at {recovery_ref}: {detail}"
-        latest_snapshot = _snapshot_worktree_to_commit(
-            source_root,
-            checkpoint_commit,
-            message=f"recovery: verify post-checkpoint work for {session_id}",
-        )
-        if _git_commit_tree(source_root, latest_snapshot) != _git_commit_tree(source_root, snapshot_commit):
-            return f"Source worktree changed during final deploy synchronization; preserved at {recovery_ref}."
-        rc, _stdout, stderr = _run_cmd(["git", "reset", "--hard", deployed_commit], cwd=str(source_root))
-        if rc != 0:
-            return f"Could not advance source worktree to deployed commit; preserved at {recovery_ref}: {stderr}"
-        if remainder:
-            apply_result = subprocess.run(
-                ["git", "apply", "--3way", "--whitespace=nowarn", "-"],
-                cwd=str(source_root),
-                input=remainder,
-                capture_output=True,
-                timeout=120,
-            )
-            if apply_result.returncode != 0:
-                _run_cmd(["git", "reset", "--hard", snapshot_commit], cwd=str(source_root))
-                detail = apply_result.stderr.decode("utf-8", errors="replace").strip()
-                return f"Post-checkpoint restore failed; recovery checkout retained at {recovery_ref}: {detail}"
-        if _worktree_head(source_root) != deployed_commit:
-            return f"Source HEAD does not match deployed commit; recovery state is {recovery_ref}."
+        if _worktree_patch_id(source_metadata, patch_files) != expected_patch_id:
+            return "Source worktree changed during deploy; deployed files were not synchronized."
+        for relative_path in files:
+            deployed_path = checkout_root / relative_path
+            source_path = source_root / relative_path
+            if deployed_path.is_file():
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                temporary = source_path.with_name(f".{source_path.name}.{os.getpid()}.deploy-sync")
+                shutil.copy2(deployed_path, temporary)
+                temporary.replace(source_path)
+            elif source_path.exists() or source_path.is_symlink():
+                source_path.unlink()
     except (OSError, RuntimeError) as exc:
-        return f"Could not advance source worktree to the deployed commit: {exc}"
+        return f"Could not synchronize deployed files into the source worktree: {exc}"
     return ""
 
 
@@ -12823,14 +12712,11 @@ def _deploy_native_worktree(
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
             source_sync_warning = _sync_deployed_files_to_source(
-                sid,
                 worktree_metadata,
                 checkout_root,
                 commit_files,
                 to_commit,
                 patch_id,
-                checkpoint_commit,
-                commit_hash_full,
             )
             control_plane_warning = _control_plane_sync_warning(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
