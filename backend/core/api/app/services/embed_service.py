@@ -2,6 +2,7 @@
 Embed Service for creating and managing embeds from skill results.
 Handles TOON encoding, embed creation, and server-side caching.
 """
+import asyncio
 import logging
 import json
 import hashlib
@@ -10,7 +11,7 @@ import random
 import string
 import re
 from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 
 from toon_format import encode, decode
 from backend.core.api.app.services.cache import CacheService
@@ -40,6 +41,18 @@ logger = logging.getLogger(__name__)
 
 EMBED_CACHE_TTL_SECONDS = 259200
 APPLICATION_ARTIFACT_DEPENDENCY_MANIFESTS = {"package.json"}
+APPLICATION_SCREENSHOT_EMBED_FIELDS = (
+    "asset_id",
+    "variant",
+    "files",
+    "s3_base_url",
+    "aes_key",
+    "aes_nonce",
+    "captured_at",
+)
+APPLICATION_THUMBNAIL_LOCK_SECONDS = 30
+APPLICATION_THUMBNAIL_LOCK_RETRY_SECONDS = 0.1
+APPLICATION_THUMBNAIL_LOCK_RETRIES = 50
 IMAGE_SEARCH_PREVIEW_RESULT_LIMIT = 10
 WEB_SEARCH_PREVIEW_RESULT_LIMIT = 6
 GENERIC_RESULT_LIST_PREVIEW_RESULT_LIMIT = 6
@@ -53,6 +66,22 @@ APPLICATION_ARTIFACT_SOURCE_EXTENSIONS = (
     ".css",
     ".html",
 )
+
+
+def _application_screenshot_captured_at_timestamp(value: Any) -> float | None:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.timestamp()
+
+
 NOTEBOOK_PYTHON_LANGUAGES = {"py", "python", "python3"}
 NOTEBOOK_FENCE_LANGUAGES = {"ipynb", "notebook", "jupyter", "jupyter-notebook"}
 
@@ -2101,6 +2130,154 @@ class EmbedService:
         except Exception as e:
             logger.error(f"{log_prefix} Error creating application embed: {e}", exc_info=True)
             return None
+
+    async def update_application_embed_thumbnail(
+        self,
+        *,
+        embed_id: str,
+        screenshot_metadata: Dict[str, Any],
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        log_prefix: str = "",
+    ) -> bool:
+        """Publish a durable screenshot refresh for an application parent embed."""
+        client = await self.cache_service.client
+        if not client:
+            logger.warning(f"{log_prefix} Redis client unavailable for application thumbnail update")
+            return False
+
+        lock_key = f"lock:embed:{embed_id}:application-thumbnail"
+        lock_token = uuid.uuid4().hex
+        acquired = False
+        for _ in range(APPLICATION_THUMBNAIL_LOCK_RETRIES):
+            if await client.set(lock_key, lock_token, nx=True, ex=APPLICATION_THUMBNAIL_LOCK_SECONDS):
+                acquired = True
+                break
+            await asyncio.sleep(APPLICATION_THUMBNAIL_LOCK_RETRY_SECONDS)
+        if not acquired:
+            logger.warning(f"{log_prefix} Timed out waiting to update application thumbnail for {embed_id}")
+            return False
+
+        try:
+            cached_json = await client.get(f"embed:{embed_id}")
+            if not cached_json:
+                logger.warning(f"{log_prefix} Application embed {embed_id} not found in cache")
+                return False
+
+            cached_embed = json.loads(
+                cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json
+            )
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            existing_content = decode(existing_toon) if existing_toon else None
+            if not isinstance(existing_content, dict) or existing_content.get("type") != "application":
+                logger.warning(f"{log_prefix} Embed {embed_id} is not a cached application parent")
+                return False
+
+            durable_screenshot = {
+                field: screenshot_metadata[field]
+                for field in APPLICATION_SCREENSHOT_EMBED_FIELDS
+                if field in screenshot_metadata
+            }
+            if not durable_screenshot.get("files") or not durable_screenshot.get("aes_key"):
+                logger.warning(f"{log_prefix} Application screenshot metadata is incomplete for {embed_id}")
+                return False
+            incoming_captured_at = _application_screenshot_captured_at_timestamp(
+                durable_screenshot.get("captured_at")
+            )
+            if incoming_captured_at is None:
+                logger.warning(f"{log_prefix} Application screenshot capture timestamp is invalid for {embed_id}")
+                return False
+            existing_screenshot = existing_content.get("latest_screenshot")
+            existing_captured_at = _application_screenshot_captured_at_timestamp(
+                existing_screenshot.get("captured_at")
+                if isinstance(existing_screenshot, dict)
+                else None
+            )
+            if existing_captured_at is not None and incoming_captured_at <= existing_captured_at:
+                logger.info(f"{log_prefix} Skipping stale application screenshot refresh for {embed_id}")
+                return False
+
+            previous_version_number = int(cached_embed.get("version_number") or 1)
+            version_number = previous_version_number + 1
+            updated_at = int(datetime.now().timestamp())
+            updated_content = {
+                **existing_content,
+                "latest_screenshot": durable_screenshot,
+                "version_number": version_number,
+            }
+            updated_content.pop("latest_screenshot_url", None)
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            if not encrypted_content:
+                logger.warning(f"{log_prefix} Could not encrypt application thumbnail refresh for {embed_id}")
+                return False
+
+            current_json = await client.get(f"embed:{embed_id}")
+            current_embed = json.loads(
+                current_json.decode("utf-8") if isinstance(current_json, bytes) else current_json
+            ) if current_json else {}
+            if int(current_embed.get("version_number") or 1) != previous_version_number:
+                logger.warning(f"{log_prefix} Application embed {embed_id} changed during thumbnail update")
+                return False
+
+            updated_embed_data = {
+                **cached_embed,
+                "encrypted_content": encrypted_content,
+                "status": "finished",
+                "version_number": version_number,
+                "updated_at": updated_at,
+            }
+            await self._cache_embed(
+                embed_id,
+                updated_embed_data,
+                chat_id,
+                user_id_hash,
+                user_vault_key_id,
+                user_id,
+            )
+            published = await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="application",
+                content_toon=updated_toon,
+                chat_id=chat_id,
+                message_id=str(cached_embed.get("message_id") or ""),
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="finished",
+                task_id=cached_embed.get("hashed_task_id"),
+                embed_ids=existing_content.get("embed_ids"),
+                version_number=version_number,
+                is_private=cached_embed.get("is_private", False),
+                is_shared=cached_embed.get("is_shared", False),
+                created_at=cached_embed.get("created_at"),
+                updated_at=updated_at,
+                log_prefix=log_prefix,
+                check_cache_status=False,
+                app_id="code",
+                skill_id="application",
+            )
+            self._schedule_embed_persistence_fallback(embed_id)
+            if not published:
+                logger.warning(f"{log_prefix} Application thumbnail refresh queued for fallback delivery for {embed_id}")
+            return True
+        except Exception as exc:
+            logger.error(f"{log_prefix} Error updating application embed thumbnail: {exc}", exc_info=True)
+            return False
+        finally:
+            try:
+                await client.eval(
+                    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
+                    1,
+                    lock_key,
+                    lock_token,
+                )
+            except Exception as exc:
+                logger.warning(f"{log_prefix} Failed to release application thumbnail lock for {embed_id}: {exc}")
 
     async def create_application_artifact_embed(
         self,

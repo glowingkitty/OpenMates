@@ -19,6 +19,7 @@ from backend.core.api.app.routes.application_preview import (
     create_application_preview_session,
 )
 from backend.shared.providers.e2b_application_preview import ApplicationPreviewRuntime
+from backend.shared.python_utils.media_encryption import encrypt_media_variants
 from backend.tests.test_application_preview_config import FakeCache, _user
 
 
@@ -38,6 +39,7 @@ def _load_worker_module():
     return module
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_run_application_preview_session_marks_session_running_with_upstream_url() -> None:
     worker = _load_worker_module()
@@ -87,6 +89,7 @@ async def test_run_application_preview_session_marks_session_running_with_upstre
     assert "token-abc" not in json.dumps(stored)
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_explicit_preview_does_not_wait_for_auto_stop_deadline(monkeypatch) -> None:
     worker = _load_worker_module()
@@ -131,6 +134,7 @@ async def test_explicit_preview_does_not_wait_for_auto_stop_deadline(monkeypatch
     assert sleep_calls == []
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     worker = _load_worker_module()
@@ -190,6 +194,7 @@ async def test_auto_started_preview_stops_if_not_opened(monkeypatch) -> None:
     assert charges and charges[0]["credits"] == 5
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
 async def test_run_application_preview_session_stores_encrypted_screenshot_metadata() -> None:
     worker = _load_worker_module()
@@ -248,6 +253,7 @@ async def test_run_application_preview_session_stores_encrypted_screenshot_metad
     assert "token-abc" not in json.dumps(stored)
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_store_application_preview_thumbnail_does_not_vault_encrypt_application_embed(monkeypatch) -> None:
     worker = _load_worker_module()
@@ -269,6 +275,7 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     indexed: list[dict] = []
     cached_s3_keys: list[dict] = []
     updated_embeds: list[dict] = []
+    published_thumbnails: list[dict] = []
 
     class FakeEncryptionService:
         def __init__(self, **_kwargs):
@@ -322,6 +329,14 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
         async def delete_file(self, **_kwargs):
             return True
 
+    class FakeEmbedService:
+        def __init__(self, *_args):
+            pass
+
+        async def update_application_embed_thumbnail(self, **kwargs):
+            published_thumbnails.append(kwargs)
+            return True
+
     async def fake_cache_s3_file_keys(_task, **kwargs):
         cached_s3_keys.append(kwargs)
         return None
@@ -333,9 +348,12 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     monkeypatch.setattr(worker, "EncryptionService", FakeEncryptionService)
     monkeypatch.setattr(worker, "DirectusService", FakeDirectusService)
     monkeypatch.setattr(worker, "S3UploadService", FakeS3Service)
+    monkeypatch.setattr(worker, "EmbedService", FakeEmbedService)
     monkeypatch.setattr(worker, "get_bucket_name", lambda _bucket, _env: "dev-openmates-chatfiles")
     monkeypatch.setattr(worker, "cache_s3_file_keys", fake_cache_s3_file_keys)
     monkeypatch.setattr(worker, "index_generated_asset", fake_index_generated_asset)
+    monkeypatch.setattr(worker, "encrypt_media_variants", encrypt_media_variants)
+    monkeypatch.setattr(worker, "load_media_write_version", lambda: 2)
     monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "signed-token")
     monkeypatch.setattr(worker, "build_download_url", lambda **kwargs: f"{kwargs['base_url']}/download/{kwargs['asset_id']}/{kwargs['variant']}?token={kwargs['token']}")
     result = await worker.store_application_preview_thumbnail(
@@ -364,15 +382,25 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     assert result["metadata"]["files"]["preview"]["size_bytes"] == len(PNG_BYTES)
     assert result["metadata"]["files"]["preview"]["width"] == 1
     assert result["metadata"]["files"]["preview"]["height"] == 1
+    assert result["metadata"]["files"]["preview"]["encryption"] == "aes-gcm-nonce-prefixed-v1"
+    assert result["metadata"]["aes_nonce"] == ""
     assert uploads and uploads[0]["content_type"] == "application/octet-stream"
     assert b"OpenMates" not in uploads[0]["content"]
     assert indexed and indexed[0]["embed_id"] == "app-embed-1"
+    assert indexed[0]["files_metadata"]["preview"]["encryption"] == "aes-gcm-nonce-prefixed-v1"
+    assert indexed[0]["nonce_b64"] == ""
     assert cached_s3_keys and cached_s3_keys[0]["embed_id"] == "app-embed-1"
+    assert published_thumbnails[0]["embed_id"] == "app-embed-1"
+    assert published_thumbnails[0]["chat_id"] == "chat-1"
+    assert published_thumbnails[0]["screenshot_metadata"]["files"]["preview"]["s3_key"].endswith(
+        "_application_preview.png"
+    )
     assert updated_embeds == []
 
     assert await cache.redis.get("embed:app-embed-1") is None
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed
 @pytest.mark.anyio
 async def test_store_application_preview_thumbnail_skips_when_provider_has_no_real_screenshot(monkeypatch) -> None:
     worker = _load_worker_module()
@@ -396,6 +424,8 @@ async def test_store_application_preview_thumbnail_skips_when_provider_has_no_re
     monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "")
     monkeypatch.setattr(worker, "cache_s3_file_keys", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(worker, "index_generated_asset", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "encrypt_media_variants", object())
+    monkeypatch.setattr(worker, "load_media_write_version", lambda: 2)
 
     result = await worker.store_application_preview_thumbnail(
         cache_service=cache,
@@ -413,6 +443,7 @@ async def test_store_application_preview_thumbnail_skips_when_provider_has_no_re
     assert result is None
 
 
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
 async def test_store_application_preview_thumbnail_skips_shared_context_sessions(monkeypatch) -> None:
     worker = _load_worker_module()
@@ -436,6 +467,8 @@ async def test_store_application_preview_thumbnail_skips_shared_context_sessions
     monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "")
     monkeypatch.setattr(worker, "cache_s3_file_keys", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(worker, "index_generated_asset", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "encrypt_media_variants", object())
+    monkeypatch.setattr(worker, "load_media_write_version", lambda: 2)
 
     result = await worker.store_application_preview_thumbnail(
         cache_service=cache,
@@ -453,6 +486,7 @@ async def test_store_application_preview_thumbnail_skips_shared_context_sessions
     assert result is None
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.request.validated,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
 async def test_run_application_preview_session_marks_planning_error_failed_without_secret_leak() -> None:
     worker = _load_worker_module()
@@ -487,6 +521,7 @@ async def test_run_application_preview_session_marks_planning_error_failed_witho
     assert "token-abc" not in serialized
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible
 @pytest.mark.anyio
 async def test_stop_application_preview_sandbox_records_cleanup_event() -> None:
     worker = _load_worker_module()
@@ -522,6 +557,7 @@ async def test_stop_application_preview_sandbox_records_cleanup_event() -> None:
     assert stored["events"][-1]["text"] == "Application preview sandbox stopped."
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_stop_application_preview_sandbox_charges_usage_once(monkeypatch) -> None:
     worker = _load_worker_module()
@@ -581,6 +617,7 @@ async def test_stop_application_preview_sandbox_charges_usage_once(monkeypatch) 
     assert len(charges) == 1
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch) -> None:
     worker = _load_worker_module()

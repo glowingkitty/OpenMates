@@ -19,7 +19,7 @@
   }
 
   interface ScreenshotRef {
-    files?: { preview?: { s3_key?: string } };
+    files?: { preview?: { s3_key?: string; encryption?: string } };
     s3_base_url?: string;
     aes_key?: string;
     aes_nonce?: string;
@@ -74,7 +74,8 @@
   }
 
   async function loadEncryptedScreenshot() {
-    const s3Key = latest_screenshot?.files?.preview?.s3_key;
+    const previewVariant = latest_screenshot?.files?.preview;
+    const s3Key = previewVariant?.s3_key;
     const aesKey = latest_screenshot?.aes_key;
     const aesNonce = latest_screenshot?.aes_nonce;
     if (retainedScreenshotKey && s3Key !== retainedScreenshotKey) {
@@ -93,7 +94,7 @@
     }
 
     try {
-      await fetchAndDecryptImage(latest_screenshot?.s3_base_url || '', s3Key, aesKey, aesNonce);
+      await fetchAndDecryptImage(latest_screenshot?.s3_base_url || '', s3Key, aesKey, aesNonce, previewVariant);
       const decryptedUrl = getCachedImageUrl(s3Key);
       if (!decryptedUrl) return;
       decryptedScreenshotUrl = decryptedUrl;
@@ -132,7 +133,7 @@
     <div class="application-preview" class:mobile={isMobileLayout} data-testid="application-preview-details">
       <div class="screenshot-frame" data-testid="application-preview-screenshot">
         {#if screenshotUrl}
-          <img src={screenshotUrl} alt="" class="screenshot" />
+          <img src={screenshotUrl} alt="" class="screenshot" data-testid="application-preview-screenshot-image" />
         {:else}
           <div class="placeholder" aria-hidden="true">
             <span class="app-window-dot"></span>
@@ -229,7 +230,7 @@
     color: var(--color-font-button);
     background: var(--color-app-code);
     box-shadow: 0 4px 14px rgb(0 0 0 / 20%);
-    font-size: 15px;
+    font-size: var(--font-size-small);
   }
 
   .meta-row {

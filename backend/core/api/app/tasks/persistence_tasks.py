@@ -2886,6 +2886,14 @@ async def _async_cleanup_uncompleted_signups_task(task_id: str):
 # This means fallback-persisted embeds are fully functional on all devices.
 # ==============================================================================
 
+
+def _persisted_embed_snapshot_is_current(existing: dict, cached: dict) -> bool:
+    """Return whether Directus already has this cached embed version or newer."""
+    try:
+        return int(existing.get("version_number") or 1) >= int(cached.get("version_number") or 1)
+    except (TypeError, ValueError):
+        return False
+
 async def _async_persist_embed_fallback(
     embed_id: str,
     task_id: str
@@ -2921,15 +2929,11 @@ async def _async_persist_embed_fallback(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
-    # Step 1: Check if the embed already exists in Directus (client persisted it via store_embed)
+    # Step 1: Read any persisted snapshot. Version comparison happens after the
+    # cached snapshot is loaded so later server-published versions are not skipped.
+    existing = None
     try:
         existing = await directus_service.embed.get_embed_by_id(embed_id)
-        if existing:
-            logger.info(
-                f"[EMBED_FALLBACK] Embed {embed_id} already persisted to Directus "
-                f"(client handled it). Skipping fallback. (task_id: {task_id})"
-            )
-            return
     except Exception as check_error:
         logger.warning(
             f"[EMBED_FALLBACK] Could not check Directus for embed {embed_id}: {check_error}. "
@@ -2963,6 +2967,14 @@ async def _async_persist_embed_fallback(
         logger.error(
             f"[EMBED_FALLBACK] Failed to parse cached embed {embed_id}: {e}. "
             f"(task_id: {task_id})"
+        )
+        await cache_service.close()
+        return
+
+    if existing and _persisted_embed_snapshot_is_current(existing, embed_data):
+        logger.info(
+            f"[EMBED_FALLBACK] Embed {embed_id} version {embed_data.get('version_number') or 1} "
+            f"already persisted to Directus. Skipping fallback. (task_id: {task_id})"
         )
         await cache_service.close()
         return
@@ -3073,6 +3085,10 @@ async def _async_persist_embed_fallback(
     embed_ids = embed_data.get("embed_ids")
     if embed_ids is not None:
         payload["payload"]["embed_ids"] = embed_ids
+
+    version_number = embed_data.get("version_number")
+    if isinstance(version_number, int):
+        payload["payload"]["version_number"] = version_number
 
     parent_embed_id = embed_data.get("parent_embed_id")
     if parent_embed_id is not None:
