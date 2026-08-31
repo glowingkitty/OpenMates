@@ -60,3 +60,18 @@ def test_validate_release_rejects_a_mixed_control_plane_commit(tmp_path: Path) -
 
     with pytest.raises(RuntimeError, match="control-plane commit"):
         validate_release(releases / "current", control_plane_commit="c" * 40)
+
+
+def test_prepare_release_rejects_short_control_plane_commit(tmp_path: Path) -> None:
+    binary = tmp_path / "opencode"
+    binary.write_text("binary", encoding="utf-8")
+    binary.chmod(0o755)
+
+    with pytest.raises(RuntimeError, match="full 40-character"):
+        prepare_release(
+            binary,
+            tmp_path / "releases",
+            opencode_commit="a" * 40,
+            control_plane_commit="deadbeef",
+            version="1.17.20",
+        )

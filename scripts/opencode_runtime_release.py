@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import tempfile
 
@@ -44,6 +45,8 @@ def prepare_release(
 ) -> dict[str, str]:
     if not binary.is_file() or not os.access(binary, os.X_OK):
         raise RuntimeError(f"built OpenCode binary is missing or not executable: {binary}")
+    if not re.fullmatch(r"[0-9a-f]{40}", control_plane_commit):
+        raise RuntimeError("control-plane commit must be a full 40-character lowercase Git SHA")
     release_id = f"{opencode_commit[:12]}-{control_plane_commit[:12]}"
     releases.mkdir(parents=True, exist_ok=True)
     destination = releases / release_id

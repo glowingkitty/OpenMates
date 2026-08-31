@@ -140,3 +140,24 @@ test("authoritative reconciliation clears requests resolved while the hook was o
   assert.deepEqual(reconciled.pending_question_ids, ["question-live"]);
   assert.equal(reconciled.attention, "required_both");
 });
+
+test("authoritative reconciliation accepts one available pending-request API", () => {
+  const state = {
+    ...initialPresenceForTest("ses-a", { questionCapability: "supported" }),
+    execution: "busy",
+    turn: "streaming",
+    attention: "required_both",
+    pending_permission_ids: ["perm-stale"],
+    pending_question_ids: ["question-live"],
+  };
+
+  const [reconciled] = reconcilePresenceStatesForTest(
+    [state],
+    { "ses-a": { type: "busy" } },
+    { now: "2026-08-05T00:00:00Z", authoritativePending: { permissionIDs: new Set() } },
+  );
+
+  assert.deepEqual(reconciled.pending_permission_ids, []);
+  assert.deepEqual(reconciled.pending_question_ids, ["question-live"]);
+  assert.equal(reconciled.attention, "required_question");
+});

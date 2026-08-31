@@ -2306,10 +2306,12 @@ function reconcilePresenceStatesForTest(
     const state = authoritativePending
       ? {
           ...originalState,
-          pending_permission_ids: (originalState.pending_permission_ids || []).filter((id) =>
-            authoritativePending.permissionIDs.has(id)),
-          pending_question_ids: (originalState.pending_question_ids || []).filter((id) =>
-            authoritativePending.questionIDs.has(id)),
+          pending_permission_ids: authoritativePending.permissionIDs instanceof Set
+            ? (originalState.pending_permission_ids || []).filter((id) => authoritativePending.permissionIDs.has(id))
+            : (originalState.pending_permission_ids || []),
+          pending_question_ids: authoritativePending.questionIDs instanceof Set
+            ? (originalState.pending_question_ids || []).filter((id) => authoritativePending.questionIDs.has(id))
+            : (originalState.pending_question_ids || []),
         }
       : originalState;
     if (authoritativePending) state.attention = attentionFromPending(state);
@@ -3116,23 +3118,22 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     if (typeof client?.session?.status !== "function") return;
     const response = await client.session.status();
     const statuses = response?.data || response || {};
-    let authoritativePending = null;
-    if (typeof client?.permission?.list === "function" && typeof client?.question?.list === "function") {
-      const [permissionResult, questionResult] = await Promise.allSettled([
-        client.permission.list(),
-        client.question.list(),
-      ]);
-      if (permissionResult.status === "fulfilled" && questionResult.status === "fulfilled") {
-        const permissions = permissionResult.value?.data || permissionResult.value || [];
-        const questions = questionResult.value?.data || questionResult.value || [];
-        if (Array.isArray(permissions) && Array.isArray(questions)) {
-          authoritativePending = {
-            permissionIDs: new Set(permissions.map((item) => item?.id).filter(Boolean)),
-            questionIDs: new Set(questions.map((item) => item?.id).filter(Boolean)),
-          };
-        }
-      }
+    const authoritativePending = {};
+    const pendingQueries = [];
+    if (typeof client?.permission?.list === "function") {
+      pendingQueries.push(client.permission.list().then((response) => {
+        const items = response?.data || response || [];
+        if (Array.isArray(items)) authoritativePending.permissionIDs = new Set(items.map((item) => item?.id).filter(Boolean));
+      }));
     }
+    if (typeof client?.question?.list === "function") {
+      pendingQueries.push(client.question.list().then((response) => {
+        const items = response?.data || response || [];
+        if (Array.isArray(items)) authoritativePending.questionIDs = new Set(items.map((item) => item?.id).filter(Boolean));
+      }));
+    }
+    if (pendingQueries.length) await Promise.allSettled(pendingQueries);
+    const reconciledPending = Object.keys(authoritativePending).length ? authoritativePending : null;
     const persistedSessions = presenceData().sessions || {};
     for (const [sessionID, record] of Object.entries(persistedSessions)) {
       if (!presenceStates.has(sessionID)) presenceStates.set(sessionID, record);
@@ -3140,7 +3141,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     for (const record of reconcilePresenceStatesForTest(
       [...presenceStates.values()],
       statuses,
-      { authoritativePending },
+      { authoritativePending: reconciledPending },
     )) {
       schedulePresence(record);
     }
