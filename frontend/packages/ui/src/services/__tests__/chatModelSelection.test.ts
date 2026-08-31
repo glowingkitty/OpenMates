@@ -72,6 +72,8 @@ describe("chat model selection", () => {
   it("writes Format D ciphertext to versioned local state before owner/chat CAS sync", async () => {
     const adapters = createAdapters();
     const selections = createChatModelSelectionService(adapters);
+    const listener = vi.fn();
+    const unsubscribe = selections.subscribe(ALICE, listener);
 
     await selections.select({ userId: ALICE, chatId: CHAT_ID, selection: FLASH_MODEL });
 
@@ -88,6 +90,8 @@ describe("chat model selection", () => {
       adapters.calls.compareAndSetRemote.mock.invocationCallOrder[0],
     );
     expect(JSON.stringify(adapters.calls.compareAndSetRemote.mock.calls)).not.toContain(FLASH_MODEL);
+    expect(listener).toHaveBeenCalledWith(CHAT_ID, FLASH_MODEL, 1);
+    unsubscribe();
   });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope

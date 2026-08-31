@@ -81,6 +81,10 @@ export type ChatModelSelectionService = {
     chatId: string;
     record: EncryptedChatModelSelection;
   }) => Promise<ChatModelSelection>;
+  subscribe: (
+    userId: string,
+    listener: (chatId: string, selection: ChatModelSelection, persistenceRevision: number) => void,
+  ) => () => void;
 };
 
 type StoredChatModelSelection = EncryptedChatModelSelection & {
@@ -318,6 +322,14 @@ export function createChatModelSelectionService(
   adapters: ChatModelSelectionAdapters,
 ): ChatModelSelectionService {
   const selections = new Map<string, ChatModelSelection>();
+  const persistenceRevisions = new Map<string, number>();
+  const listeners = new Map<string, Set<(chatId: string, selection: ChatModelSelection, persistenceRevision: number) => void>>();
+  const emit = (userId: string, chatId: string, selection: ChatModelSelection) => {
+    const key = selectionKey(userId, chatId);
+    const persistenceRevision = (persistenceRevisions.get(key) ?? 0) + 1;
+    persistenceRevisions.set(key, persistenceRevision);
+    listeners.get(userId)?.forEach((listener) => listener(chatId, selection, persistenceRevision));
+  };
 
   return {
     async select({ userId, chatId, selection }) {
@@ -338,7 +350,10 @@ export function createChatModelSelectionService(
         expectedVersion,
         record,
       );
-      if (accepted) return selection;
+      if (accepted) {
+        emit(userId, chatId, selection);
+        return selection;
+      }
 
       const remoteRecord = await adapters.remote.read(userId, chatId);
       if (!remoteRecord) {
@@ -362,6 +377,7 @@ export function createChatModelSelectionService(
         throw new Error("Chat model selection sync conflicted repeatedly");
       }
       await adapters.local.write(userId, chatId, retryRecord);
+      emit(userId, chatId, selection);
       return selection;
     },
 
@@ -400,7 +416,25 @@ export function createChatModelSelectionService(
       const retainedRecord = await adapters.local.writeIfNewer(userId, chatId, record);
       const selection = await decryptRecord(adapters, retainedRecord);
       selections.set(selectionKey(userId, chatId), selection);
+      emit(userId, chatId, selection);
       return selection;
+    },
+
+    subscribe(userId, listener) {
+      const userListeners = listeners.get(userId) ?? new Set();
+      userListeners.add(listener);
+      listeners.set(userId, userListeners);
+      const keyPrefix = `${userId}:`;
+      persistenceRevisions.forEach((persistenceRevision, key) => {
+        const selection = selections.get(key);
+        if (key.startsWith(keyPrefix) && selection) {
+          listener(key.slice(keyPrefix.length), selection, persistenceRevision);
+        }
+      });
+      return () => {
+        userListeners.delete(listener);
+        if (userListeners.size === 0) listeners.delete(userId);
+      };
     },
   };
 }
@@ -437,19 +471,22 @@ export const chatModelSelectionService = createChatModelSelectionService(browser
 
 export function registerChatModelSelectionSync(
   userId: string,
-  onSelection: (chatId: string, selection: ChatModelSelection) => void,
+  onSelection: (chatId: string, selection: ChatModelSelection, persistenceRevision: number) => void,
 ): () => void {
+  const unsubscribe = chatModelSelectionService.subscribe(userId, onSelection);
   const handleSynced = async (payload: PreferenceResponsePayload) => {
     if (typeof payload.chat_id !== "string") return;
     const record = parseEncryptedRecord(payload.preference);
     if (!record) return;
-    const selection = await chatModelSelectionService.receiveRemote({
+    await chatModelSelectionService.receiveRemote({
       userId,
       chatId: payload.chat_id,
       record,
     });
-    onSelection(payload.chat_id, selection);
   };
   webSocketService.on("chat_model_preference_synced", handleSynced);
-  return () => webSocketService.off("chat_model_preference_synced", handleSynced);
+  return () => {
+    unsubscribe();
+    webSocketService.off("chat_model_preference_synced", handleSynced);
+  };
 }

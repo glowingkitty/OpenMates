@@ -354,7 +354,6 @@
                 .then((persistedSelection) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     modelSelection = persistedSelection;
-                    modelSelectionPersistenceRevision += 1;
                 })
                 .catch((error) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
@@ -385,8 +384,11 @@
     $effect(() => {
         const userId = $userProfile.user_id;
         if (!userId || isIncognitoMode) return;
-        return registerChatModelSelectionSync(userId, (chatId, selection) => {
-            if ($userProfile.user_id === userId && chatId === currentChatId) modelSelection = selection;
+        return registerChatModelSelectionSync(userId, (chatId, selection, persistenceRevision) => {
+            if ($userProfile.user_id === userId && chatId === currentChatId) {
+                modelSelection = selection;
+                modelSelectionPersistenceRevision = persistenceRevision;
+            }
         });
     });
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
@@ -5186,7 +5188,6 @@
                 currentChatId === selectionChatId
             ) {
                 modelSelection = persistedSelection;
-                modelSelectionPersistenceRevision += 1;
             }
         } catch (error) {
             if (

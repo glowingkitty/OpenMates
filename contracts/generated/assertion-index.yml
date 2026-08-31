@@ -6415,23 +6415,23 @@ assertions:
       surface: gui.web
     - &id737
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 94
+      line: 98
       name: restores an owner selection on another device without exposing it to another
         participant
       surface: gui.web
     - &id738
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 110
+      line: 114
       name: retries a fresh-device selection against the current remote version
       surface: gui.web
     - &id739
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 135
+      line: 139
       name: reconciles speculative local state when the retry also conflicts
       surface: gui.web
     - &id740
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 155
+      line: 159
       name: keeps an exact chat selection when the send path reads it
       surface: gui.web
     supporting_tests:
