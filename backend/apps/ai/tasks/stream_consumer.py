@@ -31,11 +31,6 @@ from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
 from backend.apps.ai.sub_chat_orchestration import build_sequential_child_prompt, dispatch_sub_chat_task
 from backend.core.api.app.utils.override_parser import UserOverrides
-from backend.apps.ai.processing.wikipedia_context import (
-    WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER,
-    WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE,
-    WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON,
-)
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output, STANDARDIZED_USER_ERROR_MESSAGE
 from backend.apps.ai.utils.embed_display_text import (
     EMBED_REF_SUFFIX_PATTERN as _EMBED_REF_SUFFIX_PATTERN,
@@ -573,7 +568,7 @@ async def _dispatch_sub_chat_parent_continuation(
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
         continuation_message_id=original_request.continuation_message_id,
-        recovery_inference_task_id=original_request.recovery_task_id or original_request.recovery_inference_task_id,
+        recovery_inference_task_id=None,
         recovery_preflight_id=original_request.recovery_preflight_id,
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
@@ -4244,6 +4239,13 @@ def _strip_code_file_header_from_content(code_content: str) -> tuple[str, Option
     return stripped, header["language"], header["filename"]
 
 
+def _should_extract_code_file_header(language: Optional[str], filename: Optional[str]) -> bool:
+    return (
+        (not language or not filename)
+        and not _is_application_preview_combined_language(language)
+    )
+
+
 def _parse_application_preview_combined_files(
     language: Optional[str],
     content: str,
@@ -4896,23 +4898,6 @@ async def _consume_main_processing_stream(
             rejection_reason="insufficient_credits"
         )
 
-    if (
-        not preprocessing_result.can_proceed
-        and preprocessing_result.rejection_reason == WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON
-    ):
-        logger.info(f"{log_prefix} Detected Wikipedia context failure. Generating simple fake stream.")
-        return await _generate_fake_stream_for_simple_message(
-            task_id=task_id,
-            request_data=request_data,
-            preprocessing_result=preprocessing_result,
-            message_text=preprocessing_result.error_message or WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE,
-            cache_service=cache_service,
-            directus_service=directus_service,
-            encryption_service=encryption_service,
-            user_vault_key_id=user_vault_key_id,
-            rejection_reason=WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON,
-        )
-
     # Handle LLM preprocessing failures (e.g., API errors, service unavailable)
     # When preprocessing fails, selected_main_llm_model_id is None, so we can't proceed with main processing
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "internal_error_llm_preprocessing_failed":
@@ -5117,20 +5102,6 @@ async def _consume_main_processing_stream(
                 failed_embed_ids = chunk["__failed_embed_ids__"]
                 logger.info(f"{log_prefix} Received {len(failed_embed_ids)} failed embed ID(s) for content cleanup")
                 continue
-
-            if isinstance(chunk, dict) and WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER in chunk:
-                logger.info(f"{log_prefix} Wikipedia context failed safety checks before inference.")
-                return await _generate_fake_stream_for_simple_message(
-                    task_id=task_id,
-                    request_data=request_data,
-                    preprocessing_result=preprocessing_result,
-                    message_text=chunk.get("message") or WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE,
-                    cache_service=cache_service,
-                    directus_service=directus_service,
-                    encryption_service=encryption_service,
-                    user_vault_key_id=user_vault_key_id,
-                    rejection_reason=chunk.get("rejection_reason") or WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON,
-                )
             
             # Check for app settings/memories permission marker
             # This is yielded by main_processor when user needs to confirm data sharing
@@ -5486,7 +5457,10 @@ async def _consume_main_processing_stream(
                     # LLMs sometimes put "python:hello_world.py" in content instead of fence
                     # Track if we extracted from first line so we can remove it from code content
                     extracted_from_first_line = False
-                    if (not current_code_language or not current_code_filename) and len(lines) > 1:
+                    if _should_extract_code_file_header(
+                        current_code_language,
+                        current_code_filename,
+                    ) and len(lines) > 1:
                         first_content_line = lines[1].strip()
                         # Check if first line matches language:filename pattern (e.g., "python:hello_world.py")
                         if ':' in first_content_line and not first_content_line.startswith('#'):
