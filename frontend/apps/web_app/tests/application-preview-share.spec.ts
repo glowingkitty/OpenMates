@@ -29,7 +29,7 @@ const {
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const MIN_LARGE_APPLICATION_EMBED_WIDTH_PX = 400;
-const GENERATED_APPLICATION_PROSE = 'Here is a complete, runnable';
+const GENERATED_APPLICATION_PROSE = 'Here is a runnable';
 
 async function expectRenderedApplicationPresentation(page: any, embed: any): Promise<void> {
 	const largeEmbed = page.getByTestId('embed-preview-large').filter({ has: embed });
