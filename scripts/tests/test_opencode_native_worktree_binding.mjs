@@ -152,6 +152,14 @@ test("runtime lifecycle commands bypass stale session-local coordinators", () =>
     ).workdir,
     process.cwd(),
   );
+  assert.throws(
+    () => routeLocalToolArgsForTest(
+      "bash",
+      { command: "python3 scripts/sessions.py status && git checkout -- docs/architecture/compliance/cookies.yml" },
+      WORKTREE,
+    ),
+    /mixed with another shell command/,
+  );
 });
 
 test("prod SSH helper routes through its root control-plane copy", () => {

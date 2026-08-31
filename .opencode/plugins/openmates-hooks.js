@@ -1274,10 +1274,15 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: OpenCode improvement review generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify.`);
     }
     // Session lifecycle and test dispatch are shared control-plane operations,
-    // not source-worktree operations. Route the full expression through the
-    // clean runtime even when assignments or another command are chained around
-    // the canonical script, so old worktrees cannot execute stale queue logic.
-    const controlPlaneScriptRuntime = commandSegments.some(isCanonicalControlPlaneScriptSegment);
+    // not source-worktree operations. Never route a mixed compound expression
+    // into the clean runtime: a trailing generator, git command, or redirect
+    // could otherwise mutate that immutable checkout.
+    const hasControlPlaneScript = commandSegments.some(isCanonicalControlPlaneScriptSegment);
+    const controlPlaneScriptRuntime = commandSegments.length > 0
+      && commandSegments.every(isCanonicalControlPlaneScriptSegment);
+    if (hasControlPlaneScript && !controlPlaneScriptRuntime) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: a canonical sessions.py/tests.py command is mixed with another shell command, which could mutate the shared runtime checkout. Next: run the canonical control-plane command in its own tool call, then run any source-worktree command separately.`);
+    }
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
     const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
