@@ -347,7 +347,6 @@
         modelSelectionReady = false;
         if (pendingSelection && (!pendingSelection.draftChatId || pendingSelection.draftChatId === chatId)) {
             modelSelection = pendingSelection.selection;
-            modelSelectionReady = true;
             pendingNewChatModelSelection = null;
             void chatModelSelectionService
                 .select({ userId, chatId, selection: pendingSelection.selection })
@@ -355,6 +354,9 @@
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     console.error('[MessageInput] Failed to persist new-chat model selection:', error);
                     notificationStore.error($text('common.try_again'));
+                })
+                .finally(() => {
+                    if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
                 });
         } else {
             modelSelection = 'auto';
@@ -5164,6 +5166,7 @@
         }
         const selectionChatId = currentChatId;
         const selectionGeneration = modelSelectionRestoreGeneration;
+        modelSelectionReady = false;
 
         try {
             const persistedSelection = await chatModelSelectionService.select({
@@ -5186,6 +5189,14 @@
             ) return;
             console.error('[MessageInput] Failed to persist chat model selection:', error);
             notificationStore.error($text('common.try_again'));
+        } finally {
+            if (
+                selectionGeneration === modelSelectionRestoreGeneration &&
+                $userProfile.user_id === userId &&
+                currentChatId === selectionChatId
+            ) {
+                modelSelectionReady = true;
+            }
         }
     }
 

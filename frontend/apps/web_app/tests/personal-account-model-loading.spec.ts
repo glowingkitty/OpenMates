@@ -79,6 +79,7 @@ test('authenticated account loads its chat model selector without retry errors',
 	await expect(selectorMenu).toBeVisible();
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
 	await selectorMenu.getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
+	await expect(selector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	const selectedLabel = composer.getByTestId('composer-model-selector-label');
 	await expect(selectedLabel).not.toHaveText('Auto select');
 	const persistedModelLabel = await selectedLabel.textContent();
@@ -104,5 +105,6 @@ test('authenticated account loads its chat model selector without retry errors',
 
 	await restoredSelector.click();
 	await restoredComposer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-auto').click();
+	await expect(restoredSelector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	await expect(restoredLabel).toHaveText('Auto select');
 });
