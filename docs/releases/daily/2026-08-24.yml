@@ -1,12 +1,12 @@
 schema_version: 1
 cadence: daily
 date: '2026-08-24'
-generated_at: '2026-08-25T12:29:45+00:00'
+generated_at: '2026-08-31T17:14:53+00:00'
 range:
   since: '2026-08-24T00:00:00+00:00'
   until: '2026-08-25T00:00:00+00:00'
   from_ref: null
-  to_ref: origin/dev
+  to_ref: HEAD
   assume_released: false
 summary:
   total_commits: 147
@@ -1093,11 +1093,18 @@ sections:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - 'matches feature availability gates: app:ai'
+    - 'matches feature availability gates: app:ai, app:file'
     - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix: keep streamed Apple replies above composer'
     section: bug_fixes
@@ -1220,6 +1227,13 @@ sections:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
@@ -1227,11 +1241,18 @@ sections:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
     feature_metadata_changed: true
     rationale:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
-    - 'matches feature availability gates: app:ai, app:code, embed:code:code'
+    - 'matches feature availability gates: app:ai, app:code, app:file, embed:code:code, embed:file:file'
     - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix: expose safe notification probe failures'
     section: bug_fixes
@@ -4561,6 +4582,13 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
   - title: 'fix: keep streamed Apple replies above composer'
     commits:
     - e112292ed
@@ -4617,6 +4645,13 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
@@ -4624,6 +4659,13 @@ unreleased_progress:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
   - title: 'feat: complete AI request trace waterfall'
     commits:
     - 340582b6b
@@ -5802,6 +5844,13 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
   - title: 'fix: preserve Code Run child embed persistence'
     commits:
     - 6755f2796
@@ -5823,6 +5872,13 @@ unreleased_progress:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
@@ -5830,6 +5886,13 @@ unreleased_progress:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
   - title: 'fix: let assistant run inline code'
     commits:
     - 12cd02357
@@ -6140,6 +6203,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
     newsletter_ready: false
   - title: 'fix: keep streamed Apple replies above composer'
     commits:
@@ -6192,6 +6262,13 @@ marketing_candidates:
       override: null
       parent_id: null
       source: backend/apps/code/app.yml
+    - id: app:file
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/file/app.yml
     - id: embed:code:code
       kind: embed
       default_enabled: true
@@ -6199,6 +6276,13 @@ marketing_candidates:
       override: null
       parent_id: app:code
       source: backend/apps/code/app.yml
+    - id: embed:file:file
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:file
+      source: backend/apps/file/app.yml
     newsletter_ready: false
   - title: 'feat: complete AI request trace waterfall'
     commits:
@@ -7372,6 +7456,7 @@ sources:
     - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
     related_feature_ids:
     - app:ai
+    - app:file
   - sha: e112292edea2bc85da4df0867324deb1a31383df
     short_sha: e112292ed
     authored_at: '2026-08-24T17:55:02+00:00'
@@ -7442,7 +7527,9 @@ sources:
     related_feature_ids:
     - app:ai
     - app:code
+    - app:file
     - embed:code:code
+    - embed:file:file
   - sha: 340582b6b63f08cedd8542d8ccaa73c1b5fbf64c
     short_sha: 340582b6b
     authored_at: '2026-08-24T17:40:47+00:00'
@@ -8687,197 +8774,129 @@ sources:
     - frontend/packages/ui/src/components/NotificationStack.svelte
     related_feature_ids: []
 llm_summary:
-  status: deterministic
-  overview: Deterministic release summary generated from 147 structured change items.
+  overview: 'OpenMates focused on three primary development tracks: establishing a privacy-safe AI observability baseline,
+    advancing Apple platform parity for iOS and macOS, and expanding the Code Run skill with artifact persistence and billing
+    integration. While 147 commits were processed, all work remains in development (dev_only) as the project stabilizes core
+    infrastructure and cross-client synchronization.'
   released_changes: []
   bug_fixes: []
   unreleased_progress:
-  - text: 'feat: complete AI request trace waterfall'
-    evidence:
-      commits:
-      - 340582b6b
-    release_status: dev_only
-  - text: 'feat: add privacy-safe AI request observability'
-    evidence:
-      commits:
-      - 582d0acf4
-    release_status: dev_only
-  - text: 'feat: complete Apple cross-client notification contracts'
-    evidence:
-      commits:
-      - 0f9f59605
-    release_status: dev_only
-  - text: 'feat: add payment readiness monitoring'
-    evidence:
-      commits:
-      - af59b8d0f
-    release_status: dev_only
-  - text: 'feat: add Apple E2E proof recording'
+  - text: Apple platform parity work advanced with the completion of cross-client notification contracts, E2E proof recording,
+      and secure credential relay. Fixes were also applied to chat streaming Markdown rendering, scroll behavior, and authentication
+      diagnostic tracing.
     evidence:
       commits:
       - f2743c1ab
+      - 0f9f59605
+      - db338886f
+      - bbf46076a
+      - 0e77b9fef
+      - c26cccb3c
+      - bb8dbeb89
+      - f2437fa66
+      - d8bb4eb82
     release_status: dev_only
-  - text: 'feat: add code run artifact surfaces'
+  - text: The Code Run skill now supports artifact surfaces and inline execution by the assistant. Infrastructure updates
+      added billing idempotency for code tasks, improved child embed persistence, and hardened CLI artifact token protection.
     evidence:
       commits:
       - 212a6e68c
+      - 12cd02357
+      - ea4f7e55d
+      - 6755f2796
+      - f5482b934
+      - 36bfee611
+      - 103849b8d
     release_status: dev_only
-  - text: 'fix: retry map refs during initial hydration'
+  - text: A privacy-safe AI observability baseline was established, featuring request trace waterfalls and automated baseline
+      gating. Tracing was further refined to isolate request spans from WebSocket lifetimes and paginate diagnostic output.
     evidence:
       commits:
-      - f3e342a17
+      - 582d0acf4
+      - 340582b6b
+      - 50470f3a5
+      - 7a635511b
+      - 229b08dff
+      - 42918a9bd
     release_status: dev_only
-  - text: 'fix: reconcile Code Run output before rerun'
+  - text: Operational monitoring was expanded with payment readiness checks and reversible monitoring drills. Billing settlement
+      logic was updated to be completion-safe, ensuring reliability during recovery scenarios.
     evidence:
       commits:
-      - 5c4a1b3e5
+      - af59b8d0f
+      - f7b102e71
+      - 20d661be6
+      - 18af10b50
+      - 50c73fe45
     release_status: dev_only
-  - text: 'fix: coalesce Code Run output persistence'
+  - text: Web UI refinements included making the newest notifications in a stack immediately actionable, improving context
+      menu readability, and ensuring the composer preserves text during file attachments.
     evidence:
       commits:
-      - 835d9c808
-    release_status: dev_only
-  - text: 'fix: persist terminal Code Run snapshots'
-    evidence:
-      commits:
-      - 4ab2b3c25
-    release_status: dev_only
-  - text: 'fix: hide native results view protocol'
-    evidence:
-      commits:
-      - 66e3c81c4
-    release_status: dev_only
-  - text: 'fix: reconcile final Code Run stream state'
-    evidence:
-      commits:
-      - 7bed6af1b
+      - 59f9fae71
+      - cf3275b93
+      - 51ec3c50e
+      - dabdbe953
+      - bf96a0d95
+      - 1976f567e
     release_status: dev_only
   internal_progress:
-  - text: 'feat: add AI observability baseline gate'
+  - text: The daily test suite now includes explicit recovery webhooks and termination markers to ensure run visibility.
     evidence:
       commits:
-      - 50470f3a5
+      - '123933715'
+      - cf90cdb66
+      - 89c8bc129
+      - 37ac33ae2
     release_status: dev_only
-  - text: 'feat: add reversible monitoring drills'
+  - text: Automated proof video recording was integrated into the specification verification workflow for Code Run and Apple
+      platform parity tests.
     evidence:
       commits:
-      - f7b102e71
-    release_status: dev_only
-  - text: 'feat: add secure Apple proof credential relay'
-    evidence:
-      commits:
-      - db338886f
-    release_status: dev_only
-  - text: 'fix: finalize local embed persistence indexes'
-    evidence:
-      commits:
-      - 05ae9b79d
-    release_status: dev_only
-  - text: 'fix: persist Code Run children without profile hydration'
-    evidence:
-      commits:
-      - 9d04c6c94
-    release_status: dev_only
-  - text: 'fix: preserve Code Run linkage after ref repair'
-    evidence:
-      commits:
-      - a2fcd5631
-    release_status: dev_only
-  - text: 'fix: prioritize recent cold embed refs'
-    evidence:
-      commits:
-      - 25792667f
-    release_status: dev_only
-  - text: 'fix: restore Code Run parent linkage'
-    evidence:
-      commits:
-      - 7c69e9d24
-    release_status: dev_only
-  - text: 'fix: clone Code Run native payloads safely'
-    evidence:
-      commits:
-      - cfbb33143
-    release_status: dev_only
-  - text: 'fix: scope embed key-ready invalidation'
-    evidence:
-      commits:
-      - 2cc400787
-    release_status: dev_only
-  - text: 'fix: retry encrypted embed refs after key readiness'
-    evidence:
-      commits:
-      - 8efb1dfa8
-    release_status: dev_only
-  - text: 'fix: run baseline query without container script imports'
-    evidence:
-      commits:
-      - '462737311'
+      - e1785184e
+      - 3c099dff7
+      - 4f71f9d2e
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: 'feat: complete AI request trace waterfall'
-      evidence:
-        commits:
-        - 340582b6b
-      reason: Not classified as ready for public communication.
-    - text: 'feat: add privacy-safe AI request observability'
-      evidence:
-        commits:
-        - 582d0acf4
-      reason: Not classified as ready for public communication.
-    - text: 'feat: complete Apple cross-client notification contracts'
-      evidence:
-        commits:
-        - 0f9f59605
-      reason: Not classified as ready for public communication.
-    - text: 'feat: add payment readiness monitoring'
-      evidence:
-        commits:
-        - af59b8d0f
-      reason: Not classified as ready for public communication.
-    - text: 'feat: add Apple E2E proof recording'
-      evidence:
-        commits:
-        - f2743c1ab
-      reason: Not classified as ready for public communication.
-    - text: 'feat: add code run artifact surfaces'
+    - text: Code Run artifact surfaces and inline execution.
       evidence:
         commits:
         - 212a6e68c
-      reason: Not classified as ready for public communication.
-    - text: 'fix: retry map refs during initial hydration'
+        - 12cd02357
+        - ea4f7e55d
+        - 6755f2796
+      reason: Feature is currently in development and not yet released to the main branch.
+    - text: Apple iOS and macOS platform parity updates.
       evidence:
         commits:
-        - f3e342a17
-      reason: Not classified as ready for public communication.
-    - text: 'fix: reconcile Code Run output before rerun'
+        - f2743c1ab
+        - 0f9f59605
+        - bbf46076a
+        - 0e77b9fef
+      reason: Platform is currently disabled and work is dev-only.
+    - text: AI request tracing and observability baseline.
       evidence:
         commits:
-        - 5c4a1b3e5
-      reason: Not classified as ready for public communication.
-    - text: 'fix: coalesce Code Run output persistence'
-      evidence:
-        commits:
-        - 835d9c808
-      reason: Not classified as ready for public communication.
-    - text: 'fix: persist terminal Code Run snapshots'
-      evidence:
-        commits:
-        - 4ab2b3c25
-      reason: Not classified as ready for public communication.
-    - text: 'fix: hide native results view protocol'
-      evidence:
-        commits:
-        - 66e3c81c4
-      reason: Not classified as ready for public communication.
-    - text: 'fix: reconcile final Code Run stream state'
-      evidence:
-        commits:
-        - 7bed6af1b
-      reason: Not classified as ready for public communication.
-    rationale: Only deterministically released and communication-ready items are included.
-  social_video_recommendations: []
+        - 582d0acf4
+        - 340582b6b
+        - 50470f3a5
+      reason: Internal observability tools are not user-facing.
+    rationale: All changes from this period are classified as dev_only and have not reached the main branch for public release.
+      Significant portions of the work relate to platforms (iOS/macOS) that are currently disabled in the project configuration.
+  social_video_recommendations:
+  - idea: Code Run Artifacts Showcase
+    priority: medium
+    reason: The addition of artifact surfaces and fullscreen views for code execution results provides a concrete visual story
+      for the AI's technical capabilities.
+    evidence:
+      commits:
+      - 212a6e68c
+      - 36bfee611
+      - f5482b934
   quality_notes:
-  - Generated without LLM interpretation; review grouped commit titles before publication.
+  - High test-to-feature ratio (38 tests for 9 features) indicates a strong focus on contract verification and regression
+    testing for complex streaming behaviors.
+  - Extensive use of 'proof' recordings in CI suggests a move toward visual verification of UI states in automated pipelines.
   validation_warnings: []

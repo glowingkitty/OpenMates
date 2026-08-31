@@ -1,0 +1,3593 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-28'
+generated_at: '2026-08-31T17:17:22+00:00'
+range:
+  since: '2026-08-28T00:00:00+00:00'
+  until: '2026-08-29T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 79
+  section_counts:
+    features: 2
+    bug_fixes: 37
+    improvements: 0
+    docs: 3
+    tests: 36
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 32
+  dev_only_items: 79
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: refine composer model picker navigation'
+    section: features
+    commits:
+    - 495d50517
+    authored_at: '2026-08-28T14:11:19+00:00'
+    changed_paths:
+    - backend/providers/alibaba.yml
+    - backend/providers/anthropic.yml
+    - backend/providers/deepseek.yml
+    - backend/providers/google.yml
+    - backend/providers/mistral.yml
+    - backend/providers/moonshot.yml
+    - backend/providers/openai.yml
+    - backend/providers/zai.yml
+    - backend/tests/test_ai_ask_model_metadata.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
+    - frontend/packages/ui/src/utils/aiModelDisplay.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat(web): add explicit Wikipedia mentions'
+    section: features
+    commits:
+    - ffed9ad07
+    authored_at: '2026-08-28T01:20:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: restore Wikipedia focus after menu click'
+    section: bug_fixes
+    commits:
+    - 7194858c9
+    authored_at: '2026-08-28T22:16:59+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid stale Wikipedia focus restore'
+    section: bug_fixes
+    commits:
+    - 7adc685cc
+    authored_at: '2026-08-28T21:59:58+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Wikipedia search caret'
+    section: bug_fixes
+    commits:
+    - cbd9703c7
+    authored_at: '2026-08-28T21:39:39+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix BLG7X chat loading cache retry
+    section: bug_fixes
+    commits:
+    - 435ea68c6
+    authored_at: '2026-08-28T21:34:34+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refine Wikipedia mention search'
+    section: bug_fixes
+    commits:
+    - 156a005ea
+    authored_at: '2026-08-28T20:39:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize Wikipedia source caret'
+    section: bug_fixes
+    commits:
+    - 744bbe3ba
+    authored_at: '2026-08-28T18:12:25+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: defer account export builds for web'
+    section: bug_fixes
+    commits:
+    - f29e23d40
+    authored_at: '2026-08-28T17:56:48+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/account_exports.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/tests/test_account_export_jobs.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep Wikipedia search caret after source selection'
+    section: bug_fixes
+    commits:
+    - 830b49ad8
+    authored_at: '2026-08-28T17:49:02+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix SettingsAI headings
+    section: bug_fixes
+    commits:
+    - 47863b362
+    authored_at: '2026-08-28T17:42:33+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stabilize guest welcome card clicks'
+    section: bug_fixes
+    commits:
+    - 0c6890950
+    authored_at: '2026-08-28T17:21:17+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Wikipedia source mention selection'
+    section: bug_fixes
+    commits:
+    - 5d96171ef
+    authored_at: '2026-08-28T17:16:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: share routed proof artifacts'
+    section: bug_fixes
+    commits:
+    - fdf5ea1cf
+    authored_at: '2026-08-28T16:59:00+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix guest composer loading placeholder
+    section: bug_fixes
+    commits:
+    - 5f45778a3
+    authored_at: '2026-08-28T16:48:22+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Wiki article parentheses in CLI'
+    section: bug_fixes
+    commits:
+    - b64a97b34
+    authored_at: '2026-08-28T16:36:02+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep active chat sidebar highlight visible'
+    section: bug_fixes
+    commits:
+    - 36d9edefa
+    authored_at: '2026-08-28T16:20:10+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve active work during chat restore'
+    section: bug_fixes
+    commits:
+    - ac55abc1f
+    authored_at: '2026-08-28T16:08:05+00:00'
+    changed_paths:
+    - docs/specs/opencode-orchestration-remediation/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore reliable orchestration runtime'
+    section: bug_fixes
+    commits:
+    - 2bae1c3f6
+    authored_at: '2026-08-28T15:59:05+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - backend/engineering_control_plane/api.py
+    - backend/engineering_control_plane/tests/test_api.py
+    - docs/specs/opencode-orchestration-remediation/spec.yml
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_docker_orchestration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clarify active chat sidebar state'
+    section: bug_fixes
+    commits:
+    - c37c3bac3
+    authored_at: '2026-08-28T15:32:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: open models from remaining providers'
+    section: bug_fixes
+    commits:
+    - 90a93e169
+    authored_at: '2026-08-28T14:55:51+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: repair missing chat indexes at startup'
+    section: bug_fixes
+    commits:
+    - af4742106
+    authored_at: '2026-08-28T14:27:13+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/db.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render sent Wikipedia mentions as links'
+    section: bug_fixes
+    commits:
+    - 80ef580fd
+    authored_at: '2026-08-28T14:16:59+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/WikiInlineNode.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_wikipedia_mentions.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make workspace header container responsive'
+    section: bug_fixes
+    commits:
+    - 1ed000f51
+    authored_at: '2026-08-28T14:01:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete regional storage export lifecycle'
+    section: bug_fixes
+    commits:
+    - 6c69ce6b7
+    authored_at: '2026-08-28T13:39:01+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/account_exports.py
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/cold_workspace_archive_service.py
+    - backend/core/api/app/services/s3/job_processor.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/schemas/account_export_jobs.yml
+    - backend/core/directus/schemas/account_export_parts.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/s3_service_test_support.py
+    - backend/tests/test_account_deletion_storage_lifecycle.py
+    - backend/tests/test_account_export_jobs.py
+    - backend/tests/test_account_export_security.py
+    - backend/tests/test_account_export_streaming_storage.py
+    - backend/tests/test_audit_object_storage_inventory.py
+    - backend/tests/test_cold_workspace_archive_service.py
+    - backend/tests/test_job_processor.py
+    - backend/tests/test_object_storage_regions.py
+    - backend/tests/test_replication.py
+    - backend/tests/test_s3_replication_worker.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_storage_lifecycle_api_verifier.py
+    - backend/tests/test_storage_reference_service.py
+    - backend/tests/test_storage_replication_cli_verifier.py
+    - backend/tests/test_verify_storage_replication_cli_chat.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - docs/specs/regional-cold-storage-lifecycle/spec.yml
+    - scripts/audit_object_storage_inventory.py
+    - scripts/verify_storage_replication_cli_chat.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep composer actions clickable'
+    section: bug_fixes
+    commits:
+    - 6b86dd203
+    authored_at: '2026-08-28T12:53:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve newer same-chat draft edits'
+    section: bug_fixes
+    commits:
+    - eb4bd8fc9
+    authored_at: '2026-08-28T12:45:40+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: size composer capability badges'
+    section: bug_fixes
+    commits:
+    - e768f465e
+    authored_at: '2026-08-28T12:26:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve composer picker focus model'
+    section: bug_fixes
+    commits:
+    - 56aae1bb5
+    authored_at: '2026-08-28T12:13:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align composer model picker rows'
+    section: bug_fixes
+    commits:
+    - 16ee11432
+    authored_at: '2026-08-28T11:35:15+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: auto-dismiss security reminder'
+    section: bug_fixes
+    commits:
+    - a17bb31de
+    authored_at: '2026-08-28T10:42:00+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden concurrent orchestration lifecycle'
+    section: bug_fixes
+    commits:
+    - bb72f3aca
+    authored_at: '2026-08-28T04:45:41+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_auto_integration.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: render Wikipedia mentions after reload'
+    section: bug_fixes
+    commits:
+    - 195d00e09
+    authored_at: '2026-08-28T03:54:56+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden regional storage failover'
+    section: bug_fixes
+    commits:
+    - 40ff20c5b
+    authored_at: '2026-08-28T03:13:43+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/s3/replication.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/core/directus/schemas/upload_files.yml
+    - backend/shared/python_utils/object_storage_regions.py
+    - backend/tests/test_generated_model_streaming_storage.py
+    - backend/tests/test_internal_api.py
+    - backend/tests/test_s3_region_failover.py
+    - backend/tests/test_s3_replication_worker.py
+    - backend/tests/test_upload_record_registration.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/s3_upload.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reset composer state on logout'
+    section: bug_fixes
+    commits:
+    - b9564b4e8
+    authored_at: '2026-08-28T02:17:09+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify unresolved replica bytes'
+    section: bug_fixes
+    commits:
+    - af79802f1
+    authored_at: '2026-08-28T01:05:27+00:00'
+    changed_paths:
+    - backend/tests/test_audit_object_storage_inventory.py
+    - contracts/generated/assertion-index.yml
+    - scripts/audit_object_storage_inventory.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: separate composer model details from selection'
+    section: bug_fixes
+    commits:
+    - 5e6613133
+    authored_at: '2026-08-28T00:58:07+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound regional audit job snapshot'
+    section: bug_fixes
+    commits:
+    - '771086637'
+    authored_at: '2026-08-28T00:55:34+00:00'
+    changed_paths:
+    - backend/tests/test_audit_object_storage_inventory.py
+    - contracts/generated/assertion-index.yml
+    - scripts/audit_object_storage_inventory.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: classify authoritative regional storage parity'
+    section: bug_fixes
+    commits:
+    - c98bd7efc
+    authored_at: '2026-08-28T00:51:03+00:00'
+    changed_paths:
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/tests/test_audit_object_storage_inventory.py
+    - backend/tests/test_s3_recovery_backfill.py
+    - backend/tests/test_s3_replication_worker.py
+    - backend/tests/test_storage_reference_reconciliation.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/regional-cold-storage-lifecycle/spec.yml
+    - scripts/audit_object_storage_inventory.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: track frequent model change nudge'
+    section: docs
+    commits:
+    - ad67356f9
+    authored_at: '2026-08-28T15:53:37+00:00'
+    changed_paths:
+    - docs/specs/ai-model-routing-redesign/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Wikipedia verification evidence'
+    section: docs
+    commits:
+    - 6887a5f92
+    authored_at: '2026-08-28T15:47:56+00:00'
+    changed_paths:
+    - docs/specs/wikipedia-mentions/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record map calendar verification'
+    section: docs
+    commits:
+    - feae57b98
+    authored_at: '2026-08-28T00:46:49+00:00'
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: guard settings route isolation'
+    section: tests
+    commits:
+    - 511f01317
+    authored_at: '2026-08-28T20:41:19+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add guest navigation proof metadata'
+    section: tests
+    commits:
+    - 24762f84b
+    authored_at: '2026-08-28T17:40:18+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Wikipedia mention query typing'
+    section: tests
+    commits:
+    - 4bbde0172
+    authored_at: '2026-08-28T17:32:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for sidebar hover color transition'
+    section: tests
+    commits:
+    - c2f411695
+    authored_at: '2026-08-28T16:37:20+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add account export network diagnostics'
+    section: tests
+    commits:
+    - dbd610b36
+    authored_at: '2026-08-28T16:32:57+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: complete Wikipedia SDK and privacy coverage'
+    section: tests
+    commits:
+    - 460c5a9d6
+    authored_at: '2026-08-28T15:07:17+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/apis/wikipedia.md
+    - docs/architecture/messaging/message-input-field.md
+    - docs/specs/wikipedia-mentions/spec.yml
+    - docs/user-guide/cli/embeds-and-sharing.md
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - shared/docs/privacy_policy.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover missing chat index recovery'
+    section: tests
+    commits:
+    - a897a4841
+    authored_at: '2026-08-28T14:03:13+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover chat sidebar visual states'
+    section: tests
+    commits:
+    - 6068cbad5
+    authored_at: '2026-08-28T13:57:18+00:00'
+    changed_paths:
+    - contracts/features/public-example-chats/contract.yml
+    - contracts/features/public-example-chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: extend composer model picker contract'
+    section: tests
+    commits:
+    - 2e562c210
+    authored_at: '2026-08-28T13:46:05+00:00'
+    changed_paths:
+    - backend/tests/test_ai_ask_model_metadata.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require interactive user Wikipedia links'
+    section: tests
+    commits:
+    - bc7a5f6d2
+    authored_at: '2026-08-28T13:44:16+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: restore composer before override selection'
+    section: tests
+    commits:
+    - 8d811804b
+    authored_at: '2026-08-28T13:14:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reuse open Wikipedia source menu'
+    section: tests
+    commits:
+    - 77151f560
+    authored_at: '2026-08-28T12:21:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retry complete Wikipedia source activation'
+    section: tests
+    commits:
+    - 89fc159c1
+    authored_at: '2026-08-28T12:05:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: harden composer picker proof'
+    section: tests
+    commits:
+    - 30cbda281
+    authored_at: '2026-08-28T11:59:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for Wikipedia source activation'
+    section: tests
+    commits:
+    - c1567d351
+    authored_at: '2026-08-28T11:52:01+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize Wikipedia mention proof entry'
+    section: tests
+    commits:
+    - f28c7115c
+    authored_at: '2026-08-28T11:20:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/mention-test-helpers.ts
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: guard security reminder timeout'
+    section: tests
+    commits:
+    - 2e325fb95
+    authored_at: '2026-08-28T10:37:22+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert composer model row layout'
+    section: tests
+    commits:
+    - 8dacb767c
+    authored_at: '2026-08-28T10:24:45+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: trim session revoke proof tail'
+    section: tests
+    commits:
+    - 88746e42f
+    authored_at: '2026-08-28T07:43:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retime session revoke proof captions'
+    section: tests
+    commits:
+    - 772cb1dd2
+    authored_at: '2026-08-28T07:23:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align session revoke proof visuals'
+    section: tests
+    commits:
+    - 37bf725b6
+    authored_at: '2026-08-28T07:01:30+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align session revoke proof first claim'
+    section: tests
+    commits:
+    - 737c27140
+    authored_at: '2026-08-28T06:33:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reduce session revoke proof duration'
+    section: tests
+    commits:
+    - a4d4ed742
+    authored_at: '2026-08-28T06:17:52+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: trim session revoke proof recording'
+    section: tests
+    commits:
+    - b1c5a5864
+    authored_at: '2026-08-28T06:05:42+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: shorten session revoke proof timeline'
+    section: tests
+    commits:
+    - 6f7c2406d
+    authored_at: '2026-08-28T05:53:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add session revoke proof action'
+    section: tests
+    commits:
+    - e3be08952
+    authored_at: '2026-08-28T05:43:09+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix session revoke proof fixture'
+    section: tests
+    commits:
+    - 9e2b5715d
+    authored_at: '2026-08-28T05:29:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add session revoke proof metadata'
+    section: tests
+    commits:
+    - 2a1ea3b80
+    authored_at: '2026-08-28T05:19:57+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add map proof initial state'
+    section: tests
+    commits:
+    - 809efe08c
+    authored_at: '2026-08-28T03:52:57+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align map proof timeline transitions'
+    section: tests
+    commits:
+    - ee1507659
+    authored_at: '2026-08-28T03:43:49+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize composer model routing proof'
+    section: tests
+    commits:
+    - 4ebd41dba
+    authored_at: '2026-08-28T03:26:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align feature availability gate'
+    section: tests
+    commits:
+    - 4117e8141
+    authored_at: '2026-08-28T02:04:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: focus map filter calendar proof'
+    section: tests
+    commits:
+    - 814295a7a
+    authored_at: '2026-08-28T01:07:59+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test(web): define Wikipedia mention contract'
+    section: tests
+    commits:
+    - 4cba91d17
+    authored_at: '2026-08-28T00:59:06+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align map filter visibility assertion'
+    section: tests
+    commits:
+    - 040179be9
+    authored_at: '2026-08-28T00:36:04+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover composer model toggle interaction'
+    section: tests
+    commits:
+    - 2ee4f19ea
+    authored_at: '2026-08-28T00:28:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other:
+  - title: Add CLI Wikipedia mention resolution
+    section: other
+    commits:
+    - f8e83eeb5
+    authored_at: '2026-08-28T00:11:52+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'fix: restore Wikipedia focus after menu click'
+    commits:
+    - 7194858c9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: avoid stale Wikipedia focus restore'
+    commits:
+    - 7adc685cc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve Wikipedia search caret'
+    commits:
+    - cbd9703c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix BLG7X chat loading cache retry
+    commits:
+    - 435ea68c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: guard settings route isolation'
+    commits:
+    - 511f01317
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: refine Wikipedia mention search'
+    commits:
+    - 156a005ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: stabilize Wikipedia source caret'
+    commits:
+    - 744bbe3ba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: defer account export builds for web'
+    commits:
+    - f29e23d40
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep Wikipedia search caret after source selection'
+    commits:
+    - 830b49ad8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix SettingsAI headings
+    commits:
+    - 47863b362
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add guest navigation proof metadata'
+    commits:
+    - 24762f84b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize Wikipedia mention query typing'
+    commits:
+    - 4bbde0172
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stabilize guest welcome card clicks'
+    commits:
+    - 0c6890950
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore Wikipedia source mention selection'
+    commits:
+    - 5d96171ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: share routed proof artifacts'
+    commits:
+    - fdf5ea1cf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix guest composer loading placeholder
+    commits:
+    - 5f45778a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: wait for sidebar hover color transition'
+    commits:
+    - c2f411695
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve Wiki article parentheses in CLI'
+    commits:
+    - b64a97b34
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add account export network diagnostics'
+    commits:
+    - dbd610b36
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep active chat sidebar highlight visible'
+    commits:
+    - 36d9edefa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve active work during chat restore'
+    commits:
+    - ac55abc1f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore reliable orchestration runtime'
+    commits:
+    - 2bae1c3f6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: track frequent model change nudge'
+    commits:
+    - ad67356f9
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Wikipedia verification evidence'
+    commits:
+    - 6887a5f92
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clarify active chat sidebar state'
+    commits:
+    - c37c3bac3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: complete Wikipedia SDK and privacy coverage'
+    commits:
+    - 460c5a9d6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: open models from remaining providers'
+    commits:
+    - 90a93e169
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: repair missing chat indexes at startup'
+    commits:
+    - af4742106
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: render sent Wikipedia mentions as links'
+    commits:
+    - 80ef580fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: refine composer model picker navigation'
+    commits:
+    - 495d50517
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover missing chat index recovery'
+    commits:
+    - a897a4841
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make workspace header container responsive'
+    commits:
+    - 1ed000f51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: cover chat sidebar visual states'
+    commits:
+    - 6068cbad5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: extend composer model picker contract'
+    commits:
+    - 2e562c210
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require interactive user Wikipedia links'
+    commits:
+    - bc7a5f6d2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: complete regional storage export lifecycle'
+    commits:
+    - 6c69ce6b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: restore composer before override selection'
+    commits:
+    - 8d811804b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep composer actions clickable'
+    commits:
+    - 6b86dd203
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve newer same-chat draft edits'
+    commits:
+    - eb4bd8fc9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: size composer capability badges'
+    commits:
+    - e768f465e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reuse open Wikipedia source menu'
+    commits:
+    - 77151f560
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve composer picker focus model'
+    commits:
+    - 56aae1bb5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: retry complete Wikipedia source activation'
+    commits:
+    - 89fc159c1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: harden composer picker proof'
+    commits:
+    - 30cbda281
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for Wikipedia source activation'
+    commits:
+    - c1567d351
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align composer model picker rows'
+    commits:
+    - 16ee11432
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize Wikipedia mention proof entry'
+    commits:
+    - f28c7115c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: auto-dismiss security reminder'
+    commits:
+    - a17bb31de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: guard security reminder timeout'
+    commits:
+    - 2e325fb95
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert composer model row layout'
+    commits:
+    - 8dacb767c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: trim session revoke proof tail'
+    commits:
+    - 88746e42f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: retime session revoke proof captions'
+    commits:
+    - 772cb1dd2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align session revoke proof visuals'
+    commits:
+    - 37bf725b6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align session revoke proof first claim'
+    commits:
+    - 737c27140
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reduce session revoke proof duration'
+    commits:
+    - a4d4ed742
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: trim session revoke proof recording'
+    commits:
+    - b1c5a5864
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: shorten session revoke proof timeline'
+    commits:
+    - 6f7c2406d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add session revoke proof action'
+    commits:
+    - e3be08952
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix session revoke proof fixture'
+    commits:
+    - 9e2b5715d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add session revoke proof metadata'
+    commits:
+    - 2a1ea3b80
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden concurrent orchestration lifecycle'
+    commits:
+    - bb72f3aca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: render Wikipedia mentions after reload'
+    commits:
+    - 195d00e09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add map proof initial state'
+    commits:
+    - 809efe08c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align map proof timeline transitions'
+    commits:
+    - ee1507659
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize composer model routing proof'
+    commits:
+    - 4ebd41dba
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden regional storage failover'
+    commits:
+    - 40ff20c5b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: reset composer state on logout'
+    commits:
+    - b9564b4e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align feature availability gate'
+    commits:
+    - 4117e8141
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat(web): add explicit Wikipedia mentions'
+    commits:
+    - ffed9ad07
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: focus map filter calendar proof'
+    commits:
+    - 814295a7a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify unresolved replica bytes'
+    commits:
+    - af79802f1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test(web): define Wikipedia mention contract'
+    commits:
+    - 4cba91d17
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: separate composer model details from selection'
+    commits:
+    - 5e6613133
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bound regional audit job snapshot'
+    commits:
+    - '771086637'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: classify authoritative regional storage parity'
+    commits:
+    - c98bd7efc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record map calendar verification'
+    commits:
+    - feae57b98
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align map filter visibility assertion'
+    commits:
+    - 040179be9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover composer model toggle interaction'
+    commits:
+    - 2ee4f19ea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Add CLI Wikipedia mention resolution
+    commits:
+    - f8e83eeb5
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: refine composer model picker navigation'
+    commits:
+    - 495d50517
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: extend composer model picker contract'
+    commits:
+    - 2e562c210
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align feature availability gate'
+    commits:
+    - 4117e8141
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: restore Wikipedia focus after menu click'
+    commits:
+    - 7194858c9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid stale Wikipedia focus restore'
+    commits:
+    - 7adc685cc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve Wikipedia search caret'
+    commits:
+    - cbd9703c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: refine Wikipedia mention search'
+    commits:
+    - 156a005ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize Wikipedia source caret'
+    commits:
+    - 744bbe3ba
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: defer account export builds for web'
+    commits:
+    - f29e23d40
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep Wikipedia search caret after source selection'
+    commits:
+    - 830b49ad8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix SettingsAI headings
+    commits:
+    - 47863b362
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stabilize guest welcome card clicks'
+    commits:
+    - 0c6890950
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore Wikipedia source mention selection'
+    commits:
+    - 5d96171ef
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix guest composer loading placeholder
+    commits:
+    - 5f45778a3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve Wiki article parentheses in CLI'
+    commits:
+    - b64a97b34
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep active chat sidebar highlight visible'
+    commits:
+    - 36d9edefa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clarify active chat sidebar state'
+    commits:
+    - c37c3bac3
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: open models from remaining providers'
+    commits:
+    - 90a93e169
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: repair missing chat indexes at startup'
+    commits:
+    - af4742106
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render sent Wikipedia mentions as links'
+    commits:
+    - 80ef580fd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: refine composer model picker navigation'
+    commits:
+    - 495d50517
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make workspace header container responsive'
+    commits:
+    - 1ed000f51
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: complete regional storage export lifecycle'
+    commits:
+    - 6c69ce6b7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep composer actions clickable'
+    commits:
+    - 6b86dd203
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve newer same-chat draft edits'
+    commits:
+    - eb4bd8fc9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: size composer capability badges'
+    commits:
+    - e768f465e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve composer picker focus model'
+    commits:
+    - 56aae1bb5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: align composer model picker rows'
+    commits:
+    - 16ee11432
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: auto-dismiss security reminder'
+    commits:
+    - a17bb31de
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: render Wikipedia mentions after reload'
+    commits:
+    - 195d00e09
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: harden regional storage failover'
+    commits:
+    - 40ff20c5b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reset composer state on logout'
+    commits:
+    - b9564b4e8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat(web): add explicit Wikipedia mentions'
+    commits:
+    - ffed9ad07
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: separate composer model details from selection'
+    commits:
+    - 5e6613133
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Add CLI Wikipedia mention resolution
+    commits:
+    - f8e83eeb5
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 7194858c966eb75f5a056b41b25ed96abdd01059
+    short_sha: 7194858c9
+    authored_at: '2026-08-28T22:16:59+00:00'
+    subject: 'fix: restore Wikipedia focus after menu click'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 7adc685cc673f6a26c040788336bab2d5cf9b8ad
+    short_sha: 7adc685cc
+    authored_at: '2026-08-28T21:59:58+00:00'
+    subject: 'fix: avoid stale Wikipedia focus restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: cbd9703c7d933cc31a786c177be17d00171a206e
+    short_sha: cbd9703c7
+    authored_at: '2026-08-28T21:39:39+00:00'
+    subject: 'fix: preserve Wikipedia search caret'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 435ea68c61f10dcd12dcfb48edd3590947c136be
+    short_sha: 435ea68c6
+    authored_at: '2026-08-28T21:34:34+00:00'
+    subject: Fix BLG7X chat loading cache retry
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    related_feature_ids: []
+  - sha: 511f013170718d570aab9b34939feac2c7acedc5
+    short_sha: 511f01317
+    authored_at: '2026-08-28T20:41:19+00:00'
+    subject: 'test: guard settings route isolation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 156a005ea649bc41cf40bb32be7278c4d2ba5d3f
+    short_sha: 156a005ea
+    authored_at: '2026-08-28T20:39:43+00:00'
+    subject: 'fix: refine Wikipedia mention search'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    related_feature_ids: []
+  - sha: 744bbe3baf4fbf64583310a724945e68ff220104
+    short_sha: 744bbe3ba
+    authored_at: '2026-08-28T18:12:25+00:00'
+    subject: 'fix: stabilize Wikipedia source caret'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: f29e23d40801346112e3321eb9e06b4c4ba15cd2
+    short_sha: f29e23d40
+    authored_at: '2026-08-28T17:56:48+00:00'
+    subject: 'fix: defer account export builds for web'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/account_exports.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/tests/test_account_export_jobs.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    - frontend/packages/ui/src/services/accountExportService.ts
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: 830b49ad84385b59ebd7c8e897e49bfe05629794
+    short_sha: 830b49ad8
+    authored_at: '2026-08-28T17:49:02+00:00'
+    subject: 'fix: keep Wikipedia search caret after source selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 47863b362d590467f8f3b580e58756c9e00386b6
+    short_sha: 47863b362
+    authored_at: '2026-08-28T17:42:33+00:00'
+    subject: Fix SettingsAI headings
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/SettingsAI.svelte
+    related_feature_ids: []
+  - sha: 24762f84b965a6229315f9c23b5fe4f3dfe45614
+    short_sha: 24762f84b
+    authored_at: '2026-08-28T17:40:18+00:00'
+    subject: 'test: add guest navigation proof metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 4bbde0172317fc0ea65173f42189f511886d50ef
+    short_sha: 4bbde0172
+    authored_at: '2026-08-28T17:32:40+00:00'
+    subject: 'test: stabilize Wikipedia mention query typing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 0c6890950d99439c77cd558e969da0a20189f0b9
+    short_sha: 0c6890950
+    authored_at: '2026-08-28T17:21:17+00:00'
+    subject: 'fix: stabilize guest welcome card clicks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 5d96171efb12bf2f2336ea1df03f6ff895c613d1
+    short_sha: 5d96171ef
+    authored_at: '2026-08-28T17:16:41+00:00'
+    subject: 'fix: restore Wikipedia source mention selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: fdf5ea1cfbdeae4effc599533bc37065e4655661
+    short_sha: fdf5ea1cf
+    authored_at: '2026-08-28T16:59:00+00:00'
+    subject: 'fix: share routed proof artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 5f45778a367c1e1ce1bf0a2009e52bb7e58bb46b
+    short_sha: 5f45778a3
+    authored_at: '2026-08-28T16:48:22+00:00'
+    subject: Fix guest composer loading placeholder
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/landing-page-onboarding-refresh.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: c2f4116958afb9e91af3e5b2d484f666ec893c0c
+    short_sha: c2f411695
+    authored_at: '2026-08-28T16:37:20+00:00'
+    subject: 'test: wait for sidebar hover color transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: b64a97b34421ef5f1922a3dcfba790ce1a301b2d
+    short_sha: b64a97b34
+    authored_at: '2026-08-28T16:36:02+00:00'
+    subject: 'fix: preserve Wiki article parentheses in CLI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    related_feature_ids: []
+  - sha: dbd610b3687e5e8f0bb9ac389e4ca34fd57d020b
+    short_sha: dbd610b36
+    authored_at: '2026-08-28T16:32:57+00:00'
+    subject: 'test: add account export network diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/export-account-flow.spec.ts
+    related_feature_ids: []
+  - sha: 36d9edefa1fc1b81f7da17506b0c65ed8df53418
+    short_sha: 36d9edefa
+    authored_at: '2026-08-28T16:20:10+00:00'
+    subject: 'fix: keep active chat sidebar highlight visible'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: ac55abc1f82afe785a798a07b3f2d98588170182
+    short_sha: ac55abc1f
+    authored_at: '2026-08-28T16:08:05+00:00'
+    subject: 'fix: preserve active work during chat restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/opencode-orchestration-remediation/spec.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_native_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 2bae1c3f6fce964916bd1481181c6dd2fbbe5487
+    short_sha: 2bae1c3f6
+    authored_at: '2026-08-28T15:59:05+00:00'
+    subject: 'fix: restore reliable orchestration runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - backend/engineering_control_plane/api.py
+    - backend/engineering_control_plane/tests/test_api.py
+    - docs/specs/opencode-orchestration-remediation/spec.yml
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_sessions_docker_orchestration.py
+    related_feature_ids: []
+  - sha: ad67356f9826fdde151875ab0e828d08b459208b
+    short_sha: ad67356f9
+    authored_at: '2026-08-28T15:53:37+00:00'
+    subject: 'docs: track frequent model change nudge'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/ai-model-routing-redesign/spec.yml
+    related_feature_ids: []
+  - sha: 6887a5f92f4b735028ea29664ea9d7b1815014f6
+    short_sha: 6887a5f92
+    authored_at: '2026-08-28T15:47:56+00:00'
+    subject: 'docs: record Wikipedia verification evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/wikipedia-mentions/spec.yml
+    related_feature_ids: []
+  - sha: c37c3bac39c195916ae401d6133611cb7cdfccb8
+    short_sha: c37c3bac3
+    authored_at: '2026-08-28T15:32:21+00:00'
+    subject: 'fix: clarify active chat sidebar state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: 460c5a9d6abb33c0d283ca6e0ad74dbddc32f987
+    short_sha: 460c5a9d6
+    authored_at: '2026-08-28T15:07:17+00:00'
+    subject: 'test: complete Wikipedia SDK and privacy coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/apis/wikipedia.md
+    - docs/architecture/messaging/message-input-field.md
+    - docs/specs/wikipedia-mentions/spec.yml
+    - docs/user-guide/cli/embeds-and-sharing.md
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/ui/src/config/links.ts
+    - frontend/packages/ui/src/legal/buildLegalContent.ts
+    - frontend/packages/ui/src/legal/documents/privacy-policy.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 90a93e1696e0223705cb44c068ee00f8b1f5bc3a
+    short_sha: 90a93e169
+    authored_at: '2026-08-28T14:55:51+00:00'
+    subject: 'fix: open models from remaining providers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    related_feature_ids: []
+  - sha: af4742106298a59c1c13eedba6ef33bfe0ed11ef
+    short_sha: af4742106
+    authored_at: '2026-08-28T14:27:13+00:00'
+    subject: 'fix: repair missing chat indexes at startup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    - frontend/packages/ui/src/services/db.ts
+    related_feature_ids: []
+  - sha: 80ef580fd542fc713bcd8a79255f7aeff61fad0d
+    short_sha: 80ef580fd
+    authored_at: '2026-08-28T14:16:59+00:00'
+    subject: 'fix: render sent Wikipedia mentions as links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
+    - frontend/packages/ui/src/components/embeds/wiki/WikipediaFullscreen.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/WikiInlineNode.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_wikipedia_mentions.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: 495d50517c93933341e58b1663dffbaa92affb96
+    short_sha: 495d50517
+    authored_at: '2026-08-28T14:11:19+00:00'
+    subject: 'feat: refine composer model picker navigation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/alibaba.yml
+    - backend/providers/anthropic.yml
+    - backend/providers/deepseek.yml
+    - backend/providers/google.yml
+    - backend/providers/mistral.yml
+    - backend/providers/moonshot.yml
+    - backend/providers/openai.yml
+    - backend/providers/zai.yml
+    - backend/tests/test_ai_ask_model_metadata.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    - frontend/packages/ui/src/data/modelsMetadata.d.ts
+    - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
+    - frontend/packages/ui/src/utils/aiModelDisplay.ts
+    related_feature_ids: []
+  - sha: a897a484108ba71d95f93b4461fb37bd0917ea8b
+    short_sha: a897a4841
+    authored_at: '2026-08-28T14:03:13+00:00'
+    subject: 'test: cover missing chat index recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-sync-empty-indexeddb-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 1ed000f5191dd70b1d163094b8965e5c43da8f8b
+    short_sha: 1ed000f51
+    authored_at: '2026-08-28T14:01:18+00:00'
+    subject: 'fix: make workspace header container responsive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/src/routes/plans/+page.svelte
+    - frontend/apps/web_app/src/routes/projects/+page.svelte
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids:
+    - platform:workflows
+  - sha: 6068cbad595e2783f73a6b6fc63de84ecbf388d2
+    short_sha: 6068cbad5
+    authored_at: '2026-08-28T13:57:18+00:00'
+    subject: 'test: cover chat sidebar visual states'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/public-example-chats/contract.yml
+    - contracts/features/public-example-chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 2e562c210ee5080f60b651fcbec7bd6a3b2962de
+    short_sha: 2e562c210
+    authored_at: '2026-08-28T13:46:05+00:00'
+    subject: 'test: extend composer model picker contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_ai_ask_model_metadata.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: bc7a5f6d29b4a26cdca5bcec42399a50eefee02e
+    short_sha: bc7a5f6d2
+    authored_at: '2026-08-28T13:44:16+00:00'
+    subject: 'test: require interactive user Wikipedia links'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 6c69ce6b746a7d264f98a3448fbf00cadfc2a482
+    short_sha: 6c69ce6b7
+    authored_at: '2026-08-28T13:39:01+00:00'
+    subject: 'fix: complete regional storage export lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/account_exports.py
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/cold_workspace_archive_service.py
+    - backend/core/api/app/services/s3/job_processor.py
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/directus/schemas/account_export_jobs.yml
+    - backend/core/directus/schemas/account_export_parts.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/s3_service_test_support.py
+    - backend/tests/test_account_deletion_storage_lifecycle.py
+    - backend/tests/test_account_export_jobs.py
+    - backend/tests/test_account_export_security.py
+    - backend/tests/test_account_export_streaming_storage.py
+    - backend/tests/test_audit_object_storage_inventory.py
+    - backend/tests/test_cold_workspace_archive_service.py
+    - backend/tests/test_job_processor.py
+    - backend/tests/test_object_storage_regions.py
+    - backend/tests/test_replication.py
+    - backend/tests/test_s3_replication_worker.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_storage_lifecycle_api_verifier.py
+    - backend/tests/test_storage_reference_service.py
+    - backend/tests/test_storage_replication_cli_verifier.py
+    - backend/tests/test_verify_storage_replication_cli_chat.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - docs/specs/regional-cold-storage-lifecycle/spec.yml
+    - scripts/audit_object_storage_inventory.py
+    - scripts/verify_storage_replication_cli_chat.py
+    related_feature_ids: []
+  - sha: 8d811804bf8cda4bf628c8b0040206ba3c3bcf12
+    short_sha: 8d811804b
+    authored_at: '2026-08-28T13:14:22+00:00'
+    subject: 'test: restore composer before override selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    related_feature_ids: []
+  - sha: 6b86dd20365a4021b2efb499b4e327f9ba11d816
+    short_sha: 6b86dd203
+    authored_at: '2026-08-28T12:53:06+00:00'
+    subject: 'fix: keep composer actions clickable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    related_feature_ids: []
+  - sha: eb4bd8fc91bed2d01b42e0476d7c2286df7ea0ec
+    short_sha: eb4bd8fc9
+    authored_at: '2026-08-28T12:45:40+00:00'
+    subject: 'fix: preserve newer same-chat draft edits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    related_feature_ids: []
+  - sha: e768f465e9fbb22da0eb3979fd101d1e8df36b12
+    short_sha: e768f465e
+    authored_at: '2026-08-28T12:26:54+00:00'
+    subject: 'fix: size composer capability badges'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    related_feature_ids: []
+  - sha: 77151f560ffed00e3bfc89113aa8cbebecc23c13
+    short_sha: 77151f560
+    authored_at: '2026-08-28T12:21:55+00:00'
+    subject: 'test: reuse open Wikipedia source menu'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 56aae1bb5e52dce021375407b146156b05a2eb3f
+    short_sha: 56aae1bb5
+    authored_at: '2026-08-28T12:13:41+00:00'
+    subject: 'fix: preserve composer picker focus model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    related_feature_ids: []
+  - sha: 89fc159c181b884fdd6f66c21231e39516f565bb
+    short_sha: 89fc159c1
+    authored_at: '2026-08-28T12:05:43+00:00'
+    subject: 'test: retry complete Wikipedia source activation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 30cbda2811f37affa82828d4edd3f4db3e0626f1
+    short_sha: 30cbda281
+    authored_at: '2026-08-28T11:59:18+00:00'
+    subject: 'test: harden composer picker proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    related_feature_ids: []
+  - sha: c1567d35164f6c1944e3e716be437b1a98b5fa7d
+    short_sha: c1567d351
+    authored_at: '2026-08-28T11:52:01+00:00'
+    subject: 'test: wait for Wikipedia source activation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 16ee1143275437a3837ac17040dd179943ce5873
+    short_sha: 16ee11432
+    authored_at: '2026-08-28T11:35:15+00:00'
+    subject: 'fix: align composer model picker rows'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    related_feature_ids: []
+  - sha: f28c7115ca51d92f6b72c20229a72a620c07d69f
+    short_sha: f28c7115c
+    authored_at: '2026-08-28T11:20:40+00:00'
+    subject: 'test: stabilize Wikipedia mention proof entry'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/helpers/mention-test-helpers.ts
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: a17bb31de7c2cc10dd48ebdb7db86022488be28a
+    short_sha: a17bb31de
+    authored_at: '2026-08-28T10:42:00+00:00'
+    subject: 'fix: auto-dismiss security reminder'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/stores/notificationStore.ts
+    related_feature_ids: []
+  - sha: 2e325fb95f88e2bd13a88d1800e99454bfd12c72
+    short_sha: 2e325fb95
+    authored_at: '2026-08-28T10:37:22+00:00'
+    subject: 'test: guard security reminder timeout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    related_feature_ids: []
+  - sha: 8dacb767cb470883753173894526632de03dca0f
+    short_sha: 8dacb767c
+    authored_at: '2026-08-28T10:24:45+00:00'
+    subject: 'test: assert composer model row layout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: 88746e42f778ecb87cf439fcbb31de9bab9a93b4
+    short_sha: 88746e42f
+    authored_at: '2026-08-28T07:43:48+00:00'
+    subject: 'test: trim session revoke proof tail'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 772cb1dd2278f24ea4159d0a09bfd6d410b0e45c
+    short_sha: 772cb1dd2
+    authored_at: '2026-08-28T07:23:27+00:00'
+    subject: 'test: retime session revoke proof captions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 37bf725b6a62f4b70d37434ac8db74f5a671969d
+    short_sha: 37bf725b6
+    authored_at: '2026-08-28T07:01:30+00:00'
+    subject: 'test: align session revoke proof visuals'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 737c27140715f031b287b9b059be9162445fdb55
+    short_sha: 737c27140
+    authored_at: '2026-08-28T06:33:46+00:00'
+    subject: 'test: align session revoke proof first claim'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: a4d4ed7427f2b56e1ddcf6a7443447c309bec325
+    short_sha: a4d4ed742
+    authored_at: '2026-08-28T06:17:52+00:00'
+    subject: 'test: reduce session revoke proof duration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: b1c5a5864377ab08dc34da137bef85e2faabfe33
+    short_sha: b1c5a5864
+    authored_at: '2026-08-28T06:05:42+00:00'
+    subject: 'test: trim session revoke proof recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 6f7c2406dda3333191c433c021af8d64894a4af0
+    short_sha: 6f7c2406d
+    authored_at: '2026-08-28T05:53:54+00:00'
+    subject: 'test: shorten session revoke proof timeline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: e3be08952667f86377bdeaac4c6126b11fda88c5
+    short_sha: e3be08952
+    authored_at: '2026-08-28T05:43:09+00:00'
+    subject: 'test: add session revoke proof action'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 9e2b5715d0dc10326a9822f223a5c2ecb5d39fb1
+    short_sha: 9e2b5715d
+    authored_at: '2026-08-28T05:29:50+00:00'
+    subject: 'test: fix session revoke proof fixture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2a1ea3b80d2facd51bdbdb4ab9d9f453da824f57
+    short_sha: 2a1ea3b80
+    authored_at: '2026-08-28T05:19:57+00:00'
+    subject: 'test: add session revoke proof metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: bb72f3aca2e4f68994905df89477f4c077c38ce0
+    short_sha: bb72f3aca
+    authored_at: '2026-08-28T04:45:41+00:00'
+    subject: 'fix: harden concurrent orchestration lifecycle'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_sessions_auto_integration.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 195d00e093b22bf0641c5ea0957beafa66f440d8
+    short_sha: 195d00e09
+    authored_at: '2026-08-28T03:54:56+00:00'
+    subject: 'fix: render Wikipedia mentions after reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    - frontend/packages/ui/src/components/enter_message/utils/__tests__/markdownParser.preprocess.test.ts
+    - frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
+    related_feature_ids: []
+  - sha: 809efe08c6f7696c4c984b12f8eaffccb16a4429
+    short_sha: 809efe08c
+    authored_at: '2026-08-28T03:52:57+00:00'
+    subject: 'test: add map proof initial state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    related_feature_ids: []
+  - sha: ee15076596f995c5209e543d56c759cc78c8c5ce
+    short_sha: ee1507659
+    authored_at: '2026-08-28T03:43:49+00:00'
+    subject: 'test: align map proof timeline transitions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    related_feature_ids: []
+  - sha: 4ebd41dba1c7302f20f3b0483dd445fa1deca903
+    short_sha: 4ebd41dba
+    authored_at: '2026-08-28T03:26:41+00:00'
+    subject: 'test: stabilize composer model routing proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: 40ff20c5b03cc9566f0ec31af7e245a723239f44
+    short_sha: 40ff20c5b
+    authored_at: '2026-08-28T03:13:43+00:00'
+    subject: 'fix: harden regional storage failover'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/services/s3/replication.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/core/directus/schemas/upload_files.yml
+    - backend/shared/python_utils/object_storage_regions.py
+    - backend/tests/test_generated_model_streaming_storage.py
+    - backend/tests/test_internal_api.py
+    - backend/tests/test_s3_region_failover.py
+    - backend/tests/test_s3_replication_worker.py
+    - backend/tests/test_upload_record_registration.py
+    - backend/upload/routes/upload_route.py
+    - backend/upload/services/s3_upload.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b9564b4e817fe12d746978c8ab9e4ca9d025ae10
+    short_sha: b9564b4e8
+    authored_at: '2026-08-28T02:17:09+00:00'
+    subject: 'fix: reset composer state on logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 4117e8141823221056baf57cbe7b4e128ce4dfaf
+    short_sha: 4117e8141
+    authored_at: '2026-08-28T02:04:28+00:00'
+    subject: 'test: align feature availability gate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+    related_feature_ids: []
+  - sha: ffed9ad076ed6e701911f5c34888245be0d5081e
+    short_sha: ffed9ad07
+    authored_at: '2026-08-28T01:20:54+00:00'
+    subject: 'feat(web): add explicit Wikipedia mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/i18n/sources/enter_message/mention_dropdown.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - shared/docs/privacy_policy.yml
+    related_feature_ids: []
+  - sha: 814295a7a0f19748733b3b050e0750328147d9ab
+    short_sha: 814295a7a
+    authored_at: '2026-08-28T01:07:59+00:00'
+    subject: 'test: focus map filter calendar proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    related_feature_ids: []
+  - sha: af79802f1f63408e74b9253fb35f076a4703e274
+    short_sha: af79802f1
+    authored_at: '2026-08-28T01:05:27+00:00'
+    subject: 'fix: verify unresolved replica bytes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_audit_object_storage_inventory.py
+    - contracts/generated/assertion-index.yml
+    - scripts/audit_object_storage_inventory.py
+    related_feature_ids: []
+  - sha: 4cba91d17f34434078f7bb5c6a65308f62b52478
+    short_sha: 4cba91d17
+    authored_at: '2026-08-28T00:59:06+00:00'
+    subject: 'test(web): define Wikipedia mention contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 5e661313316b5b75fc5382d60be46576a37d169a
+    short_sha: 5e6613133
+    authored_at: '2026-08-28T00:58:07+00:00'
+    subject: 'fix: separate composer model details from selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    related_feature_ids: []
+  - sha: 771086637e44123d6f8d283c90dd2ae0ac2d4587
+    short_sha: '771086637'
+    authored_at: '2026-08-28T00:55:34+00:00'
+    subject: 'fix: bound regional audit job snapshot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_audit_object_storage_inventory.py
+    - contracts/generated/assertion-index.yml
+    - scripts/audit_object_storage_inventory.py
+    related_feature_ids: []
+  - sha: c98bd7efc796a533737d737a9548f06d450862b2
+    short_sha: c98bd7efc
+    authored_at: '2026-08-28T00:51:03+00:00'
+    subject: 'fix: classify authoritative regional storage parity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/storage_reference_service.py
+    - backend/tests/test_audit_object_storage_inventory.py
+    - backend/tests/test_s3_recovery_backfill.py
+    - backend/tests/test_s3_replication_worker.py
+    - backend/tests/test_storage_reference_reconciliation.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/regional-cold-storage-lifecycle/spec.yml
+    - scripts/audit_object_storage_inventory.py
+    related_feature_ids: []
+  - sha: feae57b9876918e8e9e4d423d6f4465e79aa8465
+    short_sha: feae57b98
+    authored_at: '2026-08-28T00:46:49+00:00'
+    subject: 'docs: record map calendar verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/embeds-map-view/spec.yml
+    related_feature_ids: []
+  - sha: 040179be997cbbbfd9e09253be3e0cd272995c29
+    short_sha: 040179be9
+    authored_at: '2026-08-28T00:36:04+00:00'
+    subject: 'test: align map filter visibility assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: 2ee4f19ea4687b88993780e0655a2b3092a45219
+    short_sha: 2ee4f19ea
+    authored_at: '2026-08-28T00:28:50+00:00'
+    subject: 'test: cover composer model toggle interaction'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: f8e83eeb5a126f7ad1c79a11bc45154c463cad69
+    short_sha: f8e83eeb5
+    authored_at: '2026-08-28T00:11:52+00:00'
+    subject: Add CLI Wikipedia mention resolution
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/tests/mentions.test.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on expanding Wikipedia integration across web and CLI interfaces while refining the AI model
+    selection experience. Significant work also went into hardening regional storage lifecycles and improving the responsiveness
+    of the core workspace UI.
+  released_changes: []
+  bug_fixes:
+  - text: A series of refinements to the Wikipedia mention interface resolved issues with input focus, caret positioning,
+      and article selection stability.
+    evidence:
+      commits:
+      - 7194858c9
+      - 7adc685cc
+      - cbd9703c7
+      - 744bbe3ba
+      - 830b49ad8
+      - 5d96171ef
+    release_status: dev_only
+  - text: The active chat sidebar highlight and state indicators were corrected to ensure consistent visual feedback during
+      navigation.
+    evidence:
+      commits:
+      - 36d9edefa
+      - c37c3bac3
+    release_status: dev_only
+  - text: Guest and unauthenticated user experiences were improved by stabilizing welcome card interactions and ensuring composer
+      state resets correctly on logout.
+    evidence:
+      commits:
+      - 0c6890950
+      - 5f45778a3
+      - b9564b4e8
+    release_status: dev_only
+  - text: The workspace header container was updated to be fully responsive across different screen sizes.
+    evidence:
+      commits:
+      - 1ed000f51
+    release_status: dev_only
+  - text: Security reminders now automatically dismiss after a set period to reduce UI clutter.
+    evidence:
+      commits:
+      - a17bb31de
+    release_status: dev_only
+  - text: A fix was implemented to repair missing chat indexes during application startup, preventing data synchronization
+      issues.
+    evidence:
+      commits:
+      - af4742106
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added explicit Wikipedia mentions to the web application and CLI, allowing for article resolution and
+      inline link rendering.
+    evidence:
+      commits:
+      - ffed9ad07
+      - f8e83eeb5
+      - 80ef580fd
+      - 156a005ea
+      - b64a97b34
+      - 195d00e09
+    release_status: dev_only
+  - text: The AI composer model picker was refined with improved navigation, better row alignment, and clearer separation
+      between model details and selection.
+    evidence:
+      commits:
+      - 495d50517
+      - 16ee11432
+      - 5e6613133
+      - e768f465e
+      - 56aae1bb5
+      - 90a93e169
+      - eb4bd8fc9
+      - 6b86dd203
+    release_status: dev_only
+  - text: Regional storage lifecycles were completed, including hardening for failover scenarios and optimized account export
+      job processing.
+    evidence:
+      commits:
+      - 6c69ce6b7
+      - 40ff20c5b
+      - f29e23d40
+    release_status: dev_only
+  internal_progress:
+  - text: Orchestration and session lifecycle management were hardened to improve reliability during concurrent operations
+      and worktree restoration.
+    evidence:
+      commits:
+      - ac55abc1f
+      - 2bae1c3f6
+      - bb72f3aca
+      - fdf5ea1cf
+    release_status: dev_only
+  - text: Extensive automated test coverage was added for Wikipedia mentions, map view embeds, and session revocation workflows.
+    evidence:
+      commits:
+      - 4cba91d17
+      - 809efe08c
+      - ee1507659
+      - 814295a7a
+      - 040179be9
+      - 37bf725b6
+      - a4d4ed742
+      - b1c5a5864
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Wikipedia Mentions and CLI Resolution
+      evidence:
+        commits:
+        - ffed9ad07
+        - f8e83eeb5
+        - 80ef580fd
+        - 156a005ea
+        - b64a97b34
+        - 195d00e09
+        - 460c5a9d6
+      reason: Wikipedia integration features are currently in development and have not yet reached the main release branch.
+    - text: AI Composer Model Picker Enhancements
+      evidence:
+        commits:
+        - 495d50517
+        - 16ee11432
+        - 5e6613133
+        - e768f465e
+        - 56aae1bb5
+        - 90a93e169
+        - eb4bd8fc9
+        - 6b86dd203
+      reason: Composer and model selection refinements are currently dev-only.
+    rationale: All user-facing features and improvements from this period are currently in the development stage and have
+      not been merged into the main branch for public release.
+  social_video_recommendations:
+  - idea: Demonstrate the new Wikipedia mention workflow, showing how users can search for and link articles directly within
+      the composer on both web and CLI.
+    priority: high
+    reason: This is a concrete, visual feature that expands the utility of the messaging interface.
+    evidence:
+      commits:
+      - ffed9ad07
+      - f8e83eeb5
+      - 80ef580fd
+  - idea: Showcase the refined AI model picker, highlighting the improved navigation, provider grouping, and capability badges.
+    priority: medium
+    reason: The UI refinements make model selection more intuitive and visually organized.
+    evidence:
+      commits:
+      - 495d50517
+      - 5e6613133
+      - 16ee11432
+  quality_notes:
+  - Extensive testing was performed on the Wikipedia mention contract and SDK coverage (460c5a9d6, 4cba91d17).
+  - Automated proofs were established for the session revocation flow to ensure visual and functional consistency (37bf725b6,
+    a4d4ed742).
+  validation_warnings: []
