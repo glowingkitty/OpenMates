@@ -1331,6 +1331,16 @@ def _source_root_commit(source_root: Path) -> str:
     """Resolve the source checkout's deployed dev commit for promotion pinning."""
 
     try:
+        fetch = subprocess.run(
+            ["git", "fetch", "origin", "dev:refs/remotes/origin/dev"],
+            cwd=source_root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        if fetch.returncode != 0:
+            return ""
         return subprocess.check_output(
             ["git", "-C", str(source_root), "rev-parse", "origin/dev"],
             stderr=subprocess.DEVNULL,
