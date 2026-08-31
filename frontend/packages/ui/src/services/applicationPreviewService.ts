@@ -143,8 +143,7 @@ export async function autoStartCreatedApplicationPreview(
   messageId: string,
   markdown: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
-  const applicationRefs = extractEmbedReferences(markdown).filter((ref) => ref.type === 'application' || ref.type === 'code-application');
-  const applicationEmbedId = applicationRefs.length ? applicationRefs[applicationRefs.length - 1].embed_id : undefined;
+  const applicationEmbedId = await resolveCreatedApplicationEmbedId(markdown);
   if (!applicationEmbedId) return undefined;
 
   const attemptKey = `${chatId}:${messageId}:${applicationEmbedId}`;
@@ -152,8 +151,6 @@ export async function autoStartCreatedApplicationPreview(
   autoStartAttempts.add(attemptKey);
 
   try {
-    const embedReady = await waitForApplicationEmbed(applicationEmbedId);
-    if (!embedReady) return undefined;
     return await startApplicationPreview(chatId, applicationEmbedId, {
       autoStarted: true,
       sourceMessageId: messageId,
@@ -162,6 +159,15 @@ export async function autoStartCreatedApplicationPreview(
     console.warn('[applicationPreviewService] Auto-start application preview failed:', error);
     return undefined;
   }
+}
+
+async function resolveCreatedApplicationEmbedId(markdown: string): Promise<string | undefined> {
+  const embedRefs = extractEmbedReferences(markdown);
+  for (let index = embedRefs.length - 1; index >= 0; index -= 1) {
+    const ref = embedRefs[index];
+    if (await waitForApplicationEmbed(ref.embed_id)) return ref.embed_id;
+  }
+  return undefined;
 }
 
 async function waitForApplicationEmbed(applicationEmbedId: string): Promise<boolean> {
