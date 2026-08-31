@@ -79,7 +79,10 @@ test('authenticated account loads its chat model selector without retry errors',
 	await expect(selectorMenu).toBeVisible();
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
 	await selectorMenu.getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
-	await expect(composer.getByTestId('composer-model-selector-label')).not.toHaveText('Auto select');
+	const selectedLabel = composer.getByTestId('composer-model-selector-label');
+	await expect(selectedLabel).not.toHaveText('Auto select');
+	const persistedModelLabel = await selectedLabel.textContent();
+	expect(persistedModelLabel).toBeTruthy();
 
 	const persistedChatId = await activeChat.getAttribute('data-current-chat-id');
 	expect(persistedChatId).toBeTruthy();
@@ -92,7 +95,8 @@ test('authenticated account loads its chat model selector without retry errors',
 	const restoredSelector = restoredComposer.getByTestId('composer-model-selector');
 	await expect(restoredSelector).toBeVisible({ timeout: 30000 });
 	await expect(restoredSelector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
-	await expect(restoredComposer.getByTestId('composer-model-selector-label')).not.toHaveText('Loading...');
+	const restoredLabel = restoredComposer.getByTestId('composer-model-selector-label');
+	await expect(restoredLabel).toHaveText(persistedModelLabel!);
 	await takeStepScreenshot(page, 'model-selector-restored');
 
 	const notifications = await page.evaluate(() => (window as any).__issue4NPP9Notifications as string[]);
@@ -100,4 +104,5 @@ test('authenticated account loads its chat model selector without retry errors',
 
 	await restoredSelector.click();
 	await restoredComposer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-auto').click();
+	await expect(restoredLabel).toHaveText('Auto select');
 });

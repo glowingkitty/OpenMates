@@ -268,6 +268,7 @@
     let modelSelectionChatId = $state<string | undefined>(undefined);
     let modelSelectionUserId = $state<string | null>(null);
     let pendingNewChatModelSelection = $state<{ selection: ChatModelSelection; draftChatId: string | null } | null>(null);
+    let modelSelectionRestoreGeneration = 0;
 
     function isModelSelectionUsable(selection: string): boolean {
         const profile = get(userProfile);
@@ -311,9 +312,9 @@
             userId: modelSelectionUserId,
             chatId: modelSelectionChatId
         }));
-        let cancelled = false;
 
         if (!userId) {
+            modelSelectionRestoreGeneration += 1;
             modelSelection = 'auto';
             modelSelectionUserId = null;
             modelSelectionChatId = chatId;
@@ -322,6 +323,7 @@
             return;
         }
         if (isIncognitoMode) {
+            modelSelectionRestoreGeneration += 1;
             const contextChanged = previousContext.userId !== userId || previousContext.chatId !== chatId;
             modelSelectionUserId = userId;
             modelSelectionChatId = chatId;
@@ -330,6 +332,7 @@
             return;
         }
         if (!chatId) {
+            modelSelectionRestoreGeneration += 1;
             modelSelectionUserId = userId;
             modelSelectionChatId = chatId;
             modelSelectionReady = true;
@@ -338,6 +341,7 @@
         }
         if (chatId === previousContext.chatId && userId === previousContext.userId) return;
 
+        const restoreGeneration = ++modelSelectionRestoreGeneration;
         modelSelectionUserId = userId;
         modelSelectionChatId = chatId;
         modelSelectionReady = false;
@@ -348,6 +352,7 @@
             void chatModelSelectionService
                 .select({ userId, chatId, selection: pendingSelection.selection })
                 .catch((error) => {
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     console.error('[MessageInput] Failed to persist new-chat model selection:', error);
                     notificationStore.error($text('common.try_again'));
                 });
@@ -357,24 +362,23 @@
                 .restore({ userId, chatId })
                 .then((selection) => recoverModelSelection('load', selection, userId, chatId))
                 .then((selection) => {
-                    if (!cancelled) modelSelection = selection;
+                    if (restoreGeneration === modelSelectionRestoreGeneration) modelSelection = selection;
                 })
                 .catch((error) => {
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     console.error('[MessageInput] Failed to restore chat model selection:', error);
                     notificationStore.error($text('common.try_again'));
                 })
                 .finally(() => {
-                    if (!cancelled) modelSelectionReady = true;
+                    if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
                 });
         }
-
-        return () => { cancelled = true; };
     });
     $effect(() => {
         const userId = $userProfile.user_id;
         if (!userId || isIncognitoMode) return;
         return registerChatModelSelectionSync(userId, (chatId, selection) => {
-            if (chatId === currentChatId) modelSelection = selection;
+            if ($userProfile.user_id === userId && chatId === currentChatId) modelSelection = selection;
         });
     });
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
@@ -5158,14 +5162,28 @@
                 : { selection, draftChatId: get(draftEditorUIState).currentChatId };
             return;
         }
+        const selectionChatId = currentChatId;
+        const selectionGeneration = modelSelectionRestoreGeneration;
 
         try {
-            modelSelection = await chatModelSelectionService.select({
+            const persistedSelection = await chatModelSelectionService.select({
                 userId,
-                chatId: currentChatId,
+                chatId: selectionChatId,
                 selection
             });
+            if (
+                selectionGeneration === modelSelectionRestoreGeneration &&
+                $userProfile.user_id === userId &&
+                currentChatId === selectionChatId
+            ) {
+                modelSelection = persistedSelection;
+            }
         } catch (error) {
+            if (
+                selectionGeneration !== modelSelectionRestoreGeneration ||
+                $userProfile.user_id !== userId ||
+                currentChatId !== selectionChatId
+            ) return;
             console.error('[MessageInput] Failed to persist chat model selection:', error);
             notificationStore.error($text('common.try_again'));
         }
