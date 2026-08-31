@@ -14,14 +14,27 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "daily_ai_cache_backfill.py"
+RUN_TESTS_PATH = ROOT / "scripts" / "run_tests.py"
 
 
 def load_module():
     spec = importlib.util.spec_from_file_location("daily_ai_cache_backfill_test", MODULE_PATH)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_run_tests_module():
+    spec = importlib.util.spec_from_file_location("daily_ai_run_tests", RUN_TESTS_PATH)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -67,6 +80,78 @@ def test_backfill_selects_one_deterministic_pending_spec():
     assert first == module.select_backfill_plan(entries, "2026-08-31")
     assert first.candidate_run_id.startswith("daily-cache-backfill-20260831-")
     assert module.select_backfill_plan([], "2026-08-31") is None
+
+
+@pytest.mark.parametrize(
+    ("environment", "dot_env", "deployment_result", "expected_detail"),
+    [
+        ("development", {}, (False, "web deployment is not Ready"), "web deployment is not Ready"),
+        (
+            "development",
+            {"OPENMATES_SKIP_VERCEL_WAIT": "true"},
+            (True, ""),
+            "automatic cache backfill cannot skip the Vercel deployment gate",
+        ),
+        (
+            "production",
+            {},
+            (True, ""),
+            "automatic cache backfill is only supported in development",
+        ),
+    ],
+)
+def test_automatic_backfill_waits_for_exact_web_deployment_before_dispatch(
+    tmp_path,
+    monkeypatch,
+    environment,
+    dot_env,
+    deployment_result,
+    expected_detail,
+):
+    run_tests = load_run_tests_module()
+    commit = "a" * 40
+    plan = SimpleNamespace(
+        spec="pending.spec.ts",
+        cache_group="pending",
+        candidate_run_id="daily-cache-backfill-20260831-pending",
+    )
+    runner = SimpleNamespace(git_sha=commit, dot_env=dot_env, environment=environment)
+    monkeypatch.setattr(run_tests.daily_ai_test_policy, "daily_backfill_plan", lambda _date: plan)
+    monkeypatch.setattr(
+        run_tests,
+        "_daily_cache_backfill_preflight",
+        lambda _git_sha, _date: {"status": "passed", "full_commit_sha": commit},
+    )
+    monkeypatch.setattr(
+        run_tests,
+        "_resolve_daily_cache_backfill_paths",
+        lambda _date: SimpleNamespace(candidate_root=tmp_path),
+    )
+    deployment_calls = []
+
+    def wait_for_deployment(deployed_commit, configured_env):
+        assert deployed_commit == commit
+        deployment_calls.append((deployed_commit, configured_env))
+        return deployment_result
+
+    monkeypatch.setattr(run_tests, "_wait_for_vercel_deployment", wait_for_deployment)
+
+    class ForbiddenClient:
+        def __init__(self, **_kwargs):
+            raise AssertionError("paid candidate dispatch must wait for the exact web deployment")
+
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", ForbiddenClient)
+
+    result = run_tests.TestOrchestrator._run_daily_cache_backfill(runner)
+
+    assert result == {
+        "status": "failed",
+        "spec": plan.spec,
+        "cache_group": plan.cache_group,
+        "detail": expected_detail,
+    }
+    expected_calls = [(commit, dot_env)] if environment == "development" and not dot_env else []
+    assert deployment_calls == expected_calls
 
 
 def test_receipts_fail_closed_for_private_fields_hash_misses_and_replay_spend():

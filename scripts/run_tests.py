@@ -7404,6 +7404,30 @@ class TestOrchestrator:
                 "cache_group": plan.cache_group,
                 "detail": str(preflight.get("detail") or "backfill preflight failed"),
             }
+        if self.environment != "development":
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": "automatic cache backfill is only supported in development",
+            }
+        if _get_env("OPENMATES_SKIP_VERCEL_WAIT", self.dot_env).lower() == "true":
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": "automatic cache backfill cannot skip the Vercel deployment gate",
+            }
+        deployment_ready, deployment_reason = _wait_for_vercel_deployment(
+            str(preflight["full_commit_sha"]), self.dot_env
+        )
+        if not deployment_ready:
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": deployment_reason or "Vercel deployment was not ready before cache backfill",
+            }
         paths = _resolve_daily_cache_backfill_paths(run_date)
         run_root = paths.candidate_root / plan.candidate_run_id
 
