@@ -368,3 +368,37 @@ def test_openmatescloud_repo_root_routes_tools_to_sibling_checkout() -> None:
         );
         """
     )
+
+
+def test_reviewer_loop_guard_requires_an_intervening_source_revision() -> None:
+    run_hook_assertion(
+        """
+        import { strict as assert } from 'node:assert';
+        import { OpenMatesHooks } from './.opencode/plugins/openmates-hooks.js';
+
+        const { reviewerSpawnDecisionForTest } = OpenMatesHooks.test;
+        assert.equal(
+          reviewerSpawnDecisionForTest({ agent: 'code-reviewer', generation: 4 }).decision,
+          'allow',
+        );
+        const duplicate = reviewerSpawnDecisionForTest({
+          agent: 'code-reviewer',
+          generation: 4,
+          lastReviewedGeneration: 4,
+        });
+        assert.equal(duplicate.decision, 'block');
+        assert.match(duplicate.message, /already has a completed code-reviewer pass/);
+        assert.equal(
+          reviewerSpawnDecisionForTest({
+            agent: 'code-reviewer',
+            generation: 5,
+            lastReviewedGeneration: 4,
+          }).decision,
+          'allow',
+        );
+        assert.equal(
+          reviewerSpawnDecisionForTest({ agent: 'explore', generation: 4, lastReviewedGeneration: 4 }).decision,
+          'allow',
+        );
+        """
+    )

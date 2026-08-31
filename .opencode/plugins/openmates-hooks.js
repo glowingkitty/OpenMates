@@ -1836,6 +1836,23 @@ function taskChildClassificationForTest(input, output) {
   return role === "unknown" ? null : { sessionID, parentID, role };
 }
 
+function reviewerSpawnDecisionForTest({ agent = "", generation = 0, lastReviewedGeneration } = {}) {
+  if (!REVIEWER_SUBAGENTS.has(String(agent))) {
+    return { decision: "allow", message: "task is not a reviewer" };
+  }
+  if (lastReviewedGeneration === generation) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates reviewer loop guard]",
+        "this source revision already has a completed code-reviewer pass.",
+        "address the existing findings or continue verification; spawn another reviewer only after a source edit creates a new revision.",
+      ),
+    };
+  }
+  return { decision: "allow", message: "source changed since the previous reviewer" };
+}
+
 function toolNameMatches(tool, expected) {
   return String(tool || "").toLowerCase() === expected.toLowerCase();
 }
@@ -2760,6 +2777,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const presenceStates = new Map();
   const notifierLiveSessions = new Set();
   const routingBlockCounts = new Map();
+  const sourceGenerations = new Map();
+  const reviewedGenerations = new Map();
   const readyContinuationSessions = new Set();
   // OpenCode emits session.idle while a synchronous prompt submission is
   // unwinding. Keep delivery single-flight per session even if an SDK or
@@ -3211,6 +3230,14 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
 
       if (TASK_TOOLS.has(tool)) {
+        const agent = String(toolInput(output?.args || input?.args).subagent_type || "");
+        const generation = sourceGenerations.get(routedOpenCodeSessionID) || 0;
+        const reviewDecision = reviewerSpawnDecisionForTest({
+          agent,
+          generation,
+          lastReviewedGeneration: reviewedGenerations.get(routedOpenCodeSessionID),
+        });
+        if (reviewDecision.decision === "block") throw new Error(reviewDecision.message);
         return;
       }
 
@@ -3245,6 +3272,12 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       const tool = input.tool || "";
       if (TASK_TOOLS.has(tool)) {
         await recordTaskChildRole(input, output);
+        const agent = String(toolInput(toolArgs(input, output)).subagent_type || "");
+        if (REVIEWER_SUBAGENTS.has(agent)) {
+          const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+          const topLevelSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+          reviewedGenerations.set(topLevelSessionID, sourceGenerations.get(topLevelSessionID) || 0);
+        }
         return;
       }
       if (BASH_TOOLS.has(tool)) {
@@ -3330,6 +3363,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         await runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
         await runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
+        sourceGenerations.set(
+          routedOpenCodeSessionID,
+          (sourceGenerations.get(routedOpenCodeSessionID) || 0) + 1,
+        );
         await editLease("release", files, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, [], true);
       }
@@ -3340,6 +3377,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 OpenMatesHooks.test = Object.freeze({
   childRoleFromAgent,
   childMutationDecisionForTest,
+  reviewerSpawnDecisionForTest,
   continuationSignalForTest,
   continuationSuppressedForTest,
   controlPlaneToolDecisionForTest,
