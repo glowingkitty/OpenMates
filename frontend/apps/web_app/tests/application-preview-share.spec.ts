@@ -77,7 +77,7 @@ test('shared recipient starts an isolated application preview session', async ({
 	await expect(shareUrlBlock).toBeVisible({ timeout: 30_000 });
 	await expect(shareUrlBlock).toHaveCSS('user-select', 'text');
 	const shareUrl = (await shareUrlBlock.innerText()).trim();
-	expect(shareUrl).toMatch(/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/);
+	expect(shareUrl).toMatch(/\/s\/[A-Za-z0-9]{8}#[A-Za-z0-9]{22}$/);
 
 	const recipientContext = await browser.newContext();
 	const recipientPage = await recipientContext.newPage();
