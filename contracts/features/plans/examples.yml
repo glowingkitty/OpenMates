@@ -30,8 +30,11 @@ plan_contract_links:
     input: {plan: organize_birthday, applicable_contracts: []}
     expect: {valid: true, contract_link_required: false}
   - id: coding-plan-finds-existing-contract
-    input: {plan: fix_plan_rename, applicable_contract: feature.plans@1, rules: [plans.lifecycle.visible]}
+    input: {plan: fix_plan_rename, applicable_contract: feature.plans@1, requirements: [plans.lifecycle.visible]}
     expect: {contract_link_required: true, contract_text_copied: false}
+  - id: governed-plan-references-flow-and-check
+    input: {plan: implement_team_creation, contract_id: contract-1, contract_revision_id: contract-rev-4, flow_id: create-team, required_check_revision_id: check-rev-2}
+    expect: {flow_definition_copied_into_plan: false, exact_flow_reference_present: true, same_check_reference_used_for_completion: true}
   - id: feature-changes-product-truth
     input: {plan: add_plan_approval_bypass, changes_rule: plans.approval.revision-bound}
     expect: {contract_amendment_required: true, ordinary_plan_approval_sufficient: false}

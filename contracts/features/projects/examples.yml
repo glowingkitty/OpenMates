@@ -28,6 +28,17 @@ project_item_links:
     input: {project: project-1, operation: unlink, target: plan-1}
     expect: {project_link_deleted: true, plan_deleted: false}
 
+project_surface_catalog:
+  - id: several-contracts-reuse-project-surfaces
+    input: {project: openmates, surfaces: [rest_api, cli, sdk_npm, sdk_pip, web, apple], contracts: [teams, plans, projects]}
+    expect: {surface_catalogs: 1, copied_surface_definitions_per_contract: false, stable_surface_refs: true}
+  - id: deprecated-surface-remains-resolvable
+    input: {project: openmates, surface_catalog_revision: surface-rev-3, surface_id: legacy_web, status: deprecated, approved_contract_revision: contract-rev-3}
+    expect: {historical_label_visible: true, new_requirement_selection_default: false, approved_revision_broken: false}
+  - id: linked-contract-keeps-home-catalog
+    input: {contract_revision: contract-rev-4, home_project: openmates, additionally_linked_project: customer-rollout}
+    expect: {surface_catalog_source: openmates, surface_meaning_reinterpreted: false}
+
 project_work_chain:
   - id: contract-to-proof
     input:

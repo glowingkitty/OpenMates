@@ -9,6 +9,30 @@ check_reuse:
     input: {check: plans-web-lifecycle, current_revision: 3, change: add_mobile_assertion}
     expect: {new_revision: 4, revision_3_unchanged: true, old_runs_rewritten: false}
 
+grouped_check_sources:
+  - id: one-flow-proven-across-platforms
+    input:
+      check: user-can-create-team
+      covered_flow: {contract_id: contract-1, contract_revision_id: contract-rev-4, flow_id: create-team}
+      sources:
+        - {kind: e2e, surface: web, source: teams-flow.spec.ts, role: required}
+        - {kind: e2e, surface: apple, source: TeamsFlowUITests.swift, role: required}
+        - {kind: unit_suite, source: test_team_key_generation.py, test_count: 42, role: supporting}
+    expect: {check_records: 1, required_platform_runs_distinct: true, unit_test_check_records: 0, combined_status_visible: true}
+  - id: grouped-unit-check-without-e2e
+    input:
+      check: team-keys-are-isolated
+      sources:
+        - {kind: unit_suite, source: test_team_keys.py, test_count: 38, role: required}
+        - {kind: deterministic_audit, source: audit_team_key_boundaries.py, role: required}
+    expect: {e2e_required: false, check_materialized: true, all_required_sources_gate_pass: true}
+  - id: required-source-failure-blocks-aggregate-pass
+    input: {check: user-can-create-team, source_results: [{source: web-e2e, role: required, status: passed}, {source: apple-e2e, role: required, status: failed}, {source: unit-suite, role: supporting, status: passed}]}
+    expect: {aggregate_status: failed, passing_web_result_retained: true, failed_apple_result_visible: true}
+  - id: source-opens-stable-code-location
+    input: {source_ref: {project_source_id: opencode-dev, path: backend/tests/test_teams.py, test_selector: test_unique_team_key, revision: git-abc}}
+    expect: {raw_path_only: false, exact_revision_openable: true, code_embed_optional: true}
+
 test_catalog:
   - id: index-large-repository
     input: {repository_test_count: 5000}

@@ -16062,7 +16062,15 @@ assertions:
     current_direct_proof: false
   checks.definition.reusable-revisioned:
     contract: feature.checks@1
-    fingerprint: dc6560a6ba3ee334348ad30f5e31c977e4a0e3453df885fd957f6d235fb7f423
+    fingerprint: 404da0b56395b1ba44efd2ee105753fe399965ceb2a0c12381d113e6a28075db
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  checks.sources.grouped-multi-surface:
+    contract: feature.checks@1
+    fingerprint: 4592ba8abd4137a5be56eb8bcb86cc7118dedc6995b02fabd9b8c4f7c9420ce3
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16070,7 +16078,7 @@ assertions:
     current_direct_proof: false
   checks.catalog.lazy-materialization:
     contract: feature.checks@1
-    fingerprint: ec418e1beff80b59f3f395d37404cd59256f3dd16bdd2cefa6b94a291e389967
+    fingerprint: 7d23c321a802c97484809cf21bde7ca81e218a466e5a1498683655627f91c46a
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16078,7 +16086,7 @@ assertions:
     current_direct_proof: false
   checks.runs.revision-bound:
     contract: feature.checks@1
-    fingerprint: 64288cdc63f4177b2fb83dc99b3ef007edeca77518aee1ff9f79f16a12fd3f31
+    fingerprint: a8b081252165e05a7015f03a66dae28b5867cf6047b2693b969c30a64fb2a26f
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16094,7 +16102,7 @@ assertions:
     current_direct_proof: false
   checks.ai.structured-bounded:
     contract: feature.checks@1
-    fingerprint: a4e1f7a851404d75c4bab7846c9cab011f153a7ef0f87cff2fe05cc16b76aeb5
+    fingerprint: 31312fad21ca02460e468d72ad317792934cceb2000937144a4b679140201ea3
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16102,7 +16110,7 @@ assertions:
     current_direct_proof: false
   checks.human.explicit-confirmation:
     contract: feature.checks@1
-    fingerprint: 8f5a1a9ab30c567112d6b5bad305dd371b071359e2aab3e9c3ee753d800557d6
+    fingerprint: ad5cf3bc5c9de4603a63bea986cd9b690ffc3595635d7e39f6615c191f428fbb
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16118,7 +16126,7 @@ assertions:
     current_direct_proof: false
   checks.project.encrypted-embed:
     contract: feature.checks@1
-    fingerprint: b3a350e45a91eb489e7b0d381d3f6054f613ff63044534c0b79b78a0d66eedd5
+    fingerprint: 49f83bc74e97eb90880959872bd5ded7e8745e552bed1c903970e2d730b5a018
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16126,7 +16134,7 @@ assertions:
     current_direct_proof: false
   checks.surface.semantic-parity:
     contract: feature.checks@1
-    fingerprint: 989d8fe25e09d5309b50a6c8b6ac5b5b0304f911fe3c29cbca37c648f8d80de0
+    fingerprint: 6f62a13668657fbf6a0c60dffd0b7c587a121e312f78d6bba1af009898ca240b
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16134,7 +16142,7 @@ assertions:
     current_direct_proof: false
   contracts.definition.durable-truth:
     contract: feature.contracts@1
-    fingerprint: 3196bf97df40278ad676beb3606a567149f474908ca08bb75faf898962ce39b9
+    fingerprint: 868c271c1ffd86f1fb63ed863ad55cb42e8c7fe1c1db2df875ecfb1faa003baf
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16142,7 +16150,7 @@ assertions:
     current_direct_proof: false
   contracts.revision.exact-approval:
     contract: feature.contracts@1
-    fingerprint: ac6bc3a964cd4cd2979220f10fc603661325cfccdb2e6b9d7bb5f8836f611d38
+    fingerprint: 171fa9ae69c23977a47242356720e304e69396fbd660b514a561269d87623deb
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16158,7 +16166,23 @@ assertions:
     current_direct_proof: false
   contracts.ui.structured-interactions:
     contract: feature.contracts@1
-    fingerprint: f35ad82f50f382e1346149cdfe0fbbe4ab8972a7805fe415fd4d96278701218a
+    fingerprint: d329ad548dfec7a65b18bda6905bb11ab59990cf7c7349508421f02ca86e1958
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.flows.rich-content-inline:
+    contract: feature.contracts@1
+    fingerprint: 6c268c705462e931154a396b6224178aa666864106228edb5cebb1e6f9f17ba4
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.models.global-contextual:
+    contract: feature.contracts@1
+    fingerprint: 9ae53354efe973bf6bf9d6414d9e76975b608b2e7b34c3e330bf348dce579b1d
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16166,7 +16190,7 @@ assertions:
     current_direct_proof: false
   contracts.ui.human-readable-default:
     contract: feature.contracts@1
-    fingerprint: 9d533068d6957e92ca85a63321b2886a59b34a575ebc16f9bbac585dbd2a1144
+    fingerprint: a701e34a1ac9d916e6473d74a25ac1386ef49f0e7798321234f35cb0772baf47
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16174,7 +16198,7 @@ assertions:
     current_direct_proof: false
   contracts.diagrams.tool-selection:
     contract: feature.contracts@1
-    fingerprint: 6f76f18b72c5dcf5caa4b03eeb7ca744aab72d73d602ce9b9b46330fcf973d0f
+    fingerprint: 81a08e63ba043f4f243e2523e374d7c8ebb018334b9283da24cb3269344f1a26
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16182,7 +16206,7 @@ assertions:
     current_direct_proof: false
   contracts.diagrams.source-and-preview:
     contract: feature.contracts@1
-    fingerprint: c0b2772baa747440fa516ce90997d0402a9f1ad8afef6d999bff4090064bd7f9
+    fingerprint: 78643f0df45055ac8d925ffaa36bc38f619925326384503efb438358a0a54917
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16190,7 +16214,7 @@ assertions:
     current_direct_proof: false
   contracts.diagrams.revision-pinned-editing:
     contract: feature.contracts@1
-    fingerprint: b2696ea3df79c6e7757bbb92b7457f9b4904111999635f3c487013756ec745b6
+    fingerprint: f2b7858edcc0323ba5e8fe89ba0a4501d3a7379b70a5ac9cbe1825246a427f0d
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16198,7 +16222,7 @@ assertions:
     current_direct_proof: false
   contracts.diagrams.private-rendering:
     contract: feature.contracts@1
-    fingerprint: ed859969803e616c195873f177b9766425a1cc57d9ed832a0206db5c4701987f
+    fingerprint: a8c71d59ba24f8ebaf8aa510cfebbc4a3afbf70f4e8deb6ab0c61602fabd5bee
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16206,7 +16230,7 @@ assertions:
     current_direct_proof: false
   contracts.project.encrypted-embed:
     contract: feature.contracts@1
-    fingerprint: 066591bca8a546ee1ed613b7ca5aaaf0925b41cefb32f72a061c48da59f8c7ec
+    fingerprint: 7165ebde3c4a865fb28c2f6dbca60605f533ce7051af4232c2e8f582e99edc96
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16214,7 +16238,7 @@ assertions:
     current_direct_proof: false
   contracts.links.revision-traceable:
     contract: feature.contracts@1
-    fingerprint: 6782dd23a12712fb9a31f9ead22ee557c6d72e9aae20fe5e39ce1087d2fc97d6
+    fingerprint: 5447e0d4c96cf351b0c297605329b86cd119557cc0d272e84c045cf553b5e313
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16222,7 +16246,7 @@ assertions:
     current_direct_proof: false
   contracts.surface.semantic-parity:
     contract: feature.contracts@1
-    fingerprint: a697d0dedcd0bf742cead37f46bdc85dab96d45529222c4e8c2caa7d6b054042
+    fingerprint: e1cb6b17b38a128744c989e8385ccd20ec3764b1ef0665e17aaf864112aad1dc
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -18111,7 +18135,7 @@ assertions:
     current_direct_proof: false
   plans.content.client-encrypted:
     contract: feature.plans@1
-    fingerprint: 21861e75d6827ebd0eaa2b4c9ccf42f38a77afd127f81bb716d7ffdc361b1496
+    fingerprint: 727f793e6b304650f90f15b697dacadb75de1e7198d61ebee12ba050689af82b
     direct_tests:
     - &id2026
       path: backend/tests/test_user_plans_api.py
@@ -18396,7 +18420,7 @@ assertions:
     current_direct_proof: false
   plans.contract-links.contextual:
     contract: feature.plans@1
-    fingerprint: 089a5efd6e6ec9c0d13e63521a8e7317583d7baf505406df2096386773e27dea
+    fingerprint: 383cead5fc4a31d517bd30d13c9643252dbef3b6b950d4e85586d15018418c77
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -18799,7 +18823,7 @@ assertions:
     current_direct_proof: false
   plans.ui.edit-approve-resume:
     contract: feature.plans@1
-    fingerprint: 48603484da51e01de88a481ac5d0334e5853f88b54b62c9c98eccd943b5a4049
+    fingerprint: ef87d8f0740b36c026051428b84e6dd08488eb0babb256b5f31a04355da90cba
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -18807,7 +18831,7 @@ assertions:
     current_direct_proof: false
   plans.surface.semantic-parity:
     contract: feature.plans@1
-    fingerprint: a6b5e9abadaf6ce805128927f291bfcccd57e6a679a32c258f4177d0429a5c86
+    fingerprint: 504aed049475493d3947b22faad912fd551e616ff7c010a2079864b5c0665470
     direct_tests:
     - &id2097
       path: backend/tests/test_user_plans_route_detail.py
@@ -19166,6 +19190,14 @@ assertions:
     tests: []
     surfaces: {}
     current_direct_proof: false
+  projects.surfaces.catalog-reused:
+    contract: feature.projects@1
+    fingerprint: 80c65baba5ff9e58a98e095281a7afa99fa76320c96ae0e5fce01f52e29494e1
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   projects.checks.lazy-materialization:
     contract: feature.projects@1
     fingerprint: 7b5bf4b688a87c837007495b6cef0ec11a393f33cd2b32fd3420359f7d28a097
@@ -19192,7 +19224,7 @@ assertions:
     current_direct_proof: false
   projects.surface.semantic-parity:
     contract: feature.projects@1
-    fingerprint: 0cc1ccce7429ff4d2bc3232407873816819ffe993424899c9d8cd92c956367fe
+    fingerprint: 332be064620fcc21029fc6c34cb07e7e359acfce21a5ae92ab794aeeea809d3f
     direct_tests:
     - &id2135
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts

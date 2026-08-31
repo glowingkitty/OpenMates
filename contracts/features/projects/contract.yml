@@ -18,6 +18,7 @@ scope:
   includes:
     - Personal or Team Project creation, listing, detail, update, archive, restore, delete, history, and exact destructive confirmation.
     - Project folders and encrypted links to chats, embeds, uploads, workflows, Contracts, Plans, Tasks, and materialized Checks.
+    - One encrypted Project Surface Catalog with stable definitions such as REST API, CLI, npm SDK, pip SDK, web, Apple, or custom delivery surfaces, reused by every Contract and Check in that Project.
     - File-like preview cards and responsive fullscreen detail routing for linked object types.
     - Object-owned lifecycle: Projects organize links but do not copy or own Contract approval, Plan execution, Task status, or Check results.
     - Project key wrappers, encrypted item ids/metadata, encrypted Project associations, and explicit Personal/Team context.
@@ -77,6 +78,27 @@ models:
     responsive_surface: {type: embed_style_detail_surface, required: true}
     object_lifecycle_owner: {type: enum, values: [contract, plan, task, check, chat, embed, workflow], required: true}
 
+  ProjectSurfaceCatalog:
+    catalog_id: {type: stable_id, required: true}
+    project_id_hash: {type: sha256_hex, required: true}
+    current_revision_id: {type: stable_id, required: true}
+
+  ProjectSurfaceCatalogRevision:
+    revision_id: {type: stable_id, required: true}
+    catalog_id: {type: stable_id, required: true, constraints: {must_reference_parent_catalog: true}}
+    revision_number: {type: integer, required: true, constraints: {monotonic: true}}
+    content_hash: {type: sha256_hex, required: true}
+    encrypted_surface_definitions: {type: project_ciphertext, required: true}
+    constraints: {type: immutable_revision, required: true, constraints: {immutable: true, catalog_project_binding_preserved: true}}
+
+  ProjectSurfaceDefinition:
+    surface_id: {type: stable_semantic_id, required: true}
+    kind: {type: enum, values: [api, cli, sdk, web, native, physical, channel, custom], required: true}
+    parent_surface_id: {type: stable_semantic_id_or_null, nullable: true}
+    encrypted_label: {type: project_ciphertext, required: true}
+    status: {type: enum, values: [active, deferred, deprecated], required: true}
+    position: {type: integer, required: true}
+
 assertions:
   - id: projects.access.explicit-context
     type: security
@@ -102,6 +124,10 @@ assertions:
     type: behavior
     must: Projects can organize Contracts, Plans, Tasks, and materialized Checks together while each linked object retains its own canonical revision, lifecycle, permissions, and history.
     depends_on: [models.ProjectItemLink.item_type, models.ProjectItemPresentation, examples.project_work_chain]
+  - id: projects.surfaces.catalog-reused
+    type: invariant
+    must: A Project owns one encrypted versioned Surface Catalog with stable ids that Contracts, Requirements, flows, and Checks reference without copying definitions; approved revisions retain historical labels, deprecated surfaces remain resolvable, and a Contract linked into another Project keeps its home Project catalog semantics.
+    depends_on: [models.ProjectSurfaceCatalog, models.ProjectSurfaceCatalogRevision, models.ProjectSurfaceDefinition, examples.project_surface_catalog]
   - id: projects.checks.lazy-materialization
     type: invariant
     must: Test catalog entries do not become Project items automatically; only explicitly created or promoted Checks can be linked and rendered in a Project.
@@ -163,4 +189,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [project_contexts, project_key_wrappers, project_item_links, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]
+  required_groups: [project_contexts, project_key_wrappers, project_item_links, project_surface_catalog, project_work_chain, project_check_catalog, project_item_presentation, project_uploads, project_surface_parity]

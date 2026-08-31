@@ -3,11 +3,11 @@ contract: feature.contracts@1
 
 contract_boundaries:
   - id: contract-is-not-a-plan
-    input: {record: feature.teams, contains: [purpose, rules, flows, surfaces]}
+    input: {record: feature.teams, contains: [outcome, requirements, flows, project_surface_refs]}
     expect: {tasks: absent, execution_progress: absent, check_run_logs: absent}
   - id: plan-references-contract
-    input: {plan: add_team_invites, contract_rule: teams.invites.fragment-key-web-flow}
-    expect: {rule_text_copied_into_plan: false, exact_rule_reference_present: true}
+    input: {plan: add_team_invites, contract_requirement: teams.invites.fragment-key-web-flow}
+    expect: {requirement_text_copied_into_plan: false, exact_requirement_reference_present: true}
 
 contract_revisions:
   - id: approve-exact-revision
@@ -40,12 +40,38 @@ contract_ui_requirements:
   - id: ui-with-figma
     input: {same_requirements_as: ui-without-artboard, design_reference: 'figma://<PLACEHOLDER>/frame/<FRAME_ID>'}
     expect: {logical_requirements_unchanged: true, visual_reference_available: true}
+  - id: project-surfaces-resolve-per-requirement
+    input: {home_project: openmates, project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web, apple], requirement: teams.membership.role-gated}
+    expect: {surface_definitions_copied_into_contract: false, resolved_surfaces_visible_with_requirement: true, standalone_surfaces_chapter_required: false}
+
+contract_flows:
+  - id: rich-flow-with-ordinary-embeds
+    input:
+      flow_id: create-team
+      kind: user_flow
+      rich_content: [text_steps, image_embed_ref, diagram_embed_ref, text_outcome]
+      checks: [team-create-web, team-create-apple]
+    expect: {independent_flow_record_created: false, nested_fullscreen_available: true, share_action_available: false, referenced_embeds_open_fullscreen: true}
+  - id: edge-case-reuses-flow-renderer
+    input: {flow_id: max-team-limit, kind: edge_case, parent_flow_id: create-team, rich_content: [text, mind_map_embed_ref]}
+    expect: {scenario_record_created: false, same_renderer_as_user_flow: true, parent_flow_visible: true}
+  - id: approved-flow-pins-embedded-content
+    input: {contract_revision: contract-rev-4, flow_id: create-team, referenced_embed_id: wireframe-1, referenced_embed_version: 3}
+    expect: {later_embed_version_changes_contract_rev_4: false, contract_rev_4_opens_embed_version_3: true}
+
+contract_model_placement:
+  - id: global-model-used-in-several-chapters
+    input: {model_definition: TeamMembership, chapters: [team_creation, invitations, roles]}
+    expect: {canonical_model_definitions: 1, contextual_placements: 3, copied_model_definitions: 0}
+  - id: stable-fastapi-boundary-is-model
+    input: {model_kind: api_request, public_boundary: true, implementation_helper_signature: false}
+    expect: {contract_model_allowed: true, private_helper_arguments_required: false}
 
 contract_human_presentation:
   - id: readable-contract-default
     input: {contract: feature.teams, revision: 4, viewer: product_user, viewport: laptop}
     expect:
-      sections: [overview, purpose, scope, actors_and_concepts, rules, user_flows, diagrams, surfaces, relationships, coverage, history]
+      sections: [outcome, scope_and_boundaries, custom_capability_chapters, requirements, user_flows, edge_cases, relevant_models, checks, history]
       canonical_settings_headings: true
       readable_text: true
       raw_yaml_visible_by_default: false
@@ -63,7 +89,7 @@ contract_diagrams:
     expect: {source_format: mermaid, ordered_interactions: true, explicit_alternatives: true}
   - id: ui-flow-selects-drawio
     input: {purpose: ui_flow, states: [idle, preparing, playing, error], includes_wireframes: true}
-    expect: {source_format: drawio, screen_state_metadata: true, linked_rule_ids: [SPEAK-01, SPEAK-02, SPEAK-03, SPEAK-04]}
+    expect: {source_format: drawio, screen_state_metadata: true, linked_requirement_ids: [SPEAK-01, SPEAK-02, SPEAK-03, SPEAK-04]}
   - id: high-fidelity-ui-stays-linked
     input: {purpose: exact_visual_reference, source: 'figma://<PLACEHOLDER>/frame/<FRAME_ID>'}
     expect: {diagram_source_replacement: false, design_reference_linked: true}
@@ -89,11 +115,11 @@ contract_project_embed:
     expect: {fullscreen_overlay: true, all_primary_actions_reachable: true, horizontal_overflow: false}
 
 contract_links:
-  - id: check-links-rule-and-revision
-    input: {check: teams-viewer-read-only, contract: feature.teams, revision: 4, rule: teams.membership.role-gated}
-    expect: {stale_when_rule_changes: true, copied_rule_text_required: false}
-  - id: documentation-links-rule
-    input: {guide: teams-user-guide, rule: teams.context.full-switch-local}
+  - id: check-links-requirement-and-revision
+    input: {check: teams-viewer-read-only, contract: feature.teams, revision: 4, requirement: teams.membership.role-gated}
+    expect: {stale_when_requirement_changes: true, copied_requirement_text_required: false}
+  - id: documentation-links-requirement
+    input: {guide: teams-user-guide, requirement: teams.context.full-switch-local}
     expect: {claim_traceable: true, tutorial_prose_owned_by_contract: false}
 
 contract_surface_parity:

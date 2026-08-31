@@ -17,7 +17,7 @@ purpose:
 scope:
   includes:
     - Draft creation after bounded research and clarification for bug fixes, features, and non-code projects.
-    - Goal, expected and actual behavior when relevant, scope, user flows, assumptions, success criteria, Tasks, Checks, decisions, risks, references, context, activity, and continuation policy.
+    - Goal, expected and actual behavior when relevant, scope, Contract flow references, assumptions, success criteria, Tasks, Checks, decisions, risks, references, context, activity, and continuation policy.
     - Optional Contract links for ordinary user Plans and required Contract discovery/linking for governed implementation work when a matching Contract exists.
     - Exact revision approval through a stable Plan URL, browser editing, undo, save-and-approve, and automatic waiting-agent continuation.
     - Separate approval and execution state so approval remains understandable throughout assumption checking, execution, and reapproval.
@@ -25,9 +25,10 @@ scope:
     - Required assumption gates, Success Criteria coverage, reusable Check links, failed-Check follow-up Tasks, completion blockers, and revision-bound evidence summaries.
     - Client-encrypted content, contextual key wrappers, Project/chat links, short-lived active execution context, and REST/CLI/SDK/web parity.
   excludes:
-    - Copying complete Contract rules, user flows, or models into a Plan when exact references are available.
+    - Copying complete Contract Requirements, user flows, or models into a Plan when exact references are available.
     - Recursive subtasks, a second Plan-step execution engine, or embedded task status owned by the Plan.
     - Owning reusable Check definitions, Check Run history, or raw test artifacts inside Plan records.
+    - Owning canonical product user-flow or edge-case definitions when a governing Contract exists; Plans reference exact Contract flow ids and the reusable Checks that must pass.
     - Reapproval for non-material implementation detail, Task splitting, equivalent refactoring, stronger proof, or follow-up debugging within approved scope.
     - Automatic production, payment, destructive, credential, or external-account authority from ordinary Plan approval.
 
@@ -36,7 +37,7 @@ relationships:
   contract_link_policy: >
     Contract linking is optional for general user Plans. Agents implementing a
     governed product or Project must search for applicable Contracts and link
-    exact revisions/rules when found; a new or amended Contract is required when
+    exact revisions, Requirements, and flows when found; a new or amended Contract is required when
     the Plan intentionally changes durable product truth.
 
 actors:
@@ -72,7 +73,6 @@ models:
     encrypted_goal: {type: client_ciphertext, required: true}
     encrypted_scope_in: {type: client_ciphertext_or_null, nullable: true}
     encrypted_scope_out: {type: client_ciphertext_or_null, nullable: true}
-    encrypted_user_flows: {type: encrypted_json_array, nullable: true, constraints: {flow_shape: "flow_id,title,actor?,steps[step_id,text,references?],expected_outcome,linked_task_ids?,linked_criterion_ids?"}}
     encrypted_open_questions: {type: client_ciphertext_or_null, nullable: true}
     encrypted_decisions: {type: client_ciphertext_or_null, nullable: true}
     encrypted_risks: {type: client_ciphertext_or_null, nullable: true}
@@ -80,7 +80,8 @@ models:
   PlanContractLink:
     contract_id: {type: semantic_contract_id, required: true, constraints: {format_example: feature.plans}}
     contract_revision: {type: exact_contract_version_or_hash, required: true, constraints: {immutable: true}}
-    rule_ids: {type: stable_id_list, nullable: true}
+    requirement_ids: {type: stable_id_list, nullable: true}
+    flow_ids: {type: stable_id_list, nullable: true, constraints: {references_contract_owned_user_flows_or_edge_cases: true}}
     relation: {type: enum, values: [implements, restores, changes, depends_on], required: true}
 
   PlanAssumption:
@@ -160,7 +161,7 @@ assertions:
     depends_on: [models.PlanRecord, models.PlanRevision, examples.plan_approval]
   - id: plans.contract-links.contextual
     type: behavior
-    must: General user Plans may exist without a Contract, but governed implementation work must discover and link applicable Contract revisions/rules when present, and intentional durable behavior changes require an approved Contract amendment rather than copied Plan text.
+    must: General user Plans may exist without a Contract, but governed implementation work must discover and link applicable Contract revisions, Requirements, user flows, and edge cases when present; Plans reference the same reusable Checks required by that Contract, and intentional durable behavior changes require an approved Contract amendment rather than copied Plan text.
     depends_on: [models.PlanContractLink, examples.plan_contract_links]
   - id: plans.tasks.only-execution-units
     type: invariant
@@ -225,7 +226,7 @@ surfaces:
             elements: [title, approval_state, execution_state, progress, current_task, blocked_summary]
             interactions: [open_fullscreen, open_current_task]
           - id: plans.gui.fullscreen-editor
-            elements: [header, goal, contract_links, scope, user_flows, assumptions, success_criteria, tasks, checks, decisions, risks, references, activity, approve_action]
+            elements: [header, goal, contract_links, referenced_contract_flows, scope, assumptions, success_criteria, tasks, checks, decisions, risks, references, activity, approve_action]
             interactions: [edit_sections, undo_unsaved_changes, approve_plan, save_and_approve, request_more_refinement, open_contract, open_task, open_check]
             states: [draft_unchanged, draft_edited, saving, awaiting_approval, approved, reapproval_required, executing, running_checks, blocked, completed, error]
             accessibility: [semantic_section_headings, keyboard_editing, announced_unsaved_state, announced_approval_revision, status_not_color_only]

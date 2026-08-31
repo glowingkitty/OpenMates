@@ -5,30 +5,32 @@ status: draft
 title: Contracts
 summary: >
   Contracts are versioned, approval-bound definitions of durable product truth.
-  They describe capability rules, domain states, user flows, and equivalent
+  They describe capability requirements, domain states, user flows, and equivalent
   behavior across interfaces without becoming implementation plans or test logs.
 
 purpose:
   outcomes:
     - Give users and agents one durable source for what a capability must do.
-    - Make UI, API, CLI, SDK, privacy, and accessibility obligations traceable to stable rules.
+    - Make UI, API, CLI, SDK, privacy, and accessibility obligations traceable to stable Requirements backed by canonical assertion ids.
     - Let Projects display Contracts as encrypted, editable file-like embeds with reviewable revisions.
     - Present Contract truth as a readable human document with visual diagrams instead of requiring readers to understand raw YAML or diagram source.
 
 scope:
   includes:
-    - Contract identity, purpose, scope, actors, concepts, states, models, stable rules, user-flow examples, surface requirements, relationships, revisions, and approvals.
+    - Contract identity, outcome, scope, global models, stable requirements, rich-content user flows and edge cases, Project-defined surface applicability, relationships, revisions, and approvals.
     - Capability-first composition with optional links to independently reusable or independently versioned Contracts.
     - Structured GUI requirements for elements, interactions, states, accessibility, responsive behavior, and optional Figma or Penpot references.
-    - Human-readable Contract pages composed from canonical settings headings, explanatory text, status, diagrams, coverage, and history sections.
+    - Human-readable Contract pages composed from custom capability chapters, typed semantic blocks, explanatory text, embedded media, coverage, and history.
     - Version-pinned diagram embeds that retain encrypted editable source and a source-matched encrypted rendered preview.
     - A default diagram-tool policy for architecture, runtime behavior, state, data, UI-flow, wireframe, and design-reference views.
     - Project-linked Contract preview and fullscreen embed experiences with draft editing, revision comparison, approval, coverage, and history.
-    - Links from Plans, Checks, documentation, implementation sources, and other Contracts to exact Contract revisions or rule ids.
+    - Links from Plans, Checks, documentation, implementation sources, and other Contracts to exact Contract revisions, requirement ids, or flow ids.
     - Client-encrypted private Contract content and minimal server-visible identity, revision, approval, routing, and relationship metadata.
   excludes:
     - Implementation Tasks, execution scheduling, Check Run output, and mutable work progress.
-    - Requiring a separate Contract for every screen, component, user-flow step, or visual state.
+    - Requiring a separate Contract or independently stored embed for every screen, component, user flow, edge case, step, or visual state.
+    - A separate Scenario model in V1; edge cases use the same rich-content flow representation and may identify a parent user flow.
+    - Requiring a standalone Diagrams chapter when diagrams, images, mind maps, and other embeds are clearer in their relevant outcome, chapter, model, flow, or edge-case content.
     - Treating Figma, Penpot, source code, tests, or user guides as replacements for approved product truth.
     - Treating a rendered diagram image as the only durable copy or as a replacement for editable diagram source.
     - Showing raw Contract YAML, encrypted payloads, diagram source, or implementation metadata as the default reading experience.
@@ -77,9 +79,9 @@ actors:
   - id: contract_author
     role: Creates and refines a draft Contract revision.
   - id: contract_approver
-    role: Approves an exact immutable revision after reviewing its material rules.
+    role: Approves an exact immutable revision after reviewing its material Requirements.
   - id: implementer
-    role: Uses approved rules and surface requirements while executing a linked Plan.
+    role: Uses approved Requirements, flows, and surface applicability while executing a linked Plan.
   - id: product_user
     role: Reads understandable behavior and flow descriptions without needing source code or YAML knowledge.
 
@@ -88,6 +90,7 @@ models:
     contract_id: {type: stable_id, required: true}
     current_revision_id: {type: stable_id, required: true}
     status: {type: enum, values: [draft, approved, superseded, archived], required: true}
+    home_project_hash: {type: sha256_hex, required: true}
     linked_project_hashes: {type: hashed_id_list, nullable: true}
     encrypted_title: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
     encrypted_summary: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
@@ -96,20 +99,18 @@ models:
     revision_id: {type: stable_id, required: true}
     revision_number: {type: integer, required: true, constraints: {monotonic: true}}
     content_hash: {type: sha256_hex, required: true}
+    project_surface_catalog_revision_id: {type: stable_id, required: true}
     approval_state: {type: enum, values: [draft, approved, rejected, superseded], required: true}
     supersedes_revision_id: {type: stable_id_or_null, nullable: true}
     encrypted_contract_document: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
 
-  ContractRule:
-    rule_id: {type: stable_semantic_id, required: true}
+  ContractRequirement:
+    requirement_id: {type: stable_semantic_id, required: true, constraints: {canonical_source: assertions_id}}
     category: {type: enum, values: [behavior, invariant, privacy, security, accessibility, parity], required: true}
     importance: {type: enum, values: [required, recommended], required: true}
     encrypted_statement: {type: client_ciphertext, required: true, constraints: {human_readable: true}}
-
-  ContractSurfaceRequirement:
-    requirement_id: {type: stable_semantic_id, required: true}
-    surface: {type: enum, values: [rest_api, cli, sdk_npm, sdk_pip, gui_web, gui_apple], required: true}
-    rule_ids: {type: stable_id_list, required: true}
+    project_surface_ids: {type: stable_id_list, required: true}
+    required_check_refs: {type: revision_bound_check_reference_list, nullable: true}
     elements: {type: encrypted_structured_list, nullable: true}
     interactions: {type: encrypted_structured_list, nullable: true}
     states: {type: encrypted_structured_list, nullable: true}
@@ -117,16 +118,52 @@ models:
     responsive_behavior: {type: encrypted_structured_list, nullable: true}
     design_references: {type: encrypted_reference_list, nullable: true, constraints: {optional: true, providers: [figma, penpot, image, project_embed]}}
 
+  ContractChapter:
+    chapter_id: {type: stable_semantic_id, required: true}
+    encrypted_title: {type: client_ciphertext, required: true}
+    position: {type: integer, required: true}
+    default_project_surface_ids: {type: stable_id_list, nullable: true}
+    blocks: {type: encrypted_typed_block_list, required: true, constraints: {values: [rich_text, requirement_ref, user_flow_ref, edge_case_ref, model_ref, embed_ref]}}
+
+  ContractFlowEntry:
+    flow_id: {type: stable_semantic_id, required: true}
+    kind: {type: enum, values: [user_flow, edge_case], required: true}
+    parent_flow_id: {type: stable_semantic_id_or_null, nullable: true, constraints: {allowed_only_when_kind_edge_case: true}}
+    encrypted_title: {type: client_ciphertext, required: true}
+    encrypted_rich_content: {type: client_ciphertext, required: true, constraints: {supports_text_and_embed_references: true}}
+    requirement_ids: {type: stable_id_list, required: true}
+    project_surface_ids: {type: stable_id_list, required: true}
+    required_check_refs: {type: revision_bound_check_reference_list, nullable: true}
+
+  ContractModelDefinition:
+    model_id: {type: stable_semantic_id, required: true}
+    contract_revision_id: {type: stable_id, required: true, constraints: {must_reference_owning_contract_revision: true}}
+    kind: {type: enum, values: [domain_entity, api_request, api_response, event, encrypted_envelope, configuration, state, interface_schema], required: true}
+    encrypted_definition: {type: client_ciphertext, required: true}
+    content_hash: {type: sha256_hex, required: true}
+
+  ContractEmbedReference:
+    target_embed_id: {type: stable_id, required: true}
+    target_embed_version: {type: integer, required: true, constraints: {immutable_when_revision_approved: true}}
+    target_content_hash: {type: sha256_hex, required: true}
+    relationship: {type: enum, values: [normative, explanatory], required: true}
+    placement: {type: enum, values: [inline, card, figure, link], required: true}
+    encrypted_caption: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_accessible_description: {type: client_ciphertext, required: true}
+
+  ContractModelPlacement:
+    model_id: {type: stable_semantic_id, required: true, constraints: {references_global_contract_model: true}}
+    contract_revision_id: {type: stable_id, required: true, constraints: {must_match_model_definition_revision: true}}
+    chapter_id: {type: stable_semantic_id, required: true}
+    selected_fields: {type: stable_id_list, nullable: true}
+    encrypted_context: {type: client_ciphertext_or_null, nullable: true}
+
   ContractHumanPresentation:
-    section_order:
-      type: ordered_section_ids
-      required: true
-      constraints:
-        values: [overview, purpose, scope, actors_and_concepts, rules, user_flows, diagrams, surfaces, relationships, coverage, history]
+    chapter_order: {type: ordered_section_ids, required: true}
     composition:
-      type: canonical_settings_document
+      type: capability_chapter_document
       required: true
-      constraints: {settings_page_container: true, settings_section_headings: true, readable_text: true, raw_yaml_default: false}
+      constraints: {custom_chapters: true, typed_blocks: true, generated_indexes: [requirements, user_flows, edge_cases, models, checks, history], readable_text: true, raw_yaml_default: false}
     technical_disclosure:
       type: on_demand_detail
       required: true
@@ -141,7 +178,7 @@ models:
     diagram_embed_ref: {type: encrypted_reference, required: true}
     diagram_embed_version: {type: integer, required: true, constraints: {immutable_when_revision_approved: true}}
     source_hash: {type: sha256_hex, required: true}
-    linked_rule_ids: {type: stable_id_list, required: true}
+    linked_requirement_ids: {type: stable_id_list, required: true}
     presentation: {type: enum, values: [primary, inline, supplementary], required: true}
     status: {type: enum, values: [current, stale, render_failed], required: true}
 
@@ -159,15 +196,15 @@ models:
 
   ContractLink:
     relation: {type: enum, values: [requires, extends, governs, implements, verifies, documents, supersedes], required: true}
-    target_type: {type: enum, values: [contract, contract_rule, plan, check, project, source, documentation], required: true}
+    target_type: {type: enum, values: [contract, contract_requirement, contract_flow, plan, check, project, source, documentation], required: true}
     target_id: {type: encrypted_or_hashed_reference, required: true}
     target_revision: {type: revision_or_hash_or_null, nullable: true}
 
 assertions:
   - id: contracts.definition.durable-truth
     type: invariant
-    must: A Contract defines durable product truth through stable rules and flows; it never owns implementation Tasks, execution progress, or Check Run results.
-    depends_on: [models.ContractRule, examples.contract_boundaries]
+    must: A Contract defines durable product truth through stable Requirements and rich-content user flows and edge cases; it owns required Check references but never owns implementation Tasks, execution progress, reusable Check definitions, or Check Run results.
+    depends_on: [models.ContractRequirement, examples.contract_boundaries]
   - id: contracts.revision.exact-approval
     type: invariant
     must: Approval binds an immutable Contract revision and content hash; later material edits create a new draft revision and cannot inherit approval from superseded content.
@@ -178,15 +215,23 @@ assertions:
     depends_on: [examples.contract_composition]
   - id: contracts.ui.structured-interactions
     type: behavior
-    must: GUI obligations can describe named elements, interactions, visible states, accessibility, responsive behavior, and optional design references while preserving surface-neutral canonical rules and usable behavior when no design artboard exists.
-    depends_on: [models.ContractSurfaceRequirement, examples.contract_ui_requirements, surfaces.gui]
+    must: Requirements reference stable surfaces from their home Project catalog and may describe named elements, interactions, visible states, accessibility, responsive behavior, and optional design references while preserving usable behavior when no design artboard exists; surface applicability is shown with each Requirement rather than requiring an authored Surfaces chapter.
+    depends_on: [models.ContractRequirement, examples.contract_ui_requirements, surfaces.gui]
+  - id: contracts.flows.rich-content-inline
+    type: behavior
+    must: User flows and edge cases are Contract-owned rich-content entries with stable ids, text, and version-pinned references to ordinary image, diagram, mind-map, wireframe, or other embeds; they use one renderer, edge cases may identify a parent flow, and V1 has no separate Scenario model or independently shareable User Flow embed.
+    depends_on: [models.ContractFlowEntry, models.ContractEmbedReference, examples.contract_flows]
+  - id: contracts.models.global-contextual
+    type: invariant
+    must: Data and interface models have one canonical Contract definition and may be placed contextually in several capability chapters by reference or selected-field view without copying or redefining the model.
+    depends_on: [models.ContractModelDefinition, models.ContractModelPlacement, examples.contract_model_placement]
   - id: contracts.ui.human-readable-default
     type: behavior
     must: The web Contract detail renders a localized human document using canonical settings page composition, semantic section headings, readable explanatory text, visible revision and approval state, and progressive technical disclosure; raw YAML, ciphertext, and diagram source are never the default reading surface.
     depends_on: [models.ContractHumanPresentation, examples.contract_human_presentation, surfaces.gui]
   - id: contracts.diagrams.tool-selection
     type: invariant
-    must: Contract diagrams use C4-PlantUML for architecture and trust boundaries, Mermaid for sequence, state, decision, lifecycle, and small data views, diagrams.net for UI, wireframe, annotated, stakeholder, and large curated views, and Figma, Penpot, or images only as linked high-fidelity references.
+    must: Architecture and specialist Contract diagrams use C4-PlantUML for architecture and trust boundaries, Mermaid for sequence, state, decision, lifecycle, and small data views, diagrams.net for UI, wireframe, annotated, stakeholder, and large curated views, and Figma, Penpot, or images only as linked high-fidelity references; flow visuals are contextual embed references and do not require a standalone Diagrams section.
     depends_on: [models.ContractDiagramView, examples.contract_diagrams, surfaces.gui]
   - id: contracts.diagrams.source-and-preview
     type: invariant
@@ -206,7 +251,7 @@ assertions:
     depends_on: [models.ContractRecord, models.ContractRevision, examples.contract_project_embed]
   - id: contracts.links.revision-traceable
     type: invariant
-    must: Plans, Checks, sources, documentation, and related Contracts link to exact Contract revisions or stable rule ids so changes and stale proof can be identified without copying Contract text.
+    must: Plans, Checks, sources, documentation, and related Contracts link to exact Contract revisions or stable Requirement and flow ids so changes and stale proof can be identified without copying Contract text.
     depends_on: [models.ContractLink, examples.contract_links]
   - id: contracts.surface.semantic-parity
     type: parity
@@ -240,8 +285,8 @@ surfaces:
             interactions: [open_fullscreen]
             states: [draft, approved, superseded, stale_coverage, stale_diagram_preview, loading, error]
           - id: contracts.gui.fullscreen
-            elements: [header, overview, purpose, scope, actors_and_concepts, rules, user_flows, diagrams, surfaces, relationships, coverage, history, approve_action]
-            interactions: [edit_draft, undo_unsaved_changes, compare_revisions, approve_exact_revision, open_linked_check, open_diagram_fullscreen]
+            elements: [header, outcome, scope_and_boundaries, custom_capability_chapters, requirements_with_surfaces, rich_content_user_flows, rich_content_edge_cases, relevant_models, linked_checks, generated_indexes, history, approve_action]
+            interactions: [edit_draft, undo_unsaved_changes, compare_revisions, approve_exact_revision, open_nested_flow_detail, return_to_contract, open_linked_check, open_referenced_embed_fullscreen]
             accessibility: [keyboard_reachable_sections, semantic_headings, announced_approval_state, non_color_status_labels]
             responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
             design_references: optional
@@ -256,8 +301,8 @@ surfaces:
       - id: apple-contract-editor-deferred
         implementation: apple
         reason: Contract authoring starts with REST, CLI, SDK, and web; Apple may initially provide read-only Contract detail.
-        equivalent_outcome: Apple must preserve the same readable rules, revision identity, approval state, and links when implemented.
+        equivalent_outcome: Apple must preserve the same readable Requirements, revision identity, approval state, and links when implemented.
 
 examples:
   file: examples.yml
-  required_groups: [contract_boundaries, contract_revisions, contract_composition, contract_ui_requirements, contract_human_presentation, contract_diagrams, contract_project_embed, contract_links, contract_surface_parity]
+  required_groups: [contract_boundaries, contract_revisions, contract_composition, contract_ui_requirements, contract_flows, contract_model_placement, contract_human_presentation, contract_diagrams, contract_project_embed, contract_links, contract_surface_parity]
