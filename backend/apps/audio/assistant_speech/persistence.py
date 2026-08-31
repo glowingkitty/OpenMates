@@ -169,7 +169,17 @@ async def finalize_speech_segment_execution(
         version_field="execution_version",
         extra_filters={"status": "generating", "lease_id": lease_id},
     )
-    return bool(finalized)
+    if finalized:
+        return True
+
+    # Directus can acknowledge a filtered batch PATCH without returning the row.
+    # Confirm the durable state before compensating a generated, charged asset.
+    current = await get_speech_segment(directus, segment_id)
+    return (
+        current is not None
+        and current.get("status") == result.get("status")
+        and current.get("generated_asset_id") == result.get("generated_asset_id")
+    )
 
 
 async def get_speech_segment(directus: Any, segment_id: str) -> dict[str, object] | None:
