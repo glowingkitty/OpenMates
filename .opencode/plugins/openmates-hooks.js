@@ -1202,6 +1202,12 @@ function isSharedSecretRuntimePath(candidate, worktreePath) {
   return [resolve(worktreePath), resolve(PROJECT_ROOT)].some((base) => relative(base, absolute) === ".env");
 }
 
+function isApprovedControlPlaneRuntimeSearchPath(candidate) {
+  if (!candidate || !isAbsolute(candidate)) return false;
+  const relativePath = relative(resolve(CURRENT_CONTROL_PLANE_ROOT), resolve(candidate));
+  return relativePath === "test-results" || relativePath.startsWith(`test-results${sep}`);
+}
+
 function routeLocalToolArgsForTest(tool, args, worktreePath) {
   const input = toolInput(args);
   if (!worktreePath) return input;
@@ -1321,6 +1327,15 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
     if (typeof routed.path === "string" && targetsDifferentWorktree(routed.path, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute search path targets another managed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
+    }
+    if (
+      typeof routed.path === "string"
+      && isAbsolute(routed.path)
+      && pathEscapesWorktree(routed.path, worktreePath)
+      && !pathInProjectRoot(routed.path)
+      && !isApprovedControlPlaneRuntimeSearchPath(routed.path)
+    ) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute search path is outside the routed worktree and approved test-results runtime. Next: search a repository-relative path inside ${worktreePath}, or use the exact artifact path under ${CURRENT_CONTROL_PLANE_ROOT}/test-results.`);
     }
     if (typeof routed.path === "string" && !isAbsolute(routed.path)) {
       const target = resolve(worktreePath, routed.path);

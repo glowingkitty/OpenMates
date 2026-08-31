@@ -457,6 +457,16 @@ test("opencode config allows legacy external agent worktrees", () => {
   );
 });
 
+test("search routing rejects broad external directories but allows exact runtime artifacts", () => {
+  const route = pluginModule.OpenMatesHooks.test.routeLocalToolArgsForTest;
+  assert.throws(
+    () => route("glob", { path: "/home/superdev/projects", pattern: "**/*" }, routedWorktree),
+    /outside the routed worktree and approved test-results runtime/,
+  );
+  const artifactPath = "/home/superdev/projects/.openmates-runtime/opencode-server/test-results/debug/current";
+  assert.equal(route("glob", { path: artifactPath, pattern: "*.json" }, routedWorktree).path, artifactPath);
+});
+
 test("bash guard allows temp writes even when a repo script and source extension appear", async () => {
   await assert.doesNotReject(() => runBeforeShell("./scripts/prod-ssh.sh 'cat > /tmp/docker-compose.hotfix.yml'"));
 });
