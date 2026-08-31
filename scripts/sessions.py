@@ -16088,6 +16088,25 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _opencode_resume_profile(session_id: str) -> dict[str, Any]:
+    messages = _opencode_api_json(
+        f"/session/{urllib.parse.quote(session_id, safe='')}/message?limit=10"
+    )
+    if not isinstance(messages, list):
+        return {}
+    for message in reversed(messages):
+        info = message.get("info") if isinstance(message, dict) else None
+        if not isinstance(info, dict) or info.get("role") != "assistant":
+            continue
+        return {
+            "agent": info.get("agent"),
+            "provider_id": info.get("providerID"),
+            "model_id": info.get("modelID"),
+            "variant": info.get("variant"),
+        }
+    return {}
+
+
 def capture_opencode_restart_manifest(path: Path) -> dict[str, Any]:
     """Persist every busy top-level chat before an intentional server restart."""
     statuses = _opencode_api_json("/session/status")
@@ -16105,17 +16124,8 @@ def capture_opencode_restart_manifest(path: Path) -> dict[str, Any]:
         if session.get("parentID"):
             continue
 
-        messages = _opencode_api_json(
-            f"/session/{urllib.parse.quote(str(session_id), safe='')}/message?limit=10"
-        )
-        last_info = {}
-        if isinstance(messages, list):
-            for message in reversed(messages):
-                candidate = message.get("info") if isinstance(message, dict) else None
-                if isinstance(candidate, dict) and candidate.get("role") == "assistant":
-                    last_info = candidate
-                    break
-        agent = str(last_info.get("agent") or "plan")
+        profile = _opencode_resume_profile(str(session_id))
+        agent = str(profile.get("agent") or "plan")
         captured.append({
             "session_id": str(session_id),
             "title": str(session.get("title") or "(untitled session)"),
@@ -16123,9 +16133,9 @@ def capture_opencode_restart_manifest(path: Path) -> dict[str, Any]:
             "updated_before_restart": int((session.get("time") or {}).get("updated") or 0),
             "status_before_restart": status_type,
             "permission_mode": "plan" if agent == "plan" else "execute",
-            "provider_id": last_info.get("providerID"),
-            "model_id": last_info.get("modelID"),
-            "variant": last_info.get("variant"),
+            "provider_id": profile.get("provider_id"),
+            "model_id": profile.get("model_id"),
+            "variant": profile.get("variant"),
             "resume_sent_at": None,
             "resume_verified_at": None,
         })
@@ -16583,12 +16593,16 @@ def cmd_restore(args: argparse.Namespace) -> None:
         sys.exit(1)
     prompt = _restore_prompt(restore, prompt)
 
+    profile = _opencode_resume_profile(session_id) if getattr(args, "mode", "plan") != "plan" else {}
     success = resume_opencode_session(
         session_name=restore_name,
         opencode_session_id=session_id,
         cwd=restore["cwd"],
         prompt=prompt,
         permission_mode=getattr(args, "mode", "plan"),
+        provider_id=profile.get("provider_id"),
+        model_id=profile.get("model_id"),
+        variant=profile.get("variant"),
     )
 
     if success:
