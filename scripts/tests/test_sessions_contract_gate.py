@@ -213,3 +213,48 @@ def test_contract_commit_requires_searchable_trailers():
         files,
         "feat: add contract\n\nContracts: feature.example@1\nAssertions: example.behavior.works\nSpec: example\nContract-Impact: new-contract",
     )
+
+
+def test_deploy_commit_preflight_builds_safe_repeatable_trailers():
+    sessions = load_sessions_module()
+    args = SimpleNamespace(
+        title="feat: add contract",
+        message=None,
+        trailer=[
+            "Contracts: feature.example@1",
+            "Assertions: example.behavior.works",
+            "Spec: example",
+            "Contract-Impact: new-contract",
+        ],
+    )
+
+    message = sessions._preflight_deploy_commit_message(
+        args,
+        {},
+        ["contracts/features/example/contract.yml"],
+    )
+
+    assert message.endswith("\n".join(args.trailer))
+
+
+def test_deploy_commit_preflight_rejects_missing_or_multiline_trailers():
+    sessions = load_sessions_module()
+    files = ["contracts/features/example/contract.yml"]
+
+    with pytest.raises(RuntimeError, match="repeatable one-line arguments"):
+        sessions._preflight_deploy_commit_message(
+            SimpleNamespace(title="feat: add contract", message=None, trailer=[]),
+            {},
+            files,
+        )
+
+    with pytest.raises(RuntimeError, match="one non-empty line"):
+        sessions._preflight_deploy_commit_message(
+            SimpleNamespace(
+                title="feat: add contract",
+                message=None,
+                trailer=["Contracts: feature.example@1\nAssertions: example.behavior.works"],
+            ),
+            {},
+            files,
+        )

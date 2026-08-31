@@ -12702,9 +12702,10 @@ def _control_plane_sync_warning(commit_hash: str) -> str:
 
 def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
     """Build the existing deploy commit message without checkout side effects."""
-    commit_msg = args.title
-    if args.message:
-        commit_msg += "\n\n" + args.message
+    commit_msg = str(getattr(args, "title", "") or "")
+    message = str(getattr(args, "message", "") or "")
+    if message:
+        commit_msg += "\n\n" + message
     linked_task_id = session.get("task_id")
     if linked_task_id:
         linked_task = _load_task(linked_task_id)
@@ -12712,6 +12713,12 @@ def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
             task_summary = linked_task.get("summary", "").strip()
             if task_summary:
                 commit_msg += "\n\n" + task_summary
+    trailers = list(getattr(args, "trailer", None) or [])
+    invalid = [trailer for trailer in trailers if not trailer.strip() or "\n" in trailer or "\r" in trailer]
+    if invalid:
+        raise RuntimeError("--trailer values must each be one non-empty line")
+    if trailers:
+        commit_msg += "\n\n" + "\n".join(trailer.strip() for trailer in trailers)
     return commit_msg
 
 
@@ -12730,8 +12737,19 @@ def _validate_contract_commit_message(files: list[str], message: str) -> None:
     ]
     if missing:
         raise RuntimeError(
-            "contract-governed commit is missing required trailers: " + ", ".join(missing)
+            "contract-governed commit is missing required trailers: "
+            + ", ".join(missing)
+            + '. Use repeatable one-line arguments such as --trailer "Contracts: feature.example@1" '
+            + '--trailer "Assertions: example.behavior" --trailer "Spec: example" '
+            + '--trailer "Contract-Impact: implementation-only"; do not use ANSI-C shell quoting.'
         )
+
+
+def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
+    """Reject deterministic commit-message errors before expensive deploy gates."""
+    message = _integration_commit_message(args, session)
+    _validate_contract_commit_message(files, message)
+    return message
 
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
@@ -12861,8 +12879,7 @@ def _deploy_native_worktree(
             ):
                 raise RuntimeError("Integration staged-file validation failed")
 
-            commit_message = _integration_commit_message(args, session)
-            _validate_contract_commit_message(commit_files, commit_message)
+            commit_message = _preflight_deploy_commit_message(args, session, commit_files)
             commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
                 commit_cmd.append("--no-verify")
@@ -13183,6 +13200,11 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         validate_product_session_deploy_paths(to_commit)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    try:
+        _preflight_deploy_commit_message(args, session, to_commit)
+    except RuntimeError as exc:
+        print(f"WORKTREE DEPLOY FAILED — {exc}", file=sys.stderr)
         sys.exit(1)
     manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
     expected_manifest_id = str(getattr(args, "expected_manifest_id", "") or "")
@@ -17130,6 +17152,12 @@ def main() -> None:
     )
     p_deploy.add_argument(
         "--message", "-m", help="Commit body (optional)"
+    )
+    p_deploy.add_argument(
+        "--trailer",
+        action="append",
+        default=[],
+        help="Append one safe single-line commit trailer; repeat for contract provenance",
     )
     p_deploy.add_argument(
         "--exclude",
