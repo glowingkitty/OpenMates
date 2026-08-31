@@ -31,7 +31,7 @@ def _services() -> tuple[SimpleNamespace, SimpleNamespace]:
     return manager, directus
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
 async def test_shared_recipient_read_returns_empty_preference() -> None:
     manager, directus = _services()
@@ -59,7 +59,7 @@ async def test_shared_recipient_read_returns_empty_preference() -> None:
     directus.chat_model_preference.get_preference.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
 async def test_shared_recipient_update_remains_forbidden() -> None:
     manager, directus = _services()
@@ -86,7 +86,7 @@ async def test_shared_recipient_update_remains_forbidden() -> None:
     directus.chat_model_preference.upsert_preference.assert_not_awaited()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 @pytest.mark.parametrize("operation", ["get", "update"])
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
 async def test_team_non_member_uses_privacy_safe_denial(operation: str) -> None:
