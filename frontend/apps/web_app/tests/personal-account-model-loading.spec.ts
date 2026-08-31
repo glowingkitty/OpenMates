@@ -60,13 +60,23 @@ test('authenticated account loads its chat model selector without retry errors',
 	await initialSyncCompleted;
 
 	const activeChat = page.getByTestId('active-chat-container');
-	const continueCard = page
-		.getByTestId('recent-chats-scroll-container')
-		.first()
-		.getByRole('button')
-		.first();
-	await expect(continueCard).toBeVisible({ timeout: 60000 });
-	await continueCard.click();
+	const sidebarToggle = page.getByTestId('sidebar-toggle');
+	if (await sidebarToggle.isVisible().catch(() => false)) await sidebarToggle.click();
+	const staticGroupKeys = new Set(['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal']);
+	const chatGroups = page.getByTestId('chat-group');
+	let ownedChat: any = null;
+	for (let index = 0; index < await chatGroups.count(); index += 1) {
+		const group = chatGroups.nth(index);
+		const groupKey = await group.getAttribute('data-group-key');
+		if (!groupKey || staticGroupKeys.has(groupKey)) continue;
+		const candidate = group.getByTestId('chat-item').first();
+		if (await candidate.count()) {
+			ownedChat = candidate;
+			break;
+		}
+	}
+	expect(ownedChat).not.toBeNull();
+	await ownedChat.click();
 	await expect(activeChat).toHaveAttribute('data-current-chat-id', /.+/, { timeout: 60000 });
 
 	const composer = activeChat.getByTestId('message-field').last();
@@ -84,7 +94,17 @@ test('authenticated account loads its chat model selector without retry errors',
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
 	await expect(selectorMenu).toBeVisible();
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
-	await selectorMenu.getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
+	const modelRows = selectorMenu.getByTestId('composer-model-row');
+	let targetToggle: any = null;
+	for (let index = 0; index < await modelRows.count(); index += 1) {
+		const candidate = modelRows.nth(index).getByTestId('composer-model-toggle');
+		if (!await candidate.getByRole('checkbox').isChecked()) {
+			targetToggle = candidate;
+			break;
+		}
+	}
+	expect(targetToggle).not.toBeNull();
+	await targetToggle.click();
 	await expect(selector).toHaveAttribute('data-persistence-revision', String(initialPersistenceRevision + 1), { timeout: 30000 });
 	await expect(selector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	const selectedLabel = composer.getByTestId('composer-model-selector-label');
