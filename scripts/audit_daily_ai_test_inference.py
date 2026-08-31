@@ -33,6 +33,7 @@ COMPOSE_PATH = PROJECT_ROOT / "backend" / "core" / "docker-compose.yml"
 WORKFLOW_PATH = PROJECT_ROOT / ".github" / "workflows" / "playwright-spec.yml"
 API_CACHE_PATH = PROJECT_ROOT / "backend" / "shared" / "testing" / "api_response_cache.py"
 CHAT_TEST_HELPER_PATH = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests" / "helpers" / "chat-test-helpers.ts"
+PLAYWRIGHT_CONFIG_PATH = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "playwright.config.ts"
 LIVE_RE = re.compile(r"withLiveMockMarker\([^;]*?,\s*['\"]([A-Za-z0-9_-]+)['\"]", re.DOTALL)
 PATHLIKE_SUFFIXES = (".py", ".ts", ".svelte", ".yml", ".yaml", ".json", ".md")
 
@@ -221,7 +222,7 @@ def _audit_raw_http_dispatch_guard() -> list[str]:
 def _audit_backfill_guards() -> list[str]:
     """Reject drift in the bounded candidate-to-promotion control path."""
     sources: dict[Path, str] = {}
-    for path in (BACKFILL_PATH, RUNNER_PATH, COMPOSE_PATH, WORKFLOW_PATH, API_CACHE_PATH, CHAT_TEST_HELPER_PATH):
+    for path in (BACKFILL_PATH, RUNNER_PATH, COMPOSE_PATH, WORKFLOW_PATH, API_CACHE_PATH, CHAT_TEST_HELPER_PATH, PLAYWRIGHT_CONFIG_PATH):
         try:
             sources[path] = path.read_text(encoding="utf-8")
         except OSError:
@@ -235,11 +236,16 @@ def _audit_backfill_guards() -> list[str]:
             "persist(expected_cache_sha256)",
         ),
         RUNNER_PATH: (
-            "claim_root=claim_root",
+            "claim_root=paths.claim_root",
             "candidate_run_root=run_root",
             "persist=persist",
-            "GitHubActionsClient(git_sha=_full_git_sha(self.git_sha))",
-            'candidate_root.parent / "daily-ai-backfill-claims"',
+            "DAILY_AI_BACKFILL_PATH_ENV_VARS",
+            "_daily_cache_backfill_preflight",
+            "DailyRunInterrupted",
+            "class DailyRunInterrupted(BaseException)",
+            "_source_root_commit(paths.source_root) != full_sha",
+            "and not self.record_live_fixtures",
+            '_cache_backfill_suite(self.cache_backfill)',
         ),
         COMPOSE_PATH: (
             "../../test-results/live-mock-candidates:/live-mock-candidates",
@@ -252,6 +258,10 @@ def _audit_backfill_guards() -> list[str]:
             "extractLiveTestMarker(message)",
             "options.testMockMarker ?? extractedMessage.testMockMarker",
         ),
+        PLAYWRIGHT_CONFIG_PATH: (
+            "E2E_RECORD_LIVE_FIXTURES",
+            "retries: isLiveFixtureRecording ? 0 : 1",
+        ),
     }
     errors: list[str] = []
     for path, fragments in required.items():
@@ -259,7 +269,9 @@ def _audit_backfill_guards() -> list[str]:
             errors.append(f"bounded backfill guard is incomplete in {path.relative_to(PROJECT_ROOT)}")
     if "shutil.rmtree(run_root" in sources[RUNNER_PATH]:
         errors.append("daily runner must not delete the durable per-day backfill claim")
-    backfill_call = sources[RUNNER_PATH].find("self.cache_backfill = self._run_daily_cache_backfill()")
+    if 'PROJECT_ROOT.parent / ".openmates-runtime/product-stack/test-results/live-mock-candidates"' in sources[RUNNER_PATH]:
+        errors.append("daily runner must not infer checkout-dependent backfill roots")
+    backfill_call = sources[RUNNER_PATH].find("self._run_daily_cache_backfill()")
     playwright_call = sources[RUNNER_PATH].find('suites["playwright"] = self._run_playwright()')
     if backfill_call < 0 or playwright_call < 0 or backfill_call > playwright_call:
         errors.append("daily cache backfill must run before the broad Playwright queue")

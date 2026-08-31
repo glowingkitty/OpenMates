@@ -49,6 +49,7 @@ import json
 import mimetypes
 import os
 import re
+import signal
 import secrets
 import shutil
 import subprocess
@@ -63,7 +64,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from collections import deque
 from dataclasses import dataclass, field
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from html import escape
 from pathlib import Path
 from typing import Callable, Optional
@@ -186,6 +187,12 @@ NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
 CREDENTIAL_UPDATE_ARTIFACT_NAMES = frozenset({"new_otp_key.txt", "api_key.txt"})
 POLL_INTERVAL = 15  # seconds between status checks
 DAILY_STATUS_INTERVAL_SECONDS = 30 * 60
+DAILY_AI_BACKFILL_PATH_ENV_VARS = (
+    "DAILY_AI_CANDIDATE_ROOT",
+    "DAILY_AI_RUNTIME_CACHE_ROOT",
+    "DAILY_AI_CLAIM_ROOT",
+    "DAILY_AI_SOURCE_ROOT",
+)
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
@@ -1230,6 +1237,171 @@ def _full_git_sha(git_ref: str) -> str:
         ).strip()
     except (OSError, subprocess.SubprocessError):
         return git_ref
+
+
+@dataclass(frozen=True)
+class DailyCacheBackfillPaths:
+    """Explicit host paths shared by preflight, recording, replay, and promotion."""
+
+    candidate_root: Path
+    runtime_cache_root: Path
+    claim_base: Path
+    claim_root: Path
+    source_root: Path
+
+
+class DailyRunInterrupted(BaseException):
+    """Raised from a terminal signal so daily finalization can still notify."""
+
+    def __init__(self, signum: int) -> None:
+        self.signum = signum
+        self.signal_name = signal.Signals(signum).name
+        super().__init__(f"daily runner interrupted by {self.signal_name}")
+
+
+@contextmanager
+def _daily_terminal_signal_handlers(enabled: bool):
+    """Convert terminal signals into a normal daily failure-finalization path."""
+
+    if not enabled or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = {signum: signal.getsignal(signum) for signum in (signal.SIGTERM, signal.SIGINT)}
+
+    def interrupt(signum: int, _frame: object) -> None:
+        raise DailyRunInterrupted(signum)
+
+    try:
+        for signum in previous:
+            signal.signal(signum, interrupt)
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+def _resolve_daily_cache_backfill_paths(run_date: date) -> DailyCacheBackfillPaths:
+    """Resolve one checkout-independent path set and reject inferred fallbacks."""
+
+    configured = {name: os.getenv(name, "").strip() for name in DAILY_AI_BACKFILL_PATH_ENV_VARS}
+    missing = [name for name, value in configured.items() if not value]
+    if missing:
+        raise daily_ai_cache_backfill.BackfillValidationError(
+            "daily cache backfill requires explicit paths: " + ", ".join(missing)
+        )
+    paths = {name: Path(value).expanduser() for name, value in configured.items()}
+    relative = [name for name, path in paths.items() if not path.is_absolute()]
+    if relative:
+        raise daily_ai_cache_backfill.BackfillValidationError(
+            "daily cache backfill paths must be absolute: " + ", ".join(relative)
+        )
+    resolved = {name: path.resolve() for name, path in paths.items()}
+    candidate_root = resolved["DAILY_AI_CANDIDATE_ROOT"]
+    runtime_cache_root = resolved["DAILY_AI_RUNTIME_CACHE_ROOT"]
+    claim_base = resolved["DAILY_AI_CLAIM_ROOT"]
+    source_root = resolved["DAILY_AI_SOURCE_ROOT"]
+    if candidate_root == runtime_cache_root:
+        raise daily_ai_cache_backfill.BackfillValidationError("candidate and runtime cache roots must differ")
+    if claim_base == candidate_root or candidate_root in claim_base.parents:
+        raise daily_ai_cache_backfill.BackfillValidationError("claim root must stay outside the candidate mount")
+    return DailyCacheBackfillPaths(
+        candidate_root=candidate_root,
+        runtime_cache_root=runtime_cache_root,
+        claim_base=claim_base,
+        claim_root=claim_base / f"daily-{run_date.strftime('%Y%m%d')}",
+        source_root=source_root,
+    )
+
+
+def _probe_writable_directory(path: Path, label: str) -> None:
+    """Prove host write access without creating a claim or retaining content."""
+
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / f".backfill-preflight-{uuid4().hex}"
+    try:
+        with probe.open("x", encoding="utf-8") as handle:
+            handle.write("{}\n")
+    except OSError as exc:
+        raise daily_ai_cache_backfill.BackfillValidationError(f"{label} is not host-writable") from exc
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+def _source_root_commit(source_root: Path) -> str:
+    """Resolve the source checkout's deployed dev commit for promotion pinning."""
+
+    try:
+        return subprocess.check_output(
+            ["git", "-C", str(source_root), "rev-parse", "origin/dev"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _daily_cache_backfill_preflight(git_ref: str, run_date: date) -> dict[str, object]:
+    """Validate the zero-paid control path without claiming or dispatching."""
+
+    try:
+        paths = _resolve_daily_cache_backfill_paths(run_date)
+        if not paths.candidate_root.is_dir():
+            raise daily_ai_cache_backfill.BackfillValidationError("candidate cache root is missing")
+        if not os.access(paths.candidate_root, os.R_OK | os.X_OK):
+            raise daily_ai_cache_backfill.BackfillValidationError("candidate cache root is not readable")
+        _probe_writable_directory(paths.runtime_cache_root, "runtime cache root")
+        _probe_writable_directory(paths.claim_base, "claim root")
+        if not (paths.source_root / "scripts" / "sessions.py").is_file():
+            raise daily_ai_cache_backfill.BackfillValidationError("source root lacks scripts/sessions.py")
+        full_sha = _full_git_sha(git_ref)
+        if not re.fullmatch(r"[a-f0-9]{40}", full_sha):
+            raise daily_ai_cache_backfill.BackfillValidationError("deployed commit did not resolve to a full SHA")
+        if _source_root_commit(paths.source_root) != full_sha:
+            raise daily_ai_cache_backfill.BackfillValidationError("source root is not pinned to the deployed dev commit")
+        claim_phase = "none"
+        claim_path = paths.claim_root / "backfill-claim.json"
+        if claim_path.is_file():
+            try:
+                claim = json.loads(claim_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise daily_ai_cache_backfill.BackfillValidationError("daily claim is unreadable") from exc
+            claim_phase = str(claim.get("phase") or "invalid")
+        return {
+            "status": "passed",
+            "full_commit_sha": full_sha,
+            "claim_phase": claim_phase,
+            "candidate_dispatches": 0,
+            "paid_provider_calls": 0,
+        }
+    except daily_ai_cache_backfill.BackfillValidationError as exc:
+        return {
+            "status": "failed",
+            "detail": str(exc),
+            "candidate_dispatches": 0,
+            "paid_provider_calls": 0,
+        }
+
+
+def _cache_backfill_suite(result: dict[str, object]) -> SuiteResult:
+    """Represent backfill as a real suite so failures affect daily status."""
+
+    status = str(result.get("status") or "failed")
+    test_status = (
+        "passed"
+        if status in {"promoted", "runtime_promoted"}
+        else "skipped"
+        if status == "skipped"
+        else "failed"
+    )
+    test: dict[str, object] = {
+        "name": str(result.get("spec") or "daily-cache-backfill"),
+        "file": "scripts/daily_ai_cache_backfill.py",
+        "status": test_status,
+        "duration_seconds": 0,
+    }
+    if test_status == "failed":
+        test["error"] = "Cache backfill failed; inspect the content-free run receipt"
+    return SuiteResult(status=test_status, tests=[test], duration_seconds=0)
 
 
 def _read_env_file() -> dict[str, str]:
@@ -2697,6 +2869,7 @@ class BatchRunner:
                 retry_admitted = circuit.reserve_requests(1)
             if (
                 dispatch_token is None
+                and not self.record_live_fixtures
                 and not self._dispatch_circuit_snapshot().get("open")
                 and retry_admitted
             ):
@@ -7085,6 +7258,7 @@ class TestOrchestrator:
         self.critical_journeys = getattr(args, "critical_journeys", False)
         self.only_failed = args.only_failed
         self.daily = args.daily
+        self.backfill_only = getattr(args, "daily_cache_backfill_only", False)
         self.force = args.force
         self.environment = args.environment
         self.max_concurrent = args.max_concurrent
@@ -7169,16 +7343,21 @@ class TestOrchestrator:
 
     def run(self) -> int:
         """Execute the run and turn fatal daily errors into terminal results."""
-        try:
-            return self._run()
-        except Exception as exc:
-            if not self.daily or self.dry_run:
-                raise
-            phase = getattr(self, "current_phase", "unknown")
-            _log(f"Daily runner crashed during {phase}: {type(exc).__name__}: {exc}", "ERROR")
-            return self._finalize_daily_runner_failure(exc)
-        finally:
-            self._stop_daily_status_updates()
+        with _daily_terminal_signal_handlers(self.daily and not self.dry_run):
+            try:
+                return self._run()
+            except DailyRunInterrupted as exc:
+                phase = getattr(self, "current_phase", "unknown")
+                _log(f"Daily runner interrupted during {phase}: {exc.signal_name}", "ERROR")
+                return self._finalize_daily_runner_failure(exc)
+            except Exception as exc:
+                if not self.daily or self.dry_run:
+                    raise
+                phase = getattr(self, "current_phase", "unknown")
+                _log(f"Daily runner crashed during {phase}: {type(exc).__name__}: {exc}", "ERROR")
+                return self._finalize_daily_runner_failure(exc)
+            finally:
+                self._stop_daily_status_updates()
 
     def _result_flags(self, *, in_progress: bool = False, progress_phase: str = "") -> dict:
         flags = {
@@ -7203,22 +7382,22 @@ class TestOrchestrator:
 
     def _run_daily_cache_backfill(self) -> dict[str, object]:
         """Backfill one receipt-proven cache candidate without blocking the suite."""
-        plan = daily_ai_test_policy.daily_backfill_plan(datetime.now(timezone.utc).date())
+        run_date = datetime.now(timezone.utc).date()
+        plan = daily_ai_test_policy.daily_backfill_plan(run_date)
         if plan is None:
             return {"status": "skipped", "reason": "no_backfill_pending_specs"}
-        runtime_root = os.getenv("DAILY_AI_RUNTIME_CACHE_ROOT", "").strip()
-        if not runtime_root:
-            runtime_root = str(PROJECT_ROOT.parent / ".openmates-runtime/product-stack/backend/apps/ai/testing/api_cache")
-        default_candidate_root = (
-            PROJECT_ROOT.parent / ".openmates-runtime/product-stack/test-results/live-mock-candidates"
-        )
-        candidate_root = Path(os.getenv("DAILY_AI_CANDIDATE_ROOT", str(default_candidate_root)))
-        run_root = candidate_root / plan.candidate_run_id
-        default_claim_root = candidate_root.parent / "daily-ai-backfill-claims"
-        claim_base = Path(os.getenv("DAILY_AI_CLAIM_ROOT", str(default_claim_root)))
-        claim_root = claim_base / f"daily-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+        preflight = _daily_cache_backfill_preflight(self.git_sha, run_date)
+        if preflight.get("status") != "passed":
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": str(preflight.get("detail") or "backfill preflight failed"),
+            }
+        paths = _resolve_daily_cache_backfill_paths(run_date)
+        run_root = paths.candidate_root / plan.candidate_run_id
 
-        client = GitHubActionsClient(git_sha=_full_git_sha(self.git_sha))
+        client = GitHubActionsClient(git_sha=str(preflight["full_commit_sha"]))
 
         def dispatch(spec: str, record: bool, candidate_run_id: str) -> tuple[dict[str, object], Path]:
             run_id = client.dispatch_spec(
@@ -7243,8 +7422,8 @@ class TestOrchestrator:
 
         def persist(expected_cache_sha256: str) -> str:
             commit = daily_ai_cache_backfill.deploy_candidate_cache(
-                PROJECT_ROOT,
-                Path(runtime_root) / plan.cache_group,
+                paths.source_root,
+                paths.runtime_cache_root / plan.cache_group,
                 plan,
                 expected_cache_sha256,
             )
@@ -7254,9 +7433,9 @@ class TestOrchestrator:
         result = daily_ai_cache_backfill.run_backfill(
             plan,
             dispatch=dispatch,
-            runtime_cache_root=Path(runtime_root),
+            runtime_cache_root=paths.runtime_cache_root,
             source_cache_root=None,
-            claim_root=claim_root,
+            claim_root=paths.claim_root,
             candidate_run_root=run_root,
             persist=persist,
         )
@@ -7290,8 +7469,9 @@ class TestOrchestrator:
             "Playwright",
         )
 
-    def _finalize_daily_runner_failure(self, exc: Exception) -> int:
+    def _finalize_daily_runner_failure(self, exc: BaseException) -> int:
         """Persist and notify an orchestration failure instead of going silent."""
+        interrupted = isinstance(exc, DailyRunInterrupted)
         suites = dict(self._progress_suites)
         suites["orchestration"] = SuiteResult(
             status="failed",
@@ -7303,10 +7483,18 @@ class TestOrchestrator:
                 "error": f"{type(exc).__name__}: {exc}"[:MAX_ERROR_SNIPPET],
             }],
             duration_seconds=0,
-            reason=f"Runner crashed during {getattr(self, 'current_phase', 'unknown')}",
+            reason=(
+                f"Runner interrupted during {getattr(self, 'current_phase', 'unknown')}"
+                if interrupted
+                else f"Runner crashed during {getattr(self, 'current_phase', 'unknown')}"
+            ),
         )
         flags = self._result_flags()
-        flags["runner_crashed"] = True
+        if interrupted:
+            flags["runner_interrupted"] = True
+            flags["interrupt_signal"] = exc.signal_name
+        else:
+            flags["runner_crashed"] = True
         result = ResultAggregator.build_run_result(
             suites=suites,
             run_id=self.run_id,
@@ -7353,6 +7541,7 @@ class TestOrchestrator:
         suites: dict[str, SuiteResult] = {}
         self._progress_suites = suites
         self._progress_start_time = start_time
+        backfill_only = getattr(self, "backfill_only", False)
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -7367,7 +7556,7 @@ class TestOrchestrator:
                 current_dir.rename(archive_dest)
                 _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
-        parallel_daily = self.daily and not self.spec and self.suite == "all" and not self.dry_run
+        parallel_daily = self.daily and not backfill_only and not self.spec and self.suite == "all" and not self.dry_run
         parallel_futures: dict[str, Future[SuiteResult]] = {}
         executor: ThreadPoolExecutor | None = None
         if parallel_daily:
@@ -7382,34 +7571,39 @@ class TestOrchestrator:
             }
 
         try:
-            if not parallel_daily and not self.spec and self.suite in ("all", "vitest"):
+            if not backfill_only and not parallel_daily and not self.spec and self.suite in ("all", "vitest"):
                 self.current_phase = "vitest"
                 suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
                 self._save_progress_snapshot(suites, start_time, "vitest")
 
-            if not parallel_daily and not self.spec and self.suite in ("all", "pytest"):
+            if not backfill_only and not parallel_daily and not self.spec and self.suite in ("all", "pytest"):
                 self.current_phase = "pytest"
                 suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
                 self._save_progress_snapshot(suites, start_time, "pytest")
 
-            if not self.spec and self.suite in ("all", "cli"):
+            if not backfill_only and not self.spec and self.suite in ("all", "cli"):
                 self.current_phase = "CLI integration"
                 suites["cli"] = self._run_cli_integration()
                 self._save_progress_snapshot(suites, start_time, "CLI integration")
 
             if self.daily and not self.spec and self.suite == "all":
                 self.current_phase = "cache backfill"
-                self.cache_backfill = self._run_daily_cache_backfill()
+                self.cache_backfill = (
+                    {"status": "skipped", "reason": "dry_run"}
+                    if self.dry_run
+                    else self._run_daily_cache_backfill()
+                )
+                suites["cache_backfill"] = _cache_backfill_suite(self.cache_backfill)
                 if self.cache_backfill.get("status") == "failed":
                     _log(f"Daily cache backfill failed: {self.cache_backfill.get('detail', 'unknown error')}", "ERROR")
                 self._save_progress_snapshot(suites, start_time, "cache backfill")
 
-            if self.suite in ("all", "playwright"):
+            if not backfill_only and self.suite in ("all", "playwright"):
                 self.current_phase = "Playwright"
                 suites["playwright"] = self._run_playwright()
                 self._save_progress_snapshot(suites, start_time, "Playwright")
 
-            if not parallel_daily and not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
+            if not backfill_only and not parallel_daily and not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
                 self.current_phase = "Apple remote"
                 suites["apple_remote"] = self._run_apple_remote_nightly()
                 self._save_progress_snapshot(suites, start_time, "Apple remote")
@@ -8695,6 +8889,10 @@ def main() -> int:
                         help="Rerun only tests that failed in last-run.json")
     parser.add_argument("--daily", action="store_true",
                         help="Daily cron mode (commit gate, emails, OpenObserve)")
+    parser.add_argument("--daily-cache-backfill-only", action="store_true",
+                        help="Run only the bounded daily cache backfill with normal terminal notifications")
+    parser.add_argument("--daily-cache-backfill-preflight", action="store_true",
+                        help="Validate cache paths, commit pinning, and claims without dispatching or spending")
     parser.add_argument("--hourly-dev", action="store_true",
                         help="Hourly DEV smoke (4 specs, post on failure to "
                              "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
@@ -8776,6 +8974,36 @@ def main() -> int:
             "ERROR",
         )
         return 2
+    non_daily_modes = any((
+        args.hourly_dev,
+        args.hourly_prod,
+        args.prod_free_hourly,
+        args.prod_paid_chat,
+        args.prod_app_skill,
+        args.core_journeys,
+        args.critical_journeys,
+    ))
+    dedicated_mode_conflict = any((
+        args.suite != "all",
+        args.spec,
+        args.only_failed,
+        args.dry_run_notify,
+        args.no_mocks,
+        args.record_live_fixtures,
+        args.proof_video_profile,
+        args.dry_run,
+        args.account is not None,
+        args.create_account_slot is not None,
+    ))
+    if args.daily_cache_backfill_preflight and (mode_flags or dedicated_mode_conflict):
+        _log("--daily-cache-backfill-preflight cannot be combined with test execution modes", "ERROR")
+        return 2
+    if args.daily_cache_backfill_only and (non_daily_modes or dedicated_mode_conflict):
+        _log("--daily-cache-backfill-only cannot be combined with another test selection", "ERROR")
+        return 2
+    if args.daily_cache_backfill_only:
+        args.daily = True
+        args.suite = "all"
     if args.core_journeys and args.spec:
         _log("--core-journeys cannot be combined with --spec", "ERROR")
         return 2
@@ -8805,6 +9033,13 @@ def main() -> int:
     for k, v in dot_env.items():
         if k not in os.environ:
             os.environ[k] = v
+
+    if args.daily_cache_backfill_preflight:
+        git_sha, git_branch = _git_info()
+        git_sha, _git_branch = _daily_git_info(git_sha, git_branch)
+        result = _daily_cache_backfill_preflight(git_sha, datetime.now(timezone.utc).date())
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result.get("status") == "passed" else 1
 
     if args.hourly_dev or args.daily:
         maintenance = _maintain_spec_demo_publications()
