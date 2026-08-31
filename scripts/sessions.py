@@ -4317,6 +4317,35 @@ def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict
         return _checkpoint_session_worktree_locked(session_id, event=event)
 
 
+def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dict:
+    session = data.get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        return {"status": "skipped", "reason": "session_disappeared"}
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if not metadata:
+        return {"status": "skipped", "reason": "not_mutating_worktree"}
+    metadata["status"] = "active"
+    metadata["last_active"] = now
+    session["last_active"] = now
+    session["workspace_state"] = "changes_pending"
+    auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else None
+    if auto and auto.get("status") != "integrated":
+        auto["status"] = "changes_pending"
+        auto["updated_at"] = now
+        auto["block_reason"] = "live_turn_started"
+    return {"status": "active", "session_id": session_id, "workspace_state": "changes_pending"}
+
+
+def activate_session_worktree(opencode_session_id: str) -> dict:
+    """Invalidate an idle checkpoint when its top-level chat starts a new turn."""
+    matched = session_for_opencode(_load_sessions(), opencode_session_id)
+    if not matched:
+        return {"status": "skipped", "reason": "not_top_level_session"}
+    session_id, _session = matched
+    with _worktree_checkpoint_lock(session_id):
+        return _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
+
+
 def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
     """Create and persist one checkpoint while holding its session lock."""
     data = _load_sessions()
@@ -4610,6 +4639,9 @@ def _claim_auto_integration(candidate: dict) -> bool:
     with _worktree_checkpoint_lock(session_id):
         session = _load_sessions().get("sessions", {}).get(session_id, {})
         auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        if _auto_integration_presence_is_live(session):
+            _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
+            return False
         if (
             auto.get("status") != "eligible"
             or auto.get("patch_id") != candidate.get("patch_id")
@@ -13771,6 +13803,14 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             sys.exit(1)
         print(json.dumps(result, sort_keys=True))
         return
+    if args.worktree_action == "activate":
+        try:
+            result = activate_session_worktree(args.opencode_session)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "auto-integrate":
         try:
             result = auto_integrate_checkpoints(dry_run=args.dry_run)
@@ -16318,14 +16358,23 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
         raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple repository sessions")
     repository_session_id, session = matches[0]
     worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    restore_worktree_status = worktree.get("status")
     worktree_path = Path(str(worktree.get("path") or ""))
     if not worktree_path or not _existing_direct_managed_worktree(worktree_path):
         raise RuntimeError(
             f"Restore blocked: repository session {repository_session_id} has an invalid or missing managed worktree. "
             f"Run `python3 scripts/sessions.py worktree repair --opencode-session {opencode_session_id}` first."
         )
+    # A restore starts a new live turn. Invalidate any checkpoint that became
+    # eligible while this chat was idle before fetching or advancing its base.
+    with _worktree_checkpoint_lock(repository_session_id):
+        _mutate_sessions(
+            lambda sessions_data: _store_session_worktree_active(
+                sessions_data, repository_session_id, _now_iso()
+            )
+        )
     advanced = False
-    if worktree.get("status") in {"active", "merged"}:
+    if restore_worktree_status in {"active", "merged"}:
         rc, porcelain, stderr = _run_cmd(["git", "status", "--porcelain"], cwd=str(worktree_path))
         if rc != 0:
             raise RuntimeError(f"Restore preflight could not inspect {worktree_path}: {stderr}")
@@ -16353,7 +16402,7 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
         upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
         conflicts = sorted(local_paths.intersection(upstream_paths))
         if conflicts:
-            if worktree.get("status") == "active":
+            if restore_worktree_status == "active":
                 # An interrupted active chat may own genuine pending edits on
                 # paths that advanced upstream. Preserve that exact checkout so
                 # the chat can reconcile its own task context after recovery.
@@ -16365,7 +16414,7 @@ def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
                     "preserved_conflicts": conflicts,
                 }
             integration = worktree.get("integration") if isinstance(worktree.get("integration"), dict) else {}
-            if worktree.get("status") != "merged" or integration.get("status") != "merged":
+            if restore_worktree_status != "merged" or integration.get("status") != "merged":
                 raise RuntimeError(
                     "Restore blocked: local work overlaps changes in origin/dev: " + ", ".join(conflicts)
                 )
@@ -17178,6 +17227,10 @@ def main() -> None:
     p_worktree_checkpoint = p_worktree_sub.add_parser("checkpoint", help="Checkpoint an idle or closed mutating OpenCode session")
     p_worktree_checkpoint.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_checkpoint.add_argument("--event", required=True, choices=["idle", "closed"])
+    p_worktree_activate = p_worktree_sub.add_parser(
+        "activate", help="Invalidate an idle checkpoint when a chat starts a new user turn"
+    )
+    p_worktree_activate.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
     p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
     p_worktree_expire = p_worktree_sub.add_parser(

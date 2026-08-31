@@ -1453,6 +1453,42 @@ function createWorktreeCheckpointSchedulerForTest({ spawnProcess = spawn, warn =
 
 const scheduleWorktreeCheckpoint = createWorktreeCheckpointSchedulerForTest();
 
+function createWorktreeActivationSchedulerForTest({ spawnProcess = spawn, warn = warnOnceForTest } = {}) {
+  const inFlight = new Map();
+  return (opencodeSessionID) => {
+    if (!opencodeSessionID || inFlight.has(opencodeSessionID)) return false;
+    const child = spawnProcess(
+      "python3",
+      ["scripts/sessions.py", "worktree", "activate", "--opencode-session", opencodeSessionID],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT, env: process.env, detached: true, stdio: "ignore" },
+    );
+    inFlight.set(opencodeSessionID, child);
+    const clear = () => {
+      if (inFlight.get(opencodeSessionID) === child) inFlight.delete(opencodeSessionID);
+    };
+    child.on("error", (error) => {
+      clear();
+      warn(
+        `${ROUTING_GUARD_MARKER} Reason: could not mark ${opencodeSessionID} active after a user message. Automatic integration remains protected by live presence. Detail: ${error.message}`,
+        { sessionID: opencodeSessionID },
+      );
+    });
+    child.on("close", (code) => {
+      clear();
+      if (code !== 0) {
+        warn(
+          `${ROUTING_GUARD_MARKER} Reason: worktree activation for ${opencodeSessionID} exited with status ${code}. Automatic integration remains protected by live presence.`,
+          { sessionID: opencodeSessionID },
+        );
+      }
+    });
+    child.unref();
+    return true;
+  };
+}
+
+const scheduleWorktreeActivation = createWorktreeActivationSchedulerForTest();
+
 function pathInProjectRoot(file) {
   if (!file) return false;
   const relativePath = relative(resolve(PROJECT_ROOT), resolve(file));
@@ -3079,6 +3115,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         assistantTextParts.set(textPart.messageID, parts);
       }
       if (event.type === "message.updated" && event.properties?.info?.role === "user") {
+        scheduleWorktreeActivation(eventSessionID(event));
         try {
           await continuationCommand("cancel", eventSessionID(event));
           readyContinuationSessions.delete(eventSessionID(event));
@@ -3382,6 +3419,7 @@ OpenMatesHooks.test = Object.freeze({
   continuationSignalForTest,
   continuationSuppressedForTest,
   controlPlaneToolDecisionForTest,
+  createWorktreeActivationSchedulerForTest,
   createWorktreeCheckpointSchedulerForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,

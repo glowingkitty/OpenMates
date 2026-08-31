@@ -61,6 +61,33 @@ test("worktree checkpoint scheduling is single-flight per OpenCode session", () 
   assert.equal(children.length, 2);
 });
 
+test("worktree activation scheduling is single-flight per OpenCode session", () => {
+  const children = [];
+  const spawns = [];
+  const scheduler = pluginModule.OpenMatesHooks.test.createWorktreeActivationSchedulerForTest({
+    spawnProcess: (...args) => {
+      const child = new EventEmitter();
+      child.unref = () => {};
+      children.push(child);
+      spawns.push(args);
+      return child;
+    },
+    warn: () => {},
+  });
+
+  assert.equal(scheduler("ses_test"), true);
+  assert.equal(scheduler("ses_test"), false);
+  assert.deepEqual(spawns[0].slice(0, 2), [
+    "python3",
+    ["scripts/sessions.py", "worktree", "activate", "--opencode-session", "ses_test"],
+  ]);
+  assert.equal(spawns[0][2].cwd, "/home/superdev/projects/.openmates-runtime/opencode-server");
+
+  children[0].emit("close", 0);
+  assert.equal(scheduler("ses_test"), true);
+  assert.equal(children.length, 2);
+});
+
 async function runBeforeShellWithExecutionArgs(command) {
   const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
   const executionArgs = { command, workdir: "/model-selected-root" };

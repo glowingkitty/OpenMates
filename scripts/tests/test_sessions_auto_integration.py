@@ -56,6 +56,41 @@ def eligible_data() -> dict:
     }
 
 
+def test_activate_session_worktree_invalidates_eligible_checkpoint(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    data["sessions"]["abcd"]["opencode_session_id"] = "ses-parent"
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", tmp_path / "locks")
+
+    result = sessions.activate_session_worktree("ses-parent")
+
+    assert result["status"] == "active"
+    assert data["sessions"]["abcd"]["workspace_state"] == "changes_pending"
+    assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
+    assert data["sessions"]["abcd"]["auto_integration"]["status"] == "changes_pending"
+    assert data["sessions"]["abcd"]["auto_integration"]["block_reason"] == "live_turn_started"
+
+
+def test_claim_rechecks_presence_and_invalidates_candidate(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: True)
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", tmp_path / "locks")
+
+    assert sessions._claim_auto_integration({
+        "session_id": "abcd",
+        "patch_id": "patch-1",
+        "checkpoint_commit": "commit-1",
+    }) is False
+    assert data["sessions"]["abcd"]["workspace_state"] == "changes_pending"
+    assert data["sessions"]["abcd"]["auto_integration"]["status"] == "changes_pending"
+    assert data["sessions"]["abcd"]["auto_integration"]["block_reason"] == "live_turn_started"
+
+
 def test_only_current_checkpoint_past_grace_is_selected(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = eligible_data()
