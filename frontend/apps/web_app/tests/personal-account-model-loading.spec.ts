@@ -10,7 +10,7 @@
 export {};
 
 const { test, expect, attachConsoleListeners, attachNetworkListeners } = require('./console-monitor');
-const { createSignupLogger, createStepScreenshotter } = require('./signup-flow-helpers');
+const { createSignupLogger, createStepScreenshotter, withMockMarker } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const TEST_CREDENTIALS = {
@@ -60,28 +60,16 @@ test('authenticated account loads its chat model selector without retry errors',
 	await initialSyncCompleted;
 
 	const activeChat = page.getByTestId('active-chat-container');
-	const sidebarToggle = page.getByTestId('sidebar-toggle');
-	if (await sidebarToggle.isVisible().catch(() => false)) await sidebarToggle.click();
-	const staticGroupKeys = new Set(['incognito', 'shared_by_others', 'intro', 'examples', 'announcements', 'tips_and_tricks', 'legal']);
-	const chatGroups = page.getByTestId('chat-group');
-	let ownedChat: any = null;
-	for (let index = 0; index < await chatGroups.count(); index += 1) {
-		const group = chatGroups.nth(index);
-		const groupKey = await group.getAttribute('data-group-key');
-		if (!groupKey || staticGroupKeys.has(groupKey)) continue;
-		const candidate = group.getByTestId('chat-item').first();
-		if (await candidate.count()) {
-			ownedChat = candidate;
-			break;
-		}
-	}
-	expect(ownedChat).not.toBeNull();
-	await ownedChat.click();
-	await expect(activeChat).toHaveAttribute('data-current-chat-id', /.+/, { timeout: 60000 });
-
 	const composer = activeChat.getByTestId('message-field').last();
 	const editor = composer.getByTestId('message-editor');
 	await expect(editor).toBeVisible({ timeout: 60000 });
+	await editor.click();
+	await page.keyboard.type(withMockMarker('Create an owned chat for model preference restoration.', 'chat_flow_capital'));
+	const sendButton = page.locator('[data-action="send-message"]');
+	await expect(sendButton).toBeEnabled({ timeout: 15000 });
+	await sendButton.click();
+	await expect(activeChat).toHaveAttribute('data-current-chat-id', /.+/, { timeout: 60000 });
+
 	await editor.click();
 
 	const selector = composer.getByTestId('composer-model-selector');
