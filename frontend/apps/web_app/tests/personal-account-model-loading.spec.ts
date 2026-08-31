@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Authenticated account-health regression for reported issue 4NPP9.
- * Opens a persisted chat because account-scoped model preference restoration
- * does not run on the new-chat welcome surface. Verifies restoration completes
- * without the retry notification or a permanently loading model selector.
+ * Persists an exact model, reloads the same chat, and verifies account-scoped
+ * restoration completes without a retry notification or permanently loading
+ * model selector. This reproduces the delayed restore race from issue XW4UW.
  * proof-video: not_required reason=account_health
  */
 
@@ -75,9 +75,29 @@ test('authenticated account loads its chat model selector without retry errors',
 	await expect(composer.getByTestId('composer-model-selector-label')).not.toHaveText('Loading...');
 
 	await selector.click();
-	await expect(composer.getByTestId('composer-model-selector-menu')).toBeVisible();
-	await takeStepScreenshot(page, 'model-selector-loaded');
+	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
+	await expect(selectorMenu).toBeVisible();
+	await selectorMenu.getByTestId('composer-model-provider-openai').click();
+	await selectorMenu.getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
+	await expect(composer.getByTestId('composer-model-selector-label')).not.toHaveText('Auto select');
+
+	const persistedChatId = await activeChat.getAttribute('data-current-chat-id');
+	expect(persistedChatId).toBeTruthy();
+	await page.reload({ waitUntil: 'domcontentloaded' });
+	await expect(activeChat).toHaveAttribute('data-current-chat-id', persistedChatId!, { timeout: 60000 });
+
+	const restoredComposer = activeChat.getByTestId('message-field').last();
+	await expect(restoredComposer.getByTestId('message-editor')).toBeVisible({ timeout: 60000 });
+	await restoredComposer.getByTestId('message-editor').click();
+	const restoredSelector = restoredComposer.getByTestId('composer-model-selector');
+	await expect(restoredSelector).toBeVisible({ timeout: 30000 });
+	await expect(restoredSelector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
+	await expect(restoredComposer.getByTestId('composer-model-selector-label')).not.toHaveText('Loading...');
+	await takeStepScreenshot(page, 'model-selector-restored');
 
 	const notifications = await page.evaluate(() => (window as any).__issue4NPP9Notifications as string[]);
 	expect(notifications.filter((message) => message.trim().toLowerCase() === 'try again')).toEqual([]);
+
+	await restoredSelector.click();
+	await restoredComposer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-auto').click();
 });
