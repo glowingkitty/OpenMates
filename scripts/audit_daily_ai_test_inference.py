@@ -238,6 +238,7 @@ def _audit_backfill_guards() -> list[str]:
             "candidate_run_root=run_root",
             "persist=persist",
             "GitHubActionsClient(git_sha=_full_git_sha(self.git_sha))",
+            'candidate_root.parent / "daily-ai-backfill-claims"',
         ),
         COMPOSE_PATH: (
             "../../test-results/live-mock-candidates:/live-mock-candidates",

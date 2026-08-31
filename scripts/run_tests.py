@@ -7214,7 +7214,9 @@ class TestOrchestrator:
         )
         candidate_root = Path(os.getenv("DAILY_AI_CANDIDATE_ROOT", str(default_candidate_root)))
         run_root = candidate_root / plan.candidate_run_id
-        claim_root = candidate_root / f"daily-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+        default_claim_root = candidate_root.parent / "daily-ai-backfill-claims"
+        claim_base = Path(os.getenv("DAILY_AI_CLAIM_ROOT", str(default_claim_root)))
+        claim_root = claim_base / f"daily-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
 
         client = GitHubActionsClient(git_sha=_full_git_sha(self.git_sha))
 
