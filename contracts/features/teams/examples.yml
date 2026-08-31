@@ -1,5 +1,22 @@
 schema_version: 1
-contract: feature.teams@1
+contract: feature.teams@2
+
+contract_structure:
+  - id: requirements-use-canonical-assertion-ids
+    input: {chapter: membership-invitations, requirement_id: teams.membership.role-gated, ui_label: Requirements}
+    expect: {duplicate_requirement_record: false, canonical_assertion_id_preserved: true, chapter_placement_visible: true}
+  - id: flow-is-contract-owned-rich-content
+    input: {flow_id: create-team, kind: user_flow, embed_references: [], parent_contract_revision: feature.teams@2}
+    expect: {independent_flow_embed_created: false, nested_fullscreen_renderable: true, independent_share_action: false}
+  - id: edge-case-reuses-flow-rendering
+    input: {flow_id: invite-unusable, kind: edge_case, parent_flow_id: invite-member}
+    expect: {scenario_model_created: false, same_rich_content_renderer: true, parent_flow_visible: true}
+  - id: models-remain-global-and-contextual
+    input: {model_id: TeamMembership, chapter_ids: [membership-invitations, collaboration-chat]}
+    expect: {canonical_model_definitions: 1, contextual_placements: 2, copied_definition: false}
+  - id: checks-group-real-test-sources
+    input: {check_obligation_id: check.team-chat-privacy, materialization: pending, source_kinds: [integration, e2e, unit_suite]}
+    expect: {one_check_per_test_case: false, existing_sources_visible: true, check_embed_required_before_current_run_history: true}
 
 team_lifecycle_profile:
   - id: create-team-generates-default-profile

@@ -58,9 +58,11 @@ CONTRACT_GENERATED_PATHS = {
 }
 CONTRACT_EVIDENCE_TOOLING_PATHS = {
     "scripts/contract_approval_pdf.py",
+    "scripts/contract_readable_pdf.py",
     "scripts/contracts.py",
     "scripts/spec_verify.py",
     "scripts/tests/test_contract_approval_pdf.py",
+    "scripts/tests/test_contract_readable_pdf.py",
     "scripts/tests/test_contract_evidence.py",
     "scripts/tests/test_contracts_workflow.py",
     "scripts/tests/test_spec_demonstration_workflow.py",
@@ -1210,10 +1212,12 @@ def validate_review_artifact(path: Path, bundle: ContractBundle) -> dict[str, st
         raise ContractError("Contract review artifact PDF is missing or its hash does not match")
     highlight_policy = artifact.get("highlight_policy")
     if highlight_policy != {
-        "additions_and_modifications": "yellow_background",
-        "removals": "yellow_removal_block",
+        "additions": "inline_green_plus",
+        "removals": "inline_red_minus",
+        "unchanged": "neutral",
+        "granularity": "changed_text_only",
     }:
-        raise ContractError("Contract review artifact does not declare the required yellow highlight policy")
+        raise ContractError("Contract review artifact does not declare the required inline red/green text-diff policy")
     publication = artifact.get("publication")
     if artifact.get("approval_eligible") is not True or not isinstance(publication, dict):
         raise ContractError("Contract review artifact requires a privately uploaded PDF publication")

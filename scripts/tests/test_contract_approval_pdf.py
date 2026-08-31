@@ -8,6 +8,7 @@ Docker, Vault, or S3. The renderer remains a deterministic tooling surface.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import os
 import subprocess
@@ -60,12 +61,16 @@ def test_html_highlights_changes_and_keeps_removals_visible(tmp_path: Path) -> N
 
     assert "Updated-summary" in document
     assert "\u2011" not in document
-    assert 'class="field changed"' in document
+    assert 'class="field diff-field"' in document
     assert "New truth" in document
     assert "Must remain visible as removed" in document
     assert "Removed" in document
     assert current.fingerprint in document
-    assert "Yellow marks content added or modified" in document
+    assert "Only changed text is colored" in document
+    assert 'class="diff-insert"' in document
+    assert 'class="diff-delete"' in document
+    assert '<span class="diff-delete"><b>-</b>Old summary</span>' in document
+    assert '<span class="diff-insert"><b>+</b>Updated-summary</span>' in document
 
 
 # contract-test: tooling
@@ -85,6 +90,55 @@ def test_scalar_list_matching_consumes_duplicate_occurrences() -> None:
     assert matches[0] == "B"
     assert matches[1] is approval_pdf.MISSING
     assert removed == ["A"]
+
+
+# contract-test: tooling
+def test_chaptered_approval_leads_with_linked_human_presentation(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    current.contract.update({
+        "version": 2,
+        "status": "draft",
+        "outcome": "Readable outcome.",
+        "presentation": {
+            "chapter_order": ["first"],
+            "generated_indexes": ["requirements", "user_flows", "edge_cases", "models", "checks", "examples", "history"],
+            "legend": {"requirement": "Durable truth.", "user_flow": "Goal-oriented flow.", "edge_case": "Boundary path.", "model": "Canonical model.", "check": "Proof obligation.", "surface": "Project capability."},
+        },
+        "project_surface_catalog": {
+            "home_project_id": "openmates",
+            "revision_id": "surfaces-v1",
+            "surfaces": [{"id": "web", "label": "Web", "kind": "web", "status": "active"}],
+        },
+        "scope": {"includes": ["Readable approval"], "excludes": ["Raw YAML default"]},
+        "chapters": [{"id": "first", "title": "First Chapter", "summary": "Review this chapter.", "requirement_ids": ["example.existing", "example.new"], "user_flow_ids": ["read-flow"], "edge_case_ids": [], "model_ids": ["ExampleModel"]}],
+        "flows": [{"id": "read-flow", "kind": "user_flow", "title": "Read the Contract", "chapter_id": "first", "requirement_ids": ["example.existing"], "surface_ids": ["web"], "content": "1. Open.\n2. Review.", "embed_references": [], "check_obligation_ids": ["check.example"]}],
+        "model_placements": [{"model_id": "ExampleModel", "chapter_ids": ["first"]}],
+        "check_obligations": [{"id": "check.example", "title": "Readable approval", "materialization": "pending", "covers": ["example.existing"], "sources": []}],
+        "models": {"ExampleModel": {"id": {"type": "stable_id", "required": True}}},
+        "surfaces": {"rest_api": {"required": False}, "cli": {"required": False}, "sdks": {"required": False, "implementations": {"npm": {"required": False}, "pip": {"required": False}}}, "gui": {"required": True, "implementations": {"web": {"required": True}, "apple": {"required": False}}, "exceptions": []}},
+    })
+    for assertion in current.contract["assertions"]:
+        assertion.update({"title": assertion["id"], "chapter_id": "first", "type": "behavior", "project_surface_ids": ["web"], "check_obligation_ids": ["check.example"]})
+    current = replace(current, version=2, status="draft")
+
+    document = approval_pdf.build_html(
+        current,
+        baseline_contract={"id": "feature.example", "version": 1, "status": "approved", "title": "Example", "summary": "Old summary", "assertions": []},
+        baseline_examples={"contract": "feature.example@1", "cases": []},
+        baseline_ref="HEAD",
+    )
+
+    assert 'id="change-summary"' in document
+    assert 'href="#chapter-first"' in document
+    assert 'href="#approval-examples"' in document
+    assert 'id="approval-technical"' in document
+    assert 'class="card requirement diff-added"' in document
+    assert document.index('id="legend"') < document.index('id="project-surfaces"')
+    assert '<span class="diff-delete"><b>-</b>feature.example@1</span>' in document
+    assert '<span class="diff-insert"><b>+</b>feature.example@2</span>' in document
+    assert '<span class="diff-delete"><b>-</b>Approved</span>' in document
+    assert '<span class="diff-insert"><b>+</b>Draft</span>' in document
+    assert "+</b>1. Open.<br>2. Review." in document
 
 
 # contract-test: tooling
@@ -177,7 +231,7 @@ def test_documented_cli_entry_point_loads_from_repository_root() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "highlighted Contract approval PDF" in result.stdout
+    assert "inline-diff Contract approval PDF" in result.stdout
 
 
 # contract-test: tooling
@@ -187,7 +241,7 @@ def test_invalid_baseline_ref_fails_closed(tmp_path: Path) -> None:
 
 
 # contract-test: tooling
-def test_real_chromium_render_contains_yellow_changes(tmp_path: Path) -> None:
+def test_real_chromium_render_contains_inline_green_and_red_changes(tmp_path: Path) -> None:
     current = bundle(tmp_path)
     document = approval_pdf.build_html(
         current,
@@ -213,7 +267,9 @@ def test_real_chromium_render_contains_yellow_changes(tmp_path: Path) -> None:
     approval_pdf.render_pdf(document, pdf)
 
     image = Image.open(screenshot).convert("RGB")
-    yellow_pixels = sum(1 for pixel in image.get_flattened_data() if pixel == (255, 242, 168))
-    assert yellow_pixels > 1000
+    green_pixels = sum(1 for pixel in image.get_flattened_data() if pixel == (230, 247, 236))
+    red_pixels = sum(1 for pixel in image.get_flattened_data() if pixel == (253, 235, 236))
+    assert green_pixels > 50
+    assert red_pixels > 50
     assert pdf.read_bytes().startswith(b"%PDF")
     assert pdf.stat().st_size > 1000

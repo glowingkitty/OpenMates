@@ -1,7 +1,7 @@
 # .github/workflows/contract-approval-pdf.yml
 #
 # Verifies the deterministic Contract approval PDF and private-link helpers.
-# This dedicated job installs Chromium so the rendered yellow-highlight test is
+# This dedicated job installs Chromium so the rendered inline-diff test is
 # mandatory in CI rather than silently skipped by dependency-light unit jobs.
 
 name: "Contracts: Approval PDF"

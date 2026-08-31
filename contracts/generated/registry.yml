@@ -398,10 +398,10 @@ contracts:
     - sdks.pip
     - gui.web
   feature.teams:
-    version: 1
-    status: approved
+    version: 2
+    status: draft
     path: features/teams
-    fingerprint: 798259dd56f231c487d64aa058d4e301f5d06ac03d61dc51a449103a5dc23a49
+    fingerprint: 3dbf6189e88eb87ea78199a45db10869568b59f54719990042b0108428914f7e
     required_surfaces:
     - rest_api
     - cli
@@ -4253,10 +4253,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.lifecycle.encrypted-profiled:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: privacy
-    fingerprint: 4660700afe2dbe96055a78540871e724a181fe1d8b13f4db209de5bc50f82b8d
+    fingerprint: 8834571d03135efec958df52c67e1040030e4c091d97a38d5f053679c388dad9
     required_surfaces:
     - rest_api
     - cli
@@ -4264,10 +4264,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.profile-image.safe-parity:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: security
-    fingerprint: 86a27be0efc23618a06c6881d275879c73fcd327d59ce02f75ba4e161c0f8eb6
+    fingerprint: a8bcc589bce6b51c58638469e6f09cdfea6d07586c7df7028302740dd5191797
     required_surfaces:
     - rest_api
     - cli
@@ -4275,10 +4275,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.membership.role-gated:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: security
-    fingerprint: 347d8b31f1c311c86fa3af7ae1d0921c034096d95b6b79f6cd05b5e05d181cbe
+    fingerprint: d9485e5f04c473ada0453a51ed2f219511c4ed32c38f206837d137930f2ff060
     required_surfaces:
     - rest_api
     - cli
@@ -4286,10 +4286,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.invites.fragment-key-web-flow:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: behavior
-    fingerprint: 42ff02732a01828324cf7a68efe525c5c3a1192eb8ee7c0c5db3da5c01f58580
+    fingerprint: 9077fbec01da5a8fd5c65cee59337efb29ad2668feb40f75d7cd7aa33a7014bd
     required_surfaces:
     - rest_api
     - cli
@@ -4297,10 +4297,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.context.full-switch-local:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: invariant
-    fingerprint: b88cf430063e73cf39294d40f223768895d14d8ccf680bef6ff58e8960068b4d
+    fingerprint: 6acb2c59c0d1e8745be01dcb9d87d7b901aaa6cf4e19f6a97c04c48027c35b42
     required_surfaces:
     - rest_api
     - cli
@@ -4308,10 +4308,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.connected-accounts.team-owned-isolation:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: security
-    fingerprint: 77cb086e795ba11a0519134dd0290b2e3cc4fe25a0c6804996123b83299b75fc
+    fingerprint: b86a34f4d4f1e2f73f6b4db54da033e43a966a63c9ec95f705b9422aca37ff4b
     required_surfaces:
     - rest_api
     - cli
@@ -4319,10 +4319,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.collaboration.realtime-team-sync:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: behavior
-    fingerprint: 2e2068a4cf8580c286f915a43f8fbc9ac7e6114157e3839e6dabbfb6717503b2
+    fingerprint: 40de42457b816a23bec58d99d60ffa5f76c51454e2b9f7b6b7ebdeaefaf97e91
     required_surfaces:
     - rest_api
     - cli
@@ -4330,10 +4330,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat.encrypted-until-invoked:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: privacy
-    fingerprint: ae6191b92e677cf3d15386508ff0e2de704c7103e7f8e05d9e922da4cf74ec4b
+    fingerprint: 9d64b9658d8c131d6e3091d9f4d8b5ad20ebe48cebbafa233ca1ed6f6b2904c7
     required_surfaces:
     - rest_api
     - cli
@@ -4341,10 +4341,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat.member-mentions-notify:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: behavior
-    fingerprint: 73654c6884e13f09c2b03e5b358957bdcbfce08a5fc03470fd52bc8ec998f8f7
+    fingerprint: a9f9d581eb5bfb2164795683d56900f8092965a367512ef2005989bfc294891e
     required_surfaces:
     - rest_api
     - cli
@@ -4352,10 +4352,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat.sender-identity-layout:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: behavior
-    fingerprint: 143b1696e2ef333ad1d732c220912debeb2b65f867a53d2f9d66beb88301fc63
+    fingerprint: 3925fcf2f8e842f8588533a35c066e7c350e75ade6f6bf7487f3ee73ebce475a
     required_surfaces:
     - rest_api
     - cli
@@ -4363,10 +4363,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.chat-billing.team-credit-boundary:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: invariant
-    fingerprint: 4ce36edc6d3dd6f1b225a856d54df35eb10c9062fbb9b7a7940f8fd898ee09bf
+    fingerprint: d37662ebfb4144468132a2ed38df252b5f90061d78c4cec045e5ab05a080db15
     required_surfaces:
     - rest_api
     - cli
@@ -4374,10 +4374,10 @@ assertions:
     - sdks.pip
     - gui.web
   teams.workspace.surface-parity:
-    contract: feature.teams@1
+    contract: feature.teams@2
     contract_id: feature.teams
     type: parity
-    fingerprint: 1800548e8c51c0177a5063a03e7177eed8ff2a7bffeb4692955e70b132edfcd3
+    fingerprint: 491a00b66ad1fd357313743c990301dd03f6aa6a43c5e9fa931ffe75334ce192
     required_surfaces:
     - rest_api
     - cli

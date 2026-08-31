@@ -18,13 +18,13 @@ argument-hint: "<feature or existing contract ID>"
 4. Generate and privately upload the exact-fingerprint approval document:
 
 ```bash
-python3 scripts/contract_approval_pdf.py <bundle> --baseline-ref HEAD
+python3 scripts/sessions.py contract approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD
 ```
 
    Paste the returned Markdown PDF link into the chat before asking for
    approval. The PDF must contain the complete `contract.yml` and `examples.yml`;
-   additions and modifications must have yellow backgrounds, and removals must
-   remain visible in yellow removal blocks. A local path or prose summary is not
+   only changed text is colored, using inline green `+` insertions and inline red
+   `-` deletions while unchanged text remains neutral. A local path or prose summary is not
    a substitute. If rendering or upload fails, repair it before asking.
 5. Briefly explain affected assertions, surfaces, and evidence invalidation next
    to the embedded PDF. The PDF is the canonical review artifact; do not flood

@@ -71,11 +71,12 @@ Markdown in the blocker response. The image is required even when a video upload
 command is also available, so OpenCode can show the defect immediately.
 
 Before asking for approval for a new or modified Contract, run
-`python3 scripts/contract_approval_pdf.py <bundle> --baseline-ref HEAD` and paste
-the returned PDF Markdown link into the same response. The PDF is bound to the
-exact bundle fingerprint and includes the complete Contract plus examples;
-additions and modifications use yellow backgrounds and removals remain visible
-as yellow removal blocks. A fingerprint, summary, raw local path, or unlinked
+`python3 scripts/sessions.py contract approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD`
+and paste the returned PDF Markdown link into the same response. The routed
+wrapper uses the current approval tooling and binds the PDF to the
+exact bundle fingerprint and includes the complete Contract plus examples. Only
+changed text is colored: inline green `+` insertions, inline red `-` deletions,
+and neutral unchanged text. A fingerprint, summary, raw local path, or unlinked
 claim that a PDF exists is not sufficient. Repair rendering or upload before
 asking for approval. The renderer also writes a JSON review artifact. After
 explicit approval, pass that artifact to `scripts/contracts.py approve

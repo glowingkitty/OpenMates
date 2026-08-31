@@ -42,6 +42,7 @@ OpenMates/
 - **Comments:** Explain business logic and architecture decisions. Link to `docs/architecture/`.
 - **File headers:** Every new `.py`, `.ts`, `.svelte` file needs a header comment (5-10 lines).
 - **Deterministic guardrails:** When repeated bugs, flaky tests, security/privacy risks, provider metadata drift, or OpenCode workflow issues cost debugging time or inference tokens, prefer creating or updating a deterministic script, audit, hook, or focused test guard that prevents the same issue from recurring.
+- **Contract approval diff policy:** `sessions.py contract approval-pdf` exact-fingerprint PDFs use changed-text-only inline green `+` insertions, inline red `-` deletions, and neutral unchanged text before asking for approval; the generated review artifact binds the fingerprint. This policy overrides obsolete yellow-block wording elsewhere in this file.
 
 ### DRY: Search Before Writing
 

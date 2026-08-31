@@ -165,9 +165,11 @@ CONTRACT_APPROVAL_GUIDANCE_PATHS = (
     ".agents/skills/define-contract/SKILL.md",
 )
 REQUIRED_CONTRACT_APPROVAL_TERMS = (
-    "scripts/contract_approval_pdf.py",
+    "sessions.py contract approval-pdf",
     "fingerprint",
-    "yellow",
+    "inline green",
+    "inline red",
+    "unchanged text",
     "before asking",
     "review artifact",
 )
