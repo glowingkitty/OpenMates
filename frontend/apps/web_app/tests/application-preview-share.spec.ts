@@ -29,7 +29,7 @@ const {
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const MIN_LARGE_APPLICATION_EMBED_WIDTH_PX = 400;
-const GENERATED_APPLICATION_FALLBACK_PROSE = 'I created a runnable Svelte application.';
+const GENERATED_APPLICATION_PROSE = 'Here is a complete, runnable';
 
 async function expectRenderedApplicationPresentation(page: any, embed: any): Promise<void> {
 	const largeEmbed = page.getByTestId('embed-preview-large').filter({ has: embed });
@@ -79,7 +79,7 @@ test('shared recipient starts an isolated application preview session', async ({
 	);
 
 	const creatorEmbed = await waitForEmbedFinished(page, 'code', 'application', 180_000);
-	await expect(page.getByText(GENERATED_APPLICATION_FALLBACK_PROSE, { exact: true })).toBeVisible();
+	await expect(page.getByTestId('mate-message-content').last()).toContainText(GENERATED_APPLICATION_PROSE);
 	await expectRenderedApplicationPresentation(page, creatorEmbed);
 
 	await page.getByTestId('chat-share-button').click();
@@ -107,7 +107,7 @@ test('shared recipient starts an isolated application preview session', async ({
 		await recipientPage.goto(shareUrl, { waitUntil: 'load' });
 
 		const recipientEmbed = await waitForEmbedFinished(recipientPage, 'code', 'application', 180_000);
-		await expect(recipientPage.getByText(GENERATED_APPLICATION_FALLBACK_PROSE, { exact: true })).toBeVisible();
+		await expect(recipientPage.getByTestId('mate-message-content').last()).toContainText(GENERATED_APPLICATION_PROSE);
 		await expectRenderedApplicationPresentation(recipientPage, recipientEmbed);
 		const recipientFullscreen = await openFullscreen(recipientPage, recipientEmbed);
 		const previewStartResponse = recipientPage.waitForResponse(
