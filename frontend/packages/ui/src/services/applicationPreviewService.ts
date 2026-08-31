@@ -5,7 +5,7 @@
 // actual app traffic is loaded from the separate user-content preview origin.
 
 import { getApiUrl } from '../config/api';
-import { decodeToonContent, extractEmbedReferences, resolveEmbed } from './embedResolver';
+import { decodeToonContent, extractEmbedReferences, loadEmbedsWithRetry, resolveEmbed } from './embedResolver';
 
 const AUTO_START_RESOLVE_ATTEMPTS = 6;
 const AUTO_START_RESOLVE_DELAY_MS = 500;
@@ -187,12 +187,14 @@ export async function buildApplicationPreviewSharedContext(
     : [];
   if (!fileRefs.length) return undefined;
 
-  const childContents: Record<string, Record<string, unknown>> = {};
-  for (const ref of fileRefs) {
-    const embedId = typeof ref.embed_id === 'string' ? ref.embed_id : '';
-    if (!embedId) return undefined;
+  const embedIds = fileRefs.map((ref) => typeof ref.embed_id === 'string' ? ref.embed_id : '');
+  if (embedIds.some((embedId) => !embedId)) return undefined;
 
-    const embed = await resolveEmbed(embedId);
+  const childEmbeds = await loadEmbedsWithRetry(embedIds);
+  const childEmbedsById = new Map(childEmbeds.map((embed) => [embed.embed_id, embed]));
+  const childContents: Record<string, Record<string, unknown>> = {};
+  for (const embedId of embedIds) {
+    const embed = childEmbedsById.get(embedId);
     const decoded = await decodeToonContent(embed?.content);
     if (!decoded) return undefined;
     childContents[embedId] = decoded;
