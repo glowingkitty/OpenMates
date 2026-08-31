@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dedupeShareChatEmbeds, deriveParentByChildEmbeds, normalizeEmbedIds } from './shareChatEmbedUtils';
 
 describe('normalizeEmbedIds', () => {
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
   it('normalizes array and pipe-delimited embed ids', () => {
     expect(normalizeEmbedIds(['c1', ' c2 ', '', 123])).toEqual(['c1', 'c2']);
     expect(normalizeEmbedIds('c1| c2 ||')).toEqual(['c1', 'c2']);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
   it('returns empty array for invalid values', () => {
     expect(normalizeEmbedIds(null)).toEqual([]);
     expect(normalizeEmbedIds({})).toEqual([]);
@@ -14,6 +16,7 @@ describe('normalizeEmbedIds', () => {
 });
 
 describe('dedupeShareChatEmbeds', () => {
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
   it('keeps the first row for each embed id', () => {
     expect(dedupeShareChatEmbeds([
       { embed_id: 'parent', embed_ids: ['child'] },
@@ -29,6 +32,7 @@ describe('dedupeShareChatEmbeds', () => {
 });
 
 describe('deriveParentByChildEmbeds', () => {
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
   it('derives child->parent mapping from embed_ids', () => {
     const map = deriveParentByChildEmbeds([
       { embed_id: 'parent', embed_ids: ['c1', 'c2'] },
@@ -40,6 +44,7 @@ describe('deriveParentByChildEmbeds', () => {
     expect(map.get('c2')).toBe('parent');
   });
 
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
   it('does not overwrite existing child mapping', () => {
     const map = deriveParentByChildEmbeds([
       { embed_id: 'p1', embed_ids: ['c'] },
@@ -49,6 +54,7 @@ describe('deriveParentByChildEmbeds', () => {
     expect(map.get('c')).toBe('p1');
   });
 
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
   it('supports historical pipe-delimited embed_ids content', () => {
     const map = deriveParentByChildEmbeds([
       { embed_id: 'p1', embed_ids: 'c1|c2' },
@@ -59,5 +65,17 @@ describe('deriveParentByChildEmbeds', () => {
     expect(map.get('c1')).toBe('p1');
     expect(map.get('c2')).toBe('p1');
     expect(map.get('ok')).toBe('p2');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
+  it('preserves successfully unwrapped child keys while deriving legacy children', () => {
+    const map = deriveParentByChildEmbeds([
+      { embed_id: 'parent', embed_ids: ['direct-child', 'legacy-child'] },
+      { embed_id: 'direct-child' },
+      { embed_id: 'legacy-child' }
+    ], new Set(['direct-child']));
+
+    expect(map.has('direct-child')).toBe(false);
+    expect(map.get('legacy-child')).toBe('parent');
   });
 });
