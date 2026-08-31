@@ -40,6 +40,7 @@
         modelSelection?: string;
         showModelSelector?: boolean;
         modelSelectionReady?: boolean;
+        modelSelectionPersistenceRevision?: number;
     }
     let {
         showSendButton = false,
@@ -52,7 +53,8 @@
         reserveTrailingControlSpace = false,
         modelSelection = 'auto',
         showModelSelector = true,
-        modelSelectionReady = true
+        modelSelectionReady = true,
+        modelSelectionPersistenceRevision = 0
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -131,7 +133,7 @@
             {/if}
         </div>
         {#if showModelSelector}
-            <ComposerModelSelector selection={modelSelection} ready={modelSelectionReady} onSelect={handleModelSelect} onOpenDetails={handleModelDetails} />
+            <ComposerModelSelector selection={modelSelection} ready={modelSelectionReady} persistenceRevision={modelSelectionPersistenceRevision} onSelect={handleModelSelect} onOpenDetails={handleModelDetails} />
         {/if}
     </div>
     <div class="right-buttons {reserveTrailingControlSpace ? 'reserve-trailing-control-space' : ''}">

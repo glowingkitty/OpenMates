@@ -75,11 +75,12 @@ test('authenticated account loads its chat model selector without retry errors',
 	await expect(composer.getByTestId('composer-model-selector-label')).not.toHaveText('Loading...');
 
 	await selector.click();
+	const initialPersistenceRevision = Number(await selector.getAttribute('data-persistence-revision'));
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
 	await expect(selectorMenu).toBeVisible();
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
 	await selectorMenu.getByTestId('composer-model-row').first().getByTestId('composer-model-toggle').click();
-	await expect(selector).toHaveAttribute('data-loading', 'true');
+	await expect(selector).toHaveAttribute('data-persistence-revision', String(initialPersistenceRevision + 1), { timeout: 30000 });
 	await expect(selector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	const selectedLabel = composer.getByTestId('composer-model-selector-label');
 	await expect(selectedLabel).not.toHaveText('Auto select');
@@ -105,8 +106,9 @@ test('authenticated account loads its chat model selector without retry errors',
 	expect(notifications.filter((message) => message.trim().toLowerCase() === 'try again')).toEqual([]);
 
 	await restoredSelector.click();
+	const cleanupPersistenceRevision = Number(await restoredSelector.getAttribute('data-persistence-revision'));
 	await restoredComposer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-auto').click();
-	await expect(restoredSelector).toHaveAttribute('data-loading', 'true');
+	await expect(restoredSelector).toHaveAttribute('data-persistence-revision', String(cleanupPersistenceRevision + 1), { timeout: 30000 });
 	await expect(restoredSelector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	await expect(restoredLabel).toHaveText('Auto select');
 });

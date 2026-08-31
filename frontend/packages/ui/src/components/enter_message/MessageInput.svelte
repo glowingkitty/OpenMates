@@ -265,6 +265,7 @@
     let showSketch = $state(false);
     let modelSelection = $state<ChatModelSelection>('auto');
     let modelSelectionReady = $state(true);
+    let modelSelectionPersistenceRevision = $state(0);
     let modelSelectionChatId = $state<string | undefined>(undefined);
     let modelSelectionUserId = $state<string | null>(null);
     let pendingNewChatModelSelection = $state<{ selection: ChatModelSelection; draftChatId: string | null } | null>(null);
@@ -350,6 +351,11 @@
             pendingNewChatModelSelection = null;
             void chatModelSelectionService
                 .select({ userId, chatId, selection: pendingSelection.selection })
+                .then((persistedSelection) => {
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
+                    modelSelection = persistedSelection;
+                    modelSelectionPersistenceRevision += 1;
+                })
                 .catch((error) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     console.error('[MessageInput] Failed to persist new-chat model selection:', error);
@@ -5180,6 +5186,7 @@
                 currentChatId === selectionChatId
             ) {
                 modelSelection = persistedSelection;
+                modelSelectionPersistenceRevision += 1;
             }
         } catch (error) {
             if (
@@ -6338,6 +6345,7 @@
                     {modelSelection}
                     showModelSelector={true}
                     {modelSelectionReady}
+                    {modelSelectionPersistenceRevision}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}

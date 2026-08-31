@@ -108,8 +108,12 @@ describe("chat model selection", () => {
     const deviceB = createChatModelSelectionService(deviceBAdapters);
 
     await deviceA.select({ userId: ALICE, chatId: CHAT_ID, selection: SONNET_MODEL });
+    const staleRemoteRecord = deviceAAdapters.shared.remote.get(`${ALICE}:${CHAT_ID}`)!;
 
     await expect(deviceB.select({ userId: ALICE, chatId: CHAT_ID, selection: FLASH_MODEL })).resolves.toBe(FLASH_MODEL);
+    const localWriteCount = deviceBAdapters.calls.writeLocal.mock.calls.length;
+    await expect(deviceB.receiveRemote({ userId: ALICE, chatId: CHAT_ID, record: staleRemoteRecord })).resolves.toBe(FLASH_MODEL);
+    expect(deviceBAdapters.calls.writeLocal).toHaveBeenCalledTimes(localWriteCount);
     await expect(deviceA.restore({ userId: ALICE, chatId: CHAT_ID })).resolves.toBe(FLASH_MODEL);
     expect(deviceBAdapters.calls.compareAndSetRemote).toHaveBeenNthCalledWith(1, ALICE, CHAT_ID, 0, {
       ciphertext: "format-d-ciphertext-2",
@@ -119,6 +123,26 @@ describe("chat model selection", () => {
       ciphertext: "format-d-ciphertext-2",
       version: 2,
     });
+  });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
+  it("reconciles speculative local state when the retry also conflicts", async () => {
+    const deviceAAdapters = createAdapters();
+    const deviceBAdapters = createAdapters(deviceAAdapters.shared);
+    const deviceA = createChatModelSelectionService(deviceAAdapters);
+    const deviceB = createChatModelSelectionService(deviceBAdapters);
+
+    await deviceA.select({ userId: ALICE, chatId: CHAT_ID, selection: SONNET_MODEL });
+    deviceBAdapters.calls.compareAndSetRemote.mockResolvedValue(null);
+
+    await expect(deviceB.select({ userId: ALICE, chatId: CHAT_ID, selection: FLASH_MODEL }))
+      .rejects.toThrow("conflicted repeatedly");
+    await expect(deviceB.restore({ userId: ALICE, chatId: CHAT_ID })).resolves.toBe(SONNET_MODEL);
+    expect(deviceBAdapters.calls.writeLocal).toHaveBeenLastCalledWith(
+      ALICE,
+      CHAT_ID,
+      deviceAAdapters.shared.remote.get(`${ALICE}:${CHAT_ID}`),
+    );
   });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope

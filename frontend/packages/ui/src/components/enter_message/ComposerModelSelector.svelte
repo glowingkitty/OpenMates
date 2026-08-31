@@ -19,11 +19,12 @@
     interface Props {
         selection: string;
         ready?: boolean;
+        persistenceRevision?: number;
         onSelect: (selection: string) => void;
         onOpenDetails: (modelId: string) => void;
     }
 
-    let { selection, ready = true, onSelect, onOpenDetails }: Props = $props();
+    let { selection, ready = true, persistenceRevision = 0, onSelect, onOpenDetails }: Props = $props();
     let isOpen = $state(false);
     let activeProvider = $state<string | null>(null);
     let showAllProviders = $state(false);
@@ -141,6 +142,7 @@
         aria-expanded={isOpen}
         disabled={!ready}
         data-loading={!ready}
+        data-persistence-revision={persistenceRevision}
         onclick={toggleSelector}
         onkeydown={closeOnKeydown}
     >

@@ -311,7 +311,6 @@ export function createChatModelSelectionService(
       }
 
       const retryRecord = { ciphertext, version: remoteRecord.version + 1 };
-      await adapters.local.write(userId, chatId, retryRecord);
       const retryAccepted = await adapters.remote.compareAndSet(
         userId,
         chatId,
@@ -319,8 +318,15 @@ export function createChatModelSelectionService(
         retryRecord,
       );
       if (!retryAccepted) {
+        const latestRemoteRecord = await adapters.remote.read(userId, chatId);
+        if (latestRemoteRecord) {
+          const latestRemoteSelection = await decryptRecord(adapters, latestRemoteRecord);
+          selections.set(key, latestRemoteSelection);
+          await adapters.local.write(userId, chatId, latestRemoteRecord);
+        }
         throw new Error("Chat model selection sync conflicted repeatedly");
       }
+      await adapters.local.write(userId, chatId, retryRecord);
       return selection;
     },
 
@@ -356,6 +362,12 @@ export function createChatModelSelectionService(
     },
 
     async receiveRemote({ userId, chatId, record }) {
+      const localRecord = await adapters.local.read(userId, chatId);
+      if (localRecord && localRecord.version >= record.version) {
+        const localSelection = await decryptRecord(adapters, localRecord);
+        selections.set(selectionKey(userId, chatId), localSelection);
+        return localSelection;
+      }
       const selection = await decryptRecord(adapters, record);
       selections.set(selectionKey(userId, chatId), selection);
       await adapters.local.write(userId, chatId, record);
