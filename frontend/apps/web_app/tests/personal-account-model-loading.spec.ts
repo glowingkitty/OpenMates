@@ -48,11 +48,16 @@ test('authenticated account loads its chat model selector without retry errors',
 			recordNotifications();
 		});
 	});
+	const initialSyncCompleted = page.waitForEvent('console', {
+		predicate: (message: any) => message.text().includes('phased_sync_complete'),
+		timeout: 60000
+	});
 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot, {
 		credentials: TEST_CREDENTIALS,
 		waitForEditor: false
 	});
+	await initialSyncCompleted;
 
 	const activeChat = page.getByTestId('active-chat-container');
 	const continueCard = page
