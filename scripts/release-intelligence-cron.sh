@@ -28,7 +28,6 @@ if [[ -f "$SOURCE_ROOT/.env" ]]; then
   set +a
   set -u
 fi
-export RELEASE_INTELLIGENCE_SOURCE_ROOT="$SOURCE_ROOT"
 
 mkdir -p "$SOURCE_ROOT/logs"
 

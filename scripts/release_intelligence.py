@@ -47,7 +47,7 @@ DEFAULT_MAIN_REF = "origin/main"
 DEFAULT_DEV_REF = "origin/dev"
 DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
 DEFAULT_LLM_RETRIES = 2
-SOURCE_ROOT_ENV = "RELEASE_INTELLIGENCE_SOURCE_ROOT"
+API_CONTAINER_NAME = "api"
 
 SECTION_ORDER = [
     "features",
@@ -268,11 +268,6 @@ def get_env(name: str, dot_env: dict[str, str] | None = None, default: str = "")
 
 
 def load_gemini_api_key_from_vault() -> str | None:
-    source_root = Path(os.environ.get(SOURCE_ROOT_ENV, REPO_ROOT)).resolve()
-    compose_file = source_root / "backend" / "core" / "docker-compose.yml"
-    env_file = source_root / ".env"
-    if not compose_file.exists():
-        return None
     fetch_script = (
         "import asyncio\n"
         "from backend.core.api.app.utils.secrets_manager import SecretsManager\n"
@@ -284,13 +279,21 @@ def load_gemini_api_key_from_vault() -> str | None:
         "    print(key or '', end='')\n"
         "asyncio.run(main())\n"
     )
-    command = ["docker", "compose"]
-    if env_file.exists():
-        command.extend(["--env-file", str(env_file)])
-    command.extend(["-f", str(compose_file), "exec", "-T", "api", "python3", "-c", fetch_script])
+    command = ["docker", "exec", "-i", API_CONTAINER_NAME, "python3", "-c", fetch_script]
     try:
-        result = subprocess.run(command, cwd=source_root, text=True, capture_output=True, timeout=20, check=False)
-    except (OSError, subprocess.TimeoutExpired):
+        result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=20, check=False)
+    except subprocess.TimeoutExpired:
+        print(f"[release-intelligence] Vault key lookup timed out in container {API_CONTAINER_NAME}", file=sys.stderr)
+        return None
+    except OSError as exc:
+        print(f"[release-intelligence] Vault key lookup could not run Docker: {type(exc).__name__}", file=sys.stderr)
+        return None
+    if result.returncode != 0:
+        print(
+            f"[release-intelligence] Vault key lookup failed in container {API_CONTAINER_NAME} "
+            f"with exit code {result.returncode}",
+            file=sys.stderr,
+        )
         return None
     key = result.stdout.strip()
     return key or None
