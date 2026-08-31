@@ -392,6 +392,7 @@ def test_server_restart_captures_exact_busy_set_and_never_rebuilds_docker() -> N
     assert "tmux" not in source
     assert 'GIT_COMMON_DIR="$(git -C "$SCRIPT_CHECKOUT" rev-parse --path-format=absolute --git-common-dir)"' in source
     assert 'OPENCODE_PROJECT_ROOT="$PROJECT_DIR"' in source
+    assert '.terminal_command // ""' in source
 
 
 def test_active_automation_never_spawns_claude_cli() -> None:

@@ -48,8 +48,9 @@ mapfile -t server_panes < <(
     jq -r --arg port "$PORT" '
         .[]
         | select(.is_plugin == false)
-        | select((.pane_command // "") | contains("start-opencode-server.sh"))
-        | select((.pane_command // "") | contains($port))
+        | ((.terminal_command // "") + " " + (.pane_command // "")) as $command
+        | select($command | contains("start-opencode-server.sh"))
+        | select($command | contains($port))
         | "terminal_\(.id)"
     ' <<< "$pane_json"
 )
