@@ -2,13 +2,13 @@ schema_version: 1
 cadence: weekly
 week_start: '2026-08-17'
 week_end: '2026-08-23'
-generated_at: '2026-08-25T12:44:18+00:00'
+generated_at: '2026-08-24T00:45:25+00:00'
 summary:
-  daily_files: 7
-  total_items: 224
-  newsletter_ready_items: 44
-  user_facing_items: 75
-  dev_only_items: 72
+  daily_files: 6
+  total_items: 113
+  newsletter_ready_items: 5
+  user_facing_items: 44
+  dev_only_items: 90
   unknown_release_items: 0
   themes: 9
 feature_availability:
@@ -162,13 +162,9 @@ daily_summaries:
   newsletter_ready_items: 0
   dev_only_items: 0
 - date: '2026-08-20'
-  total_commits: 75
-  newsletter_ready_items: 20
-  dev_only_items: 0
-- date: '2026-08-21'
-  total_commits: 54
-  newsletter_ready_items: 19
-  dev_only_items: 0
+  total_commits: 18
+  newsletter_ready_items: 0
+  dev_only_items: 18
 - date: '2026-08-22'
   total_commits: 70
   newsletter_ready_items: 5
@@ -179,46 +175,16 @@ daily_summaries:
   dev_only_items: 25
 themes:
 - theme: other
-  item_count: 69
+  item_count: 43
   newsletter_ready_count: 0
-  dev_only_count: 27
+  dev_only_count: 34
   source_items:
   - date: '2026-08-20'
     title: Fix persistence queue backlog regression
     commits:
     - 54b315176
     section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: align proof tutorial timing'
-    commits:
-    - 08ae7b16d
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: notify on skipped daily tests'
-    commits:
-    - f2f59c574
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: persist inline proof timelines'
-    commits:
-    - 3fb656527
-    section: bug_fixes
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -228,47 +194,7 @@ themes:
     commits:
     - 43526df12
     section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: scan rendered web proof geometry'
-    commits:
-    - b16fb5e55
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: align event CTA assertion'
-    commits:
-    - d23befc48
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: align event embed locator'
-    commits:
-    - b00aac8cf
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: allow recorded sync proof to complete'
-    commits:
-    - cefe11256
-    section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -278,57 +204,7 @@ themes:
     commits:
     - 3a8becf98
     section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: capture settled actionable proof'
-    commits:
-    - cf0a77c50
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: capture settled privacy proof'
-    commits:
-    - ec70d2eb4
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: collapse editor after cold retry'
-    commits:
-    - 6b9ce9781
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: collapse editor after loading layout proof'
-    commits:
-    - 26affc12e
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: cover OpenMates event pages'
-    commits:
-    - 15a2e4316
-    section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -338,7 +214,7 @@ themes:
     commits:
     - 4f9e260c4
     section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -348,7 +224,7 @@ themes:
     commits:
     - 07c7fe2f3
     section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -358,7 +234,7 @@ themes:
     commits:
     - fb4acba7f
     section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -368,147 +244,7 @@ themes:
     commits:
     - e955494e4
     section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: relax event SEO canonical assertion'
-    commits:
-    - 2a5ec547e
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: wait for visible privacy proof'
-    commits:
-    - 169b8172d
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'Restore complete PR #498 commit ancestry (#505)'
-    commits:
-    - ef5de15b4
-    section: other
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'chore: remove unused test recordings page'
-    commits:
-    - 3c85b6c68
-    section: infrastructure
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'docs: remove core journeys bootstrap gate'
-    commits:
-    - 592b23aeb
-    section: docs
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: align proof video frame ranges'
-    commits:
-    - 6aa887245
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: allow proof gate after dev test cleanup'
-    commits:
-    - a07fc18c7
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: guard release merge ancestry'
-    commits:
-    - '808938710'
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: handle deleted bracket paths in session summaries'
-    commits:
-    - a4d84c61a
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: resolve release prep control root'
-    commits:
-    - 8cb2fe251
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore agent dev-server instruction'
-    commits:
-    - 354aa9ec8
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: show proof pause in browser chrome'
-    commits:
-    - eb8d71b7b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: start browser proofs at asserted state'
-    commits:
-    - f6c016e5f
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: fix saved payment EU switch selector'
-    commits:
-    - 67835b77c
-    section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -887,828 +623,19 @@ themes:
     newsletter_ready: false
     user_facing: false
     related_features: []
-- theme: chat
-  item_count: 46
-  newsletter_ready_count: 19
-  dev_only_count: 9
-  source_items:
-  - date: '2026-08-20'
-    title: 'feat: scope web chats to Team context'
-    commits:
-    - bf1bbd22e
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: isolate Team chat pagination'
-    commits:
-    - ed977ac5c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep active settings controls clickable'
-    commits:
-    - 8491cea48
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep chat loading state below header'
-    commits:
-    - a4d9d9cbc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep settings content above footer'
-    commits:
-    - 8e025b0d1
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: persist encrypted Team CLI attachments'
-    commits:
-    - 21337021d
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: preserve Team chat key wrapping'
-    commits:
-    - e7f3c8265
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: preserve Team scope through chat preflight'
-    commits:
-    - 561b0dae8
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: retain Team keys when reading chats'
-    commits:
-    - 01a7a0334
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: send encrypted Team CLI turns'
-    commits:
-    - 1e256a694
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: validate Team chat key wrappers'
-    commits:
-    - b4d299b20
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: capture clean progressive chat proof states'
-    commits:
-    - '469638735'
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: combine progressive chat proof flow'
-    commits:
-    - 036a9dc3d
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: identify Team key guard rejection'
-    commits:
-    - 090e55d58
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: remove non-portable proof chat scan'
-    commits:
-    - '375235149'
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: select proof chats from rendered content'
-    commits:
-    - 8d9bcf755
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: stabilize Team new chat transport proof'
-    commits:
-    - 684db9dc8
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: stabilize chat settings campaign group'
-    commits:
-    - 1f4deb275
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: stabilize fork notification flow'
-    commits:
-    - 0ebc4c8be
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: Fix chat sync recovery notification
-    commits:
-    - 7ae969436
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: clear Team continue cards on context switch'
-    commits:
-    - b113bc383
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: correct workspace tab icons'
-    commits:
-    - 1a07bedff
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: hide stale continue cards during Team switch'
-    commits:
-    - 8e612c676
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: keep event date badge text white'
-    commits:
-    - 232f995be
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: order tasks before plans'
-    commits:
-    - 4069d4c80
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: preserve legacy audio example filename'
-    commits:
-    - 87101b8af
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: queue AI response retries during recovery'
-    commits:
-    - ae050a933
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: repair embed refs and sync status context'
-    commits:
-    - 5f12d66b2
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-21'
-    title: 'fix: repair inline raw embed refs in shared chats'
-    commits:
-    - 0f697b02f
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: resolve API-key chat IDs directly'
-    commits:
-    - b84df4597
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: scope home continue cards to Team context'
-    commits:
-    - fe9c99318
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: settle ordinary Team chat state'
-    commits:
-    - 8fa3d4db2
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: await persisted Team chat after reload'
-    commits:
-    - 6932520c0
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: reproduce completed AI response retry gaps'
-    commits:
-    - 54c3a5ff9
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: require empty fresh Team continue carousel'
-    commits:
-    - c653b6061
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: Fix Playwright proof rendering and sub-chat labels
-    commits:
-    - 47500c7ee
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: Fix Pytest release blockers
-    commits:
-    - cc967a499
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-22'
-    title: Fix sub-chat return navigation visibility
-    commits:
-    - 1068f8cca
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: Tighten deep research proof assertions
-    commits:
-    - b24d5974f
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'test: keep events proof recordings clean'
-    commits:
-    - 1e39e91bd
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-23'
-    title: 'fix: clean proof video draft previews'
-    commits:
-    - 6811c7812
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-23'
-    title: 'fix: hide bare embed refs in assistant prose'
-    commits:
-    - fdc4c61d1
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-23'
-    title: 'fix: keep continue cards stable during reconnect'
-    commits:
-    - e591d652d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-23'
-    title: 'fix: keep proof UI clear of composer and mock markers'
-    commits:
-    - 3ce9f118e
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-23'
-    title: 'fix: place chat loading status below header'
-    commits:
-    - acc417226
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-23'
-    title: 'fix: restore mobile chat transcript width'
-    commits:
-    - 70e4aa6b4
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-- theme: cli_sdk
-  item_count: 28
-  newsletter_ready_count: 5
-  dev_only_count: 14
-  source_items:
-  - date: '2026-08-20'
-    title: Add authenticated post-update quick server tests
-    commits:
-    - 0e7fd3639
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Finalize focused proof-video evidence
-    commits:
-    - 25b7bf195
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Fit CLI proof catalog in terminal capture
-    commits:
-    - ef7169a9c
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Harden runtime health probes
-    commits:
-    - d53fb4e61
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Trim CLI proof videos to visible terminal evidence
-    commits:
-    - cee8d498e
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Use frame-accurate trim for CLI proof videos
-    commits:
-    - db13ebe67
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Use public CLI proof command
-    commits:
-    - 35a04d3b2
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: Use real terminal capture for CLI proof videos
-    commits:
-    - 12fb3d138
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add deterministic proof video architecture'
-    commits:
-    - 19cda5d28
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add events newsletter preview'
-    commits:
-    - 1bb874f83
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add post-update quick server tests'
-    commits:
-    - c95e98dcb
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-21'
-    title: 'fix: preserve motion in proof videos'
-    commits:
-    - 5f0db1066
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: Fix Brevo runtime health email delivery
-    commits:
-    - 69e0fb4ac
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: 'feat: add since filter to server logs'
-    commits:
-    - e83f63442
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: 'feat: automate cli proof videos'
-    commits:
-    - 6ac3a62c0
-    section: features
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: allow cli proof video profile dispatch'
-    commits:
-    - 8655b7def
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: bound events search sanitizer latency'
-    commits:
-    - 14f734d7b
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-    - id: app:events
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/events/app.yml
-    - id: embed:events:search
-      kind: embed
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-    - id: skill:events:search
-      kind: skill
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: app:events
-      source: backend/apps/events/app.yml
-  - date: '2026-08-22'
-    title: 'fix: expand cli proof transcript'
-    commits:
-    - 5699bbc49
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: hold cli proof output frames'
-    commits:
-    - 8fcf0800f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: hold readable cli proof frame'
-    commits:
-    - d019a4b94
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: dev_only
-    newsletter_ready: false
-    user_facing: true
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: keep cli recording upload nonfatal'
-    commits:
-    - 38b83d3ec
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: package encrypted slug migration'
-    commits:
-    - a7b7f529a
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: sample cli proof output frames'
-    commits:
-    - 3d515fa6f
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'fix: select named cli proof recording'
-    commits:
-    - fd332d0e0
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'proof: align terminal proof presentation'
-    commits:
-    - ff1501aea
-    section: internal
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'test: extend events search CLI proof timeout'
-    commits:
-    - d48a366be
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'test: publish latest proof videos'
-    commits:
-    - 2b91273d8
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-22'
-    title: 'test: report CLI duration in Playwright helper'
-    commits:
-    - deb357799
-    section: tests
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
 - theme: product
-  item_count: 27
-  newsletter_ready_count: 14
-  dev_only_count: 13
+  item_count: 19
+  newsletter_ready_count: 2
+  dev_only_count: 17
   source_items:
   - date: '2026-08-20'
     title: 'fix: abort full passkey login before switching'
     commits:
     - 56fbec429
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: canonicalize WebSocket session identity'
-    commits:
-    - e8df33c2b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -1716,9 +643,9 @@ themes:
     commits:
     - 6250a6877
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -1726,9 +653,9 @@ themes:
     commits:
     - 9d860aa73
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -1736,79 +663,9 @@ themes:
     commits:
     - a0c6999b5
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: prerender OpenMates event pages'
-    commits:
-    - d4a6ea2b1
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'feat: add crawlable event SEO index'
-    commits:
-    - 99ea9fcff
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: freeze proof videos on asserted frames'
-    commits:
-    - 018fab862
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: polish event SEO metadata'
-    commits:
-    - b22fa034f
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: prerender event SEO index'
-    commits:
-    - a51df7555
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore generated event SEO data'
-    commits:
-    - 62f83ae7c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: stabilize proof checkpoint screenshots'
-    commits:
-    - 4b3fec89b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-22'
@@ -2003,235 +860,142 @@ themes:
     newsletter_ready: false
     user_facing: true
     related_features: []
-- theme: settings
-  item_count: 26
-  newsletter_ready_count: 4
-  dev_only_count: 4
+- theme: chat
+  item_count: 18
+  newsletter_ready_count: 1
+  dev_only_count: 16
   source_items:
   - date: '2026-08-20'
-    title: 'fix: prevent settings content from collapsing'
+    title: 'fix: keep active settings controls clickable'
     commits:
-    - a6a7f6838
+    - 8491cea48
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
-    title: 'fix: supersede stale phased sync work'
+    title: 'fix: keep chat loading state below header'
     commits:
-    - e444de4ba
+    - a4d9d9cbc
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
-    title: 'test: avoid PII-shaped Team nonce'
+    title: 'fix: persist encrypted Team CLI attachments'
     commits:
-    - 8a0532b2d
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: backfill settings UI contract'
-    commits:
-    - c1284c887
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: correlate Team phased sync completion'
-    commits:
-    - e6d4a4138
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: cover encrypted Team context switching'
-    commits:
-    - 55456419d
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: expose Team transport failure stage'
-    commits:
-    - f95d515ce
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: expose settings footer proof state'
-    commits:
-    - 1a619969e
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: wait for Personal sync before Team switch'
-    commits:
-    - 1c6558407
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'test: wait for Team settings to close'
-    commits:
-    - 94517c8a5
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore settings content flow'
-    commits:
-    - 071c10f98
+    - 21337021d
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
-  - date: '2026-08-21'
-    title: 'test: end Team proof in Personal context'
+  - date: '2026-08-20'
+    title: 'fix: send encrypted Team CLI turns'
     commits:
-    - 1438148a2
+    - 1e256a694
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: combine progressive chat proof flow'
+    commits:
+    - 036a9dc3d
     section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
     related_features: []
-  - date: '2026-08-21'
-    title: 'test: harden Teams proof capture states'
+  - date: '2026-08-20'
+    title: 'test: stabilize chat settings campaign group'
     commits:
-    - 168b77f90
+    - 1f4deb275
     section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
     related_features: []
-  - date: '2026-08-21'
-    title: 'test: hold Team isolation proof state'
+  - date: '2026-08-20'
+    title: 'test: stabilize fork notification flow'
     commits:
-    - bf1731ff3
+    - 0ebc4c8be
     section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: hold Teams proof states for review'
-    commits:
-    - 0be6e7d8c
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: hold stable Teams proof states'
-    commits:
-    - 04d4c7f47
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: isolate clean Teams proof states'
-    commits:
-    - 21a8db741
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: keep Team proof within stable context flow'
-    commits:
-    - 6bef8c4a7
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'test: require Team header to settle'
-    commits:
-    - cf6a17038
-    section: tests
-    release_status: released_main
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
     related_features: []
   - date: '2026-08-22'
-    title: Fix billing credit refresh after payment
+    title: Fix Playwright proof rendering and sub-chat labels
     commits:
-    - 1b05b19f9
+    - 47500c7ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-22'
+    title: Fix Pytest release blockers
+    commits:
+    - cc967a499
     section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
     user_facing: true
-    related_features: []
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
   - date: '2026-08-22'
-    title: Stabilize settings EU Stripe test
+    title: Fix sub-chat return navigation visibility
     commits:
-    - '766177632'
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
+    - 1068f8cca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
     newsletter_ready: false
-    user_facing: false
+    user_facing: true
     related_features: []
   - date: '2026-08-22'
-    title: Stabilize settings EU card purchase spec
+    title: Tighten deep research proof assertions
     commits:
-    - 1628e74b6
+    - b24d5974f
     section: internal
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
     related_features: []
-  - date: '2026-08-23'
-    title: 'fix: hide inactive settings apps'
+  - date: '2026-08-22'
+    title: 'test: keep events proof recordings clean'
     commits:
-    - 903c1eb9a
+    - 1e39e91bd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: clean proof video draft previews'
+    commits:
+    - 6811c7812
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
@@ -2239,9 +1003,9 @@ themes:
     user_facing: true
     related_features: []
   - date: '2026-08-23'
-    title: 'fix: hide inactive settings apps'
+    title: 'fix: hide bare embed refs in assistant prose'
     commits:
-    - 7911c89c5
+    - fdc4c61d1
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
@@ -2249,9 +1013,94 @@ themes:
     user_facing: true
     related_features: []
   - date: '2026-08-23'
-    title: 'fix: restore deep research continuation'
+    title: 'fix: keep continue cards stable during reconnect'
     commits:
-    - eaefea8bf
+    - e591d652d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: keep proof UI clear of composer and mock markers'
+    commits:
+    - 3ce9f118e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: place chat loading status below header'
+    commits:
+    - acc417226
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: restore mobile chat transcript width'
+    commits:
+    - 70e4aa6b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+- theme: cli_sdk
+  item_count: 16
+  newsletter_ready_count: 1
+  dev_only_count: 14
+  source_items:
+  - date: '2026-08-22'
+    title: Fix Brevo runtime health email delivery
+    commits:
+    - 69e0fb4ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-22'
+    title: 'feat: add since filter to server logs'
+    commits:
+    - e83f63442
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+  - date: '2026-08-22'
+    title: 'feat: automate cli proof videos'
+    commits:
+    - 6ac3a62c0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: allow cli proof video profile dispatch'
+    commits:
+    - 8655b7def
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: bound events search sanitizer latency'
+    commits:
+    - 14f734d7b
     section: bug_fixes
     release_status: dev_only
     communication_status: dev_only
@@ -2265,10 +1114,131 @@ themes:
       override: null
       parent_id: null
       source: backend/apps/ai/app.yml
-  - date: '2026-08-23'
-    title: 'test: cover inactive settings apps'
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - date: '2026-08-22'
+    title: 'fix: expand cli proof transcript'
     commits:
-    - 3b6eb8077
+    - 5699bbc49
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: hold cli proof output frames'
+    commits:
+    - 8fcf0800f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: hold readable cli proof frame'
+    commits:
+    - d019a4b94
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: keep cli recording upload nonfatal'
+    commits:
+    - 38b83d3ec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: package encrypted slug migration'
+    commits:
+    - a7b7f529a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: sample cli proof output frames'
+    commits:
+    - 3d515fa6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'fix: select named cli proof recording'
+    commits:
+    - fd332d0e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'proof: align terminal proof presentation'
+    commits:
+    - ff1501aea
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'test: extend events search CLI proof timeout'
+    commits:
+    - d48a366be
+    section: tests
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'test: publish latest proof videos'
+    commits:
+    - 2b91273d8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-22'
+    title: 'test: report CLI duration in Playwright helper'
+    commits:
+    - deb357799
     section: tests
     release_status: dev_only
     communication_status: not_user_facing
@@ -2276,160 +1246,10 @@ themes:
     user_facing: false
     related_features: []
 - theme: infrastructure
-  item_count: 22
-  newsletter_ready_count: 1
+  item_count: 7
+  newsletter_ready_count: 0
   dev_only_count: 4
   source_items:
-  - date: '2026-08-20'
-    title: Record focused proof-video evidence
-    commits:
-    - 662eb3591
-    section: docs
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: attest proof checkpoint frames'
-    commits:
-    - 0df9ab922
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: compare proof provenance blobs'
-    commits:
-    - cddb48524
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: resolve descendant proof evidence'
-    commits:
-    - 10019329f
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: scope proof provenance to session files'
-    commits:
-    - edd0f08da
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: verify reusable proof worktrees'
-    commits:
-    - e006d9e69
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'ci: mark skipped targeted Vitest packages as passing'
-    commits:
-    - 78653fb45
-    section: tests
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'docs: record corrected proof video evidence'
-    commits:
-    - c1de5dc3b
-    section: docs
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'docs: record final proof video evidence'
-    commits:
-    - 850a7f0d4
-    section: docs
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: harden nightly test orchestration'
-    commits:
-    - 81ab0ced0
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: harden proof video passed-run workflow'
-    commits:
-    - 3566673d8
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: preserve full proof video playback'
-    commits:
-    - 21f863e0e
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: render proof videos in browser frame'
-    commits:
-    - 4c734aa02
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore proof support files'
-    commits:
-    - d8b9d3ab9
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: use managed release prep and vscode heap'
-    commits:
-    - 270b3b4f7
-    section: bug_fixes
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
   - date: '2026-08-22'
     title: Fix deep research proof capture
     commits:
@@ -2507,62 +1327,84 @@ themes:
     newsletter_ready: false
     user_facing: false
     related_features: []
-- theme: docs
-  item_count: 3
+- theme: settings
+  item_count: 7
   newsletter_ready_count: 1
-  dev_only_count: 0
+  dev_only_count: 4
   source_items:
-  - date: '2026-08-20'
-    title: Record quick server test evidence
+  - date: '2026-08-22'
+    title: Fix billing credit refresh after payment
     commits:
-    - 7ccdb0746
-    section: docs
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-  - date: '2026-08-21'
-    title: 'feat: refine events newsletter previews'
-    commits:
-    - 5d876f332
-    section: features
+    - 1b05b19f9
+    section: bug_fixes
     release_status: released_main
     communication_status: ready_for_public_communication
     newsletter_ready: true
     user_facing: true
     related_features: []
   - date: '2026-08-22'
-    title: Stabilize Playwright account preflight
+    title: Stabilize settings EU Stripe test
     commits:
-    - d24b6a3e7
-    section: internal
-    release_status: released_main
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-- theme: self_hosting
-  item_count: 2
-  newsletter_ready_count: 0
-  dev_only_count: 0
-  source_items:
-  - date: '2026-08-20'
-    title: Fix runtime health verification stalls
-    commits:
-    - 4cae2a9ff
-    section: bug_fixes
+    - '766177632'
+    section: tests
     release_status: released_main
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
     related_features: []
   - date: '2026-08-22'
-    title: Fix PR self-host docs worker build
+    title: Stabilize settings EU card purchase spec
     commits:
-    - 4ded02126
-    section: bug_fixes
+    - 1628e74b6
+    section: internal
     release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: hide inactive settings apps'
+    commits:
+    - 903c1eb9a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: hide inactive settings apps'
+    commits:
+    - 7911c89c5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-23'
+    title: 'fix: restore deep research continuation'
+    commits:
+    - eaefea8bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - date: '2026-08-23'
+    title: 'test: cover inactive settings apps'
+    commits:
+    - 3b6eb8077
+    section: tests
+    release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
     user_facing: false
@@ -2596,412 +1438,38 @@ themes:
       override: null
       parent_id: null
       source: platform
+- theme: docs
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-08-22'
+    title: Stabilize Playwright account preflight
+    commits:
+    - d24b6a3e7
+    section: internal
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+- theme: self_hosting
+  item_count: 1
+  newsletter_ready_count: 0
+  dev_only_count: 0
+  source_items:
+  - date: '2026-08-22'
+    title: Fix PR self-host docs worker build
+    commits:
+    - 4ded02126
+    section: bug_fixes
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
 marketing_candidates:
   newsletter:
-  - date: '2026-08-20'
-    title: 'feat: add deterministic proof video architecture'
-    commits:
-    - 19cda5d28
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add events newsletter preview'
-    commits:
-    - 1bb874f83
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add post-update quick server tests'
-    commits:
-    - c95e98dcb
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-20'
-    title: 'feat: scope web chats to Team context'
-    commits:
-    - bf1bbd22e
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: abort full passkey login before switching'
-    commits:
-    - 56fbec429
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: attest proof checkpoint frames'
-    commits:
-    - 0df9ab922
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: canonicalize WebSocket session identity'
-    commits:
-    - e8df33c2b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: clean up failed passkey sessions'
-    commits:
-    - 6250a6877
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: clear late passkey sessions on cancellation'
-    commits:
-    - 9d860aa73
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: isolate Team chat pagination'
-    commits:
-    - ed977ac5c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep active settings controls clickable'
-    commits:
-    - 8491cea48
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep chat loading state below header'
-    commits:
-    - a4d9d9cbc
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep login alternatives available during passkey'
-    commits:
-    - a0c6999b5
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep settings content above footer'
-    commits:
-    - 8e025b0d1
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: persist encrypted Team CLI attachments'
-    commits:
-    - 21337021d
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: prerender OpenMates event pages'
-    commits:
-    - d4a6ea2b1
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: preserve Team scope through chat preflight'
-    commits:
-    - 561b0dae8
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: prevent settings content from collapsing'
-    commits:
-    - a6a7f6838
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: send encrypted Team CLI turns'
-    commits:
-    - 1e256a694
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: supersede stale phased sync work'
-    commits:
-    - e444de4ba
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'feat: add crawlable event SEO index'
-    commits:
-    - 99ea9fcff
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'feat: refine events newsletter previews'
-    commits:
-    - 5d876f332
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: clear Team continue cards on context switch'
-    commits:
-    - b113bc383
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: correct workspace tab icons'
-    commits:
-    - 1a07bedff
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: freeze proof videos on asserted frames'
-    commits:
-    - 018fab862
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: hide stale continue cards during Team switch'
-    commits:
-    - 8e612c676
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: keep event date badge text white'
-    commits:
-    - 232f995be
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: order tasks before plans'
-    commits:
-    - 4069d4c80
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: polish event SEO metadata'
-    commits:
-    - b22fa034f
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: prerender event SEO index'
-    commits:
-    - a51df7555
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: preserve legacy audio example filename'
-    commits:
-    - 87101b8af
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: preserve motion in proof videos'
-    commits:
-    - 5f0db1066
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: repair embed refs and sync status context'
-    commits:
-    - 5f12d66b2
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-21'
-    title: 'fix: resolve API-key chat IDs directly'
-    commits:
-    - b84df4597
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore generated event SEO data'
-    commits:
-    - 62f83ae7c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore settings content flow'
-    commits:
-    - 071c10f98
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: scope home continue cards to Team context'
-    commits:
-    - fe9c99318
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: settle ordinary Team chat state'
-    commits:
-    - 8fa3d4db2
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: stabilize proof checkpoint screenshots'
-    commits:
-    - 4b3fec89b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
   - date: '2026-08-22'
     title: Fix Pytest release blockers
     commits:
@@ -3075,80 +1543,13 @@ marketing_candidates:
     related_features: []
   social_or_video:
   - date: '2026-08-20'
-    title: 'feat: add deterministic proof video architecture'
-    commits:
-    - 19cda5d28
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add events newsletter preview'
-    commits:
-    - 1bb874f83
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'feat: add post-update quick server tests'
-    commits:
-    - c95e98dcb
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-20'
-    title: 'feat: scope web chats to Team context'
-    commits:
-    - bf1bbd22e
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
     title: 'fix: abort full passkey login before switching'
     commits:
     - 56fbec429
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: attest proof checkpoint frames'
-    commits:
-    - 0df9ab922
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: canonicalize WebSocket session identity'
-    commits:
-    - e8df33c2b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3156,9 +1557,9 @@ marketing_candidates:
     commits:
     - 6250a6877
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3166,19 +1567,9 @@ marketing_candidates:
     commits:
     - 9d860aa73
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: isolate Team chat pagination'
-    commits:
-    - ed977ac5c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3186,9 +1577,9 @@ marketing_candidates:
     commits:
     - 8491cea48
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3196,9 +1587,9 @@ marketing_candidates:
     commits:
     - a4d9d9cbc
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3206,19 +1597,9 @@ marketing_candidates:
     commits:
     - a0c6999b5
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: keep settings content above footer'
-    commits:
-    - 8e025b0d1
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3226,39 +1607,9 @@ marketing_candidates:
     commits:
     - 21337021d
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: prerender OpenMates event pages'
-    commits:
-    - d4a6ea2b1
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: preserve Team scope through chat preflight'
-    commits:
-    - 561b0dae8
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: prevent settings content from collapsing'
-    commits:
-    - a6a7f6838
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-20'
@@ -3266,216 +1617,9 @@ marketing_candidates:
     commits:
     - 1e256a694
     section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-20'
-    title: 'fix: supersede stale phased sync work'
-    commits:
-    - e444de4ba
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'feat: add crawlable event SEO index'
-    commits:
-    - 99ea9fcff
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'feat: refine events newsletter previews'
-    commits:
-    - 5d876f332
-    section: features
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: clear Team continue cards on context switch'
-    commits:
-    - b113bc383
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: correct workspace tab icons'
-    commits:
-    - 1a07bedff
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: freeze proof videos on asserted frames'
-    commits:
-    - 018fab862
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: hide stale continue cards during Team switch'
-    commits:
-    - 8e612c676
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: keep event date badge text white'
-    commits:
-    - 232f995be
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: order tasks before plans'
-    commits:
-    - 4069d4c80
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: polish event SEO metadata'
-    commits:
-    - b22fa034f
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: prerender event SEO index'
-    commits:
-    - a51df7555
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: preserve legacy audio example filename'
-    commits:
-    - 87101b8af
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: preserve motion in proof videos'
-    commits:
-    - 5f0db1066
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: repair embed refs and sync status context'
-    commits:
-    - 5f12d66b2
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features:
-    - id: app:ai
-      kind: app
-      default_enabled: true
-      effective_enabled: true
-      override: null
-      parent_id: null
-      source: backend/apps/ai/app.yml
-  - date: '2026-08-21'
-    title: 'fix: resolve API-key chat IDs directly'
-    commits:
-    - b84df4597
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore generated event SEO data'
-    commits:
-    - 62f83ae7c
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: restore settings content flow'
-    commits:
-    - 071c10f98
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: scope home continue cards to Team context'
-    commits:
-    - fe9c99318
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: settle ordinary Team chat state'
-    commits:
-    - 8fa3d4db2
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
-    user_facing: true
-    related_features: []
-  - date: '2026-08-21'
-    title: 'fix: stabilize proof checkpoint screenshots'
-    commits:
-    - 4b3fec89b
-    section: bug_fixes
-    release_status: released_main
-    communication_status: ready_for_public_communication
-    newsletter_ready: true
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
     user_facing: true
     related_features: []
   - date: '2026-08-22'
@@ -3931,6 +2075,186 @@ marketing_candidates:
     related_features: []
 unreleased_progress:
   dev_only:
+  - date: '2026-08-20'
+    title: Fix persistence queue backlog regression
+    commits:
+    - 54b315176
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: abort full passkey login before switching'
+    commits:
+    - 56fbec429
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: clean up failed passkey sessions'
+    commits:
+    - 6250a6877
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: clear late passkey sessions on cancellation'
+    commits:
+    - 9d860aa73
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: keep active settings controls clickable'
+    commits:
+    - 8491cea48
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: keep chat loading state below header'
+    commits:
+    - a4d9d9cbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: keep login alternatives available during passkey'
+    commits:
+    - a0c6999b5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: persist encrypted Team CLI attachments'
+    commits:
+    - 21337021d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: restore half-bound OpenCode sessions'
+    commits:
+    - 43526df12
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'fix: send encrypted Team CLI turns'
+    commits:
+    - 1e256a694
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: capture passkey alternatives responsively'
+    commits:
+    - 3a8becf98
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: combine progressive chat proof flow'
+    commits:
+    - 036a9dc3d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: cover passkey login alternatives'
+    commits:
+    - 4f9e260c4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: enter login before passkey assertion'
+    commits:
+    - 07c7fe2f3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: guard progressive loading layout'
+    commits:
+    - fb4acba7f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: isolate passkey login alternatives'
+    commits:
+    - e955494e4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: stabilize chat settings campaign group'
+    commits:
+    - 1f4deb275
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+  - date: '2026-08-20'
+    title: 'test: stabilize fork notification flow'
+    commits:
+    - 0ebc4c8be
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
   - date: '2026-08-22'
     title: Fix Brevo runtime health email delivery
     commits:
@@ -4742,360 +3066,236 @@ risks:
   - Keep dev_only and unknown_release_status items out of public newsletters until released on main.
 sources:
   daily_files:
-  - docs/releases/daily/2026-08-17.yml
-  - docs/releases/daily/2026-08-18.yml
-  - docs/releases/daily/2026-08-19.yml
-  - docs/releases/daily/2026-08-20.yml
-  - docs/releases/daily/2026-08-21.yml
-  - docs/releases/daily/2026-08-22.yml
-  - docs/releases/daily/2026-08-23.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-08-17.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-08-18.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-08-19.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-08-20.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-08-22.yml
+  - /home/superdev/projects/OpenMates/docs/releases/daily/2026-08-23.yml
 llm_summary:
-  status: deterministic
-  overview: Deterministic release summary generated from 224 structured change items.
+  overview: OpenMates advanced to v0.17 this week, delivering key stability updates to the AI task engine and billing systems.
+    While the first half of the week saw focused development on authentication and the Team CLI, the latter half introduced
+    new log filtering capabilities for the CLI and resolved several critical blockers for AI-driven code execution.
   released_changes:
-  - text: 'feat: scope web chats to Team context'
-    evidence:
-      commits:
-      - bf1bbd22e
-    release_status: released_main
-  - text: 'feat: add deterministic proof video architecture'
-    evidence:
-      commits:
-      - 19cda5d28
-    release_status: released_main
-  - text: 'feat: add events newsletter preview'
-    evidence:
-      commits:
-      - 1bb874f83
-    release_status: released_main
-  - text: 'feat: add post-update quick server tests'
-    evidence:
-      commits:
-      - c95e98dcb
-    release_status: released_main
-  - text: 'feat: add since filter to server logs'
+  - text: OpenMates added a '--since' filter for server logs in the CLI, allowing for more targeted debugging of recent events.
     evidence:
       commits:
       - e83f63442
     release_status: released_main
-  - text: 'feat: add crawlable event SEO index'
+  - text: The project now automatically updates billing credit balances in the settings view following a successful transaction.
     evidence:
       commits:
-      - 99ea9fcff
+      - 1b05b19f9
     release_status: released_main
-  - text: 'feat: refine events newsletter previews'
+  - text: AI task processing was enhanced with improved standalone embed reference normalization.
     evidence:
       commits:
-      - 5d876f332
+      - cfef15e20
+    release_status: released_main
+  - text: Resolved encoding issues and release blockers for AI tasks utilizing Pytest for code execution.
+    evidence:
+      commits:
+      - dd1c41f75
+      - cc967a499
+    release_status: released_main
+  - text: Daily test progress snapshots are now persisted to better track development trends.
+    evidence:
+      commits:
+      - 4cfca3197
+    release_status: released_main
+  - text: Unique release gate test accounts are now assigned to ensure isolated testing environments.
+    evidence:
+      commits:
+      - da25450aa
     release_status: released_main
   bug_fixes:
-  - text: 'fix: isolate Team chat pagination'
+  - text: Resolved a synchronization issue where billing credit balances failed to refresh in the settings view immediately
+      after a successful transaction.
     evidence:
       commits:
-      - ed977ac5c
+      - 1b05b19f9
     release_status: released_main
-  - text: 'fix: keep active settings controls clickable'
+  - text: Addressed critical blockers for AI task processing, including embed reference normalization guards and encoding
+      errors during code execution.
     evidence:
       commits:
-      - 8491cea48
+      - cfef15e20
+      - dd1c41f75
+      - cc967a499
     release_status: released_main
-  - text: 'fix: keep chat loading state below header'
+  - text: Fixed a build failure affecting the self-hosted documentation worker within pull request workflows.
+    evidence:
+      commits:
+      - 4ded02126
+    release_status: released_main
+  - text: Corrected rendering issues for specification-owned proof videos.
+    evidence:
+      commits:
+      - 333009e6e
+    release_status: released_main
+  - text: Restored release gate safeguards and artifact cleanup routines to ensure core journey testing remains stable.
+    evidence:
+      commits:
+      - 0d6ce2b87
+      - 7950946a3
+      - da25450aa
+    release_status: released_main
+  - text: Fixed a testing regression by ensuring the system waits for saved payment authorization prompts.
+    evidence:
+      commits:
+      - df64f8755
+    release_status: released_main
+  unreleased_progress:
+  - text: The passkey login flow is being refined to handle session cleanup, cancellations, and transitions between login
+      methods.
+    evidence:
+      commits:
+      - 6250a6877
+      - 9d860aa73
+      - 56fbec429
+      - a0c6999b5
+    release_status: dev_only
+  - text: Chat interface updates are in progress to ensure loading states and settings controls remain correctly positioned
+      and interactive.
     evidence:
       commits:
       - a4d9d9cbc
-    release_status: released_main
-  - text: 'fix: keep settings content above footer'
-    evidence:
-      commits:
-      - 8e025b0d1
-    release_status: released_main
-  - text: 'fix: persist encrypted Team CLI attachments'
+      - 8491cea48
+    release_status: dev_only
+  - text: 'Work is progressing on the Team CLI to support encrypted message turns and persistent attachments (Note: Teams
+      is currently a disabled feature).'
     evidence:
       commits:
       - 21337021d
-    release_status: released_main
-  - text: 'fix: preserve Team scope through chat preflight'
-    evidence:
-      commits:
-      - 561b0dae8
-    release_status: released_main
-  - text: 'fix: send encrypted Team CLI turns'
-    evidence:
-      commits:
       - 1e256a694
-    release_status: released_main
-  - text: 'fix: clear Team continue cards on context switch'
-    evidence:
-      commits:
-      - b113bc383
-    release_status: released_main
-  - text: 'fix: correct workspace tab icons'
-    evidence:
-      commits:
-      - 1a07bedff
-    release_status: released_main
-  - text: 'fix: hide stale continue cards during Team switch'
-    evidence:
-      commits:
-      - 8e612c676
-    release_status: released_main
-  - text: 'fix: keep event date badge text white'
-    evidence:
-      commits:
-      - 232f995be
-    release_status: released_main
-  - text: 'fix: order tasks before plans'
-    evidence:
-      commits:
-      - 4069d4c80
-    release_status: released_main
-  unreleased_progress:
-  - text: Fix Playwright proof rendering and sub-chat labels
-    evidence:
-      commits:
-      - 47500c7ee
     release_status: dev_only
-  - text: Fix sub-chat return navigation visibility
+  - text: Development is underway for automated CLI proof videos, including terminal tutorial rendering and expanded transcripts.
     evidence:
       commits:
-      - 1068f8cca
+      - 6ac3a62c0
+      - d019a4b94
+      - 5699bbc49
+      - ff1501aea
     release_status: dev_only
-  - text: 'fix: clean proof video draft previews'
+  - text: Infrastructure updates for unreleased iOS and macOS platforms were incorporated into the v0.17 version bump.
     evidence:
       commits:
-      - 6811c7812
+      - 0cea2c2c0
     release_status: dev_only
-  - text: 'fix: hide bare embed refs in assistant prose'
+  - text: Deep research stability is being improved with fixes for sheet previews and task continuation after interruptions.
     evidence:
       commits:
+      - e5b18a111
+      - eaefea8bf
+    release_status: dev_only
+  - text: Map embeds are being updated to better resolve data sources, normalize references, and hide internal markers in
+      assistant prose.
+    evidence:
+      commits:
+      - 213daecbc
+      - dfafba1a6
+      - 73e36d86b
       - fdc4c61d1
     release_status: dev_only
-  - text: 'fix: keep continue cards stable during reconnect'
+  - text: The settings interface is being updated to correctly hide applications that are not currently active.
     evidence:
       commits:
-      - e591d652d
+      - 903c1eb9a
+      - 7911c89c5
     release_status: dev_only
-  - text: 'fix: keep proof UI clear of composer and mock markers'
-    evidence:
-      commits:
-      - 3ce9f118e
-    release_status: dev_only
-  - text: 'fix: place chat loading status below header'
-    evidence:
-      commits:
-      - acc417226
-    release_status: dev_only
-  - text: 'fix: restore mobile chat transcript width'
+  - text: Mobile chat transcript widths are being restored for a more consistent layout.
     evidence:
       commits:
       - 70e4aa6b4
     release_status: dev_only
-  - text: Fix Brevo runtime health email delivery
-    evidence:
-      commits:
-      - 69e0fb4ac
-    release_status: dev_only
-  - text: 'feat: automate cli proof videos'
-    evidence:
-      commits:
-      - 6ac3a62c0
-    release_status: dev_only
-  - text: 'fix: bound events search sanitizer latency'
-    evidence:
-      commits:
-      - 14f734d7b
-    release_status: dev_only
-  - text: 'fix: expand cli proof transcript'
-    evidence:
-      commits:
-      - 5699bbc49
-    release_status: dev_only
   internal_progress:
-  - text: Fix persistence queue backlog regression
+  - text: Internal backend work addressed a persistence queue backlog regression and restored half-bound OpenCode sessions.
     evidence:
       commits:
       - 54b315176
-    release_status: released_main
-  - text: 'fix: align proof tutorial timing'
-    evidence:
-      commits:
-      - 08ae7b16d
-    release_status: released_main
-  - text: 'fix: notify on skipped daily tests'
-    evidence:
-      commits:
-      - f2f59c574
-    release_status: released_main
-  - text: 'fix: persist inline proof timelines'
-    evidence:
-      commits:
-      - 3fb656527
-    release_status: released_main
-  - text: 'fix: restore half-bound OpenCode sessions'
-    evidence:
-      commits:
       - 43526df12
-    release_status: released_main
-  - text: 'fix: scan rendered web proof geometry'
+    release_status: dev_only
+  - text: Hardened automatic test account cleanup and stabilized Playwright preflight checks to maintain environment consistency.
     evidence:
       commits:
-      - b16fb5e55
-    release_status: released_main
-  - text: 'test: align event CTA assertion'
+      - b32332157
+      - d24b6a3e7
+    release_status: dev_only
+  - text: Implemented persistence for daily test progress snapshots to improve development velocity tracking.
     evidence:
       commits:
-      - d23befc48
+      - 4cfca3197
     release_status: released_main
-  - text: 'test: align event embed locator'
+  - text: Expanded internal test coverage for passkey login alternatives, chat settings stability, and conversation fork notification
+      flows.
     evidence:
       commits:
-      - b00aac8cf
-    release_status: released_main
-  - text: 'test: allow recorded sync proof to complete'
-    evidence:
-      commits:
-      - cefe11256
-    release_status: released_main
-  - text: 'test: capture passkey alternatives responsively'
-    evidence:
-      commits:
+      - fb4acba7f
       - 3a8becf98
-    release_status: released_main
-  - text: 'test: capture settled actionable proof'
-    evidence:
-      commits:
-      - cf0a77c50
-    release_status: released_main
-  - text: 'test: capture settled privacy proof'
-    evidence:
-      commits:
-      - ec70d2eb4
-    release_status: released_main
+      - 036a9dc3d
+      - 07c7fe2f3
+      - 1f4deb275
+      - e955494e4
+      - 4f9e260c4
+      - 0ebc4c8be
+    release_status: dev_only
   newsletter_recommendation:
     include:
-    - text: 'feat: add deterministic proof video architecture'
+    - text: The OpenMates CLI now supports a '--since' filter for server logs.
       evidence:
         commits:
-        - 19cda5d28
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'feat: add events newsletter preview'
+        - e83f63442
+      reason: Adds a valuable debugging tool for CLI users.
+    - text: Billing credit balances now refresh automatically after payment.
       evidence:
         commits:
-        - 1bb874f83
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'feat: add post-update quick server tests'
+        - 1b05b19f9
+      reason: Resolves a common point of friction in the billing workflow.
+    - text: Improved AI task reliability and embed normalization.
       evidence:
         commits:
-        - c95e98dcb
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'feat: scope web chats to Team context'
-      evidence:
-        commits:
-        - bf1bbd22e
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: abort full passkey login before switching'
-      evidence:
-        commits:
-        - 56fbec429
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: attest proof checkpoint frames'
-      evidence:
-        commits:
-        - 0df9ab922
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: canonicalize WebSocket session identity'
-      evidence:
-        commits:
-        - e8df33c2b
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: clean up failed passkey sessions'
+        - cfef15e20
+        - dd1c41f75
+        - cc967a499
+      reason: Significant stability improvements for the core AI task engine.
+    exclude:
+    - text: Passkey login flow refinements.
       evidence:
         commits:
         - 6250a6877
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: clear late passkey sessions on cancellation'
-      evidence:
-        commits:
         - 9d860aa73
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: isolate Team chat pagination'
+        - 56fbec429
+        - a0c6999b5
+      reason: Authentication refinements are currently in development and have not been merged to the main release branch.
+    - text: Team CLI encryption and persistence updates.
       evidence:
         commits:
-        - ed977ac5c
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: keep active settings controls clickable'
+        - 21337021d
+        - 1e256a694
+      reason: Teams functionality is a disabled feature and these updates are currently dev-only.
+    - text: Infrastructure version bump to v0.17.
       evidence:
         commits:
-        - 8491cea48
-      reason: Deterministically classified as released and ready for public communication.
-    - text: 'fix: keep chat loading state below header'
-      evidence:
-        commits:
-        - a4d9d9cbc
-      reason: Deterministically classified as released and ready for public communication.
-    exclude:
-    - text: Fix Playwright proof rendering and sub-chat labels
-      evidence:
-        commits:
-        - 47500c7ee
-      reason: Not classified as ready for public communication.
-    - text: Fix sub-chat return navigation visibility
-      evidence:
-        commits:
-        - 1068f8cca
-      reason: Not classified as ready for public communication.
-    - text: 'fix: clean proof video draft previews'
-      evidence:
-        commits:
-        - 6811c7812
-      reason: Not classified as ready for public communication.
-    - text: 'fix: hide bare embed refs in assistant prose'
-      evidence:
-        commits:
-        - fdc4c61d1
-      reason: Not classified as ready for public communication.
-    - text: 'fix: keep continue cards stable during reconnect'
-      evidence:
-        commits:
-        - e591d652d
-      reason: Not classified as ready for public communication.
-    - text: 'fix: keep proof UI clear of composer and mock markers'
-      evidence:
-        commits:
-        - 3ce9f118e
-      reason: Not classified as ready for public communication.
-    - text: 'fix: place chat loading status below header'
-      evidence:
-        commits:
-        - acc417226
-      reason: Not classified as ready for public communication.
-    - text: 'fix: restore mobile chat transcript width'
-      evidence:
-        commits:
-        - 70e4aa6b4
-      reason: Not classified as ready for public communication.
-    - text: Fix Brevo runtime health email delivery
-      evidence:
-        commits:
-        - 69e0fb4ac
-      reason: Not classified as ready for public communication.
-    - text: 'feat: automate cli proof videos'
+        - 0cea2c2c0
+      reason: This infrastructure update pertains to disabled platforms (iOS and macOS).
+    - text: Automated CLI proof video generation.
       evidence:
         commits:
         - 6ac3a62c0
-      reason: Not classified as ready for public communication.
-    - text: 'fix: bound events search sanitizer latency'
-      evidence:
-        commits:
-        - 14f734d7b
-      reason: Not classified as ready for public communication.
-    - text: 'fix: expand cli proof transcript'
-      evidence:
-        commits:
-        - 5699bbc49
-      reason: Not classified as ready for public communication.
-    rationale: Only deterministically released and communication-ready items are included.
-  social_video_recommendations: []
+      reason: Internal automation for proof videos is not yet ready for public communication.
+    rationale: This week's public updates focus on CLI debugging and billing responsiveness. Significant development progress
+      was made on authentication and AI stability, though much of that work remains in the development branch or pertains
+      to disabled features.
+  social_video_recommendations:
+  - idea: A short demonstration of the new CLI '--since' filter isolating recent server logs.
+    priority: Medium
+    reason: Concrete CLI improvement that is easy to visualize for technical users.
+    evidence:
+      commits:
+      - e83f63442
   quality_notes:
-  - Generated without LLM interpretation; review grouped commit titles before publication.
+  - CLI log filtering improves the developer experience for self-hosted instances.
+  - AI task engine stability was a primary focus, specifically regarding reference normalization and execution environment
+    encoding.
+  - Billing UI responsiveness was improved to prevent user confusion during credit purchases.
   validation_warnings: []
