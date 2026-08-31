@@ -117,13 +117,14 @@ publish_artifacts() {
   SHARED_LOCK_HELD=true
   git fetch --quiet origin dev
   current_dev_sha="$(git rev-parse origin/dev)"
-  if [[ "$current_dev_sha" != "$BASE_DEV_SHA" ]]; then
-    echo "[release-intelligence] dev changed during generation; aborting stale publication" >&2
+  if [[ "$current_dev_sha" != "$BASE_DEV_SHA" ]] && \
+    ! git diff --quiet "$BASE_DEV_SHA..$current_dev_sha" -- docs/releases; then
+    echo "[release-intelligence] dev release artifacts changed during generation; aborting stale publication" >&2
     return 1
   fi
 
   if [[ -z "$changes" ]]; then
-    PUBLISHED_SHA="$BASE_DEV_SHA"
+    PUBLISHED_SHA="$current_dev_sha"
     echo "[release-intelligence] no release artifact changes to publish" >&2
     return
   fi
@@ -132,6 +133,9 @@ publish_artifacts() {
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
   git add docs/releases
   git commit --quiet -m "$title"
+  if [[ "$current_dev_sha" != "$BASE_DEV_SHA" ]]; then
+    git rebase "$current_dev_sha"
+  fi
   published_sha="$(git rev-parse HEAD)"
   git push --quiet origin HEAD:dev
   git fetch --quiet origin dev
