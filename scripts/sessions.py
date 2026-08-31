@@ -221,6 +221,8 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
 )
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
 WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES = ("scripts/.tmp/", "test-results/")
+WORKTREE_ROOT_HANDOFF_DENIED_PATHS = frozenset({"config.json"})
+WORKTREE_ROOT_HANDOFF_DENIED_PREFIXES = (".git/", "logs/nightly-reports/")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
 DEFAULT_REPO_ID = "openmates"
@@ -2736,6 +2738,178 @@ def _worktree_new_files(metadata: dict, files: set[str]) -> set[str]:
 
 def _worktree_has_changes(metadata: dict) -> bool:
     return bool(_worktree_changed_files(metadata))
+
+
+def _normalize_root_handoff_path(path_value: str | Path) -> str:
+    """Return one safe repository-relative path for explicit root handoff."""
+    raw = str(path_value or "").replace("\\", "/")
+    candidate = Path(raw)
+    if not raw or candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError(f"Unsafe root handoff path: {path_value}")
+    normalized = _canonical_stored_repo_path(raw).removeprefix("./")
+    if not normalized or normalized == "." or normalized.startswith("/"):
+        raise ValueError(f"Unsafe root handoff path: {path_value}")
+    if is_protected_control_plane_path(normalized):
+        raise ValueError(f"Protected control-plane path cannot be imported: {normalized}")
+    if normalized in WORKTREE_ROOT_HANDOFF_DENIED_PATHS:
+        raise ValueError(f"Sensitive runtime path cannot be imported: {normalized}")
+    if any(normalized.startswith(prefix) for prefix in WORKTREE_ROOT_HANDOFF_DENIED_PREFIXES):
+        raise ValueError(f"Shared runtime path cannot be imported: {normalized}")
+    if any(normalized.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES):
+        raise ValueError(f"Non-deployable runtime path cannot be imported: {normalized}")
+    name = Path(normalized).name.lower()
+    if name == ".env" or name.startswith(".env.") or name.endswith(WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES):
+        raise ValueError(f"Sensitive file cannot be imported: {normalized}")
+    resolved = (CONTROL_PLANE_ROOT / normalized).resolve(strict=False)
+    try:
+        resolved.relative_to(CONTROL_PLANE_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError(f"Root handoff path escapes the repository: {normalized}") from exc
+    return normalized
+
+
+def list_root_dirty_files(*, path_prefix: str = "") -> dict:
+    """List safe dirty root paths without exposing file contents."""
+    prefix = path_prefix.replace("\\", "/").removeprefix("./")
+    if prefix:
+        prefix_path = Path(prefix)
+        if prefix_path.is_absolute() or ".." in prefix_path.parts:
+            raise ValueError(f"Unsafe root dirty prefix: {path_prefix}")
+        prefix = prefix.rstrip("/") + "/"
+
+    dirty = _get_dirty_files(checkout_root=CONTROL_PLANE_ROOT)
+    staged = _get_staged_files(checkout_root=CONTROL_PLANE_ROOT)
+    rc, stdout, stderr = _run_cmd(
+        ["git", "ls-files", "--others", "--exclude-standard"], cwd=str(CONTROL_PLANE_ROOT)
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect root untracked files: {stderr}")
+    untracked = {line.strip() for line in stdout.splitlines() if line.strip()}
+    rc, stdout, stderr = _run_cmd(
+        ["git", "diff", "--name-only", "origin/dev", "--"], cwd=str(CONTROL_PLANE_ROOT)
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to compare root files with origin/dev: {stderr}")
+    differs_from_origin = {line.strip() for line in stdout.splitlines() if line.strip()} | untracked
+
+    files: list[dict] = []
+    omitted = 0
+    for raw_path in sorted(dirty):
+        if prefix and not (raw_path + "/").startswith(prefix):
+            continue
+        try:
+            relative_path = _normalize_root_handoff_path(raw_path)
+        except ValueError:
+            omitted += 1
+            continue
+        root_path = CONTROL_PLANE_ROOT / relative_path
+        if root_path.is_symlink() or (root_path.exists() and not root_path.is_file()):
+            omitted += 1
+            continue
+        files.append({
+            "path": relative_path,
+            "state": "deleted" if not root_path.exists() else "untracked" if relative_path in untracked else "modified",
+            "staged": relative_path in staged,
+            "differs_from_origin": relative_path in differs_from_origin,
+        })
+    rc, origin_dev, stderr = _run_cmd(["git", "rev-parse", "origin/dev"], cwd=str(CONTROL_PLANE_ROOT))
+    if rc != 0:
+        raise RuntimeError(f"Failed to resolve origin/dev: {stderr}")
+    return {
+        "root": str(CONTROL_PLANE_ROOT),
+        "origin_dev": origin_dev.strip(),
+        "files": files,
+        "omitted_unsafe_count": omitted,
+    }
+
+
+def import_root_dirty_file(
+    path_value: str | Path,
+    *,
+    session_id: str = "",
+    opencode_session_id: str = "",
+) -> dict:
+    """Copy one explicitly selected dirty root file into a clean session path."""
+    relative_path = _normalize_root_handoff_path(path_value)
+    data = _load_sessions()
+    resolved_session_id = _resolve_session_id(
+        data, session_id=session_id, opencode_session_id=opencode_session_id
+    )
+    session = data["sessions"][resolved_session_id]
+    if not _session_is_control_plane_repo(session):
+        raise RuntimeError("Root handoff is only available for the OpenMates control-plane repository")
+    metadata = session.get("worktree")
+    if not isinstance(metadata, dict) or not metadata.get("path"):
+        raise RuntimeError(f"Session {resolved_session_id} has no managed worktree")
+    worktree_root = Path(str(metadata["path"])).resolve()
+    if not is_valid_managed_worktree_path(worktree_root) or not _existing_direct_managed_worktree(worktree_root):
+        raise RuntimeError(f"Session {resolved_session_id} has an invalid managed worktree")
+    if relative_path not in _get_dirty_files(checkout_root=CONTROL_PLANE_ROOT):
+        raise RuntimeError(f"Root path is not currently dirty: {relative_path}")
+    if relative_path in _get_dirty_files(checkout_root=worktree_root):
+        raise RuntimeError(f"Session path already has local changes: {relative_path}")
+
+    source = CONTROL_PLANE_ROOT / relative_path
+    destination = worktree_root / relative_path
+    try:
+        destination.resolve(strict=False).relative_to(worktree_root)
+    except ValueError as exc:
+        raise RuntimeError(f"Session destination escapes through a symlink: {relative_path}") from exc
+    if source.is_symlink() or (source.exists() and not source.is_file()):
+        raise RuntimeError(f"Unsupported root handoff source: {relative_path}")
+    if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+        raise RuntimeError(f"Unsupported session handoff destination: {relative_path}")
+
+    source_state = "deleted"
+    source_sha256 = ""
+    if source.exists():
+        source_state = "file"
+        source_sha256 = _file_sha256(source)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=".root-import-", delete=False) as handle:
+            temporary = Path(handle.name)
+        try:
+            shutil.copy2(source, temporary)
+            if _file_sha256(source) != source_sha256:
+                raise RuntimeError(f"Root path changed during import: {relative_path}")
+            temporary.replace(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+    elif destination.exists():
+        destination.unlink()
+
+    imported_at = _now_iso()
+
+    def record(current: dict) -> None:
+        current_session = current.get("sessions", {}).get(resolved_session_id)
+        if not isinstance(current_session, dict):
+            raise RuntimeError(f"Session {resolved_session_id} disappeared during root import")
+        if relative_path not in current_session.setdefault("modified_files", []):
+            current_session["modified_files"].append(relative_path)
+        current_session["workspace_state"] = "changes_pending"
+        current_session["last_active"] = imported_at
+        current_worktree = current_session.get("worktree")
+        if not isinstance(current_worktree, dict):
+            raise RuntimeError(f"Session {resolved_session_id} worktree disappeared during root import")
+        imports = current_worktree.setdefault("root_imports", [])
+        imports.append({
+            "path": relative_path,
+            "state": source_state,
+            "sha256": source_sha256,
+            "root_head": _current_git_sha(CONTROL_PLANE_ROOT),
+            "imported_at": imported_at,
+        })
+        del imports[:-50]
+        current_worktree["last_active"] = imported_at
+
+    _mutate_sessions(record)
+    return {
+        "session_id": resolved_session_id,
+        "path": relative_path,
+        "state": source_state,
+        "sha256": source_sha256,
+        "worktree_path": str(worktree_root),
+    }
 
 
 def _worktree_head(path: str | Path) -> str:
@@ -13476,6 +13650,26 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
+    if args.worktree_action == "root-dirty":
+        try:
+            result = list_root_dirty_files(path_prefix=args.path_prefix or "")
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    if args.worktree_action == "import-root":
+        try:
+            result = import_root_dirty_file(
+                args.file,
+                session_id=args.session or "",
+                opencode_session_id=args.opencode_session or "",
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "ensure":
         try:
             metadata = ensure_session_worktree(args.session)
@@ -16697,6 +16891,17 @@ def main() -> None:
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
+    p_worktree_root_dirty = p_worktree_sub.add_parser(
+        "root-dirty", help="List safe dirty files in the canonical root without exposing contents"
+    )
+    p_worktree_root_dirty.add_argument("--path-prefix", default="", help="Optional repository-relative prefix")
+    p_worktree_import_root = p_worktree_sub.add_parser(
+        "import-root", help="Import one explicitly selected dirty root file into a clean session path"
+    )
+    import_identity = p_worktree_import_root.add_mutually_exclusive_group(required=True)
+    import_identity.add_argument("--session", "-s", help="sessions.py session ID")
+    import_identity.add_argument("--opencode-session", help="Top-level OpenCode session ID")
+    p_worktree_import_root.add_argument("--file", required=True, help="Exact repository-relative dirty root file")
     p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
     p_worktree_ensure.add_argument("--session", "-s", required=True, help="Session ID")
     p_worktree_binding = p_worktree_sub.add_parser("binding", help="Record an OpenCode native-binding result")

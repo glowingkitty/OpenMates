@@ -2352,7 +2352,7 @@ function worktreeGuardMessage(sessionID, worktreePath = "") {
   return actionable(
     ROOT_GUARD_MARKER,
     `the target is in the root control-plane checkout.${target}`,
-    `use a repository-relative path; if routing is missing, run python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}.`,
+    `use a repository-relative path; if the user explicitly needs existing root-dirty work, list it with python3 scripts/sessions.py worktree root-dirty and import only an exact reviewed file with python3 scripts/sessions.py worktree import-root --session ${sessionID || "<id>"} --file <path>; if routing is missing, run python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}.`,
   );
 }
 

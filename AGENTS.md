@@ -135,6 +135,7 @@ For each observed preventable process problem or inefficiency, check the relevan
 - Never use destructive git commands such as `git reset --hard` or `git checkout --` unless explicitly requested.
 - Never change the repository default branch away from `dev`, and never switch the local working tree away from `dev`. `dev` is the permanent default/current working branch for agents.
 - Never create PRs, merge branches, publish releases, use `git stash`, or run raw `git worktree` commands unless explicitly requested. Use `python3 scripts/sessions.py worktree ensure --session <id>` for orchestrated agent worktrees.
+- If the user explicitly asks a routed chat to handle uncommitted files already present in the canonical root, use `python3 scripts/sessions.py worktree root-dirty` to inspect safe path metadata and `python3 scripts/sessions.py worktree import-root --session <id> --file <exact-path>` for each reviewed file. Never bypass routing or import a broad root snapshot.
 - Treat secrets, credentials, production keys, `.env` files, and private tokens as off-limits.
 - This is open source. Use `<PLACEHOLDER>` values for domains, emails, SSH keys, IPs, API keys, and private repo URLs.
 - Committing and pushing to `dev` via `sessions.py deploy` is not destructive; it is expected after every task.
