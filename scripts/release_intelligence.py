@@ -47,6 +47,7 @@ DEFAULT_MAIN_REF = "origin/main"
 DEFAULT_DEV_REF = "origin/dev"
 DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
 DEFAULT_LLM_RETRIES = 2
+SOURCE_ROOT_ENV = "RELEASE_INTELLIGENCE_SOURCE_ROOT"
 
 SECTION_ORDER = [
     "features",
@@ -267,8 +268,9 @@ def get_env(name: str, dot_env: dict[str, str] | None = None, default: str = "")
 
 
 def load_gemini_api_key_from_vault() -> str | None:
-    compose_file = REPO_ROOT / "backend" / "core" / "docker-compose.yml"
-    env_file = REPO_ROOT / ".env"
+    source_root = Path(os.environ.get(SOURCE_ROOT_ENV, REPO_ROOT)).resolve()
+    compose_file = source_root / "backend" / "core" / "docker-compose.yml"
+    env_file = source_root / ".env"
     if not compose_file.exists():
         return None
     fetch_script = (
@@ -287,7 +289,7 @@ def load_gemini_api_key_from_vault() -> str | None:
         command.extend(["--env-file", str(env_file)])
     command.extend(["-f", str(compose_file), "exec", "-T", "api", "python3", "-c", fetch_script])
     try:
-        result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=20, check=False)
+        result = subprocess.run(command, cwd=source_root, text=True, capture_output=True, timeout=20, check=False)
     except (OSError, subprocess.TimeoutExpired):
         return None
     key = result.stdout.strip()

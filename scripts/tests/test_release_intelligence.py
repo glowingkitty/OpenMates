@@ -638,12 +638,39 @@ def test_release_intelligence_cron_wrapper_documents_all_modes() -> None:
     wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
 
     env_source = wrapper.index('. "$SOURCE_ROOT/.env"')
+    trusted_root_export = wrapper.index('export RELEASE_INTELLIGENCE_SOURCE_ROOT="$SOURCE_ROOT"')
     assert wrapper.rfind("set +u", 0, env_source) != -1
     assert wrapper.find("set -u", env_source) != -1
+    assert trusted_root_export > env_source
     assert "run_daily" in wrapper
     assert "run_weekly" in wrapper
     assert "notify-weekly" in wrapper
     assert "run_monthly" in wrapper
+
+
+def test_vault_key_lookup_uses_trusted_source_checkout(monkeypatch, tmp_path: Path) -> None:
+    source_root = tmp_path / "source"
+    compose_file = source_root / "backend" / "core" / "docker-compose.yml"
+    compose_file.parent.mkdir(parents=True)
+    compose_file.write_text("name: openmates-core\n", encoding="utf-8")
+    (source_root / ".env").write_text("SERVER_ENVIRONMENT=development\n", encoding="utf-8")
+    calls: list[tuple[list[str], Path]] = []
+
+    class Result:
+        stdout = "test-gemini-key"
+
+    def fake_run(command, *, cwd, **_kwargs):
+        calls.append((command, cwd))
+        return Result()
+
+    monkeypatch.setenv("RELEASE_INTELLIGENCE_SOURCE_ROOT", str(source_root))
+    monkeypatch.setattr(_release_intelligence.subprocess, "run", fake_run)
+
+    assert _release_intelligence.load_gemini_api_key_from_vault() == "test-gemini-key"
+    command, cwd = calls[0]
+    assert str(compose_file) in command
+    assert str(source_root / ".env") in command
+    assert cwd == source_root
 
 
 def test_release_intelligence_cron_publishes_from_isolated_checkout() -> None:
@@ -651,6 +678,7 @@ def test_release_intelligence_cron_publishes_from_isolated_checkout() -> None:
 
     assert "mktemp -d" in wrapper
     assert "flock" in wrapper
+    assert 'export RELEASE_INTELLIGENCE_SOURCE_ROOT="$SOURCE_ROOT"' in wrapper
     assert "git clone" in wrapper
     assert "refresh_daily_range" in wrapper
     assert "sessions.py\" lock" in wrapper
