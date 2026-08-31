@@ -38,6 +38,12 @@ function createAdapters(shared?: {
   const writeLocal = vi.fn(async (userId: string, chatId: string, record: EncryptedSelection) => {
     local.set(key(userId, chatId), record);
   });
+  const writeLocalIfNewer = vi.fn(async (userId: string, chatId: string, record: EncryptedSelection) => {
+    const current = local.get(key(userId, chatId));
+    if (current && current.version >= record.version) return current;
+    local.set(key(userId, chatId), record);
+    return record;
+  });
   const readLocal = vi.fn(async (userId: string, chatId: string) => local.get(key(userId, chatId)) ?? null);
   const compareAndSetRemote = vi.fn(async (
     userId: string,
@@ -54,9 +60,9 @@ function createAdapters(shared?: {
 
   return {
     encryption: { encrypt, decrypt },
-    local: { read: readLocal, write: writeLocal },
+    local: { read: readLocal, write: writeLocal, writeIfNewer: writeLocalIfNewer },
     remote: { read: readRemote, compareAndSet: compareAndSetRemote },
-    calls: { encrypt, decrypt, readLocal, writeLocal, readRemote, compareAndSetRemote },
+    calls: { encrypt, decrypt, readLocal, writeLocal, writeLocalIfNewer, readRemote, compareAndSetRemote },
     shared: { ciphertexts, remote },
   };
 }

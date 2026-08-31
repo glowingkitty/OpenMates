@@ -42,6 +42,11 @@ export type ChatModelSelectionAdapters = {
       chatId: string,
       record: EncryptedChatModelSelection,
     ) => Promise<void>;
+    writeIfNewer: (
+      userId: string,
+      chatId: string,
+      record: EncryptedChatModelSelection,
+    ) => Promise<EncryptedChatModelSelection>;
   };
   remote: {
     read: (
@@ -167,6 +172,36 @@ async function writeLocalSelection(
         .put({ ...record, key: selectionKey(userId, chatId), userId, chatId });
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error ?? new Error("Could not store chat model selection"));
+    });
+  } finally {
+    database.close();
+  }
+}
+
+async function writeLocalSelectionIfNewer(
+  userId: string,
+  chatId: string,
+  record: EncryptedChatModelSelection,
+): Promise<EncryptedChatModelSelection> {
+  const database = await openSelectionDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, "readwrite");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(selectionKey(userId, chatId));
+      let retainedRecord = record;
+
+      request.onsuccess = () => {
+        const current = request.result as StoredChatModelSelection | undefined;
+        if (current && current.version >= record.version) {
+          retainedRecord = { ciphertext: current.ciphertext, version: current.version };
+          return;
+        }
+        store.put({ ...record, key: selectionKey(userId, chatId), userId, chatId });
+      };
+      transaction.oncomplete = () => resolve(retainedRecord);
+      transaction.onerror = () => reject(transaction.error ?? new Error("Could not update chat model selection"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Could not update chat model selection"));
     });
   } finally {
     database.close();
@@ -362,15 +397,9 @@ export function createChatModelSelectionService(
     },
 
     async receiveRemote({ userId, chatId, record }) {
-      const localRecord = await adapters.local.read(userId, chatId);
-      if (localRecord && localRecord.version >= record.version) {
-        const localSelection = await decryptRecord(adapters, localRecord);
-        selections.set(selectionKey(userId, chatId), localSelection);
-        return localSelection;
-      }
-      const selection = await decryptRecord(adapters, record);
+      const retainedRecord = await adapters.local.writeIfNewer(userId, chatId, record);
+      const selection = await decryptRecord(adapters, retainedRecord);
       selections.set(selectionKey(userId, chatId), selection);
-      await adapters.local.write(userId, chatId, record);
       return selection;
     },
   };
@@ -388,6 +417,7 @@ const browserAdapters: ChatModelSelectionAdapters = {
   local: {
     read: readLocalSelection,
     write: writeLocalSelection,
+    writeIfNewer: writeLocalSelectionIfNewer,
   },
   remote: {
     async read(_userId, chatId) {

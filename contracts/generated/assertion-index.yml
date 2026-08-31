@@ -6409,29 +6409,29 @@ assertions:
       surface: gui.web
     - &id736
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 66
+      line: 72
       name: writes Format D ciphertext to versioned local state before owner/chat
         CAS sync
       surface: gui.web
     - &id737
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 88
+      line: 94
       name: restores an owner selection on another device without exposing it to another
         participant
       surface: gui.web
     - &id738
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 104
+      line: 110
       name: retries a fresh-device selection against the current remote version
       surface: gui.web
     - &id739
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 129
+      line: 135
       name: reconciles speculative local state when the retry also conflicts
       surface: gui.web
     - &id740
       path: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
-      line: 149
+      line: 155
       name: keeps an exact chat selection when the send path reads it
       surface: gui.web
     supporting_tests:
