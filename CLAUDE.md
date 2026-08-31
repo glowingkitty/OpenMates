@@ -92,11 +92,12 @@ For each observed preventable process problem or inefficiency, check the relevan
 
 ## OpenCode Response Media
 
-- To embed generated images or videos in an OpenCode assistant response, run `python3 scripts/opencode_response_media.py <path> --alt "Description"` and paste the returned Markdown or HTML snippet.
+- To embed generated images, videos, or PDFs in an OpenCode assistant response, run `python3 scripts/opencode_response_media.py <path> --alt "Description"` and paste the returned Markdown or HTML snippet.
 - The helper uploads plaintext media to a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL; treat the URL as a temporary bearer token.
 - Use this only for intentionally shareable screenshots, diagrams, synthetic test media, or demo clips. Do not upload secrets, private user data, raw logs, production evidence, or anything that must remain available after 48 hours.
 - External video playback in OpenCode Web requires the `code.dev.openmates.org` CSP to allow `media-src https:`; if video controls render but playback fails, verify Caddy applied `deployment/dev_server/Caddyfile`.
 - When a screenshot or short clip materially helps explain a visual UI state, bug fix, visual-smoke result, proof-video, or implementation defect, include the uploaded media directly in the chat response instead of only naming an artifact path.
+- Before asking the user to approve a new or modified Contract, run `python3 scripts/contract_approval_pdf.py <bundle> --baseline-ref HEAD` and paste the returned PDF Markdown link in the same response. The exact-fingerprint PDF must show the complete Contract and examples, highlight additions and modifications with yellow backgrounds, and retain removals as yellow removal blocks. After explicit approval, pass the generated JSON review artifact to `scripts/contracts.py approve --review-artifact <path>` so the receipt cannot bind a different fingerprint or PDF. Never request or record Contract approval from a fingerprint or summary alone; repair PDF generation or upload first if it fails.
 
 ---
 

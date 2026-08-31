@@ -13,12 +13,16 @@ purpose:
     - Give users and agents one durable source for what a capability must do.
     - Make UI, API, CLI, SDK, privacy, and accessibility obligations traceable to stable rules.
     - Let Projects display Contracts as encrypted, editable file-like embeds with reviewable revisions.
+    - Present Contract truth as a readable human document with visual diagrams instead of requiring readers to understand raw YAML or diagram source.
 
 scope:
   includes:
     - Contract identity, purpose, scope, actors, concepts, states, models, stable rules, user-flow examples, surface requirements, relationships, revisions, and approvals.
     - Capability-first composition with optional links to independently reusable or independently versioned Contracts.
     - Structured GUI requirements for elements, interactions, states, accessibility, responsive behavior, and optional Figma or Penpot references.
+    - Human-readable Contract pages composed from canonical settings headings, explanatory text, status, diagrams, coverage, and history sections.
+    - Version-pinned diagram embeds that retain encrypted editable source and a source-matched encrypted rendered preview.
+    - A default diagram-tool policy for architecture, runtime behavior, state, data, UI-flow, wireframe, and design-reference views.
     - Project-linked Contract preview and fullscreen embed experiences with draft editing, revision comparison, approval, coverage, and history.
     - Links from Plans, Checks, documentation, implementation sources, and other Contracts to exact Contract revisions or rule ids.
     - Client-encrypted private Contract content and minimal server-visible identity, revision, approval, routing, and relationship metadata.
@@ -26,6 +30,9 @@ scope:
     - Implementation Tasks, execution scheduling, Check Run output, and mutable work progress.
     - Requiring a separate Contract for every screen, component, user-flow step, or visual state.
     - Treating Figma, Penpot, source code, tests, or user guides as replacements for approved product truth.
+    - Treating a rendered diagram image as the only durable copy or as a replacement for editable diagram source.
+    - Showing raw Contract YAML, encrypted payloads, diagram source, or implementation metadata as the default reading experience.
+    - Sending private Contract or diagram plaintext to public rendering services or requiring a diagrams.net MCP server in the product runtime.
     - Pixel geometry, decorative styling, or transient implementation details unless they are required for accessibility or behavior.
 
 relationships:
@@ -38,6 +45,33 @@ relationships:
     - feature.projects
     - feature.plans
     - feature.checks
+    - feature.settings-ui
+
+diagram_policy:
+  selection:
+    c4_plantuml:
+      use_for: [system_context, container_architecture, component_architecture, deployment, trust_boundary, provider_integration]
+      reason: C4 semantics keep scope, responsibilities, technologies, boundaries, and protocols explicit and reviewable in concise text.
+    mermaid:
+      use_for: [sequence, state_machine, decision_flow, simple_activity_flow, lifecycle, small_data_model]
+      reason: Mermaid provides the lowest creation and modification effort for ordered behavior and compact graph structure.
+    drawio:
+      use_for: [ui_flow, wireframe, annotated_screenshot, stakeholder_overview, cross_functional_flow, large_curated_data_model]
+      reason: diagrams.net supports editable visual composition, images, metadata, and manual refinement for human-facing views.
+    design_reference:
+      use_for: [high_fidelity_ui, exact_visual_reference]
+      providers: [figma, penpot, image]
+      reason: Final design pixels stay in a design tool or image reference rather than being recreated as diagram geometry.
+  rendering:
+    c4_plantuml: local_or_self_hosted
+    mermaid: client_side_strict
+    drawio: self_hosted_embed_editor_and_local_cli
+    diagrams_net_mcp: not_required
+  readability_gates:
+    - Every diagram has a human title, purpose, scope, accessible description, and stable rule links.
+    - Architecture relationships identify direction, intent, and protocol where applicable.
+    - Inline previews remain readable without shrinking text below the product minimum; large diagrams open fullscreen with pan and zoom.
+    - Overlap, clipping, unreadable contrast, stale previews, missing source, and unlabelled material relationships are visible failures.
 
 actors:
   - id: contract_author
@@ -83,6 +117,46 @@ models:
     responsive_behavior: {type: encrypted_structured_list, nullable: true}
     design_references: {type: encrypted_reference_list, nullable: true, constraints: {optional: true, providers: [figma, penpot, image, project_embed]}}
 
+  ContractHumanPresentation:
+    section_order:
+      type: ordered_section_ids
+      required: true
+      constraints:
+        values: [overview, purpose, scope, actors_and_concepts, rules, user_flows, diagrams, surfaces, relationships, coverage, history]
+    composition:
+      type: canonical_settings_document
+      required: true
+      constraints: {settings_page_container: true, settings_section_headings: true, readable_text: true, raw_yaml_default: false}
+    technical_disclosure:
+      type: on_demand_detail
+      required: true
+      constraints: {diagram_source: available, contract_source: available_when_authorized, collapsed_by_default: true}
+
+  ContractDiagramView:
+    diagram_id: {type: stable_semantic_id, required: true}
+    purpose:
+      type: enum
+      values: [system_context, container_architecture, component_architecture, deployment, trust_boundary, provider_integration, sequence, state_machine, decision_flow, activity_flow, lifecycle, data_model, ui_flow, wireframe, annotated_screenshot, stakeholder_overview, cross_functional_flow]
+      required: true
+    diagram_embed_ref: {type: encrypted_reference, required: true}
+    diagram_embed_version: {type: integer, required: true, constraints: {immutable_when_revision_approved: true}}
+    source_hash: {type: sha256_hex, required: true}
+    linked_rule_ids: {type: stable_id_list, required: true}
+    presentation: {type: enum, values: [primary, inline, supplementary], required: true}
+    status: {type: enum, values: [current, stale, render_failed], required: true}
+
+  ContractDiagramPayload:
+    source_format: {type: enum, values: [c4_plantuml, mermaid, drawio], required: true}
+    encrypted_source: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+    source_hash: {type: sha256_hex, required: true}
+    encrypted_rendered_preview_ref: {type: encrypted_artifact_reference, required: true}
+    rendered_preview_format: {type: enum, values: [svg, png], required: true}
+    rendered_preview_source_hash: {type: sha256_hex, required: true, constraints: {equals_source_hash: true}}
+    renderer_version: {type: version_identifier, required: true}
+    encrypted_accessible_description: {type: client_ciphertext, required: true, constraints: {human_readable: true}}
+    edit_mode: {type: enum, values: [text_source, diagrams_net], required: true}
+    download_extension: {type: enum, values: [puml, mmd, drawio], required: true}
+
   ContractLink:
     relation: {type: enum, values: [requires, extends, governs, implements, verifies, documents, supersedes], required: true}
     target_type: {type: enum, values: [contract, contract_rule, plan, check, project, source, documentation], required: true}
@@ -106,6 +180,26 @@ assertions:
     type: behavior
     must: GUI obligations can describe named elements, interactions, visible states, accessibility, responsive behavior, and optional design references while preserving surface-neutral canonical rules and usable behavior when no design artboard exists.
     depends_on: [models.ContractSurfaceRequirement, examples.contract_ui_requirements, surfaces.gui]
+  - id: contracts.ui.human-readable-default
+    type: behavior
+    must: The web Contract detail renders a localized human document using canonical settings page composition, semantic section headings, readable explanatory text, visible revision and approval state, and progressive technical disclosure; raw YAML, ciphertext, and diagram source are never the default reading surface.
+    depends_on: [models.ContractHumanPresentation, examples.contract_human_presentation, surfaces.gui]
+  - id: contracts.diagrams.tool-selection
+    type: invariant
+    must: Contract diagrams use C4-PlantUML for architecture and trust boundaries, Mermaid for sequence, state, decision, lifecycle, and small data views, diagrams.net for UI, wireframe, annotated, stakeholder, and large curated views, and Figma, Penpot, or images only as linked high-fidelity references.
+    depends_on: [models.ContractDiagramView, examples.contract_diagrams, surfaces.gui]
+  - id: contracts.diagrams.source-and-preview
+    type: invariant
+    must: Every Contract diagram preserves encrypted editable source in a versioned diagram embed and displays a saved encrypted SVG or PNG derived from the exact source hash; an image-only diagram, missing source, stale source-preview pair, or silent render failure cannot satisfy an approved revision.
+    depends_on: [models.ContractDiagramView, models.ContractDiagramPayload, examples.contract_diagrams]
+  - id: contracts.diagrams.revision-pinned-editing
+    type: behavior
+    must: A Contract revision pins the exact diagram embed version and source hash; readers see the rendered preview by default, may open fullscreen, inspect or copy source, and download the native source, while editing occurs only on demand and creates a new diagram version plus a new draft Contract revision when approved content would change.
+    depends_on: [models.ContractRevision, models.ContractDiagramView, models.ContractDiagramPayload, examples.contract_diagrams]
+  - id: contracts.diagrams.private-rendering
+    type: privacy
+    must: Private C4-PlantUML rendering is local or self-hosted, Mermaid renders client-side with strict security, and diagrams.net editing uses a self-hosted editor plus local CLI export; private source is never sent to a public renderer and the product runtime does not depend on diagrams.net MCP.
+    depends_on: [models.ContractDiagramPayload, examples.contract_diagrams, surfaces.gui]
   - id: contracts.project.encrypted-embed
     type: privacy
     must: Contracts appear in Projects as client-encrypted preview/fullscreen embeds with readable sections, edit and approval state, revision history, linked coverage, and no durable plaintext private Contract content.
@@ -142,15 +236,21 @@ surfaces:
         required: true
         requirements:
           - id: contracts.gui.preview
-            elements: [title, status, version, scope_summary, coverage_summary]
+            elements: [title, status, version, summary, scope_summary, primary_diagram_preview, coverage_summary]
             interactions: [open_fullscreen]
-            states: [draft, approved, superseded, stale_coverage, loading, error]
+            states: [draft, approved, superseded, stale_coverage, stale_diagram_preview, loading, error]
           - id: contracts.gui.fullscreen
-            elements: [header, overview, rules, user_flows, surfaces, coverage, history, approve_action]
-            interactions: [edit_draft, undo_unsaved_changes, compare_revisions, approve_exact_revision, open_linked_check]
+            elements: [header, overview, purpose, scope, actors_and_concepts, rules, user_flows, diagrams, surfaces, relationships, coverage, history, approve_action]
+            interactions: [edit_draft, undo_unsaved_changes, compare_revisions, approve_exact_revision, open_linked_check, open_diagram_fullscreen]
             accessibility: [keyboard_reachable_sections, semantic_headings, announced_approval_state, non_color_status_labels]
             responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
             design_references: optional
+          - id: contracts.gui.diagram
+            elements: [title, purpose, rendered_preview, accessible_description, source_format, version, render_status]
+            interactions: [pan, zoom, show_source, copy_source, download_native_source, edit_on_demand, regenerate_stale_preview]
+            states: [current, stale, render_failed, source_missing, loading]
+            accessibility: [descriptive_alt_text, text_source_fallback, keyboard_reachable_controls, zoom_not_required_for_primary_meaning]
+            responsive_behavior: [readable_inline_crop, fullscreen_for_large_diagrams, no_page_level_horizontal_overflow]
       apple: {required: false}
     exceptions:
       - id: apple-contract-editor-deferred
@@ -160,4 +260,4 @@ surfaces:
 
 examples:
   file: examples.yml
-  required_groups: [contract_boundaries, contract_revisions, contract_composition, contract_ui_requirements, contract_project_embed, contract_links, contract_surface_parity]
+  required_groups: [contract_boundaries, contract_revisions, contract_composition, contract_ui_requirements, contract_human_presentation, contract_diagrams, contract_project_embed, contract_links, contract_surface_parity]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # scripts/opencode_response_media.py
 #
-# Upload temporary media for OpenCode assistant responses without making a
+# Upload temporary media/documents for OpenCode responses without making a
 # public bucket. The host script copies a local image/video into the API
 # container, where Vault-backed Hetzner S3 credentials are available, then
 # creates/reconciles a private 48-hour bucket and returns a presigned URL.
@@ -41,6 +41,7 @@ WEBVTT_TIMESTAMP_RE = re.compile(
 )
 
 CONTENT_TYPES = {
+    ".pdf": "application/pdf",
     ".gif": "image/gif",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
@@ -219,6 +220,8 @@ def media_kind(content_type: str) -> str:
         return "image"
     if content_type.startswith("video/"):
         return "video"
+    if content_type == "application/pdf":
+        return "document"
     raise ValueError(f"Unsupported content type: {content_type}")
 
 
@@ -340,6 +343,14 @@ def build_snippets(
     kind = media_kind(content_type)
     escaped_url = html.escape(url, quote=True)
     escaped_alt = html.escape(alt, quote=True)
+    if kind == "document":
+        return {
+            "markdown": f"[{alt}]({url})",
+            "html": (
+                f'<a href="{escaped_url}" target="_blank" rel="noopener noreferrer" '
+                f'type="application/pdf">{escaped_alt}</a>'
+            ),
+        }
     if kind == "image":
         width_attr = f' width="{width}"' if width else ""
         return {
@@ -518,11 +529,35 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
     }
 
 
+def upload_file(
+    path: str | Path,
+    *,
+    alt: str = "",
+    container: str = DEFAULT_CONTAINER,
+    expires_in: int = DEFAULT_EXPIRES_SECONDS,
+    width: int | None = None,
+    dry_run: bool = False,
+) -> dict[str, object]:
+    """Upload one supported response file through the same validated CLI path."""
+    args = argparse.Namespace(
+        path=str(path),
+        alt=alt,
+        container=container,
+        expires_in=expires_in,
+        width=width,
+        captions=None,
+        captions_language="und",
+        captions_label="Captions",
+        latest_run_type="",
+    )
+    return build_result(args, dry_run=dry_run)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Upload temporary image/video media for OpenCode Markdown responses.",
+        description="Upload temporary images, videos, or PDF documents for OpenCode responses.",
     )
-    parser.add_argument("path", help="Image or video file to upload")
+    parser.add_argument("path", help="Image, video, or PDF file to upload")
     parser.add_argument("--alt", help="Alt text or video label")
     parser.add_argument("--container", default=DEFAULT_CONTAINER, help="API container name")
     parser.add_argument(

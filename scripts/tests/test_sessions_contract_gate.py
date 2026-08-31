@@ -129,6 +129,7 @@ def test_gate_requires_current_exact_hash_approval_for_contract_change(tmp_path)
         contract_id=loaded.contract_id,
         fingerprint=loaded.fingerprint,
         confirmation="explicit_user_confirmation",
+        review_artifact={"fingerprint": loaded.fingerprint, "pdf_sha256": "a" * 64},
     )
     assert module.check_changed_files(tmp_path, changed, session_id="session", approvals_path=approvals) == []
 

@@ -103,20 +103,6 @@ assertions:
         - *id006
         - *id010
         supporting_tests: []
-        evidence_history:
-        - assertion: ai-request-observability.waterfall.complete
-          assertion_fingerprint: 29baaecbaa4acc0e813d1cabdb9f650af47a08693bdcbde87d63df630805a765
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_ai_request_observability.py
-          test_name: test_phase_spans_form_a_content_free_hierarchy
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
       rest_api:
         direct_tests:
         - *id007
@@ -125,7 +111,7 @@ assertions:
         - *id011
         - *id012
         supporting_tests: []
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: ai-request-observability.waterfall.complete
       assertion_fingerprint: 29baaecbaa4acc0e813d1cabdb9f650af47a08693bdcbde87d63df630805a765
@@ -213,27 +199,13 @@ assertions:
         - *id016
         - *id017
         supporting_tests: []
-        evidence_history:
-        - assertion: ai-request-observability.structural-traces.content-free
-          assertion_fingerprint: 3fbc944ba29a64084a1c2d4bdfeb099f25ab793bc9170af8dd01181c2d56d5c5
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_ai_request_observability.py
-          test_name: test_queue_span_uses_internal_timestamp_without_request_identity
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
       rest_api:
         direct_tests:
         - *id018
         - *id019
         - *id020
         supporting_tests: []
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: ai-request-observability.structural-traces.content-free
       assertion_fingerprint: 3fbc944ba29a64084a1c2d4bdfeb099f25ab793bc9170af8dd01181c2d56d5c5
@@ -626,21 +598,7 @@ assertions:
         - *id055
         - *id056
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.replay.zero-paid-calls
-          assertion_fingerprint: fba7ba809f9292862938c991e2952e8a117439feba9f59efbe85b26c73881fba
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_caching_llm_wrapper.py
-          test_name: test_cached_non_stream_provider_replays_cached_response_without_real_provider
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.replay.zero-paid-calls
       assertion_fingerprint: fba7ba809f9292862938c991e2952e8a117439feba9f59efbe85b26c73881fba
@@ -699,21 +657,7 @@ assertions:
         - *id060
         - *id061
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.replay.cache-miss-fails-closed
-          assertion_fingerprint: a82255af8df3a927e6ffb3881ee4800b792cefe71db9599750ca20ab75b886b8
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_caching_llm_wrapper.py
-          test_name: test_cached_stream_provider_raises_on_fingerprint_miss_without_real_provider
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.replay.cache-miss-fails-closed
       assertion_fingerprint: a82255af8df3a927e6ffb3881ee4800b792cefe71db9599750ca20ab75b886b8
@@ -786,34 +730,7 @@ assertions:
         - *id067
         - *id068
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.real.fixed-plus-rotating
-          assertion_fingerprint: 9f3e63f78cbc26def2c90830e1dce8fe839623d46299bbbe6328f8a4abb8bc3a
-          classification: direct
-          surface: cli
-          test_path: frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
-          test_name: daily fixed real-inference canary completes the full chat pipeline
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        - assertion: daily-ai-tests.real.fixed-plus-rotating
-          assertion_fingerprint: 9f3e63f78cbc26def2c90830e1dce8fe839623d46299bbbe6328f8a4abb8bc3a
-          classification: direct
-          surface: cli
-          test_path: frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
-          test_name: daily rotating real-inference canary completes its selected semantic
-            scenario
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.real.fixed-plus-rotating
       assertion_fingerprint: 9f3e63f78cbc26def2c90830e1dce8fe839623d46299bbbe6328f8a4abb8bc3a
@@ -864,34 +781,7 @@ assertions:
         - *id069
         - *id070
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.real.semantic-signal
-          assertion_fingerprint: 10d38ca160f44d1a8f0d8a655ca2c56e68706cf6918f888586cb960f70c6badf
-          classification: direct
-          surface: cli
-          test_path: frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
-          test_name: daily fixed real-inference canary completes the full chat pipeline
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        - assertion: daily-ai-tests.real.semantic-signal
-          assertion_fingerprint: 10d38ca160f44d1a8f0d8a655ca2c56e68706cf6918f888586cb960f70c6badf
-          classification: direct
-          surface: cli
-          test_path: frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
-          test_name: daily rotating real-inference canary completes its selected semantic
-            scenario
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.real.semantic-signal
       assertion_fingerprint: 10d38ca160f44d1a8f0d8a655ca2c56e68706cf6918f888586cb960f70c6badf
@@ -977,21 +867,7 @@ assertions:
         - *id076
         - *id077
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.budget.shared-hard-cap
-          assertion_fingerprint: 35579d43999dda3351d1e8e0c2c459b6d8420062fb29369f8d62785f50cf2549
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_daily_ai_test_budget.py
-          test_name: test_real_budget_fails_before_thirteenth_default_call
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.budget.shared-hard-cap
       assertion_fingerprint: 35579d43999dda3351d1e8e0c2c459b6d8420062fb29369f8d62785f50cf2549
@@ -1115,20 +991,6 @@ assertions:
         - *id082
         - *id083
         - *id084
-        evidence_history:
-        - assertion: daily-ai-tests.isolation.ordinary-inference-unchanged
-          assertion_fingerprint: e840d08ea5657eecb0b164abb8604ed6acd7a1d226515770f912386759b7f2e3
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_daily_ai_test_budget.py
-          test_name: test_ordinary_requests_do_not_consult_test_budget
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
       gui.web:
         direct_tests:
         - *id087
@@ -1137,7 +999,7 @@ assertions:
         - *id086
         - *id088
         - *id090
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.isolation.ordinary-inference-unchanged
       assertion_fingerprint: e840d08ea5657eecb0b164abb8604ed6acd7a1d226515770f912386759b7f2e3
@@ -1256,21 +1118,7 @@ assertions:
         - *id100
         - *id101
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.validation.conditional-real-gate
-          assertion_fingerprint: 36659ac266978bb815bd07f76fe1a77f778d8680fe7ae96e874738c4f01f7968
-          classification: direct
-          surface: cli
-          test_path: scripts/tests/test_daily_ai_test_policy.py
-          test_name: test_runner_daily_discovery_uses_policy_and_rejects_record_mode
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.validation.conditional-real-gate
       assertion_fingerprint: 36659ac266978bb815bd07f76fe1a77f778d8680fe7ae96e874738c4f01f7968
@@ -1301,21 +1149,7 @@ assertions:
         direct_tests:
         - *id102
         supporting_tests: []
-        evidence_history:
-        - assertion: daily-ai-tests.reporting.content-free
-          assertion_fingerprint: a7440f8ae2669cc996ebed7cde5cc1ceb242196bab51e8967bbfa4f6318631f5
-          classification: direct
-          surface: cli
-          test_path: backend/tests/test_daily_ai_test_budget.py
-          test_name: test_real_budget_fails_before_thirteenth_default_call
-          status: passed
-          run_id: fd78-current-direct-proof-20260830T1705Z
-          subject_commit: 40f16fb9042651581fe6f876c15ea587b88a3904
-          timestamp: '2026-08-30T17:05:07Z'
-          run_artifact: docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
-          run_artifact_sha256: 4bcfb01e9d2da1a01d11a3746b632b2b5c03b463efc8550eaebf4272788ccc90
-        current_direct_proof: true
-    current_direct_proof: true
+    current_direct_proof: false
     evidence_history:
     - assertion: daily-ai-tests.reporting.content-free
       assertion_fingerprint: a7440f8ae2669cc996ebed7cde5cc1ceb242196bab51e8967bbfa4f6318631f5
@@ -16191,7 +16025,47 @@ assertions:
     current_direct_proof: false
   contracts.ui.structured-interactions:
     contract: feature.contracts@1
-    fingerprint: f150db22606e8874e402adf7e3a85e65c0c23357c48099769b381b502f9b9ebe
+    fingerprint: f35ad82f50f382e1346149cdfe0fbbe4ab8972a7805fe415fd4d96278701218a
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.ui.human-readable-default:
+    contract: feature.contracts@1
+    fingerprint: 9d533068d6957e92ca85a63321b2886a59b34a575ebc16f9bbac585dbd2a1144
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.diagrams.tool-selection:
+    contract: feature.contracts@1
+    fingerprint: 6f76f18b72c5dcf5caa4b03eeb7ca744aab72d73d602ce9b9b46330fcf973d0f
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.diagrams.source-and-preview:
+    contract: feature.contracts@1
+    fingerprint: c0b2772baa747440fa516ce90997d0402a9f1ad8afef6d999bff4090064bd7f9
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.diagrams.revision-pinned-editing:
+    contract: feature.contracts@1
+    fingerprint: b2696ea3df79c6e7757bbb92b7457f9b4904111999635f3c487013756ec745b6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  contracts.diagrams.private-rendering:
+    contract: feature.contracts@1
+    fingerprint: ed859969803e616c195873f177b9766425a1cc57d9ed832a0206db5c4701987f
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -16215,7 +16089,7 @@ assertions:
     current_direct_proof: false
   contracts.surface.semantic-parity:
     contract: feature.contracts@1
-    fingerprint: 80960b1b8a61b160615e230d88c18933ee52d03ce527a218ae474e64382d8fc8
+    fingerprint: a697d0dedcd0bf742cead37f46bdc85dab96d45529222c4e8c2caa7d6b054042
     direct_tests: []
     supporting_tests: []
     tests: []

@@ -1,8 +1,8 @@
 # contract-test-file: tooling
 """Tests for the OpenCode response-media upload helper.
 
-Purpose: agents need a deterministic way to upload temporary screenshots and
-videos for Markdown responses without exposing files through public buckets.
+Purpose: agents need a deterministic way to upload temporary screenshots,
+videos, and PDFs for responses without exposing files through public buckets.
 Security: tests use dry-run URLs only; no Docker, Vault, or S3 calls run here.
 Run: python3 -m pytest scripts/tests/test_opencode_response_media.py.
 """
@@ -59,6 +59,27 @@ def test_dry_run_video_outputs_html_video(tmp_path: Path, capsys) -> None:
     assert "<video controls" in data["snippets"]["html"]
     assert 'type="video/mp4"' in data["snippets"]["html"]
     assert 'style="width: 100%; height: auto;"' in data["snippets"]["html"]
+
+
+def test_dry_run_pdf_outputs_readable_document_link(tmp_path: Path, capsys) -> None:
+    document = tmp_path / "contract approval.pdf"
+    document.write_bytes(b"%PDF-1.4 fake")
+
+    code = media.main([
+        str(document),
+        "--alt",
+        "Read Contract PDF",
+        "--dry-run",
+        "--output",
+        "json",
+    ])
+
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["content_type"] == "application/pdf"
+    assert data["kind"] == "document"
+    assert data["snippets"]["markdown"].startswith("[Read Contract PDF](https://example.invalid/")
+    assert 'type="application/pdf"' in data["snippets"]["html"]
 
 
 def test_dry_run_video_with_captions_outputs_toggleable_track(tmp_path: Path, capsys) -> None:

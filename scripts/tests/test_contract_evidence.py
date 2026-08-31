@@ -300,3 +300,43 @@ def test_current_evidence_rejects_stale_product_commit(tmp_path, monkeypatch):
     )
 
     assert any("tested subject commit" in error for error in errors)
+
+
+# contract-test: tooling
+def test_generation_can_preserve_stale_evidence_as_history_without_current_proof(tmp_path, monkeypatch):
+    module = load_module()
+    report = {
+        "run_id": "run-1",
+        "subject_commit": "tested",
+        "tests": [{"path": "tests/test_api.py", "name": "test_valid", "status": "passed"}],
+    }
+    report_path = tmp_path / "run.json"
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    evidence = [{
+        "assertion": "feature.valid",
+        "assertion_fingerprint": "valid-hash",
+        "classification": "direct",
+        "surface": "rest_api",
+        "status": "passed",
+        "subject_commit": "tested",
+        "run_id": "run-1",
+        "test_path": "tests/test_api.py",
+        "test_name": "test_valid",
+        "run_artifact": "run.json",
+        "run_artifact_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+    }]
+    monkeypatch.setattr(module, "_metadata_only_evidence_paths_since", lambda *_args: ["backend/app.py"])
+
+    result, errors = module.apply_evidence(
+        registry(),
+        evidence_index(),
+        evidence,
+        repo_root=tmp_path,
+        expected_subject_commit="head",
+        stale_evidence_is_error=False,
+    )
+
+    assert errors == []
+    assertion = result["assertions"]["feature.valid"]
+    assert assertion["evidence_history"][0]["run_id"] == "run-1"
+    assert assertion["current_direct_proof"] is False

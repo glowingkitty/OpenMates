@@ -42,7 +42,7 @@ uploads. Extract them with
 before substituting a regenerated screenshot or asking the user to resend the
 file.
 
-To embed generated images or videos in an OpenCode assistant response, upload the
+To embed generated images, videos, or PDFs in an OpenCode assistant response, upload the
 media with `python3 scripts/opencode_response_media.py <path> --alt "..."` and
 paste the returned Markdown or HTML snippet. The script stores plaintext media in
 a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL.
@@ -69,6 +69,18 @@ When a proof-video review, visual smoke, or media validation fails and the scrip
 output includes `image_upload_command`, run it and embed the returned image
 Markdown in the blocker response. The image is required even when a video upload
 command is also available, so OpenCode can show the defect immediately.
+
+Before asking for approval for a new or modified Contract, run
+`python3 scripts/contract_approval_pdf.py <bundle> --baseline-ref HEAD` and paste
+the returned PDF Markdown link into the same response. The PDF is bound to the
+exact bundle fingerprint and includes the complete Contract plus examples;
+additions and modifications use yellow backgrounds and removals remain visible
+as yellow removal blocks. A fingerprint, summary, raw local path, or unlinked
+claim that a PDF exists is not sufficient. Repair rendering or upload before
+asking for approval. The renderer also writes a JSON review artifact. After
+explicit approval, pass that artifact to `scripts/contracts.py approve
+--review-artifact <path>` so approval cannot race ahead to a different Contract
+fingerprint or PDF.
 
 Before editing, discover the relevant files, source patterns, docs, and tests.
 Use the smallest correct change. Prefer deterministic audits or focused tests

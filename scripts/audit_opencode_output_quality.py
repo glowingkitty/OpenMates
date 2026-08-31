@@ -157,6 +157,20 @@ REQUIRED_PROOF_MEDIA_TERMS = (
     "actual `openmates` CLI",
     "generic smoke scripts",
 )
+CONTRACT_APPROVAL_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    ".claude/skills/define-contract/SKILL.md",
+    ".agents/skills/define-contract/SKILL.md",
+)
+REQUIRED_CONTRACT_APPROVAL_TERMS = (
+    "scripts/contract_approval_pdf.py",
+    "fingerprint",
+    "yellow",
+    "before asking",
+    "review artifact",
+)
 FORBIDDEN_RETROSPECTIVE_CLAUSE = re.compile(
     r"^(?:(?:this (?:section|retrospective)|agents?)\s+(?:must|should)\s+)?"
     r"(?:include|summarize|report|repeat)\b.*\b(?:implementation results|changed files|"
@@ -299,6 +313,25 @@ def _audit_proof_media_guidance(root: Path) -> list[AuditIssue]:
     return issues
 
 
+def _audit_contract_approval_pdf_guidance(root: Path) -> list[AuditIssue]:
+    if not (root / ".claude/skills/define-contract/SKILL.md").is_file():
+        return []
+    issues: list[AuditIssue] = []
+    if not (root / "scripts/contract_approval_pdf.py").is_file():
+        issues.append(AuditIssue("scripts/contract_approval_pdf.py", "Contract approval PDF renderer is missing"))
+    for rel_path in CONTRACT_APPROVAL_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.is_file():
+            issues.append(AuditIssue(rel_path, "Contract approval PDF guidance file is missing"))
+            continue
+        normalized = " ".join(path.read_text(encoding="utf-8", errors="replace").lower().split())
+        for term in REQUIRED_CONTRACT_APPROVAL_TERMS:
+            if term.lower() not in normalized:
+                issues.append(AuditIssue(rel_path, f"Contract approval PDF guidance missing: {term}"))
+                break
+    return issues
+
+
 def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[AuditIssue]:
     del root
     issues: list[AuditIssue] = []
@@ -420,6 +453,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
     if len(set(retrospective_bodies.values())) > 1:
         issues.append(AuditIssue("cross-runtime", "agent workflow retrospective guidance differs across instruction surfaces"))
     issues.extend(_audit_proof_media_guidance(root))
+    issues.extend(_audit_contract_approval_pdf_guidance(root))
     return issues
 
 

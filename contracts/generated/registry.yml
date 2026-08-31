@@ -272,7 +272,7 @@ contracts:
     version: 1
     status: draft
     path: features/contracts
-    fingerprint: d33b14d41083800f5dc036359e79e55e43d742d108964a448b00cbaac06fa8f8
+    fingerprint: 6e3d17a7bcbaa75b9909ff1be013f5fa3809e08832f70f7c4ee78876a1d0e153
     required_surfaces:
     - rest_api
     - cli
@@ -2925,7 +2925,62 @@ assertions:
     contract: feature.contracts@1
     contract_id: feature.contracts
     type: behavior
-    fingerprint: f150db22606e8874e402adf7e3a85e65c0c23357c48099769b381b502f9b9ebe
+    fingerprint: f35ad82f50f382e1346149cdfe0fbbe4ab8972a7805fe415fd4d96278701218a
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.ui.human-readable-default:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: behavior
+    fingerprint: 9d533068d6957e92ca85a63321b2886a59b34a575ebc16f9bbac585dbd2a1144
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.diagrams.tool-selection:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: invariant
+    fingerprint: 6f76f18b72c5dcf5caa4b03eeb7ca744aab72d73d602ce9b9b46330fcf973d0f
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.diagrams.source-and-preview:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: invariant
+    fingerprint: c0b2772baa747440fa516ce90997d0402a9f1ad8afef6d999bff4090064bd7f9
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.diagrams.revision-pinned-editing:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: behavior
+    fingerprint: b2696ea3df79c6e7757bbb92b7457f9b4904111999635f3c487013756ec745b6
+    required_surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  contracts.diagrams.private-rendering:
+    contract: feature.contracts@1
+    contract_id: feature.contracts
+    type: privacy
+    fingerprint: ed859969803e616c195873f177b9766425a1cc57d9ed832a0206db5c4701987f
     required_surfaces:
     - rest_api
     - cli
@@ -2958,7 +3013,7 @@ assertions:
     contract: feature.contracts@1
     contract_id: feature.contracts
     type: parity
-    fingerprint: 80960b1b8a61b160615e230d88c18933ee52d03ce527a218ae474e64382d8fc8
+    fingerprint: a697d0dedcd0bf742cead37f46bdc85dab96d45529222c4e8c2caa7d6b054042
     required_surfaces:
     - rest_api
     - cli

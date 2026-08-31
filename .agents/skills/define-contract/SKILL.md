@@ -15,22 +15,38 @@ argument-hint: "<feature or existing contract ID>"
    for ambiguity and test derivation.
 3. Validate with `python3 scripts/contracts.py validate <bundle>`, then run
    `python3 scripts/contracts.py generate`.
-4. For a new contract, quote the complete `contract.yml` in chat and summarize
-   every examples group. For an existing contract, quote every explicit
-   `contract.yml` and `examples.yml` change. Explain affected assertions,
-   surfaces, and evidence invalidation.
-5. Ask for explicit user confirmation and stop. Do not create/update the
+4. Generate and privately upload the exact-fingerprint approval document:
+
+```bash
+python3 scripts/contract_approval_pdf.py <bundle> --baseline-ref HEAD
+```
+
+   Paste the returned Markdown PDF link into the chat before asking for
+   approval. The PDF must contain the complete `contract.yml` and `examples.yml`;
+   additions and modifications must have yellow backgrounds, and removals must
+   remain visible in yellow removal blocks. A local path or prose summary is not
+   a substitute. If rendering or upload fails, repair it before asking.
+5. Briefly explain affected assertions, surfaces, and evidence invalidation next
+   to the embedded PDF. The PDF is the canonical review artifact; do not flood
+   the chat with raw YAML unless the user asks.
+6. Ask for explicit user confirmation of the fingerprint shown in the PDF and
+   stop. Do not create/update the
    implementation spec or product code before the response.
-6. After explicit approval, run:
+7. After explicit approval, run:
 
 ```bash
 python3 scripts/contracts.py approve <bundle> \
   --session <SESSION_ID> \
+  --review-artifact <PDF_APPROVAL_JSON> \
   --confirmation explicit_user_confirmation
 ```
 
-7. Any later bundle edit changes the fingerprint. Repeat presentation and
-   approval; never reuse a stale receipt.
+   Use the `Review artifact:` path printed by the PDF command. The approval CLI
+   verifies that JSON receipt, the reviewed PDF hash, and the current bundle
+   fingerprint before recording approval.
+
+8. Any later bundle edit changes the fingerprint. Generate and embed a new PDF,
+   then repeat presentation and approval; never reuse a stale receipt.
 
 ## Rules
 

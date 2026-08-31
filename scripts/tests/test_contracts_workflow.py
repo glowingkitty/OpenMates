@@ -159,12 +159,73 @@ def test_session_approval_matches_exact_bundle_hash(tmp_path):
         contract_id="feature.web-search",
         fingerprint=fingerprint,
         confirmation="explicit_user_confirmation",
+        review_artifact={"fingerprint": fingerprint, "pdf_sha256": "a" * 64},
     )
 
     assert module.check_approval(approvals_path, "d1ff", "feature.web-search", fingerprint) is None
     assert "stale" in module.check_approval(approvals_path, "d1ff", "feature.web-search", "different-hash")
     saved = json.loads(approvals_path.read_text(encoding="utf-8"))
     assert saved["sessions"]["d1ff"]["feature.web-search"]["fingerprint"] == fingerprint
+
+
+# contract-test: tooling
+def test_review_artifact_rejects_a_stale_bundle_fingerprint(tmp_path):
+    module = load_module()
+    bundle_path = write_bundle(tmp_path / "contracts")
+    bundle = module.validate_bundle(bundle_path)
+    pdf = tmp_path / "approval.pdf"
+    pdf.write_bytes(b"%PDF current")
+    artifact = tmp_path / "approval.json"
+    artifact.write_text(
+        json.dumps({
+            "contract": bundle.versioned_id,
+            "fingerprint": "stale-fingerprint",
+            "baseline_ref": "HEAD",
+            "baseline_commit": "b" * 40,
+            "pdf": str(pdf),
+            "pdf_sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),
+            "highlight_policy": {
+                "additions_and_modifications": "yellow_background",
+                "removals": "yellow_removal_block",
+            },
+            "approval_eligible": True,
+            "publication": {"bucket": "private", "key": "contract.pdf", "sha256": f"sha256:{hashlib.sha256(pdf.read_bytes()).hexdigest()}"},
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(module.ContractError, match="does not match"):
+        module.validate_review_artifact(artifact, bundle)
+
+
+# contract-test: tooling
+def test_review_artifact_rejects_a_dry_run_publication(tmp_path):
+    module = load_module()
+    bundle_path = write_bundle(tmp_path / "contracts")
+    bundle = module.validate_bundle(bundle_path)
+    pdf = tmp_path / "approval.pdf"
+    pdf.write_bytes(b"%PDF local only")
+    artifact = tmp_path / "approval.json"
+    artifact.write_text(
+        json.dumps({
+            "contract": bundle.versioned_id,
+            "fingerprint": bundle.fingerprint,
+            "baseline_ref": "HEAD",
+            "baseline_commit": "b" * 40,
+            "pdf": str(pdf),
+            "pdf_sha256": hashlib.sha256(pdf.read_bytes()).hexdigest(),
+            "highlight_policy": {
+                "additions_and_modifications": "yellow_background",
+                "removals": "yellow_removal_block",
+            },
+            "approval_eligible": False,
+            "publication": {"bucket": "private", "key": "dry-run-contract.pdf", "sha256": f"sha256:{hashlib.sha256(pdf.read_bytes()).hexdigest()}"},
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(module.ContractError, match="privately uploaded"):
+        module.validate_review_artifact(artifact, bundle)
 
 
 # contract-test: tooling

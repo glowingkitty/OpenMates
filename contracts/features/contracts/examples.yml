@@ -41,6 +41,45 @@ contract_ui_requirements:
     input: {same_requirements_as: ui-without-artboard, design_reference: 'figma://<PLACEHOLDER>/frame/<FRAME_ID>'}
     expect: {logical_requirements_unchanged: true, visual_reference_available: true}
 
+contract_human_presentation:
+  - id: readable-contract-default
+    input: {contract: feature.teams, revision: 4, viewer: product_user, viewport: laptop}
+    expect:
+      sections: [overview, purpose, scope, actors_and_concepts, rules, user_flows, diagrams, surfaces, relationships, coverage, history]
+      canonical_settings_headings: true
+      readable_text: true
+      raw_yaml_visible_by_default: false
+      diagram_source_visible_by_default: false
+  - id: authorized-technical-disclosure
+    input: {contract: feature.teams, revision: 4, viewer: contract_author, action: show_technical_source}
+    expect: {source_available: true, default_reading_surface_replaced: false, disclosure_on_demand: true}
+
+contract_diagrams:
+  - id: architecture-selects-c4
+    input: {purpose: trust_boundary, content: first_party_api_and_external_provider}
+    expect: {source_format: c4_plantuml, required_fields: [title, scope, responsibilities, technologies, directional_relationships, protocols, legend]}
+  - id: sequence-selects-mermaid
+    input: {purpose: sequence, content: speak_assistant_message_success_failure_and_stop}
+    expect: {source_format: mermaid, ordered_interactions: true, explicit_alternatives: true}
+  - id: ui-flow-selects-drawio
+    input: {purpose: ui_flow, states: [idle, preparing, playing, error], includes_wireframes: true}
+    expect: {source_format: drawio, screen_state_metadata: true, linked_rule_ids: [SPEAK-01, SPEAK-02, SPEAK-03, SPEAK-04]}
+  - id: high-fidelity-ui-stays-linked
+    input: {purpose: exact_visual_reference, source: 'figma://<PLACEHOLDER>/frame/<FRAME_ID>'}
+    expect: {diagram_source_replacement: false, design_reference_linked: true}
+  - id: source-matched-preview
+    input: {diagram_embed: diagram-1, embed_version: 3, source_hash: hash-3, preview_source_hash: hash-3, preview_format: svg}
+    expect: {inline_preview_visible: true, source_downloadable: true, approval_blocked: false}
+  - id: stale-preview-is-visible
+    input: {diagram_embed: diagram-1, embed_version: 4, source_hash: hash-4, preview_source_hash: hash-3}
+    expect: {stale_status_visible: true, old_preview_presented_as_current: false, regenerate_action_available: true, approval_blocked: true}
+  - id: edit-approved-diagram
+    input: {contract_revision: 4, approval_state: approved, diagram_embed_version: 3, action: edit_diagram}
+    expect: {diagram_embed_version: 4, new_contract_revision: 5, new_contract_revision_state: draft, revision_4_unchanged: true}
+  - id: private-rendering-boundary
+    input: {contract_visibility: private, source_format: drawio, editor: self_hosted_diagrams_net}
+    expect: {public_renderer_called: false, diagrams_net_mcp_required: false, plaintext_leaves_authorized_client_or_first_party_boundary: false}
+
 contract_project_embed:
   - id: contract-preview-in-project
     input: {project: project-1, item: feature.teams, viewport: laptop}

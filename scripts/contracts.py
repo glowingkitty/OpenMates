@@ -57,8 +57,10 @@ CONTRACT_GENERATED_PATHS = {
     "contracts/generated/registry.yml",
 }
 CONTRACT_EVIDENCE_TOOLING_PATHS = {
+    "scripts/contract_approval_pdf.py",
     "scripts/contracts.py",
     "scripts/spec_verify.py",
+    "scripts/tests/test_contract_approval_pdf.py",
     "scripts/tests/test_contract_evidence.py",
     "scripts/tests/test_contracts_workflow.py",
     "scripts/tests/test_spec_demonstration_workflow.py",
@@ -559,6 +561,7 @@ def apply_evidence(
     *,
     repo_root: Path | None = None,
     expected_subject_commit: str | None = None,
+    stale_evidence_is_error: bool = True,
 ) -> tuple[dict[str, Any], list[str]]:
     """Attach run history and mark only matching direct evidence as current."""
     result = copy.deepcopy(test_index)
@@ -601,7 +604,8 @@ def apply_evidence(
                 expected_subject_commit=expected_subject_commit,
             )
             if attestation_error:
-                errors.append(f"evidence for {assertion_id}: {attestation_error}")
+                if stale_evidence_is_error or not attestation_error.startswith("tested subject commit must be "):
+                    errors.append(f"evidence for {assertion_id}: {attestation_error}")
                 continue
         surface.setdefault("evidence_history", []).append(copy.deepcopy(record))
         if classification == "direct":
@@ -893,6 +897,7 @@ def check_generated_integrity(repo_root: Path, *, contracts_root: Path | None = 
         _generation_evidence_records(root, actual["assertion-index.yml"]),
         repo_root=root,
         expected_subject_commit=_git_head(root),
+        stale_evidence_is_error=False,
     )
     errors.extend(evidence_errors)
     expected = {
@@ -920,6 +925,7 @@ def generate_contract_artifacts(repo_root: Path, *, contracts_root: Path | None 
         _generation_evidence_records(root, existing_index),
         repo_root=root,
         expected_subject_commit=_git_head(root),
+        stale_evidence_is_error=False,
     )
     if evidence_errors:
         raise ContractError("\n".join(evidence_errors))
@@ -1184,6 +1190,47 @@ def _load_approvals(path: Path) -> dict[str, Any]:
     return value
 
 
+def validate_review_artifact(path: Path, bundle: ContractBundle) -> dict[str, str]:
+    try:
+        artifact = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ContractError(f"invalid Contract review artifact: {exc}") from exc
+    if not isinstance(artifact, dict):
+        raise ContractError("Contract review artifact must contain a JSON object")
+    if artifact.get("contract") != bundle.versioned_id or artifact.get("fingerprint") != bundle.fingerprint:
+        raise ContractError("Contract review artifact does not match the current bundle fingerprint")
+    pdf_value = artifact.get("pdf")
+    pdf_sha256 = artifact.get("pdf_sha256")
+    baseline_ref = artifact.get("baseline_ref")
+    baseline_commit = artifact.get("baseline_commit")
+    if not all(isinstance(value, str) and value for value in (pdf_value, pdf_sha256, baseline_ref, baseline_commit)):
+        raise ContractError("Contract review artifact requires pdf, pdf_sha256, baseline_ref, and baseline_commit")
+    pdf = Path(pdf_value).expanduser().resolve()
+    if not pdf.is_file() or hashlib.sha256(pdf.read_bytes()).hexdigest() != pdf_sha256:
+        raise ContractError("Contract review artifact PDF is missing or its hash does not match")
+    highlight_policy = artifact.get("highlight_policy")
+    if highlight_policy != {
+        "additions_and_modifications": "yellow_background",
+        "removals": "yellow_removal_block",
+    }:
+        raise ContractError("Contract review artifact does not declare the required yellow highlight policy")
+    publication = artifact.get("publication")
+    if artifact.get("approval_eligible") is not True or not isinstance(publication, dict):
+        raise ContractError("Contract review artifact requires a privately uploaded PDF publication")
+    if not all(isinstance(publication.get(field), str) and publication[field] for field in ("bucket", "key", "sha256")):
+        raise ContractError("Contract review artifact publication requires bucket, key, and sha256")
+    if publication["sha256"] != f"sha256:{pdf_sha256}":
+        raise ContractError("Contract review artifact publication hash does not match the PDF")
+    return {
+        "path": str(path.resolve()),
+        "artifact_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "pdf_sha256": pdf_sha256,
+        "baseline_ref": baseline_ref,
+        "baseline_commit": baseline_commit,
+        "fingerprint": bundle.fingerprint,
+    }
+
+
 def record_approval(
     path: Path,
     *,
@@ -1191,6 +1238,7 @@ def record_approval(
     contract_id: str,
     fingerprint: str,
     confirmation: str,
+    review_artifact: dict[str, str],
 ) -> None:
     if confirmation != "explicit_user_confirmation":
         raise ContractError("approval requires explicit_user_confirmation")
@@ -1203,6 +1251,7 @@ def record_approval(
         "fingerprint": fingerprint,
         "confirmation": confirmation,
         "approved_at": datetime.now(UTC).isoformat(),
+        "review_artifact": copy.deepcopy(review_artifact),
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1216,6 +1265,9 @@ def check_approval(path: Path, session_id: str, contract_id: str, fingerprint: s
         return f"unconfirmed approval for {contract_id}"
     if record.get("fingerprint") != fingerprint:
         return f"stale approval for {contract_id}: bundle fingerprint changed"
+    review_artifact = record.get("review_artifact")
+    if not isinstance(review_artifact, dict) or review_artifact.get("fingerprint") != fingerprint:
+        return f"unreviewed approval for {contract_id}: matching PDF review artifact is required"
     return None
 
 
@@ -1259,6 +1311,7 @@ def _build_parser() -> argparse.ArgumentParser:
     approve.add_argument("bundle")
     approve.add_argument("--session", required=True)
     approve.add_argument("--confirmation", required=True, choices=["explicit_user_confirmation"])
+    approve.add_argument("--review-artifact", type=Path, required=True)
     approve.add_argument("--approvals-file", type=Path, default=DEFAULT_APPROVALS_PATH)
 
     approval = subparsers.add_parser("check-approval", help="Check exact-hash session approval")
@@ -1337,12 +1390,14 @@ def main(argv: list[str] | None = None) -> int:
             print(validate_bundle(_resolve(args.bundle)).fingerprint)
         elif args.command == "approve":
             bundle = validate_bundle(_resolve(args.bundle))
+            review_artifact = validate_review_artifact(args.review_artifact, bundle)
             record_approval(
                 args.approvals_file,
                 session_id=args.session,
                 contract_id=bundle.contract_id,
                 fingerprint=bundle.fingerprint,
                 confirmation=args.confirmation,
+                review_artifact=review_artifact,
             )
             print(f"APPROVED {bundle.versioned_id} {bundle.fingerprint}")
         elif args.command == "check-approval":
