@@ -7216,7 +7216,7 @@ class TestOrchestrator:
         run_root = candidate_root / plan.candidate_run_id
         claim_root = candidate_root / f"daily-{datetime.now(timezone.utc).strftime('%Y%m%d')}"
 
-        client = GitHubActionsClient(git_sha=self.git_sha)
+        client = GitHubActionsClient(git_sha=_full_git_sha(self.git_sha))
 
         def dispatch(spec: str, record: bool, candidate_run_id: str) -> tuple[dict[str, object], Path]:
             run_id = client.dispatch_spec(

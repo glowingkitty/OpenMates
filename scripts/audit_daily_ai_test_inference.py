@@ -233,7 +233,12 @@ def _audit_backfill_guards() -> list[str]:
             "SAFE_GROUP_PATTERN",
             "persist(expected_cache_sha256)",
         ),
-        RUNNER_PATH: ("claim_root=claim_root", "candidate_run_root=run_root", "persist=persist"),
+        RUNNER_PATH: (
+            "claim_root=claim_root",
+            "candidate_run_root=run_root",
+            "persist=persist",
+            "GitHubActionsClient(git_sha=_full_git_sha(self.git_sha))",
+        ),
         COMPOSE_PATH: (
             "../../test-results/live-mock-candidates:/live-mock-candidates",
             'LIVE_MOCK_CANDIDATE_ROOT: "/live-mock-candidates"',
