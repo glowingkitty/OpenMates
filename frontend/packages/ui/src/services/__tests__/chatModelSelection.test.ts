@@ -101,6 +101,27 @@ describe("chat model selection", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
+  it("retries a fresh-device selection against the current remote version", async () => {
+    const deviceAAdapters = createAdapters();
+    const deviceBAdapters = createAdapters(deviceAAdapters.shared);
+    const deviceA = createChatModelSelectionService(deviceAAdapters);
+    const deviceB = createChatModelSelectionService(deviceBAdapters);
+
+    await deviceA.select({ userId: ALICE, chatId: CHAT_ID, selection: SONNET_MODEL });
+
+    await expect(deviceB.select({ userId: ALICE, chatId: CHAT_ID, selection: FLASH_MODEL })).resolves.toBe(FLASH_MODEL);
+    await expect(deviceA.restore({ userId: ALICE, chatId: CHAT_ID })).resolves.toBe(FLASH_MODEL);
+    expect(deviceBAdapters.calls.compareAndSetRemote).toHaveBeenNthCalledWith(1, ALICE, CHAT_ID, 0, {
+      ciphertext: "format-d-ciphertext-2",
+      version: 1,
+    });
+    expect(deviceBAdapters.calls.compareAndSetRemote).toHaveBeenNthCalledWith(2, ALICE, CHAT_ID, 1, {
+      ciphertext: "format-d-ciphertext-2",
+      version: 2,
+    });
+  });
+
+  // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
   it("keeps an exact chat selection when the send path reads it", async () => {
     const adapters = createAdapters();
     const selections = createChatModelSelectionService(adapters);

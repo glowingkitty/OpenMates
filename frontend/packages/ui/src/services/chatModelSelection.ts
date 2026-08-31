@@ -310,10 +310,18 @@ export function createChatModelSelectionService(
         throw new Error("Chat model selection sync conflict could not be reconciled");
       }
 
-      const remoteSelection = await decryptRecord(adapters, remoteRecord);
-      selections.set(key, remoteSelection);
-      await adapters.local.write(userId, chatId, remoteRecord);
-      return remoteSelection;
+      const retryRecord = { ciphertext, version: remoteRecord.version + 1 };
+      await adapters.local.write(userId, chatId, retryRecord);
+      const retryAccepted = await adapters.remote.compareAndSet(
+        userId,
+        chatId,
+        remoteRecord.version,
+        retryRecord,
+      );
+      if (!retryAccepted) {
+        throw new Error("Chat model selection sync conflicted repeatedly");
+      }
+      return selection;
     },
 
     async restore({ userId, chatId }) {
