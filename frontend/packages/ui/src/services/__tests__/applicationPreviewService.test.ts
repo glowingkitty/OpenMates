@@ -20,7 +20,11 @@ vi.mock("../embedResolver", () => ({
   resolveEmbed: embedResolverMocks.resolveEmbed,
 }));
 
-import { autoStartCreatedApplicationPreview, buildApplicationPreviewSharedContext } from "../applicationPreviewService";
+import {
+  autoStartApplicationPreviewForEmbed,
+  autoStartCreatedApplicationPreview,
+  buildApplicationPreviewSharedContext,
+} from "../applicationPreviewService";
 
 describe("buildApplicationPreviewSharedContext", () => {
   beforeEach(() => {
@@ -100,6 +104,35 @@ describe("autoStartCreatedApplicationPreview", () => {
           shared_context: undefined,
           auto_started: true,
           source_message_id: "message-1",
+        }),
+      }),
+    );
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
+  it("auto-starts application previews from finalized application embed events", async () => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({
+      embed_id: "application-embed-from-event",
+      content: "application-toon",
+    });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({ type: "application" });
+
+    const session = await autoStartApplicationPreviewForEmbed(
+      "chat-1",
+      "message-from-event",
+      "application-embed-from-event",
+    );
+
+    expect(session?.session_id).toBe("session-1");
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/applications/application-embed-from-event/preview/start"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          chat_id: "chat-1",
+          shared_context: undefined,
+          auto_started: true,
+          source_message_id: "message-from-event",
         }),
       }),
     );

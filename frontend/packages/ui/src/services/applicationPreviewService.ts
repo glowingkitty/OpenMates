@@ -146,7 +146,25 @@ export async function autoStartCreatedApplicationPreview(
   const applicationEmbedId = await resolveCreatedApplicationEmbedId(markdown);
   if (!applicationEmbedId) return undefined;
 
-  const attemptKey = `${chatId}:${messageId}:${applicationEmbedId}`;
+  return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
+}
+
+export async function autoStartApplicationPreviewForEmbed(
+  chatId: string,
+  messageId: string | undefined,
+  applicationEmbedId: string,
+): Promise<ApplicationPreviewStartResponse | undefined> {
+  if (!await waitForApplicationEmbed(applicationEmbedId)) return undefined;
+
+  return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
+}
+
+async function startApplicationPreviewOnce(
+  chatId: string,
+  messageId: string | undefined,
+  applicationEmbedId: string,
+): Promise<ApplicationPreviewStartResponse | undefined> {
+  const attemptKey = `${chatId}:${messageId ?? 'unknown-message'}:${applicationEmbedId}`;
   if (autoStartAttempts.has(attemptKey)) return undefined;
   autoStartAttempts.add(attemptKey);
 

@@ -181,7 +181,10 @@
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
-    import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
+    import {
+        autoStartApplicationPreviewForEmbed,
+        autoStartCreatedApplicationPreview,
+    } from '../services/applicationPreviewService';
     import { externalLinks } from '../config/links';
 
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
@@ -12267,7 +12270,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // actual embed data arrives. When `send_embed_data` stores the embed and dispatches
         // `embedUpdated`, we need to force a re-render so the embed content is displayed.
         const embedUpdatedHandler = ((event: CustomEvent) => {
-            const { chat_id, message_id, embed_id, status, isProcessing } = event.detail;
+            const { chat_id, message_id, embed_id, type, status, isProcessing } = event.detail;
             
             // Only process if this embed is for the current chat
             if (!currentChat || currentChat.chat_id !== chat_id) {
@@ -12276,6 +12279,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             console.info(`[ActiveChat] 🔄 embedUpdated received for embed ${embed_id} (status=${status}, isProcessing=${isProcessing})`);
+
+            if (status === 'finished' && type === 'application' && embed_id) {
+                void autoStartApplicationPreviewForEmbed(currentChat.chat_id, message_id, embed_id);
+            }
             
             // Force a re-render of messages by updating the ChatHistory component
             // This will cause Tiptap to re-render embed NodeViews, which will now find
