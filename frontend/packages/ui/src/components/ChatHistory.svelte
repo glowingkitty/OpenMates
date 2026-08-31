@@ -1155,6 +1155,7 @@
     olderMessagesLoading = false,
     onSuggestionClick = undefined,
     onChatNavigate = undefined,
+    onSpeakMessage = undefined,
     canAnnotate = true,
   }: {
     disablePointerEvents?: boolean;
@@ -1228,6 +1229,7 @@
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
+    onSpeakMessage?: (messageId: string, content: string) => Promise<void> | void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
@@ -2926,6 +2928,9 @@
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
+                        onSpeak={msg.role === 'assistant' && currentChatId && typeof msg.content === 'string'
+                          ? () => onSpeakMessage?.(msg.id, msg.content as string)
+                          : undefined}
                     />
 
                 </div>

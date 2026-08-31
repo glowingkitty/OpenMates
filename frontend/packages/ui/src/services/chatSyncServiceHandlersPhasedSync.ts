@@ -118,6 +118,7 @@ function buildMetadataOnlyChatFromDetails(
     encrypted_follow_up_request_suggestions:
       details.encrypted_follow_up_request_suggestions || null,
     encrypted_active_focus_id: details.encrypted_active_focus_id || null,
+    encrypted_auto_speak_response: details.encrypted_auto_speak_response || null,
     pinned: details.pinned || false,
     is_shared: details.is_shared ?? false,
     is_private: details.is_private ?? false,

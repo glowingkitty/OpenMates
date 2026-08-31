@@ -10,6 +10,7 @@
  * See docs/architecture/ for the dual-phase encryption architecture.
  */
 import type { ChatSynchronizationService } from "./chatSyncService";
+import { getAssistantSpeechPreference, hasAssistantSpeechPreferenceIntent, setAssistantSpeechPreference } from "./assistantSpeechPreference";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
 import { notificationStore } from "../stores/notificationStore";
@@ -904,6 +905,13 @@ export async function sendNewMessageImpl(
 		encryptedChatKey = await chatDB.getEncryptedChatKey(message.chat_id);
 	}
 	keyMgmtSpan.end();
+	let autoSpeakResponseForRequest = false;
+	if (!isIncognitoChat && chat && hasAssistantSpeechPreferenceIntent(message.chat_id) && !chat.encrypted_auto_speak_response) {
+		await setAssistantSpeechPreference(message.chat_id, true);
+	}
+	if (!isIncognitoChat && (chat?.encrypted_auto_speak_response || hasAssistantSpeechPreferenceIntent(message.chat_id))) {
+		autoSpeakResponseForRequest = await getAssistantSpeechPreference(message.chat_id);
+	}
 
 	// Phase 1 payload: ONLY fields needed for AI processing
 	interface SendMessagePayload {
@@ -931,6 +939,8 @@ export async function sendNewMessageImpl(
 			current_chat_title?: string | null; // OPE-265: Decrypted title for post-processing title update evaluation
 			current_chat_title_v?: number;
 			current_chat_metadata_v?: number;
+			auto_speak_response?: boolean;
+			assistant_response_source_revision?: number;
 		};
 		encrypted_chat_key?: string | null; // CRITICAL: Include key for device sync broadcast
 		is_incognito?: boolean;
@@ -966,7 +976,11 @@ export async function sendNewMessageImpl(
 			sender_name: message.sender_name, // Include for cache but not critical for AI
 			chat_has_title: chatHasTitle, // ZERO-KNOWLEDGE: Send true if chat already has a title (title_v > 0), false if new
 			current_chat_title_v: chat?.title_v || 0,
-			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0
+			current_chat_metadata_v: chat?.metadata_v ?? chat?.title_v ?? 0,
+			...(autoSpeakResponseForRequest ? {
+				auto_speak_response: true,
+				assistant_response_source_revision: 1,
+			} : {})
 			// NO category or encrypted fields - those go to Phase 2
 			// message_history is attached at top-level below when local history exists.
 		},

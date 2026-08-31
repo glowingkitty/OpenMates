@@ -54,6 +54,7 @@ interface MediaSessionControls {
 export interface AssistantSpeechQueueOptions {
   audioFactory?: (url: string) => SpeechAudio;
   mediaSession?: MediaSessionControls;
+  onStateChange?: (state: AssistantSpeechQueueState) => void;
 }
 
 interface CachedAudio {
@@ -76,11 +77,13 @@ export class AssistantSpeechQueue {
   private readonly audioBySegmentId = new Map<string, CachedAudio>();
   private currentAudio: SpeechAudio | null = null;
   private pendingSegmentId: string | null = null;
+  private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
 
   state: AssistantSpeechQueueState = { ...DEFAULT_STATE };
 
   constructor(options: AssistantSpeechQueueOptions = {}) {
     this.audioFactory = options.audioFactory ?? ((url) => new Audio(url));
+    this.onStateChange = options.onStateChange;
     this.registerMediaSessionHandlers(
       options.mediaSession ?? this.browserMediaSession,
     );
@@ -122,7 +125,7 @@ export class AssistantSpeechQueue {
     this.segments.clear();
     this.audioBySegmentId.clear();
     this.pendingSegmentId = null;
-    this.state = { responseId, status: "waiting_for_segment", activeSegmentId: null };
+    this.setState({ responseId, status: "waiting_for_segment", activeSegmentId: null });
     for (const segment of segments) {
       this.segments.set(segment.id, segment);
     }
@@ -149,7 +152,7 @@ export class AssistantSpeechQueue {
     ) {
       if (this.pendingSegmentId === segment.id) {
         this.pendingSegmentId = null;
-        this.state = { ...this.state, activeSegmentId: segment.id };
+        this.setState({ ...this.state, activeSegmentId: segment.id });
       }
       void this.playActiveSegment();
     }
@@ -164,7 +167,7 @@ export class AssistantSpeechQueue {
       return;
     }
     this.currentAudio.pause();
-    this.state = { ...this.state, status: "paused" };
+    this.setState({ ...this.state, status: "paused" });
   }
 
   async resume(): Promise<void> {
@@ -180,7 +183,7 @@ export class AssistantSpeechQueue {
 
   stop(): void {
     this.stopCurrentAudio();
-    this.state = { ...this.state, status: "stopped" };
+    this.setState({ ...this.state, status: "stopped" });
     if (AssistantSpeechQueue.activeQueue === this) {
       AssistantSpeechQueue.activeQueue = null;
     }
@@ -201,7 +204,7 @@ export class AssistantSpeechQueue {
     }
     this.stopCurrentAudio();
     this.pendingSegmentId = null;
-    this.state = { ...this.state, activeSegmentId: segment.id, status: "waiting_for_segment" };
+    this.setState({ ...this.state, activeSegmentId: segment.id, status: "waiting_for_segment" });
     if (segment.status === "ready") {
       await this.playActiveSegment();
     }
@@ -237,7 +240,7 @@ export class AssistantSpeechQueue {
     if (!firstSegment) {
       return;
     }
-    this.state = { ...this.state, activeSegmentId: firstSegment.id };
+    this.setState({ ...this.state, activeSegmentId: firstSegment.id });
     if (firstSegment.status === "ready") {
       void this.playActiveSegment();
     }
@@ -257,7 +260,7 @@ export class AssistantSpeechQueue {
   private async playActiveSegment(): Promise<void> {
     const segment = this.activeSegment;
     if (!segment || segment.status !== "ready" || !segment.audioUrl) {
-      this.state = { ...this.state, status: "waiting_for_segment" };
+      this.setState({ ...this.state, status: "waiting_for_segment" });
       return;
     }
     const audio = this.getAudio(segment);
@@ -268,17 +271,17 @@ export class AssistantSpeechQueue {
       if (!this.isCurrentAudio(segment.id, audio)) {
         return;
       }
-      this.state = { ...this.state, status: "playing" };
+      this.setState({ ...this.state, status: "playing" });
     } catch (error) {
       if (!this.isCurrentAudio(segment.id, audio)) {
         return;
       }
       if (this.isAutoplayBlocked(error)) {
-        this.state = { ...this.state, status: "blocked_by_autoplay" };
+        this.setState({ ...this.state, status: "blocked_by_autoplay" });
         return;
       }
       console.error("[AssistantSpeechQueue] Audio playback failed:", error);
-      this.state = { ...this.state, status: "failed" };
+      this.setState({ ...this.state, status: "failed" });
     }
   }
 
@@ -302,20 +305,20 @@ export class AssistantSpeechQueue {
     const nextSegment = segments[activeIndex + 1];
     if (!nextSegment) {
       this.currentAudio = null;
-      this.state = { ...this.state, status: "stopped" };
+      this.setState({ ...this.state, status: "stopped" });
       return;
     }
     this.currentAudio = null;
     if (nextSegment.status !== "ready") {
       this.pendingSegmentId = nextSegment.id;
-      this.state = { ...this.state, status: "waiting_for_segment" };
+      this.setState({ ...this.state, status: "waiting_for_segment" });
       return;
     }
-    this.state = {
+    this.setState({
       ...this.state,
       activeSegmentId: nextSegment.id,
       status: "waiting_for_segment",
-    };
+    });
     void this.playActiveSegment();
   }
 
@@ -341,6 +344,11 @@ export class AssistantSpeechQueue {
       this.currentAudio === audio &&
       this.state.status !== "stopped"
     );
+  }
+
+  private setState(state: AssistantSpeechQueueState): void {
+    this.state = state;
+    this.onStateChange?.({ ...state });
   }
 
   private registerMediaSessionHandlers(mediaSession?: MediaSessionControls): void {

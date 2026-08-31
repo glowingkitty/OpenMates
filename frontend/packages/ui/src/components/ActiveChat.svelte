@@ -4,6 +4,7 @@
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
@@ -22,6 +23,8 @@
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { assistantSpeechController } from '../services/assistantSpeechController';
+    import { getAssistantSpeechPreference, setAssistantSpeechPreference } from '../services/assistantSpeechPreference';
     import { isTeamAIInvocation } from '../services/teamService';
     import type { UploadedFileSearchResult } from '../services/embedStore';
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
@@ -1100,7 +1103,6 @@
                 return;
             }
 
-            resetComposerWelcomeState();
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -1192,7 +1194,6 @@
                 console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
                 
                 // Clear current chat state
-                resetComposerWelcomeState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -5025,25 +5026,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
-    function resetComposerWelcomeState() {
-        if (blurTimer) {
-            clearTimeout(blurTimer);
-            blurTimer = undefined;
-        }
-        messageInputFocused = false;
-        messageInputRecentlyFocused = false;
-        messageInputHasContent = false;
-        messageInputMapsOpen = false;
-        anonymousFileAttachmentPending = false;
-        liveInputText = '';
-        suggestionsWouldOverlapWelcome = false;
-
-        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
-        if (activeElement instanceof HTMLElement) {
-            activeElement.blur();
-        }
-    }
-
     // Cache the last measured welcome content height so that when the welcome
     // block is hidden (hideWelcomeForKeyboard fades it to invisible), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
@@ -5057,8 +5039,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     const SUGGESTIONS_APPROX_HEIGHT = 150;
     const GUEST_INTEREST_TAGS_PROMPT_GAP = 10;
     const GUEST_INTEREST_TAGS_APPROX_HEIGHT = 70;
-    const WELCOME_CENTER_OFFSET_NARROW_PX = 127;
-    const WELCOME_CENTER_OFFSET_DESKTOP_VH = 17.5;
 
     function recalculateGuestInterestTagsTop() {
         if (!chatSideEl || !welcomeContentEl) {
@@ -5123,10 +5103,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // The welcome block is vertically centered below the inspiration banner
         // and welcome top-button row.
         // Approximate its bottom edge position within the container.
-        const welcomeCenterOffset = isEffectivelyNarrow
-            ? WELCOME_CENTER_OFFSET_NARROW_PX
-            : viewportHeight * (WELCOME_CENTER_OFFSET_DESKTOP_VH / 100);
-        const welcomeCenter = containerHeight * 0.5 + welcomeCenterOffset;
+        const welcomeTopOffset = isEffectivelyNarrow ? 127 : 60;
+        const welcomeCenter = containerHeight * 0.5 + welcomeTopOffset;
         const welcomeBottom = welcomeCenter + welcomeHeight / 2;
 
         // Available gap between welcome bottom and the message input top.
@@ -5384,7 +5362,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
-     let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      let autoSpeakResponse = $state(false);
+      let assistantSpeechPreferenceLoad = 0;
+      const autoSpokenMessageIds = new Set<string>();
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat ? 'ready' : 'idle',
      );
@@ -5430,7 +5411,57 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          currentChat?.chat_id &&
          !isPublicChat(currentChat.chat_id) &&
         (!showWelcome || currentMessages.length > 0)
-     ));
+      ));
+
+      $effect(() => {
+        const chatId = currentChat?.chat_id;
+        const load = ++assistantSpeechPreferenceLoad;
+        autoSpeakResponse = false;
+        if (!chatId || currentChat?.is_incognito || isPublicChat(chatId)) return;
+        void getAssistantSpeechPreference(chatId)
+          .then((enabled) => {
+            if (load === assistantSpeechPreferenceLoad) autoSpeakResponse = enabled;
+          })
+          .catch((error) => {
+            console.error(`[ActiveChat] Failed to load assistant speech preference for ${chatId}:`, error);
+          });
+      });
+
+      async function updateAssistantSpeechPreference(enabled: boolean, requestedChatId?: string): Promise<void> {
+        const chatId = requestedChatId ?? currentChat?.chat_id;
+        if (!chatId || currentChat?.is_incognito || isPublicChat(chatId)) return;
+        await setAssistantSpeechPreference(chatId, enabled);
+        autoSpeakResponse = enabled;
+      }
+
+      async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
+        const chatId = currentChat?.chat_id;
+        if (!chatId || currentChat?.is_incognito || isPublicChat(chatId)) return;
+        await assistantSpeechController.request(chatId, messageId, content);
+      }
+
+      $effect(() => {
+        const chatId = currentChat?.chat_id;
+        const latestAssistant = [...currentMessages]
+          .reverse()
+          .find((message) => message.role === 'assistant');
+        if (
+          !autoSpeakResponse ||
+          !chatId ||
+          currentChat?.is_incognito ||
+          isPublicChat(chatId) ||
+          !latestAssistant ||
+          latestAssistant.status === 'streaming' ||
+          latestAssistant.status === 'processing' ||
+          typeof latestAssistant.content !== 'string' ||
+          autoSpokenMessageIds.has(latestAssistant.message_id)
+        ) return;
+        autoSpokenMessageIds.add(latestAssistant.message_id);
+        void speakAssistantMessage(latestAssistant.message_id, latestAssistant.content).catch((error) => {
+          autoSpokenMessageIds.delete(latestAssistant.message_id);
+          console.error('[ActiveChat] Automatic assistant speech request failed:', error);
+        });
+      });
       let hasActiveExampleChatSurface = $derived(Boolean(
          currentChat?.chat_id &&
          isExampleChat(currentChat.chat_id) &&
@@ -5691,6 +5722,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeGuestInputLinkKey = $derived(
         guestInputLinkIndex === 0 ? 'chat.welcome.guest_privacy_link' : 'chat.welcome.guest_apps_link'
     );
+    let activeGuestInputPlaceholderKey = $derived.by(() => {
+        const deviceType = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+            ? 'touch'
+            : 'desktop';
+        const intent = guestInputLinkIndex === 0 ? 'privacy' : 'apps';
+        return `enter_message.placeholder.guest_${intent}_${deviceType}`;
+    });
     let activeGuestInputLinkHref = $derived(
         guestInputLinkIndex === 0 ? externalLinks.legal.privacyPolicy : '#apps'
     );
@@ -7439,7 +7477,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
-        resetComposerWelcomeState();
+        if (blurTimer) {
+            clearTimeout(blurTimer);
+            blurTimer = undefined;
+        }
+        messageInputFocused = false;
+        messageInputRecentlyFocused = false;
+        suggestionsWouldOverlapWelcome = false;
+        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+        if (activeElement instanceof HTMLElement) {
+            activeElement.blur();
+        }
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
@@ -11327,7 +11375,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             try {
-                resetComposerWelcomeState();
                 // Clear current chat state immediately (before database deletion)
                 // This ensures UI updates right away, even on mobile
                 currentChat = null;
@@ -11369,7 +11416,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             } catch (error) {
                 console.error('[ActiveChat] Error in logout event handler:', error);
                 // Fallback: ensure UI is cleared even if handler fails
-                resetComposerWelcomeState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -13597,7 +13643,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                           autoplayVideo={pendingAutoplayVideo}
                           onResend={handleResendAfterCreditsRestored}
-                           onChatNavigate={handleChatNavigate}
+                            onChatNavigate={handleChatNavigate}
+                            onSpeakMessage={speakAssistantMessage}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
@@ -13675,6 +13722,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     {/if}
 
+                    <AssistantSpeechPlayer />
+
                     <div class="message-input-container" bind:this={messageInputContainerEl}>
                          <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
                          <!-- Show immediately with default suggestions, then swap to user's real suggestions once sync completes -->
@@ -13684,7 +13733,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          <!-- New-chat suggestions are tied to the active message input. The short
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
-                         {#if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && (messageInputFocused || !suggestionsWouldOverlapWelcome) && !hideSuggestionsForAnonymousFileAttachment}
+                         {#if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
@@ -13818,7 +13867,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
+                                    placeholderText={showWelcome && !$authStore.isAuthenticated ? $text(activeGuestInputPlaceholderKey) : undefined}
                                     guestCtaMode={showWelcome && !$authStore.isAuthenticated}
+                                    {autoSpeakResponse}
+                                    onAssistantSpeechPreferenceChange={updateAssistantSpeechPreference}
                                     on:textchange={(e) => {
                                         const t = (e.detail?.text || '');
                                         liveInputText = t;
@@ -16231,10 +16283,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         opacity: 0;
         pointer-events: none;
         visibility: visible;
-    }
-
-    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
-        display: none;
     }
 
     /* Adjust top-buttons position on small screens (absolute mode only) */

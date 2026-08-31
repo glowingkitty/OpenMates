@@ -139,6 +139,7 @@
     onChatNavigate = undefined,
     canAnnotate = true,
     isForgottenMessage = false,
+    onSpeak = undefined,
   }: {
     role?: MessageRole;
     category?: string;
@@ -180,6 +181,7 @@
     canAnnotate?: boolean;
     /** True when this message is readable history outside the active compressed context. */
     isForgottenMessage?: boolean;
+    onSpeak?: () => void;
   } = $props();
   
   // State for thinking section expansion
@@ -3534,13 +3536,24 @@
          />
        {/if}
     </div>
-    {#if role === 'assistant' && model_name}
+    {#if role === 'assistant' && (model_name || onSpeak)}
       <div class="generated-by-container">
-        <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        {#if model_name}
+          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
           </button>
+        {/if}
+        {#if onSpeak && status !== 'streaming' && status !== 'processing'}
+          <button
+            type="button"
+            class="assistant-speech-action"
+            data-testid="assistant-message-speak"
+            onclick={onSpeak}
+            aria-label="Speak response"
+          >Speak</button>
         {/if}
         <button 
           class="report-bad-answer-btn" 
@@ -4261,6 +4274,21 @@
   .generated-by-cost:focus-visible {
     color: var(--color-primary);
     text-decoration: underline;
+  }
+
+  .assistant-speech-action {
+    all: unset;
+    color: var(--color-grey-60);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-4);
+  }
+
+  .assistant-speech-action:hover,
+  .assistant-speech-action:focus-visible {
+    color: var(--color-primary);
+    background: var(--color-grey-10);
   }
 
   .generated-by-container {

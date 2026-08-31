@@ -1858,6 +1858,7 @@ export async function handleEncryptedChatMetadataImpl(
     encrypted_icon?: string;
     encrypted_category?: string;
     encrypted_chat_category?: string;
+    encrypted_auto_speak_response?: string;
     allow_chat_key_rotation?: boolean;
     chat_key_rotation_reason?: string;
     versions?: {
@@ -2084,6 +2085,7 @@ export async function handleEncryptedChatMetadataImpl(
       "encrypted_chat_summary",
       "encrypted_icon",
       "encrypted_category",
+      "encrypted_auto_speak_response",
     ] as const) {
       const incoming =
         field === "encrypted_category" ? encryptedCategory : payload[field];
@@ -2129,6 +2131,8 @@ export async function handleEncryptedChatMetadataImpl(
         if (field === "encrypted_title") chat.encrypted_title = incoming;
         else if (field === "encrypted_chat_summary")
           chat.encrypted_chat_summary = incoming;
+        else if (field === "encrypted_auto_speak_response")
+          chat.encrypted_auto_speak_response = incoming;
         else if (field === "encrypted_icon") chat.encrypted_icon = incoming;
         else if (field === "encrypted_category")
           chat.encrypted_category = incoming;

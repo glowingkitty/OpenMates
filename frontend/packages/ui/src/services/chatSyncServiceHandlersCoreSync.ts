@@ -192,6 +192,7 @@ export async function handleInitialSyncResponseImpl(
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
           encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
+          encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
           encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
           last_edited_overall_timestamp:
             serverChat.last_edited_overall_timestamp,
@@ -906,8 +907,6 @@ export function handleCacheStatusResponseImpl(
       serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY,
   });
 
-  serviceInstance.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = payload.chat_count;
-
   if (payload.is_primed && !serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
     console.log(
       "[ChatSyncService:CoreSync] ✅ Cache is primed! Setting flag and attempting initial sync...",
@@ -932,9 +931,6 @@ export function handleCacheStatusResponseImpl(
     // Schedule a retry to poll for completion. The cache_primed push event should also
     // arrive when warming completes, but polling provides a reliable fallback in case
     // the push event is missed (e.g., brief WebSocket reconnection window).
-    if (payload.chat_count > 0) {
-      phasedSyncState.markSyncPending();
-    }
     console.warn(
       "[ChatSyncService:CoreSync] Cache not primed yet. Backend is re-warming. Scheduling status retry...",
     );
