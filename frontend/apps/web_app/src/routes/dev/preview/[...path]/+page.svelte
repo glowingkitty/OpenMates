@@ -863,7 +863,7 @@
 					<div
 						class="component-mount"
 						bind:this={mountTarget}
-						style:display={renderError ? 'none' : 'block'}
+						style:display={renderError ? 'none' : null}
 					></div>
 				{/if}
 			</div>
@@ -900,7 +900,21 @@
 	}
 
 	.capture-mode .preview-container {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		padding: 32px;
+	}
+
+	.capture-mode .preview-viewport,
+	.capture-mode .component-mount {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.capture-mode .component-mount {
+		width: 100%;
 	}
 
 	.capture-mode .preview-viewport--constrained::before,

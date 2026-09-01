@@ -178,6 +178,12 @@ test.describe('Component Preview System', () => {
 		expect(canvasBackground).toBe('rgb(219, 234, 254)');
 		await expect(page.getByTestId('component-preview-viewport')).toHaveCSS('max-width', '420px');
 		expect(await page.locator('html').getAttribute('data-theme')).toBe('light');
+		const canvasBox = await canvas.boundingBox();
+		const viewportBox = await page.getByTestId('component-preview-viewport').boundingBox();
+		expect(canvasBox).not.toBeNull();
+		expect(viewportBox).not.toBeNull();
+		expect(Math.abs(viewportBox!.x + viewportBox!.width / 2 - (canvasBox!.x + canvasBox!.width / 2))).toBeLessThan(2);
+		expect(Math.abs(viewportBox!.y + viewportBox!.height / 2 - (canvasBox!.y + canvasBox!.height / 2))).toBeLessThan(2);
 		await proof.checkpoint('configured-preview');
 	});
 
