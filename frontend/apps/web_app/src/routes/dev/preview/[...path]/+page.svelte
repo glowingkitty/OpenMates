@@ -11,13 +11,19 @@
   - Loads .preview.ts companion file for mock props (if it exists)
   - Theme toggle (light/dark)
   - Viewport resize controls for responsive testing
-  - Background options (auto = follows theme, grid = checkered) for visual inspection
+  - Background options (theme, grid, or a URL-provided CSS color)
   - Prop editor for overriding mock props
+  - Shareable query parameters and a chrome-free screenshot mode
 -->
 <script lang="ts">
 	import { page } from '$app/state';
+	import { replaceState } from '$app/navigation';
 	import { mount, unmount } from 'svelte';
 	import { theme } from '@repo/ui';
+
+	const MAX_URL_PROPS_LENGTH = 10_000;
+	const MIN_VIEWPORT_WIDTH = 240;
+	const MAX_VIEWPORT_WIDTH = 2_560;
 
 	/**
 	 * Vite glob imports for all Svelte components and their preview files.
@@ -102,15 +108,19 @@
 	let variants = $state<Record<string, Record<string, unknown>>>({});
 	let activeVariant = $state<string>('default');
 	let hasPreviewFile = $state(false);
+	let previewReady = $state(false);
+	let urlConfigError = $state<string | null>(null);
+	let copyStatus = $state<'idle' | 'copied' | 'failed'>('idle');
 
 	/** UI state for the preview controls */
 	let viewportWidth = $state<number | null>(null);
+	let captureMode = $state(false);
 	/**
 	 * Background mode for the preview canvas.
 	 * - 'auto': follows the current theme (white in light mode, dark in dark mode) — DEFAULT
 	 * - 'grid': checkered grid pattern (useful for transparency inspection)
 	 */
-	let background = $state<'auto' | 'grid'>('auto');
+	let background = $state('auto');
 	let showPropsEditor = $state(false);
 	let propsError = $state<string | null>(null);
 
@@ -121,6 +131,101 @@
 	 */
 	let manualOverrides = $state<Record<string, unknown>>({});
 	let hasManualEdits = $state(false);
+
+	function parseViewportWidth(value: string | null): number | null {
+		if (!value) return null;
+		const parsed = Number(value);
+		return Number.isInteger(parsed) && parsed >= MIN_VIEWPORT_WIDTH && parsed <= MAX_VIEWPORT_WIDTH
+			? parsed
+			: null;
+	}
+
+	function parseBackground(value: string | null): { value: string; error: string | null } {
+		if (!value || value === 'auto' || value === 'grid') {
+			return { value: value || 'auto', error: null };
+		}
+		if (CSS.supports('color', value)) return { value, error: null };
+		return { value: 'auto', error: `Invalid background color: ${value}` };
+	}
+
+	function parseUrlProps(value: string | null): {
+		props: Record<string, unknown>;
+		error: string | null;
+	} {
+		if (!value) return { props: {}, error: null };
+		if (value.length > MAX_URL_PROPS_LENGTH) {
+			return { props: {}, error: `URL props exceed ${MAX_URL_PROPS_LENGTH} characters.` };
+		}
+		try {
+			const parsed: unknown = JSON.parse(value);
+			if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+				return { props: {}, error: 'URL props must be a JSON object.' };
+			}
+			return { props: parsed as Record<string, unknown>, error: null };
+		} catch (error) {
+			return {
+				props: {},
+				error: error instanceof Error ? `Invalid URL props: ${error.message}` : 'Invalid URL props.'
+			};
+		}
+	}
+
+	let urlConfig = $derived.by(() => {
+		const params = page.url.searchParams;
+		const requestedWidth = params.get('width');
+		const parsedWidth = parseViewportWidth(requestedWidth);
+		const parsedBackground = parseBackground(params.get('background'));
+		const parsedProps = parseUrlProps(params.get('props'));
+		const widthError =
+			requestedWidth && parsedWidth === null
+				? `Viewport width must be an integer from ${MIN_VIEWPORT_WIDTH} to ${MAX_VIEWPORT_WIDTH}.`
+				: null;
+
+		return {
+			variant: params.get('variant') || 'default',
+			theme: params.get('theme'),
+			width: parsedWidth,
+			background: parsedBackground.value,
+			captureMode: params.get('chrome') === '0',
+			props: parsedProps.props,
+			propsError: parsedProps.error,
+			configError: widthError || parsedBackground.error
+		};
+	});
+
+	$effect(() => {
+		const config = urlConfig;
+		viewportWidth = config.width;
+		background = config.background;
+		captureMode = config.captureMode;
+		manualOverrides = config.props;
+		hasManualEdits = Object.keys(config.props).length > 0;
+		propsError = config.propsError;
+		activeVariant =
+			hasPreviewFile && config.variant !== 'default' && !variants[config.variant]
+				? 'default'
+				: config.variant;
+		urlConfigError =
+			config.configError ||
+			(hasPreviewFile && config.variant !== 'default' && !variants[config.variant]
+				? `Unknown preview variant: ${config.variant}`
+				: null);
+
+		if (config.theme === 'light' || config.theme === 'dark') {
+			theme.set(config.theme);
+		}
+	});
+
+	function updateQueryParameter(name: string, value: string | null) {
+		const nextUrl = new URL(window.location.href);
+		if (value === null) {
+			nextUrl.searchParams.delete(name);
+		} else {
+			nextUrl.searchParams.set(name, value);
+		}
+		replaceState(nextUrl, {});
+		copyStatus = 'idle';
+	}
 
 	/**
 	 * Top-level prop names that fullscreen components receive directly (NOT wrapped in `data`).
@@ -306,10 +411,7 @@
 		hasPreviewFile = false;
 		mockProps = {};
 		variants = {};
-		activeVariant = 'default';
-		manualOverrides = {};
-		hasManualEdits = false;
-		propsError = null;
+		previewReady = false;
 
 		try {
 			// Check if the component exists in the glob map
@@ -358,6 +460,7 @@
 		const target = mountTarget;
 		const hasError = renderError;
 
+		previewReady = false;
 		if (!component || !target) return;
 
 		// Skip mounting if there's a render error — user must click Retry
@@ -385,9 +488,16 @@
 		}
 		window.addEventListener('error', handleError);
 
+		let firstFrame = 0;
+		let secondFrame = 0;
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic glob import yields unknown type
 			mountedInstance = mount(component as any, { target, props });
+			firstFrame = requestAnimationFrame(() => {
+				secondFrame = requestAnimationFrame(() => {
+					if (!errorCaught) previewReady = true;
+				});
+			});
 		} catch (err) {
 			errorCaught = true;
 			renderError = err instanceof Error ? err.message : String(err);
@@ -401,6 +511,8 @@
 		}, 500);
 
 		return () => {
+			cancelAnimationFrame(firstFrame);
+			cancelAnimationFrame(secondFrame);
 			clearTimeout(timerId);
 			window.removeEventListener('error', handleError);
 			cleanupMount(target);
@@ -429,7 +541,41 @@
 
 	/** Toggle between light and dark theme */
 	function toggleTheme() {
-		theme.set($theme === 'light' ? 'dark' : 'light');
+		const nextTheme = $theme === 'light' ? 'dark' : 'light';
+		theme.set(nextTheme);
+		updateQueryParameter('theme', nextTheme);
+	}
+
+	function selectVariant(variantName: string) {
+		activeVariant = variantName;
+		updateQueryParameter('variant', variantName === 'default' ? null : variantName);
+	}
+
+	function selectViewportWidth(width: number | null) {
+		viewportWidth = width;
+		updateQueryParameter('width', width === null ? null : String(width));
+	}
+
+	function selectBackground(value: string) {
+		if (value !== 'auto' && value !== 'grid' && !CSS.supports('color', value)) {
+			urlConfigError = `Invalid background color: ${value}`;
+			return;
+		}
+		background = value;
+		urlConfigError = null;
+		updateQueryParameter('background', value === 'auto' ? null : value);
+	}
+
+	async function copyCaptureUrl() {
+		const captureUrl = new URL(window.location.href);
+		captureUrl.searchParams.set('chrome', '0');
+		try {
+			await navigator.clipboard.writeText(captureUrl.toString());
+			copyStatus = 'copied';
+		} catch (error) {
+			console.error('[Preview] Failed to copy capture URL:', error);
+			copyStatus = 'failed';
+		}
 	}
 
 	/** Parse the component name from the full path (for display) */
@@ -451,7 +597,7 @@
 	 * 'auto' follows the selected theme automatically.
 	 * 'grid' shows a checkered pattern for inspecting transparency.
 	 */
-	const backgroundOptions: { label: string; value: typeof background }[] = [
+	const backgroundOptions = [
 		{ label: 'Auto', value: 'auto' },
 		{ label: 'Grid', value: 'grid' }
 	];
@@ -475,9 +621,10 @@
 					background-size: 20px 20px;
 					background-position: 0 0, 0 10px, 10px -10px, -10px 0px;`;
 			case 'auto':
-			default:
 				// Follows the theme: white in light mode, dark in dark mode.
 				return 'background: var(--color-grey-0);';
+			default:
+				return `background-color: ${background};`;
 		}
 	});
 
@@ -490,10 +637,17 @@
 		propsJson = target.value;
 		hasManualEdits = true;
 		try {
-			const parsed = JSON.parse(propsJson);
-			if (typeof parsed === 'object' && parsed !== null) {
-				manualOverrides = parsed;
+			const parsed: unknown = JSON.parse(propsJson);
+			if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+				if (propsJson.length > MAX_URL_PROPS_LENGTH) {
+					propsError = `Props exceed ${MAX_URL_PROPS_LENGTH} characters and cannot be stored in the URL.`;
+					return;
+				}
+				manualOverrides = parsed as Record<string, unknown>;
 				propsError = null;
+				updateQueryParameter('props', propsJson === '{}' ? null : propsJson);
+			} else {
+				propsError = 'Props must be a JSON object.';
 			}
 		} catch (err) {
 			propsError = err instanceof Error ? err.message : 'Invalid JSON';
@@ -505,11 +659,13 @@
 		manualOverrides = {};
 		hasManualEdits = false;
 		propsError = null;
+		updateQueryParameter('props', null);
 	}
 </script>
 
-<div class="preview-page">
+<div class="preview-page" class:capture-mode={captureMode}>
 	<!-- Top toolbar -->
+	{#if !captureMode}
 	<header class="toolbar" data-testid="preview-toolbar">
 		<div class="toolbar-left">
 			<a href="/dev/preview" class="back-link" data-testid="preview-back-link">← Components</a>
@@ -528,7 +684,7 @@
 					<button
 						class="control-btn"
 						class:active={viewportWidth === preset.value}
-						onclick={() => (viewportWidth = preset.value)}
+						onclick={() => selectViewportWidth(preset.value)}
 					>
 						{preset.label}
 						{#if preset.value}
@@ -544,12 +700,20 @@
 					<button
 						class="control-btn"
 						class:active={background === bg.value}
-						onclick={() => (background = bg.value)}
+						onclick={() => selectBackground(bg.value)}
 					>
 						{bg.label}
 					</button>
 				{/each}
 			</div>
+			<input
+				class="background-input"
+				data-testid="preview-background-input"
+				aria-label="Preview background color"
+				placeholder="#dbeafe"
+				value={background === 'auto' || background === 'grid' ? '' : background}
+				onchange={(event) => selectBackground(event.currentTarget.value.trim() || 'auto')}
+			/>
 
 			<!-- Theme toggle -->
 			<button class="control-btn" onclick={toggleTheme}>
@@ -564,11 +728,16 @@
 			>
 				Props
 			</button>
+
+			<button class="control-btn" data-testid="copy-capture-url" onclick={copyCaptureUrl}>
+				{copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Copy failed' : 'Copy capture URL'}
+			</button>
 		</div>
 	</header>
+	{/if}
 
 	<!-- Variant selector (only shown when preview file has variants) -->
-	{#if Object.keys(variants).length > 0}
+	{#if !captureMode && Object.keys(variants).length > 0}
 		<div class="variant-bar">
 			<!-- Label is pinned left; buttons scroll independently -->
 			<span class="variant-label">Variants:</span>
@@ -576,7 +745,7 @@
 				<button
 					class="variant-btn"
 					class:active={activeVariant === 'default'}
-					onclick={() => (activeVariant = 'default')}
+					onclick={() => selectVariant('default')}
 				>
 					Default
 				</button>
@@ -584,7 +753,7 @@
 					<button
 						class="variant-btn"
 						class:active={activeVariant === variantName}
-						onclick={() => (activeVariant = variantName)}
+						onclick={() => selectVariant(variantName)}
 					>
 						{variantName}
 					</button>
@@ -595,7 +764,7 @@
 
 	<div class="preview-layout">
 		<!-- Props editor panel (side panel) -->
-		{#if showPropsEditor}
+		{#if !captureMode && showPropsEditor}
 			<aside class="props-panel">
 				<div class="props-header">
 					<h3>Props</h3>
@@ -623,7 +792,12 @@
 		{/if}
 
 		<!-- Component render area -->
-		<div class="preview-container" style={backgroundStyle}>
+		<div
+			class="preview-container"
+			data-testid="component-preview-canvas"
+			data-preview-ready={previewReady && !renderError && !loadError && !urlConfigError && !propsError ? 'true' : 'false'}
+			style={backgroundStyle}
+		>
 			<!--
 				Viewport wrapper: when a preset width is selected, this div constrains the
 				content width and shows dashed cutoff lines at both sides so the developer
@@ -631,6 +805,7 @@
 			-->
 			<div
 				class="preview-viewport"
+				data-testid="component-preview-viewport"
 				class:preview-viewport--constrained={viewportWidth !== null}
 				style={viewportWidth ? `max-width: ${viewportWidth}px; margin: 0 auto;` : ''}
 			>
@@ -648,6 +823,11 @@
 						</p>
 					</div>
 				{:else if loadedComponent}
+					{#if urlConfigError || (captureMode && propsError)}
+						<div class="preview-config-error" data-testid="preview-config-error">
+							{urlConfigError || propsError}
+						</div>
+					{/if}
 					<!--
 						Component is mounted programmatically via mount() in an $effect
 						to catch render crashes from components with missing required props.
@@ -691,6 +871,7 @@
 	</div>
 
 	<!-- Status bar -->
+	{#if !captureMode}
 	<footer class="status-bar" data-testid="preview-status-bar">
 		<span class="status-item">
 			{componentPath}.svelte
@@ -705,6 +886,7 @@
 		{/if}
 		<span class="status-item">{$theme} theme</span>
 	</footer>
+	{/if}
 </div>
 
 <style>
@@ -715,6 +897,15 @@
 		overflow: hidden;
 		font-family: var(--font-primary, 'Lexend Deca Variable'), sans-serif;
 		color: var(--color-font-primary);
+	}
+
+	.capture-mode .preview-container {
+		padding: 32px;
+	}
+
+	.capture-mode .preview-viewport--constrained::before,
+	.capture-mode .preview-viewport--constrained::after {
+		display: none;
 	}
 
 	/* --- Toolbar --- */
@@ -810,6 +1001,21 @@
 		font-size: 10px;
 		opacity: 0.7;
 		margin-left: 2px;
+	}
+
+	.background-input {
+		width: 84px;
+		padding: 4px 8px;
+		border: 1px solid var(--color-grey-30);
+		border-radius: 6px;
+		background: var(--color-grey-10);
+		color: var(--color-font-primary);
+		font-family: 'Courier New', monospace;
+		font-size: 12px;
+	}
+
+	.background-input:focus {
+		border-color: var(--color-primary-start);
 	}
 
 	/* --- Variant bar --- */
@@ -968,6 +1174,18 @@
 		flex: 1;
 		overflow: auto;
 		padding: 24px;
+	}
+
+	.preview-config-error {
+		margin: 0 auto 16px;
+		max-width: 640px;
+		padding: 10px 12px;
+		border: 1px solid #e5393550;
+		border-radius: 8px;
+		background: var(--color-grey-10);
+		color: #e53935;
+		font-family: 'Courier New', monospace;
+		font-size: 12px;
 	}
 
 	.preview-viewport {

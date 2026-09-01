@@ -131,6 +131,36 @@ test.describe('Component Preview System', () => {
 		expect(await page.locator('html').getAttribute('data-theme')).toBe('light');
 	});
 
+	test('client-side preview navigation reapplies URL configuration', async ({ page }) => {
+		await page.goto('/dev/preview/Notification?background=%23dbeafe', {
+			waitUntil: 'networkidle'
+		});
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute(
+			'data-preview-ready',
+			'true'
+		);
+
+		await page.evaluate(() => {
+			const link = document.createElement('a');
+			link.href =
+				'/dev/preview/interactive_questions/InteractiveQuestionContainer?variant=input_form&background=%23dbeafe&width=768&chrome=0';
+			link.dataset.testid = 'preview-spa-navigation';
+			link.textContent = 'Open configured preview';
+			document.body.appendChild(link);
+		});
+		await page.getByTestId('preview-spa-navigation').click();
+
+		const canvas = page.getByTestId('component-preview-canvas');
+		await expect(canvas).toHaveAttribute('data-preview-ready', 'true');
+		await expect(canvas.getByText('Please introduce yourself to the assistant')).toBeVisible();
+		await expect(page.getByTestId('component-preview-viewport')).toHaveCSS('max-width', '768px');
+		await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
+		const canvasBackground = await canvas.evaluate(
+			(element) => window.getComputedStyle(element).backgroundColor
+		);
+		expect(canvasBackground).toBe('rgb(219, 234, 254)');
+	});
+
 	test('website fullscreen highlights source quote text', async ({ page }) => {
 		const response = await page.goto('/dev/preview/embeds/web', { waitUntil: 'networkidle' });
 		expect(response?.status()).toBe(200);
