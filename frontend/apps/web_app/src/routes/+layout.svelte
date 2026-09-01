@@ -395,4 +395,19 @@
 		background-color: var(--color-grey-0);
 		min-height: 100%;
 	}
+
+	:global([data-testid='action-buttons'] > .left-buttons > * > button),
+	:global([data-testid='action-buttons'] > .right-buttons > button),
+	:global([data-testid='action-buttons'] > .right-buttons > * > button) {
+		filter: none;
+		transition: filter 0.15s ease-in-out;
+	}
+
+	@media (hover: hover) {
+		:global([data-testid='action-buttons'] > .left-buttons > * > button:hover),
+		:global([data-testid='action-buttons'] > .right-buttons > button:hover),
+		:global([data-testid='action-buttons'] > .right-buttons > * > button:hover) {
+			filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.12));
+		}
+	}
 </style>
