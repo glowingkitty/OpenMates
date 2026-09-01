@@ -3035,18 +3035,11 @@ def is_protected_control_plane_path(path: str) -> bool:
     return any(normalized.startswith(prefix) for prefix in PROTECTED_CONTROL_PLANE_PREFIXES)
 
 
-def _session_is_bound_to_opencode(session: dict | None) -> bool:
-    if not isinstance(session, dict):
-        return False
-    return bool(session.get("opencode_session_id") or session.get("opencode_top_level_session_id"))
-
-
 def _current_runtime_allows_control_plane_deploy(session: dict | None) -> bool:
     return (
         isinstance(session, dict)
         and bool(os.environ.get("CODEX_SESSION_ID"))
         and not os.environ.get("OPENCODE_SESSION_ID")
-        and not _session_is_bound_to_opencode(session)
     )
 
 

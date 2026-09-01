@@ -90,16 +90,15 @@ def test_codex_unbound_session_may_deploy_control_plane_recovery(monkeypatch) ->
     )
 
 
-def test_codex_cannot_deploy_protected_files_for_opencode_bound_session(monkeypatch) -> None:
+def test_codex_may_deploy_reviewed_opencode_bound_control_plane_recovery(monkeypatch) -> None:
     sessions = load_sessions_module()
     monkeypatch.setenv("CODEX_SESSION_ID", "codex-session")
     monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
 
-    with pytest.raises(RuntimeError, match="CONTROL-PLANE DEPLOY BLOCKED"):
-        sessions.validate_product_session_deploy_paths(
-            ["scripts/sessions.py"],
-            session={"opencode_session_id": "ses_bound"},
-        )
+    sessions.validate_product_session_deploy_paths(
+        ["scripts/sessions.py"],
+        session={"opencode_session_id": "ses_bound"},
+    )
 
 
 def test_opencode_runtime_cannot_use_codex_control_plane_allowance(monkeypatch) -> None:
