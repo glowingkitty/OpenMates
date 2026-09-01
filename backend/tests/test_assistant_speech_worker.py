@@ -32,6 +32,7 @@ def test_live_mock_audio_is_exactly_scoped_to_the_marked_nonproduction_flow(
     arguments = {
         "live_mock_mode": "mock",
         "live_mock_group": live_mock.ASSISTANT_SPEECH_LIVE_MOCK_GROUP,
+        "live_mock_required": "true",
     }
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
     monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
@@ -40,9 +41,24 @@ def test_live_mock_audio_is_exactly_scoped_to_the_marked_nonproduction_flow(
     assert fixture.read_bytes().startswith(b"ID3") or fixture.read_bytes().startswith(b"\xff")
 
     assert live_mock.assistant_speech_live_mock_audio({}) is None
-    assert live_mock.assistant_speech_live_mock_audio({**arguments, "live_mock_group": "another_test"}) is None
+    with pytest.raises(RuntimeError, match="group is unavailable"):
+        live_mock.assistant_speech_live_mock_audio({**arguments, "live_mock_group": "another_test"})
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
-    assert live_mock.assistant_speech_live_mock_audio(arguments) is None
+    with pytest.raises(RuntimeError, match="disabled in production"):
+        live_mock.assistant_speech_live_mock_audio(arguments)
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.billing.segment-success-once,assistant-speech.privacy.transient-plaintext-encrypted-audio
+def test_live_mock_marker_context_is_server_validated_and_required_by_the_speech_task() -> None:
+    backend_root = Path(__file__).resolve().parents[1]
+    ask_source = (backend_root / "apps/ai/tasks/ask_skill_task.py").read_text(encoding="utf-8")
+    stream_source = (backend_root / "apps/ai/tasks/stream_consumer.py").read_text(encoding="utf-8")
+
+    assert "request_data.live_mock_mode = None" in ask_source
+    assert "request_data.live_mock_mode = live_mode" in ask_source
+    assert "request_data.live_mock_group = live_group" in ask_source
+    assert "live_mock_mode=request_data.live_mock_mode" in stream_source
+    assert '"live_mock_required": "true"' in stream_source
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.one-file-per-segment,assistant-speech.privacy.transient-plaintext-encrypted-audio,assistant-speech.billing.segment-success-once

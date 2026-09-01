@@ -137,6 +137,8 @@ async def _dispatch_automatic_assistant_speech_segment(
     cache_service: Optional[CacheService],
     redis_channel_name: str,
     log_prefix: str,
+    live_mock_mode: Optional[str],
+    live_mock_group: Optional[str],
 ) -> None:
     """Persist and queue one immutable segment outside the authoritative text path."""
     if directus_service is None:
@@ -154,13 +156,12 @@ async def _dispatch_automatic_assistant_speech_segment(
     )
     if not auto_speak or str(segment["segment_id"]) not in set(manifest["dispatch_segment_ids"]):
         return
-    from backend.shared.testing.mock_context import get_mock_group, is_mock_active, is_record_mode
-
     live_mock_context: dict[str, str] = {}
-    if is_mock_active():
+    if live_mock_mode in {"mock", "record"} and live_mock_group:
         live_mock_context = {
-            "live_mock_mode": "record" if is_record_mode() else "mock",
-            "live_mock_group": get_mock_group(),
+            "live_mock_mode": live_mock_mode,
+            "live_mock_group": live_mock_group,
+            "live_mock_required": "true",
         }
     celery_config.app.send_task(
         "apps.audio.tasks.assistant_speech_segment",
@@ -5144,6 +5145,8 @@ async def _consume_main_processing_stream(
                     cache_service=cache_service,
                     redis_channel_name=redis_channel_name,
                     log_prefix=log_prefix,
+                    live_mock_mode=request_data.live_mock_mode,
+                    live_mock_group=request_data.live_mock_group,
                 ),
                 invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
                     segment=segment,

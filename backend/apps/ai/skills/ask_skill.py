@@ -63,6 +63,8 @@ class AskSkillRequest(BaseModel):
     current_chat_metadata_v: Optional[int] = Field(default=None, description="Client metadata version when the AI turn started. Used for post-processing metadata race checks.")
     auto_speak_response: bool = Field(default=False, description="Decrypted chat preference fixed for this assistant turn; never persisted by the AI pipeline.")
     assistant_response_source_revision: int = Field(default=1, ge=1, description="Stable client-assigned revision for this assistant response source.")
+    live_mock_mode: Optional[str] = Field(default=None, exclude=True, description="Server-validated live-mock mode for this task only.")
+    live_mock_group: Optional[str] = Field(default=None, exclude=True, description="Server-validated live-mock group for this task only.")
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip post-processing and use 'incognito' as chat_id for billing.")
     is_external: bool = Field(default=False, description="Whether this is an external API request. External requests skip cache warming, vault lookup, and storage.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")

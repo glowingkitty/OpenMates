@@ -14,7 +14,6 @@ import logging
 import asyncio
 import time
 import os
-from pathlib import Path
 import uuid
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
@@ -679,6 +678,10 @@ async def _async_process_ai_skill_ask_task(
     Returns a dictionary with processing results and status flags.
     """
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
+    # These fields are client-constructible on the request model, so never trust
+    # their inbound values. Only a validated marker below may repopulate them.
+    request_data.live_mock_mode = None
+    request_data.live_mock_group = None
 
     # Local flags for interruption, to be returned
     task_was_revoked = False
@@ -1190,38 +1193,29 @@ async def _async_process_ai_skill_ask_task(
     # with cached record-and-replay responses. This tests everything except the parts
     # that cost money.
     # SECURITY: Only works when SERVER_ENVIRONMENT != "production" AND MOCK_EXTERNAL_APIS=true.
-    _live_marker = None
-    from backend.shared.testing.mock_context import resolve_live_marker_or_raise, strip_live_marker, activate_mock_mode
-
-    if request_data.message_history:
-        last_user_msg = next(
-            (m for m in reversed(request_data.message_history) if m.role == "user"),
-            None,
-        )
-        if last_user_msg:
-            _live_marker = resolve_live_marker_or_raise(last_user_msg.content, request_data.user_id)
-            if _live_marker and _test_marker:
-                raise RuntimeError("Cannot combine TEST_MOCK/TEST_RECORD with TEST_LIVE marker")
-            if _live_marker:
-                live_mode, live_group, live_run_id = _live_marker
-                last_user_msg.content = strip_live_marker(last_user_msg.content)
-                candidate_root = None
-                candidate_base = Path(
-                    os.getenv("LIVE_MOCK_CANDIDATE_ROOT", "/tmp/openmates-live-mock-candidates")
-                )
-                if live_mode in {"record", "mock"} and live_run_id:
-                    candidate_root = candidate_base / live_run_id / "cache"
-                activate_mock_mode(
-                    live_mode,
-                    live_group,
-                    candidate_root=candidate_root,
-                    candidate_run_id=live_run_id,
-                    task_id=task_id,
-                )
-                logger.info(
-                    f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
-                    f"group='{live_group}' — full pipeline with cached API responses"
-                )
+    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and not _test_marker:
+        from backend.shared.testing.mock_context import detect_live_marker, strip_live_marker, activate_mock_mode
+        if request_data.message_history:
+            last_user_msg = next(
+                (m for m in reversed(request_data.message_history) if m.role == "user"),
+                None,
+            )
+            if last_user_msg:
+                _live_marker = detect_live_marker(request_data.current_user_content or "")
+                if not _live_marker:
+                    _live_marker = detect_live_marker(last_user_msg.content)
+                if _live_marker:
+                    live_mode, live_group = _live_marker
+                    last_user_msg.content = strip_live_marker(last_user_msg.content)
+                    if request_data.current_user_content:
+                        request_data.current_user_content = strip_live_marker(request_data.current_user_content)
+                    activate_mock_mode(live_mode, live_group)
+                    request_data.live_mock_mode = live_mode
+                    request_data.live_mock_group = live_group
+                    logger.info(
+                        f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
+                        f"group='{live_group}' — full pipeline with cached API responses"
+                    )
 
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
@@ -2284,12 +2278,7 @@ async def _async_process_ai_skill_ask_task(
 
         # CRITICAL: chat_summary is required for post-processing
         # If missing, log detailed information to understand why the preprocessing LLM didn't return it
-        if _test_marker and _test_marker[0] == "mock":
-            # replay_fixture already published cached postprocessing metadata.
-            # Running the live postprocessor here duplicated that event and made
-            # multiple paid LLM calls during otherwise deterministic daily tests.
-            postprocessing_result = None
-        elif preprocessing_failed or not chat_summary:
+        if preprocessing_failed or not chat_summary:
             # Determine the specific reason for failure
             if preprocessing_failed:
                 failure_reason = (
@@ -2486,7 +2475,6 @@ async def _async_process_ai_skill_ask_task(
                 and not getattr(request_data, 'is_incognito', False)
                 and cache_service_instance
                 and secrets_manager
-                and not _live_marker
             ):
                 try:
                     from backend.core.api.app.tasks.daily_inspiration_tasks import trigger_first_run_inspirations
@@ -2934,8 +2922,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         # Clean up live mock context vars (no-op if not activated)
         if os.getenv("MOCK_EXTERNAL_APIS") == "true":
             try:
-                from backend.shared.testing.mock_context import deactivate_mock_mode, write_live_mock_receipt
-                write_live_mock_receipt()
+                from backend.shared.testing.mock_context import deactivate_mock_mode
                 deactivate_mock_mode()
             except ImportError:
                 pass

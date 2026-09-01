@@ -24,6 +24,12 @@ const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.e
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 
+function withRequiredLiveMock(message: string): string {
+	const marked = withLiveMockMarker(message, LIVE_MOCK_GROUP);
+	expect(marked).toMatch(/<<<TEST_LIVE_(?:MOCK|RECORD):assistant_response_speech_web>>>/);
+	return marked;
+}
+
 const PROOF_CONTRACT = defineVideoProof({
 	id: 'assistant-response-speech',
 	title: 'Assistant response speech playback',
@@ -99,10 +105,7 @@ test.describe.serial('Assistant response speech', () => {
 		await startNewChat(page, log);
 		await sendMessage(
 			page,
-			withLiveMockMarker(
-				'Reply with one short sentence confirming this encrypted chat is ready for a voice playback test.',
-				LIVE_MOCK_GROUP
-			),
+			withRequiredLiveMock('Reply with one short sentence confirming this encrypted chat is ready for a voice playback test.'),
 			log,
 			screenshot,
 			'assistant-speech-source'
@@ -181,10 +184,7 @@ test.describe.serial('Assistant response speech', () => {
 
 		await sendMessage(
 			page,
-			withLiveMockMarker(
-				'Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.',
-				LIVE_MOCK_GROUP
-			),
+			withRequiredLiveMock('Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.'),
 			log,
 			screenshot,
 			'assistant-speech-weather-source'
