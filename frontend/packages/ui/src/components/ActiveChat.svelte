@@ -5430,8 +5430,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
       async function updateAssistantSpeechPreference(enabled: boolean, requestedChatId?: string): Promise<void> {
         const chatId = requestedChatId ?? currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito || isPublicChat(chatId)) return;
-        await setAssistantSpeechPreference(chatId, enabled);
+        const previousValue = autoSpeakResponse;
         autoSpeakResponse = enabled;
+        try {
+          await setAssistantSpeechPreference(chatId, enabled);
+        } catch (error) {
+          autoSpeakResponse = previousValue;
+          console.error(`[ActiveChat] Failed to update assistant speech preference for ${chatId}:`, error);
+          throw error;
+        }
       }
 
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
