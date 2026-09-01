@@ -58,6 +58,7 @@ const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
 const PROOF_CAPTURE_END_HOLD_MS = 750;
 const PROOF_VIDEO_CRF = '32';
 const SESSION_STABILIZE_MS = 8000;
+const LANDING_INTRO_COVERAGE_TIMEOUT_MS = 20000;
 const GUEST_ONBOARDING_IDS = [
 	'openmates-intro',
 	'openmates-actionable-events',
@@ -66,6 +67,50 @@ const GUEST_ONBOARDING_IDS = [
 	'openmates-provider-cross-platform',
 	'openmates-signup-cta'
 ];
+
+async function expectLandingIntroCoverageUntilNextSlide(page: any): Promise<void> {
+	await page.evaluate((timeoutMs: number) => new Promise<void>((resolve, reject) => {
+		const startedAt = performance.now();
+		const inspectFrame = () => {
+			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
+			const composer = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
+			if (!activeChat || !banner || !composer) {
+				reject(new Error('Forced logout landing elements disappeared during intro coverage monitoring'));
+				return;
+			}
+
+			if (banner.dataset.currentInspirationId !== 'openmates-intro') {
+				resolve();
+				return;
+			}
+
+			const activeRect = activeChat.getBoundingClientRect();
+			const bannerRect = banner.getBoundingClientRect();
+			const composerRect = composer.getBoundingClientRect();
+			const composerStyle = getComputedStyle(composer);
+			const composerVisible = composerStyle.display !== 'none'
+				&& composerStyle.visibility !== 'hidden'
+				&& Number.parseFloat(composerStyle.opacity || '1') > 0
+				&& composerRect.width > 0
+				&& composerRect.height > 0;
+			const bottomDelta = Math.abs(activeRect.bottom - bannerRect.bottom);
+			if (composerVisible || bottomDelta > 2) {
+				reject(new Error(
+					`Landing intro lost full-shell coverage before the next slide: phase=${banner.dataset.landingIntroPhase || 'unknown'}, composerVisible=${composerVisible}, bottomDelta=${bottomDelta.toFixed(2)}`
+				));
+				return;
+			}
+
+			if (performance.now() - startedAt >= timeoutMs) {
+				reject(new Error('Landing intro did not advance before the continuous coverage timeout'));
+				return;
+			}
+			requestAnimationFrame(inspectFrame);
+		};
+		inspectFrame();
+	}), LANDING_INTRO_COVERAGE_TIMEOUT_MS);
+}
 
 const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 	id: 'session-revoke-logout-welcome-reset',
@@ -407,6 +452,7 @@ test('session revoke: revoking session B from session A does not log out session
 			expect(geometry.rightDelta, 'forced logout intro must cover the active-chat right edge').toBeLessThanOrEqual(2);
 			await expect(pageB.getByTestId('chat-header-title')).toHaveCount(0, { timeout: 10000 });
 			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
+			await expectLandingIntroCoverageUntilNextSlide(pageB);
 		});
 		logB('Session B: exact guest onboarding carousel restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');

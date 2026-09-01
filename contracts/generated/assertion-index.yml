@@ -17831,7 +17831,7 @@ assertions:
     direct_tests:
     - &id2028
       path: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
-      line: 230
+      line: 275
       name: 'session revoke: revoking session B from session A does not log out session
         A'
       surface: gui.web
@@ -17951,7 +17951,7 @@ assertions:
       surface: gui.web
     - &id2046
       path: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
-      line: 230
+      line: 275
       name: 'session revoke: revoking session B from session A does not log out session
         A'
       surface: gui.web
