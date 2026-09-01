@@ -176,6 +176,40 @@ def test_advanced_base_conflict_is_explicit_and_leaves_dev_unchanged(monkeypatch
     assert "origin/dev" in item["next_action"]
 
 
+def test_stale_worktree_rebase_blocks_deletion_amplification(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, source_a, _source_b, base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+
+    (source_a / "a.txt").write_text("a0\nspeech toggle\n", encoding="utf-8")
+    (root / "a.txt").write_text("a0\nmodel selector\nplus button\nsend button\n", encoding="utf-8")
+    git(root, "add", "a.txt")
+    git(root, "commit", "-m", "add composer controls")
+    git(root, "push", "origin", "dev")
+    current_dev = git(root, "rev-parse", "origin/dev")
+
+    metadata = {
+        "path": str(source_a),
+        "base_commit": base,
+        # Reproduces partial deploy metadata advancing globally while this file
+        # remains based on the worktree's older HEAD.
+        "merged_commit": current_dev,
+    }
+    files = ["a.txt"]
+    patch_id = sessions._worktree_patch_id(metadata, files)
+
+    with pytest.raises(sessions.IntegrationConflict, match="Deletion amplification detected") as exc_info:
+        sessions._prepare_integration_worktree("aaaa", metadata, files, patch_id, current_dev)
+
+    assert "a.txt (0 intended, 3 integrated)" in str(exc_info.value)
+    assert git(root, "rev-parse", "origin/dev") == current_dev
+    assert git(root, "status", "--porcelain", "-uall") == ""
+
+
 def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     first_checkout = tmp_path / "integration-first"
@@ -203,7 +237,8 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     removed: list[str] = []
 
     monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: next(fetched))
-    monkeypatch.setattr(sessions, "_prepare_integration_worktree", lambda *_args: prepared_first)
+    monkeypatch.setattr(sessions, "_create_worktree_checkpoint_commit", lambda *_args: "checkpoint")
+    monkeypatch.setattr(sessions, "_prepare_integration_worktree", lambda *_args, **_kwargs: prepared_first)
     monkeypatch.setattr(sessions, "_rebuild_integration_worktree", lambda *_args: prepared_second)
     monkeypatch.setattr(sessions, "_bootstrap_integration_for_files", lambda *_args: None)
     monkeypatch.setattr(

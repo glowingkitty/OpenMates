@@ -3872,6 +3872,81 @@ def _split_contract_generated_artifacts(files: list[str]) -> tuple[list[str], li
     return source, generated
 
 
+def _numstat_deletions(
+    checkout_root: Path,
+    base_ref: str,
+    files: list[str],
+    *,
+    cached: bool = False,
+) -> dict[str, int | None]:
+    """Return per-file text deletions, using None for binary changes."""
+    command = ["git", "diff", "--numstat"]
+    if cached:
+        command.append("--cached")
+    command.extend([base_ref, "--", *files])
+    rc, stdout, stderr = _run_cmd(command, cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect integration deletion counts: {stderr}")
+    deletions: dict[str, int | None] = {relative_path: 0 for relative_path in files}
+    for line in stdout.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3:
+            continue
+        _added, removed, relative_path = fields
+        if relative_path not in deletions:
+            continue
+        deletions[relative_path] = None if removed == "-" else int(removed)
+    return deletions
+
+
+def _enforce_no_integration_deletion_amplification(
+    source_metadata: dict,
+    files: list[str],
+    checkout_root: Path,
+    *,
+    patch_id: str,
+    prepared_base: str,
+) -> None:
+    """Block stale worktree rebases that delete lines absent from the source edit.
+
+    A long-lived worktree may retain an old file while partial deploy metadata
+    advances ``merged_commit``. Diffing that old file against the newer global
+    baseline turns unrelated upstream additions into apparent deletions. The
+    actual worktree HEAD remains the authoritative statement of what the agent
+    edited, so integration must never delete more text than that source patch.
+    """
+    if not files:
+        return
+    source_path = Path(str(source_metadata.get("path") or ""))
+    source_head = _worktree_head(source_path)
+    if not source_head:
+        raise RuntimeError("Could not resolve the source worktree HEAD for deletion safety")
+    source_deletions = _numstat_deletions(source_path, source_head, files)
+    integrated_deletions = _numstat_deletions(
+        checkout_root,
+        prepared_base,
+        files,
+        cached=True,
+    )
+    amplified = []
+    for relative_path in files:
+        source_count = source_deletions.get(relative_path)
+        integrated_count = integrated_deletions.get(relative_path)
+        if source_count is None or integrated_count is None or integrated_count <= source_count:
+            continue
+        amplified.append(f"{relative_path} ({source_count} intended, {integrated_count} integrated)")
+    if amplified:
+        source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
+        raise IntegrationConflict(
+            "Deletion amplification detected while rebasing a stale worktree: "
+            + ", ".join(amplified)
+            + ". Refresh or reconcile these files against current origin/dev before deploying.",
+            patch_id=patch_id,
+            source_base=source_base,
+            final_base=prepared_base,
+        )
+
+
 def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
     """Regenerate selected contract artifacts in an integration checkout."""
     if not generated_files:
@@ -3951,6 +4026,13 @@ def _apply_worktree_diff_to_checkout(
                     final_base=prepared_base,
                 )
         _regenerate_contract_artifacts(checkout_root, contract_generated_files)
+        _enforce_no_integration_deletion_amplification(
+            source_metadata,
+            patch_files,
+            checkout_root,
+            patch_id=patch_id,
+            prepared_base=prepared_base,
+        )
         return
     current_patch_id = _worktree_patch_id(source_metadata, files)
     if current_patch_id != patch_id:
@@ -4034,6 +4116,13 @@ def _apply_worktree_diff_to_checkout(
             raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
 
     _regenerate_contract_artifacts(checkout_root, contract_generated_files)
+    _enforce_no_integration_deletion_amplification(
+        source_metadata,
+        patch_files,
+        checkout_root,
+        patch_id=patch_id,
+        prepared_base=prepared_base,
+    )
 
 
 def _prepare_integration_worktree(
