@@ -32,22 +32,24 @@ def load_generator():
     return module
 
 
-def test_german_prompts_use_restrained_v3_tags_without_changing_transcripts(tmp_path):
+@pytest.mark.parametrize("language", ["de-DE", "es-ES", "fr-FR"])
+def test_localized_prompts_use_restrained_v3_tags_without_changing_transcripts(tmp_path, language):
     generator = load_generator()
 
-    german_plan = generator.build_plan("de-DE", tmp_path)
+    localized_plan = generator.build_plan(language, tmp_path)
     english_plan = generator.build_plan("en-US", tmp_path)
-    german_by_id = {item["clip_id"]: item for item in german_plan}
+    localized_by_category = {
+        item["request_category"]: item for item in localized_plan if item["voice_profile_id"] == "ace"
+    }
     english_item = english_plan[0]
 
-    assert german_by_id["ace-de-DE-general-1"]["generation_tags"] == ("[warmly]",)
-    assert german_by_id["ace-de-DE-lookup-1"]["generation_tags"] == ("[curious]",)
-    assert german_by_id["ace-de-DE-reasoning-1"]["generation_tags"] == ("[thoughtful]", "[slow]")
-    assert german_by_id["ace-de-DE-action-1"]["generation_tags"] == ("[focused]",)
-    assert german_by_id["ace-de-DE-reasoning-1"]["generation_prompt"].startswith("[thoughtful] [slow] ")
-    assert german_by_id["ace-de-DE-reasoning-1"]["text"] == "Okay, lass mich kurz nachdenken."
-    assert german_by_id["ace-de-DE-reasoning-1"]["generation_prompt"].endswith(
-        german_by_id["ace-de-DE-reasoning-1"]["text"]
+    assert localized_by_category["general"]["generation_tags"] == ("[warmly]",)
+    assert localized_by_category["lookup"]["generation_tags"] == ("[curious]",)
+    assert localized_by_category["reasoning"]["generation_tags"] == ("[thoughtful]", "[slow]")
+    assert localized_by_category["action"]["generation_tags"] == ("[focused]",)
+    assert localized_by_category["reasoning"]["generation_prompt"].startswith("[thoughtful] [slow] ")
+    assert localized_by_category["reasoning"]["generation_prompt"].endswith(
+        localized_by_category["reasoning"]["text"]
     )
     assert english_item["generation_tags"] == ()
     assert english_item["generation_prompt"] == english_item["text"]
@@ -125,10 +127,11 @@ def test_write_manifest_keeps_clean_text_and_existing_locale_entries(tmp_path):
     assert next(entry for entry in payload["clips"] if entry["language"] == "de-DE")["text"] == german_item["text"]
 
 
-def test_german_plan_has_expected_voice_category_variant_coverage(tmp_path):
+@pytest.mark.parametrize("language", ["de-DE", "es-ES", "fr-FR"])
+def test_localized_plan_has_expected_voice_category_variant_coverage(tmp_path, language):
     generator = load_generator()
 
-    plan = generator.build_plan("de-DE", tmp_path)
+    plan = generator.build_plan(language, tmp_path)
     voices = {item["voice_profile_id"] for item in plan}
     categories_by_voice = {
         voice: {item["request_category"] for item in plan if item["voice_profile_id"] == voice}
@@ -141,14 +144,14 @@ def test_german_plan_has_expected_voice_category_variant_coverage(tmp_path):
             if item["voice_profile_id"] == voice and item["request_category"] == category
         }
         for voice in voices
-        for category in generator.ACKNOWLEDGEMENT_TEXTS["de-DE"]
+        for category in generator.ACKNOWLEDGEMENT_TEXTS[language]
     }
 
     assert len(voices) == 17
     assert len(plan) == 204
-    assert {item["language"] for item in plan} == {"de-DE"}
+    assert {item["language"] for item in plan} == {language}
     assert set(frozenset(categories) for categories in categories_by_voice.values()) == {
-        frozenset(generator.ACKNOWLEDGEMENT_TEXTS["de-DE"])
+        frozenset(generator.ACKNOWLEDGEMENT_TEXTS[language])
     }
     assert set(frozenset(variants) for variants in variants_by_voice_category.values()) == {
         frozenset({1, 2, 3})

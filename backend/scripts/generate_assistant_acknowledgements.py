@@ -34,7 +34,7 @@ from backend.shared.providers.elevenlabs.client import DEFAULT_OUTPUT_FORMAT, El
 DEFAULT_OUTPUT_ROOT = REPOSITORY_ROOT / "frontend/apps/web_app/static/audio/assistant-acknowledgements"
 MANIFEST_FILENAME = "manifest.json"
 MANIFEST_SCHEMA_VERSION = 1
-GERMAN_V3_PROMPT_TAGS = MappingProxyType(
+LOCALIZED_V3_PROMPT_TAGS = MappingProxyType(
     {
         "general": ("[warmly]",),
         "lookup": ("[curious]",),
@@ -47,7 +47,7 @@ GERMAN_V3_PROMPT_TAGS = MappingProxyType(
 def build_generation_prompt(*, language: str, category: str, text: str) -> dict[str, Any]:
     """Return provider-only prompt metadata while preserving public transcript text."""
 
-    tags = GERMAN_V3_PROMPT_TAGS.get(category, ()) if language == "de-DE" else ()
+    tags = LOCALIZED_V3_PROMPT_TAGS.get(category, ()) if language != "en-US" else ()
     tag_prefix = " ".join(tags)
     return {
         "generation_prompt": f"{tag_prefix} {text}" if tag_prefix else text,

@@ -54,6 +54,50 @@ ACKNOWLEDGEMENT_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
             "Alles klar, ich lege los.",
         ),
     },
+    "es-ES": {
+        "general": (
+            "Claro, vamos a verlo.",
+            "De acuerdo, pongámonos con ello.",
+            "Vale, te ayudo con eso.",
+        ),
+        "lookup": (
+            "Claro, lo busco.",
+            "Vale, déjame comprobarlo.",
+            "Entendido, buscaré los detalles.",
+        ),
+        "reasoning": (
+            "Vale, déjame pensarlo un momento.",
+            "Claro, lo analizaré paso a paso.",
+            "Entendido, voy a examinarlo más de cerca.",
+        ),
+        "action": (
+            "Vale, me encargo.",
+            "Claro, me ocuparé de eso.",
+            "Entendido, empiezo ahora.",
+        ),
+    },
+    "fr-FR": {
+        "general": (
+            "Bien sûr, regardons ça.",
+            "D'accord, allons-y.",
+            "Très bien, je vais t'aider.",
+        ),
+        "lookup": (
+            "Bien sûr, je vais vérifier.",
+            "D'accord, je regarde.",
+            "Très bien, je vais trouver les détails.",
+        ),
+        "reasoning": (
+            "D'accord, laisse-moi réfléchir un instant.",
+            "Bien sûr, je vais procéder étape par étape.",
+            "Très bien, je vais regarder ça de plus près.",
+        ),
+        "action": (
+            "D'accord, je m'en occupe.",
+            "Bien sûr, je vais m'en charger.",
+            "Très bien, je commence.",
+        ),
+    },
 }
 
 
