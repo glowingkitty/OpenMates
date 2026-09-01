@@ -79,7 +79,7 @@ test.use({
 test.describe.serial('Assistant response speech', () => {
 	test.setTimeout(900_000);
 
-	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.autoplay-recovery-visible
+	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.autoplay-recovery-visible,message-input.actions.visibility,message-input.send.ownership
 	test('plays a real assistant response with synchronized controls', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('assistant-response-speech');
@@ -109,8 +109,22 @@ test.describe.serial('Assistant response speech', () => {
 
 		const messageField = page.getByTestId('message-field').last();
 		await messageField.click();
+		const attachmentMenu = messageField.getByTestId('composer-attachment-menu-button');
+		const modelSelector = messageField.getByTestId('composer-model-selector');
 		const voiceToggle = messageField.getByTestId('assistant-speech-toggle');
+		await expect(attachmentMenu).toBeVisible({ timeout: 15_000 });
+		await expect(modelSelector).toBeVisible({ timeout: 15_000 });
 		await expect(voiceToggle).toBeVisible({ timeout: 15_000 });
+		await expect(voiceToggle).toHaveAttribute('data-icon-only', 'true');
+		const [modelBox, voiceBox] = await Promise.all([modelSelector.boundingBox(), voiceToggle.boundingBox()]);
+		expect(modelBox, 'model selector should have layout geometry').toBeTruthy();
+		expect(voiceBox, 'speech control should have layout geometry').toBeTruthy();
+		expect(voiceBox!.x).toBeGreaterThanOrEqual(modelBox!.x + modelBox!.width);
+		expect(voiceBox!.x - (modelBox!.x + modelBox!.width)).toBeLessThanOrEqual(32);
+		const editor = messageField.getByTestId('message-editor');
+		await editor.fill('Composer control verification');
+		await expect(messageField.getByTestId('composer-send-button')).toBeVisible({ timeout: 10_000 });
+		await editor.fill('');
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'false');
 		await voiceToggle.click();
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true');
