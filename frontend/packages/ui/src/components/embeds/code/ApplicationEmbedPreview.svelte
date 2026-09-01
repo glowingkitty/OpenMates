@@ -138,6 +138,12 @@
     };
   }
 
+  function getHashChatId(): string | undefined {
+    if (typeof window === 'undefined') return undefined;
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    return new URLSearchParams(hash).get('chat-id') || undefined;
+  }
+
   function applyStatusResponse(response: ApplicationPreviewStatus) {
     latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
     latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
@@ -155,7 +161,7 @@
   }
 
   async function maybeAutoStartThumbnailCapture() {
-    const resolvedChatId = chatId || $activeChatStore || undefined;
+    const resolvedChatId = chatId || $activeChatStore || getHashChatId();
     if (
       autoStartRequested ||
       status !== 'finished' ||
