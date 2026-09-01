@@ -165,18 +165,13 @@ test.describe.serial('Assistant response speech', () => {
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
 		await expect(reloadedToggle).toHaveAccessibleName('Turn off speaking');
-		const requestWeatherSpeech = () => sendMessage(
+		await sendMessage(
 			page,
 			withRequiredLiveMock('Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.'),
 			log,
 			screenshot,
 			'assistant-speech-weather-source'
 		);
-		if (proof) {
-			await proof.action('request-weather-speech', requestWeatherSpeech);
-		} else {
-			await requestWeatherSpeech();
-		}
 		const streamingAssistant = page.getByTestId('message-assistant').last();
 		const processingWeather = streamingAssistant.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="processing"]');
 		await expect(streamingAssistant).toBeVisible({ timeout: 60_000 });
