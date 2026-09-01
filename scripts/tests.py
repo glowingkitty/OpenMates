@@ -3329,6 +3329,11 @@ def files_containing_tokens(tokens: set[str]) -> list[str]:
         return []
     matches: list[str] = []
     for rel_path, content in source_text_cache().items():
+        # Shared preview-shell test IDs occur across many independent specs.
+        # Peer specs are not product dependencies; explicit imports and the
+        # test-file index already capture intentional test-to-test coupling.
+        if rel_path.startswith("frontend/apps/web_app/tests/"):
+            continue
         for token in tokens:
             if token and token in content:
                 matches.append(rel_path)
