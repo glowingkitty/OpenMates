@@ -8,6 +8,7 @@
   import { onMount, tick } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import TaskBoard from './TaskBoard.svelte';
+  import TaskDetailFullscreen from './TaskDetailFullscreen.svelte';
   import WorkflowRunTaskDetail from './WorkflowRunTaskDetail.svelte';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
@@ -81,6 +82,7 @@
   let showDesktopTaskTags = $state(true);
   let showMobileTaskTags = $state(false);
   let selectedWorkflowRunProjection = $state<WorkflowRunTaskProjectionViewModel | null>(null);
+  let selectedTask = $state<UserTaskViewModel | null>(null);
   let taskBoardPanel: HTMLElement | null = $state(null);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
@@ -138,7 +140,9 @@
     if (isWorkflowRunTaskProjectionViewModel(task) && task.workflowRunId) {
       selectedWorkflowRunProjection = task;
       void revealTaskBoardPanel();
+      return;
     }
+    if (!isWorkflowRunTaskProjectionViewModel(task)) selectedTask = task;
   }
 
   function parseTaskStatus(request: string): UserTaskStatus | null {
@@ -866,6 +870,9 @@
       onSelect={handleSelectTask}
     />
   {/if}
+  {/if}
+  {#if selectedTask}
+    <TaskDetailFullscreen task={selectedTask} onClose={() => { selectedTask = null; }} />
   {/if}
 </section>
 {/if}

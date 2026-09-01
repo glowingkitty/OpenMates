@@ -24,10 +24,10 @@ test.describe('Task detail fullscreen component', () => {
 		await openTaskDetailPreview(page);
 
 		const detail = page.getByTestId('task-detail-content');
-		await expect(detail.getByTestId('task-detail-title')).toContainText('Design 3D model');
+		await expect(page.getByTestId('embed-header-title')).toContainText('Design 3D model');
 		await expect(detail.getByTestId('task-detail-description')).toContainText('fits 2-3 people');
-		await expect(detail.getByTestId('task-detail-status')).toContainText('To do');
-		await expect(detail.getByTestId('task-detail-priority')).toContainText('Urgent');
+		await expect(page.getByTestId('task-detail-status')).toContainText('To do');
+		await expect(page.getByTestId('task-detail-priority')).toContainText('Urgent');
 		await expect(detail.getByTestId('task-detail-assignee')).toContainText('OpenMates');
 		await expect(detail.getByTestId('task-detail-due')).toContainText('Oct 22, 2026');
 		await expect(detail.getByTestId('task-detail-projects')).toContainText('Research project');
@@ -37,7 +37,6 @@ test.describe('Task detail fullscreen component', () => {
 		await expect(detail.getByTestId('task-detail-chat')).toContainText('3D model planning');
 
 		const close = page.getByTestId('task-detail-minimize');
-		await close.focus();
 		await expect(close).toBeFocused();
 		await page.keyboard.press('Escape');
 		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
@@ -49,7 +48,7 @@ test.describe('Task detail fullscreen component', () => {
 		await openTaskDetailPreview(page);
 
 		const detail = page.getByTestId('task-detail-content');
-		await expect(detail.getByTestId('task-detail-title')).toBeVisible();
+		await expect(page.getByTestId('embed-header-title')).toBeVisible();
 		await detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded();
 		await expect(detail.getByTestId('task-detail-chat')).toBeVisible();
 		const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

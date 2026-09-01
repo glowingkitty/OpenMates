@@ -22832,7 +22832,7 @@ assertions:
       surface: rest_api
     - &id2590
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 139
+      line: 145
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     - &id2593
@@ -23399,12 +23399,12 @@ assertions:
     supporting_tests:
     - &id2640
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 47
+      line: 46
       name: keeps every detail section reachable on a phone viewport
       surface: gui.web
     - &id2642
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 139
+      line: 145
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     tests:
@@ -24158,7 +24158,7 @@ assertions:
       surface: cli
     - &id2743
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
-      line: 139
+      line: 145
       name: keeps task actions reachable on a mobile viewport
       surface: gui.web
     - &id2744

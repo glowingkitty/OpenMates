@@ -1,0 +1,235 @@
+<!--
+  TaskDetailContent.svelte
+  Shared read-only Task detail presentation used by the board fullscreen and
+  stable /tasks/:task_id route. It resolves linked encrypted workspace names
+  client-side while dependency status remains safe server-visible metadata.
+  Design reference: Figma Website node 5754:76027.
+-->
+
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { chatDB } from '../../services/db';
+  import { listProjects } from '../../services/projectService';
+  import {
+    listUserTaskDependencies,
+    listUserTasks,
+    type UserTaskDependencyViewModel,
+    type UserTaskViewModel,
+  } from '../../services/userTaskService';
+  import { listUserPlans } from '../../services/userPlanService';
+  import { userProfile } from '../../stores/userProfile';
+
+  interface TaskDetailRelatedData {
+    projects: Array<{ id: string; title: string; description: string }>;
+    plan: { id: string; title: string; description: string } | null;
+    chat: { id: string; title: string } | null;
+    dependencies: Array<UserTaskDependencyViewModel & { title: string }>;
+  }
+
+  let {
+    task,
+    related,
+    showTitle = true,
+  }: {
+    task: UserTaskViewModel;
+    related?: TaskDetailRelatedData;
+    showTitle?: boolean;
+  } = $props();
+
+  let resolvedRelated = $state<TaskDetailRelatedData>({ projects: [], plan: null, chat: null, dependencies: [] });
+  let relationLoadFailed = $state(false);
+  let creatorName = $derived($userProfile.username.trim() || 'You');
+
+  const priorityLabels = ['No priority', 'Low', 'Medium', 'High', 'Urgent'];
+
+  onMount(() => {
+    if (related) {
+      resolvedRelated = related;
+      return;
+    }
+    void loadRelatedData();
+  });
+
+  async function loadRelatedData(): Promise<void> {
+    try {
+      const dependencies = await listUserTaskDependencies(task.task_id);
+      const [projects, plans, tasks, chat] = await Promise.all([
+        task.linkedProjectIds.length > 0 ? listProjects() : Promise.resolve([]),
+        task.planId || dependencies.some((item) => item.targetKind === 'plan') ? listUserPlans() : Promise.resolve([]),
+        dependencies.some((item) => item.targetKind === 'task') ? listUserTasks() : Promise.resolve([]),
+        task.primaryChatId ? chatDB.getChat(task.primaryChatId) : Promise.resolve(null),
+      ]);
+      resolvedRelated = {
+        projects: task.linkedProjectIds.map((id) => {
+          const project = projects.find((candidate) => candidate.project_id === id);
+          return { id, title: project?.name || 'Connected project', description: project?.description || '' };
+        }),
+        plan: task.planId ? (() => {
+          const plan = plans.find((candidate) => candidate.plan_id === task.planId);
+          return { id: task.planId, title: plan?.title || 'Connected plan', description: plan?.goal || '' };
+        })() : null,
+        chat: task.primaryChatId ? { id: task.primaryChatId, title: chat?.title || 'Connected chat' } : null,
+        dependencies: dependencies.map((dependency) => {
+          const title = dependency.targetKind === 'task'
+            ? tasks.find((candidate) => candidate.task_id === dependency.targetId)?.title
+            : plans.find((candidate) => candidate.plan_id === dependency.targetId)?.title;
+          return { ...dependency, title: title || `${dependency.targetKind === 'task' ? 'Task' : 'Plan'} dependency` };
+        }),
+      };
+    } catch (error) {
+      relationLoadFailed = true;
+      console.error('[TaskDetailContent] Failed to load linked task context:', error);
+    }
+  }
+
+  function statusLabel(status: UserTaskViewModel['status']): string {
+    return status === 'todo' ? 'To do' : status.replace('_', ' ').replace(/^./, (value) => value.toUpperCase());
+  }
+
+  function priorityLabel(priority: number): string {
+    return priorityLabels[Math.max(0, Math.min(priorityLabels.length - 1, priority))];
+  }
+
+  function assigneeLabel(): string {
+    return task.assigneeType === 'ai' ? 'OpenMates' : creatorName;
+  }
+
+  function formatDate(timestamp: number): string {
+    return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(timestamp * 1000));
+  }
+
+  function createdLabel(): string {
+    const seconds = Math.max(0, Math.floor(Date.now() / 1000) - task.createdAt);
+    if (seconds < 60) return 'Created seconds ago';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `Created ${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+    return `Created ${formatDate(task.createdAt)}`;
+  }
+</script>
+
+<article class="task-detail-content" data-testid="task-detail-content">
+  {#if showTitle}
+    <header class="route-header">
+      <span class="task-icon" aria-hidden="true"></span>
+      <div>
+        <h1 data-testid="task-detail-title">{task.title || 'Untitled task'}</h1>
+        <p>{createdLabel()} by {creatorName}</p>
+      </div>
+      <div class="header-badges" aria-label="Task status and priority">
+        <span class="priority" data-testid="task-detail-priority">{priorityLabel(task.priority)}</span>
+        <span data-testid="task-detail-status">{statusLabel(task.status)}</span>
+      </div>
+    </header>
+  {/if}
+
+  <section class="detail-section wide" data-testid="task-detail-description">
+    <h2><span class="section-icon" aria-hidden="true"></span>Description</h2>
+    <p class:empty={!task.description}>{task.description || 'No description added.'}</p>
+  </section>
+
+  <div class="detail-grid">
+    <section class="detail-section" data-testid="task-detail-assignee">
+      <h2><span class="section-icon" aria-hidden="true"></span>Assigned to</h2>
+      <p class="identity">{assigneeLabel()}</p>
+    </section>
+
+    <section class="detail-section" data-testid="task-detail-due">
+      <h2><span class="section-icon" aria-hidden="true"></span>Due</h2>
+      <p class:empty={!task.dueAt}>{task.dueAt ? formatDate(task.dueAt) : 'No due date.'}</p>
+    </section>
+
+    <section class="detail-section" data-testid="task-detail-projects">
+      <h2><span class="section-icon" aria-hidden="true"></span>Connected project{resolvedRelated.projects.length === 1 ? '' : 's'}</h2>
+      {#if resolvedRelated.projects.length > 0}
+        <div class="linked-cards">
+          {#each resolvedRelated.projects as project (project.id)}
+            <a class="linked-card" href={`/projects/${encodeURIComponent(project.id)}`}>
+              <strong>{project.title}</strong>
+              {#if project.description}<span>{project.description}</span>{/if}
+            </a>
+          {/each}
+        </div>
+      {:else}<p class="empty">No connected project.</p>{/if}
+    </section>
+
+    <section class="detail-section" data-testid="task-detail-plan">
+      <h2><span class="section-icon" aria-hidden="true"></span>Connected plan</h2>
+      {#if resolvedRelated.plan}
+        <a class="linked-card" href={`/plans/${encodeURIComponent(resolvedRelated.plan.id)}`}>
+          <strong>{resolvedRelated.plan.title}</strong>
+          {#if resolvedRelated.plan.description}<span>{resolvedRelated.plan.description}</span>{/if}
+        </a>
+      {:else}<p class="empty">No connected plan.</p>{/if}
+    </section>
+
+    <section class="detail-section wide" data-testid="task-detail-dependencies">
+      <h2><span class="section-icon" aria-hidden="true"></span>Blockers and dependencies</h2>
+      {#if resolvedRelated.dependencies.length > 0}
+        <p>These plans and tasks must be completed before this task can start.</p>
+        <div class="dependency-list">
+          {#each resolvedRelated.dependencies as dependency (dependency.edgeId)}
+            <a href={`/${dependency.targetKind === 'task' ? 'tasks' : 'plans'}/${encodeURIComponent(dependency.targetId)}`}>
+              <strong>{dependency.title}</strong>
+              <span>{statusLabel(dependency.targetStatus as UserTaskViewModel['status'])}{dependency.satisfied ? ' - complete' : ' - blocking'}</span>
+            </a>
+          {/each}
+        </div>
+      {:else}<p class="empty">No blockers or dependencies.</p>{/if}
+    </section>
+
+    <section class="detail-section" data-testid="task-detail-tags">
+      <h2><span class="section-icon" aria-hidden="true"></span>Tags</h2>
+      {#if task.tags.length > 0}
+        <div class="tags">{#each task.tags as tag}<span>#{tag.replace(/^#/, '')}</span>{/each}</div>
+      {:else}<p class="empty">No tags.</p>{/if}
+    </section>
+
+    <section class="detail-section" data-testid="task-detail-chat">
+      <h2><span class="section-icon" aria-hidden="true"></span>Connected chat</h2>
+      {#if resolvedRelated.chat}
+        <a class="linked-card compact" href={`/#chat-id=${encodeURIComponent(resolvedRelated.chat.id)}`}><strong>{resolvedRelated.chat.title}</strong></a>
+      {:else}<p class="empty">No connected chat.</p>{/if}
+    </section>
+  </div>
+
+  {#if relationLoadFailed}<p class="relation-error" role="alert">Some connected task details could not be loaded.</p>{/if}
+</article>
+
+<style>
+  .task-detail-content { width: min(980px, calc(100% - 40px)); margin: 0 auto; padding: 40px 0 100px; color: var(--color-font-primary); }
+  .route-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-bottom: 28px; padding: 26px; border-radius: 24px; background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end))); color: var(--color-grey-0); }
+  .task-icon { width: 42px; height: 42px; background: currentColor; mask: var(--icon-url-task) center / contain no-repeat; }
+  h1, h2, p { margin: 0; }
+  h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); line-height: 1.15; }
+  .route-header p { margin-top: 8px; opacity: 0.8; }
+  .header-badges, .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .header-badges span, .tags span { padding: 6px 10px; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: 700; }
+  .header-badges span { background: color-mix(in srgb, var(--color-grey-0) 20%, transparent); }
+  .header-badges .priority { background: var(--color-error); color: var(--color-grey-0); }
+  .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 44px; }
+  .detail-section.wide { grid-column: 1 / -1; }
+  .detail-section > h2 { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 0 8px 9px; border-bottom: 4px solid var(--color-primary); font-size: 1rem; }
+  .detail-section > h2 .section-icon { width: 18px; height: 18px; border: 3px solid var(--color-primary); border-radius: 5px; box-sizing: border-box; }
+  .detail-section > p { padding: 0 8px; line-height: 1.55; white-space: pre-wrap; }
+  .detail-section .empty { color: var(--color-font-secondary); }
+  .identity { color: var(--color-primary); font-weight: 700; }
+  .linked-cards, .dependency-list { display: grid; gap: 12px; }
+  .linked-card, .dependency-list a { display: flex; flex-direction: column; gap: 7px; min-height: 88px; padding: 20px; border-radius: 22px; box-sizing: border-box; text-decoration: none; }
+  .linked-card { justify-content: center; background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end))); color: var(--color-grey-0); text-align: center; box-shadow: 0 7px 14px color-mix(in srgb, var(--color-grey-100) 14%, transparent); }
+  .linked-card span { font-size: var(--font-size-xs); line-height: 1.4; opacity: 0.88; }
+  .linked-card.compact { min-height: 72px; }
+  .dependency-list { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px; }
+  .dependency-list a { background: var(--color-grey-10); border: 1px solid var(--color-grey-25); color: var(--color-font-primary); }
+  .dependency-list span { color: var(--color-font-secondary); font-size: var(--font-size-xs); }
+  .tags { padding: 0 8px; }
+  .tags span { background: var(--color-primary); color: var(--color-font-button); }
+  .relation-error { margin-top: 28px; padding: 14px; border-radius: 12px; background: var(--color-error); color: var(--color-grey-0); }
+  @media (max-width: 700px) {
+    .task-detail-content { width: calc(100% - 32px); padding-top: 28px; }
+    .route-header { grid-template-columns: auto minmax(0, 1fr); padding: 20px; }
+    .header-badges { grid-column: 1 / -1; }
+    .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .detail-section.wide { grid-column: auto; }
+    .dependency-list { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>

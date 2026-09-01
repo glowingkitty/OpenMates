@@ -51,17 +51,15 @@
   data-testid="task-card"
   data-task-id={task.task_id}
 >
-  {#if workflowRun}
-    <button
-      type="button"
-      class="projection-select"
-      data-testid="workflow-run-projection"
-      data-workflow-run-id={workflowRun.workflowRunId}
-      data-status={workflowRun.status}
-      aria-label={`Open ${workflowRun.title} run detail`}
-      onclick={() => onSelect(workflowRun)}
-    ></button>
-  {/if}
+  <button
+    type="button"
+    class="card-select"
+    data-testid={workflowRun ? 'workflow-run-projection' : 'task-card-open'}
+    data-workflow-run-id={workflowRun?.workflowRunId}
+    data-status={workflowRun?.status}
+    aria-label={workflowRun ? `Open ${workflowRun.title} run detail` : `Open ${task.title || 'task'} details`}
+    onclick={() => onSelect(task)}
+  ></button>
   <div class="task-card-main">
     {#if !workflowRun}<label class="done-toggle" data-testid="task-done-toggle">
       <input
@@ -144,9 +142,10 @@
     color: var(--color-font-primary);
   }
 
-  .projection-select { position: absolute; z-index: 1; inset: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+  .card-select { position: absolute; z-index: 1; inset: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+  .card-select:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
   .task-card-main, .task-tags, .task-card-footer, .task-actions { position: relative; z-index: 2; pointer-events: none; }
-  .task-actions a, .task-actions button { pointer-events: auto; }
+  .done-toggle, .task-actions a, .task-actions button { pointer-events: auto; }
 
   .task-card-main {
     display: flex;

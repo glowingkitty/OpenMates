@@ -75,7 +75,7 @@ test.describe('Tasks web app parity', () => {
 		const openTarget = todoCard.getByTestId('task-card-open');
 		await openTarget.click();
 		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
-		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		await expect(page.getByTestId('embed-header-title')).toContainText(taskTitle);
 		await page.getByTestId('task-detail-minimize').click();
 		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
 
@@ -84,11 +84,17 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
 		await page.keyboard.press('Escape');
 		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
+		await openTarget.focus();
+		await page.keyboard.press('Space');
+		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await page.getByTestId('task-detail-minimize').click();
+		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
 
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/v1/user-tasks/reorder') && response.ok()),
 			todoCard.getByTestId('task-move-in_progress').click(),
 		]);
+		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0);
 		const inProgressCard = taskCardIn(page.getByTestId('task-column-in_progress'), taskTitle);
 		await expect(inProgressCard).toBeVisible({ timeout: 30_000 });
 

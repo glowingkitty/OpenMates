@@ -18,7 +18,7 @@ import { listProjects } from "./projectService";
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "ai" | "user";
-export type UserTaskKeyWrapperType = "master" | "chat" | "project";
+export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan";
 export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
 
 export interface UserTaskKeyWrapperRecord {
@@ -26,6 +26,7 @@ export interface UserTaskKeyWrapperRecord {
   encrypted_task_key: string;
   hashed_chat_id?: string | null;
   hashed_project_id?: string | null;
+  hashed_plan_id?: string | null;
   created_at: number;
   expires_at?: number | null;
 }
@@ -62,6 +63,7 @@ export interface EncryptedUserTaskRecord {
   linked_project_hashes?: string[] | null;
   encrypted_linked_project_ids?: string | null;
   parent_task_id?: string | null;
+  plan_id?: string | null;
   due_at?: number | null;
   priority?: number;
   position?: number;
@@ -107,11 +109,25 @@ export interface UserTaskViewModel {
   assigneeType: UserTaskAssigneeType;
   primaryChatId: string | null;
   linkedProjectIds: string[];
+  planId: string | null;
   dueAt: number | null;
   priority: number;
   position: number;
   version: number;
+  createdAt: number;
+  updatedAt: number;
+  blockedReasonCode: string | null;
+  aiExecutionState: string | null;
   encrypted: EncryptedUserTaskRecord;
+}
+
+export interface UserTaskDependencyViewModel {
+  edgeId: string;
+  targetRef: string;
+  targetKind: "plan" | "task";
+  targetId: string;
+  targetStatus: string;
+  satisfied: boolean;
 }
 
 export interface WorkflowRunTaskProjectionViewModel {
@@ -237,10 +253,15 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     assigneeType: record.assignee_type,
     primaryChatId: record.primary_chat_id ?? null,
     linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, taskKey),
+    planId: record.plan_id ?? null,
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
     position: record.position ?? 0,
     version: record.version,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+    blockedReasonCode: record.blocked_reason_code ?? null,
+    aiExecutionState: record.ai_execution_state ?? null,
     encrypted: record,
   };
 }
@@ -378,6 +399,27 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
 export async function listUserTaskKeyWrappers(taskId: string): Promise<UserTaskKeyWrapperRecord[]> {
   const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(`/v1/user-tasks/${taskId}/key-wrappers`);
   return data.key_wrappers;
+}
+
+export async function listUserTaskDependencies(taskId: string): Promise<UserTaskDependencyViewModel[]> {
+  const data = await requestJson<{
+    dependencies: Array<{
+      edge_id?: string | null;
+      target_ref: string;
+      target_kind: "plan" | "task";
+      target_id: string;
+      target_status?: string | null;
+      satisfied: boolean;
+    }>;
+  }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`);
+  return data.dependencies.map((dependency) => ({
+    edgeId: dependency.edge_id ?? dependency.target_ref,
+    targetRef: dependency.target_ref,
+    targetKind: dependency.target_kind,
+    targetId: dependency.target_id,
+    targetStatus: dependency.target_status ?? "unknown",
+    satisfied: dependency.satisfied,
+  }));
 }
 
 export async function addUserTaskKeyWrappers(taskId: string, version: number, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
