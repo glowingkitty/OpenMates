@@ -103,6 +103,7 @@ test.describe('Task detail fullscreen component', () => {
 			}
 		});
 		await proof.checkpoint('core-metadata');
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
 		await proof.action('show-linked-context', () => detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded());
 		await proof.assert('linked-context', async () => {
@@ -111,6 +112,7 @@ test.describe('Task detail fullscreen component', () => {
 			await expect(detail.getByTestId('task-detail-chat')).toBeVisible();
 		});
 		await proof.checkpoint('linked-context');
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
 		const close = page.getByTestId('task-detail-minimize');
 		await proof.action('return-to-fullscreen-controls', () => close.scrollIntoViewIfNeeded());
