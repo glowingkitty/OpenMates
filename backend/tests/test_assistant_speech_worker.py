@@ -263,6 +263,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     monkeypatch.setattr(segment_task, "store_generated_audio_asset", fake_store)
     monkeypatch.setattr(segment_task, "charge_audio_generation_credits", fake_charge)
     monkeypatch.setattr(segment_task, "ElevenLabsClient", Provider)
+    monkeypatch.setattr(segment_task, "resolve_assistant_voice_profile", lambda *_args, **_kwargs: Profile())
     monkeypatch.setattr("backend.apps.audio.skills.speak_skill.classify_audio_speech_safety", fake_safety)
 
     arguments = {"segment_id": "segment-3", "user_id": "owner-1", "chat_id": "chat-1", "assistant_message_id": "message-1", "source_hash": "hash", "speakable_text": "Hello.", "voice_profile_key": "warm_neutral", "voice_profile_version": 1}

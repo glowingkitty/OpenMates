@@ -351,7 +351,7 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
         raise AssertionError("ready speech replay must not require credit headroom")
 
     monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
-    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)))
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)), raising=False)
 
     await handle_assistant_speech_event(
         manager=Manager(),
@@ -466,7 +466,7 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
         return None
 
     monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
-    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)))
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)), raising=False)
 
     await handle_assistant_speech_event(
         manager=Manager(),
@@ -567,7 +567,7 @@ async def test_shared_message_deletion_tombstones_and_enqueues_speech_cleanup(mo
         async def delete_item(self, **_kwargs):
             return True
 
-    monkeypatch.setattr(app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)))
+    monkeypatch.setattr(app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)), raising=False)
 
     deleted = await ChatMethods(Directus()).delete_message_by_client_id("chat-1", "message-1")
 
