@@ -42,11 +42,17 @@ const {
 
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { captureTestThumbnail, defineTestThumbnail } = require('./helpers/test-thumbnail');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const AI_SETTINGS_THUMBNAIL = defineTestThumbnail({
+	id: 'ai-models-and-providers',
+	focus: [{ testId: 'model-item' }],
+	context: [{ testId: 'provider-item' }]
+});
 
 const AI_MEMORY_REMOVAL_PROOF = defineVideoProof({
 	id: 'ai-memory-removal',
@@ -154,6 +160,7 @@ test.describe('AI settings breadcrumb & detail pages', () => {
 			await expect(aiSettings.getByTestId('provider-item').first()).toBeVisible({ timeout: 5000 });
 		});
 		logCheckpoint('Removed AI Memories section is absent.');
+		await captureTestThumbnail(page, testInfo, AI_SETTINGS_THUMBNAIL);
 		await proof.checkpoint('ai-settings-visible');
 
 		// ── Step 3: Verify section order (models before providers) ────

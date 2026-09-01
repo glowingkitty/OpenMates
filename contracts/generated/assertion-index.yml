@@ -6742,7 +6742,7 @@ assertions:
     direct_tests:
     - &id765
       path: frontend/apps/web_app/tests/ai-settings-breadcrumb.spec.ts
-      line: 127
+      line: 133
       name: model and provider detail pages use banner shell and back returns to AI
         settings
       surface: gui.web
