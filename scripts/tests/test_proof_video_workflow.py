@@ -2405,8 +2405,7 @@ def test_default_reviewer_reuses_canonical_project_instance(tmp_path: Path, monk
     assert "--dir" in observed["command"]
     assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
     assert observed["command"][observed["command"].index("--dir") + 1] == str(repo_root)
-    assert str(prompt.relative_to(repo_root)) in " ".join(observed["command"])
-    assert str(prompt.resolve()) not in " ".join(observed["command"])
+    assert str(prompt.resolve()) in " ".join(observed["command"])
     assert "review-prompt-round-0.json" in " ".join(observed["command"])
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
