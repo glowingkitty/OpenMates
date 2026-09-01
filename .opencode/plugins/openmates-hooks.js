@@ -55,7 +55,6 @@ const PRESENCE_ABSENT_STATUS_GRACE_MS = 5_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
-const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
 const TEMPORARY_LOCK_WAIT_MARKER = "[OpenMates temporary lock continuation]";
@@ -1889,16 +1888,6 @@ function isCliAuthFailure(command, outputText) {
   return CLI_AUTH_ERROR_PATTERNS.some((pattern) => pattern.test(outputText));
 }
 
-function appendCliLoginHint(output) {
-  if (!output || typeof output.output !== "string" || output.output.includes(CLI_LOGIN_HINT_MARKER)) return;
-  output.output += `
-
-${CLI_LOGIN_HINT_MARKER}
-The OpenMates CLI session is missing or invalid. Do not ask the user for test-account credentials.
-Run this from the repo root to log the CLI into the dev test account automatically:
-  node scripts/openmates_cli_test_account.mjs login`;
-}
-
 function appendCommandDoctorHint(command, output) {
   if (!output || typeof output.output !== "string" || output.output.includes(COMMAND_DOCTOR_MARKER)) return;
   const text = output.output;
@@ -2821,6 +2810,144 @@ function workerServerRecoveryCommandIsAllowed(command) {
     && args[4] === "cms";
 }
 
+function invocationRunsOpenMatesCli(tokens, depth = 0) {
+  const invocation = normalizedInvocation(tokens.map(shellUnescape));
+  let { command, args } = invocation;
+  while (["command", "builtin"].includes(command) && args.length) {
+    command = basename(args[0]);
+    args = args.slice(1);
+  }
+  if (command === "exec" && args.length) {
+    return invocationRunsOpenMatesCli(args, depth);
+  }
+  if (command === "openmates") return true;
+  if (["npx", "bunx", "pnpm", "yarn"].includes(command) && args.some((arg) => basename(arg) === "openmates")) return true;
+  if (command === "node" && args.some((arg) => /(?:^|\/)openmates-cli\/(?:dist\/)?cli\.js$/.test(arg) || /(?:^|\/)dist\/cli\.js$/.test(arg))) return true;
+  if (depth < 2 && command === "eval" && args.length) {
+    return commandSegmentTokens(args.join(" ")).some((segment) => invocationRunsOpenMatesCli(segment, depth + 1));
+  }
+  if (depth < 2 && ["bash", "sh"].includes(command)) {
+    const evaluationIndex = args.findIndex((arg) => arg === "--command" || /^-[^-]*c/.test(arg));
+    if (evaluationIndex >= 0 && args[evaluationIndex + 1]) {
+      return commandSegmentTokens(args[evaluationIndex + 1]).some((segment) => invocationRunsOpenMatesCli(segment, depth + 1));
+    }
+  }
+  return false;
+}
+
+const PROTECTED_OPENMATES_ENVIRONMENT = new Set([
+  "OPENMATES_PROFILE",
+  "OPENMATES_ACCOUNT_GUARD",
+  "OPENMATES_API_URL",
+  "OPENMATES_STATE_DIR",
+]);
+
+function protectedOpenMatesAssignment(token) {
+  const match = String(token || "").match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\+?=|:=)/);
+  return Boolean(match && PROTECTED_OPENMATES_ENVIRONMENT.has(match[1]));
+}
+
+function mutatesProtectedOpenMatesEnvironment(tokens, depth = 0) {
+  const args = tokens.map(shellUnescape);
+  let index = 0;
+  while (index < args.length && (isAssignment(args[index]) || protectedOpenMatesAssignment(args[index]))) {
+    if (protectedOpenMatesAssignment(args[index])) return true;
+    index += 1;
+  }
+  if (index >= args.length) return false;
+
+  let command = basename(args[index]);
+  let commandArgs = args.slice(index + 1);
+  while (["command", "builtin"].includes(command) && commandArgs.length) {
+    command = basename(commandArgs[0]);
+    commandArgs = commandArgs.slice(1);
+  }
+  if (command === "exec") return mutatesProtectedOpenMatesEnvironment(commandArgs, depth);
+
+  if (["export", "readonly", "declare", "typeset"].includes(command)) {
+    if (command === "export" && commandArgs.includes("-n")) {
+      return commandArgs.some((arg) => PROTECTED_OPENMATES_ENVIRONMENT.has(arg));
+    }
+    return commandArgs.some(protectedOpenMatesAssignment);
+  }
+  if (command === "unset") {
+    return commandArgs.some((arg) => PROTECTED_OPENMATES_ENVIRONMENT.has(arg));
+  }
+  if (command === "env") {
+    let resetsEnvironment = false;
+    let envIndex = 0;
+    while (envIndex < commandArgs.length) {
+      const arg = commandArgs[envIndex];
+      if (arg === "--") {
+        envIndex += 1;
+        break;
+      }
+      if (protectedOpenMatesAssignment(arg)) return true;
+      if (arg === "-i" || arg === "--ignore-environment") {
+        resetsEnvironment = true;
+        envIndex += 1;
+        continue;
+      }
+      if (arg === "-u" || arg === "--unset") {
+        if (PROTECTED_OPENMATES_ENVIRONMENT.has(commandArgs[envIndex + 1])) return true;
+        envIndex += 2;
+        continue;
+      }
+      if (arg.startsWith("--unset=")) {
+        if (PROTECTED_OPENMATES_ENVIRONMENT.has(arg.slice("--unset=".length))) return true;
+        envIndex += 1;
+        continue;
+      }
+      if (["-C", "--chdir", "-S", "--split-string"].includes(arg)) {
+        envIndex += 2;
+        continue;
+      }
+      if (isAssignment(arg) || isOption(arg)) {
+        envIndex += 1;
+        continue;
+      }
+      break;
+    }
+    const nested = commandArgs.slice(envIndex);
+    if (resetsEnvironment && invocationRunsOpenMatesCli(nested, depth + 1)) return true;
+    return depth < 2 && nested.length
+      ? mutatesProtectedOpenMatesEnvironment(nested, depth + 1)
+      : false;
+  }
+  if (depth < 2 && command === "eval" && commandArgs.length) {
+    return commandSegmentTokens(commandArgs.join(" "))
+      .some((segment) => mutatesProtectedOpenMatesEnvironment(segment, depth + 1));
+  }
+  if (depth < 2 && ["bash", "sh"].includes(command)) {
+    const evaluationIndex = commandArgs.findIndex((arg) => arg === "--command" || /^-[^-]*c/.test(arg));
+    if (evaluationIndex >= 0 && commandArgs[evaluationIndex + 1]) {
+      return commandSegmentTokens(commandArgs[evaluationIndex + 1])
+        .some((segment) => mutatesProtectedOpenMatesEnvironment(segment, depth + 1));
+    }
+  }
+  return false;
+}
+
+function openMatesCliIsolationDecisionForTest(command = "") {
+  const text = String(command);
+  const segments = commandSegmentTokens(text.replace(/\\\s*\n/g, " "));
+  const protectedEnvironmentOverride = segments
+    .some((segment) => mutatesProtectedOpenMatesEnvironment(segment));
+  const invokesCli = segments.some((segment) => invocationRunsOpenMatesCli(segment));
+  if (!protectedEnvironmentOverride && !invokesCli) return { decision: "allow", message: "not an OpenMates CLI command" };
+  if (protectedEnvironmentOverride || (invokesCli && /(?:^|\s)--api-url(?:=|\s|$)/.test(text))) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates CLI isolation]",
+        "OpenCode CLI commands may not override or remove the trusted profile, account guard, state directory, or dev API endpoint.",
+        "run the openmates command directly without OPENMATES_* overrides, env resets, or --api-url.",
+      ),
+    };
+  }
+  return { decision: "allow", message: "trusted OpenMates CLI environment preserved" };
+}
+
 function workerSessionStateForTest({ sessionID = "", run = spawnSync } = {}) {
   if (!sessionID) return { active_worker: false };
   const result = run("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID], { cwd: PROJECT_ROOT, encoding: "utf8" });
@@ -3279,6 +3406,10 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       output.env ||= {};
       output.env.OPENCODE_SESSION_ID = route.topLevelOpenCodeSessionID || input.sessionID;
       if (route.worktreePath) output.env.OPENMATES_SESSION_WORKTREE = route.worktreePath;
+      output.env.OPENMATES_PROFILE = "opencode-personal";
+      output.env.OPENMATES_ACCOUNT_GUARD = "required";
+      output.env.OPENMATES_API_URL = "https://api.dev.openmates.org";
+      output.env.OPENMATES_STATE_DIR = "";
       for (const key of SECRET_ENV_KEYS) output.env[key] = "";
     },
     "tool.execute.before": async (input, output) => withHookDeadlineForTest(
@@ -3299,6 +3430,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(output?.args || input?.args);
+        const cliIsolation = openMatesCliIsolationDecisionForTest(command);
+        if (cliIsolation.decision === "block") throw new Error(cliIsolation.message);
         guardBash(command, input.sessionID);
         const longSleep = opaqueLongSleepDecisionForTest(command);
         if (longSleep.decision === "block") throw new Error(longSleep.message);
@@ -3436,7 +3569,9 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         const command = bashCommand(toolArgs(input, output));
         const mediaRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
         const mediaCwd = output?.args?.workdir || mediaRoute.worktreePath || instanceDirectory;
-        if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
+        if (isCliAuthFailure(command, output?.output || "")) {
+          output.output += "\n\n[OpenMates personal CLI login required]\nRun `openmates login` and approve the intended personal dev account.";
+        }
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
         appendTemporaryLockWaitHint(output);
@@ -3549,6 +3684,7 @@ OpenMatesHooks.test = Object.freeze({
   isReadOnlyChildBash,
   isTodoWriteTool,
   opaqueLongSleepDecisionForTest,
+  openMatesCliIsolationDecisionForTest,
   presenceIsLive,
   readConflictWarningForTest,
   repeatedRoutingFailureMessageForTest,

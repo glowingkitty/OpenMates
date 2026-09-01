@@ -68,6 +68,11 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
 import { parse as parseYaml } from "yaml";
 import WebSocket from "ws";
+import {
+  assertTrustedAccountId,
+  loadTrustedAccountId,
+  saveTrustedAccountId,
+} from "./storage.js";
 
 import {
   parseMentions,
@@ -228,12 +233,25 @@ type CliArgs = {
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   const [command, subcommand, ...rest] = parsed.positionals;
+  const accountGuardRequired = process.env.OPENMATES_ACCOUNT_GUARD === "required";
+  if (accountGuardRequired && parsed.flags.help !== true) {
+    assertTrustedAccountGuardEnvironment(parsed.flags);
+    assertTrustedAccountCommandAllowed(command);
+  }
   const client = OpenMatesClient.load({
     apiUrl:
       typeof parsed.flags["api-url"] === "string"
         ? parsed.flags["api-url"]
         : undefined,
   });
+
+  if (
+    accountGuardRequired
+    && parsed.flags.help !== true
+    && shouldRequireTrustedAccountGuard(command)
+  ) {
+    await enforceTrustedAccount(client);
+  }
 
   const redactor = new OutputRedactor();
   const piiDetectionEnabled = parsed.flags["no-pii-detection"] !== true;
@@ -439,6 +457,15 @@ async function main(): Promise<void> {
 
   if (command === "login") {
     await client.loginWithPairAuth();
+    if (accountGuardRequired) {
+      try {
+        const user = await client.whoAmI();
+        saveTrustedAccountId(accountIdFromWhoAmI(user));
+      } catch (error) {
+        await client.logout();
+        throw error;
+      }
+    }
     console.log("Login successful.");
     return;
   }
@@ -605,6 +632,64 @@ async function main(): Promise<void> {
   }
 
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+const TRUST_GUARD_EXEMPT_COMMANDS = new Set([
+  "login",
+  "logout",
+  "whoami",
+  "help",
+  "version",
+  "server",
+  "docs",
+  "support",
+  "update",
+  "upgrade",
+]);
+const TRUST_GUARD_BLOCKED_COMMANDS = new Set(["signup", "e2e"]);
+const TRUST_GUARD_PROFILE = "opencode-personal";
+const TRUST_GUARD_API_URL = "https://api.dev.openmates.org";
+
+export function shouldRequireTrustedAccountGuard(command: string | undefined): boolean {
+  return !command || !TRUST_GUARD_EXEMPT_COMMANDS.has(command);
+}
+
+export function assertTrustedAccountCommandAllowed(command: string | undefined): void {
+  if (command && TRUST_GUARD_BLOCKED_COMMANDS.has(command)) {
+    throw new Error(`The '${command}' command is disabled for the trusted OpenCode CLI profile.`);
+  }
+}
+
+export function assertTrustedAccountGuardEnvironment(
+  flags: Record<string, string | boolean>,
+  environment: NodeJS.ProcessEnv = process.env,
+): void {
+  if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
+    throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
+  }
+  if (environment.OPENMATES_STATE_DIR) {
+    throw new Error("Trusted OpenCode CLI commands cannot override OPENMATES_STATE_DIR.");
+  }
+  if (environment.OPENMATES_API_URL?.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
+    throw new Error(`Trusted OpenCode CLI commands require ${TRUST_GUARD_API_URL}.`);
+  }
+  const requestedApiUrl = flags["api-url"];
+  if (typeof requestedApiUrl === "string" && requestedApiUrl.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
+    throw new Error("Trusted OpenCode CLI commands cannot override the configured dev API URL.");
+  }
+}
+
+function accountIdFromWhoAmI(user: Record<string, unknown>): string {
+  const accountId = typeof user.id === "string" ? user.id.trim() : "";
+  if (!accountId) throw new Error("OpenMates account verification returned no account ID.");
+  return accountId;
+}
+
+async function enforceTrustedAccount(client: OpenMatesClient): Promise<void> {
+  const trustedAccountId = loadTrustedAccountId();
+  if (!trustedAccountId) assertTrustedAccountId(null, "");
+  const user = await client.whoAmI();
+  assertTrustedAccountId(trustedAccountId, accountIdFromWhoAmI(user));
 }
 
 function handleSupport(flags: Record<string, string | boolean>): void {

@@ -107,6 +107,13 @@ async function runBeforeShellWithExecutionArgs(command) {
   return { executionArgs, output };
 }
 
+async function runShellEnv(initialEnv = {}) {
+  const hooks = await pluginModule.OpenMatesHooks({ routingData: routedTestData, recordRouting: false });
+  const output = { env: { ...initialEnv } };
+  await hooks["shell.env"]({ sessionID: "test-session" }, output);
+  return output.env;
+}
+
 async function runAfterShell(command, text) {
   const hooks = await pluginModule.OpenMatesHooks({});
   const output = { args: { command }, output: text };
@@ -164,6 +171,74 @@ test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /Next:/);
   assert.match(source, /routedOpenCodeSessionID/);
   assert.match(source, /OPENMATES_SESSION_WORKTREE/);
+});
+
+test("OpenCode shells isolate personal OpenMates CLI credentials", async () => {
+  assert.match(source, /OPENMATES_PROFILE/);
+  assert.match(source, /opencode-personal/);
+  assert.match(source, /OPENMATES_ACCOUNT_GUARD/);
+  assert.match(source, /https:\/\/api\.dev\.openmates\.org/);
+  const environment = await runShellEnv({
+    OPENMATES_PROFILE: "test-account",
+    OPENMATES_ACCOUNT_GUARD: "off",
+    OPENMATES_API_URL: "https://api.openmates.org",
+    OPENMATES_STATE_DIR: "/tmp/test-account",
+  });
+  assert.equal(environment.OPENMATES_PROFILE, "opencode-personal");
+  assert.equal(environment.OPENMATES_ACCOUNT_GUARD, "required");
+  assert.equal(environment.OPENMATES_API_URL, "https://api.dev.openmates.org");
+  assert.equal(environment.OPENMATES_STATE_DIR, "");
+});
+
+test("OpenCode rejects CLI isolation overrides", () => {
+  const decide = pluginModule.OpenMatesHooks.test.openMatesCliIsolationDecisionForTest;
+  assert.equal(decide("openmates tasks list").decision, "allow");
+  for (const command of [
+    "env | rg OPENMATES_PROFILE",
+    "rg -n 'OPENMATES_STATE_DIR' .opencode frontend",
+    "printf '%s\\n' \"$OPENMATES_API_URL\"",
+    "echo OPENMATES_ACCOUNT_GUARD documentation",
+    "env -u UNRELATED_VARIABLE openmates tasks list",
+    "openmates tasks list --output json",
+    "echo openmates --api-url documentation",
+  ]) {
+    assert.equal(decide(command).decision, "allow", command);
+  }
+  for (const command of [
+    "OPENMATES_PROFILE=test openmates tasks list",
+    "env -u OPENMATES_ACCOUNT_GUARD openmates tasks list",
+    "env -i openmates tasks list",
+    "openmates tasks list --api-url https://api.openmates.org",
+    "node frontend/packages/openmates-cli/dist/cli.js tasks list --api-url https://api.openmates.org",
+    "OPENMATES_ACCOUNT_GUARD=off command openmates tasks list",
+    "OPENMATES_PROFILE=test npx --yes openmates tasks list",
+    "OPENMATES_API_URL=https://api.openmates.org node --enable-source-maps frontend/packages/openmates-cli/dist/cli.js tasks list",
+    "bash -c 'OPENMATES_PROFILE=test openmates tasks list'",
+    "bash -lc 'OPENMATES_PROFILE=test openmates tasks list'",
+    "env -i -C /tmp openmates tasks list",
+    "OPENMATES_ACCOUNT_GUARD=off exec openmates tasks list",
+    "eval 'OPENMATES_API_URL=https://api.openmates.org openmates tasks list'",
+    "OPENMATES_STATE_DIR=/tmp/test-account openmates tasks list",
+    "export OPENMATES_PROFILE=test; openmates tasks list",
+    "unset OPENMATES_ACCOUNT_GUARD; openmates tasks list",
+    "env --unset=OPENMATES_API_URL openmates tasks list",
+  ]) {
+    assert.equal(decide(command).decision, "block", command);
+  }
+});
+
+test("loaded hook rejects wrapped CLI isolation overrides", async () => {
+  for (const command of [
+    "OPENMATES_ACCOUNT_GUARD=off command openmates tasks list",
+    "OPENMATES_PROFILE=test npx --yes openmates tasks list",
+    "OPENMATES_API_URL=https://api.openmates.org node --enable-source-maps frontend/packages/openmates-cli/dist/cli.js tasks list",
+    "bash -c 'OPENMATES_PROFILE=test openmates tasks list'",
+    "OPENMATES_ACCOUNT_GUARD=off exec openmates tasks list",
+    "eval 'OPENMATES_API_URL=https://api.openmates.org openmates tasks list'",
+    "OPENMATES_STATE_DIR=/tmp/test-account openmates tasks list",
+  ]) {
+    await assert.rejects(runBeforeShellWithExecutionArgs(command), /OpenMates CLI isolation/, command);
+  }
 });
 
 test("loaded hook overwrites model-provided shell workdir", async () => {

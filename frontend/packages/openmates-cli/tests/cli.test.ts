@@ -30,7 +30,14 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
-import { buildTravelConnectionsRequest, requireExactConfirmation, resolveProjectContext } from "../dist/cli.js";
+import {
+  buildTravelConnectionsRequest,
+  requireExactConfirmation,
+  resolveProjectContext,
+  shouldRequireTrustedAccountGuard,
+  assertTrustedAccountCommandAllowed,
+  assertTrustedAccountGuardEnvironment,
+} from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -71,6 +78,39 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
     rmSync(tempHome, { recursive: true, force: true });
   }
 }
+
+describe("account-guard command policy", () => {
+  it("guards authenticated commands while preserving recovery and maintenance commands", () => {
+    assert.strictEqual(shouldRequireTrustedAccountGuard("tasks"), true);
+    assert.strictEqual(shouldRequireTrustedAccountGuard(undefined), true);
+    for (const command of ["login", "logout", "whoami", "help", "version", "server", "docs", "support", "update", "upgrade"]) {
+      assert.strictEqual(shouldRequireTrustedAccountGuard(command), false, command);
+    }
+    for (const command of ["signup", "e2e"]) {
+      assert.throws(() => assertTrustedAccountCommandAllowed(command), /disabled/i);
+    }
+  });
+
+  it("pins the trusted profile and dev API", () => {
+    const environment = {
+      OPENMATES_PROFILE: "opencode-personal",
+      OPENMATES_API_URL: "https://api.dev.openmates.org",
+    };
+    assert.doesNotThrow(() => assertTrustedAccountGuardEnvironment({}, environment));
+    assert.throws(
+      () => assertTrustedAccountGuardEnvironment({}, { ...environment, OPENMATES_PROFILE: "test" }),
+      /OPENMATES_PROFILE/,
+    );
+    assert.throws(
+      () => assertTrustedAccountGuardEnvironment({ "api-url": "https://api.openmates.org" }, environment),
+      /override/i,
+    );
+    assert.throws(
+      () => assertTrustedAccountGuardEnvironment({}, { ...environment, OPENMATES_STATE_DIR: "/tmp/test-account" }),
+      /OPENMATES_STATE_DIR/,
+    );
+  });
+});
 
 async function withUpdateRequiredMock<T>(
   run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
