@@ -321,17 +321,6 @@ test('session revoke: revoking session B from session A does not log out session
 		await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
 		logB('Session B: active draft chat header visible before forced logout.');
 		await screenshotB(pageB, '02b-session-b-active-draft-header');
-		const proofWindowStartedAtMs = Date.now() - proofRecordingStartedAt;
-		const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
-			device: PROOF_DEVICE,
-			attach: testInfo.attach.bind(testInfo),
-			captureFrame: () => pageB.screenshot({ type: 'png' })
-		});
-		await proof.checkpoint('session-b-draft-header');
-		await proof.assert('session-revoke.session-b-draft-header', async () => {
-			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 5000 });
-			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 5000 });
-		});
 
 		logA(`Both sessions logged in. Waiting ${Math.ceil(SESSION_STABILIZE_MS / 1000)}s for WebSocket connections to stabilise…`);
 		await pageA.waitForTimeout(SESSION_STABILIZE_MS);
@@ -357,6 +346,17 @@ test('session revoke: revoking session B from session A does not log out session
 		const revokeBtn = nonCurrentCard.locator('[data-testid="session-revoke-btn"]');
 		await expect(revokeBtn).toBeVisible({ timeout: 5000 });
 		await screenshotA(pageA, '05-before-revoke-a');
+		const proofWindowStartedAtMs = Date.now() - proofRecordingStartedAt;
+		const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
+			device: PROOF_DEVICE,
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => pageB.screenshot({ type: 'png' })
+		});
+		await proof.checkpoint('session-b-draft-header');
+		await proof.assert('session-revoke.session-b-draft-header', async () => {
+			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 5000 });
+			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 5000 });
+		});
 
 		// The button triggers a confirm() dialog — handle it
 		pageA.once('dialog', async (dialog: any) => {
