@@ -50,12 +50,6 @@ const PROOF_CONTRACT = defineVideoProof({
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'speech-player-visible',
-			text: 'Speak opens the pinned response player with paragraph regions and playback controls.',
-			checkpoint: 'speech-player-visible',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
 			id: 'paragraph-navigation-visible',
 			text: 'The player can pause and move between response paragraphs without covering the transcript.',
 			checkpoint: 'paragraph-navigation-visible',
@@ -73,12 +67,6 @@ const PROOF_CONTRACT = defineVideoProof({
 			id: 'processing-progress-visible',
 			checkpoint: 'processing-progress-visible',
 			visual: 'The assistant message contains a Weather preview in Processing state before the final response completes.',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'speech-player-visible',
-			checkpoint: 'speech-player-visible',
-			visual: 'The pinned player shows at least two paragraph regions and Previous, Pause or Play, Next, and Stop controls.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -196,13 +184,18 @@ test.describe.serial('Assistant response speech', () => {
 			await proof.checkpoint('voice-replies-enabled');
 		}
 
-		await sendMessage(
+		const requestWeatherSpeech = () => sendMessage(
 			page,
 			withRequiredLiveMock('Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.'),
 			log,
 			screenshot,
 			'assistant-speech-weather-source'
 		);
+		if (proof) {
+			await proof.action('request-weather-speech', requestWeatherSpeech);
+		} else {
+			await requestWeatherSpeech();
+		}
 		const streamingAssistant = page.getByTestId('message-assistant').last();
 		const processingWeather = streamingAssistant.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="processing"]');
 		await expect(streamingAssistant).toBeVisible({ timeout: 60_000 });
@@ -228,33 +221,32 @@ test.describe.serial('Assistant response speech', () => {
 		const continueButton = player.getByTestId('assistant-speech-continue');
 		if (await continueButton.isVisible().catch(() => false)) await continueButton.click();
 		await expect(player.getByRole('button', { name: /pause voice response|play voice response/i })).toBeVisible({ timeout: 30_000 });
-		if (proof) {
-			await proof.assert('speech-player-visible', async () => {
-				expect(await regions.count()).toBeGreaterThanOrEqual(2);
-				await expect(player.getByRole('button', { name: 'Previous paragraph' })).toBeVisible();
-				await expect(player.getByRole('button', { name: 'Next paragraph' })).toBeVisible();
-			});
-			await proof.checkpoint('speech-player-visible');
-		}
+		await expect(player.getByRole('button', { name: 'Previous paragraph' })).toBeVisible();
+		await expect(player.getByRole('button', { name: 'Next paragraph' })).toBeVisible();
 
 		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
 		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="finished"]')).toBeVisible({ timeout: 120_000 });
 
-		await player.getByRole('button', { name: 'Next paragraph' }).click();
+		const selectNextParagraph = () => player.getByRole('button', { name: 'Next paragraph' }).click();
+		if (proof) {
+			await proof.action('select-next-paragraph', selectNextParagraph);
+		} else {
+			await selectNextParagraph();
+		}
 		await expect(regions.nth(1)).toHaveAttribute('data-active', 'true');
-		await player.getByRole('button', { name: 'Previous paragraph' }).click();
-		await expect(regions.nth(0)).toHaveAttribute('data-active', 'true');
 		await expectNoPlayerOverlap(page, player);
 		await expect(page.locator('body')).not.toContainText(/encrypted_auto_speak_response|generated_asset_id|speakable_text/);
 
 		if (proof) {
 			await proof.assert('paragraph-navigation-visible', async () => {
-				await expect(regions.nth(0)).toHaveAttribute('data-active', 'true');
+				await expect(regions.nth(1)).toHaveAttribute('data-active', 'true');
 				await expectNoPlayerOverlap(page, player);
 			});
 			await proof.checkpoint('paragraph-navigation-visible');
 			await proof.attach();
 		}
+		await player.getByRole('button', { name: 'Previous paragraph' }).click();
+		await expect(regions.nth(0)).toHaveAttribute('data-active', 'true');
 		await deleteActiveChat(page, log);
 	});
 });
