@@ -8120,9 +8120,51 @@ def session_for_opencode(data: dict, opencode_session_id: str, *, repo_id: str =
     return matches[0] if matches else None
 
 
-def opencode_session_reusable_for_start(session: dict) -> bool:
-    """Return whether `sessions.py start` may keep using this chat binding."""
-    return True
+def opencode_session_reusable_for_start(session: dict, task: str | None = None) -> bool:
+    """Return whether `sessions.py start` may keep using this chat binding.
+
+    A restart or same-task continuation must retain its existing worktree. Once
+    work from a different task has been integrated or durably checkpointed,
+    however, reusing that worktree mixes historical residue into the new task.
+    """
+    incoming_task = str(task or "").strip()
+    current_task = str(session.get("task") or "").strip()
+    if not incoming_task or not current_task or incoming_task == current_task:
+        return True
+
+    worktree = session.get("worktree") or {}
+    integration = worktree.get("integration") or {}
+    auto_integration = session.get("auto_integration") or {}
+    work_is_preserved = (
+        integration.get("status") == "merged"
+        or bool(session.get("merged_commit"))
+        or bool(auto_integration.get("checkpoint_ref"))
+    )
+    return not work_is_preserved
+
+
+def rotate_opencode_session_binding(
+    data: dict,
+    session_id: str,
+    opencode_session_id: str,
+    *,
+    now: str | None = None,
+) -> None:
+    """Retire one preserved repo-session binding before creating its successor."""
+    session = data.get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        raise RuntimeError(f"Cannot rotate unknown repository session {session_id}")
+    if opencode_session_id not in {
+        session.get("opencode_session_id"),
+        session.get("opencode_top_level_session_id"),
+    }:
+        raise RuntimeError(
+            f"Repository session {session_id} is no longer bound to {opencode_session_id}"
+        )
+    session["opencode_session_id"] = None
+    session["opencode_top_level_session_id"] = None
+    session["rotated_opencode_session_id"] = opencode_session_id
+    session["rotated_at"] = now or _now_iso()
 
 
 def refresh_existing_session_for_start(
@@ -8348,12 +8390,15 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
+    replace_session_id: str | None = None,
 ) -> tuple[str, list[str], list[str], dict, bool]:
     """Atomically register one repo session and its authoritative OpenCode chat."""
     def register(data: dict) -> tuple[str, list[str], list[str], dict, bool]:
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
         _prune_checkpoint_lock_files(data)
+        if opencode_session_id and replace_session_id:
+            rotate_opencode_session_binding(data, replace_session_id, opencode_session_id)
         if opencode_session_id:
             existing = session_for_opencode(
                 data,
@@ -8449,7 +8494,9 @@ def cmd_start(args: argparse.Namespace) -> None:
         opencode_session_id,
         repo_id=repo["repo_id"],
     ) if opencode_session_id else None
-    if existing and not opencode_session_reusable_for_start(existing[1]):
+    replace_session_id: str | None = None
+    if existing and not opencode_session_reusable_for_start(existing[1], args.task):
+        replace_session_id = existing[0]
         existing = None
     if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
         existing = None
@@ -8496,6 +8543,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         sid, pruned, cleared_locks, data, registered_new = register_session_record(
             session_record,
             opencode_session_id,
+            replace_session_id,
         )
         is_new_session = registered_new
     worktree_metadata: dict | None = None

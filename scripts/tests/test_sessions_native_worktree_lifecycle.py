@@ -387,12 +387,55 @@ def test_start_refresh_does_not_steal_newer_opencode_binding() -> None:
     assert data["sessions"]["current"]["opencode_session_id"] == "ses_parent"
 
 
-def test_merged_opencode_session_is_reused_for_start() -> None:
+def test_opencode_session_reuse_keeps_resumes_but_rotates_new_preserved_tasks() -> None:
     sessions = load_sessions_module()
 
-    assert sessions.opencode_session_reusable_for_start({"worktree": {"status": "merged"}})
+    merged = {
+        "task": "old task",
+        "worktree": {"status": "active", "integration": {"status": "merged"}},
+    }
+    checkpointed = {
+        "task": "old task",
+        "worktree": {"status": "active"},
+        "auto_integration": {"checkpoint_ref": "refs/openmates/checkpoints/abcd"},
+    }
+
+    assert sessions.opencode_session_reusable_for_start(merged, "old task")
+    assert not sessions.opencode_session_reusable_for_start(merged, "new task")
+    assert not sessions.opencode_session_reusable_for_start(checkpointed, "new task")
     assert sessions.opencode_session_reusable_for_start({"worktree": {"status": "active"}})
     assert sessions.opencode_session_reusable_for_start({})
+
+
+def test_register_session_rotates_preserved_chat_binding_atomically(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = {
+        "sessions": {
+            "old1": {
+                "task": "old task",
+                "opencode_session_id": "ses_parent",
+                "opencode_top_level_session_id": "ses_parent",
+            }
+        }
+    }
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_prune_stale", lambda _data: [])
+    monkeypatch.setattr(sessions, "_prune_stale_locks", lambda _data: [])
+    monkeypatch.setattr(sessions, "_prune_checkpoint_lock_files", lambda _data: None)
+    monkeypatch.setattr(sessions.secrets, "token_hex", lambda _size: "new1")
+
+    session_id, _pruned, _locks, _updated, created = sessions.register_session_record(
+        {"task": "new task", "opencode_session_id": None},
+        "ses_parent",
+        "old1",
+    )
+
+    assert created is True
+    assert session_id == "new1"
+    assert data["sessions"]["old1"]["opencode_session_id"] is None
+    assert data["sessions"]["old1"]["opencode_top_level_session_id"] is None
+    assert data["sessions"]["old1"]["rotated_opencode_session_id"] == "ses_parent"
+    assert data["sessions"]["new1"]["opencode_session_id"] == "ses_parent"
 
 
 def test_stale_resource_waits_are_pruned(monkeypatch) -> None:
