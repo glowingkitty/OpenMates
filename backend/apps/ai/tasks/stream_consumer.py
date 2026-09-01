@@ -154,6 +154,14 @@ async def _dispatch_automatic_assistant_speech_segment(
     )
     if not auto_speak or str(segment["segment_id"]) not in set(manifest["dispatch_segment_ids"]):
         return
+    from backend.shared.testing.mock_context import get_mock_group, is_mock_active, is_record_mode
+
+    live_mock_context: dict[str, str] = {}
+    if is_mock_active():
+        live_mock_context = {
+            "live_mock_mode": "record" if is_record_mode() else "mock",
+            "live_mock_group": get_mock_group(),
+        }
     celery_config.app.send_task(
         "apps.audio.tasks.assistant_speech_segment",
         kwargs={
@@ -163,6 +171,7 @@ async def _dispatch_automatic_assistant_speech_segment(
                 "user_vault_key_id": user_vault_key_id,
                 "voice_profile_key": voice_profile["key"],
                 "voice_profile_version": voice_profile["version"],
+                **live_mock_context,
             },
         },
         queue="app_music",

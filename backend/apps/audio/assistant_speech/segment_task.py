@@ -13,6 +13,7 @@ import logging
 import uuid
 from typing import Any
 
+from backend.apps.audio.assistant_speech.live_mock import assistant_speech_live_mock_audio
 from backend.apps.audio.assistant_speech.persistence import (
     claim_speech_segment_execution,
     cleanup_generated_speech_asset,
@@ -86,6 +87,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             str(arguments.get("voice_profile_key") or ""),
             version=int(arguments.get("voice_profile_version") or 0),
         )
+        live_mock_audio = assistant_speech_live_mock_audio(arguments)
 
         async def ensure_active() -> None:
             current = await get_speech_segment(task._directus_service, segment_id)
@@ -93,6 +95,8 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
                 raise SpeechExecutionInProgress
 
         async def safety_check(*, text: str) -> dict[str, object]:
+            if live_mock_audio is not None:
+                return {"approved": True, "safe_error": ""}
             # Resolve the optional safeguard SDK only when a worker executes a segment.
             from backend.apps.audio.skills.speak_skill import classify_audio_speech_safety
 
@@ -107,6 +111,12 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
 
         async def provider_generate(*, text: str, voice_profile: dict[str, object]) -> dict[str, object]:
             await ensure_active()
+            if live_mock_audio is not None:
+                return {
+                    "audio_bytes": live_mock_audio.read_bytes(),
+                    "duration_seconds": estimate_speech_duration_seconds(text),
+                    "mime_type": "audio/mpeg",
+                }
             request = profile.elevenlabs_request()
             generated = await ElevenLabsClient(secrets_manager=task._secrets_manager).text_to_speech(
                 text=text,
@@ -149,6 +159,8 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
 
         async def charge_usage(*, idempotency_key: str, duration_seconds: float) -> dict[str, str]:
             await ensure_active()
+            if live_mock_audio is not None:
+                return {"usage_id": f"live-mock:{idempotency_key}"}
             credits = calculate_speech_credits(model=profile.model, duration_seconds=duration_seconds)
             await charge_audio_generation_credits(
                 user_id=user_id,
@@ -182,12 +194,13 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             await ensure_active()
             result = {"segment_id": segment_id, "status": "ready", "generated_asset_id": pending_generated_asset_id, "duration_seconds": float(pending_duration)}
         else:
-            await ensure_audio_credit_headroom(
-                user_id=user_id,
-                estimated_credits=calculate_speech_credits(model=profile.model, duration_seconds=estimate_speech_duration_seconds(text)),
-                operation_name="assistant response speech",
-                log_prefix=log_prefix,
-            )
+            if live_mock_audio is None:
+                await ensure_audio_credit_headroom(
+                    user_id=user_id,
+                    estimated_credits=calculate_speech_credits(model=profile.model, duration_seconds=estimate_speech_duration_seconds(text)),
+                    operation_name="assistant response speech",
+                    log_prefix=log_prefix,
+                )
             result = await generate_speech_segment(
                 segment={
                     "segment_id": segment_id,

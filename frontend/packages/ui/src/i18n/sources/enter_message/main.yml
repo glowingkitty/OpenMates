@@ -264,7 +264,7 @@ send:
   verified_by_human: []
 speech_on:
   context: Brief status label and accessible name when automatic assistant speech is enabled for the chat
-  en: Speech on
+  en: Speech turned on
   de: Sprachausgabe an
   zh: 语音已开启
   es: Voz activada
@@ -288,7 +288,7 @@ speech_on:
   verified_by_human: []
 speech_off:
   context: Brief status label and accessible name when automatic assistant speech is disabled for the chat
-  en: Speech off
+  en: Speech turned off
   de: Sprachausgabe aus
   zh: 语音已关闭
   es: Voz desactivada
@@ -309,6 +309,54 @@ speech_off:
   cs: Hlas vypnutý
   sv: Tal av
   he: הקראה כבויה
+  verified_by_human: []
+speech_enable:
+  context: Accessible button label and hover tooltip when assistant response speech is off
+  en: Speak responses
+  de: Sprachantworten aktivieren
+  zh: 开启回复朗读
+  es: Leer respuestas
+  fr: Lire les réponses
+  pt: Ler respostas
+  ru: Озвучивать ответы
+  ja: 回答を読み上げる
+  ko: 응답 읽기
+  it: Leggi le risposte
+  tr: Yanıtları seslendir
+  vi: Đọc câu trả lời
+  id: Bacakan respons
+  pl: Czytaj odpowiedzi
+  nl: Antwoorden voorlezen
+  ar: قراءة الردود
+  hi: जवाब पढ़ें
+  th: อ่านคำตอบ
+  cs: Číst odpovědi
+  sv: Läs upp svar
+  he: הקראת תשובות
+  verified_by_human: []
+speech_disable:
+  context: Accessible button label and hover tooltip when assistant response speech is on
+  en: Turn off speaking
+  de: Sprachausgabe ausschalten
+  zh: 关闭回复朗读
+  es: Desactivar lectura
+  fr: Désactiver la lecture
+  pt: Desativar leitura
+  ru: Выключить озвучивание
+  ja: 読み上げをオフにする
+  ko: 음성 읽기 끄기
+  it: Disattiva lettura
+  tr: Seslendirmeyi kapat
+  vi: Tắt đọc câu trả lời
+  id: Matikan pembacaan
+  pl: Wyłącz czytanie
+  nl: Voorlezen uitschakelen
+  ar: إيقاف القراءة
+  hi: बोलना बंद करें
+  th: ปิดการอ่าน
+  cs: Vypnout čtení
+  sv: Stäng av uppläsning
+  he: כיבוי הקראה
   verified_by_human: []
 buy_credits:
   context: Button text shown instead of Send when a signed-in user has zero credits

@@ -326,6 +326,9 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
 
             return connected_client()
 
+        async def get_user_vault_key_id(self, _user_id):
+            return "vault-key-1"
+
     class Chat:
         async def check_chat_ownership(self, chat_id, user_id):
             assert (chat_id, user_id) == ("chat-1", "owner-1")
@@ -343,7 +346,7 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
             return []
 
     async def credit_headroom(**_kwargs):
-        return None
+        raise AssertionError("ready speech replay must not require credit headroom")
 
     monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
     monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)))
@@ -433,6 +436,9 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
 
             return connected_client()
 
+        async def get_user_vault_key_id(self, _user_id):
+            return "vault-key-1"
+
     class Chat:
         async def check_chat_ownership(self, chat_id, user_id):
             assert (chat_id, user_id) == ("chat-1", "owner-1")
@@ -491,6 +497,7 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
                     "voice_profile_key": "warm_neutral",
                     "voice_profile_version": 1,
                     "user_id": "owner-1",
+                    "user_vault_key_id": "vault-key-1",
                     "chat_id": "chat-1",
                     "assistant_message_id": "message-1",
                 }

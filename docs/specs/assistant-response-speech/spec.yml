@@ -330,6 +330,11 @@ decisions:
     decision: Use Eleven v3 for assistant-response speech while leaving the explicit audio.speak app skill on Eleven Multilingual v2.
     reason: Eleven v3 has the same published per-character price as Multilingual v2, supports more languages, and better fits expressive paragraph narration; compare v3 Conversational only after the full assistant-response speech specification is complete.
     decided_at: "2026-08-31T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Daily deployed web verification replays a recorded realistic AI and app-skill chat and uses committed acknowledgement MP3 bytes for generated speech segments only inside the exact live-mock request context.
+    reason: The full inference, skill, encrypted asset, WebSocket, and playback pipeline must remain regression-tested without recurring LLM, app-provider, or ElevenLabs cost; production and unmarked requests must remain on the normal provider and billing path.
+    decided_at: "2026-09-01T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -695,6 +700,7 @@ tests:
       - Each segment dispatches once, stores one encrypted object, and creates one idempotent successful usage row.
       - Cache/replay, cancellation, retry, insufficient credit, safety, provider, storage, invalidation, and deletion paths preserve exact segment semantics.
       - No combined message audio object or durable segment plaintext is written.
+      - Binary audio replay is enabled only for the exact marked non-production live-mock group; production, unmarked, and unrelated test groups cannot bypass provider or billing behavior.
     contract_assertions: [assistant-speech.segmentation.one-file-per-segment, assistant-speech.segmentation.immutable-source, assistant-speech.safety.provider-after-approval, assistant-speech.privacy.transient-plaintext-encrypted-audio, assistant-speech.billing.segment-success-once, assistant-speech.failure.nonblocking-visible-resumable, assistant-speech.lifecycle.disable-delete-invalidate]
     red_phase:
       required: true
@@ -769,6 +775,8 @@ tests:
       - A real response produces progressive paragraph playback with Speak, pause, previous, next, replay, and autoplay recovery states.
       - The active-chat top bar renders the full waveform, highlights the current paragraph, expands during streaming, and does not cover transcript content on phone or laptop.
       - Reload and another owner client reuse synchronized preference and encrypted ready files without another provider charge.
+      - The daily flow replays a recorded realistic AI and weather app-skill exchange and committed binary audio through the normal encrypted asset path with no paid external calls.
+      - The muted Speak responses control fades to the speaking icon with Speech turned on, fades back through Turn off speaking with Speech turned off, and recording completion performs the same on transition.
     contract_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.autoplay-recovery-visible]
     red_phase: {required: true, expected: fail, evidence: {}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {}}

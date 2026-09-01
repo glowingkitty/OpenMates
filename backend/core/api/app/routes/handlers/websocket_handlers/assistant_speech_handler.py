@@ -65,7 +65,12 @@ async def handle_assistant_speech_request(
         return _error("rate_limited")
     for segment in segments:
         if not isinstance(segment, Mapping) or not await _resolve(
-            budget_preflight(user_id=user_id, chat_id=chat_id, segment=segment),
+            budget_preflight(
+                user_id=user_id,
+                chat_id=chat_id,
+                assistant_message_id=assistant_message_id,
+                segment=segment,
+            ),
         ):
             return _error("insufficient_budget")
 
@@ -176,6 +181,38 @@ async def handle_assistant_speech_event(
             await client.expire(key, 60)
         return count <= MAX_SEGMENTS_PER_REQUEST
 
+    async def find_canonical_segment(
+        segment: Mapping[str, object],
+        *,
+        chat_id: object,
+        assistant_message_id: object,
+    ) -> Mapping[str, object] | None:
+        text = str(segment.get("speakable_text") or "").strip()
+        source_hash = _speech_source_identity(text)
+        rows = await directus_service.get_items(
+            "assistant_speech_segments",
+            params={
+                "filter[user_id][_eq]": user_id,
+                "filter[chat_id][_eq]": chat_id,
+                "filter[assistant_message_id][_eq]": assistant_message_id,
+                "filter[source_version][_eq]": segment["source_version"],
+                "filter[sequence][_eq]": segment["sequence"],
+                "filter[kind][_eq]": segment["kind"],
+                "filter[source_hash][_eq]": source_hash,
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        return rows[0] if rows else None
+
+    async def get_user_vault_key_id() -> str | None:
+        vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+        if vault_key_id:
+            return str(vault_key_id)
+        user_profile = await directus_service.user.get_user_profile(user_id)
+        fallback = user_profile.get("vault_key_id") if user_profile else None
+        return str(fallback) if fallback else None
+
     async def budget_preflight(**kwargs: object) -> bool:
         segment = kwargs["segment"]
         if not isinstance(segment, Mapping):
@@ -183,6 +220,13 @@ async def handle_assistant_speech_event(
         text = str(segment.get("speakable_text") or "")
         if not text:
             return False
+        existing = await find_canonical_segment(
+            segment,
+            chat_id=kwargs["chat_id"],
+            assistant_message_id=kwargs["assistant_message_id"],
+        )
+        if existing and str(existing.get("status") or "") in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES:
+            return True
         try:
             await ensure_audio_credit_headroom(
                 user_id=user_id,
@@ -211,23 +255,13 @@ async def handle_assistant_speech_event(
                 continue
             text = str(segment.get("speakable_text") or "").strip()
             source_hash = _speech_source_identity(text)
-            rows = await directus_service.get_items(
-                "assistant_speech_segments",
-                params={
-                    "filter[user_id][_eq]": user_id,
-                    "filter[chat_id][_eq]": kwargs["chat_id"],
-                    "filter[assistant_message_id][_eq]": kwargs["assistant_message_id"],
-                    "filter[source_version][_eq]": segment["source_version"],
-                    "filter[sequence][_eq]": segment["sequence"],
-                    "filter[kind][_eq]": segment["kind"],
-                    "filter[source_hash][_eq]": source_hash,
-                    "limit": 1,
-                },
-                no_cache=True,
+            row = await find_canonical_segment(
+                segment,
+                chat_id=kwargs["chat_id"],
+                assistant_message_id=kwargs["assistant_message_id"],
             )
-            if not rows:
+            if row is None:
                 continue
-            row = rows[0]
             status = str(row.get("status") or "")
             if status in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES or (status == "error" and not row.get("retryable")):
                 safe_results.append(_safe_result(row))
@@ -244,9 +278,14 @@ async def handle_assistant_speech_event(
                 "voice_profile_key": str(row["voice_profile_key"]),
                 "voice_profile_version": int(row["voice_profile_version"]),
             })
+        user_vault_key_id = await get_user_vault_key_id() if normalized else None
         for segment in normalized:
-            app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**segment, "user_id": user_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
-        return [*safe_results, *({"segment_id": segment["segment_id"], "status": "queued"} for segment in normalized)]
+            if not user_vault_key_id:
+                safe_results.append({"segment_id": segment["segment_id"], "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True})
+                continue
+            app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**segment, "user_id": user_id, "user_vault_key_id": user_vault_key_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
+        queued = ({"segment_id": segment["segment_id"], "status": "queued"} for segment in normalized if user_vault_key_id)
+        return [*safe_results, *queued]
 
     async def retry(**kwargs: object) -> Mapping[str, object] | None:
         segment_ids = kwargs.get("segment_ids")
@@ -266,6 +305,9 @@ async def handle_assistant_speech_event(
         )
         if not rows:
             return None
+        user_vault_key_id = await get_user_vault_key_id()
+        if not user_vault_key_id:
+            return {"segment_id": str(rows[0]["segment_id"]), "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True}
         for row in rows:
             app.send_task(
                 "apps.audio.tasks.assistant_speech_segment",
@@ -273,6 +315,7 @@ async def handle_assistant_speech_event(
                     "arguments": {
                         "segment_id": row["segment_id"],
                         "user_id": user_id,
+                        "user_vault_key_id": user_vault_key_id,
                         "chat_id": kwargs["chat_id"],
                         "assistant_message_id": kwargs["assistant_message_id"],
                         "source_hash": row["source_hash"],

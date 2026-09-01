@@ -12,12 +12,14 @@ const {
 	archiveExistingScreenshots,
 	createSignupLogger,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const SPEECH_TIMEOUT_MS = 240_000;
+const LIVE_MOCK_GROUP = 'assistant_response_speech_web';
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_WIDTH === 390 ? 'web-phone' : 'web-laptop';
@@ -97,7 +99,10 @@ test.describe.serial('Assistant response speech', () => {
 		await startNewChat(page, log);
 		await sendMessage(
 			page,
-			'Answer with exactly two short plain-text paragraphs. The first paragraph must say that assistant speech starts progressively. The second paragraph must say that paragraph controls remain available.',
+			withLiveMockMarker(
+				'Reply with one short sentence confirming this encrypted chat is ready for a voice playback test.',
+				LIVE_MOCK_GROUP
+			),
 			log,
 			screenshot,
 			'assistant-speech-source'
@@ -117,6 +122,10 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(modelSelector).toBeVisible({ timeout: 15_000 });
 		await expect(voiceToggle).toBeVisible({ timeout: 15_000 });
 		await expect(voiceToggle).toHaveAttribute('data-icon-only', 'true');
+		await expect(voiceToggle).toHaveAttribute('data-speech-state', 'off');
+		await expect(voiceToggle).toHaveAccessibleName('Speak responses');
+		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'true');
+		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'false');
 		await attachmentMenu.click();
 		await expect(messageField.getByTestId('composer-attachment-camera')).toBeVisible();
 		await expect(messageField.getByTestId('composer-camera-button')).toHaveCount(0);
@@ -126,9 +135,9 @@ test.describe.serial('Assistant response speech', () => {
 		expect(micBox, 'microphone control should have layout geometry').toBeTruthy();
 		expect(voiceBox!.x + voiceBox!.width).toBeLessThanOrEqual(micBox!.x);
 		expect(micBox!.x - (voiceBox!.x + voiceBox!.width)).toBeLessThanOrEqual(32);
-    const editor = messageField
-      .getByTestId('message-editor')
-      .locator('[contenteditable="true"]');
+		const editor = messageField
+			.getByTestId('message-editor')
+			.locator('[contenteditable="true"]');
 		await editor.fill('Composer control verification');
 		await expect(messageField.getByTestId('composer-send-button')).toBeVisible({ timeout: 10_000 });
 		await editor.fill('');
@@ -136,14 +145,33 @@ test.describe.serial('Assistant response speech', () => {
 		await voiceToggle.click();
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true');
 		const speechStatus = messageField.getByTestId('assistant-speech-toggle-status');
-		await expect(speechStatus).toHaveText('Speech on');
-		await expect(speechStatus).not.toBeVisible({ timeout: 5_000 });
+		await expect(speechStatus).toHaveText('Speech turned on');
+		await expect(voiceToggle).toHaveAccessibleName('Turn off speaking');
+		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'false');
+		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
+		expect(await voiceToggle.getByTestId('assistant-speech-audio-icon').evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain('opacity');
+
+		await page.getByRole('button', { name: 'Turn off speaking' }).click();
+		await expect(speechStatus).toHaveText('Speech turned off');
+		await expect(voiceToggle).toHaveAccessibleName('Speak responses');
+		await expect(voiceToggle).toHaveAttribute('data-speech-state', 'off');
+		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'true');
+
+		await mic.dispatchEvent('mousedown');
+		const recording = page.getByTestId('record-overlay');
+		await expect(recording).toBeVisible({ timeout: 10_000 });
+		await page.waitForTimeout(700);
+		await recording.getByTestId('record-finish-button').click();
+		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
+		await expect(speechStatus).toHaveText('Speech turned on');
+		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
 		await page.getByTestId('message-field').last().click();
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
+		await expect(reloadedToggle).toHaveAccessibleName('Turn off speaking');
 		if (proof) {
 			await proof.assert('voice-replies-enabled', async () => {
 				await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true');
@@ -151,25 +179,26 @@ test.describe.serial('Assistant response speech', () => {
 			await proof.checkpoint('voice-replies-enabled');
 		}
 
-		await reloadedToggle.click();
-		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'false');
-		const reloadedMic = page.getByTestId('message-field').last().getByTestId('record-audio-button');
-		await reloadedMic.dispatchEvent('mousedown');
-		const recording = page.getByTestId('record-overlay');
-		await expect(recording).toBeVisible({ timeout: 10_000 });
-		await page.waitForTimeout(700);
-		await recording.getByTestId('record-finish-button').click();
-		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
+		await sendMessage(
+			page,
+			withLiveMockMarker(
+				'Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.',
+				LIVE_MOCK_GROUP
+			),
+			log,
+			screenshot,
+			'assistant-speech-weather-source'
+		);
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
+		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
+		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"]')).toBeVisible({ timeout: 120_000 });
 
-		const speak = page.getByTestId('assistant-message-speak').last();
-		await expect(speak).toBeVisible({ timeout: 15_000 });
-		await speak.click();
 		const player = page.getByTestId('assistant-speech-player');
-		await expect(player).toBeVisible({ timeout: 30_000 });
-		const regions = player.locator('.assistant-speech-region');
+		await expect(player).toBeVisible({ timeout: SPEECH_TIMEOUT_MS });
+		const regions = player.getByTestId('assistant-speech-region');
 		await expect(regions).toHaveCount(2, { timeout: 30_000 });
 		await expect(async () => {
-			const ready = await player.locator('.assistant-speech-region.ready').count().catch(() => 0);
+			const ready = await regions.evaluateAll((elements: Element[]) => elements.filter((element) => element.getAttribute('data-status') === 'ready').length);
 			const status = await player.getByTestId('assistant-speech-status').textContent();
 			expect(ready > 0 || /playing|tap play/i.test(status || '')).toBeTruthy();
 		}).toPass({ timeout: SPEECH_TIMEOUT_MS });
@@ -187,15 +216,15 @@ test.describe.serial('Assistant response speech', () => {
 		}
 
 		await player.getByRole('button', { name: 'Next paragraph' }).click();
-		await expect(regions.nth(1)).toHaveClass(/active/);
+		await expect(regions.nth(1)).toHaveAttribute('data-active', 'true');
 		await player.getByRole('button', { name: 'Previous paragraph' }).click();
-		await expect(regions.nth(0)).toHaveClass(/active/);
+		await expect(regions.nth(0)).toHaveAttribute('data-active', 'true');
 		await expectNoPlayerOverlap(page, player);
 		await expect(page.locator('body')).not.toContainText(/encrypted_auto_speak_response|generated_asset_id|speakable_text/);
 
 		if (proof) {
 			await proof.assert('paragraph-navigation-visible', async () => {
-				await expect(regions.nth(0)).toHaveClass(/active/);
+				await expect(regions.nth(0)).toHaveAttribute('data-active', 'true');
 				await expectNoPlayerOverlap(page, player);
 			});
 			await proof.checkpoint('paragraph-navigation-visible');

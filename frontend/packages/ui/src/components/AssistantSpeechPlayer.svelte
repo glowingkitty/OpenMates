@@ -36,6 +36,9 @@
         <button
           type="button"
           class="assistant-speech-region"
+          data-testid="assistant-speech-region"
+          data-status={region.status}
+          data-active={region.active}
           class:active={region.active}
           class:ready={region.status === 'ready'}
           class:failed={region.status === 'failed'}

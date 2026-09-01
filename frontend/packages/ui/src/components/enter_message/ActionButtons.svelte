@@ -54,9 +54,13 @@
     let attachmentMenuElement: HTMLDivElement;
     let speechStatus = $state<'on' | 'off' | null>(null);
     let speechStatusTimer: ReturnType<typeof setTimeout> | null = null;
+    let previousAutoSpeakResponse = $state(false);
+    let speechStatusReady = $state(false);
     let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
 
     onMount(() => {
+        previousAutoSpeakResponse = autoSpeakResponse;
+        speechStatusReady = true;
         const handlePointerDown = (event: PointerEvent) => {
             if (!attachmentMenuElement.contains(event.target as Node)) closeAttachmentMenu();
         };
@@ -97,14 +101,24 @@
     function handleModelSelect(selection: string) { dispatch('modelSelect', { selection }); }
     function handleModelDetails(modelId: string) { dispatch('modelDetails', { modelId }); }
 
-    function handleAssistantSpeechToggle(): void {
-        const enabled = !autoSpeakResponse;
+    function showSpeechStatus(enabled: boolean): void {
         speechStatus = enabled ? 'on' : 'off';
         if (speechStatusTimer) clearTimeout(speechStatusTimer);
         speechStatusTimer = setTimeout(() => {
             speechStatus = null;
             speechStatusTimer = null;
         }, SPEECH_STATUS_DURATION_MS);
+    }
+
+    $effect(() => {
+        if (!speechStatusReady || autoSpeakResponse === previousAutoSpeakResponse) return;
+        previousAutoSpeakResponse = autoSpeakResponse;
+        showSpeechStatus(autoSpeakResponse);
+    });
+
+    function handleAssistantSpeechToggle(): void {
+        const enabled = !autoSpeakResponse;
+        showSpeechStatus(enabled);
         dispatch('assistantSpeechToggle', { enabled });
     }
 
@@ -160,15 +174,27 @@
             <button
                 type="button"
                 class="clickable-icon assistant-speech-icon"
-                class:active={autoSpeakResponse}
                 data-testid="assistant-speech-toggle"
                 data-icon-only="true"
                 data-speech-state={autoSpeakResponse ? 'on' : 'off'}
-                aria-label={autoSpeakResponse ? $text('enter_message.speech_on') : $text('enter_message.speech_off')}
+                aria-label={autoSpeakResponse ? $text('enter_message.speech_disable') : $text('enter_message.speech_enable')}
                 aria-pressed={autoSpeakResponse}
                 onclick={handleAssistantSpeechToggle}
                 use:tooltip
-            ></button>
+            >
+                <span
+                    class="assistant-speech-glyph muted"
+                    data-testid="assistant-speech-muted-icon"
+                    data-visible={!autoSpeakResponse}
+                    aria-hidden="true"
+                ></span>
+                <span
+                    class="assistant-speech-glyph audio"
+                    data-testid="assistant-speech-audio-icon"
+                    data-visible={autoSpeakResponse}
+                    aria-hidden="true"
+                ></span>
+            </button>
         </div>
 
         <button
@@ -283,11 +309,26 @@
     }
 
     .assistant-speech-icon {
+        position: relative;
+    }
+
+    .assistant-speech-glyph {
+        position: absolute;
+        inset: 0;
+        background: currentColor;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 180ms ease;
+    }
+
+    .assistant-speech-glyph[data-visible='true'] { opacity: 1; }
+
+    .assistant-speech-glyph.muted {
         -webkit-mask-image: var(--icon-url-mute);
         mask-image: var(--icon-url-mute);
     }
 
-    .assistant-speech-icon.active {
+    .assistant-speech-glyph.audio {
         -webkit-mask-image: var(--icon-url-audio);
         mask-image: var(--icon-url-audio);
     }

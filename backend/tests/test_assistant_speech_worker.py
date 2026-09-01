@@ -23,6 +23,28 @@ from backend.apps.audio.assistant_speech.persistence import (
 )
 
 
+# contract-test: supporting surface=rest_api assertions=assistant-speech.billing.segment-success-once,assistant-speech.privacy.transient-plaintext-encrypted-audio
+def test_live_mock_audio_is_exactly_scoped_to_the_marked_nonproduction_flow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.apps.audio.assistant_speech import live_mock
+
+    arguments = {
+        "live_mock_mode": "mock",
+        "live_mock_group": live_mock.ASSISTANT_SPEECH_LIVE_MOCK_GROUP,
+    }
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
+    fixture = live_mock.assistant_speech_live_mock_audio(arguments)
+    assert fixture == live_mock.ASSISTANT_SPEECH_LIVE_MOCK_AUDIO
+    assert fixture.read_bytes().startswith(b"ID3") or fixture.read_bytes().startswith(b"\xff")
+
+    assert live_mock.assistant_speech_live_mock_audio({}) is None
+    assert live_mock.assistant_speech_live_mock_audio({**arguments, "live_mock_group": "another_test"}) is None
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    assert live_mock.assistant_speech_live_mock_audio(arguments) is None
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.one-file-per-segment,assistant-speech.privacy.transient-plaintext-encrypted-audio,assistant-speech.billing.segment-success-once
 @pytest.mark.asyncio
 async def test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_segment() -> None:
