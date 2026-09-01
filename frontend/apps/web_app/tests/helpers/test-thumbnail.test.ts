@@ -11,7 +11,12 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {computeThumbnailClip, defineTestThumbnail, scaleThumbnail} = require('./test-thumbnail.ts');
+const {captureTestThumbnail, computeThumbnailClip, defineTestThumbnail, scaleThumbnail} = require('./test-thumbnail.ts');
+
+const ONE_PIXEL_PNG = Buffer.from(
+	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+	'base64'
+);
 
 test('defines a fixed 1280x800 thumbnail contract', () => {
 	const definition = defineTestThumbnail({
@@ -63,13 +68,44 @@ test('shifts an edge crop into the viewport without changing its size', () => {
 });
 
 test('scales captured PNG bytes to the canonical output resolution', () => {
-	const source = Buffer.from(
-		'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-		'base64'
-	);
-	const thumbnail = scaleThumbnail(source);
+	const thumbnail = scaleThumbnail(ONE_PIXEL_PNG);
 
 	assert.equal(thumbnail.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 	assert.equal(thumbnail.readUInt32BE(16), 1280);
 	assert.equal(thumbnail.readUInt32BE(20), 800);
+});
+
+test('captures a cropped thumbnail without mutating the recorded viewport', async () => {
+	let scrollCalls = 0;
+	let screenshotOptions: Record<string, unknown> | null = null;
+	const attachments: string[] = [];
+	const locator = {
+		waitFor: async () => undefined,
+		scrollIntoViewIfNeeded: async () => { scrollCalls += 1; },
+		boundingBox: async () => ({x: 590, y: 340, width: 100, height: 40})
+	};
+	const page = {
+		viewportSize: () => ({width: 1280, height: 720}),
+		getByTestId: () => ({first: () => locator}),
+		screenshot: async (options: Record<string, unknown>) => {
+			screenshotOptions = options;
+			return ONE_PIXEL_PNG;
+		}
+	};
+	const testInfo = {
+		attach: async (name: string) => { attachments.push(name); }
+	};
+
+	await captureTestThumbnail(page, testInfo, {
+		id: 'stable-frame',
+		focus: [{testId: 'target'}]
+	});
+
+	assert.equal(scrollCalls, 0);
+	assert.deepEqual(screenshotOptions, {
+		type: 'png',
+		clip: {x: 320, y: 160, width: 640, height: 400},
+		scale: 'css'
+	});
+	assert.deepEqual(attachments, ['openmates-test-thumbnail', 'openmates-test-thumbnail-metadata']);
 });
