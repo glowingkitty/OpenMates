@@ -760,14 +760,14 @@ def test_deploy_sync_preserves_unselected_post_checkpoint_work(monkeypatch, tmp_
     )
 
     assert warning == ""
-    assert _git(source, "rev-parse", "HEAD") == base
+    assert _git(source, "rev-parse", "HEAD") == deployed
     assert (source / "remaining.txt").read_text(encoding="utf-8") == "post-checkpoint\n"
-    assert _git(source, "status", "--porcelain").splitlines() == ["M deployed.txt", " M remaining.txt"]
+    assert _git(source, "status", "--porcelain").splitlines() == ["M remaining.txt"]
 
 
-def test_deploy_sync_does_not_advance_when_unselected_untracked_work_exists(monkeypatch, tmp_path):
+def test_deploy_sync_advances_and_preserves_unselected_untracked_work(monkeypatch, tmp_path):
     sessions = load_sessions_module()
-    source, integration, base, _deployed = _deployed_source_fixture(tmp_path)
+    source, integration, base, deployed = _deployed_source_fixture(tmp_path)
     (source / "new-note.txt").write_text("keep me\n", encoding="utf-8")
     monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "original-patch")
 
@@ -780,8 +780,64 @@ def test_deploy_sync_does_not_advance_when_unselected_untracked_work_exists(monk
     )
 
     assert warning == ""
-    assert _git(source, "rev-parse", "HEAD") == base
+    assert _git(source, "rev-parse", "HEAD") == deployed
     assert (source / "new-note.txt").read_text(encoding="utf-8") == "keep me\n"
+
+
+def test_deploy_sync_retains_old_head_when_upstream_changed_remaining_path(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source, integration, base, deployed = _deployed_source_fixture(tmp_path)
+    (integration / "remaining.txt").write_text("upstream\n", encoding="utf-8")
+    _git(integration, "add", "remaining.txt")
+    _git(integration, "commit", "-m", "upstream remaining")
+    deployed_with_overlap = _git(integration, "rev-parse", "HEAD")
+    (source / "remaining.txt").write_text("local\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "selected-patch")
+
+    warning = sessions._sync_deployed_files_to_source(
+        {"path": str(source), "base_commit": base},
+        integration,
+        ["deployed.txt"],
+        ["deployed.txt"],
+        "selected-patch",
+    )
+
+    assert warning == ""
+    assert deployed_with_overlap != deployed
+    assert _git(source, "rev-parse", "HEAD") == base
+    assert (source / "remaining.txt").read_text(encoding="utf-8") == "local\n"
+
+
+def test_deploy_sync_removes_clean_path_deleted_upstream(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    source, integration, base, _deployed = _deployed_source_fixture(tmp_path)
+    (source / "obsolete.txt").write_text("old\n", encoding="utf-8")
+    _git(source, "add", "obsolete.txt")
+    _git(source, "commit", "-m", "add obsolete")
+    source_base = _git(source, "rev-parse", "HEAD")
+    _git(integration, "fetch", str(source), source_base)
+    _git(integration, "reset", "--hard", source_base)
+    (integration / "deployed.txt").write_text("deployed again\n", encoding="utf-8")
+    (integration / "obsolete.txt").unlink()
+    _git(integration, "add", "-A")
+    _git(integration, "commit", "-m", "deploy and delete obsolete")
+    deployed = _git(integration, "rev-parse", "HEAD")
+    _git(source, "fetch", str(integration), deployed)
+    (source / "deployed.txt").write_text("deployed again\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda *_args: "selected-patch")
+
+    warning = sessions._sync_deployed_files_to_source(
+        {"path": str(source), "base_commit": source_base},
+        integration,
+        ["deployed.txt"],
+        ["deployed.txt"],
+        "selected-patch",
+    )
+
+    assert warning == ""
+    assert _git(source, "rev-parse", "HEAD") == deployed
+    assert not (source / "obsolete.txt").exists()
+    assert _git(source, "status", "--porcelain") == ""
 
 
 def test_deploy_sync_never_captures_or_rewrites_unselected_staged_work(monkeypatch, tmp_path):

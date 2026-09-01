@@ -3668,11 +3668,13 @@ def _mark_worktree_deployed(
     """Mark a worktree merged and clear its matching blocked deploy record."""
     current_session = _load_sessions().get("sessions", {}).get(session_id, {})
     current_metadata = current_session.get("worktree") if isinstance(current_session, dict) else None
+    source_head_matches_deployed_commit = False
     source_matches_deployed_commit = False
     if isinstance(current_metadata, dict) and current_metadata.get("path"):
         try:
+            source_head_matches_deployed_commit = _worktree_head(current_metadata["path"]) == commit_hash
             source_matches_deployed_commit = (
-                _worktree_head(current_metadata["path"]) == commit_hash
+                source_head_matches_deployed_commit
                 and not _worktree_changed_files({**current_metadata, "base_commit": commit_hash})
             )
         except (OSError, RuntimeError):
@@ -3689,6 +3691,8 @@ def _mark_worktree_deployed(
         if isinstance(metadata, dict):
             metadata["status"] = "merged" if merged_state_is_truthful else "changes_pending"
             metadata["merged_commit"] = commit_hash
+            if source_head_matches_deployed_commit:
+                metadata["base_commit"] = commit_hash
             metadata["last_active"] = _now_iso()
             metadata.pop("pending_commit", None)
             metadata.pop("pending_commit_patch_id", None)
@@ -3997,37 +4001,6 @@ def _selected_paths_changed_between_refs(
     )
 
 
-def _enforce_no_selected_upstream_overlap(
-    source_metadata: dict,
-    files: list[str],
-    *,
-    patch_id: str,
-    prepared_base: str,
-) -> None:
-    """Block automatic rebases when current dev touched a selected path."""
-    if not files:
-        return
-    source_path = Path(str(source_metadata.get("path") or ""))
-    source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
-    if not source_path.is_dir() or not source_base:
-        raise RuntimeError("Session source worktree metadata is incomplete")
-    changed_upstream = _selected_paths_changed_between_refs(
-        source_path,
-        source_base,
-        prepared_base,
-        files,
-    )
-    if changed_upstream:
-        raise IntegrationConflict(
-            "Selected deploy file(s) changed upstream since the source worktree base: "
-            + ", ".join(changed_upstream)
-            + ". Reconcile these file(s) with current origin/dev before deploying.",
-            patch_id=patch_id,
-            source_base=source_base,
-            final_base=prepared_base,
-        )
-
-
 def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
     """Regenerate selected contract artifacts in an integration checkout."""
     if not generated_files:
@@ -4065,12 +4038,6 @@ def _apply_worktree_diff_to_checkout(
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
     patch_files, contract_generated_files = _split_contract_generated_artifacts(files)
-    _enforce_no_selected_upstream_overlap(
-        source_metadata,
-        patch_files,
-        patch_id=patch_id,
-        prepared_base=prepared_base,
-    )
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -13034,11 +13001,55 @@ def _sync_deployed_files_to_source(
     patch_files: list[str],
     expected_patch_id: str,
 ) -> str:
-    """Copy deployed paths and advance a source checkout only when fully deployed."""
+    """Copy deployed paths and advance the source base when remaining work is independent."""
     source_root = Path(str(source_metadata.get("path") or ""))
     try:
         if _worktree_patch_id(source_metadata, patch_files) != expected_patch_id:
             return "Source worktree changed during deploy; deployed files were not synchronized."
+        source_head = _worktree_head(source_root)
+        rc, deployed_commit, stderr = _run_cmd(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(checkout_root),
+        )
+        if rc != 0 or not deployed_commit.strip():
+            return f"Deployed files were not synchronized because the deployed commit could not be resolved: {stderr}"
+        deployed_commit = deployed_commit.strip()
+
+        rc, changed_output, stderr = _run_cmd(
+            ["git", "diff", "--name-only", "-z", source_head, "--"],
+            cwd=str(source_root),
+        )
+        if rc != 0:
+            return f"Deployed files were not synchronized because source changes could not be inspected: {stderr}"
+        changed_before = {
+            path for path in changed_output.split("\0") if path
+        } | _worktree_untracked_files(source_metadata)
+        selected = set(files)
+        remaining = sorted(changed_before - selected)
+
+        rc, staged_output, stderr = _run_cmd(
+            ["git", "diff", "--cached", "--name-only", "-z", source_head, "--"],
+            cwd=str(source_root),
+        )
+        if rc != 0:
+            return f"Deployed files were not synchronized because staged source changes could not be inspected: {stderr}"
+        staged_remaining = {path for path in staged_output.split("\0") if path} - selected
+
+        can_advance = not staged_remaining
+        if can_advance:
+            rc, _stdout, _stderr = _run_cmd(
+                ["git", "merge-base", "--is-ancestor", source_head, deployed_commit],
+                cwd=str(source_root),
+            )
+            can_advance = rc == 0
+        if can_advance and remaining:
+            can_advance = not _selected_paths_changed_between_refs(
+                source_root,
+                source_head,
+                deployed_commit,
+                remaining,
+            )
+
         for relative_path in files:
             deployed_path = checkout_root / relative_path
             source_path = source_root / relative_path
@@ -13049,24 +13060,21 @@ def _sync_deployed_files_to_source(
                 temporary.replace(source_path)
             elif source_path.exists() or source_path.is_symlink():
                 source_path.unlink()
-        # A complete deploy must also refresh the source checkout's base.  Leaving
-        # HEAD on its original commit makes the next edit run against stale code
-        # even though all local content was just deployed.  Never advance a
-        # partial checkout: unselected work must retain its original base and
-        # index until it is integrated separately.
-        remaining = set(_worktree_changed_files(source_metadata))
-        if remaining.issubset(set(files)):
-            rc, deployed_commit, stderr = _run_cmd(
-                ["git", "rev-parse", "HEAD"],
-                cwd=str(checkout_root),
+        # A partial deploy can advance too when no remaining path changed in the
+        # deployed ancestry. The mixed reset preserves the undeployed bytes, and
+        # the targeted restore refreshes only paths that were clean beforehand.
+        if can_advance:
+            rc, upstream_output, stderr = _run_cmd(
+                ["git", "diff", "--name-only", "-z", source_head, deployed_commit, "--"],
+                cwd=str(source_root),
             )
-            if rc != 0 or not deployed_commit.strip():
-                return f"Deployed files were synchronized, but the deployed commit could not be resolved: {stderr}"
-            # Mixed reset advances HEAD/index without overwriting working-tree
-            # bytes.  A concurrent edit therefore remains visible as a new diff
-            # instead of being destroyed.
+            if rc != 0:
+                return f"Deployed files were synchronized, but upstream paths could not be inspected: {stderr}"
+            refresh_paths = sorted(
+                {path for path in upstream_output.split("\0") if path} - set(remaining)
+            )
             rc, _stdout, stderr = _run_cmd(
-                ["git", "reset", "--mixed", deployed_commit.strip()],
+                ["git", "reset", "--mixed", deployed_commit],
                 cwd=str(source_root),
                 timeout=120,
             )
@@ -13075,6 +13083,41 @@ def _sync_deployed_files_to_source(
                     "Deployed files were synchronized, but the source worktree could not be advanced safely: "
                     f"{stderr}"
                 )
+            restore_paths = []
+            deleted_paths = []
+            for relative_path in refresh_paths:
+                rc, _stdout, _stderr = _run_cmd(
+                    ["git", "cat-file", "-e", f"{deployed_commit}:{relative_path}"],
+                    cwd=str(source_root),
+                )
+                (restore_paths if rc == 0 else deleted_paths).append(relative_path)
+            if restore_paths:
+                rc, _stdout, stderr = _run_cmd(
+                    [
+                        "git",
+                        "restore",
+                        "--source=HEAD",
+                        "--worktree",
+                        "--",
+                        *(f":(literal){path}" for path in restore_paths),
+                    ],
+                    cwd=str(source_root),
+                    timeout=120,
+                )
+                if rc != 0:
+                    return (
+                        "The source worktree base advanced, but clean upstream paths could not be refreshed: "
+                        f"{stderr}"
+                    )
+            for relative_path in deleted_paths:
+                stale_path = source_root / relative_path
+                if stale_path.is_file() or stale_path.is_symlink():
+                    stale_path.unlink()
+                elif stale_path.exists():
+                    return (
+                        "The source worktree base advanced, but an upstream-deleted path is not a file: "
+                        f"{relative_path}"
+                    )
     except (OSError, RuntimeError) as exc:
         return f"Could not synchronize deployed files into the source worktree: {exc}"
     return ""

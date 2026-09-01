@@ -176,7 +176,7 @@ def test_advanced_base_conflict_is_explicit_and_leaves_dev_unchanged(monkeypatch
     assert "origin/dev" in item["next_action"]
 
 
-def test_selected_upstream_overlap_blocks_clean_three_way_rebase(monkeypatch, tmp_path):
+def test_selected_upstream_nonoverlapping_hunks_merge_automatically(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     root, _source_a, _source_b, _base = create_fixture(tmp_path)
     integrations = root / ".openmates-agent-worktrees"
@@ -209,14 +209,16 @@ def test_selected_upstream_overlap_blocks_clean_three_way_rebase(monkeypatch, tm
     files = ["a.txt"]
     patch_id = sessions._worktree_patch_id(metadata, files)
 
-    with pytest.raises(sessions.IntegrationConflict, match="changed upstream") as exc_info:
-        sessions._prepare_integration_worktree("cccc", metadata, files, patch_id, final_base)
+    prepared = sessions._prepare_integration_worktree("cccc", metadata, files, patch_id, final_base)
+    checkout = Path(prepared["path"])
 
-    assert exc_info.value.patch_id == patch_id
-    assert exc_info.value.source_base == source_base
-    assert exc_info.value.final_base == final_base
+    merged_lines = (checkout / "a.txt").read_text(encoding="utf-8").splitlines()
+    assert merged_lines[0] == "upstream edit"
+    assert merged_lines[9] == "source edit"
     assert git(root, "rev-parse", "origin/dev") == final_base
     assert git(root, "status", "--porcelain", "-uall") == ""
+
+    sessions._remove_integration_worktree(prepared)
 
 
 def test_stale_worktree_rebase_blocks_deletion_amplification(monkeypatch, tmp_path):
@@ -227,8 +229,6 @@ def test_stale_worktree_rebase_blocks_deletion_amplification(monkeypatch, tmp_pa
     monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
     monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
-    monkeypatch.setattr(sessions, "_enforce_no_selected_upstream_overlap", lambda *_args, **_kwargs: None)
-
     (source_a / "a.txt").write_text("a0\nspeech toggle\n", encoding="utf-8")
     (root / "a.txt").write_text("a0\nmodel selector\nplus button\nsend button\n", encoding="utf-8")
     git(root, "add", "a.txt")
