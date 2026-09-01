@@ -38,12 +38,6 @@ const PROOF_CONTRACT = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
-			id: 'voice-replies-enabled',
-			text: 'Voice replies are enabled for this encrypted chat and remain enabled after reload.',
-			checkpoint: 'voice-replies-enabled',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
 			id: 'processing-progress-visible',
 			text: 'The assistant and Weather processing preview appear while skill and speech work continue independently.',
 			checkpoint: 'processing-progress-visible',
@@ -57,12 +51,6 @@ const PROOF_CONTRACT = defineVideoProof({
 		}
 	],
 	assertions: [
-		{
-			id: 'voice-replies-enabled',
-			checkpoint: 'voice-replies-enabled',
-			visual: 'The Voice control is visibly active after reload.',
-			devices: ['web-laptop', 'web-phone']
-		},
 		{
 			id: 'processing-progress-visible',
 			checkpoint: 'processing-progress-visible',
@@ -177,13 +165,6 @@ test.describe.serial('Assistant response speech', () => {
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
 		await expect(reloadedToggle).toHaveAccessibleName('Turn off speaking');
-		if (proof) {
-			await proof.assert('voice-replies-enabled', async () => {
-				await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true');
-			});
-			await proof.checkpoint('voice-replies-enabled');
-		}
-
 		const requestWeatherSpeech = () => sendMessage(
 			page,
 			withRequiredLiveMock('Use weather.forecast to check Berlin for the next two days, then answer in exactly two short plain-text paragraphs. Summarize the forecast first, then give one practical suggestion.'),
