@@ -5,8 +5,8 @@
  * Full chat-flow coverage remains in the broader composer specifications.
  */
 import { expect, test } from './helpers/cookie-audit';
+import type { Locator } from '@playwright/test';
 
-// contract-test-file: tooling
 // playwright-account: not_required reason=isolated_component_preview
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -32,6 +32,18 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 			id: 'expanded-state',
 			text: 'Focusing the message field expands the composer and reveals its action controls.',
 			checkpoint: 'expanded',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'speech-toggle-off',
+			text: 'The speech control starts with a visible mute glyph and no square background.',
+			checkpoint: 'speech-toggle-off',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'speech-toggle-on',
+			text: 'Clicking the speech control immediately replaces the mute glyph with the audio glyph.',
+			checkpoint: 'speech-toggle-on',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -61,6 +73,18 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
+			id: 'assistant-speech.preference.chat-scoped-default-off',
+			checkpoint: 'speech-toggle-off',
+			visual: 'The off state renders one visible mute glyph on a transparent icon button.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'message-input.actions.visibility',
+			checkpoint: 'speech-toggle-on',
+			visual: 'The on state immediately renders one visible audio glyph on the same transparent icon button.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
 			id: 'message-input.hover-shadow',
 			checkpoint: 'model-selector-hovered',
 			visual: 'The hovered model selector has a subtle shadow while neighboring controls remain visually stable.',
@@ -77,6 +101,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 });
 
 test.describe('MessageInput component preview', () => {
+	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,assistant-speech.preference.chat-scoped-default-off
 	test('moves from minimized to expanded interactive states', async ({ page }, testInfo) => {
 		const proof = createVideoProofRuntime(MESSAGE_INPUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -115,6 +140,24 @@ test.describe('MessageInput component preview', () => {
 		});
 		await proof.checkpoint('expanded');
 
+		const speechToggle = page.getByTestId('assistant-speech-toggle');
+		const mutedGlyph = speechToggle.getByTestId('assistant-speech-muted-icon');
+		const audioGlyph = speechToggle.getByTestId('assistant-speech-audio-icon');
+		await proof.assert('assistant-speech.preference.chat-scoped-default-off', async () => {
+			await expectSpeechToggleState(speechToggle, mutedGlyph, audioGlyph, false);
+		});
+		await proof.checkpoint('speech-toggle-off');
+
+		await proof.action('enable-assistant-speech', async () => speechToggle.click());
+		await proof.assert('message-input.actions.visibility', async () => {
+			await expectSpeechToggleState(speechToggle, mutedGlyph, audioGlyph, true);
+			await expect(page.getByTestId('assistant-speech-toggle-status')).toHaveText('Speech turned on');
+		});
+		await proof.checkpoint('speech-toggle-on');
+
+		await proof.action('disable-assistant-speech', async () => speechToggle.click());
+		await expectSpeechToggleState(speechToggle, mutedGlyph, audioGlyph, false);
+
 		const selector = page.getByTestId('composer-model-selector');
 		if (PROOF_DEVICE === 'web-laptop') {
 			await proof.action('hover-model-selector', async () => selector.hover());
@@ -134,3 +177,26 @@ test.describe('MessageInput component preview', () => {
 		await proof.attach();
 	});
 });
+
+async function expectSpeechToggleState(
+	toggle: Locator,
+	mutedGlyph: Locator,
+	audioGlyph: Locator,
+	enabled: boolean
+): Promise<void> {
+	await expect(toggle).toHaveAttribute('aria-pressed', String(enabled));
+	await expect(toggle).toHaveAccessibleName(enabled ? 'Turn off speaking' : 'Speak responses');
+	await expect(toggle).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+	await expect(enabled ? audioGlyph : mutedGlyph).toHaveAttribute('data-visible', 'true');
+	await expect(enabled ? mutedGlyph : audioGlyph).toHaveAttribute('data-visible', 'false');
+	const visibleGlyph = enabled ? audioGlyph : mutedGlyph;
+	const glyph = await visibleGlyph.evaluate((element) => {
+		const style = getComputedStyle(element);
+		const bounds = element.getBoundingClientRect();
+		return { mask: style.maskImage, opacity: style.opacity, width: bounds.width, height: bounds.height };
+	});
+	expect(glyph.mask).not.toBe('none');
+	expect(glyph.opacity).toBe('1');
+	expect(glyph.width).toBeGreaterThanOrEqual(20);
+	expect(glyph.height).toBeGreaterThanOrEqual(20);
+}
