@@ -9,8 +9,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
+  import WorkspaceContinueCard from './WorkspaceContinueCard.svelte';
   import WorkspaceReportIssueButton from './WorkspaceReportIssueButton.svelte';
-  import { getContinueGradientColors, getResumeCardGradientStyle, getResumeLargeCardStyle } from '../activeChatUtils';
+  import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import type { DailyInspiration } from '../../stores/dailyInspirationStore';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
@@ -156,9 +157,6 @@
     return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
   }
 
-  function continueLargeCardStyle(item: ContinueItem): string {
-    return getResumeLargeCardStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
-  }
 </script>
 
 <section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth}>
@@ -205,42 +203,19 @@
       <div class="workspace-all-items-view" data-testid={allItemsViewTestId}>
         <div class="workspace-all-items-grid" data-testid={allItemsGridTestId}>
           {#each allItems as item (item.id)}
-            {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
-            {@const IconComponent = getLucideIcon(iconName)}
-            <button
-              type="button"
-              class="resume-chat-large-card"
-              data-testid={allItemTestId}
-              data-card-source={item.source ?? undefined}
-              data-category={item.category ?? undefined}
-              data-icon={iconName}
-              style={continueLargeCardStyle(item)}
-              onclick={() => handleAllItem(item)}
-            >
-              <div class="resume-large-orbs" aria-hidden="true">
-                <div class="resume-orb resume-orb-1"></div>
-                <div class="resume-orb resume-orb-2"></div>
-                <div class="resume-orb resume-orb-3"></div>
-              </div>
-              <div class="resume-large-deco resume-large-deco-left">
-                <IconComponent size={80} color="white" />
-              </div>
-              <div class="resume-large-deco resume-large-deco-right">
-                <IconComponent size={80} color="white" />
-              </div>
-              <div class="resume-large-content">
-                {#if item.badge}
-                  <span class="resume-chat-kind-badge">{item.badge}</span>
-                {/if}
-                <div class="resume-large-icon">
-                  <IconComponent size={32} color="white" />
-                </div>
-                <span class="resume-large-title">{item.title}</span>
-                {#if item.summary}
-                  <p class="resume-large-summary">{item.summary}</p>
-                {/if}
-              </div>
-            </button>
+            <WorkspaceContinueCard
+              title={item.title}
+              summary={item.summary ?? null}
+              badge={item.badge ?? null}
+              category={item.category ?? 'productivity'}
+              appId={item.appId ?? surface}
+              icon={item.icon ?? 'sparkles'}
+              testId={allItemTestId}
+              href={null}
+              source={item.source ?? null}
+              fluid
+              onActivate={() => handleAllItem(item)}
+            />
           {/each}
         </div>
       </div>
@@ -264,40 +239,19 @@
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
           {#if isTallViewport}
-            <button
-              type="button"
-              class="resume-chat-large-card"
-              data-testid={itemTestId}
-              data-card-source={item.source ?? undefined}
-              data-category={item.category ?? undefined}
-              data-icon={iconName}
-              style={continueLargeCardStyle(item)}
-              onclick={() => handleActionItem(item)}
-            >
-              <div class="resume-large-orbs" aria-hidden="true">
-                <div class="resume-orb resume-orb-1"></div>
-                <div class="resume-orb resume-orb-2"></div>
-                <div class="resume-orb resume-orb-3"></div>
-              </div>
-              <div class="resume-large-deco resume-large-deco-left">
-                <IconComponent size={80} color="white" />
-              </div>
-              <div class="resume-large-deco resume-large-deco-right">
-                <IconComponent size={80} color="white" />
-              </div>
-              <div class="resume-large-content">
-                {#if item.badge}
-                  <span class="resume-chat-kind-badge">{item.badge}</span>
-                {/if}
-                <div class="resume-large-icon">
-                  <IconComponent size={32} color="white" />
-                </div>
-                <span class="resume-large-title">{item.title}</span>
-                {#if item.summary}
-                  <p class="resume-large-summary">{item.summary}</p>
-                {/if}
-              </div>
-            </button>
+            <WorkspaceContinueCard
+              title={item.title}
+              summary={item.summary ?? null}
+              badge={item.badge ?? null}
+              category={item.category ?? 'productivity'}
+              appId={item.appId ?? surface}
+              icon={item.icon ?? 'sparkles'}
+              testId={itemTestId}
+              href={null}
+              source={item.source ?? null}
+              fluid={false}
+              onActivate={() => handleActionItem(item)}
+            />
           {:else}
             <button
               type="button"
@@ -352,37 +306,19 @@
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
           {#if isTallViewport}
-            <button
-              type="button"
-              class="resume-chat-large-card"
-              data-testid="resume-chat-large-card"
-              style={continueLargeCardStyle(item)}
-              onclick={() => handleContinueItem(item)}
-            >
-              <div class="resume-large-orbs" aria-hidden="true">
-                <div class="resume-orb resume-orb-1"></div>
-                <div class="resume-orb resume-orb-2"></div>
-                <div class="resume-orb resume-orb-3"></div>
-              </div>
-              <div class="resume-large-deco resume-large-deco-left">
-                <IconComponent size={80} color="white" />
-              </div>
-              <div class="resume-large-deco resume-large-deco-right">
-                <IconComponent size={80} color="white" />
-              </div>
-              <div class="resume-large-content">
-                {#if item.badge}
-                  <span class="resume-chat-kind-badge">{item.badge}</span>
-                {/if}
-                <div class="resume-large-icon">
-                  <IconComponent size={32} color="white" />
-                </div>
-                <span class="resume-large-title" data-testid="resume-large-title">{item.title}</span>
-                {#if item.summary}
-                  <p class="resume-large-summary">{item.summary}</p>
-                {/if}
-              </div>
-            </button>
+            <WorkspaceContinueCard
+              title={item.title}
+              summary={item.summary ?? null}
+              badge={item.badge ?? null}
+              category={item.category ?? 'productivity'}
+              appId={item.appId ?? surface}
+              icon={item.icon ?? 'sparkles'}
+              testId="resume-chat-large-card"
+              href={null}
+              source={item.source ?? null}
+              fluid={false}
+              onActivate={() => handleContinueItem(item)}
+            />
           {:else}
             <button
               type="button"
@@ -633,11 +569,6 @@
     );
   }
 
-  .workspace-all-items-grid .resume-chat-large-card {
-    width: 300px;
-    min-width: 300px;
-  }
-
   .workspace-center-content .team-profile {
     display: flex;
     flex-direction: column;
@@ -833,10 +764,6 @@
     flex-shrink: 0;
   }
 
-  .recent-chats-scroll-container .resume-chat-large-card {
-    flex-shrink: 0;
-  }
-
   .recent-chats-scroll-container.secondary {
     padding-top: 8px;
   }
@@ -982,174 +909,6 @@
     background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--color-grey-0) 92%, transparent) 40%, var(--color-grey-0) 100%);
   }
 
-  .resume-chat-large-card {
-    position: relative;
-    width: 300px;
-    min-width: 300px;
-    max-width: 300px;
-    height: 200px;
-    min-height: 200px;
-    max-height: 200px;
-    border-radius: 30px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border: none;
-    padding: 0;
-    background-color: transparent;
-    pointer-events: auto;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
-  }
-
-  .resume-chat-large-card:hover {
-    transform: scale(0.98);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
-  }
-
-  .resume-chat-large-card:active {
-    transform: scale(0.96);
-    transition: transform 0.05s ease-out;
-  }
-
-  .resume-chat-large-card:focus {
-    outline: 2px solid rgba(255, 255, 255, 0.5);
-    outline-offset: 2px;
-  }
-
-  .resume-large-content {
-    position: relative;
-    z-index: var(--z-index-raised-3);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--spacing-2);
-    padding: var(--spacing-8) var(--spacing-12);
-    max-width: 260px;
-    width: 100%;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  }
-
-  .resume-large-content .resume-chat-kind-badge {
-    align-self: center;
-  }
-
-  .resume-large-icon {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .resume-large-title {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    font-size: var(--font-size-p);
-    font-weight: 700;
-    color: var(--color-font-button);
-    text-align: center;
-    line-height: 1.3;
-    max-width: 100%;
-  }
-
-  .resume-large-summary {
-    margin: 2px 0 0;
-    font-size: var(--font-size-xxs);
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.85);
-    line-height: 1.4;
-    text-align: center;
-    display: -webkit-box;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .resume-large-orbs {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    overflow: hidden;
-    border-radius: 30px;
-  }
-
-  .resume-orb {
-    position: absolute;
-    width: 280px;
-    height: 240px;
-    background: radial-gradient(ellipse at center, var(--orb-color-b) 0%, var(--orb-color-b) 40%, transparent 85%);
-    filter: blur(22px);
-    opacity: 0.35;
-    will-change: transform, border-radius;
-  }
-
-  .resume-orb-1 {
-    top: -60px;
-    left: -70px;
-    animation: orbMorph1 11s ease-in-out infinite, resumeOrbDrift1 19s ease-in-out infinite;
-  }
-
-  .resume-orb-2 {
-    bottom: -80px;
-    right: -80px;
-    width: 260px;
-    height: 220px;
-    animation: orbMorph2 13s ease-in-out infinite, resumeOrbDrift2 23s ease-in-out infinite;
-  }
-
-  .resume-orb-3 {
-    top: -10px;
-    left: 25%;
-    width: 200px;
-    height: 180px;
-    opacity: 0.38;
-    animation: orbMorph3 17s ease-in-out infinite, resumeOrbDrift3 29s ease-in-out infinite;
-  }
-
-  .resume-large-deco {
-    position: absolute;
-    width: 80px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: var(--z-index-raised);
-    pointer-events: none;
-    --float-rx: 7px;
-    --float-ry: 8px;
-    --deco-target-opacity: 0.3;
-    animation: decoEnter 0.6s ease-out 0.1s both, decoFloat 16s linear 0.7s infinite;
-  }
-
-  .resume-large-deco-left {
-    left: -10px;
-    bottom: -8px;
-    --deco-rotate: -15deg;
-  }
-
-  .resume-large-deco-right {
-    right: -10px;
-    bottom: -8px;
-    --deco-rotate: 15deg;
-    animation-delay: 0.1s, -8s;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .resume-orb,
-    .resume-large-deco {
-      animation: none !important;
-    }
-  }
-
   @media (min-height: 800px) {
     .recent-chats-scroll-container {
       padding: 35px 48px 12px calc(50% - 150px);
@@ -1210,11 +969,6 @@
     .workspace-all-items-grid {
       grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
       max-height: min(56vh, 560px);
-    }
-
-    .workspace-all-items-grid .resume-chat-large-card {
-      width: min(100%, 300px);
-      min-width: 0;
     }
 
     .recent-chats-scroll-container {
