@@ -203,12 +203,13 @@ async function locatorBounds(locators: Locator[], targets: ThumbnailTarget[]): P
 	return bounds;
 }
 
-function scaleThumbnail(source: Buffer): Buffer {
+function scaleThumbnail(source: Buffer, clip?: ThumbnailClip): Buffer {
+	const cropFilter = clip ? `crop=${clip.width}:${clip.height}:${clip.x}:${clip.y},` : '';
 	const result = spawnSync(
 		'ffmpeg',
 		[
 			'-hide_banner', '-loglevel', 'error', '-f', 'image2pipe', '-i', 'pipe:0',
-			'-vf', `scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:flags=lanczos`,
+			'-vf', `${cropFilter}scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:flags=lanczos`,
 			'-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'
 		],
 		{input: source, maxBuffer: FFMPEG_MAX_BUFFER_BYTES}
@@ -230,10 +231,9 @@ async function captureTestThumbnail(page: Page, testInfo: TestInfo, input: TestT
 	const clip = computeThumbnailClip({viewport, focusBounds, contextBounds, padding: definition.padding});
 	const source = await page.screenshot({
 		type: 'png',
-		clip,
 		scale: 'css'
 	});
-	const thumbnail = scaleThumbnail(source);
+	const thumbnail = scaleThumbnail(source, clip);
 	await testInfo.attach(THUMBNAIL_ATTACHMENT_NAME, {body: thumbnail, contentType: 'image/png'});
 	await testInfo.attach(THUMBNAIL_METADATA_ATTACHMENT_NAME, {
 		body: Buffer.from(JSON.stringify({schema_version: 1, definition, viewport, clip})),
