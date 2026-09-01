@@ -104,7 +104,7 @@ test.describe('Task detail fullscreen component', () => {
 		});
 		await proof.checkpoint('core-metadata');
 
-		await detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded();
+		await proof.action('show-linked-context', () => detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded());
 		await proof.assert('linked-context', async () => {
 			await expect(detail.getByTestId('task-detail-project-card')).toBeVisible();
 			await expect(detail.getByTestId('task-detail-plan-card')).toBeVisible();
@@ -113,7 +113,7 @@ test.describe('Task detail fullscreen component', () => {
 		await proof.checkpoint('linked-context');
 
 		const close = page.getByTestId('task-detail-minimize');
-		await close.scrollIntoViewIfNeeded();
+		await proof.action('return-to-fullscreen-controls', () => close.scrollIntoViewIfNeeded());
 		await expect(close).toBeFocused();
 		await proof.assert('bare-component', async () => {
 			await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible();
