@@ -264,7 +264,8 @@
 		'plot',
 		'flight',
 		'transcript',
-		'docs'
+		'docs',
+		'task'
 	]);
 
 	/**
