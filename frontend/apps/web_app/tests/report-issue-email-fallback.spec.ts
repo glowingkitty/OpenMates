@@ -14,12 +14,20 @@ const {
 	attachNetworkListeners
 } = require('./console-monitor');
 const { createSignupLogger } = require('./signup-flow-helpers');
+const { captureTestThumbnail, defineTestThumbnail } = require('./helpers/test-thumbnail');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const BASE_URL: string = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const IS_PROOF_CAPTURE = Number.isFinite(PROOF_VIDEO_WIDTH) && PROOF_VIDEO_WIDTH > 0;
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const REPORT_ISSUE_THUMBNAIL = defineTestThumbnail({
+	id: 'report-issue-form',
+	focus: [
+		{ testId: 'report-issue-title' },
+		{ testId: 'report-issue-email-fallback' }
+	]
+});
 
 async function captureBrowserProofFrame(page: any): Promise<Buffer> {
 	return page.screenshot({ type: 'png' });
@@ -117,6 +125,7 @@ test.describe('Report Issue Email Fallback', () => {
 			await expect(emailFallback).toBeVisible();
 			await expect(emailFallback).toHaveText('Send an email instead');
 		});
+		await captureTestThumbnail(page, testInfo, REPORT_ISSUE_THUMBNAIL);
 		await proof.checkpoint('fallback-visible');
 		await proof.attach();
 		if (IS_PROOF_CAPTURE) {

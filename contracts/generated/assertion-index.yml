@@ -21984,7 +21984,7 @@ assertions:
     direct_tests:
     - &id2467
       path: frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
-      line: 79
+      line: 87
       name: prepares a privacy-bounded support email draft
       surface: gui.web
     supporting_tests: []
@@ -22002,7 +22002,7 @@ assertions:
     direct_tests:
     - &id2468
       path: frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
-      line: 79
+      line: 87
       name: prepares a privacy-bounded support email draft
       surface: gui.web
     - &id2469
