@@ -326,6 +326,28 @@ run_swift_lint() {
   fi
 }
 
+run_frontend_contract_guards() {
+  local active_chat="frontend/packages/ui/src/components/ActiveChat.svelte"
+  local file
+  for file in "${svelte_files[@]}"; do
+    if [[ "${file}" != "${active_chat}" ]]; then
+      continue
+    fi
+    if [[ -z "${python_cmd}" ]]; then
+      echo "ActiveChat contract guard: Python is required." >&2
+      overall_status=1
+      return
+    fi
+    if "${python_cmd}" scripts/tests/test_message_input_welcome_contract.py; then
+      echo "ActiveChat contract guard: ok"
+    else
+      echo "ActiveChat contract guard: error" >&2
+      overall_status=1
+    fi
+    return
+  done
+}
+
 # Combine for ESLint (TS, Svelte, CSS only)
 # HTML files are intentionally excluded because our flat ESLint config does not
 # include an HTML processor and reports ignored-file warnings as lint failures.
@@ -988,6 +1010,7 @@ run_js_lint() {
 run_yaml_lint
 run_python_lint
 run_swift_lint
+run_frontend_contract_guards
 
 # Run TypeScript and Svelte type checks first (these catch type errors that ESLint might miss)
 run_tsc_check

@@ -1098,6 +1098,7 @@
                 return;
             }
 
+            resetComposerWelcomeState();
             if (isExampleChat(currentChat?.chat_id ?? activeChatStore.get() ?? '')) {
                 console.debug("[ActiveChat] Preserving static example chat after logout");
                 return;
@@ -1194,6 +1195,7 @@
                 console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
                 
                 // Clear current chat state
+                resetComposerWelcomeState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -5026,6 +5028,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
+    function resetComposerWelcomeState(clearLiveInput = true) {
+        if (blurTimer) {
+            clearTimeout(blurTimer);
+            blurTimer = undefined;
+        }
+        messageInputFocused = false;
+        messageInputRecentlyFocused = false;
+        messageInputHasContent = false;
+        messageInputMapsOpen = false;
+        anonymousFileAttachmentPending = false;
+        liveInputText = '';
+        suggestionsWouldOverlapWelcome = false;
+        void assistantSpeechController.stop().catch((error) => {
+            console.debug('[ActiveChat] Assistant speech was already unavailable during UI reset:', error);
+        });
+        if (clearLiveInput) {
+            void messageInputFieldRef?.clearMessageField(false, false).catch((error) => {
+                console.warn('[ActiveChat] Error clearing message input during UI reset:', error);
+            });
+        }
+
+        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+        if (activeElement instanceof HTMLElement) {
+            activeElement.blur();
+        }
+    }
+
     // Cache the last measured welcome content height so that when the welcome
     // block is hidden (hideWelcomeForKeyboard fades it to invisible), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
@@ -7484,17 +7513,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
-        if (blurTimer) {
-            clearTimeout(blurTimer);
-            blurTimer = undefined;
-        }
-        messageInputFocused = false;
-        messageInputRecentlyFocused = false;
-        suggestionsWouldOverlapWelcome = false;
-        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
-        if (activeElement instanceof HTMLElement) {
-            activeElement.blur();
-        }
+        resetComposerWelcomeState(false);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
@@ -11370,6 +11389,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
             console.debug('[ActiveChat] Logout event received - clearing user chat and showing welcome screen');
+            resetComposerWelcomeState();
 
             const activeChatIdAtLogout = currentChat?.chat_id ?? activeChatStore.get();
             const shouldPreservePublicChat =
@@ -11398,17 +11418,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 
                 // Clear the persistent store
                 activeChatStore.clearActiveChat();
-                
-                // CRITICAL: Clear message input field to prevent showing user's previous draft
-                // This is especially important on mobile where the input might still be visible
-                if (messageInputFieldRef) {
-                    try {
-                        await messageInputFieldRef.clearMessageField(false, false);
-                    } catch (error) {
-                        console.warn('[ActiveChat] Error clearing message input during logout:', error);
-                        // Continue even if clearing input fails
-                    }
-                }
                 
                 if (showCodeFullscreen) {
                     showCodeFullscreen = false;
@@ -16290,6 +16299,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         opacity: 0;
         pointer-events: none;
         visibility: visible;
+    }
+
+    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
+        display: none;
     }
 
     /* Adjust top-buttons position on small screens (absolute mode only) */
