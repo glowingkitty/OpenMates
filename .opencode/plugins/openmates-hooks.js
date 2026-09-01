@@ -627,7 +627,7 @@ function createPresenceSchedulerForTest({
 function persistPresence(record) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn("python3", ["scripts/sessions.py", "presence", "update", "--json-stdin"], {
-      cwd: PROJECT_ROOT,
+      cwd: CURRENT_CONTROL_PLANE_ROOT,
       env: process.env,
       stdio: ["pipe", "ignore", "pipe"],
     });

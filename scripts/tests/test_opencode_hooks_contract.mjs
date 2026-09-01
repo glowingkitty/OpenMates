@@ -61,6 +61,14 @@ test("worktree checkpoint scheduling is single-flight per OpenCode session", () 
   assert.equal(children.length, 2);
 });
 
+test("presence writes use the verified control-plane runtime", () => {
+  const start = source.indexOf("function persistPresence(record)");
+  const end = source.indexOf("let presenceReadCache", start);
+  const persistPresenceSource = source.slice(start, end);
+  assert.match(persistPresenceSource, /cwd: CURRENT_CONTROL_PLANE_ROOT/);
+  assert.doesNotMatch(persistPresenceSource, /cwd: PROJECT_ROOT/);
+});
+
 test("worktree activation scheduling is single-flight per OpenCode session", () => {
   const children = [];
   const spawns = [];
