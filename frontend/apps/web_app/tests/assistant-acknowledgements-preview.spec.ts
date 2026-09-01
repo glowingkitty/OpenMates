@@ -82,7 +82,7 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 	expect(spanishAudio.status()).toBe(200);
 	expect(spanishAudio.headers()['content-type']).toContain('audio/mpeg');
 
-	await languageSelect.selectOption('fr-FR');
+	await proof.action('switch-to-french', () => languageSelect.selectOption('fr-FR'));
 	await proof.assert('french-visible', async () => {
 		await expect(languageSelect).toHaveValue('fr-FR');
 		await expect(page.getByTestId('assistant-ack-selection-summary')).toContainText(
