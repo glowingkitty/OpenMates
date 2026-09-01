@@ -19,6 +19,7 @@ const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = requ
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const SPEECH_TIMEOUT_MS = 240_000;
+const PROOF_FINAL_STATE_HOLD_MS = 5_000;
 const LIVE_MOCK_GROUP = 'assistant_response_speech_web';
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
@@ -219,6 +220,7 @@ test.describe.serial('Assistant response speech', () => {
 				await expectNoPlayerOverlap(page, player);
 			});
 			await proof.checkpoint('paragraph-navigation-visible');
+			await page.waitForTimeout(PROOF_FINAL_STATE_HOLD_MS);
 			await proof.attach();
 		}
 		await player.getByRole('button', { name: 'Previous paragraph' }).click();

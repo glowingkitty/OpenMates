@@ -197,6 +197,7 @@ def render_opencode_agent(source: Path) -> str:
                 '    "test-results/proof-videos/**/frames/*": allow',
                 "  grep: deny",
                 "  glob: deny",
+                "  task: deny",
                 "  external_directory: deny",
             ]
         )
