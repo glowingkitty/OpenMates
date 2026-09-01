@@ -100,7 +100,14 @@ test.describe.serial('Assistant response speech', () => {
 		);
 		expectCliSuccess(result, 'assistant-response speech source chat');
 		const parsed = parseCliJson(result);
-		chatId = String(parsed.chat_id || parsed.chatId || parsed.data?.chat_id || '');
+		chatId = String(
+			parsed.chat_id ||
+			parsed.chatId ||
+			parsed.payload?.chat_id ||
+			parsed.payload?.chatId ||
+			parsed.data?.chat_id ||
+			''
+		);
 		expect(chatId, 'source chat should return a chat_id').toBeTruthy();
 	});
 
