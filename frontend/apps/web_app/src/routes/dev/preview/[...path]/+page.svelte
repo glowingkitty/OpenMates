@@ -862,6 +862,7 @@
 					{/if}
 					<div
 						class="component-mount"
+						class:message-input-preview={componentPath === 'enter_message/MessageInput'}
 						bind:this={mountTarget}
 						style:display={renderError ? 'none' : null}
 					></div>
@@ -915,6 +916,11 @@
 
 	.capture-mode .component-mount {
 		width: 100%;
+	}
+
+	:global(.message-input-preview:has([data-testid='action-buttons']) .empty-input-ai-icon),
+	:global(.message-input-preview:has([data-testid='action-buttons']) [data-testid='guest-cta-mic-button']) {
+		display: none;
 	}
 
 	.capture-mode .preview-viewport--constrained::before,
