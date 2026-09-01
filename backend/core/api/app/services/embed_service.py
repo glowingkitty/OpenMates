@@ -2089,6 +2089,8 @@ class EmbedService:
                 "updated_at": created_at,
             }
 
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+
             await self.send_embed_data_to_client(
                 embed_id=embed_id,
                 embed_type="application",
@@ -2108,7 +2110,6 @@ class EmbedService:
                 app_id="code",
                 skill_id="application",
             )
-            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
 
             self._schedule_embed_persistence_fallback(embed_id)
             logger.info(

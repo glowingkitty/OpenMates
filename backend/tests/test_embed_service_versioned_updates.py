@@ -61,6 +61,7 @@ class FakeRedisClient:
     def __init__(self, embed_data: dict):
         self.values = {"embed:embed-1": json.dumps(embed_data)}
         self.published = []
+        self.operations = []
 
     async def get(self, key: str):
         return self.values.get(key)
@@ -69,6 +70,7 @@ class FakeRedisClient:
         if nx and key in self.values:
             return False
         self.values[key] = value
+        self.operations.append(("set", key))
         return True
 
     async def eval(self, _script: str, _key_count: int, key: str, token: str):
@@ -85,6 +87,7 @@ class FakeRedisClient:
 
     async def publish(self, channel: str, message: str):
         self.published.append((channel, json.loads(message)))
+        self.operations.append(("publish", channel))
         return 1
 
 
@@ -234,6 +237,34 @@ async def test_application_thumbnail_update_publishes_versioned_finished_parent(
     cached_after = json.loads(cache._client.values["embed:embed-1"])
     assert cached_after["version_number"] == 2
     assert "lock:embed:embed-1:application-thumbnail" not in cache._client.values
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_application_parent_is_cached_before_plaintext_publish():
+    cache = FakeCacheService({})
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+
+    result = await service.create_application_embed(
+        name="Counter",
+        framework="svelte",
+        runtime="node",
+        file_refs=[{"path": "src/App.svelte", "embed_id": "file-1"}],
+        entrypoints=[{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        task_id="task-1",
+    )
+
+    assert result and result["embed_id"]
+    embed_cache_key = f"embed:{result['embed_id']}"
+    assert cache._client.operations.index(("set", embed_cache_key)) < cache._client.operations.index(
+        ("publish", "websocket:user:user-hash")
+    )
 
 
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent

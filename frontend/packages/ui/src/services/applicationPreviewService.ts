@@ -9,6 +9,8 @@ import { decodeToonContent, extractEmbedReferences, loadEmbedsWithRetry, resolve
 
 const AUTO_START_RESOLVE_ATTEMPTS = 6;
 const AUTO_START_RESOLVE_DELAY_MS = 500;
+const AUTO_START_START_ATTEMPTS = 4;
+const AUTO_START_START_DELAY_MS = 1_000;
 
 export interface ApplicationPreviewStartResponse {
   session_id: string;
@@ -168,15 +170,23 @@ async function startApplicationPreviewOnce(
   if (autoStartAttempts.has(attemptKey)) return undefined;
   autoStartAttempts.add(attemptKey);
 
-  try {
-    return await startApplicationPreview(chatId, applicationEmbedId, {
-      autoStarted: true,
-      sourceMessageId: messageId,
-    });
-  } catch (error) {
-    console.warn('[applicationPreviewService] Auto-start application preview failed:', error);
-    return undefined;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < AUTO_START_START_ATTEMPTS; attempt += 1) {
+    try {
+      return await startApplicationPreview(chatId, applicationEmbedId, {
+        autoStarted: true,
+        sourceMessageId: messageId,
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < AUTO_START_START_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, AUTO_START_START_DELAY_MS));
+      }
+    }
   }
+  autoStartAttempts.delete(attemptKey);
+  console.warn('[applicationPreviewService] Auto-start application preview failed:', lastError);
+  return undefined;
 }
 
 async function resolveCreatedApplicationEmbedId(markdown: string): Promise<string | undefined> {
