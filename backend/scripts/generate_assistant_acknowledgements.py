@@ -15,6 +15,7 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import httpx
@@ -33,6 +34,25 @@ from backend.shared.providers.elevenlabs.client import DEFAULT_OUTPUT_FORMAT, El
 DEFAULT_OUTPUT_ROOT = REPOSITORY_ROOT / "frontend/apps/web_app/static/audio/assistant-acknowledgements"
 MANIFEST_FILENAME = "manifest.json"
 MANIFEST_SCHEMA_VERSION = 1
+GERMAN_V3_PROMPT_TAGS = MappingProxyType(
+    {
+        "general": ("[warmly]",),
+        "lookup": ("[curious]",),
+        "reasoning": ("[thoughtful]", "[slow]"),
+        "action": ("[focused]",),
+    }
+)
+
+
+def build_generation_prompt(*, language: str, category: str, text: str) -> dict[str, Any]:
+    """Return provider-only prompt metadata while preserving public transcript text."""
+
+    tags = GERMAN_V3_PROMPT_TAGS.get(category, ()) if language == "de-DE" else ()
+    tag_prefix = " ".join(tags)
+    return {
+        "generation_prompt": f"{tag_prefix} {text}" if tag_prefix else text,
+        "generation_tags": tuple(tags),
+    }
 
 
 def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
@@ -57,6 +77,7 @@ def build_plan(language: str, output_root: Path) -> list[dict[str, Any]]:
                         "relative_path": relative_path.as_posix(),
                         "output_path": output_root / relative_path,
                     }
+                    | build_generation_prompt(language=language, category=category, text=text)
                 )
     return plan
 
@@ -163,7 +184,7 @@ async def run(
     if repaired_manifest:
         _write_manifest(output_root, existing_entries)
     pending_plan = [item for item in plan if item["clip_id"] not in existing_entries]
-    required_characters = sum(len(item["text"]) for item in pending_plan)
+    required_characters = sum(len(item["generation_prompt"]) for item in pending_plan)
     if verify_only:
         if pending_plan:
             print(
@@ -237,7 +258,7 @@ async def run(
             output_path: Path = item["output_path"]
             output_path.parent.mkdir(parents=True, exist_ok=True)
             result = await client.text_to_speech(
-                text=item["text"],
+                text=item["generation_prompt"],
                 voice_id=ASSISTANT_VOICE_PROVIDER_IDS[item["voice_profile_id"]],
                 model=ASSISTANT_RESPONSE_SPEECH_MODEL,
                 output_format=DEFAULT_OUTPUT_FORMAT,
