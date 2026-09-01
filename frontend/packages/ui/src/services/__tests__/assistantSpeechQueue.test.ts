@@ -40,6 +40,7 @@ const segment = (
   status,
   durationMs,
   audioUrl: status === "ready" ? `blob:segment-${sequence}` : undefined,
+  playbackClass: "replayable",
 });
 
 describe("AssistantSpeechQueue", () => {
@@ -77,7 +78,7 @@ describe("AssistantSpeechQueue", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.acknowledgement.deterministic-free,assistant-speech.execution.first-segment-progressive,assistant-speech.playback.pinned-full-response-waveform
-  it("plays a prerecorded acknowledgement before paragraphs without adding it to the waveform", async () => {
+  it("plays a prerecorded acknowledgement with a passive waveform and no track controls", async () => {
     const queue = new AssistantSpeechQueue({ audioFactory });
     const acknowledgement: AssistantSpeechSegment = {
       id: "acknowledgement-1",
@@ -85,20 +86,71 @@ describe("AssistantSpeechQueue", () => {
       status: "ready",
       durationMs: 0,
       audioUrl: "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
-      excludeFromWaveform: true,
+      playbackClass: "passive",
     };
 
     queue.start("response-1", [acknowledgement]);
     queue.upsertSegment(segment(0, "ready"));
 
     await vi.waitFor(() => expect(audioByUrl.get(acknowledgement.audioUrl!)?.play).toHaveBeenCalledOnce());
+    expect(queue.presentationMode).toBe("passive_clip");
+    expect(queue.hasReplayableTracks).toBe(true);
     expect(queue.waveformRegions).toEqual([
-      { segmentId: "segment-0", start: 0, end: 1, status: "ready", active: false },
+      { segmentId: "acknowledgement-1", start: 0, end: 1, status: "ready", active: true },
     ]);
 
     audioByUrl.get(acknowledgement.audioUrl!)?.emit("ended");
     await vi.waitFor(() => expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce());
     expect(queue.state.activeSegmentId).toBe("segment-0");
+    expect(queue.presentationMode).toBe("replayable_track_queue");
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.pinned-full-response-waveform
+  it("waits two seconds for later audio and reopens after an idle dismissal", async () => {
+    vi.useFakeTimers();
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    const acknowledgement: AssistantSpeechSegment = {
+      id: "acknowledgement-1",
+      sequence: -1,
+      status: "ready",
+      durationMs: 500,
+      audioUrl: "blob:acknowledgement",
+      playbackClass: "passive",
+    };
+
+    queue.start("response-1", [acknowledgement]);
+    await vi.runAllTicks();
+    audioByUrl.get("blob:acknowledgement")?.emit("ended");
+    expect(queue.state.status).toBe("waiting_for_more");
+
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(queue.state.status).toBe("waiting_for_more");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(queue.state.status).toBe("idle");
+
+    queue.upsertSegment(segment(0, "ready"));
+    await vi.runAllTicks();
+    expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce();
+    expect(queue.state.status).toBe("playing");
+    vi.useRealTimers();
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace
+  it("cancels idle dismissal when the next clip arrives during the grace period", async () => {
+    vi.useFakeTimers();
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.start("response-1", [segment(0, "ready")]);
+    await vi.runAllTicks();
+    audioByUrl.get("blob:segment-0")?.emit("ended");
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    queue.upsertSegment(segment(1, "ready"));
+    await vi.runAllTicks();
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(audioByUrl.get("blob:segment-1")?.play).toHaveBeenCalledOnce();
+    expect(queue.state.status).toBe("playing");
+    vi.useRealTimers();
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
@@ -129,6 +181,7 @@ describe("AssistantSpeechQueue", () => {
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
   it("waits for the next ordered segment instead of skipping ahead", async () => {
+    vi.useFakeTimers();
     const queue = new AssistantSpeechQueue({ audioFactory });
 
     queue.start("response-1", [
@@ -139,17 +192,30 @@ describe("AssistantSpeechQueue", () => {
     audioByUrl.get("blob:segment-0")?.emit("ended");
 
     expect(queue.state).toMatchObject({
-      status: "waiting_for_segment",
+      status: "waiting_for_more",
       activeSegmentId: "segment-0",
     });
     expect(audioByUrl.get("blob:segment-2")?.play).toBeUndefined();
 
+    await vi.advanceTimersByTimeAsync(1_999);
     queue.upsertSegment(segment(1, "ready"));
-
-    await vi.waitFor(() => {
-      expect(audioByUrl.get("blob:segment-1")?.play).toHaveBeenCalledOnce();
-    });
+    await vi.runAllTicks();
+    expect(audioByUrl.get("blob:segment-1")?.play).toHaveBeenCalledOnce();
     expect(queue.state.activeSegmentId).toBe("segment-1");
+    vi.useRealTimers();
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace
+  it("dismisses after the grace period when the known successor is still generating", async () => {
+    vi.useFakeTimers();
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.start("response-1", [segment(0, "ready"), segment(1, "generating")]);
+    audioByUrl.get("blob:segment-0")?.emit("ended");
+
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(queue.state.status).toBe("idle");
+    vi.useRealTimers();
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control

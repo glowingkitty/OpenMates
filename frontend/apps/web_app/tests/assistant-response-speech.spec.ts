@@ -44,6 +44,12 @@ const PROOF_CONTRACT = defineVideoProof({
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
+			id: 'processing-progress-visible',
+			text: 'The assistant and Weather processing preview appear while skill and speech work continue independently.',
+			checkpoint: 'processing-progress-visible',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
 			id: 'speech-player-visible',
 			text: 'Speak opens the pinned response player with paragraph regions and playback controls.',
 			checkpoint: 'speech-player-visible',
@@ -61,6 +67,12 @@ const PROOF_CONTRACT = defineVideoProof({
 			id: 'voice-replies-enabled',
 			checkpoint: 'voice-replies-enabled',
 			visual: 'The Voice control is visibly active after reload.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'processing-progress-visible',
+			checkpoint: 'processing-progress-visible',
+			visual: 'The assistant message contains a Weather preview in Processing state before the final response completes.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -87,7 +99,7 @@ test.use({
 test.describe.serial('Assistant response speech', () => {
 	test.setTimeout(900_000);
 
-	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.autoplay-recovery-visible,message-input.actions.visibility,message-input.send.ownership
+	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,message-input.actions.visibility,message-input.send.ownership
 	test('plays a real assistant response with synchronized controls', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('assistant-response-speech');
@@ -128,6 +140,7 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAttribute('data-speech-state', 'off');
 		await expect(voiceToggle).toHaveAccessibleName('Speak responses');
 		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'true');
+		expect(await voiceToggle.getByTestId('assistant-speech-muted-icon').evaluate((element: Element) => getComputedStyle(element).maskImage)).not.toBe('none');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'false');
 		await attachmentMenu.click();
 		await expect(messageField.getByTestId('composer-attachment-camera')).toBeVisible();
@@ -152,6 +165,7 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAccessibleName('Turn off speaking');
 		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'false');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
+		expect(await voiceToggle.getByTestId('assistant-speech-audio-icon').evaluate((element: Element) => getComputedStyle(element).maskImage)).not.toBe('none');
 		expect(await voiceToggle.getByTestId('assistant-speech-audio-icon').evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain('opacity');
 
 		await page.getByRole('button', { name: 'Turn off speaking' }).click();
@@ -189,9 +203,19 @@ test.describe.serial('Assistant response speech', () => {
 			screenshot,
 			'assistant-speech-weather-source'
 		);
-		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
-		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
-		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"]')).toBeVisible({ timeout: 120_000 });
+		const streamingAssistant = page.getByTestId('message-assistant').last();
+		const processingWeather = streamingAssistant.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="processing"]');
+		await expect(streamingAssistant).toBeVisible({ timeout: 60_000 });
+		await expect(processingWeather).toBeVisible({ timeout: 120_000 });
+		if (proof) {
+			await proof.assert('processing-progress-visible', async () => {
+				await expect(streamingAssistant).toBeVisible();
+				await expect(processingWeather).toBeVisible();
+			});
+			await proof.checkpoint('processing-progress-visible');
+		}
+		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
+		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="finished"]')).toBeVisible({ timeout: 120_000 });
 
 		const player = page.getByTestId('assistant-speech-player');
 		await expect(player).toBeVisible({ timeout: SPEECH_TIMEOUT_MS });
@@ -237,11 +261,21 @@ test.describe.serial('Assistant response speech', () => {
 async function expectNoPlayerOverlap(page: any, player: any): Promise<void> {
 	await expect.poll(async () => {
 		const playerBox = await player.boundingBox();
+		const chatBox = await page.getByTestId('chat-side').boundingBox();
 		const composerBox = await page.getByTestId('message-field').last().boundingBox();
-		const assistantBox = await page.getByTestId('message-assistant').last().boundingBox();
-		if (!playerBox || !composerBox || !assistantBox) return false;
+		const actions = page.getByTestId('chat-top-actions');
+		const actionsBox = await actions.boundingBox();
+		const transcriptPadding = await page.getByTestId('chat-history-content').evaluate((element: Element) => Number.parseFloat(getComputedStyle(element).paddingTop));
+		if (!playerBox || !chatBox || !composerBox || !actionsBox) return false;
+		const [playerZ, actionsZ] = await Promise.all([
+			player.evaluate((element: Element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10)),
+			actions.evaluate((element: Element) => Number.parseInt(getComputedStyle(element).zIndex || '0', 10))
+		]);
 		const clearsComposer = playerBox.y + playerBox.height <= composerBox.y + 1;
-		const clearsTranscript = assistantBox.y + assistantBox.height <= playerBox.y + 1;
-		return clearsComposer && clearsTranscript;
+		const pinnedToChatTop = Math.abs(playerBox.y - chatBox.y) <= 2;
+		const spansChat = Math.abs(playerBox.x - chatBox.x) <= 2 && Math.abs(playerBox.width - chatBox.width) <= 4;
+		const actionsOverlayPlayer = actionsBox.y >= playerBox.y && actionsBox.y + actionsBox.height <= playerBox.y + playerBox.height && actionsZ > playerZ;
+		const transcriptClearsPlayer = transcriptPadding >= playerBox.height;
+		return clearsComposer && pinnedToChatTop && spansChat && actionsOverlayPlayer && transcriptClearsPlayer;
 	}, { timeout: 15_000 }).toBe(true);
 }

@@ -4,20 +4,23 @@ version: 1
 status: draft
 title: Assistant Response Speech
 summary: >
-  Let authenticated users hear assistant responses as ordered, independently
-  generated speech paragraphs while text streaming remains authoritative,
-  uninterrupted, private, replayable, and charged exactly once per generated
-  paragraph.
+  Let authenticated users hear a nonblocking prerecorded acknowledgement,
+  app-use announcement, and ordered independently generated response paragraphs
+  while thinking and text streaming remain authoritative, uninterrupted,
+  private, replayable where applicable, and charged exactly once per generated
+  segment.
 
 scope:
   includes:
     - A chat-scoped Auto speak response preference that is off by default and synchronized across the user's first-party clients.
     - Visible automatic activation when the user adds a voice-recording embed to the chat composer.
     - Deterministic selection of a prerecorded acknowledgement by mate voice, response language, and preprocessor request category.
+    - Immediate acknowledgement playback alongside optional thinking, followed by a generated app-use announcement while selected app previews remain visibly processing.
     - Immutable speakable prose paragraphs, app-use announcements, and structured summaries generated independently from the visual response stream.
     - One ElevenLabs generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
-    - Ordered automatic playback that starts when the first generated paragraph is ready and continues as later paragraph files become ready.
-    - A bar pinned to the top of the active-chat container that visualizes the full response waveform, highlights the current paragraph region, and exposes direct paragraph navigation.
+    - Ordered automatic playback that starts when each complete encrypted audio segment is ready and continues as later paragraph files become ready without delaying thinking, app previews, embeds, or text.
+    - A full-width bar pinned over the top of the active-chat history, below the chat action buttons, that shows passive acknowledgement and app-use playback before exposing controls for replayable response tracks.
+    - A two-second idle grace period that keeps the bar visible while awaiting another clip, closes it when none arrives, and reopens it when later audio starts.
     - A Speak action on every assistant response that generates only missing paragraph audio and reuses durable existing files.
     - In-app paragraph controls and best-effort operating-system media controls for play, pause, previous paragraph, and next paragraph.
     - Successful-generation-only credit charging tied to the originating chat, assistant message, and paragraph segment.
@@ -29,6 +32,7 @@ scope:
     - Reading raw JSON, protocol fences, raw URLs, code syntax, or complete table markup aloud by default.
     - A general-purpose LLM rewrite, compression, or cleanup pass before text-to-speech generation.
     - Browser speech synthesis or another provider as a silent fallback.
+    - Relaying partial provider audio bytes to clients before a complete encrypted segment asset is ready.
     - Public, anonymous, developer-API, CLI, or SDK access to assistant-response speech generation in version 1.
     - Changing the explicit user-invoked audio.speak app-skill contract.
 
@@ -142,6 +146,11 @@ models:
       type: enum
       required: true
       values: [prose_paragraph, app_use_announcement, embed_summary, code_summary, table_summary]
+    playback_class:
+      type: enum
+      required: true
+      values: [passive_prelude, replayable_response_track]
+      constraints: {app_use_announcement_is_passive: true, response_paragraphs_and_summaries_are_replayable: true}
     source_hash:
       type: sha256
       required: true
@@ -218,7 +227,16 @@ models:
     placement:
       type: layout_invariant
       required: true
-      constraints: {pinned_to_active_chat_top: true, global_viewport_fixed: false, transcript_obstruction: forbidden}
+      constraints: {pinned_to_active_chat_top: true, full_active_chat_width: true, overlays_chat_history_layer: true, below_chat_action_buttons: true, global_viewport_fixed: false, transcript_obstruction: forbidden}
+    presentation_mode:
+      type: enum
+      required: true
+      values: [passive_clip, replayable_track_queue]
+      constraints: {acknowledgement_and_app_use_are_passive: true, track_navigation_only_for_replayable_response_tracks: true}
+    idle_grace_ms:
+      type: integer
+      required: true
+      constraints: {value: 2000, cancelled_when_audio_arrives: true, reopens_for_late_audio: true}
     waveform:
       type: composite_waveform
       required: true
@@ -247,7 +265,7 @@ assertions:
     depends_on: [models.ChatSpeechPreference.activation_source, examples.preferences]
   - id: assistant-speech.acknowledgement.deterministic-free
     type: invariant
-    must: The initial processing acknowledgement is selected deterministically from prerecorded clips using the resolved mate voice profile, response language, and preprocessor request category; missing exact matches use a documented deterministic fallback, never invoke runtime TTS or another inference pass, and incur no runtime generation credit charge.
+    must: The initial processing acknowledgement is selected deterministically from prerecorded clips using the resolved mate voice profile, response language, and preprocessor request category; missing exact matches use a documented deterministic fallback, never invoke runtime TTS or another inference pass, incur no runtime generation credit charge, start without waiting for optional thinking or app-skill execution, and show the top speech bar in passive waveform mode without track-navigation controls.
     depends_on: [models.AcknowledgementClip, models.MateVoiceProfile, examples.acknowledgements]
   - id: assistant-speech.voice.fixed-versioned-mate-profile
     type: security
@@ -277,11 +295,15 @@ assertions:
     depends_on: [models.SpeechSegment.speakable_text, examples.projection, examples.privacy]
   - id: assistant-speech.execution.text-stream-independent
     type: invariant
-    must: Acknowledgement playback, speech projection, safety checks, provider generation, encrypted storage, charging, and playback execute independently from assistant text streaming and final persistence; speech slowness, failure, cancellation, or autoplay blocking never delays, truncates, rewrites, or fails the text response.
+    must: User-message rendering, rainbow processing state, optional thinking, app-skill processing previews, embeds, assistant text chunks, and final persistence remain authoritative and progressive; every visible event is published to the device before speech observes or dispatches work for that event, and acknowledgement playback, projection, safety checks, provider generation, encrypted storage, charging, playback slowness, failure, cancellation, or autoplay blocking never delays, truncates, rewrites, or fails those surfaces.
     depends_on: [models.SpeechSegment.status, models.PlaybackQueue.state, examples.failures]
+  - id: assistant-speech.execution.app-skill-progressive
+    type: invariant
+    must: When the model selects an app skill, its preview embed becomes visible in Processing state before provider execution completes; auto-speak independently plays the prerecorded acknowledgement and then the deterministic generated app-use announcement when ready, while optional thinking continues independently and regular result-dependent prose begins as soon as the skill result and model permit without waiting for any audio.
+    depends_on: [models.SpeechSegment.kind, models.SpeechSegment.playback_class, examples.processing]
   - id: assistant-speech.execution.first-segment-progressive
     type: behavior
-    must: Playback may start as soon as the first ordered generated segment is ready, does not wait for the complete response or all paragraph files, waits visibly when the next ordered segment is still generating, and automatically continues in manifest order when it becomes ready.
+    must: Playback starts only after the current segment is fully generated, encrypted, stored, and ready, but does not wait for the complete response or later paragraph files; it waits visibly for the next ordered segment, automatically continues when it becomes ready, and never relays partial provider audio bytes to the client.
     depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue, examples.playback]
   - id: assistant-speech.playback.single-queue-segment-control
     type: behavior
@@ -290,15 +312,20 @@ assertions:
   - id: assistant-speech.playback.pinned-full-response-waveform
     type: behavior
     must: >
-      The active chat displays one speech bar pinned below its top chrome while a
-      response queue is waiting, playing, paused, autoplay-blocked, or failed.
-      The bar concatenates duration-proportional waveform summaries for every
-      known paragraph or summary segment, expands as streaming discovers later
-      segments, shows the complete response after the manifest is final, visually
-      highlights the current segment, distinguishes segments still generating,
-      and lets the user select or skip paragraph regions without merging the
-      underlying audio files or covering transcript content.
+      The active chat displays one full-width speech bar pinned over the top of
+      its chat-history layer and below the share, report-issue, chat-settings, and
+      reminder buttons. Acknowledgement and app-use clips show a passive waveform
+      without replay or track-navigation controls. Replayable response paragraphs
+      and structured summaries concatenate duration-proportional waveform regions,
+      expand as streaming discovers later tracks, show the complete response after
+      the manifest is final, highlight the current track, distinguish tracks still
+      generating, and support direct selection or skipping without merging audio
+      files, moving the composer, or making transcript content unreachable.
     depends_on: [models.ResponseSpeechBar, models.SpeechSegment.waveform, models.PlaybackQueue, examples.playback]
+  - id: assistant-speech.playback.two-second-idle-grace
+    type: behavior
+    must: After any clip ends with no currently available successor, the top speech bar remains visible for exactly two seconds while waiting; later audio arriving during that grace starts and cancels dismissal, expiry closes the bar, and audio arriving after expiry reopens it, while replayable response-track controls appear only when replayable tracks exist.
+    depends_on: [models.ResponseSpeechBar.idle_grace_ms, models.ResponseSpeechBar.presentation_mode, examples.playback]
   - id: assistant-speech.playback.os-controls-best-effort
     type: parity
     must: Web clients register supported Media Session play, pause, previous-track, and next-track actions to the active segment queue and retain complete in-app controls when the browser or operating system lacks them; Apple clients expose equivalent native background and lock-screen controls where the platform permits.
@@ -367,4 +394,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [preferences, acknowledgements, voice_profiles, segmentation, projection, playback, on_demand, billing, failures, privacy, lifecycle]
+  required_groups: [preferences, acknowledgements, voice_profiles, segmentation, projection, processing, playback, on_demand, billing, failures, privacy, lifecycle]

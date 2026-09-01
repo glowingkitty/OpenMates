@@ -25,6 +25,7 @@ from backend.shared.python_utils.chat_completion_recovery_job import build_seale
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.apps.ai.assistant_speech.projection import (
+    build_app_use_announcement,
     classify_acknowledgement_category,
     select_prerecorded_acknowledgement,
 )
@@ -189,6 +190,7 @@ async def _dispatch_automatic_assistant_speech_segment(
                 "segment_id": str(segment["segment_id"]),
                 "status": "queued",
                 "sequence": int(segment["sequence"]),
+                "kind": str(segment["kind"]),
             },
         },
         log_prefix,
@@ -5062,7 +5064,7 @@ async def _consume_main_processing_stream(
                 "%s Assistant speech disabled because the selected mate profile is unavailable",
                 log_prefix,
             )
-            _publish_to_redis(
+            await _publish_to_redis(
                 cache_service,
                 redis_channel_name,
                 {
@@ -5108,7 +5110,7 @@ async def _consume_main_processing_stream(
                     selection_seed=assistant_message_id,
                 )
                 if acknowledgement and acknowledgement.get("asset_url"):
-                    _publish_to_redis(
+                    await _publish_to_redis(
                         cache_service,
                         redis_channel_name,
                         {
@@ -5133,6 +5135,10 @@ async def _consume_main_processing_stream(
                 "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
                 "language": speech_language,
             }
+            app_use_announcement = build_app_use_announcement(
+                preprocessing_result.relevant_app_skills,
+                speech_language,
+            )
             speech_tracker = ImmutableSpeechBoundaryTracker(
                 metadata=speech_metadata,
                 dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
@@ -5165,7 +5171,14 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     "assistant speech status",
                 ),
+                sequence_offset=1 if app_use_announcement else 0,
             )
+            if app_use_announcement:
+                speech_tracker.dispatch_projected_segment(
+                    sequence=0,
+                    kind="app_use_announcement",
+                    speakable_text=app_use_announcement,
+                )
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
     
     # Thinking content tracking for thinking models (Gemini, Anthropic)
@@ -8238,9 +8251,6 @@ async def _consume_main_processing_stream(
                     final_response_chunks.append(chunk)
                     stream_chunk_count += 1
 
-                if speech_tracker is not None:
-                    speech_tracker.observe("".join(final_response_chunks))
-
                 # CRITICAL: Publish chunk IMMEDIATELY without buffering
                 # This ensures paragraph-by-paragraph streaming and embed placeholders show up right away
                 if cache_service:
@@ -8271,6 +8281,8 @@ async def _consume_main_processing_stream(
                             completion_timing.mark_first_visible_content()
                     else:
                         await content_publisher.publish(payload, log_message)
+                        if stream_chunk_count == 1:
+                            await content_publisher.flush()
                     
                     # URL Validation: Check if this paragraph contains URLs and validate them in background
                     # Skip code blocks (they might contain URLs that are just examples)
@@ -8294,6 +8306,11 @@ async def _consume_main_processing_stream(
                             url_validation_tasks.append(validation_task)
                 elif stream_chunk_count == 1:
                     logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+                if speech_tracker is not None:
+                    speech_snapshot = "".join(final_response_chunks)
+                    if speech_tracker.has_new_boundary(speech_snapshot) and cache_service and redis_channel_name:
+                        await content_publisher.flush()
+                    speech_tracker.observe(speech_snapshot)
             else:
                 # Non-string chunk (shouldn't happen, but handle gracefully)
                 logger.warning(f"{log_prefix} Received unexpected non-string chunk type: {type(chunk)}")

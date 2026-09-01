@@ -13,7 +13,7 @@ export interface AssistantSpeechSegment {
   status: AssistantSpeechSegmentStatus;
   durationMs: number;
   audioUrl?: string;
-  excludeFromWaveform?: boolean;
+  playbackClass: "passive" | "replayable";
 }
 
 export type AssistantSpeechQueueStatus =
@@ -21,6 +21,7 @@ export type AssistantSpeechQueueStatus =
   | "waiting_for_segment"
   | "playing"
   | "paused"
+  | "waiting_for_more"
   | "stopped"
   | "blocked_by_autoplay"
   | "failed";
@@ -78,6 +79,8 @@ export class AssistantSpeechQueue {
   private readonly audioBySegmentId = new Map<string, CachedAudio>();
   private currentAudio: SpeechAudio | null = null;
   private pendingSegmentId: string | null = null;
+  private readonly completedSegmentIds = new Set<string>();
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
 
   state: AssistantSpeechQueueState = { ...DEFAULT_STATE };
@@ -91,7 +94,10 @@ export class AssistantSpeechQueue {
   }
 
   get waveformRegions(): AssistantSpeechWaveformRegion[] {
-    const segments = this.orderedSegments.filter((segment) => !segment.excludeFromWaveform);
+    const active = this.activeSegment;
+    const segments = this.presentationMode === "passive_clip" && active
+      ? [active]
+      : this.orderedSegments.filter((segment) => segment.playbackClass === "replayable");
     const totalDuration = segments.reduce(
       (total, segment) => total + Math.max(segment.durationMs, 0),
       0,
@@ -118,13 +124,25 @@ export class AssistantSpeechQueue {
     });
   }
 
+  get presentationMode(): "passive_clip" | "replayable_track_queue" {
+    return this.activeSegment?.playbackClass === "passive"
+      ? "passive_clip"
+      : "replayable_track_queue";
+  }
+
+  get hasReplayableTracks(): boolean {
+    return this.orderedSegments.some((segment) => segment.playbackClass === "replayable");
+  }
+
   start(responseId: string, segments: AssistantSpeechSegment[]): void {
     if (AssistantSpeechQueue.activeQueue && AssistantSpeechQueue.activeQueue !== this) {
       AssistantSpeechQueue.activeQueue.stop();
     }
     this.stopCurrentAudio();
+    this.clearIdleTimer();
     this.segments.clear();
     this.audioBySegmentId.clear();
+    this.completedSegmentIds.clear();
     this.pendingSegmentId = null;
     this.setState({ responseId, status: "waiting_for_segment", activeSegmentId: null });
     for (const segment of segments) {
@@ -145,7 +163,17 @@ export class AssistantSpeechQueue {
       this.audioBySegmentId.delete(segment.id);
     }
 
-    if (!this.state.activeSegmentId) {
+    if (this.state.status === "waiting_for_more") {
+      const nextSegment = this.orderedSegments.find((candidate) => !this.completedSegmentIds.has(candidate.id));
+      this.pendingSegmentId = nextSegment?.id ?? null;
+      if (!nextSegment || nextSegment.id !== segment.id || segment.status !== "ready") {
+        return;
+      }
+    }
+    this.clearIdleTimer();
+
+    if (!this.state.activeSegmentId || this.completedSegmentIds.has(this.state.activeSegmentId)) {
+      this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
       this.activateFirstSegment();
       return;
     }
@@ -188,6 +216,7 @@ export class AssistantSpeechQueue {
   }
 
   stop(): void {
+    this.clearIdleTimer();
     this.stopCurrentAudio();
     this.setState({ ...this.state, status: "stopped" });
     if (AssistantSpeechQueue.activeQueue === this) {
@@ -242,8 +271,15 @@ export class AssistantSpeechQueue {
   }
 
   private activateFirstSegment(): void {
-    const firstSegment = this.orderedSegments[0];
-    if (!firstSegment || (!firstSegment.excludeFromWaveform && firstSegment.sequence !== 0)) {
+    const firstSegment = this.orderedSegments.find((segment) => !this.completedSegmentIds.has(segment.id));
+    if (!firstSegment) {
+      return;
+    }
+    if (
+      firstSegment.playbackClass === "replayable" &&
+      firstSegment.sequence > 0 &&
+      !this.orderedSegments.some((segment) => segment.sequence === 0)
+    ) {
       return;
     }
     this.setState({ ...this.state, activeSegmentId: firstSegment.id });
@@ -253,7 +289,7 @@ export class AssistantSpeechQueue {
   }
 
   private async moveBy(direction: -1 | 1): Promise<void> {
-    const segments = this.orderedSegments.filter((segment) => !segment.excludeFromWaveform);
+    const segments = this.orderedSegments.filter((segment) => segment.playbackClass === "replayable");
     const activeIndex = segments.findIndex((segment) => segment.id === this.state.activeSegmentId);
     const targetIndex = activeIndex === -1 ? 0 : activeIndex + direction;
     const targetSegment = segments[targetIndex];
@@ -306,18 +342,20 @@ export class AssistantSpeechQueue {
     if (this.state.activeSegmentId !== segmentId || this.currentAudio !== audio) {
       return;
     }
+    this.completedSegmentIds.add(segmentId);
     const segments = this.orderedSegments;
     const activeIndex = segments.findIndex((segment) => segment.id === segmentId);
     const nextSegment = segments[activeIndex + 1];
-    if (!nextSegment) {
-      this.currentAudio = null;
-      this.setState({ ...this.state, status: "stopped" });
-      return;
-    }
     this.currentAudio = null;
-    if (nextSegment.status !== "ready") {
-      this.pendingSegmentId = nextSegment.id;
-      this.setState({ ...this.state, status: "waiting_for_segment" });
+    if (!nextSegment || nextSegment.status !== "ready") {
+      this.pendingSegmentId = nextSegment?.id ?? null;
+      this.setState({ ...this.state, status: "waiting_for_more" });
+      this.idleTimer = setTimeout(() => {
+        this.idleTimer = null;
+        if (this.state.status === "waiting_for_more") {
+          this.setState({ ...this.state, status: "idle", activeSegmentId: null });
+        }
+      }, 2_000);
       return;
     }
     this.setState({
@@ -332,6 +370,13 @@ export class AssistantSpeechQueue {
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
+    }
+  }
+
+  private clearIdleTimer(): void {
+    if (this.idleTimer !== null) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
     }
   }
 

@@ -215,7 +215,7 @@ specifications:
     version: 1
     status: draft
     path: features/assistant-response-speech
-    fingerprint: 104acab9feae95444076a9e3bfe1d958517380f0c1625ecf625db916e9d3f152
+    fingerprint: ad551c1e3907f70fdd8ed5574d0d043cb5d9bed94d347fe2c86bca41d9c2775a
     required_applies_to:
     - rest_api
     - gui.web
@@ -2359,7 +2359,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 22fccc7bcb9c9239438a1de4869503c1bfadf24df9f43bd5e7e467b5a7abfe86
+    fingerprint: 2861c6633d834e4ead0c91af608ebac8afc172ca9fbe4ce683c963f414b8f3fc
     required_applies_to:
     - rest_api
     - gui.web
@@ -2377,7 +2377,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 6b267c8f15d88dcb358b956ec2239ff657d1a3f5f3442556e87b67a0f0f290f0
+    fingerprint: 944b22c62b11af5dd6bb352e8952b1d4f7669b08fe240edeccbf09afb98a3f35
     required_applies_to:
     - rest_api
     - gui.web
@@ -2413,7 +2413,16 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 997de6b146591516202ec361082f05eb716ae04c97c68bf33a91121f091f4007
+    fingerprint: 57c2347ed7be45d9f9eddb40c2dd31d04962e8a30a58034594422f2291352e20
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.execution.app-skill-progressive:
+    specification: feature.assistant-response-speech@1
+    specification_id: feature.assistant-response-speech
+    type: invariant
+    fingerprint: 20928f112ebe227be696437319477a76c1f6b5b9b0fc4fa1fe9178c9517071bc
     required_applies_to:
     - rest_api
     - gui.web
@@ -2422,7 +2431,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: 62559153b8a04bc57f93d86a9033f46cdd177b058a0ca3a5e626d1e5eaeb437e
+    fingerprint: 89d5a8e3751e481e4634efbd29012986eb1bd0e0321748f207609649f5117977
     required_applies_to:
     - rest_api
     - gui.web
@@ -2431,7 +2440,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: c5f994a16296133fd2aa18680a7e49a4d86e389c8aaf6dcb4c49c31847ec8cda
+    fingerprint: 607fad7dcf5610b98e24f9d618455de09cab9155bda3edae9a39afda01c86369
     required_applies_to:
     - rest_api
     - gui.web
@@ -2440,7 +2449,16 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: 1db3f338533505e882a44576288c196c86eb4090df26719c42aba39e46020625
+    fingerprint: 56c4db141198849289ed9feddff0016df45f83cfc097b874957c1c2838776d55
+    required_applies_to:
+    - rest_api
+    - gui.web
+    - gui.apple
+  assistant-speech.playback.two-second-idle-grace:
+    specification: feature.assistant-response-speech@1
+    specification_id: feature.assistant-response-speech
+    type: behavior
+    fingerprint: 51952cfce053cbc324c351ba86083d92aac1a103b5693b47189491d50855edac
     required_applies_to:
     - rest_api
     - gui.web
@@ -2449,7 +2467,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 5bdf352fd647b24bbb9b546fe681211897bbdfebc3af6355d208044f9c411a7d
+    fingerprint: b659d897897ca9b5c069ffcc37692dba359bfd89ea7b0e43802393d9d6d922d4
     required_applies_to:
     - rest_api
     - gui.web
@@ -2494,7 +2512,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: 19cb93956903df4811009796d6c6696050ac5c6394ea6da5c4b785a97e9f7d4a
+    fingerprint: da52ed07145bb6e81a49763ebec1ca8ae13415f337943be0a565986197a6038b
     required_applies_to:
     - rest_api
     - gui.web
@@ -2521,7 +2539,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: 8b4a509b7de96b61e7467455281da92e7d23f07118c0e67a0de10061a1b5662d
+    fingerprint: d294bc573e3a5cc081be50d52c58cccb822e812a3d90077af703e44141bc40b6
     required_applies_to:
     - rest_api
     - gui.web
@@ -2530,7 +2548,7 @@ assertions:
     specification: feature.assistant-response-speech@1
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 0ea8fbc3e64031f6af12c6419e4a85e65c722c04beb8265b7272f9619b9bb161
+    fingerprint: 0ef3a0615afcbcd99bc6d2912f4d897e1f84b2bec7d2b4b20a50a7f6d4eadb66
     required_applies_to:
     - rest_api
     - gui.web

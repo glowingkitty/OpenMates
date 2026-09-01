@@ -15,7 +15,7 @@ from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
 
 MAX_SEGMENTS_PER_REQUEST = 20
 MAX_SPEAKABLE_TEXT_LENGTH = 2_000
-SAFE_RESULT_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_seconds", "error", "retryable")
+SAFE_RESULT_FIELDS = ("segment_id", "sequence", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
 ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
 ASSISTANT_SPEECH_INELIGIBLE_STATUSES = {"cancelled", "deleted", "invalidated"}
 
@@ -181,6 +181,8 @@ async def handle_assistant_speech_event(
             await client.expire(key, 60)
         return count <= MAX_SEGMENTS_PER_REQUEST
 
+    sequence_offsets: dict[tuple[str, str, int], int] = {}
+
     async def find_canonical_segment(
         segment: Mapping[str, object],
         *,
@@ -189,6 +191,23 @@ async def handle_assistant_speech_event(
     ) -> Mapping[str, object] | None:
         text = str(segment.get("speakable_text") or "").strip()
         source_hash = _speech_source_identity(text)
+        offset_key = (str(chat_id), str(assistant_message_id), int(segment["source_version"]))
+        if offset_key not in sequence_offsets:
+            prelude_rows = await directus_service.get_items(
+                "assistant_speech_segments",
+                params={
+                    "filter[user_id][_eq]": user_id,
+                    "filter[chat_id][_eq]": chat_id,
+                    "filter[assistant_message_id][_eq]": assistant_message_id,
+                    "filter[source_version][_eq]": segment["source_version"],
+                    "filter[sequence][_eq]": 0,
+                    "filter[kind][_eq]": "app_use_announcement",
+                    "limit": 1,
+                },
+                no_cache=True,
+            )
+            sequence_offsets[offset_key] = 1 if prelude_rows else 0
+        sequence_offset = sequence_offsets[offset_key]
         rows = await directus_service.get_items(
             "assistant_speech_segments",
             params={
@@ -196,7 +215,7 @@ async def handle_assistant_speech_event(
                 "filter[chat_id][_eq]": chat_id,
                 "filter[assistant_message_id][_eq]": assistant_message_id,
                 "filter[source_version][_eq]": segment["source_version"],
-                "filter[sequence][_eq]": segment["sequence"],
+                "filter[sequence][_eq]": int(segment["sequence"]) + sequence_offset,
                 "filter[kind][_eq]": segment["kind"],
                 "filter[source_hash][_eq]": source_hash,
                 "limit": 1,
@@ -284,7 +303,16 @@ async def handle_assistant_speech_event(
                 safe_results.append({"segment_id": segment["segment_id"], "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True})
                 continue
             app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**segment, "user_id": user_id, "user_vault_key_id": user_vault_key_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
-        queued = ({"segment_id": segment["segment_id"], "status": "queued"} for segment in normalized if user_vault_key_id)
+        queued = (
+            {
+                "segment_id": segment["segment_id"],
+                "sequence": segment["sequence"],
+                "kind": segment["kind"],
+                "status": "queued",
+            }
+            for segment in normalized
+            if user_vault_key_id
+        )
         return [*safe_results, *queued]
 
     async def retry(**kwargs: object) -> Mapping[str, object] | None:

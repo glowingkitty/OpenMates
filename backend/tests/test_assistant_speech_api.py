@@ -341,8 +341,10 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
             if collection == "messages":
                 return [{"role": "assistant"}]
             if collection == "assistant_speech_segments":
+                if params["filter[kind][_eq]"] == "app_use_announcement":
+                    return []
                 assert params["filter[source_hash][_eq]"] == segment["source_hash"]
-                return [segment]
+                return [segment] if params["filter[sequence][_eq]"] == 0 else []
             return []
 
     async def credit_headroom(**_kwargs):
@@ -382,9 +384,11 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
                 "segments": [
                     {
                         "segment_id": "segment-ready",
+                        "sequence": 0,
                         "status": "ready",
                         "generated_asset_id": "asset-1",
                         "duration_seconds": 1.2,
+                        "kind": "prose_paragraph",
                     }
                 ],
             },
@@ -405,7 +409,7 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
         "id": "row-1",
         "segment_id": "segment-retryable-error",
         "source_version": 1,
-        "sequence": 0,
+        "sequence": 1,
         "kind": "prose_paragraph",
         "source_hash": _speech_source_identity(text),
         "voice_profile_key": "warm_neutral",
@@ -414,6 +418,7 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
         "error": "Speech is temporarily unavailable.",
         "retryable": True,
     }
+    repeated_segment = {**segment, "id": "row-2", "segment_id": "segment-retryable-error-2", "sequence": 2}
     sent: list[dict[str, object]] = []
     dispatched: list[tuple[str, dict[str, object], str]] = []
 
@@ -451,8 +456,10 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
             if collection == "messages":
                 return [{"role": "assistant"}]
             if collection == "assistant_speech_segments":
+                if params["filter[kind][_eq]"] == "app_use_announcement":
+                    return [{"segment_id": "app-use", "sequence": 0}]
                 assert params["filter[source_hash][_eq]"] == segment["source_hash"]
-                return [segment]
+                return [row for row in (segment, repeated_segment) if row["sequence"] == params["filter[sequence][_eq]"]]
             return []
 
     async def credit_headroom(**_kwargs):
@@ -478,39 +485,32 @@ async def test_event_request_requeues_retryable_error_when_plaintext_is_resuppli
                     "kind": "prose_paragraph",
                     "source_hash": "client-placeholder",
                     "speakable_text": text,
-                }
+                },
+                {
+                    "source_version": 1,
+                    "sequence": 1,
+                    "kind": "prose_paragraph",
+                    "source_hash": "client-placeholder",
+                    "speakable_text": text,
+                },
             ],
         },
     )
 
-    assert dispatched == [
-        (
-            "apps.audio.tasks.assistant_speech_segment",
-            {
-                "arguments": {
-                    "segment_id": "segment-retryable-error",
-                    "source_version": 1,
-                    "sequence": 0,
-                    "kind": "prose_paragraph",
-                    "source_hash": segment["source_hash"],
-                    "speakable_text": text,
-                    "voice_profile_key": "warm_neutral",
-                    "voice_profile_version": 1,
-                    "user_id": "owner-1",
-                    "user_vault_key_id": "vault-key-1",
-                    "chat_id": "chat-1",
-                    "assistant_message_id": "message-1",
-                }
-            },
-            "app_music",
-        )
-    ]
+    assert [call[0] for call in dispatched] == ["apps.audio.tasks.assistant_speech_segment"] * 2
+    assert [call[1]["arguments"]["segment_id"] for call in dispatched] == ["segment-retryable-error", "segment-retryable-error-2"]
+    assert [call[1]["arguments"]["sequence"] for call in dispatched] == [1, 2]
+    assert all(call[1]["arguments"]["speakable_text"] == text for call in dispatched)
+    assert all(call[2] == "app_music" for call in dispatched)
     assert sent == [
         {
             "type": "assistant_speech_status",
             "payload": {
                 "status": "accepted",
-                "segments": [{"segment_id": "segment-retryable-error", "status": "queued"}],
+                "segments": [
+                    {"segment_id": "segment-retryable-error", "sequence": 1, "kind": "prose_paragraph", "status": "queued"},
+                    {"segment_id": "segment-retryable-error-2", "sequence": 2, "kind": "prose_paragraph", "status": "queued"},
+                ],
             },
         }
     ]

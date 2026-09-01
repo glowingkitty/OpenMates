@@ -2,11 +2,26 @@
 <!--
   Pinned player for one assistant response at a time.
   Renders duration-proportional paragraph regions and browser playback controls.
-  The parent places this in normal composer flow so transcript space is reserved.
+  The active-chat container places this over history below its action buttons.
   Audio URLs and plaintext are intentionally absent from rendered state.
 -->
 <script lang="ts">
   import { assistantSpeechController } from '../services/assistantSpeechController';
+
+  let { onHeightChange = (_height: number) => {} }: { onHeightChange?: (height: number) => void } = $props();
+
+  function observeHeight(node: HTMLElement) {
+    const reportHeight = () => onHeightChange(node.getBoundingClientRect().height);
+    const observer = new ResizeObserver(reportHeight);
+    observer.observe(node);
+    reportHeight();
+    return {
+      destroy() {
+        observer.disconnect();
+        onHeightChange(0);
+      },
+    };
+  }
 
   const player = assistantSpeechController.player;
   let isPlaying = $derived($player.status === 'playing');
@@ -16,7 +31,7 @@
   );
   let statusLabel = $derived.by(() => {
     if ($player.error) return $player.error;
-    if ($player.status === 'waiting_for_segment') return 'Preparing voice response';
+    if ($player.status === 'waiting_for_segment' || $player.status === 'waiting_for_more') return 'Preparing voice response';
     if ($player.status === 'blocked_by_autoplay') return 'Tap play to continue';
     if ($player.status === 'paused') return 'Voice response paused';
     if ($player.status === 'failed') return 'Voice response unavailable';
@@ -25,7 +40,7 @@
 </script>
 
 {#if isVisible}
-  <section class="assistant-speech-player" data-testid="assistant-speech-player" aria-label="Voice response player">
+  <section use:observeHeight class="assistant-speech-player" data-testid="assistant-speech-player" aria-label="Voice response player">
     <div class="assistant-speech-heading">
       <span class="assistant-speech-pulse" class:playing={isPlaying} aria-hidden="true"></span>
       <span data-testid="assistant-speech-status">{statusLabel}</span>
@@ -44,11 +59,13 @@
           class:failed={region.status === 'failed'}
           style:flex-grow={Math.max(0.04, region.end - region.start)}
           aria-label="Play paragraph"
-          onclick={() => void assistantSpeechController.selectSegment(region.segmentId)}
+          disabled={$player.presentationMode === 'passive_clip'}
+          onclick={() => $player.presentationMode === 'replayable_track_queue' && void assistantSpeechController.selectSegment(region.segmentId)}
         ></button>
       {/each}
     </div>
 
+    {#if $player.hasReplayableTracks && $player.presentationMode === 'replayable_track_queue'}
     <div class="assistant-speech-controls">
       <button type="button" aria-label="Previous paragraph" onclick={() => void assistantSpeechController.previous()}>Previous</button>
       {#if $player.status === 'blocked_by_autoplay'}
@@ -61,16 +78,21 @@
       <button type="button" aria-label="Next paragraph" onclick={() => void assistantSpeechController.next()}>Next</button>
       <button type="button" aria-label="Stop voice response" onclick={() => void assistantSpeechController.stop()}>Stop</button>
     </div>
+    {/if}
   </section>
 {/if}
 
 <style>
   .assistant-speech-player {
-    width: min(629px, calc(100% - 24px));
-    margin: 0 auto var(--spacing-5);
-    padding: var(--spacing-5) var(--spacing-6);
+    position: absolute;
+    z-index: var(--z-index-raised);
+    inset: 0 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 60px var(--spacing-8) var(--spacing-6);
     border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-12);
+    border-radius: 0 0 var(--radius-12) var(--radius-12);
     background: color-mix(in srgb, var(--color-grey-10) 92%, transparent);
     box-shadow: 0 8px 28px color-mix(in srgb, var(--color-grey-100) 8%, transparent);
     backdrop-filter: blur(16px);
@@ -112,6 +134,8 @@
     cursor: pointer;
   }
 
+  .assistant-speech-region:disabled { cursor: default; }
+
   .assistant-speech-region.ready { background: var(--color-grey-40); }
   .assistant-speech-region.active { background: var(--color-accent); }
   .assistant-speech-region.failed { background: var(--color-error); }
@@ -143,8 +167,8 @@
 
   @media (max-width: 560px) {
     .assistant-speech-player {
-      width: calc(100% - 16px);
-      padding: var(--spacing-4);
+      width: 100%;
+      padding: 54px var(--spacing-4) var(--spacing-5);
     }
 
     .assistant-speech-controls {

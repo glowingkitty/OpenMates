@@ -5399,6 +5399,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
       let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
@@ -12786,7 +12787,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else}
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side" class:welcome-chat-side={showWelcome} data-testid="chat-side" bind:this={chatSideEl}>
+                <div
+                    class="chat-side"
+                    class:welcome-chat-side={showWelcome}
+                    data-testid="chat-side"
+                    bind:this={chatSideEl}
+                    style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
+                >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
@@ -12821,6 +12828,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
                     <div
                         class="top-buttons"
+                        data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
@@ -12962,6 +12970,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             ></button> -->
                         </div>
                     </div>
+
+                    <AssistantSpeechPlayer onHeightChange={(height) => assistantSpeechOverlayHeight = height} />
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
                     <!-- Faded out via CSS opacity transition when keyboard is open to free up visual space -->
@@ -13730,8 +13740,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {/each}
                         </div>
                     {/if}
-
-                    <AssistantSpeechPlayer />
 
                     <div class="message-input-container" bind:this={messageInputContainerEl}>
                          <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
@@ -16237,7 +16245,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
-        z-index: var(--z-index-raised);
+        z-index: var(--z-index-raised-1);
         pointer-events: none;
     }
 

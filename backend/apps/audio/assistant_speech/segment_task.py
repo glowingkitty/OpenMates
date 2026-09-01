@@ -244,7 +244,7 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             except Exception:
                 logger.exception("%s Failed to compensate unfinalized assistant speech asset", log_prefix)
         return {"segment_id": segment_id, "status": "cancelled"}
-    status = safe_segment_status(result)
+    status = safe_segment_status({**result, "kind": str(arguments.get("kind") or "prose_paragraph")})
     await task._cache_service.publish_event(
         f"chat_stream::{arguments.get('chat_id')}",
         {

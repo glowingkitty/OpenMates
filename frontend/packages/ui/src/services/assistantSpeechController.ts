@@ -29,6 +29,7 @@ interface SpeechStatusSegment {
   duration_seconds?: number;
   retryable?: boolean;
   sequence?: number;
+  kind?: string;
 }
 
 interface SpeechStatusPayload extends SpeechStatusSegment {
@@ -49,6 +50,8 @@ export interface AssistantSpeechPlayerState extends AssistantSpeechQueueState {
   messageId: string | null;
   regions: AssistantSpeechWaveformRegion[];
   error: string | null;
+  presentationMode: "passive_clip" | "replayable_track_queue";
+  hasReplayableTracks: boolean;
 }
 
 const INITIAL_PLAYER_STATE: AssistantSpeechPlayerState = {
@@ -59,6 +62,8 @@ const INITIAL_PLAYER_STATE: AssistantSpeechPlayerState = {
   activeSegmentId: null,
   regions: [],
   error: null,
+  presentationMode: "replayable_track_queue",
+  hasReplayableTracks: false,
 };
 const GENERATED_ASSET_RETRY_MS = 150;
 const GENERATED_ASSET_RETRY_COUNT = 20;
@@ -138,12 +143,14 @@ class AssistantSpeechController {
       this.segmentSequence.clear();
       const segments = payload.segments.flatMap((status, index) => {
         if (!status.segment_id || !projected[index]) return [];
-        this.segmentSequence.set(status.segment_id, projected[index].sequence);
+        const sequence = status.sequence ?? projected[index].sequence;
+        this.segmentSequence.set(status.segment_id, sequence);
         return [{
           id: status.segment_id,
-          sequence: projected[index].sequence,
+          sequence,
           status: status.status === "ready" ? "ready" : status.status === "error" ? "failed" : "generating",
           durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000),
+          playbackClass: status.kind === "app_use_announcement" ? "passive" : "replayable",
         } satisfies AssistantSpeechSegment];
       });
       if (this.queue.state.responseId === messageId && this.queue.state.status !== "stopped") {
@@ -175,6 +182,7 @@ class AssistantSpeechController {
             sequence: payload.sequence,
             status: payload.status === "ready" ? "ready" : payload.status === "error" ? "failed" : "generating",
             durationMs: Math.max(0, Number(payload.duration_seconds ?? 0) * 1000),
+            playbackClass: payload.kind === "app_use_announcement" ? "passive" : "replayable",
           }]);
         }
       }
@@ -195,7 +203,7 @@ class AssistantSpeechController {
       status: "ready",
       durationMs: 0,
       audioUrl: payload.audio_url,
-      excludeFromWaveform: true,
+      playbackClass: "passive",
     };
     if (this.queue.state.responseId === payload.message_id && this.queue.state.status !== "stopped") {
       this.queue.upsertSegment(acknowledgement);
@@ -215,6 +223,7 @@ class AssistantSpeechController {
         sequence,
         status: status.status === "error" ? "failed" : "generating",
         durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000),
+        playbackClass: status.kind === "app_use_announcement" ? "passive" : "replayable",
       });
       this.publish();
       return;
@@ -227,6 +236,7 @@ class AssistantSpeechController {
         status: "ready",
         durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000),
         audioUrl,
+        playbackClass: status.kind === "app_use_announcement" ? "passive" : "replayable",
       });
       this.publish();
     } catch (cause) {
@@ -237,6 +247,7 @@ class AssistantSpeechController {
         sequence,
         status: "failed",
         durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000),
+        playbackClass: status.kind === "app_use_announcement" ? "passive" : "replayable",
       });
       this.publish();
     }
@@ -262,6 +273,8 @@ class AssistantSpeechController {
       messageId: this.messageId,
       regions: this.queue.waveformRegions,
       error: this.error,
+      presentationMode: this.queue.presentationMode,
+      hasReplayableTracks: this.queue.hasReplayableTracks,
     });
   }
 }

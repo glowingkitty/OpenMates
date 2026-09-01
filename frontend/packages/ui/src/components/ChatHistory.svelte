@@ -3208,7 +3208,7 @@
   /* Only apply padding-top and min-height when there are messages */
   /* This prevents the first message from overlaying the button */
   .chat-history-content.has-messages {
-    padding-top: 50px;
+    padding-top: calc(50px + var(--assistant-speech-overlay-reserve, 0px));
     /* ActiveChat's action buttons float over both inline edges. Reserve those
        lanes in the scrollable message column so auto-scroll cannot move a
        bubble underneath them after the sidebar narrows the canvas. */
@@ -3224,17 +3224,17 @@
      stacks on top of it — we only need the extra padding-top offset removed since
      the banner already occupies the top space. */
   .chat-history-content.has-messages.has-header {
-    padding-top: var(--spacing-6);
+    padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
   }
 
   @container chat-history (max-width: 730px) {
     .chat-history-content.has-messages {
-      padding-top: 70px;
+      padding-top: calc(70px + var(--assistant-speech-overlay-reserve, 0px));
       padding-inline: 0;
     }
 
     .chat-history-content.has-messages.has-header {
-      padding-top: var(--spacing-6);
+      padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
     }
   }
 

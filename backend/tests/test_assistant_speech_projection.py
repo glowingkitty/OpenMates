@@ -11,6 +11,7 @@ import httpx
 import pytest
 
 from backend.apps.ai.assistant_speech.projection import (
+    build_app_use_announcement,
     classify_acknowledgement_category,
     project_streaming_speech_segment,
     project_speech_segments,
@@ -207,6 +208,20 @@ def test_classifies_acknowledgements_from_existing_preprocessor_signals() -> Non
     assert classify_acknowledgement_category(relevant_app_skills=None, complexity="simple") == "general"
 
 
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.app-skill-progressive,assistant-speech.projection.deterministic-semantic
+def test_builds_a_localized_deterministic_app_use_announcement() -> None:
+    assert build_app_use_announcement(["weather-forecast"], "en-US") == (
+        "I will use the Weather app to fulfill your request. One second."
+    )
+    assert build_app_use_announcement(["web-search", "images-search", "travel.search_connections"], "en") == (
+        "I will use the Web, Images, and Travel apps to fulfill your request. One second."
+    )
+    assert build_app_use_announcement(["weather-forecast"], "de-DE") == (
+        "Ich verwende die Weather-App, um deine Anfrage zu bearbeiten. Einen Moment."
+    )
+    assert build_app_use_announcement([], "en-US") is None
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
 def test_builds_public_static_clip_metadata_without_provider_identifiers() -> None:
     clips = build_acknowledgement_clips(voice_profile_id="hiro", voice_profile_version=1, language="en")
@@ -240,11 +255,11 @@ def test_projects_only_safe_semantic_speech_without_raw_markup_or_urls() -> None
     )
 
     assert segments == [
-        {"sequence": 0, "kind": "prose_paragraph", "speakable_text": "Here is the result."},
-        {"sequence": 1, "kind": "prose_paragraph", "speakable_text": "OpenMates guide"},
-        {"sequence": 2, "kind": "code_summary", "speakable_text": "A Python example is available."},
-        {"sequence": 3, "kind": "embed_summary", "speakable_text": "The map shows two nearby cafes."},
-        {"sequence": 4, "kind": "table_summary", "speakable_text": "The table compares three options."},
+        {"sequence": 0, "kind": "prose_paragraph", "playback_class": "replayable_response_track", "speakable_text": "Here is the result."},
+        {"sequence": 1, "kind": "prose_paragraph", "playback_class": "replayable_response_track", "speakable_text": "OpenMates guide"},
+        {"sequence": 2, "kind": "code_summary", "playback_class": "replayable_response_track", "speakable_text": "A Python example is available."},
+        {"sequence": 3, "kind": "embed_summary", "playback_class": "replayable_response_track", "speakable_text": "The map shows two nearby cafes."},
+        {"sequence": 4, "kind": "table_summary", "playback_class": "replayable_response_track", "speakable_text": "The table compares three options."},
     ]
     assert "https://" not in repr(segments)
     assert "openmates://" not in repr(segments)

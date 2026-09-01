@@ -7,12 +7,14 @@
 
 import asyncio
 import hashlib
+import inspect
 
 from backend.apps.ai.assistant_speech.streaming import (
     MAX_AUTOMATIC_PARAGRAPH_LENGTH,
     ImmutableSpeechBoundaryTracker,
     stream_text_with_speech_dispatch,
 )
+from backend.apps.ai.tasks import stream_consumer
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.execution.first-segment-progressive
@@ -89,7 +91,9 @@ def test_tracker_dispatches_each_cumulative_boundary_once_and_flushes_final_rema
             },
             dispatch_speech=dispatch,
         )
+        assert tracker.has_new_boundary("First paragraph.\n\n") is True
         tracker.observe("First paragraph.\n\n")
+        assert tracker.has_new_boundary("First paragraph.\n\n") is False
         tracker.observe("First paragraph.\n\n")
         tracker.observe("First paragraph.\n\nSecond paragraph.")
         tracker.observe("First paragraph.\n\nSecond paragraph.", is_final=True)
@@ -103,6 +107,46 @@ def test_tracker_dispatches_each_cumulative_boundary_once_and_flushes_final_rema
     ]
     assert all(segment["source_version"] == 4 for segment in dispatched)
     assert all(segment["selected_mate_id"] == "george" for segment in dispatched)
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.app-skill-progressive,assistant-speech.execution.first-segment-progressive
+def test_tracker_dispatches_passive_app_use_before_offset_response_paragraphs() -> None:
+    dispatched: list[dict[str, object]] = []
+
+    async def dispatch(segment: dict[str, object]) -> None:
+        dispatched.append(segment)
+
+    async def exercise() -> None:
+        tracker = ImmutableSpeechBoundaryTracker(
+            metadata={"chat_id": "chat-1", "assistant_message_id": "assistant-1", "source_version": 1},
+            dispatch_speech=dispatch,
+            sequence_offset=1,
+        )
+        tracker.dispatch_projected_segment(
+            sequence=0,
+            kind="app_use_announcement",
+            speakable_text="I will use the Weather app to fulfill your request. One second.",
+        )
+        tracker.observe("Forecast paragraph.", is_final=True)
+        await asyncio.sleep(0)
+
+    asyncio.run(exercise())
+
+    assert [(segment["sequence"], segment["kind"]) for segment in dispatched] == [
+        (0, "app_use_announcement"),
+        (1, "prose_paragraph"),
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent
+def test_stream_consumer_publishes_visible_text_before_speech_observation() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    publish_index = source.index("await content_publisher.publish(payload, log_message)")
+    boundary_index = source.index("speech_tracker.has_new_boundary(speech_snapshot)", publish_index)
+    first_flush_index = source.index("await content_publisher.flush()", boundary_index)
+    observe_index = source.index("speech_tracker.observe(speech_snapshot)", first_flush_index)
+
+    assert publish_index < boundary_index < first_flush_index < observe_index
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.immutable-source,assistant-speech.execution.text-stream-independent

@@ -69,7 +69,35 @@ projection:
     given: {embed_type: calendar, structured_summary: I found four events. The first starts Tuesday at 10 AM.}
     expect: {raw_json_spoken: false, structured_summary_spoken: true, invented_fields: false}
 
+processing:
+  - id: app-skill-and-speech-progress-independently
+    given: {auto_speak: true, model_thinking: optional, selected_apps: [Weather], weather_provider_pending: true}
+    action: send_user_message
+    expect:
+      user_message_visible_first: true
+      rainbow_processing_visible: true
+      thinking_streams_when_produced: true
+      acknowledgement_plays_without_waiting_for_thinking: true
+      passive_waveform_visible_during_acknowledgement: true
+      weather_preview_visible_with_status: Processing
+      weather_preview_visible_before_provider_completion: true
+      generated_app_use_announcement: I will use the Weather app to fulfill your request. One second.
+      app_use_audio_does_not_delay_thinking_or_preview: true
+      result_dependent_prose_waits_only_for_required_skill_result_and_model: true
+      text_never_waits_for_audio: true
+  - id: visible-event-before-speech-dispatch
+    given: {assistant_text_chunk: First forecast paragraph., speech_provider_pending: true}
+    action: receive_text_chunk
+    expect: {device_receives_text_first: true, speech_projection_runs_after_publish: true, text_stream_blocked: false}
+
 playback:
+  - id: passive-prelude-waveform
+    given: {playing_clip: acknowledgement, next_clip_ready: false}
+    expect: {bar_visible: true, presentation_mode: passive_clip, waveform_visible: true, previous_next_controls_visible: false, replay_action_visible: false}
+  - id: two-second-idle-grace-and-reopen
+    given: {current_clip_ended: true, next_clip_ready: false}
+    action: wait_for_next_audio
+    expect: {bar_visible_for_ms: 2000, closes_after_grace: true, next_audio_within_grace_cancels_close: true, audio_after_close_reopens_bar: true}
   - id: start-after-first-paragraph
     given: {segment_0: ready, segment_1: generating, segment_2: queued}
     action: auto_play
@@ -90,10 +118,18 @@ playback:
       segment_1_highlighted: true
       previous_next_controls_visible: true
       transcript_obscured: false
+      full_active_chat_width: true
+      overlays_chat_history_layer: true
+      chat_action_buttons_overlay_bar: true
+      composer_moved: false
   - id: streaming-waveform-expands
     given: {manifest_final: false, known_segments: [segment-0, segment-1], segment_2_not_yet_emitted: true}
     action: receive_segment_2
     expect: {existing_waveform_regions_preserved: true, waveform_expands_with_segment_2: true, current_segment_highlight_preserved: true, combined_audio_file_created: false}
+  - id: complete-encrypted-segment-before-playback
+    given: {model: eleven_v3, paragraph_text_complete: true, provider_audio_partial: true, encrypted_asset_ready: false}
+    action: receive_provider_audio_chunks
+    expect: {client_playback_started: false, partial_provider_bytes_relayed: false, playback_starts_after_complete_encrypted_asset: true, later_text_streaming_continues: true}
   - id: skip-to-next-summary
     given: {active_segment: segment-1, next_segment: map-summary-segment}
     action: next_segment

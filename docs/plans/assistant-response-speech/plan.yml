@@ -7,7 +7,7 @@ specification_refs:
   - id: feature.assistant-response-speech
     version: 1
     role: primary
-    fingerprint: 104acab9feae95444076a9e3bfe1d958517380f0c1625ecf625db916e9d3f152
+    fingerprint: ad551c1e3907f70fdd8ed5574d0d043cb5d9bed94d347fe2c86bca41d9c2775a
 
 specification_impact:
   classification: new_specification
@@ -22,9 +22,11 @@ specification_impact:
     - assistant-speech.projection.deterministic-semantic
     - assistant-speech.projection.no-cleanup-inference
     - assistant-speech.execution.text-stream-independent
+    - assistant-speech.execution.app-skill-progressive
     - assistant-speech.execution.first-segment-progressive
     - assistant-speech.playback.single-queue-segment-control
     - assistant-speech.playback.pinned-full-response-waveform
+    - assistant-speech.playback.two-second-idle-grace
     - assistant-speech.playback.os-controls-best-effort
     - assistant-speech.playback.autoplay-recovery-visible
     - assistant-speech.on-demand.generate-missing-only
@@ -80,6 +82,9 @@ scope:
     - Immutable speech segments for prose paragraphs, localized app-use announcements, and structured embed, code, or table summaries.
     - One ElevenLabs request, encrypted private chatfiles S3 object, idempotency identity, and usage row per generated segment.
     - Speech generation and playback run in parallel with and never block assistant text streaming or persistence.
+    - User-message rendering, rainbow state, optional thinking, app-skill Processing previews, embeds, and text publish before related speech work and never wait for app-skill or audio completion.
+    - Prerecorded acknowledgement and generated app-use clips use a passive top waveform; replay and track controls appear only for durable response paragraphs and summaries.
+    - The top waveform waits two seconds for another clip, closes after an idle gap, and reopens when later audio starts.
     - Progressive playback begins after the first segment is ready and automatically follows manifest order.
     - A Speak action on every assistant response generates only missing or invalidated segments and reuses matching durable files.
     - One active response queue with play, pause, stop, previous segment, and next segment controls.
@@ -160,6 +165,8 @@ clarification:
       answer: Use one fixed curated voice per mate; speech failures remain visible and nonblocking while text and speech run as parallel tasks.
     - question: Should one message become one audio file?
       answer: No. Every paragraph or structured summary gets its own ElevenLabs request and encrypted S3 file.
+    - question: How should acknowledgement, app-use, thinking, skill previews, response text, and waveform controls progress from the user's perspective?
+      answer: The user message and rainbow state appear first; optional thinking streams independently while a prerecorded acknowledgement plays with a passive top waveform; app previews appear in Processing state before skill completion and a generated app-use clip plays when ready; regular paragraphs stream without waiting for audio, each complete encrypted paragraph audio plays when ready, only replayable response tracks expose controls, and the top bar closes after a two-second idle gap but reopens for later audio.
   vision_summary: >
     Assistant response speech is an optional chat-scoped companion to the
     authoritative text stream. It uses deterministic semantic projection, one
@@ -291,9 +298,9 @@ implementation_state:
 
 approvals:
   specification:
-    status: approved
-    approved_at: "2026-08-31T00:00:00Z"
-    reason: User explicitly approved amended exact contract fingerprint c49e523b71fcd4be3ddd819b1612f33a13219cae12ea8b71e36d43217f1b7288 in session 6d4a.
+    status: pending
+    approved_at: ""
+    reason: User clarified material processing, passive-waveform, idle-grace, and active-chat layering semantics; the amended exact fingerprint requires approval before implementation resumes.
   plan:
     status: not_required
     approved_at: ""
@@ -334,6 +341,11 @@ decisions:
     status: active
     decision: Daily deployed web verification replays a recorded realistic AI and app-skill chat and uses committed acknowledgement MP3 bytes for generated speech segments only inside the exact live-mock request context.
     reason: The full inference, skill, encrypted asset, WebSocket, and playback pipeline must remain regression-tested without recurring LLM, app-provider, or ElevenLabs cost; production and unmarked requests must remain on the normal provider and billing path.
+    decided_at: "2026-09-01T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Complete and encrypt each Eleven v3 paragraph segment before client playback instead of relaying partial provider audio.
+    reason: Eleven v3 supports HTTP streaming, but user-visible chunk relay would require a new encrypted streaming transport and would bypass the complete durable asset, waveform, duration, replay, and exactly-once settlement boundary; the standard TTS WebSocket endpoint also does not support eleven_v3.
     decided_at: "2026-09-01T00:00:00Z"
 
 attempts:
@@ -382,9 +394,9 @@ scenarios:
     when:
       - The assistant streams three prose paragraphs.
     then:
-      - A deterministic prerecorded acknowledgement plays without a runtime charge.
+      - A deterministic prerecorded acknowledgement plays with a passive top waveform without waiting for optional thinking or incurring a runtime charge.
       - Each immutable paragraph creates one ElevenLabs request and one encrypted S3 file.
-      - Paragraph one plays when ready while later text and audio continue independently.
+      - Paragraph one plays only when its complete encrypted file is ready while later text and audio continue independently.
   - id: S-4
     title: App and embed content is spoken naturally
     given:
@@ -392,7 +404,8 @@ scenarios:
     when:
       - Speakable segments are projected.
     then:
-      - A localized app-use announcement names the selected apps.
+      - App previews appear in Processing state before provider completion.
+      - A localized generated app-use announcement names the selected apps and plays in passive waveform mode when ready.
       - Prose is preserved and raw JSON, URLs, protocol, and code syntax are omitted.
       - The map and code use factual structured summaries or localized fallback announcements.
   - id: S-5
@@ -412,7 +425,9 @@ scenarios:
     when:
       - Alice pauses, resumes, skips forward, or skips backward in app or through supported OS controls.
     then:
-      - A bar pinned at the top of the active chat shows the complete duration-proportional response waveform and highlights the current paragraph.
+      - A full-width bar overlays the active-chat history below its action buttons and shows the complete duration-proportional response waveform.
+      - Passive acknowledgement and app-use clips have no track controls; replayable response tracks highlight the current paragraph and expose navigation.
+      - The bar waits two seconds for later audio, closes after an idle gap, and reopens when later audio starts without moving the composer.
       - Controls operate at paragraph or summary boundaries.
       - Unsupported Media Session controls do not remove in-app controls.
       - Starting another response queue stops the previous queue without deleting files.
@@ -493,13 +508,13 @@ acceptance_criteria:
     specification_assertions: [assistant-speech.segmentation.one-file-per-segment, assistant-speech.segmentation.immutable-source]
   - id: AC-5
     scenario: S-3
-    text: Speech processing runs independently from text streaming and playback begins after the first ready segment without waiting for all segments.
+    text: User-message rendering, rainbow state, optional thinking, app-skill Processing previews, embeds, and every assistant text chunk publish before related speech work; none wait for app-skill or audio completion, while playback begins after each complete encrypted segment is ready without waiting for later segments.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: related_backend
     verification_ids: [T-PY-SPEECH-STREAMING, T-VITEST-SPEECH-QUEUE]
-    specification_assertions: [assistant-speech.execution.text-stream-independent, assistant-speech.execution.first-segment-progressive]
+    specification_assertions: [assistant-speech.execution.text-stream-independent, assistant-speech.execution.app-skill-progressive, assistant-speech.execution.first-segment-progressive]
   - id: AC-6
     scenario: S-4
     text: Deterministic projection preserves prose and uses structured summaries while excluding raw JSON, protocol, URLs, code syntax, and general-purpose cleanup inference.
@@ -529,13 +544,13 @@ acceptance_criteria:
     specification_assertions: [assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.os-controls-best-effort]
   - id: AC-14
     scenario: S-6
-    text: A bar pinned within the active-chat top shows the full duration-proportional response waveform, highlights the current paragraph, distinguishes generating regions, supports direct paragraph selection, and never covers transcript content.
+    text: A full-width bar overlays the active-chat history below the share, report, settings, and reminder buttons; acknowledgement and app-use clips show a passive waveform, replayable response tracks expose controls, a two-second idle grace closes and later audio reopens the bar, and the composer never moves.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH, V-UI-VISUAL-SMOKE]
-    specification_assertions: [assistant-speech.playback.pinned-full-response-waveform]
+    specification_assertions: [assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace]
   - id: AC-9
     scenario: S-7
     text: Credit, safety, provider, and storage failures are visible and resumable, preserve successful files, disable chat auto-speak, and never affect text completion.
@@ -716,10 +731,12 @@ tests:
     command: python3 -m pytest backend/tests/test_assistant_speech_streaming.py
     covers: [AC-5, AC-9]
     assertions:
+      - User-message, rainbow, optional thinking, app-skill Processing preview, embed, and assistant text events publish before related speech observation or dispatch.
+      - A blocked app-skill provider cannot prevent its Processing preview from reaching the device.
       - Immutable speech events do not delay or mutate cumulative assistant text events.
       - First-segment readiness is published before later text/audio completion.
       - Speech failures and cancellation do not fail or truncate text persistence.
-    specification_assertions: [assistant-speech.execution.text-stream-independent, assistant-speech.execution.first-segment-progressive, assistant-speech.failure.nonblocking-visible-resumable]
+    specification_assertions: [assistant-speech.execution.text-stream-independent, assistant-speech.execution.app-skill-progressive, assistant-speech.execution.first-segment-progressive, assistant-speech.failure.nonblocking-visible-resumable]
     red_phase:
       required: true
       expected: fail
@@ -755,7 +772,9 @@ tests:
       - Media Session handlers are feature-detected and in-app controls remain authoritative.
       - Autoplay rejection preserves queue and enabled state without regeneration.
       - Composite waveform regions are duration-proportional, preserve active highlighting as segments arrive, and select exact paragraph boundaries.
-    specification_assertions: [assistant-speech.execution.first-segment-progressive, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.os-controls-best-effort, assistant-speech.playback.autoplay-recovery-visible]
+      - Acknowledgement and app-use clips use passive waveform mode; replayable response tracks alone expose navigation controls.
+      - The bar remains appendable for a two-second idle grace, cancels dismissal when audio arrives, and reopens for audio arriving after dismissal.
+    specification_assertions: [assistant-speech.execution.first-segment-progressive, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.os-controls-best-effort, assistant-speech.playback.autoplay-recovery-visible]
     red_phase:
       required: true
       expected: fail
@@ -773,11 +792,12 @@ tests:
     assertions:
       - Chat-scoped control toggles and voice recording visibly enables it.
       - A real response produces progressive paragraph playback with Speak, pause, previous, next, replay, and autoplay recovery states.
-      - The active-chat top bar renders the full waveform, highlights the current paragraph, expands during streaming, and does not cover transcript content on phone or laptop.
+      - The assistant message and app preview Processing state render before the app skill completes, and text continues without waiting for audio.
+      - The full-width active-chat top bar overlays history below the chat action buttons, uses passive mode for acknowledgement/app-use clips, exposes controls only for replayable response tracks, observes the two-second idle grace, and does not move the composer on phone or laptop.
       - Reload and another owner client reuse synchronized preference and encrypted ready files without another provider charge.
       - The daily flow replays a recorded realistic AI and weather app-skill exchange and committed binary audio through the normal encrypted asset path with no paid external calls.
       - The muted Speak responses control fades to the speaking icon with Speech turned on, fades back through Turn off speaking with Speech turned off, and recording completion performs the same on transition.
-    specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.autoplay-recovery-visible]
+    specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.execution.app-skill-progressive, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
     red_phase: {required: true, expected: fail, evidence: {}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
 
@@ -839,7 +859,7 @@ demonstration:
       acceptance_criteria: [AC-1, AC-2]
     - id: NARR-2
       purpose: Show text and paragraph audio progressing independently.
-      expected_proof: The assistant text continues streaming while paragraph one becomes playable before later paragraphs; the pinned active-chat bar expands to the full response waveform, highlights the current paragraph, and permits direct paragraph skipping without covering chat content.
+      expected_proof: User message, rainbow state, optional thinking, app preview Processing state, acknowledgement, and app-use audio progress independently; later assistant text streams while each complete encrypted paragraph becomes playable, and the full-width top bar transitions from passive waveform to replayable tracks below the chat action buttons without moving the composer.
       scenario_ids: [S-3, S-6]
       acceptance_criteria: [AC-4, AC-5, AC-8, AC-14]
     - id: NARR-3
@@ -863,7 +883,7 @@ demonstration:
 implementation_notes:
   plan_path: docs/plans/assistant-response-speech/plan.yml
   specification_refs:
-    - feature.assistant-response-speech@1 fingerprint c49e523b71fcd4be3ddd819b1612f33a13219cae12ea8b71e36d43217f1b7288
+    - feature.assistant-response-speech@1 fingerprint ad551c1e3907f70fdd8ed5574d0d043cb5d9bed94d347fe2c86bca41d9c2775a
   affected_specification_assertions:
     - assistant-speech.preference.chat-scoped-default-off
     - assistant-speech.preference.voice-recording-visible-activation
@@ -874,9 +894,11 @@ implementation_notes:
     - assistant-speech.projection.deterministic-semantic
     - assistant-speech.projection.no-cleanup-inference
     - assistant-speech.execution.text-stream-independent
+    - assistant-speech.execution.app-skill-progressive
     - assistant-speech.execution.first-segment-progressive
     - assistant-speech.playback.single-queue-segment-control
     - assistant-speech.playback.pinned-full-response-waveform
+    - assistant-speech.playback.two-second-idle-grace
     - assistant-speech.playback.os-controls-best-effort
     - assistant-speech.playback.autoplay-recovery-visible
     - assistant-speech.on-demand.generate-missing-only

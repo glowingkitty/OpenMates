@@ -35,13 +35,30 @@ class ImmutableSpeechBoundaryTracker:
         invalidate_speech: InvalidateSpeech | None = None,
         report_status: ReportSpeechStatus | None = None,
         enabled: bool = True,
+        sequence_offset: int = 0,
     ) -> None:
         self._metadata = dict(metadata)
         self._dispatch_speech = dispatch_speech
         self._invalidate_speech = invalidate_speech
         self._report_status = report_status
         self._enabled = enabled
+        self._sequence_offset = sequence_offset
         self._dispatched: dict[int, dict[str, object]] = {}
+
+    def has_new_boundary(self, content: str) -> bool:
+        """Return whether observing this snapshot will dispatch immutable speech."""
+        paragraphs = [
+            chunk
+            for paragraph in _complete_paragraphs(content)
+            for chunk in _split_automatic_paragraph(paragraph)
+        ]
+        for index, paragraph in enumerate(paragraphs):
+            sequence = index + self._sequence_offset
+            segment = self._segment(sequence, paragraph)
+            previous = self._dispatched.get(sequence)
+            if segment and (not previous or previous["source_hash"] != segment["source_hash"]):
+                return True
+        return False
 
     def observe(self, content: str, *, is_final: bool = False) -> None:
         """Schedule only immutable paragraph snapshots without awaiting speech work."""
@@ -58,7 +75,8 @@ class ImmutableSpeechBoundaryTracker:
             for paragraph in paragraphs
             for chunk in _split_automatic_paragraph(paragraph)
         ]
-        for sequence, paragraph in enumerate(bounded_paragraphs):
+        for index, paragraph in enumerate(bounded_paragraphs):
+            sequence = index + self._sequence_offset
             segment = self._segment(sequence, paragraph)
             if not segment:
                 continue
@@ -73,17 +91,32 @@ class ImmutableSpeechBoundaryTracker:
 
         if is_final:
             for sequence in tuple(self._dispatched):
-                if sequence < len(bounded_paragraphs):
+                if sequence < len(bounded_paragraphs) + self._sequence_offset:
                     continue
                 previous = self._dispatched.pop(sequence)
                 if self._invalidate_speech is not None:
                     self._schedule(self._invalidate_speech(previous), sequence)
 
-    def _segment(self, sequence: int, text: str) -> dict[str, object]:
-        projected = project_streaming_speech_segment(text)
-        if projected is None:
-            return {}
-        kind, speakable_text = projected
+    def dispatch_projected_segment(self, *, sequence: int, kind: str, speakable_text: str) -> None:
+        """Schedule one deterministic non-prose segment without blocking text."""
+        if not self._enabled:
+            return
+        segment = self._segment(sequence, speakable_text, kind=kind)
+        if not segment:
+            return
+        self._dispatched[sequence] = segment
+        self._schedule(self._dispatch_speech(segment), sequence)
+
+    def _segment(self, sequence: int, text: str, *, kind: str | None = None) -> dict[str, object]:
+        if kind is None:
+            projected = project_streaming_speech_segment(text)
+            if projected is None:
+                return {}
+            kind, speakable_text = projected
+        else:
+            speakable_text = text.strip()
+            if not speakable_text:
+                return {}
         source_hash = _speech_source_identity(speakable_text)
         source_version = int(self._metadata["source_version"])
         chat_id = str(self._metadata["chat_id"])
@@ -96,6 +129,7 @@ class ImmutableSpeechBoundaryTracker:
             "segment_id": segment_id,
             "sequence": sequence,
             "kind": kind,
+            "playback_class": "passive_prelude" if kind == "app_use_announcement" else "replayable_response_track",
             "source_hash": source_hash,
             "speakable_text": speakable_text,
         }

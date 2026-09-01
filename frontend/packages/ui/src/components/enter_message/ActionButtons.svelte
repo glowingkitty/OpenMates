@@ -56,10 +56,12 @@
     let speechStatusTimer: ReturnType<typeof setTimeout> | null = null;
     let previousAutoSpeakResponse = $state(false);
     let speechStatusReady = $state(false);
+    let speechEnabled = $state(false);
     let canSendMessage = $derived(isAuthenticated || allowAnonymousTextSend);
 
     onMount(() => {
         previousAutoSpeakResponse = autoSpeakResponse;
+        speechEnabled = autoSpeakResponse;
         speechStatusReady = true;
         const handlePointerDown = (event: PointerEvent) => {
             if (!attachmentMenuElement.contains(event.target as Node)) closeAttachmentMenu();
@@ -113,11 +115,14 @@
     $effect(() => {
         if (!speechStatusReady || autoSpeakResponse === previousAutoSpeakResponse) return;
         previousAutoSpeakResponse = autoSpeakResponse;
+        speechEnabled = autoSpeakResponse;
         showSpeechStatus(autoSpeakResponse);
     });
 
     function handleAssistantSpeechToggle(): void {
-        const enabled = !autoSpeakResponse;
+        const enabled = !speechEnabled;
+        speechEnabled = enabled;
+        previousAutoSpeakResponse = enabled;
         showSpeechStatus(enabled);
         dispatch('assistantSpeechToggle', { enabled });
     }
@@ -176,22 +181,22 @@
                 class="clickable-icon assistant-speech-icon"
                 data-testid="assistant-speech-toggle"
                 data-icon-only="true"
-                data-speech-state={autoSpeakResponse ? 'on' : 'off'}
-                aria-label={autoSpeakResponse ? $text('enter_message.speech_disable') : $text('enter_message.speech_enable')}
-                aria-pressed={autoSpeakResponse}
+                data-speech-state={speechEnabled ? 'on' : 'off'}
+                aria-label={speechEnabled ? $text('enter_message.speech_disable') : $text('enter_message.speech_enable')}
+                aria-pressed={speechEnabled}
                 onclick={handleAssistantSpeechToggle}
                 use:tooltip
             >
                 <span
                     class="assistant-speech-glyph muted"
                     data-testid="assistant-speech-muted-icon"
-                    data-visible={!autoSpeakResponse}
+                    data-visible={!speechEnabled}
                     aria-hidden="true"
                 ></span>
                 <span
                     class="assistant-speech-glyph audio"
                     data-testid="assistant-speech-audio-icon"
-                    data-visible={autoSpeakResponse}
+                    data-visible={speechEnabled}
                     aria-hidden="true"
                 ></span>
             </button>
@@ -324,13 +329,25 @@
     .assistant-speech-glyph[data-visible='true'] { opacity: 1; }
 
     .assistant-speech-glyph.muted {
-        -webkit-mask-image: var(--icon-url-mute);
-        mask-image: var(--icon-url-mute);
+        -webkit-mask-image: url('@openmates/ui/static/icons/mute.svg');
+        mask-image: url('@openmates/ui/static/icons/mute.svg');
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
     }
 
     .assistant-speech-glyph.audio {
-        -webkit-mask-image: var(--icon-url-audio);
-        mask-image: var(--icon-url-audio);
+        -webkit-mask-image: url('@openmates/ui/static/icons/audio.svg');
+        mask-image: url('@openmates/ui/static/icons/audio.svg');
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: contain;
+        mask-size: contain;
     }
 
     .icon_recordaudio { touch-action: none; }

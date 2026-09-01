@@ -15,7 +15,7 @@ from typing import Any
 MANIFEST_COLLECTION = "assistant_speech_manifests"
 SEGMENT_COLLECTION = "assistant_speech_segments"
 LEASE_TTL_SECONDS = 210
-SAFE_STATUS_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_seconds", "error", "retryable")
+SAFE_STATUS_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
 PERSISTED_STATUS_FIELDS = SAFE_STATUS_FIELDS + (
     "pending_generated_asset_id",
     "pending_duration_seconds",

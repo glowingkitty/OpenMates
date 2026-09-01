@@ -33,6 +33,39 @@ _ACTION_SKILL_MARKERS = (
 )
 
 
+def build_app_use_announcement(
+    relevant_app_skills: Iterable[str] | None,
+    language: str,
+) -> str | None:
+    """Describe preprocessor-selected apps without another inference pass."""
+    app_names: list[str] = []
+    for skill in relevant_app_skills or ():
+        normalized = str(skill).strip()
+        if not normalized:
+            continue
+        app_id = normalized.split(".", maxsplit=1)[0]
+        if app_id == normalized and "-" in normalized:
+            app_id = normalized.rsplit("-", maxsplit=1)[0]
+        label = app_id.replace("_", " ").replace("-", " ").title()
+        if label and label not in app_names:
+            app_names.append(label)
+    if not app_names:
+        return None
+
+    if len(app_names) == 1:
+        names = app_names[0]
+    elif len(app_names) == 2:
+        names = f"{app_names[0]} and {app_names[1]}"
+    else:
+        names = f"{', '.join(app_names[:-1])}, and {app_names[-1]}"
+    if language.lower().startswith("de"):
+        if len(app_names) == 1:
+            return f"Ich verwende die {names}-App, um deine Anfrage zu bearbeiten. Einen Moment."
+        return f"Ich verwende die Apps {names}, um deine Anfrage zu bearbeiten. Einen Moment."
+    suffix = "app" if len(app_names) == 1 else "apps"
+    return f"I will use the {names} {suffix} to fulfill your request. One second."
+
+
 def select_prerecorded_acknowledgement(
     *,
     clips: Iterable[Mapping[str, Any]],
@@ -105,7 +138,12 @@ def project_speech_segments(*, blocks: Iterable[Mapping[str, Any]], language: st
             continue
         kind, text = projected
         segments.append(
-            {"sequence": len(segments), "kind": kind, "speakable_text": text},
+            {
+                "sequence": len(segments),
+                "kind": kind,
+                "playback_class": "passive_prelude" if kind == "app_use_announcement" else "replayable_response_track",
+                "speakable_text": text,
+            },
         )
     return segments
 
