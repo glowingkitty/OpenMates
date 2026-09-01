@@ -41,21 +41,52 @@ def load_run_tests_module():
     return module
 
 
+def write_test_video(path: Path) -> None:
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+            "color=blue:s=800x450:r=10:d=1", "-c:v", "libvpx", str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+
 def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
     proof_video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "proof-flow"
     proof_video_dir.mkdir(parents=True)
-    (proof_video_dir / "video.webm").write_bytes(b"proof-video")
-    frame = b"\x89PNG\r\n\x1a\nsynthetic"
-    frame_hash = f"sha256:{hashlib.sha256(frame).hexdigest()}"
+    write_test_video(proof_video_dir / "video.webm")
     timeline = json.dumps({
-        "schema_version": 1,
+        "schema_version": 2,
+        "events": [
+            {
+                "id": "open",
+                "kind": "action",
+                "start_ms": 0,
+                "end_ms": 0,
+                "start_at_epoch_ms": 1767225600700,
+                "end_at_epoch_ms": 1767225600900,
+            },
+            {
+                "id": "welcome-visible",
+                "kind": "checkpoint",
+                "at_ms": 0,
+                "captured_at_epoch_ms": 1767225601000,
+            },
+        ],
+        "assertion_results": [{
+            "id": "welcome.visible",
+            "status": "passed",
+            "at_ms": 0,
+            "captured_at_epoch_ms": 1767225600950,
+        }],
         "checkpoint_frames": [{
             "checkpoint": "welcome-visible",
-            "attachment_name": "openmates-proof-frame-welcome-visible",
-            "sha256": frame_hash,
+            "at_ms": 500,
+            "captured_at_epoch_ms": 1767225601000,
         }],
     }).encode()
     report = {
@@ -63,12 +94,10 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
             "specs": [{
                 "tests": [{
                     "results": [{
+                        "status": "passed",
+                        "startTime": "2026-01-01T00:00:00.000Z",
+                        "duration": 1500,
                         "attachments": [
-                            {
-                                "name": "openmates-proof-frame-welcome-visible",
-                                "contentType": "image/png",
-                                "body": base64.b64encode(frame).decode("ascii"),
-                            },
                             {
                                 "name": "openmates-proof-timeline",
                                 "contentType": "application/vnd.openmates.proof-timeline+json",
@@ -95,39 +124,54 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     assert persisted == str(expected)
     persisted_timeline = json.loads(expected.read_text(encoding="utf-8"))
     persisted_frame = recordings / "proof" / "proof-frames" / "welcome-visible.png"
-    assert persisted_frame.read_bytes() == frame
+    assert persisted_frame.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     assert persisted_timeline["checkpoint_frames"][0]["path"] == str(persisted_frame)
-    assert persisted_timeline["checkpoint_frames"][0]["sha256"] == frame_hash
+    assert persisted_timeline["checkpoint_frames"][0]["sha256"] == (
+        "sha256:" + hashlib.sha256(persisted_frame.read_bytes()).hexdigest()
+    )
+    assert persisted_timeline["events"][0]["start_ms"] == pytest.approx(200, abs=100)
+    assert persisted_timeline["events"][0]["end_ms"] == pytest.approx(400, abs=100)
+    assert persisted_timeline["events"][1]["at_ms"] == pytest.approx(500, abs=100)
+    assert persisted_timeline["assertion_results"][0]["at_ms"] == pytest.approx(450, abs=100)
     metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
     assert metadata["proof_video_file"] == "videos/proof-flow.webm"
 
 
-def test_recording_artifacts_prefer_explicit_fixed_thumbnail(tmp_path, monkeypatch):
+def test_recording_artifacts_extract_fixed_thumbnail_from_completed_video(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
-    png = b"\x89PNG\r\n\x1a\n" + struct.pack(">I4sII", 13, b"IHDR", 1280, 800) + b"synthetic"
+    video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "signup-flow"
+    video_dir.mkdir(parents=True)
+    write_test_video(video_dir / "video.webm")
+    thumbnail_metadata = json.dumps({
+        "schema_version": 2,
+        "viewport": {"width": 1280, "height": 720},
+        "clip": {"x": 320, "y": 160, "width": 640, "height": 400},
+        "captured_at_epoch_ms": 1767225601000,
+    }).encode()
     report = {
         "suites": [{
             "specs": [{
                 "tests": [{
                     "results": [
                         {
-                            "status": "failed",
-                            "attachments": [{
-                                "name": "openmates-test-thumbnail",
-                                "contentType": "image/png",
-                                "body": base64.b64encode(png + b"failed").decode("ascii"),
-                            }],
-                        },
-                        {
                             "status": "passed",
-                            "attachments": [{
-                                "name": "openmates-test-thumbnail",
-                                "contentType": "image/png",
-                                "body": base64.b64encode(png).decode("ascii"),
-                            }],
+                            "startTime": "2026-01-01T00:00:00.000Z",
+                            "duration": 1500,
+                            "attachments": [
+                                {
+                                    "name": "openmates-test-thumbnail-metadata",
+                                    "contentType": "application/vnd.openmates.test-thumbnail+json",
+                                    "body": base64.b64encode(thumbnail_metadata).decode("ascii"),
+                                },
+                                {
+                                    "name": "video",
+                                    "contentType": "video/webm",
+                                    "path": "/home/runner/work/OpenMates/OpenMates/frontend/apps/web_app/test-results/signup-flow/video.webm",
+                                },
+                            ],
                         },
                     ]
                 }]
@@ -141,38 +185,74 @@ def test_recording_artifacts_prefer_explicit_fixed_thumbnail(tmp_path, monkeypat
     run_tests.BatchRunner._persist_recording_artifacts("signup.spec.ts", artifact)
 
     thumbnail = recordings / "signup" / "thumbnail.png"
-    assert thumbnail.read_bytes() == png
+    thumbnail_bytes = thumbnail.read_bytes()
+    assert thumbnail_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    assert struct.unpack(">II", thumbnail_bytes[16:24]) == (1280, 800)
     metadata = json.loads((recordings / "signup" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["thumbnail_file"] == "thumbnail.png"
-    assert metadata["thumbnail_source"] == "explicit"
+    assert metadata["thumbnail_source"] == "video_frame"
 
 
-def test_recording_artifacts_reject_ambiguous_proof_results(tmp_path, monkeypatch):
+def test_recording_artifacts_select_terminal_passing_proof_retry(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
-    timeline_attachment = {
-        "name": "openmates-proof-timeline",
-        "contentType": "application/vnd.openmates.proof-timeline+json",
-        "body": base64.b64encode(b'{}').decode("ascii"),
-    }
+    proof_video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "proof-retry"
+    proof_video_dir.mkdir(parents=True)
+    write_test_video(proof_video_dir / "video.webm")
+
+    def attachments(checkpoint: str, captured_at_ms: int) -> list[dict]:
+        timeline = json.dumps({
+            "schema_version": 2,
+            "checkpoint_frames": [{
+                "checkpoint": checkpoint,
+                "at_ms": 500,
+                "captured_at_epoch_ms": captured_at_ms,
+            }],
+        }).encode()
+        return [
+            {
+                "name": "openmates-proof-timeline",
+                "contentType": "application/vnd.openmates.proof-timeline+json",
+                "body": base64.b64encode(timeline).decode("ascii"),
+            },
+            {
+                "name": "video",
+                "contentType": "video/webm",
+                "path": "/home/runner/work/OpenMates/OpenMates/frontend/apps/web_app/test-results/proof-retry/video.webm",
+            },
+        ]
+
     report = {
         "suites": [{
             "specs": [{
                 "tests": [{
                     "results": [
-                        {"attachments": [timeline_attachment]},
-                        {"attachments": [timeline_attachment]},
+                        {
+                            "status": "failed",
+                            "startTime": "2026-01-01T00:00:00.000Z",
+                            "duration": 1500,
+                            "attachments": attachments("failed-attempt", 1767225600800),
+                        },
+                        {
+                            "status": "passed",
+                            "startTime": "2026-01-01T00:00:00.000Z",
+                            "duration": 1500,
+                            "attachments": attachments("passed-attempt", 1767225601000),
+                        },
                     ]
                 }]
             }]
         }]
     }
     (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
-    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", tmp_path / "recordings")
+    recordings = tmp_path / "recordings"
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", recordings)
 
-    with pytest.raises(RuntimeError, match="ambiguous proof timeline"):
-        run_tests.BatchRunner._persist_recording_artifacts("proof.spec.ts", artifact)
+    run_tests.BatchRunner._persist_recording_artifacts("proof.spec.ts", artifact)
+
+    timeline = json.loads((recordings / "proof" / "proof-timeline.json").read_text(encoding="utf-8"))
+    assert timeline["checkpoint_frames"][0]["checkpoint"] == "passed-attempt"
 
 
 def test_git_info_uses_exact_deployed_session_subject(monkeypatch):

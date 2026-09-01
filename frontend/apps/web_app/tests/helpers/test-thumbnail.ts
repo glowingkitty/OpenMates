@@ -2,23 +2,18 @@
  * Fixed-resolution, spec-owned thumbnail capture for Playwright tests.
  *
  * Specs declare stable test IDs for the visual focus and optional surrounding
- * context. This helper computes a bounded 16:10 crop, captures it, and scales
- * it without distortion to the canonical 1280x800 thumbnail artifact.
+ * context. This helper records a bounded 16:10 crop and timestamp so artifact
+ * processing can extract the canonical 1280x800 image after video recording.
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-
 import type {Locator, Page, TestInfo} from '@playwright/test';
-
-const {spawnSync} = require('node:child_process');
 
 const OUTPUT_WIDTH = 1280;
 const OUTPUT_HEIGHT = 800;
 const MIN_SOURCE_WIDTH = 640;
 const MIN_SOURCE_HEIGHT = 400;
-const THUMBNAIL_ATTACHMENT_NAME = 'openmates-test-thumbnail';
 const THUMBNAIL_METADATA_ATTACHMENT_NAME = 'openmates-test-thumbnail-metadata';
-const FFMPEG_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
+const THUMBNAIL_METADATA_CONTENT_TYPE = 'application/vnd.openmates.test-thumbnail+json';
 
 interface ThumbnailTarget {
 	testId: string;
@@ -203,23 +198,6 @@ async function locatorBounds(locators: Locator[], targets: ThumbnailTarget[]): P
 	return bounds;
 }
 
-function scaleThumbnail(source: Buffer, clip?: ThumbnailClip): Buffer {
-	const cropFilter = clip ? `crop=${clip.width}:${clip.height}:${clip.x}:${clip.y},` : '';
-	const result = spawnSync(
-		'ffmpeg',
-		[
-			'-hide_banner', '-loglevel', 'error', '-f', 'image2pipe', '-i', 'pipe:0',
-			'-vf', `${cropFilter}scale=${OUTPUT_WIDTH}:${OUTPUT_HEIGHT}:flags=lanczos`,
-			'-frames:v', '1', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1'
-		],
-		{input: source, maxBuffer: FFMPEG_MAX_BUFFER_BYTES}
-	);
-	if (result.status !== 0 || !result.stdout?.length) {
-		throw new Error(`Test thumbnail scaling failed: ${String(result.stderr || '').trim() || 'ffmpeg returned no image'}`);
-	}
-	return result.stdout;
-}
-
 async function captureTestThumbnail(page: Page, testInfo: TestInfo, input: TestThumbnailDefinition): Promise<void> {
 	const definition = defineTestThumbnail(input);
 	const viewport = page.viewportSize();
@@ -229,16 +207,16 @@ async function captureTestThumbnail(page: Page, testInfo: TestInfo, input: TestT
 	const focusBounds = await locatorBounds(focusLocators, definition.focus);
 	const contextBounds = await locatorBounds(contextLocators, definition.context);
 	const clip = computeThumbnailClip({viewport, focusBounds, contextBounds, padding: definition.padding});
-	const source = await page.screenshot({
-		type: 'png',
-		scale: 'css'
-	});
-	const thumbnail = scaleThumbnail(source, clip);
-	await testInfo.attach(THUMBNAIL_ATTACHMENT_NAME, {body: thumbnail, contentType: 'image/png'});
 	await testInfo.attach(THUMBNAIL_METADATA_ATTACHMENT_NAME, {
-		body: Buffer.from(JSON.stringify({schema_version: 1, definition, viewport, clip})),
-		contentType: 'application/json'
+		body: Buffer.from(JSON.stringify({
+			schema_version: 2,
+			definition,
+			viewport,
+			clip,
+			captured_at_epoch_ms: Date.now()
+		})),
+		contentType: THUMBNAIL_METADATA_CONTENT_TYPE
 	});
 }
 
-module.exports = {captureTestThumbnail, computeThumbnailClip, defineTestThumbnail, scaleThumbnail};
+module.exports = {captureTestThumbnail, computeThumbnailClip, defineTestThumbnail};

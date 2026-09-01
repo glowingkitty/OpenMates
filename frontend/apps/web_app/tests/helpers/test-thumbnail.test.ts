@@ -11,13 +11,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {captureTestThumbnail, computeThumbnailClip, defineTestThumbnail, scaleThumbnail} = require('./test-thumbnail.ts');
-
-const ONE_PIXEL_PNG = Buffer.from(
-	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-	'base64'
-);
-const FULL_VIEWPORT_PNG = scaleThumbnail(ONE_PIXEL_PNG);
+const {captureTestThumbnail, computeThumbnailClip, defineTestThumbnail} = require('./test-thumbnail.ts');
 
 test('defines a fixed 1280x800 thumbnail contract', () => {
 	const definition = defineTestThumbnail({
@@ -68,18 +62,10 @@ test('shifts an edge crop into the viewport without changing its size', () => {
 	assert.deepEqual(clip, {x: 640, y: 320, width: 640, height: 400});
 });
 
-test('scales captured PNG bytes to the canonical output resolution', () => {
-	const thumbnail = scaleThumbnail(ONE_PIXEL_PNG);
-
-	assert.equal(thumbnail.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
-	assert.equal(thumbnail.readUInt32BE(16), 1280);
-	assert.equal(thumbnail.readUInt32BE(20), 800);
-});
-
 test('captures a cropped thumbnail without mutating the recorded viewport', async () => {
 	let scrollCalls = 0;
-	let screenshotOptions: Record<string, unknown> | null = null;
-	const attachments: string[] = [];
+	let screenshotCalls = 0;
+	const attachments: Array<{name: string; body: Buffer; contentType: string}> = [];
 	const locator = {
 		waitFor: async () => undefined,
 		scrollIntoViewIfNeeded: async () => { scrollCalls += 1; },
@@ -88,13 +74,15 @@ test('captures a cropped thumbnail without mutating the recorded viewport', asyn
 	const page = {
 		viewportSize: () => ({width: 1280, height: 720}),
 		getByTestId: () => ({first: () => locator}),
-		screenshot: async (options: Record<string, unknown>) => {
-			screenshotOptions = options;
-			return FULL_VIEWPORT_PNG;
+		screenshot: async () => {
+			screenshotCalls += 1;
+			return Buffer.alloc(0);
 		}
 	};
 	const testInfo = {
-		attach: async (name: string) => { attachments.push(name); }
+		attach: async (name: string, options: {body: Buffer; contentType: string}) => {
+			attachments.push({name, ...options});
+		}
 	};
 
 	await captureTestThumbnail(page, testInfo, {
@@ -103,9 +91,11 @@ test('captures a cropped thumbnail without mutating the recorded viewport', asyn
 	});
 
 	assert.equal(scrollCalls, 0);
-	assert.deepEqual(screenshotOptions, {
-		type: 'png',
-		scale: 'css'
-	});
-	assert.deepEqual(attachments, ['openmates-test-thumbnail', 'openmates-test-thumbnail-metadata']);
+	assert.equal(screenshotCalls, 0);
+	assert.equal(attachments.length, 1);
+	assert.equal(attachments[0].name, 'openmates-test-thumbnail-metadata');
+	assert.equal(attachments[0].contentType, 'application/vnd.openmates.test-thumbnail+json');
+	const metadata = JSON.parse(attachments[0].body.toString('utf8'));
+	assert.deepEqual(metadata.clip, {x: 320, y: 160, width: 640, height: 400});
+	assert.equal(typeof metadata.captured_at_epoch_ms, 'number');
 });

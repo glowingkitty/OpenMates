@@ -46,6 +46,7 @@ import base64
 import hashlib
 import importlib.util
 import json
+import math
 import mimetypes
 import os
 import re
@@ -53,7 +54,6 @@ import signal
 import secrets
 import shutil
 import subprocess
-import struct
 import sys
 import tempfile
 import threading
@@ -3517,8 +3517,8 @@ class BatchRunner:
         proof_video_file: Optional[str] = None
         if raw_json_sources:
             report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
-            proof_attachment_groups: list[list[dict[str, object]]] = []
-            explicit_thumbnail_attachments: list[dict[str, object]] = []
+            proof_attachment_groups: list[dict[str, object]] = []
+            thumbnail_requests: list[dict[str, object]] = []
 
             def collect_explicit_thumbnails(value: object) -> None:
                 if isinstance(value, dict):
@@ -3535,19 +3535,32 @@ class BatchRunner:
                                 item
                                 for item in attachments
                                 if isinstance(item, dict)
-                                and item.get("name") == "openmates-test-thumbnail"
-                                and item.get("contentType") == "image/png"
+                                and item.get("name") == "openmates-test-thumbnail-metadata"
+                                and item.get("contentType") == "application/vnd.openmates.test-thumbnail+json"
                             ]
                             if len(matches) > 1:
                                 raise RuntimeError("Playwright result contains multiple explicit test thumbnails")
                             if matches:
-                                candidates.append((str(result.get("status") or ""), matches[0]))
+                                video_attachments = [
+                                    item
+                                    for item in attachments
+                                    if isinstance(item, dict)
+                                    and str(item.get("contentType") or "").startswith("video/")
+                                ]
+                                if len(video_attachments) != 1:
+                                    raise RuntimeError("Explicit test thumbnail requires one result video")
+                                candidates.append((str(result.get("status") or ""), {
+                                    "metadata": matches[0],
+                                    "video": video_attachments[0],
+                                    "start_time": result.get("startTime"),
+                                    "duration_ms": result.get("duration"),
+                                }))
                         if candidates:
                             selected = next(
                                 (attachment for status, attachment in reversed(candidates) if status == "passed"),
                                 candidates[-1][1],
                             )
-                            explicit_thumbnail_attachments.append(selected)
+                            thumbnail_requests.append(selected)
                     for key, child in value.items():
                         if key != "results":
                             collect_explicit_thumbnails(child)
@@ -3557,16 +3570,30 @@ class BatchRunner:
 
             def collect_timeline_attachments(value: object) -> None:
                 if isinstance(value, dict):
-                    attachments = value.get("attachments")
-                    if isinstance(attachments, list):
-                        group = [item for item in attachments if isinstance(item, dict)]
-                        if any(
-                            item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
-                            for item in group
-                        ):
-                            proof_attachment_groups.append(group)
+                    results = value.get("results")
+                    if isinstance(results, list):
+                        candidates: list[dict[str, object]] = []
+                        for result in results:
+                            if not isinstance(result, dict) or not isinstance(result.get("attachments"), list):
+                                continue
+                            group = [item for item in result["attachments"] if isinstance(item, dict)]
+                            if any(
+                                item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                                for item in group
+                            ):
+                                candidates.append({
+                                    "attachments": group,
+                                    "status": result.get("status"),
+                                    "start_time": result.get("startTime"),
+                                    "duration_ms": result.get("duration"),
+                                })
+                        if candidates:
+                            proof_attachment_groups.append(next(
+                                (candidate for candidate in reversed(candidates) if candidate.get("status") == "passed"),
+                                candidates[-1],
+                            ))
                     for key, child in value.items():
-                        if key == "attachments":
+                        if key == "results":
                             continue
                         collect_timeline_attachments(child)
                 elif isinstance(value, list):
@@ -3576,47 +3603,113 @@ class BatchRunner:
             collect_explicit_thumbnails(report)
             collect_timeline_attachments(report)
             artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
-            if len(explicit_thumbnail_attachments) > 1:
+            if len(thumbnail_requests) > 1:
                 raise RuntimeError("Playwright report contains multiple explicit test thumbnails")
-            if explicit_thumbnail_attachments:
-                explicit_thumbnail = explicit_thumbnail_attachments[0]
+            if thumbnail_requests:
+                request = thumbnail_requests[0]
+                explicit_thumbnail = request["metadata"]
+                if not isinstance(explicit_thumbnail, dict):
+                    raise RuntimeError("Explicit test thumbnail metadata is invalid")
                 body = explicit_thumbnail.get("body")
                 attachment_path = explicit_thumbnail.get("path")
                 if isinstance(body, str):
-                    thumbnail_bytes = base64.b64decode(body, validate=True)
+                    metadata_bytes = base64.b64decode(body, validate=True)
                 elif isinstance(attachment_path, str):
                     attachment_name = Path(attachment_path).name
                     sources = [path for path in artifact_files if path.name == attachment_name]
                     if len(sources) != 1:
-                        raise RuntimeError("Explicit test thumbnail file is missing")
-                    thumbnail_bytes = sources[0].read_bytes()
+                        raise RuntimeError("Explicit test thumbnail metadata file is missing")
+                    metadata_bytes = sources[0].read_bytes()
                 else:
-                    raise RuntimeError("Explicit test thumbnail has no content")
-                if len(thumbnail_bytes) < 24 or thumbnail_bytes[:8] != b"\x89PNG\r\n\x1a\n":
-                    raise RuntimeError("Explicit test thumbnail is not a PNG")
-                width, height = struct.unpack(">II", thumbnail_bytes[16:24])
-                if (width, height) != (1280, 800):
-                    raise RuntimeError(
-                        f"Explicit test thumbnail must be 1280x800, got {width}x{height}"
-                    )
+                    raise RuntimeError("Explicit test thumbnail metadata has no content")
+                metadata = json.loads(metadata_bytes.decode("utf-8"))
+                if metadata.get("schema_version") != 2:
+                    raise RuntimeError("Explicit test thumbnail metadata schema must be version 2")
+                viewport = metadata.get("viewport")
+                clip = metadata.get("clip")
+                if not isinstance(viewport, dict) or not isinstance(clip, dict):
+                    raise RuntimeError("Explicit test thumbnail geometry is invalid")
+                geometry = [viewport.get("width"), viewport.get("height"), clip.get("x"), clip.get("y"), clip.get("width"), clip.get("height")]
+                if not all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in geometry):
+                    raise RuntimeError("Explicit test thumbnail geometry must use non-negative integers")
+                if viewport["width"] <= 0 or viewport["height"] <= 0 or clip["width"] <= 0 or clip["height"] <= 0:
+                    raise RuntimeError("Explicit test thumbnail geometry must be positive")
+                video_attachment = request.get("video")
+                video_attachment_path = video_attachment.get("path") if isinstance(video_attachment, dict) else None
+                if not isinstance(video_attachment_path, str):
+                    raise RuntimeError("Explicit test thumbnail video path is missing")
+                video_attachment_suffix = video_attachment_path.split("test-results/", 1)[-1]
+                matching_video_records = [
+                    record
+                    for record in video_records
+                    if str(record.get("source") or "").split("test-results/", 1)[-1] == video_attachment_suffix
+                ]
+                if len(matching_video_records) != 1:
+                    raise RuntimeError("Explicit test thumbnail video artifact is missing or ambiguous")
+                video_record = matching_video_records[0]
+                video_path = dest / str(video_record["file"])
+                probe = subprocess.run(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if probe.returncode != 0:
+                    raise RuntimeError(f"Explicit test thumbnail video probe failed: {probe.stderr.strip()}")
+                video_duration = float(probe.stdout.strip())
+                captured_at_value = metadata.get("captured_at_epoch_ms")
+                if (
+                    not isinstance(captured_at_value, (int, float))
+                    or isinstance(captured_at_value, bool)
+                    or not math.isfinite(captured_at_value)
+                ):
+                    raise RuntimeError("Explicit test thumbnail timestamp is invalid")
+                captured_at_ms = float(captured_at_value)
+                start_time = datetime.fromisoformat(str(request.get("start_time") or "").replace("Z", "+00:00"))
+                result_duration_ms = float(request.get("duration_ms") or 0)
+                if result_duration_ms <= 0:
+                    raise RuntimeError("Explicit test thumbnail result duration is missing")
+                result_end_epoch_ms = start_time.timestamp() * 1000 + result_duration_ms
+                video_start_epoch_ms = result_end_epoch_ms - video_duration * 1000
+                timestamp = (captured_at_ms - video_start_epoch_ms) / 1000
+                if not math.isfinite(timestamp) or timestamp < 0 or timestamp >= video_duration:
+                    raise RuntimeError("Explicit test thumbnail timestamp is outside the completed video")
                 thumbnail = "thumbnail.png"
-                (dest / thumbnail).write_bytes(thumbnail_bytes)
-                thumbnail_source = "explicit"
+                video_filter = (
+                    f"scale={viewport['width']}:{viewport['height']}:flags=lanczos,"
+                    f"crop={clip['width']}:{clip['height']}:{clip['x']}:{clip['y']},"
+                    "scale=1280:800:flags=lanczos"
+                )
+                extraction = subprocess.run(
+                    ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(video_path), "-ss", f"{timestamp:.3f}", "-frames:v", "1", "-vf", video_filter, str(dest / thumbnail)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if extraction.returncode != 0 or not (dest / thumbnail).is_file():
+                    raise RuntimeError(f"Explicit test thumbnail video extraction failed: {extraction.stderr.strip()}")
+                thumbnail_source = "video_frame"
+            proof_result = next(
+                (group for group in reversed(proof_attachment_groups) if group.get("status") == "passed"),
+                proof_attachment_groups[-1] if proof_attachment_groups else {},
+            )
             if len(proof_attachment_groups) > 1:
-                raise RuntimeError("Playwright report contains ambiguous proof timeline attachment groups")
-            proof_group = proof_attachment_groups[0] if proof_attachment_groups else []
+                raise RuntimeError("Playwright report contains ambiguous proof timeline test groups")
+            proof_group = proof_result.get("attachments") if isinstance(proof_result.get("attachments"), list) else []
             for item in proof_group:
                 attachment_path = item.get("path")
                 if not str(item.get("contentType") or "").startswith("video/") or not isinstance(attachment_path, str):
                     continue
-                attachment = Path(attachment_path)
-                for record in video_records:
-                    source = Path(str(record.get("source") or ""))
-                    if source.name == attachment.name and source.parent.name == attachment.parent.name:
-                        proof_video_file = str(record.get("file") or "") or None
-                        break
-                if proof_video_file:
-                    break
+                attachment_suffix = attachment_path.split("test-results/", 1)[-1]
+                matches = [
+                    record
+                    for record in video_records
+                    if str(record.get("source") or "").split("test-results/", 1)[-1] == attachment_suffix
+                ]
+                if len(matches) != 1:
+                    raise RuntimeError("Playwright proof video artifact is missing or ambiguous")
+                proof_video_file = str(matches[0].get("file") or "") or None
+                break
             timeline_attachments = [
                 item
                 for item in proof_group
@@ -3659,6 +3752,60 @@ class BatchRunner:
                     raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
                 frames_dest = dest / "proof-frames"
                 frames_dest.mkdir(parents=True, exist_ok=True)
+                proof_video_start_epoch_ms: Optional[float] = None
+                proof_video_duration: Optional[float] = None
+                map_proof_timestamp: Optional[Callable[[object, str], float]] = None
+                if timeline_payload.get("schema_version") == 2:
+                    if not proof_video_file:
+                        raise RuntimeError("Spec proof checkpoint video is missing")
+                    proof_start_time = datetime.fromisoformat(
+                        str(proof_result.get("start_time") or "").replace("Z", "+00:00")
+                    )
+                    proof_duration_ms = float(proof_result.get("duration_ms") or 0)
+                    if proof_duration_ms <= 0:
+                        raise RuntimeError("Spec proof result duration is missing")
+                    probe = subprocess.run(
+                        [
+                            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1", str(dest / proof_video_file),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    if probe.returncode != 0:
+                        raise RuntimeError(f"Spec proof video probe failed: {probe.stderr.strip()}")
+                    proof_video_duration = float(probe.stdout.strip())
+                    proof_result_end_ms = proof_start_time.timestamp() * 1000 + proof_duration_ms
+                    proof_video_start_epoch_ms = proof_result_end_ms - proof_video_duration * 1000
+
+                    def to_video_timestamp(value: object, label: str) -> float:
+                        if (
+                            not isinstance(value, (int, float))
+                            or isinstance(value, bool)
+                            or not math.isfinite(value)
+                        ):
+                            raise RuntimeError(f"Spec proof {label} timestamp is invalid")
+                        timestamp = (float(value) - proof_video_start_epoch_ms) / 1000
+                        if timestamp < 0 or timestamp >= proof_video_duration:
+                            raise RuntimeError(f"Spec proof {label} timestamp is outside the completed video")
+                        return timestamp
+
+                    map_proof_timestamp = to_video_timestamp
+                    for event in timeline_payload.get("events") or []:
+                        if not isinstance(event, dict):
+                            raise RuntimeError("Spec proof timeline event metadata is invalid")
+                        if event.get("kind") == "action":
+                            event["start_ms"] = round(to_video_timestamp(event.get("start_at_epoch_ms"), "action start") * 1000)
+                            event["end_ms"] = round(to_video_timestamp(event.get("end_at_epoch_ms"), "action end") * 1000)
+                        else:
+                            event["at_ms"] = round(to_video_timestamp(event.get("captured_at_epoch_ms"), "event") * 1000)
+                    for assertion in timeline_payload.get("assertion_results") or []:
+                        if not isinstance(assertion, dict):
+                            raise RuntimeError("Spec proof assertion result metadata is invalid")
+                        assertion["at_ms"] = round(to_video_timestamp(
+                            assertion.get("captured_at_epoch_ms"), "assertion"
+                        ) * 1000)
                 for frame_record in checkpoint_frames:
                     if not isinstance(frame_record, dict):
                         raise RuntimeError("Spec proof checkpoint frame metadata is invalid")
@@ -3667,25 +3814,47 @@ class BatchRunner:
                     if not re.fullmatch(r"[A-Za-z0-9._-]+", checkpoint):
                         raise RuntimeError("Spec proof checkpoint frame has an invalid checkpoint id")
                     attachment = proof_frame_attachments.get(attachment_name)
-                    if attachment is None:
-                        raise RuntimeError(f"Spec proof checkpoint frame attachment is missing: {checkpoint}")
-                    frame_body = attachment.get("body")
-                    frame_path = attachment.get("path")
-                    if isinstance(frame_body, str):
-                        frame_bytes = base64.b64decode(frame_body, validate=True)
-                    elif isinstance(frame_path, str):
-                        attachment_basename = Path(frame_path).name
-                        frame_sources = [path for path in artifact_files if path.name == attachment_basename]
-                        if len(frame_sources) != 1:
-                            raise RuntimeError(f"Spec proof checkpoint frame file is missing: {checkpoint}")
-                        frame_bytes = frame_sources[0].read_bytes()
-                    else:
-                        raise RuntimeError(f"Spec proof checkpoint frame has no content: {checkpoint}")
-                    actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
-                    if actual_hash != frame_record.get("sha256"):
-                        raise RuntimeError(f"Spec proof checkpoint frame hash changed: {checkpoint}")
                     target = frames_dest / f"{checkpoint}.png"
-                    target.write_bytes(frame_bytes)
+                    if attachment is None:
+                        captured_at_ms = frame_record.get("captured_at_epoch_ms")
+                        if map_proof_timestamp is None:
+                            raise RuntimeError(f"Spec proof checkpoint frame timestamp is invalid: {checkpoint}")
+                        timestamp = map_proof_timestamp(captured_at_ms, f"checkpoint {checkpoint}")
+                        extraction = subprocess.run(
+                            [
+                                "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                                "-i", str(dest / proof_video_file), "-ss", f"{timestamp:.3f}",
+                                "-frames:v", "1", str(target),
+                            ],
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        if extraction.returncode != 0 or not target.is_file():
+                            raise RuntimeError(
+                                f"Spec proof checkpoint video extraction failed: {checkpoint}: {extraction.stderr.strip()}"
+                            )
+                        frame_bytes = target.read_bytes()
+                    else:
+                        frame_body = attachment.get("body")
+                        frame_path = attachment.get("path")
+                        if isinstance(frame_body, str):
+                            frame_bytes = base64.b64decode(frame_body, validate=True)
+                        elif isinstance(frame_path, str):
+                            attachment_basename = Path(frame_path).name
+                            frame_sources = [path for path in artifact_files if path.name == attachment_basename]
+                            if len(frame_sources) != 1:
+                                raise RuntimeError(f"Spec proof checkpoint frame file is missing: {checkpoint}")
+                            frame_bytes = frame_sources[0].read_bytes()
+                        else:
+                            raise RuntimeError(f"Spec proof checkpoint frame has no content: {checkpoint}")
+                        expected_hash = frame_record.get("sha256")
+                        actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
+                        if actual_hash != expected_hash:
+                            raise RuntimeError(f"Spec proof checkpoint frame hash changed: {checkpoint}")
+                        target.write_bytes(frame_bytes)
+                    actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
+                    frame_record["sha256"] = actual_hash
                     frame_record["path"] = str(target.resolve())
                 proof_timeline_path.write_text(
                     json.dumps(timeline_payload, sort_keys=True, separators=(",", ":")) + "\n",
