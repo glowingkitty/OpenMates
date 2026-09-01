@@ -88,7 +88,10 @@ function defineTestThumbnail(input: TestThumbnailDefinition) {
 	const value = structuredClone(input);
 	requireText(value.id, 'id');
 	validateTargets(value.focus, 'focus');
-	if (value.context !== undefined) validateTargets(value.context, 'context');
+	if (value.context !== undefined) {
+		if (!Array.isArray(value.context)) throw new Error('Test thumbnail context targets must be a list');
+		if (value.context.length > 0) validateTargets(value.context, 'context');
+	}
 	if (value.aspectRatio !== undefined && value.aspectRatio !== '16:10') {
 		throw new Error('Test thumbnail aspectRatio must be 16:10');
 	}

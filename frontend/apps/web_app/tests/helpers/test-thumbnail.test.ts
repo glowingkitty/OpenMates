@@ -22,6 +22,7 @@ test('defines a fixed 1280x800 thumbnail contract', () => {
 
 	assert.deepEqual(definition.output, {width: 1280, height: 800});
 	assert.equal(definition.aspectRatio, '16:10');
+	assert.deepEqual(defineTestThumbnail(definition), definition);
 });
 
 test('keeps a small control centered inside a bounded context window', () => {
