@@ -101,29 +101,13 @@ export function logChunkLoadError(context: string, error: unknown): void {
 }
 
 /**
- * Forces a clean page reload to get the latest version of the app.
- * Clears all Service Worker caches and activates any waiting SW before reloading.
- * This prevents reload loops where the SW keeps serving stale cached chunks.
- *
- * Falls back to a plain window.location.reload() if performCleanUpdate fails.
+ * Forces a full page reload to get the latest version of the app.
+ * The HTML response is not cached and references content-hashed assets, so no
+ * browser storage cleanup is needed before reloading.
  */
 export function forcePageReload(): void {
   if (typeof window !== "undefined") {
-    console.log(
-      "[chunkErrorHandler] Forcing clean page reload to get latest version",
-    );
-    // Import dynamically to avoid circular dependencies
-    import("./cacheManager")
-      .then(({ performCleanUpdate }) => {
-        performCleanUpdate();
-      })
-      .catch(() => {
-        // Fallback: if the dynamic import itself fails (ironic for a chunk error handler),
-        // just do a plain reload
-        console.warn(
-          "[chunkErrorHandler] Could not load cacheManager, falling back to plain reload",
-        );
-        window.location.reload();
-      });
+    console.log("[chunkErrorHandler] Reloading to get latest app version");
+    window.location.reload();
   }
 }

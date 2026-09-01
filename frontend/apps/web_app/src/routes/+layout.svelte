@@ -27,9 +27,7 @@
 		initializeTheme,
 		initializeUiFont,
 		initializeServerStatus,
-		notificationStore,
-		// Utils
-		performCleanUpdate
+		notificationStore
 	} from '@repo/ui';
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
@@ -127,6 +125,19 @@
 	 * Prevents showing multiple notifications for the same update.
 	 */
 	let updateNotificationShown = $state(false);
+	let updateReloadStarted = false;
+
+	function reloadForUpdate(targetUrl?: string): void {
+		if (updateReloadStarted) return;
+		updateReloadStarted = true;
+
+		if (targetUrl) {
+			window.location.href = targetUrl;
+			return;
+		}
+
+		window.location.reload();
+	}
 
 	onMount(async () => {
 		ensureOpenMatesFavicons();
@@ -323,13 +334,11 @@
 	 * Uses SvelteKit's built-in version detection via $app/state.
 	 *
 	 * Displays a persistent software_update notification with a "Refresh now" button.
-	 * Clicking the button triggers performCleanUpdate() which:
-	 * 1. Clears all Service Worker caches
-	 * 2. Activates any waiting Service Worker (SKIP_WAITING)
-	 * 3. Reloads the page for a clean fresh start
+	 * Clicking the button performs a full page reload so the new HTML references
+	 * the latest content-hashed assets.
 	 *
 	 * If the user doesn't click the button, the beforeNavigate hook below
-	 * will trigger the same clean update flow on their next navigation.
+	 * will trigger the same full page update on their next navigation.
 	 */
 	$effect(() => {
 		if (browser && updated.current && !updateNotificationShown) {
@@ -341,8 +350,8 @@
 				{
 					actionLabel: 'Refresh now',
 					onAction: () => {
-						console.log('[Layout] User triggered clean update via notification button');
-						performCleanUpdate();
+						console.log('[Layout] User triggered app update reload via notification button');
+						reloadForUpdate();
 					},
 					dismissible: true
 				}
@@ -356,14 +365,12 @@
 	 *
 	 * When user navigates and an update is available:
 	 * - Instead of client-side navigation (which might fail due to missing chunks)
-	 * - We clear all caches, activate any waiting SW, and do a full page reload
-	 *
-	 * Uses performCleanUpdate() to ensure a completely fresh app state.
+	 * - We do a full page navigation to load the new app version
 	 */
 	beforeNavigate(({ willUnload, to }) => {
 		if (updated.current && !willUnload && to?.url) {
-			console.log('[Layout] New version detected, performing clean update on navigation');
-			performCleanUpdate(to.url.href);
+			console.log('[Layout] New version detected, performing full page navigation');
+			reloadForUpdate(to.url.href);
 		}
 	});
 </script>

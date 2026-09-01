@@ -64,10 +64,6 @@
 				{
 					"key": "Service-Worker-Allowed",
 					"value": "/"
-				},
-				{
-					"key": "Clear-Site-Data",
-					"value": "\"cache\""
 				}
 			]
 		},

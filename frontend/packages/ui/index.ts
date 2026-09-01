@@ -196,9 +196,6 @@ export {
   CHUNK_ERROR_MESSAGE,
   CHUNK_ERROR_NOTIFICATION_DURATION,
 } from "./src/utils/chunkErrorHandler";
-// Utils - export clean update function for cache-clearing reloads on app updates
-export { performCleanUpdate } from "./src/utils/cacheManager";
-
 // Styles — design tokens (single source of truth)
 export * from "./src/tokens/generated/tokens.generated";
 import "./src/tokens/generated/theme.generated.css";
