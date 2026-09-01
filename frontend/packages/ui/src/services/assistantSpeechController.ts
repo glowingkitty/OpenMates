@@ -5,6 +5,10 @@
 // One controller instance owns playback across the application.
 
 import { writable } from "svelte/store";
+import {
+  fetchAndDecryptAudio,
+  releaseCachedAudio,
+} from "../components/embeds/audio/audioEmbedCrypto";
 import { decodeToonContent, resolveEmbed } from "./embedResolver";
 import {
   AssistantSpeechQueue,
@@ -84,6 +88,12 @@ class AssistantSpeechController {
   private messageId: string | null = null;
   private error: string | null = null;
   private readonly stoppedMessageIds = new Set<string>();
+  private readonly audioKeyBySegmentId = new Map<string, string>();
+  private readonly audioResolutionBySegmentId = new Map<string, {
+    generation: number;
+    promise: Promise<{ url: string; s3Key: string | null }>;
+  }>();
+  private audioResolutionGeneration = 0;
 
   constructor() {
     webSocketService.on<SpeechStatusPayload>("assistant_speech_status", (payload) => {
@@ -121,7 +131,9 @@ class AssistantSpeechController {
 
   async stop(): Promise<void> {
     if (this.messageId) this.rememberStoppedMessage(this.messageId);
+    this.audioResolutionGeneration += 1;
     this.queue.stop();
+    this.releaseGeneratedAudio();
     if (this.chatId && this.messageId) {
       await webSocketService.sendMessage("assistant_speech", {
         action: "cancel",
@@ -228,18 +240,48 @@ class AssistantSpeechController {
       this.publish();
       return;
     }
+    if (this.audioKeyBySegmentId.has(status.segment_id)) return;
+    const generation = this.audioResolutionGeneration;
+    const existingResolution = this.audioResolutionBySegmentId.get(status.segment_id);
+    if (existingResolution) {
+      await existingResolution.promise.catch(() => undefined);
+      if (existingResolution.generation !== generation) {
+        await this.hydrateReadySegment(status);
+      }
+      return;
+    }
+    const expectedMessageId = this.messageId;
+    const resolution = resolveGeneratedAudio(status.generated_asset_id);
+    const resolutionRecord = { generation, promise: resolution };
+    this.audioResolutionBySegmentId.set(status.segment_id, resolutionRecord);
     try {
-      const audioUrl = await resolveGeneratedAudioUrl(status.generated_asset_id);
+      const resolvedAudio = await resolution;
+      if (
+        generation !== this.audioResolutionGeneration ||
+        expectedMessageId !== this.messageId ||
+        this.queue.state.status === "stopped"
+      ) {
+        if (resolvedAudio.s3Key) releaseCachedAudio(resolvedAudio.s3Key);
+        return;
+      }
+      if (resolvedAudio.s3Key) {
+        this.audioKeyBySegmentId.set(status.segment_id, resolvedAudio.s3Key);
+      }
       this.queue.upsertSegment({
         id: status.segment_id,
         sequence,
         status: "ready",
         durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000),
-        audioUrl,
+        audioUrl: resolvedAudio.url,
         playbackClass: status.kind === "app_use_announcement" ? "passive" : "replayable",
       });
       this.publish();
     } catch (cause) {
+      if (
+        generation !== this.audioResolutionGeneration ||
+        expectedMessageId !== this.messageId ||
+        this.queue.state.status === "stopped"
+      ) return;
       console.error("[AssistantSpeechController] Generated audio could not be resolved:", cause);
       this.error = "Speech audio could not be loaded.";
       this.queue.upsertSegment({
@@ -250,13 +292,26 @@ class AssistantSpeechController {
         playbackClass: status.kind === "app_use_announcement" ? "passive" : "replayable",
       });
       this.publish();
+    } finally {
+      if (this.audioResolutionBySegmentId.get(status.segment_id) === resolutionRecord) {
+        this.audioResolutionBySegmentId.delete(status.segment_id);
+      }
     }
   }
 
   private supersedeCurrentMessage(nextMessageId: string): void {
     if (this.messageId && this.messageId !== nextMessageId) {
       this.rememberStoppedMessage(this.messageId);
+      this.audioResolutionGeneration += 1;
+      this.releaseGeneratedAudio();
     }
+  }
+
+  private releaseGeneratedAudio(): void {
+    for (const s3Key of Array.from(this.audioKeyBySegmentId.values())) {
+      releaseCachedAudio(s3Key);
+    }
+    this.audioKeyBySegmentId.clear();
   }
 
   private rememberStoppedMessage(messageId: string): void {
@@ -335,17 +390,63 @@ function projectParagraph(markdown: string): { kind: string; text: string } {
   return { kind: "prose_paragraph", text };
 }
 
-async function resolveGeneratedAudioUrl(assetId: string): Promise<string> {
+async function resolveGeneratedAudio(assetId: string): Promise<{ url: string; s3Key: string | null }> {
   for (let attempt = 0; attempt < GENERATED_ASSET_RETRY_COUNT; attempt += 1) {
     const embed = await resolveEmbed(assetId) ?? await resolveEmbed(`embed:${assetId}`);
     const decoded = typeof embed?.content === "string"
       ? await decodeToonContent(embed.content)
       : embed;
-    const url = findDownloadUrl(decoded ?? embed);
-    if (url) return url;
+    const content = decoded ?? embed;
+    const url = findDownloadUrl(content);
+    if (url) return { url, s3Key: null };
+    const encryptedAudio = getEncryptedAudio(content);
+    if (encryptedAudio) {
+      const decryptedUrl = await fetchAndDecryptAudio(
+        encryptedAudio.s3BaseUrl,
+        encryptedAudio.s3Key,
+        encryptedAudio.aesKey,
+        encryptedAudio.aesNonce,
+        encryptedAudio.mimeType,
+        encryptedAudio.variant,
+      );
+      return { url: decryptedUrl, s3Key: encryptedAudio.s3Key };
+    }
     await new Promise((resolve) => setTimeout(resolve, GENERATED_ASSET_RETRY_MS));
   }
   throw new Error(`Generated assistant speech asset ${assetId} was not available`);
+}
+
+function getEncryptedAudio(value: unknown): {
+  s3BaseUrl: string;
+  s3Key: string;
+  aesKey: string;
+  aesNonce: string;
+  mimeType: string;
+  variant: Record<string, unknown>;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const content = value as Record<string, unknown>;
+  const files = content.files && typeof content.files === "object"
+    ? content.files as Record<string, unknown>
+    : null;
+  const variant = files?.original && typeof files.original === "object"
+    ? files.original as Record<string, unknown>
+    : {};
+  const s3Key = stringValue(variant.s3_key) || stringValue(content.files_original_s3_key);
+  const aesKey = stringValue(content.aes_key);
+  if (!s3Key || !aesKey) return null;
+  return {
+    s3BaseUrl: stringValue(content.s3_base_url),
+    s3Key,
+    aesKey,
+    aesNonce: stringValue(content.aes_nonce),
+    mimeType: stringValue(variant.mime_type) || stringValue(content.mime_type) || "audio/mpeg",
+    variant,
+  };
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 function findDownloadUrl(value: unknown): string | null {
