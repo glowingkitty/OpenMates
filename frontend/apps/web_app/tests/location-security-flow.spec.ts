@@ -78,6 +78,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 // Test 1: 2FA re-auth UI shown with location-change notice
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=auth.session.lifecycle
 test('shows 2FA re-auth UI with location-change notice when session detects location change', async ({
 	page
 }: {
@@ -236,6 +237,7 @@ test('shows 2FA re-auth UI with location-change notice when session detects loca
 // Test 2: Passkey re-auth UI shown with location-change notice
 // ---------------------------------------------------------------------------
 
+// contract-test: direct surface=gui.web assertions=auth.session.lifecycle
 test('shows passkey re-auth UI with location-change notice when session detects location change', async ({
 	page
 }: {
@@ -280,6 +282,38 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 20000 });
 	log('Initial login done.');
 	await screenshot(page, 'initial-login-done');
+
+	const modelPreferenceRequests: string[] = [];
+	page.on('websocket', (websocket: any) => {
+		websocket.on('framesent', (frame: { payload?: string | Buffer }) => {
+			try {
+				const message = JSON.parse(String(frame.payload ?? ''));
+				if (
+					message.type === 'get_chat_model_preference' ||
+					message.type === 'update_chat_model_preference'
+				) {
+					modelPreferenceRequests.push(message.type);
+				}
+			} catch {
+				// WebSocket control frames are not JSON protocol messages.
+			}
+		});
+	});
+	await page.addInitScript(() => {
+		(window as any).__locationSecurityNotifications = [];
+		document.addEventListener('DOMContentLoaded', () => {
+			const recordNotifications = (): void => {
+				for (const element of document.querySelectorAll('[data-testid="notification"]')) {
+					const text = element.textContent?.trim();
+					if (text && !(window as any).__locationSecurityNotifications.includes(text)) {
+						(window as any).__locationSecurityNotifications.push(text);
+					}
+				}
+			};
+			new MutationObserver(recordNotifications).observe(document.body, { childList: true, subtree: true });
+			recordNotifications();
+		});
+	});
 
 	// Set up intercept for passkey re-auth
 	log('Setting up route intercept for passkey location-change re-auth...');
@@ -355,5 +389,10 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	log('Route intercept removed.');
 
 	await assertNoMissingTranslations(page);
+	expect(modelPreferenceRequests).toEqual([]);
+	const notifications = await page.evaluate(
+		() => (window as any).__locationSecurityNotifications as string[]
+	);
+	expect(notifications.filter((message) => message.trim().toLowerCase() === 'try again')).toEqual([]);
 	log('Test complete.');
 });
