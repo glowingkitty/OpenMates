@@ -500,31 +500,24 @@ def test_spawn_chat_execute_readonly_has_consistent_prompt(tmp_path: Path, monke
     assert "Use sessions.py deploy" not in captured["prompt"]
 
 
-def test_spawn_chat_rejects_contradictory_execute_prompt(tmp_path: Path, monkeypatch) -> None:
+def test_spawn_chat_mode_is_authoritative_over_prompt_wording(tmp_path: Path, monkeypatch) -> None:
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    captured = {}
     monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path / "worktree")
-    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "canonical")
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
+    monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
+    monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
+    monkeypatch.setattr(_zellij_utils, "find_opencode_session_id", lambda *_args, **_kwargs: "ses_worker")
 
-    with pytest.raises(SystemExit, match="--mode execute cannot be combined"):
-        sessions.cmd_spawn_chat(SimpleNamespace(
-            prompt="Read-only investigation. Do not edit files.",
-            prompt_file=None,
-            name="bad-worker",
-            mode="execute",
-            linear_issue=None,
-            no_deploy_instructions=False,
-        ))
+    sessions.cmd_spawn_chat(SimpleNamespace(
+        prompt="Implement the fix, but do not edit unrelated product files or deploy until verification passes.",
+        prompt_file=None,
+        name="scoped-worker",
+        mode="execute",
+        linear_issue=None,
+        no_deploy_instructions=False,
+    ))
 
-
-def test_spawn_chat_rejects_contradictory_execute_readonly_prompt(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path / "worktree")
-    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "canonical")
-
-    with pytest.raises(SystemExit, match="--mode execute-readonly cannot be combined"):
-        sessions.cmd_spawn_chat(SimpleNamespace(
-            prompt="Implement the fix directly and use sessions.py deploy when done.",
-            prompt_file=None,
-            name="bad-readonly-worker",
-            mode="execute-readonly",
-            linear_issue=None,
-            no_deploy_instructions=False,
-        ))
+    assert captured["permission_mode"] == "execute"
+    assert "do not edit unrelated product files" in captured["prompt"]

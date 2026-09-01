@@ -16194,49 +16194,6 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
-_READ_ONLY_PROMPT_MARKERS = (
-    "do not edit",
-    "do not modify",
-    "do not write",
-    "do not deploy",
-    "read-only",
-    "root-cause report, not a fix",
-    "produce a concise root-cause report",
-)
-
-_WRITE_PROMPT_MARKERS = (
-    "implement the fix",
-    "make the fix",
-    "you may edit files",
-    "may edit files",
-    "start editing",
-    "apply patches",
-    "deploy when done",
-    "use sessions.py deploy",
-    "commit and push",
-)
-
-
-def _prompt_contains_any(prompt: str, markers: tuple[str, ...]) -> bool:
-    normalized = " ".join(prompt.lower().split())
-    return any(marker in normalized for marker in markers)
-
-
-def _validate_spawn_prompt_contract(prompt: str, permission_mode: str) -> None:
-    """Reject worker prompts that combine contradictory mode/capability text."""
-
-    if permission_mode == "execute" and _prompt_contains_any(prompt, _READ_ONLY_PROMPT_MARKERS):
-        raise SystemExit(
-            "Error: --mode execute cannot be combined with read-only prompt instructions. "
-            "Use --mode execute-readonly for Bash-capable investigations, or remove the read-only prohibition."
-        )
-    if permission_mode == "execute-readonly" and _prompt_contains_any(prompt, _WRITE_PROMPT_MARKERS):
-        raise SystemExit(
-            "Error: --mode execute-readonly cannot be combined with implementation/deploy prompt instructions. "
-            "Use --mode execute for implementation workers."
-        )
-
-
 def _print_deployed_commit_handoff(commit_sha: str) -> None:
     """Print one unambiguous subject-commit handoff after a successful dev push."""
 
@@ -16313,7 +16270,6 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Present your findings and proposed fix as a summary — do not implement it.\n\n"
         )
     elif permission_mode == "execute-readonly":
-        _validate_spawn_prompt_contract(prompt, permission_mode)
         mode_prefix = (
             "IMPORTANT: This is an EXECUTE-READONLY session. "
             "You may run repository Bash/status commands and inspect files, but you MUST NOT edit, write, "
@@ -16321,8 +16277,6 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Produce findings, root-cause evidence, or a handoff only.\n\n"
         )
     else:
-        if not getattr(args, "no_deploy_instructions", False):
-            _validate_spawn_prompt_contract(prompt, permission_mode)
         if getattr(args, "no_deploy_instructions", False):
             mode_prefix = (
                 "IMPORTANT: This is an EXECUTE session. "

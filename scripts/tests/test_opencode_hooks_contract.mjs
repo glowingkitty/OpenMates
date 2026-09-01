@@ -196,7 +196,7 @@ test("loaded hook rejects chained sessions.py start before later commands", asyn
     runBeforeShellWithExecutionArgs(
       'python3 scripts/sessions.py start --mode bug --task "Investigate A && B" && python3 scripts/issues.py show BTWQJ --env dev',
     ),
-    /canonical sessions\.py\/tests\.py command is mixed with another shell command/,
+    /sessions\.py start must be a standalone command/,
   );
 });
 
@@ -390,13 +390,13 @@ test("automatic response-media queueing and synthetic delivery are disabled by d
 
 test("ordinary product tools cannot mutate control-plane paths or read secret config", () => {
   const decide = pluginModule.OpenMatesHooks.test.controlPlaneToolDecisionForTest;
-  assert.equal(decide({ tool: "apply_patch", args: { filePath: `${process.cwd()}/scripts/sessions.py` } }).decision, "block");
-  assert.equal(decide({ tool: "write", args: { filePath: `${process.cwd()}/.opencode/plugins/openmates-hooks.js` } }).decision, "block");
+  assert.equal(decide({ tool: "apply_patch", args: { filePath: "/home/superdev/projects/OpenMates/scripts/sessions.py" } }).decision, "block");
+  assert.equal(decide({ tool: "write", args: { filePath: "/home/superdev/projects/OpenMates/.opencode/plugins/openmates-hooks.js" } }).decision, "block");
   assert.equal(decide({ tool: "bash", args: { command: "sed -i s/old/new/ scripts/sessions.py" } }).decision, "block");
   assert.equal(decide({ tool: "read", args: { filePath: "/home/superdev/.config/opencode/opencode.json" } }).decision, "block");
   assert.equal(decide({ tool: "bash", args: { command: "cat $HOME/.config/opencode/secrets.env" } }).decision, "block");
   assert.equal(decide({ tool: "bash", args: { command: "cat ~/.config/opencode/opencode.json" } }).decision, "block");
-  assert.equal(decide({ tool: "read", args: { filePath: `${process.cwd()}/frontend/packages/ui/src/index.ts` } }).decision, "allow");
+  assert.equal(decide({ tool: "read", args: { filePath: "/home/superdev/projects/OpenMates/frontend/packages/ui/src/index.ts" } }).decision, "allow");
 });
 
 test("spawn-chat treats its quoted handoff prompt as opaque data", () => {

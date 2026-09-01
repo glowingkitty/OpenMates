@@ -21,8 +21,6 @@ import shlex
 import subprocess
 import time
 from typing import Any
-import urllib.parse
-import urllib.request
 
 try:
     from scripts._zellij_utils import _resolve_opencode_bin
@@ -1356,26 +1354,11 @@ def _parse_reviewer_output(output: str) -> dict[str, Any]:
     raise WorkflowError("proof-video reviewer did not return one valid JSON object")
 
 
-def _dispose_reviewer_instance(run_dir: Path, attach_url: str) -> None:
-    """Release the transient attached OpenCode instance and its MCP children."""
-    query = urllib.parse.urlencode({"directory": str(run_dir.resolve())})
-    request = urllib.request.Request(
-        f"{attach_url.rstrip('/')}/instance/dispose?{query}",
-        data=b"",
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=10) as response:
-        disposed = json.load(response)
-    if disposed is not True:
-        raise WorkflowError(f"OpenCode did not dispose proof-review instance {run_dir}")
-
-
 def _default_reviewer_runner(
     prompt_path: Path,
     *,
     run_dir: Path,
     correction_round: int,
-    dispose_instance: Any = None,
 ) -> tuple[dict[str, Any], str]:
     run_dir = run_dir.resolve()
     prompt_path = prompt_path.resolve()
@@ -1384,7 +1367,7 @@ def _default_reviewer_runner(
     if not opencode_bin:
         raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
     try:
-        prompt_relative = prompt_path.relative_to(run_dir)
+        prompt_path.relative_to(run_dir)
     except ValueError as exc:
         raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
     command = [
@@ -1398,8 +1381,8 @@ def _default_reviewer_runner(
         "proof-video-reviewer",
         *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
-        str(run_dir),
-        f"Read {prompt_relative.as_posix()} in full and return only the required JSON review receipt.",
+        str(CONTROL_PLANE_ROOT),
+        f"Read {prompt_path} in full and return only the required JSON review receipt.",
     ]
     started_at = time.monotonic()
     print(
@@ -1408,47 +1391,39 @@ def _default_reviewer_runner(
         + f"; timeout={REVIEWER_TIMEOUT_SECONDS}s.",
         flush=True,
     )
-    try:
-        with output_path.open("w+", encoding="utf-8") as output_file:
-            output_path.chmod(0o600)
-            process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
-                command,
-                cwd=run_dir,
-                text=True,
-                stdout=output_file,
-                stderr=subprocess.STDOUT,
-            )
-            while True:
-                elapsed = time.monotonic() - started_at
-                remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
-                if remaining <= 0:
-                    process.terminate()
-                    try:
-                        process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        process.kill()
-                        process.wait(timeout=5)
-                    raise WorkflowError(
-                        f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
-                    )
+    with output_path.open("w+", encoding="utf-8") as output_file:
+        output_path.chmod(0o600)
+        process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
+            command,
+            cwd=run_dir,
+            text=True,
+            stdout=output_file,
+            stderr=subprocess.STDOUT,
+        )
+        while True:
+            elapsed = time.monotonic() - started_at
+            remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
+            if remaining <= 0:
+                process.terminate()
                 try:
-                    returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
-                    break
+                    process.wait(timeout=5)
                 except subprocess.TimeoutExpired:
-                    print(
-                        f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
-                        flush=True,
-                    )
-            output_file.flush()
-            output_file.seek(0)
-            output = output_file.read().strip()
-    finally:
-        if REVIEWER_ATTACH_URL:
-            disposer = dispose_instance or _dispose_reviewer_instance
+                    process.kill()
+                    process.wait(timeout=5)
+                raise WorkflowError(
+                    f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
+                )
             try:
-                disposer(run_dir, REVIEWER_ATTACH_URL)
-            except Exception as exc:  # Cleanup must be visible without masking the reviewer result.
-                print(f"WARNING: proof-review OpenCode instance cleanup failed: {exc}", flush=True)
+                returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                print(
+                    f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
+                    flush=True,
+                )
+        output_file.flush()
+        output_file.seek(0)
+        output = output_file.read().strip()
     if returncode != 0:
         raise WorkflowError(f"proof-video reviewer failed with exit code {returncode}; output: {output_path}")
     session_id = ""

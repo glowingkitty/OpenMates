@@ -390,15 +390,19 @@ function extractWriteTargets(command) {
 function bindSessionStart(input, output) {
   const command = bashCommand(output?.args || input?.args);
   if (!input?.sessionID || !/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) return;
-  const separatorIndex = firstUnquotedShellSeparatorIndex(command);
-  const startCommand = (separatorIndex >= 0 ? command.slice(0, separatorIndex) : command).trim();
-  if (!/^python3\s+scripts\/sessions\.py\s+start\b/.test(startCommand) || /--opencode-session\b/.test(startCommand)) return;
-  const boundStart = `${startCommand} --opencode-session ${input.sessionID}`;
-  if (separatorIndex >= 0) {
-    output.args.command = `${boundStart} ${command.slice(separatorIndex).trimStart()}`;
-  } else {
-    output.args.command = boundStart;
+  const startCommand = command.trim();
+  if (
+    !/^python3\s+scripts\/sessions\.py\s+start\b/.test(startCommand)
+    || firstUnquotedShellSeparatorIndex(startCommand) >= 0
+  ) {
+    throw new Error(actionable(
+      ROUTING_GUARD_MARKER,
+      "sessions.py start must be a standalone command so its OpenCode identity and worktree are created atomically.",
+      "run python3 scripts/sessions.py start --mode <mode> --task \"brief description\" in its own tool call.",
+    ));
   }
+  if (/--opencode-session\b/.test(startCommand)) return;
+  output.args.command = `${startCommand} --opencode-session ${input.sessionID}`;
 }
 
 function sessionsData() {
@@ -1242,6 +1246,17 @@ function approvedProofVideoSourceTokenForTest(command) {
 
 function routeLocalToolArgsForTest(tool, args, worktreePath) {
   const input = toolInput(args);
+  if (!worktreePath && BASH_TOOLS.has(tool)) {
+    const command = bashCommand(input);
+    const commandSegments = commandSegmentTokens(command);
+    const hasControlPlaneScript = commandSegments.some(isCanonicalControlPlaneScriptSegment);
+    const controlPlaneScriptRuntime = commandSegments.length > 0
+      && commandSegments.every(isCanonicalControlPlaneScriptSegment);
+    if (hasControlPlaneScript && !controlPlaneScriptRuntime) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: a canonical sessions.py/tests.py command is mixed with another shell command. Next: run the canonical control-plane command in its own tool call so it can use the clean runtime.`);
+    }
+    if (controlPlaneScriptRuntime) return { ...input, command, workdir: CURRENT_CONTROL_PLANE_ROOT };
+  }
   if (!worktreePath) return input;
   if (BASH_TOOLS.has(tool)) {
     const command = bashCommand(input);
@@ -3512,6 +3527,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 };
 
 OpenMatesHooks.test = Object.freeze({
+  bindSessionStart,
   childRoleFromAgent,
   childMutationDecisionForTest,
   reviewerSpawnDecisionForTest,

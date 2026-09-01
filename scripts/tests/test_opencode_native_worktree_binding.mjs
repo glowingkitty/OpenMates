@@ -16,6 +16,7 @@ import test from "node:test";
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
 const {
+  bindSessionStart,
   exactCommitDeployedTestForTest,
   isApprovedControlPlaneAuditCommand,
   routeLocalToolArgsForTest,
@@ -158,6 +159,28 @@ test("runtime lifecycle commands bypass stale session-local coordinators", () =>
       { command: "python3 scripts/sessions.py status && git checkout -- docs/architecture/compliance/cookies.yml" },
       WORKTREE,
     ),
+    /mixed with another shell command/,
+  );
+});
+
+test("unbound session startup is identity-bound and routed through the clean runtime", () => {
+  const output = { args: { command: 'python3 scripts/sessions.py start --mode feature --task "Example"' } };
+  bindSessionStart({ sessionID: "ses_example", args: output.args }, output);
+  assert.equal(
+    output.args.command,
+    'python3 scripts/sessions.py start --mode feature --task "Example" --opencode-session ses_example',
+  );
+  assert.equal(routeLocalToolArgsForTest("bash", output.args, "").workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
+});
+
+test("unbound session startup rejects mixed shell commands before stale root execution", () => {
+  const output = { args: { command: 'ls scripts && python3 scripts/sessions.py start --mode feature --task "Example"' } };
+  assert.throws(
+    () => bindSessionStart({ sessionID: "ses_example", args: output.args }, output),
+    /standalone command/,
+  );
+  assert.throws(
+    () => routeLocalToolArgsForTest("bash", output.args, ""),
     /mixed with another shell command/,
   );
 });

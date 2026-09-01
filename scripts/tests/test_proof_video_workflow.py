@@ -2365,7 +2365,7 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
         workflow.review_run(run_dir=second_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
 
 
-def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_reviewer_reuses_canonical_project_instance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     run_dir = repo_root / "test-results" / "proof-videos" / "run"
@@ -2391,59 +2391,24 @@ def test_default_reviewer_is_scoped_to_run_directory(tmp_path: Path, monkeypatch
     monkeypatch.setattr(workflow.subprocess, "Popen", popen)
     monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
     monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", repo_root)
     monkeypatch.chdir(repo_root)
     relative_run_dir = Path("test-results") / "proof-videos" / "run"
-    disposed: list[tuple[Path, str]] = []
     workflow._default_reviewer_runner(
         relative_run_dir / "review-prompt-round-0.json",
         run_dir=relative_run_dir,
         correction_round=0,
-        dispose_instance=lambda path, url: disposed.append((path, url)),
     )
 
     assert observed["cwd"] == run_dir
     assert observed["command"][0] == "/test/opencode"
     assert "--dir" in observed["command"]
     assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
-    assert observed["command"][observed["command"].index("--dir") + 1] == str(run_dir)
-    assert str(prompt.resolve()) not in " ".join(observed["command"])
+    assert observed["command"][observed["command"].index("--dir") + 1] == str(repo_root)
+    assert str(prompt.resolve()) in " ".join(observed["command"])
     assert "review-prompt-round-0.json" in " ".join(observed["command"])
-    assert "test-results/proof-videos/run/review-prompt-round-0.json" not in " ".join(observed["command"])
-    assert disposed == [(run_dir, workflow.REVIEWER_ATTACH_URL)]
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
-
-
-def test_dispose_reviewer_instance_targets_exact_run_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    observed: dict[str, object] = {}
-
-    class Response:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args: object) -> None:
-            return None
-
-        def read(self) -> bytes:
-            return b"true"
-
-    def urlopen(request, timeout: int):
-        observed["url"] = request.full_url
-        observed["method"] = request.method
-        observed["timeout"] = timeout
-        return Response()
-
-    monkeypatch.setattr(workflow.urllib.request, "urlopen", urlopen)
-    run_dir = tmp_path / "proof run"
-
-    workflow._dispose_reviewer_instance(run_dir, "http://127.0.0.1:4096/")
-
-    query = workflow.urllib.parse.urlencode({"directory": str(run_dir.resolve())})
-    assert observed == {
-        "url": f"http://127.0.0.1:4096/instance/dispose?{query}",
-        "method": "POST",
-        "timeout": 10,
-    }
 
 
 def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -2488,20 +2453,16 @@ def test_default_reviewer_reports_progress_and_terminates_at_timeout(
     monkeypatch.setattr(workflow.time, "monotonic", lambda: next(monotonic_values))
     monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
     monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
-    disposed: list[tuple[Path, str]] = []
-
     with pytest.raises(workflow.WorkflowError, match="timed out after 600s"):
         workflow._default_reviewer_runner(
             prompt,
             run_dir=run_dir,
             correction_round=0,
-            dispose_instance=lambda path, url: disposed.append((path, url)),
         )
 
     output = capsys.readouterr().out
     assert "still running (31s elapsed)" in output
     assert process.terminated is True
-    assert disposed == [(run_dir, workflow.REVIEWER_ATTACH_URL)]
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
 

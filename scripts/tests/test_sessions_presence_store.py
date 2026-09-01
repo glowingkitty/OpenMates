@@ -30,14 +30,22 @@ def record(session_id: str, sequence: int, **extra):
 
 
 def test_concurrent_writers_do_not_lose_records(tmp_path):
-    store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path)
+    store = PresenceStore(
+        tmp_path / "presence.json",
+        project_root=tmp_path,
+        now=lambda: "2026-08-05T00:00:00Z",
+    )
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(lambda index: store.update(record(f"ses-{index}", 1)), range(24)))
     assert len(store.snapshot(expire=False)["sessions"]) == 24
 
 
 def test_same_source_stale_sequence_is_rejected(tmp_path):
-    store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path)
+    store = PresenceStore(
+        tmp_path / "presence.json",
+        project_root=tmp_path,
+        now=lambda: "2026-08-05T00:00:00Z",
+    )
     assert store.update(record("ses-a", 2))["accepted"] is True
     assert store.update(record("ses-a", 1))["accepted"] is False
     assert store.snapshot(expire=False)["sessions"]["ses-a"]["sequence"] == 2
@@ -103,3 +111,22 @@ def test_expired_claims_and_terminal_records_are_omitted_from_snapshot(tmp_path)
     snapshot = store.snapshot()
     assert snapshot["sessions"] == {}
     assert snapshot["task_claims"] == {}
+
+
+def test_normal_update_durably_prunes_expired_presence_and_child_roles(tmp_path):
+    current = ["2026-08-05T00:00:00Z"]
+    store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path, now=lambda: current[0])
+    store.update(record("ses-old", 1, execution="idle", turn="completed"))
+    store.set_child_role("ses-old-child", "ses-old", "read_only")
+
+    current[0] = "2026-08-06T00:00:02Z"
+    store.update(record(
+        "ses-current",
+        1,
+        updated_at=current[0],
+        heartbeat_at=current[0],
+    ))
+
+    persisted = store.snapshot(expire=False)
+    assert set(persisted["sessions"]) == {"ses-current"}
+    assert persisted["child_roles"] == {}
