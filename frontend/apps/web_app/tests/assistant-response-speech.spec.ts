@@ -214,8 +214,6 @@ test.describe.serial('Assistant response speech', () => {
 			});
 			await proof.checkpoint('processing-progress-visible');
 		}
-		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
-		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="finished"]')).toBeVisible({ timeout: 120_000 });
 
 		const player = page.getByTestId('assistant-speech-player');
 		await expect(player).toBeVisible({ timeout: SPEECH_TIMEOUT_MS });
@@ -238,6 +236,9 @@ test.describe.serial('Assistant response speech', () => {
 			});
 			await proof.checkpoint('speech-player-visible');
 		}
+
+		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
+		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="finished"]')).toBeVisible({ timeout: 120_000 });
 
 		await player.getByRole('button', { name: 'Next paragraph' }).click();
 		await expect(regions.nth(1)).toHaveAttribute('data-active', 'true');

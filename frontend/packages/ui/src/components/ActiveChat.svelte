@@ -16141,7 +16141,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     .active-chat-history-state {
         position: absolute;
-        z-index: var(--z-index-raised-2);
+        z-index: var(--z-index-raised-1);
         top: max(calc(35vh + var(--spacing-8)), 280px);
         left: 50%;
         display: flex;
@@ -16245,7 +16245,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
-        z-index: var(--z-index-raised-1);
+        z-index: var(--z-index-raised-2);
         pointer-events: none;
     }
 
