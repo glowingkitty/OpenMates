@@ -50,7 +50,8 @@
   "provider": {
     "openai": {
       "options": {
-        "headerTimeout": 300000
+        "headerTimeout": 300000,
+        "chunkTimeout": 120000
       }
     }
   },

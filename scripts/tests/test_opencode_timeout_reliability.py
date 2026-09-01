@@ -9,11 +9,20 @@ used when the pinned runtime reports an empty ``finish=unknown`` completion.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_openai_stream_has_bounded_chunk_timeout() -> None:
+    config = json.loads((PROJECT_ROOT / "opencode.json").read_text(encoding="utf-8"))
+    options = config["provider"]["openai"]["options"]
+
+    assert options["headerTimeout"] == 300_000
+    assert options["chunkTimeout"] == 120_000
 
 
 def test_presence_marks_unknown_assistant_completion_as_failed() -> None:
