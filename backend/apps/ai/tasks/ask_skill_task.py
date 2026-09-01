@@ -15,6 +15,7 @@ import asyncio
 import time
 import os
 import uuid
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
@@ -1187,35 +1188,45 @@ async def _async_process_ai_skill_ask_task(
                         from backend.apps.ai.testing.mock_replay import set_active_fixture_recorder
                         set_active_fixture_recorder(_fixture_recorder)
 
-    # Detect <<<TEST_LIVE_MOCK:group_id>>> or <<<TEST_LIVE_RECORD:group_id>>> markers.
-    # Unlike TEST_MOCK (which skips the pipeline entirely), live mock runs the FULL
-    # pipeline but intercepts external API calls (LLM providers, skill HTTP requests)
-    # with cached record-and-replay responses. This tests everything except the parts
-    # that cost money.
-    # SECURITY: Only works when SERVER_ENVIRONMENT != "production" AND MOCK_EXTERNAL_APIS=true.
-    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and not _test_marker:
-        from backend.shared.testing.mock_context import detect_live_marker, strip_live_marker, activate_mock_mode
-        if request_data.message_history:
-            last_user_msg = next(
-                (m for m in reversed(request_data.message_history) if m.role == "user"),
-                None,
-            )
-            if last_user_msg:
-                _live_marker = detect_live_marker(request_data.current_user_content or "")
-                if not _live_marker:
-                    _live_marker = detect_live_marker(last_user_msg.content)
-                if _live_marker:
-                    live_mode, live_group = _live_marker
-                    last_user_msg.content = strip_live_marker(last_user_msg.content)
-                    if request_data.current_user_content:
-                        request_data.current_user_content = strip_live_marker(request_data.current_user_content)
-                    activate_mock_mode(live_mode, live_group)
-                    request_data.live_mock_mode = live_mode
-                    request_data.live_mock_group = live_group
-                    logger.info(
-                        f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
-                        f"group='{live_group}' — full pipeline with cached API responses"
-                    )
+    # Detect signed, server-authorized live replay/record markers. Unlike TEST_MOCK,
+    # live mock runs the full pipeline and intercepts only external provider calls.
+    _live_marker = None
+    from backend.shared.testing.mock_context import resolve_live_marker_or_raise, strip_live_marker, activate_mock_mode
+
+    if request_data.message_history:
+        last_user_msg = next(
+            (m for m in reversed(request_data.message_history) if m.role == "user"),
+            None,
+        )
+        if last_user_msg:
+            marker_content = request_data.current_user_content or last_user_msg.content
+            _live_marker = resolve_live_marker_or_raise(marker_content, request_data.user_id)
+            if _live_marker and _test_marker:
+                raise RuntimeError("Cannot combine TEST_MOCK/TEST_RECORD with TEST_LIVE marker")
+            if _live_marker:
+                live_mode, live_group, live_run_id = _live_marker
+                last_user_msg.content = strip_live_marker(last_user_msg.content)
+                if request_data.current_user_content:
+                    request_data.current_user_content = strip_live_marker(request_data.current_user_content)
+                candidate_root = None
+                candidate_base = Path(
+                    os.getenv("LIVE_MOCK_CANDIDATE_ROOT", "/tmp/openmates-live-mock-candidates")
+                )
+                if live_mode in {"record", "mock"} and live_run_id:
+                    candidate_root = candidate_base / live_run_id / "cache"
+                activate_mock_mode(
+                    live_mode,
+                    live_group,
+                    candidate_root=candidate_root,
+                    candidate_run_id=live_run_id,
+                    task_id=task_id,
+                )
+                request_data.live_mock_mode = live_mode
+                request_data.live_mock_group = live_group
+                logger.info(
+                    f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
+                    f"group='{live_group}' — full pipeline with cached API responses"
+                )
 
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump

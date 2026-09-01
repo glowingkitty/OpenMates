@@ -10734,18 +10734,18 @@ assertions:
     direct_tests:
     - &id1177
       path: backend/tests/test_assistant_speech_worker.py
-      line: 66
+      line: 68
       name: test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_segment
       surface: rest_api
     - &id1178
       path: backend/tests/test_assistant_speech_worker.py
-      line: 299
+      line: 301
       name: test_persists_owner_scoped_manifest_and_one_plaintext_free_record_per_segment
       surface: rest_api
     supporting_tests:
     - &id1179
       path: backend/tests/test_assistant_speech_worker.py
-      line: 463
+      line: 465
       name: test_additive_schema_and_tasks_keep_one_upload_backed_object_per_segment_without_plaintext
       surface: rest_api
     tests:
@@ -10791,12 +10791,12 @@ assertions:
       surface: rest_api
     - &id1186
       path: backend/tests/test_assistant_speech_worker.py
-      line: 299
+      line: 301
       name: test_persists_owner_scoped_manifest_and_one_plaintext_free_record_per_segment
       surface: rest_api
     - &id1187
       path: backend/tests/test_assistant_speech_worker.py
-      line: 352
+      line: 354
       name: test_rewritten_segment_is_invalidated_and_replaces_only_its_manifest_entry
       surface: rest_api
     supporting_tests:
@@ -10908,13 +10908,13 @@ assertions:
       surface: rest_api
     - &id1198
       path: backend/tests/test_assistant_speech_worker.py
-      line: 496
+      line: 498
       name: test_expired_lease_is_reclaimed_with_a_new_deadline
       surface: rest_api
     supporting_tests:
     - &id1197
       path: backend/tests/test_assistant_speech_worker.py
-      line: 483
+      line: 485
       name: test_celery_segment_and_deletion_tasks_are_registered_on_the_audio_worker_queue
       surface: rest_api
     tests:
@@ -11216,7 +11216,7 @@ assertions:
       surface: rest_api
     - &id1230
       path: backend/tests/test_assistant_speech_worker.py
-      line: 183
+      line: 185
       name: test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptable_asset
       surface: rest_api
     supporting_tests:
@@ -11275,7 +11275,7 @@ assertions:
       surface: rest_api
     - &id1234
       path: backend/tests/test_assistant_speech_worker.py
-      line: 122
+      line: 124
       name: test_safety_rejection_does_not_call_provider_storage_or_billing
       surface: rest_api
     supporting_tests: []
@@ -11320,27 +11320,27 @@ assertions:
       surface: rest_api
     - &id1242
       path: backend/tests/test_assistant_speech_worker.py
-      line: 66
+      line: 68
       name: test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_segment
       surface: rest_api
     - &id1243
       path: backend/tests/test_assistant_speech_worker.py
-      line: 183
+      line: 185
       name: test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptable_asset
       surface: rest_api
     - &id1244
       path: backend/tests/test_assistant_speech_worker.py
-      line: 299
+      line: 301
       name: test_persists_owner_scoped_manifest_and_one_plaintext_free_record_per_segment
       surface: rest_api
     - &id1245
       path: backend/tests/test_assistant_speech_worker.py
-      line: 438
+      line: 440
       name: test_status_serialization_excludes_plaintext_provider_and_internal_storage_fields
       surface: rest_api
     - &id1247
       path: backend/tests/test_assistant_speech_worker.py
-      line: 546
+      line: 548
       name: test_segment_status_persists_only_asset_reference_and_never_key_material
       surface: rest_api
     supporting_tests:
@@ -11356,7 +11356,7 @@ assertions:
       surface: rest_api
     - &id1246
       path: backend/tests/test_assistant_speech_worker.py
-      line: 463
+      line: 465
       name: test_additive_schema_and_tasks_keep_one_upload_backed_object_per_segment_without_plaintext
       surface: rest_api
     tests:
@@ -11397,32 +11397,32 @@ assertions:
     direct_tests:
     - &id1250
       path: backend/tests/test_assistant_speech_worker.py
-      line: 66
+      line: 68
       name: test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_segment
       surface: rest_api
     - &id1251
       path: backend/tests/test_assistant_speech_worker.py
-      line: 154
+      line: 156
       name: test_billing_settlement_failure_is_an_error_and_never_reports_a_ready_segment
       surface: rest_api
     - &id1252
       path: backend/tests/test_assistant_speech_worker.py
-      line: 183
+      line: 185
       name: test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptable_asset
       surface: rest_api
     - &id1253
       path: backend/tests/test_assistant_speech_worker.py
-      line: 686
+      line: 688
       name: test_final_ready_requires_claim_lease_and_version_and_compensates_when_tombstoned
       surface: rest_api
     - &id1254
       path: backend/tests/test_assistant_speech_worker.py
-      line: 771
+      line: 773
       name: test_ready_finalization_uses_claim_lease_version_and_generating_status
       surface: rest_api
     - &id1255
       path: backend/tests/test_assistant_speech_worker.py
-      line: 799
+      line: 801
       name: test_ready_finalization_confirms_empty_conditional_update_response_before_compensation
       surface: rest_api
     supporting_tests:
@@ -11484,17 +11484,17 @@ assertions:
       surface: rest_api
     - &id1261
       path: backend/tests/test_assistant_speech_worker.py
-      line: 122
+      line: 124
       name: test_safety_rejection_does_not_call_provider_storage_or_billing
       surface: rest_api
     - &id1262
       path: backend/tests/test_assistant_speech_worker.py
-      line: 154
+      line: 156
       name: test_billing_settlement_failure_is_an_error_and_never_reports_a_ready_segment
       surface: rest_api
     - &id1263
       path: backend/tests/test_assistant_speech_worker.py
-      line: 438
+      line: 440
       name: test_status_serialization_excludes_plaintext_provider_and_internal_storage_fields
       surface: rest_api
     supporting_tests:
@@ -11558,42 +11558,42 @@ assertions:
       surface: rest_api
     - &id1269
       path: backend/tests/test_assistant_speech_worker.py
-      line: 352
+      line: 354
       name: test_rewritten_segment_is_invalidated_and_replaces_only_its_manifest_entry
       surface: rest_api
     - &id1270
       path: backend/tests/test_assistant_speech_worker.py
-      line: 409
+      line: 411
       name: test_delete_tombstones_records_before_asset_cleanup
       surface: rest_api
     - &id1273
       path: backend/tests/test_assistant_speech_worker.py
-      line: 525
+      line: 527
       name: test_cancellation_storage_compensation_deletes_upload_before_tombstone_can_be_removed
       surface: rest_api
     - &id1274
       path: backend/tests/test_assistant_speech_worker.py
-      line: 584
+      line: 586
       name: test_cancellation_after_storage_deletes_the_new_upload_before_worker_exit
       surface: rest_api
     - &id1275
       path: backend/tests/test_assistant_speech_worker.py
-      line: 657
+      line: 659
       name: test_cancel_only_tombstones_queued_undispatched_segments
       surface: rest_api
     - &id1276
       path: backend/tests/test_assistant_speech_worker.py
-      line: 686
+      line: 688
       name: test_final_ready_requires_claim_lease_and_version_and_compensates_when_tombstoned
       surface: rest_api
     - &id1277
       path: backend/tests/test_assistant_speech_worker.py
-      line: 771
+      line: 773
       name: test_ready_finalization_uses_claim_lease_version_and_generating_status
       surface: rest_api
     - &id1278
       path: backend/tests/test_assistant_speech_worker.py
-      line: 799
+      line: 801
       name: test_ready_finalization_confirms_empty_conditional_update_response_before_compensation
       surface: rest_api
     - &id1279
@@ -11609,12 +11609,12 @@ assertions:
       surface: rest_api
     - &id1271
       path: backend/tests/test_assistant_speech_worker.py
-      line: 463
+      line: 465
       name: test_additive_schema_and_tasks_keep_one_upload_backed_object_per_segment_without_plaintext
       surface: rest_api
     - &id1272
       path: backend/tests/test_assistant_speech_worker.py
-      line: 483
+      line: 485
       name: test_celery_segment_and_deletion_tasks_are_registered_on_the_audio_worker_queue
       surface: rest_api
     tests:

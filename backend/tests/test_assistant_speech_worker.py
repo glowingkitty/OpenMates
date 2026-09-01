@@ -55,6 +55,8 @@ def test_live_mock_marker_context_is_server_validated_and_required_by_the_speech
     stream_source = (backend_root / "apps/ai/tasks/stream_consumer.py").read_text(encoding="utf-8")
 
     assert "request_data.live_mock_mode = None" in ask_source
+    assert "resolve_live_marker_or_raise(marker_content, request_data.user_id)" in ask_source
+    assert 'LIVE_MOCK_CANDIDATE_ROOT' in ask_source
     assert "request_data.live_mock_mode = live_mode" in ask_source
     assert "request_data.live_mock_group = live_group" in ask_source
     assert "live_mock_mode=request_data.live_mock_mode" in stream_source
