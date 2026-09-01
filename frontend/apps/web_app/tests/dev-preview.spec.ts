@@ -187,6 +187,27 @@ test.describe('Component Preview System', () => {
 		await proof.checkpoint('configured-preview');
 	});
 
+	test('message input capture does not combine empty-state and action-row microphone controls', async ({ page }) => {
+		const params = new URLSearchParams({
+			theme: 'light',
+			background: '#dbeafe',
+			width: '680',
+			chrome: '0'
+		});
+
+		await page.goto(`/dev/preview/enter_message/MessageInput?${params}`, {
+			waitUntil: 'networkidle'
+		});
+
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute(
+			'data-preview-ready',
+			'true'
+		);
+		await expect(page.getByTestId('action-buttons')).toBeVisible();
+		await expect(page.getByTestId('record-audio-button')).toBeVisible();
+		await expect(page.getByTestId('guest-cta-mic-button')).toBeHidden();
+	});
+
 	test('client-side preview navigation reapplies URL configuration', async ({ page }) => {
 		await page.goto('/dev/preview/Notification?background=%23dbeafe', {
 			waitUntil: 'networkidle'
