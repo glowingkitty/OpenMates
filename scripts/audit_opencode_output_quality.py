@@ -157,6 +157,16 @@ REQUIRED_PROOF_MEDIA_TERMS = (
     "actual `openmates` CLI",
     "generic smoke scripts",
 )
+TEST_VIDEO_METADATA_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    ".claude/rules/testing.md",
+)
+REQUIRED_TEST_VIDEO_METADATA_TERMS = (
+    "filename or repository-relative artifact path",
+    "https://app.dev.openmates.org/dev/preview/{component-path}",
+)
 SPECIFICATION_APPROVAL_GUIDANCE_PATHS = (
     "AGENTS.md",
     "CLAUDE.md",
@@ -312,6 +322,14 @@ def _audit_proof_media_guidance(root: Path) -> list[AuditIssue]:
     for term in REQUIRED_PROOF_MEDIA_TERMS:
         if term not in all_text:
             issues.append(AuditIssue("proof-media-guidance", f"proof media guidance missing: {term}"))
+    for rel_path in TEST_VIDEO_METADATA_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        normalized = " ".join(path.read_text(encoding="utf-8", errors="replace").split())
+        for term in REQUIRED_TEST_VIDEO_METADATA_TERMS:
+            if term not in normalized:
+                issues.append(AuditIssue(rel_path, f"test video metadata guidance missing: {term}"))
     return issues
 
 

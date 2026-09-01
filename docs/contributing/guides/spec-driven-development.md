@@ -139,14 +139,18 @@ For Plans:
     after review and embed the returned Markdown/HTML snippet in the final
     OpenCode response. Do not send proof media to Discord unless the user
     explicitly asks for a separate Discord mirror.
-     Every implemented Plan must include the delivered response-media
+    Every implemented Plan must include the delivered response-media
     `<video>` snippets for all changed observable product surfaces in the same task-closing assistant response.
-    Paths, links, screenshots, and completion
-    claims do not satisfy this response-embedding gate.
+    Show each video's filename or repository-relative artifact path beside its
+    embed. For UI component videos, also link the exact deployed
+    `https://app.dev.openmates.org/dev/preview/{component-path}` page in that
+    response. Paths, preview links, screenshots, and completion claims do not
+    satisfy this response-embedding gate without the video embed.
 17. For raw run evidence, every `*.spec.ts` run and every real OpenMates CLI E2E
     run must surface its latest-run video in the assistant response. Use the
     `--latest-run-type` response-media path emitted by `scripts/tests.py run` or
-    `scripts/cli_video_capture.py`, and paste the returned `<video>` HTML; the
+    `scripts/cli_video_capture.py`, paste the returned `<video>` HTML, and label
+    it with the source filename or repository-relative artifact path; the
     returned content-addressed key is immutable for the lifetime of that embed.
 
 An active implementation Plan is non-interruptible. Continue from its current

@@ -178,6 +178,31 @@ def test_rejects_required_discord_proof_delivery_guidance(tmp_path: Path) -> Non
     assert any("still requires Discord" in issue.message for issue in issues)
 
 
+def test_requires_path_and_component_preview_for_test_video_embeds(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    skill = tmp_path / ".claude" / "skills" / "create-demo-video" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("proof skill", encoding="utf-8")
+    for rel_path in audit.TEST_VIDEO_METADATA_GUIDANCE_PATHS:
+        path = tmp_path / rel_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "Include the filename or repository-relative artifact path.",
+            encoding="utf-8",
+        )
+
+    issues = audit._audit_proof_media_guidance(tmp_path)
+
+    assert all(
+        any(
+            issue.path == rel_path
+            and "https://app.dev.openmates.org/dev/preview/{component-path}" in issue.message
+            for issue in issues
+        )
+        for rel_path in audit.TEST_VIDEO_METADATA_GUIDANCE_PATHS
+    )
+
+
 def test_requires_highlighted_pdf_before_specification_approval(tmp_path: Path) -> None:
     audit = load_audit_module()
     canonical = tmp_path / ".claude" / "skills" / "define-specification" / "SKILL.md"

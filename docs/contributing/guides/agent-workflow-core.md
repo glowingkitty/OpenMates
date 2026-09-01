@@ -53,13 +53,21 @@ run, use the helper's `--latest-run-type` path through `scripts/tests.py run` or
 `scripts/cli_video_capture.py`, then paste the emitted `<video>` HTML in the next
 assistant progress response after the tool returns. This is required even when
 the run failed, the proof is visually broken, or more debugging is still needed,
-because the operator needs to see visual progress over time. These run-type
+because the operator needs to see visual progress over time. In that same
+message, place the video's filename or repository-relative artifact path next
+to the player. If the video tests a UI component, also include a clickable link
+to that component's exact deployed
+`https://app.dev.openmates.org/dev/preview/{component-path}` page; do not link
+only the preview index when an exact route exists. These run-type
 uploads use content-addressed S3 keys under `opencode-responses/runs/`, so an
 artifact embedded in an earlier response cannot be replaced by a later run.
 Every implemented Plan requires its success response to include the
 delivered `snippet_html` for every required CLI, web, and native proof video in
-that same task-closing response. Do not replace embedded `<video>` elements with
-artifact paths, links, screenshots, or prose saying the proof was produced.
+that same task-closing response, with each video's filename or repository-relative
+artifact path beside its embed and each UI component video's exact deployed
+`/dev/preview/{component-path}` link. Do not replace embedded `<video>` elements
+with artifact paths, links, screenshots, or prose saying the proof was produced;
+the path and component preview URL are additive required metadata.
 External video playback also requires the OpenCode Web CSP to allow `media-src https:`.
 When a screenshot or short clip materially helps the user understand a visual UI
 state, bug fix, visual-smoke result, proof-video, or implementation defect,
