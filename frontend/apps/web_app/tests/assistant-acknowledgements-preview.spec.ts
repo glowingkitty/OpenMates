@@ -14,6 +14,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const PROOF_STATE_HOLD_MS = 1800;
 
 const ACKNOWLEDGEMENT_LOCALES_PROOF = defineVideoProof({
 	id: 'assistant-acknowledgement-locales',
@@ -75,6 +76,7 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 		await expect(page.getByText('Claro, vamos a verlo.', { exact: true })).toBeVisible();
 	});
 	await proof.checkpoint('spanish-library');
+	await page.waitForTimeout(PROOF_STATE_HOLD_MS);
 
 	const spanishAudio = await page.request.get(
 		'/audio/assistant-acknowledgements/hiro/es-ES/general-1.mp3'
@@ -92,6 +94,7 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 		await expect(page.getByText('Bien sûr, regardons ça.', { exact: true })).toBeVisible();
 	});
 	await proof.checkpoint('french-library');
+	await page.waitForTimeout(PROOF_STATE_HOLD_MS);
 
 	const frenchAudio = await page.request.get(
 		'/audio/assistant-acknowledgements/ace/fr-FR/general-1.mp3'
