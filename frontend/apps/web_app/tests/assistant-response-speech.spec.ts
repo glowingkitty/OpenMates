@@ -140,7 +140,7 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAttribute('data-speech-state', 'off');
 		await expect(voiceToggle).toHaveAccessibleName('Speak responses');
 		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'true');
-		expect(await voiceToggle.getByTestId('assistant-speech-muted-icon').evaluate((element: Element) => getComputedStyle(element).maskImage)).not.toBe('none');
+		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon').locator('path')).not.toHaveCount(0);
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'false');
 		await attachmentMenu.click();
 		await expect(messageField.getByTestId('composer-attachment-camera')).toBeVisible();
@@ -165,7 +165,7 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAccessibleName('Turn off speaking');
 		await expect(voiceToggle.getByTestId('assistant-speech-muted-icon')).toHaveAttribute('data-visible', 'false');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
-		expect(await voiceToggle.getByTestId('assistant-speech-audio-icon').evaluate((element: Element) => getComputedStyle(element).maskImage)).not.toBe('none');
+		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon').locator('path')).not.toHaveCount(0);
 		expect(await voiceToggle.getByTestId('assistant-speech-audio-icon').evaluate((element: Element) => getComputedStyle(element).transitionProperty)).toContain('opacity');
 
 		await page.getByRole('button', { name: 'Turn off speaking' }).click();
