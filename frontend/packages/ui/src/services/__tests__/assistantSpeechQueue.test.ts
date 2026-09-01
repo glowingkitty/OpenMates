@@ -107,7 +107,7 @@ describe("AssistantSpeechQueue", () => {
 
     queue.start("response-1", [segment(1, "ready")]);
     await Promise.resolve();
-    expect(audioByUrl.get("blob:segment-1")?.play).not.toHaveBeenCalled();
+    expect(audioByUrl.has("blob:segment-1")).toBe(false);
 
     queue.upsertSegment(segment(0, "ready"));
     await vi.waitFor(() => expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce());
@@ -124,7 +124,7 @@ describe("AssistantSpeechQueue", () => {
     await Promise.resolve();
 
     expect(queue.state.status).toBe("stopped");
-    expect(audioByUrl.get("blob:segment-0")?.play).not.toHaveBeenCalled();
+    expect(audioByUrl.has("blob:segment-0")).toBe(false);
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
@@ -159,13 +159,13 @@ describe("AssistantSpeechQueue", () => {
     queue.start("response-1", [segment(0, "ready")]);
     const firstAudio = audioByUrl.get("blob:segment-0");
     await vi.waitFor(() => expect(firstAudio?.play).toHaveBeenCalledOnce());
-    queue.start("response-2", [segment(1, "ready")]);
+    queue.start("response-2", [segment(0, "ready")]);
 
     expect(firstAudio?.pause).toHaveBeenCalledOnce();
     await vi.waitFor(() => {
       expect(queue.state).toMatchObject({
         responseId: "response-2",
-        activeSegmentId: "segment-1",
+        activeSegmentId: "segment-0",
       });
     });
     expect(audioFactory).toHaveBeenCalledTimes(2);

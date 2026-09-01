@@ -36,6 +36,7 @@ const SAFE_READY_FIELDS = new Set([
   "duration_seconds",
   "error",
   "retryable",
+  "sequence",
 ]);
 
 function parseArgs(argv) {
@@ -192,6 +193,7 @@ function assertSafeReadyPayload(payload, assistantText) {
   const unsafe = keys.filter((key) => !SAFE_READY_FIELDS.has(key));
   if (unsafe.length > 0) throw new Error(`Ready payload exposed unsafe fields: ${unsafe.join(",")}`);
   if (payload.status !== "ready") throw new Error(`Expected ready status, got ${payload.status}`);
+  if (payload.sequence !== 0) throw new Error(`Expected ready sequence 0, got ${payload.sequence}`);
   if (!payload.segment_id || !payload.generated_asset_id) throw new Error("Ready payload omitted segment/generated asset id.");
   const serialized = JSON.stringify(payload);
   if (serialized.includes(assistantText) || serialized.includes("speakable_text") || serialized.includes("encrypted_audio")) {
