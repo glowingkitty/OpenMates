@@ -1,4 +1,5 @@
 import { expect, test } from './helpers/cookie-audit';
+// contract-test-file: tooling
 /**
  * Tests for the /dev/preview/ component preview system.
  * Runs against the deployed dev instance (app.dev.openmates.org).
@@ -88,6 +89,46 @@ test.describe('Component Preview System', () => {
 		// Should navigate to the component preview with toolbar
 		await expect(page.getByTestId('preview-toolbar')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
+	});
+
+	test('capture URL renders only the configured component on a custom background', async ({ page }) => {
+		const props = JSON.stringify({
+			notification: {
+				id: 'capture-notification',
+				type: 'warning',
+				title: 'URL configured warning',
+				message: 'Rendered from query parameters.',
+				duration: 0,
+				dismissible: true
+			}
+		});
+		const params = new URLSearchParams({
+			variant: 'warning',
+			theme: 'light',
+			background: '#dbeafe',
+			width: '420',
+			props,
+			chrome: '0'
+		});
+
+		const response = await page.goto(`/dev/preview/Notification?${params}`, {
+			waitUntil: 'networkidle'
+		});
+		expect(response?.status()).toBe(200);
+
+		const canvas = page.getByTestId('component-preview-canvas');
+		await expect(canvas).toHaveAttribute('data-preview-ready', 'true');
+		await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
+		await expect(page.getByTestId('preview-status-bar')).toHaveCount(0);
+		await expect(canvas.getByText('URL configured warning')).toBeVisible();
+		await expect(canvas.getByText('Rendered from query parameters.')).toBeVisible();
+
+		const canvasBackground = await canvas.evaluate(
+			(element) => window.getComputedStyle(element).backgroundColor
+		);
+		expect(canvasBackground).toBe('rgb(219, 234, 254)');
+		await expect(page.getByTestId('component-preview-viewport')).toHaveCSS('max-width', '420px');
+		expect(await page.locator('html').getAttribute('data-theme')).toBe('light');
 	});
 
 	test('website fullscreen highlights source quote text', async ({ page }) => {
