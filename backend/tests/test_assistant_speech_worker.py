@@ -288,6 +288,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
                     "status": "ready",
                     "generated_asset_id": "segment-3",
                     "duration_seconds": 1.0,
+                    "kind": "prose_paragraph",
                     "sequence": 0,
                     "chat_id": "chat-1",
                     "message_id": "message-1",
