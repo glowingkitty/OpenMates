@@ -225,15 +225,12 @@ async function captureTestThumbnail(page: Page, testInfo: TestInfo, input: TestT
 	if (!viewport) throw new Error('Test thumbnail capture requires a fixed Playwright viewport');
 	const focusLocators = await targetLocators(page, definition.focus);
 	const contextLocators = await targetLocators(page, definition.context);
-	await focusLocators[0].scrollIntoViewIfNeeded();
 	const focusBounds = await locatorBounds(focusLocators, definition.focus);
 	const contextBounds = await locatorBounds(contextLocators, definition.context);
 	const clip = computeThumbnailClip({viewport, focusBounds, contextBounds, padding: definition.padding});
 	const source = await page.screenshot({
 		type: 'png',
 		clip,
-		animations: 'disabled',
-		caret: 'hide',
 		scale: 'css'
 	});
 	const thumbnail = scaleThumbnail(source);
