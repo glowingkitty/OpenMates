@@ -16,6 +16,8 @@ from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
 MAX_SEGMENTS_PER_REQUEST = 20
 MAX_SPEAKABLE_TEXT_LENGTH = 2_000
 SAFE_RESULT_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_seconds", "error", "retryable")
+ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
+ASSISTANT_SPEECH_INELIGIBLE_STATUSES = {"cancelled", "deleted", "invalidated"}
 
 
 async def handle_assistant_speech_request(
@@ -199,6 +201,7 @@ async def handle_assistant_speech_event(
         segments = kwargs["segments"]
         if not isinstance(segments, list):
             return []
+        safe_results: list[dict[str, object]] = []
         # Speak can only use a manifest emitted while the server observed the
         # response. The transient text proves the persisted source hash; it never
         # creates a new canonical segment or selects a client-controlled voice.
@@ -225,7 +228,11 @@ async def handle_assistant_speech_event(
             if not rows:
                 continue
             row = rows[0]
-            if str(row.get("status") or "") in {"cancelled", "deleted", "invalidated", "ready"}:
+            status = str(row.get("status") or "")
+            if status in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES or (status == "error" and not row.get("retryable")):
+                safe_results.append(_safe_result(row))
+                continue
+            if status in ASSISTANT_SPEECH_INELIGIBLE_STATUSES:
                 continue
             normalized.append({
                 "segment_id": str(row["segment_id"]),
@@ -239,7 +246,7 @@ async def handle_assistant_speech_event(
             })
         for segment in normalized:
             app.send_task("apps.audio.tasks.assistant_speech_segment", kwargs={"arguments": {**segment, "user_id": user_id, "chat_id": kwargs["chat_id"], "assistant_message_id": kwargs["assistant_message_id"]}}, queue="app_music")
-        return [{"segment_id": segment["segment_id"], "status": "queued"} for segment in normalized]
+        return [*safe_results, *({"segment_id": segment["segment_id"], "status": "queued"} for segment in normalized)]
 
     async def retry(**kwargs: object) -> Mapping[str, object] | None:
         segment_ids = kwargs.get("segment_ids")

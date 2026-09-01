@@ -10,6 +10,7 @@ otherwise a send can time out before its durable ACK is emitted.
 import importlib
 import asyncio
 import hashlib
+import json
 import sys
 from types import ModuleType, SimpleNamespace
 
@@ -105,6 +106,7 @@ def _install_websockets_import_stubs(monkeypatch):
             "handle_store_chat_compression_checkpoint",
         ],
         "assistant_speech_handler": ["handle_assistant_speech_event"],
+        "chat_model_preference_handler": ["handle_chat_model_preference"],
     }
     for module_name, names in handler_modules.items():
         _stub_module(monkeypatch, f"{base}.{module_name}", **{name: _noop_async for name in names})
@@ -267,6 +269,66 @@ def test_sync_metadata_chats_is_scheduled_without_awaiting(monkeypatch):
     assert task.done() is False
     assert len(created_coroutines) == 1
     assert handler_awaited is False
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,assistant-speech.failure.nonblocking-visible-resumable
+@pytest.mark.asyncio
+async def test_pending_embed_replay_is_capped_per_connection(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+    sent = []
+
+    async def no_sleep(_seconds):
+        return None
+
+    class RedisClient:
+        async def get(self, key):
+            embed_id = key.removeprefix("embed:")
+            return json.dumps(
+                {
+                    "status": "finished",
+                    "vault_key_id": "vault-1",
+                    "encrypted_content": f"ciphertext-{embed_id}",
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
+                }
+            )
+
+    class Cache:
+        async def get_pending_embed_ids(self, _user_id):
+            return [f"embed-{index}" for index in range(5)]
+
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+        async def remove_pending_embed(self, *_args):
+            raise AssertionError("fresh pending embeds must not be removed by capped replay")
+
+    class Encryption:
+        async def decrypt_with_user_key(self, encrypted_content, _vault_key_id):
+            return f"plaintext for {encrypted_content}"
+
+    class Manager:
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    monkeypatch.setattr(websockets.asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(websockets, "MAX_PENDING_EMBED_REPLAY_PER_CONNECTION", 2)
+
+    await websockets._deliver_pending_embeds(
+        Cache(),
+        Encryption(),
+        Manager(),
+        "owner-1",
+        hashlib.sha256(b"owner-1").hexdigest(),
+        "device-1",
+    )
+
+    assert [event[0]["payload"]["embed_id"] for event in sent] == ["embed-0", "embed-1"]
+    assert all(event[0]["type"] == "send_embed_data" for event in sent)
 
 
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only

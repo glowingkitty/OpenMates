@@ -749,3 +749,36 @@ async def test_ready_finalization_uses_claim_lease_version_and_generating_status
     assert finalized is True
     assert record["status"] == "ready"
     assert record["lease_id"] is None
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.lifecycle.disable-delete-invalidate,assistant-speech.billing.segment-success-once
+@pytest.mark.asyncio
+async def test_ready_finalization_confirms_empty_conditional_update_response_before_compensation() -> None:
+    record = {"id": "row-1", "segment_id": "segment-1", "status": "generating", "lease_id": "lease-1", "execution_version": 4}
+
+    class Directus:
+        get_calls = 0
+
+        async def get_items(self, _collection, *, params, no_cache):
+            self.get_calls += 1
+            return [record]
+
+        async def update_item_if_version(self, _collection, _row_id, patch, expected_version, **kwargs):
+            assert expected_version == 4
+            assert kwargs["extra_filters"] == {"status": "generating", "lease_id": "lease-1"}
+            record.update(patch)
+            return None
+
+    directus = Directus()
+    finalized = await finalize_speech_segment_execution(
+        directus,
+        "segment-1",
+        {"segment_id": "segment-1", "status": "ready", "generated_asset_id": "asset-1", "duration_seconds": 1.2},
+        lease_id="lease-1",
+        execution_version=4,
+    )
+
+    assert finalized is True
+    assert directus.get_calls == 2
+    assert record["status"] == "ready"
+    assert record["generated_asset_id"] == "asset-1"

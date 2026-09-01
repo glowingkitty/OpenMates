@@ -10,9 +10,11 @@ from pathlib import Path
 
 from backend.core.api.app.routes.handlers.websocket_handlers.assistant_speech_handler import (
     MAX_SPEAKABLE_TEXT_LENGTH,
+    handle_assistant_speech_event,
     handle_assistant_speech_websocket,
     handle_assistant_speech_request,
 )
+from backend.apps.ai.assistant_speech.streaming import _speech_source_identity
 from backend.core.api.app.schemas.chat import CachedChatListItemData
 from backend.core.api.app.services.directus.chat_methods import CHAT_METADATA_FIELDS
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
@@ -277,6 +279,235 @@ async def test_websocket_handler_wires_real_request_retry_and_delete_dependencie
 
     assert [action for action, _ in actions] == ["dispatch", "retry", "delete", "delete"]
     assert all("private" not in repr(message) for message in sent)
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.failure.nonblocking-visible-resumable,assistant-speech.privacy.transient-plaintext-encrypted-audio
+@pytest.mark.asyncio
+async def test_event_request_returns_persisted_ready_segment_without_redelivery(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="real event binder imports the Celery app")
+    from backend.apps.audio.tasks import common as audio_task_common
+    from backend.core.api.app.tasks import celery_config
+
+    text = "Already generated."
+    segment = {
+        "id": "row-1",
+        "segment_id": "segment-ready",
+        "source_version": 1,
+        "sequence": 0,
+        "kind": "prose_paragraph",
+        "source_hash": _speech_source_identity(text),
+        "voice_profile_key": "warm_neutral",
+        "voice_profile_version": 1,
+        "status": "ready",
+        "generated_asset_id": "asset-1",
+        "duration_seconds": 1.2,
+        "speakable_text": "must not be returned",
+        "provider_request_id": "server-only",
+    }
+    sent: list[dict[str, object]] = []
+    dispatched: list[tuple[str, dict[str, object], str]] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message)
+
+    class RedisClient:
+        async def incrby(self, _key, amount):
+            return amount
+
+        async def expire(self, *_args):
+            return True
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+    class Chat:
+        async def check_chat_ownership(self, chat_id, user_id):
+            assert (chat_id, user_id) == ("chat-1", "owner-1")
+            return True
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, *, params, no_cache):
+            if collection == "messages":
+                return [{"role": "assistant"}]
+            if collection == "assistant_speech_segments":
+                assert params["filter[source_hash][_eq]"] == segment["source_hash"]
+                return [segment]
+            return []
+
+    async def credit_headroom(**_kwargs):
+        return None
+
+    monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)))
+
+    await handle_assistant_speech_event(
+        manager=Manager(),
+        directus_service=Directus(),
+        cache_service=Cache(),
+        user_id="owner-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "action": "request",
+            "chat_id": "chat-1",
+            "assistant_message_id": "message-1",
+            "segments": [
+                {
+                    "source_version": 1,
+                    "sequence": 0,
+                    "kind": "prose_paragraph",
+                    "source_hash": "client-placeholder",
+                    "speakable_text": text,
+                }
+            ],
+        },
+    )
+
+    assert dispatched == []
+    assert sent == [
+        {
+            "type": "assistant_speech_status",
+            "payload": {
+                "status": "accepted",
+                "segments": [
+                    {
+                        "segment_id": "segment-ready",
+                        "status": "ready",
+                        "generated_asset_id": "asset-1",
+                        "duration_seconds": 1.2,
+                    }
+                ],
+            },
+        }
+    ]
+    assert "must not be returned" not in repr(sent)
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.failure.nonblocking-visible-resumable,assistant-speech.privacy.transient-plaintext-encrypted-audio
+@pytest.mark.asyncio
+async def test_event_request_requeues_retryable_error_when_plaintext_is_resupplied(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="real event binder imports the Celery app")
+    from backend.apps.audio.tasks import common as audio_task_common
+    from backend.core.api.app.tasks import celery_config
+
+    text = "Retry this paragraph."
+    segment = {
+        "id": "row-1",
+        "segment_id": "segment-retryable-error",
+        "source_version": 1,
+        "sequence": 0,
+        "kind": "prose_paragraph",
+        "source_hash": _speech_source_identity(text),
+        "voice_profile_key": "warm_neutral",
+        "voice_profile_version": 1,
+        "status": "error",
+        "error": "Speech is temporarily unavailable.",
+        "retryable": True,
+    }
+    sent: list[dict[str, object]] = []
+    dispatched: list[tuple[str, dict[str, object], str]] = []
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message)
+
+    class RedisClient:
+        async def incrby(self, _key, amount):
+            return amount
+
+        async def expire(self, *_args):
+            return True
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+    class Chat:
+        async def check_chat_ownership(self, chat_id, user_id):
+            assert (chat_id, user_id) == ("chat-1", "owner-1")
+            return True
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, *, params, no_cache):
+            if collection == "messages":
+                return [{"role": "assistant"}]
+            if collection == "assistant_speech_segments":
+                assert params["filter[source_hash][_eq]"] == segment["source_hash"]
+                return [segment]
+            return []
+
+    async def credit_headroom(**_kwargs):
+        return None
+
+    monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)))
+
+    await handle_assistant_speech_event(
+        manager=Manager(),
+        directus_service=Directus(),
+        cache_service=Cache(),
+        user_id="owner-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "action": "request",
+            "chat_id": "chat-1",
+            "assistant_message_id": "message-1",
+            "segments": [
+                {
+                    "source_version": 1,
+                    "sequence": 0,
+                    "kind": "prose_paragraph",
+                    "source_hash": "client-placeholder",
+                    "speakable_text": text,
+                }
+            ],
+        },
+    )
+
+    assert dispatched == [
+        (
+            "apps.audio.tasks.assistant_speech_segment",
+            {
+                "arguments": {
+                    "segment_id": "segment-retryable-error",
+                    "source_version": 1,
+                    "sequence": 0,
+                    "kind": "prose_paragraph",
+                    "source_hash": segment["source_hash"],
+                    "speakable_text": text,
+                    "voice_profile_key": "warm_neutral",
+                    "voice_profile_version": 1,
+                    "user_id": "owner-1",
+                    "chat_id": "chat-1",
+                    "assistant_message_id": "message-1",
+                }
+            },
+            "app_music",
+        )
+    ]
+    assert sent == [
+        {
+            "type": "assistant_speech_status",
+            "payload": {
+                "status": "accepted",
+                "segments": [{"segment_id": "segment-retryable-error", "status": "queued"}],
+            },
+        }
+    ]
+    assert text not in repr(sent)
 
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.failure.nonblocking-visible-resumable

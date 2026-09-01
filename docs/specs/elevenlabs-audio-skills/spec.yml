@@ -855,21 +855,19 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-5]
-    status: blocked
+    status: passed
     evidence:
-      status: blocked
+      status: passed
       command: >-
-        OPENMATES_LIVE_AUDIO_SDK_SMOKE=1 python3 scripts/verify_audio_sdk_cli_live_smoke.py --api-url https://api.dev.openmates.org --skip-cli-reason "blocked: installed CLI package 0.15.0-alpha.107 does not include current generated audio app-skill metadata, and local package build/install is blocked by repo hooks"
-      run_id: audio-sdk-cli-20260811-205505
-      timestamp: "2026-08-11T20:55:34Z"
-      subject_commit: e4a49b2b469d3bc515d6eb7c492c4d7db465d184
+        OPENMATES_LIVE_AUDIO_SDK_SMOKE=1 python3 scripts/verify_audio_sdk_cli_live_smoke.py --api-url https://api.dev.openmates.org
+      run_id: audio-sdk-cli-20260831-205635
+      timestamp: "2026-08-31T20:57:12Z"
+      subject_commit: 565162b789ce51aa9ff53f43e5ade965430a2897
       target: https://api.dev.openmates.org
       actor: agent
-      reason: The live REST, npm SDK, and pip SDK generated-asset checks passed with temporary API-key/device state, but the installed CLI package is still 0.15.0-alpha.107 and lacks the generated audio metadata; local package build/install is blocked by repository hooks.
-      next_action: Publish or install a CLI package containing the current generated audio app-skill metadata, then rerun this helper without --skip-cli-reason.
-      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-11/audio-sdk-cli-20260811-205505.json
-      manifest_sha256: ce119ed3e4f5fa3d49e20bb995f9b4ea64c3e017b2f4f97589d7ddb73350b383
-      summary: REST audio.speak and npm audio.speak returned default eleven_multilingual_v2 generated-asset download URLs with no inline audio_base64; pip audio.generate returned an audio/mpeg generated-asset download URL; the temporary API key was revoked. Native installed CLI execution remains blocked.
+      manifest_path: docs/specs/elevenlabs-audio-skills/artifacts/2026-08-31/audio-sdk-cli-20260831-205635.json
+      manifest_sha256: d813d6077fc7f7c6bf310f692c46fb1d2d1eb30db253aacfd429cea1d6dd6c74
+      summary: Live dev REST audio.speak and npm audio.speak both returned default eleven_v3 generated-asset download URLs with no inline audio_base64; CLI and pip audio.generate returned audio/mpeg generated assets through eleven_text_to_sound_v2; the temporary API key was revoked.
 
   - id: V-LATENCY-PRICING
     kind: manual_check
@@ -1309,7 +1307,7 @@ tasks:
 
   - id: TASK-9
     title: Make Eleven v3 the selectable audio.speak default
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2, S-5, S-8]

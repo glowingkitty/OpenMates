@@ -5023,33 +5023,12 @@ async def _consume_main_processing_stream(
             ),
             None,
         )
-        voice_profile = {
-            "key": selected_mate.voice_profile.key if selected_mate else "warm_neutral",
-            "version": selected_mate.voice_profile.version if selected_mate else 1,
-        }
-        speech_metadata = {
-            "chat_id": request_data.chat_id,
-            "assistant_message_id": assistant_message_id,
-            "source_version": request_data.assistant_response_source_revision,
-            "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
-            "language": preprocessing_result.output_language
-            or (request_data.user_preferences or {}).get("language", "en"),
-        }
-        speech_tracker = ImmutableSpeechBoundaryTracker(
-            metadata=speech_metadata,
-            dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
-                segment=segment,
-                directus_service=directus_service,
-                user_id=request_data.user_id,
-                user_vault_key_id=user_vault_key_id,
-                voice_profile=voice_profile,
-                auto_speak=request_data.auto_speak_response,
-            ),
-            invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
-                segment=segment,
-                directus_service=directus_service,
-            ),
-            report_status=lambda status: _publish_to_redis(
+        if selected_mate is None:
+            logger.error(
+                "%s Assistant speech disabled because the selected mate profile is unavailable",
+                log_prefix,
+            )
+            _publish_to_redis(
                 cache_service,
                 redis_channel_name,
                 {
@@ -5057,12 +5036,56 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "user_id_hash": request_data.user_id_hash,
                     "message_id": assistant_message_id,
-                    "payload": status,
+                    "payload": {
+                        "status": "error",
+                        "error": "Speech is temporarily unavailable.",
+                        "retryable": False,
+                    },
                 },
                 log_prefix,
                 "assistant speech status",
-            ),
-        )
+            )
+        else:
+            voice_profile = {
+                "key": selected_mate.voice_profile.key,
+                "version": selected_mate.voice_profile.version,
+            }
+            speech_metadata = {
+                "chat_id": request_data.chat_id,
+                "assistant_message_id": assistant_message_id,
+                "source_version": request_data.assistant_response_source_revision,
+                "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
+                "language": preprocessing_result.output_language
+                or (request_data.user_preferences or {}).get("language", "en"),
+            }
+            speech_tracker = ImmutableSpeechBoundaryTracker(
+                metadata=speech_metadata,
+                dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
+                    segment=segment,
+                    directus_service=directus_service,
+                    user_id=request_data.user_id,
+                    user_vault_key_id=user_vault_key_id,
+                    voice_profile=voice_profile,
+                    auto_speak=request_data.auto_speak_response,
+                ),
+                invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
+                    segment=segment,
+                    directus_service=directus_service,
+                ),
+                report_status=lambda status: _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    {
+                        "type": "assistant_speech_status",
+                        "chat_id": request_data.chat_id,
+                        "user_id_hash": request_data.user_id_hash,
+                        "message_id": assistant_message_id,
+                        "payload": status,
+                    },
+                    log_prefix,
+                    "assistant speech status",
+                ),
+            )
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
     
     # Thinking content tracking for thinking models (Gemini, Anthropic)

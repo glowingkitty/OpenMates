@@ -5,14 +5,40 @@
 # markup through a cleanup model or persisting segment plaintext.
 #
 
+from pathlib import Path
+
+import pytest
+
 from backend.apps.ai.assistant_speech.projection import (
     project_streaming_speech_segment,
     project_speech_segments,
     select_prerecorded_acknowledgement,
 )
 from backend.apps.ai.utils.mate_utils import load_mates_config
+from backend.apps.audio.assistant_speech.acknowledgements import ACKNOWLEDGEMENT_TEXTS
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
-from pathlib import Path
+from backend.scripts.generate_assistant_acknowledgements import build_plan, _reconcile_existing_assets
+
+
+EXPECTED_MATE_PROFILE_KEYS = {
+    "ace",
+    "burton",
+    "colin",
+    "denise",
+    "elton",
+    "finn",
+    "george",
+    "hiro",
+    "leon",
+    "lisa",
+    "makani",
+    "mark",
+    "melvin",
+    "monika",
+    "scarlett",
+    "sophia",
+    "suki",
+}
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.voice.fixed-versioned-mate-profile
@@ -23,17 +49,13 @@ def test_loads_a_typed_versioned_voice_profile_for_every_builtin_mate() -> None:
 
     assert mates
     assert all(mate.voice_profile is not None for mate in mates)
-    assert {mate.voice_profile.key for mate in mates if mate.voice_profile} <= {
-        "warm_neutral",
-        "bright_neutral",
-        "calm_narrator",
-    }
+    assert {mate.voice_profile.key for mate in mates if mate.voice_profile} == EXPECTED_MATE_PROFILE_KEYS
     assert {mate.voice_profile.version for mate in mates if mate.voice_profile} == {1}
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.voice.fixed-versioned-mate-profile
 def test_resolves_a_provider_neutral_profile_without_exposing_voice_ids() -> None:
-    resolved = resolve_assistant_voice_profile("warm_neutral", version=1)
+    resolved = resolve_assistant_voice_profile("hiro", version=1)
 
     assert resolved.provider == "elevenlabs"
     assert resolved.model == "eleven_v3"
@@ -42,31 +64,99 @@ def test_resolves_a_provider_neutral_profile_without_exposing_voice_ids() -> Non
     assert not hasattr(resolved, "voice_id")
 
 
+# contract-test: direct surface=rest_api assertions=assistant-speech.voice.fixed-versioned-mate-profile
+def test_resolves_a_unique_provider_voice_for_every_builtin_mate() -> None:
+    provider_voice_ids = {
+        resolve_assistant_voice_profile(key, version=1).elevenlabs_request()["voice_id"]
+        for key in EXPECTED_MATE_PROFILE_KEYS
+    }
+
+    assert len(provider_voice_ids) == len(EXPECTED_MATE_PROFILE_KEYS)
+
+
 # contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free,assistant-speech.voice.fixed-versioned-mate-profile
 def test_selects_a_deterministic_prerecorded_acknowledgement_without_charge() -> None:
     clips = [
         {
-            "clip_id": "mate-a-en-general-v1",
+            "clip_id": f"mate-a-en-general-v{variant}",
             "voice_profile_id": "mate-a-v1",
             "voice_profile_version": 1,
             "language": "en",
             "request_category": "general",
         }
+        for variant in range(1, 4)
     ]
 
-    acknowledgement = select_prerecorded_acknowledgement(
+    selections = {
+        select_prerecorded_acknowledgement(
+            clips=clips,
+            voice_profile_id="mate-a-v1",
+            voice_profile_version=1,
+            language="en",
+            request_category="general",
+            selection_seed=f"turn-{index}",
+        )["clip_id"]
+        for index in range(100)
+    }
+    repeated = select_prerecorded_acknowledgement(
         clips=clips,
         voice_profile_id="mate-a-v1",
         voice_profile_version=1,
         language="en",
         request_category="general",
+        selection_seed="stable-turn",
     )
 
-    assert acknowledgement == {
-        "clip_id": "mate-a-en-general-v1",
+    assert selections == {"mate-a-en-general-v1", "mate-a-en-general-v2", "mate-a-en-general-v3"}
+    assert repeated == select_prerecorded_acknowledgement(
+        clips=clips,
+        voice_profile_id="mate-a-v1",
+        voice_profile_version=1,
+        language="en",
+        request_category="general",
+        selection_seed="stable-turn",
+    )
+    assert repeated == {
+        "clip_id": repeated["clip_id"],
         "runtime_generation": False,
         "runtime_credits_charged": 0,
     }
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
+def test_approved_acknowledgement_catalog_has_three_confirming_variants_per_category() -> None:
+    assert set(ACKNOWLEDGEMENT_TEXTS) == {"en-US", "de-DE"}
+    for language_catalog in ACKNOWLEDGEMENT_TEXTS.values():
+        assert set(language_catalog) == {"general", "lookup", "reasoning", "action"}
+        assert all(len(variants) == 3 for variants in language_catalog.values())
+
+    assert "Understood." not in ACKNOWLEDGEMENT_TEXTS["en-US"]["general"]
+    assert ACKNOWLEDGEMENT_TEXTS["de-DE"]["reasoning"][0] == "Okay, lass mich kurz nachdenken."
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free,assistant-speech.voice.fixed-versioned-mate-profile
+def test_acknowledgement_generation_plan_is_complete_and_unique(tmp_path: Path) -> None:
+    plan = build_plan("en-US", tmp_path)
+
+    assert len(plan) == 17 * 4 * 3
+    assert len({item["clip_id"] for item in plan}) == len(plan)
+    assert {item["voice_profile_id"] for item in plan} == EXPECTED_MATE_PROFILE_KEYS
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
+def test_acknowledgement_generation_repairs_orphans_and_rejects_corruption(tmp_path: Path) -> None:
+    item = build_plan("en-US", tmp_path)[0]
+    item["output_path"].parent.mkdir(parents=True)
+    item["output_path"].write_bytes(b"valid audio")
+    entries: dict[str, dict[str, object]] = {}
+
+    assert _reconcile_existing_assets([item], entries) is True
+    assert entries[item["clip_id"]]["sha256"]
+    assert _reconcile_existing_assets([item], entries) is False
+
+    item["output_path"].write_bytes(b"corrupt audio")
+    with pytest.raises(RuntimeError, match="checksum validation"):
+        _reconcile_existing_assets([item], entries)
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.projection.deterministic-semantic,assistant-speech.projection.no-cleanup-inference

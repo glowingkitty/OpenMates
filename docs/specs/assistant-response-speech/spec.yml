@@ -168,8 +168,126 @@ clarification:
     adding a general cleanup model or exposing encrypted chat history.
   approved_by_user: true
 
+voice_selection:
+  status: approved
+  provider: elevenlabs
+  provider_model_id: eleven_v3
+  acknowledgement_text_status: approved
+  rollout_languages:
+    - {order: 1, locale: en-US, status: approved}
+    - {order: 2, locale: de-DE, status: approved}
+    - {order: 3, locale: es-ES, status: planned}
+    - {order: 4, locale: fr-FR, status: planned}
+  acknowledgement_text_proposal:
+    - category: general
+      variants:
+        - {en-US: "Sure, let's take a look.", de-DE: "Klar, schauen wir es uns an."}
+        - {en-US: "Alright, let's work on it.", de-DE: "Alles klar, gehen wir es an."}
+        - {en-US: "Okay, I'll help you with that.", de-DE: "Okay, ich helfe dir dabei."}
+    - category: lookup
+      variants:
+        - {en-US: "Sure, I'll look that up.", de-DE: "Klar, ich schaue das nach."}
+        - {en-US: "Okay, let me check.", de-DE: "Okay, ich sehe kurz nach."}
+        - {en-US: "Got it, I'll find the details.", de-DE: "Alles klar, ich suche die Details heraus."}
+    - category: reasoning
+      variants:
+        - {en-US: "Okay, let me think for a moment.", de-DE: "Okay, lass mich kurz nachdenken."}
+        - {en-US: "Sure, I'll work through it step by step.", de-DE: "Klar, ich gehe das Schritt für Schritt durch."}
+        - {en-US: "Got it, I'll take a closer look.", de-DE: "Alles klar, ich sehe mir das genauer an."}
+    - category: action
+      variants:
+        - {en-US: "Okay, I'm on it.", de-DE: "Okay, mache ich."}
+        - {en-US: "Sure, I'll take care of that.", de-DE: "Klar, ich kümmere mich darum."}
+        - {en-US: "Got it, I'll get started.", de-DE: "Alles klar, ich lege los."}
+  assignments:
+    - mate_id: hiro
+      status: confirmed
+      provider_voice_name: Otani
+      provider_voice_id: 3JDquces8E8bkmvbh6Bc
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=3JDquces8E8bkmvbh6Bc
+    - mate_id: leon
+      status: confirmed
+      provider_voice_name: Robert
+      provider_voice_id: BtWabtumIemAotTjP5sk
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=BtWabtumIemAotTjP5sk
+    - mate_id: burton
+      status: confirmed_for_trial
+      provider_voice_name: Nassim
+      provider_voice_id: repzAAjoKlgcT2oOAIWt
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=repzAAjoKlgcT2oOAIWt
+    - mate_id: suki
+      status: confirmed
+      provider_voice_name: Ayesha
+      provider_voice_id: 0ZOhGcBopt9S6GBK8tnj
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=0ZOhGcBopt9S6GBK8tnj
+    - mate_id: denise
+      status: confirmed
+      provider_voice_name: Amelia
+      provider_voice_id: ZF6FPAbjXT4488VcRRnw
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=ZF6FPAbjXT4488VcRRnw
+    - mate_id: monika
+      status: confirmed
+      provider_voice_name: Cassidy
+      provider_voice_id: 56AoDkrOh6qfVPDXZ7Pt
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=56AoDkrOh6qfVPDXZ7Pt
+    - mate_id: melvin
+      status: confirmed
+      provider_voice_name: Bryan
+      provider_voice_id: bPMKpgEe88vKSwusXTMU
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=bPMKpgEe88vKSwusXTMU
+    - mate_id: scarlett
+      status: confirmed
+      provider_voice_name: Nichalia Schwartz
+      provider_voice_id: XfNU2rGpBa01ckF309OY
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=XfNU2rGpBa01ckF309OY
+    - mate_id: finn
+      status: confirmed
+      provider_voice_name: Adam Stone
+      provider_voice_id: NFG5qt843uXKj4pFvR7C
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=NFG5qt843uXKj4pFvR7C
+    - mate_id: ace
+      status: confirmed
+      provider_voice_name: Juniper
+      provider_voice_id: aMSt68OGf4xUZAnLpTU8
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=aMSt68OGf4xUZAnLpTU8
+    - mate_id: lisa
+      status: confirmed
+      provider_voice_name: Brittney
+      provider_voice_id: pjcYQlDFKMbcOUp6F5GD
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=pjcYQlDFKMbcOUp6F5GD
+    - mate_id: elton
+      status: confirmed
+      provider_voice_name: Peter
+      provider_voice_id: TumdjBNWanlT3ysvclWh
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=TumdjBNWanlT3ysvclWh
+    - mate_id: mark
+      status: confirmed
+      provider_voice_name: Hale
+      provider_voice_id: dXtC3XhB9GtPusIpNtQx
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=dXtC3XhB9GtPusIpNtQx
+    - mate_id: colin
+      status: confirmed
+      provider_voice_name: Otto
+      provider_voice_id: FTNCalFNG5bRnkkaP5Ug
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=FTNCalFNG5bRnkkaP5Ug
+    - mate_id: george
+      status: confirmed
+      provider_voice_name: David Castlemore
+      provider_voice_id: XjLkpWUlnhS8i7gGz3lZ
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=XjLkpWUlnhS8i7gGz3lZ
+    - mate_id: makani
+      status: confirmed
+      provider_voice_name: Halley
+      provider_voice_id: eBvoGh8YGJn1xokno71w
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=eBvoGh8YGJn1xokno71w
+    - mate_id: sophia
+      status: confirmed
+      provider_voice_name: Shelley
+      provider_voice_id: 4CrZuIW9am7gYAxgo2Af
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=4CrZuIW9am7gYAxgo2Af
+
 implementation_state:
-  subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc
+  subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424
 
 approvals:
   product_contract:
@@ -226,12 +344,12 @@ attempts:
     recorded_at: "2026-08-31T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-2
-  next_action: Confirm assumptions A-4 and A-5, write the focused backend/frontend tests, and record red evidence before product implementation.
-  command: python3 scripts/spec_validate.py docs/specs/assistant-response-speech/spec.yml
-  expected_outcome: The approved executable spec validates before red-test work begins.
+  current_task_id: TASK-5
+  next_action: Implement the web queue, encrypted chat preference, composer and message controls, pinned waveform, and deployed Playwright proof.
+  command: python3 scripts/tests.py run --suite vitest
+  expected_outcome: The assistant speech queue contract passes before deployed web integration.
   blocker: null
-  last_verified_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc
+  last_verified_commit: 0b14d8145239f0b04452f53d5567f8b011109424
 
 scenarios:
   - id: S-1
@@ -564,7 +682,10 @@ tests:
       required: true
       expected: fail
       evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because backend.apps.ai.assistant_speech is not implemented."}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
   - id: T-PY-SPEECH-WORKER
     type: pytest
     file: backend/tests/test_assistant_speech_worker.py
@@ -579,7 +700,10 @@ tests:
       required: true
       expected: fail
       evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because backend.apps.audio.assistant_speech is not implemented."}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
   - id: T-PY-SPEECH-STREAMING
     type: pytest
     file: backend/tests/test_assistant_speech_streaming.py
@@ -594,7 +718,10 @@ tests:
       required: true
       expected: fail
       evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because backend.apps.ai.assistant_speech.streaming is not implemented."}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
   - id: T-PY-SPEECH-API
     type: pytest
     file: backend/tests/test_assistant_speech_api.py
@@ -608,7 +735,10 @@ tests:
       required: true
       expected: fail
       evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because assistant_speech_handler is not implemented."}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
   - id: T-VITEST-SPEECH-QUEUE
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
@@ -624,7 +754,10 @@ tests:
       required: true
       expected: fail
       evidence: {status: skipped_with_reason, command: "python3 scripts/tests.py run --suite vitest", run_id: remote-vitest-dev-before-assistant-speech, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Permitted remote Vitest ran deployed dev and could not include the uncommitted red test; static import targets missing assistantSpeechQueue.ts and will be exercised after the test-only source reaches dev."}
-    green_phase: {required: true, expected: pass, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit 6c45ca0795c8980b89cd250ed3ff6b67feabc5da", run_id: 2026-08-31T23:13:10Z, subject_commit: 6c45ca0795c8980b89cd250ed3ff6b67feabc5da, timestamp: "2026-08-31T23:15:43Z", summary: "All nine AssistantSpeechQueue tests passed; the broader suite had five unrelated failures."}
   - id: T-PLAYWRIGHT-SPEECH
     type: playwright
     file: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
@@ -646,8 +779,8 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-4, AC-7, AC-11]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence: {command: "OPENMATES_LIVE_ASSISTANT_SPEECH_SMOKE=1 node scripts/verify_assistant_speech_live_smoke.mjs --api-url https://api.dev.openmates.org", run_id: assistant-speech-live-20260831T225606Z, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:56:36Z", artifact: docs/specs/assistant-response-speech/artifacts/2026-08-31/assistant-speech-live-20260831T225606Z.json, summary: "Authenticated owner request queued one segment, received a safe ready status, acknowledged deletion, deleted the chat, and exposed neither plaintext nor encrypted-audio internals."}
   - id: V-CLI-SDK-NOT-EXPOSED
     kind: deterministic_check
     phase: final
@@ -868,8 +1001,8 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Confirm storage and metadata assumptions and write red tests
-    status: in_progress
-    phase: checking_assumptions
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1, S-3, S-4, S-7, S-9]
       acceptance_criteria: [AC-1, AC-3, AC-4, AC-5, AC-6, AC-9, AC-11, AC-12]
@@ -891,8 +1024,8 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Implement immutable speech projection and mate voice metadata
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-4]
       acceptance_criteria: [AC-3, AC-4, AC-5, AC-6]
@@ -912,8 +1045,8 @@ tasks:
     independently_deployable: false
   - id: TASK-4
     title: Implement segment worker, encrypted storage, billing, retry, and lifecycle
-    status: pending
-    phase: working_tasks
+    status: done
+    phase: complete
     covers:
       scenarios: [S-3, S-5, S-7, S-9]
       acceptance_criteria: [AC-4, AC-5, AC-7, AC-9, AC-11, AC-12]
@@ -933,7 +1066,7 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Implement web preference, controls, queue, and historical Speak
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-1, S-2, S-3, S-5, S-6, S-7, S-8]

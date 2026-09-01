@@ -51,7 +51,13 @@ async def _delete_generated_speech_asset(task: BaseServiceTask, generated_asset_
 @app.task(bind=True, name="apps.audio.tasks.assistant_speech_segment", base=BaseServiceTask, queue="app_music", soft_time_limit=180, time_limit=210)
 def assistant_speech_segment_task(self: BaseServiceTask, arguments: dict[str, Any]) -> dict[str, object]:
     """Generate exactly one approved assistant speech segment."""
-    return asyncio.run(_async_generate_assistant_speech_segment(self, arguments))
+    async def run() -> dict[str, object]:
+        try:
+            return await _async_generate_assistant_speech_segment(self, arguments)
+        finally:
+            await self.cleanup_services()
+
+    return asyncio.run(run())
 
 
 async def _async_generate_assistant_speech_segment(task: BaseServiceTask, arguments: dict[str, Any]) -> dict[str, object]:

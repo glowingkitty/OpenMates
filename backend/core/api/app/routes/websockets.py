@@ -120,6 +120,7 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "retryable",
 )
 SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
+MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
 
 def _safe_payload_summary(payload: object) -> str:
@@ -2094,14 +2095,16 @@ async def _deliver_pending_embeds(
         pending_ids = await cache_service.get_pending_embed_ids(user_id)
         if not pending_ids:
             return
+        pending_count = len(pending_ids)
+        replay_ids = pending_ids[:MAX_PENDING_EMBED_REPLAY_PER_CONNECTION]
 
         logger.info(
-            f"[PENDING_EMBEDS] Delivering {len(pending_ids)} pending embed(s) "
+            f"[PENDING_EMBEDS] Delivering {len(replay_ids)}/{pending_count} pending embed(s) "
             f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
         )
 
         delivered = 0
-        for embed_id in pending_ids:
+        for embed_id in replay_ids:
             try:
                 # Read vault-encrypted data from cache
                 client = await cache_service.client
@@ -2193,8 +2196,14 @@ async def _deliver_pending_embeds(
 
         if delivered > 0:
             logger.info(
-                f"[PENDING_EMBEDS] Delivered {delivered}/{len(pending_ids)} pending embeds "
+                f"[PENDING_EMBEDS] Delivered {delivered}/{len(replay_ids)} pending embeds "
                 f"to user {user_id[:8]}..."
+            )
+        remaining = pending_count - len(replay_ids)
+        if remaining > 0:
+            logger.info(
+                f"[PENDING_EMBEDS] Deferred {remaining} pending embed(s) "
+                f"for user {user_id[:8]}... to later client sync/reconnects"
             )
 
     except Exception as e:

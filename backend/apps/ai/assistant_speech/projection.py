@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re
+from hashlib import sha256
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -28,6 +29,7 @@ def select_prerecorded_acknowledgement(
     voice_profile_version: int,
     language: str,
     request_category: str,
+    selection_seed: str,
 ) -> dict[str, object] | None:
     """Select a stable prerecorded acknowledgement without runtime generation."""
     candidates = [
@@ -47,7 +49,12 @@ def select_prerecorded_acknowledgement(
     if not category_candidates:
         return None
 
-    selected = min(category_candidates, key=lambda clip: str(clip.get("clip_id", "")))
+    ordered_candidates = sorted(category_candidates, key=lambda clip: str(clip.get("clip_id", "")))
+    selection_identity = ":".join(
+        (selection_seed, voice_profile_id, str(voice_profile_version), language, request_category)
+    )
+    digest = sha256(selection_identity.encode("utf-8")).digest()
+    selected = ordered_candidates[int.from_bytes(digest[:8], "big") % len(ordered_candidates)]
     return {
         "clip_id": selected["clip_id"],
         "runtime_generation": False,
