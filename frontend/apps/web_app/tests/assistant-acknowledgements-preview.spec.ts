@@ -15,6 +15,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_STATE_HOLD_MS = 1800;
+const PROOF_TRANSITION_SETTLE_MS = 500;
 
 const ACKNOWLEDGEMENT_LOCALES_PROOF = defineVideoProof({
 	id: 'assistant-acknowledgement-locales',
@@ -75,6 +76,8 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 		await expect(page.getByTestId('assistant-ack-clip-card')).toHaveCount(12);
 		await expect(page.getByText('Claro, vamos a verlo.', { exact: true })).toBeVisible();
 	});
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await expect(page.getByRole('link', { name: 'Back to preview index' })).toBeVisible();
 	await proof.checkpoint('spanish-library');
 	await page.waitForTimeout(PROOF_STATE_HOLD_MS);
 
@@ -85,6 +88,7 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 	expect(spanishAudio.headers()['content-type']).toContain('audio/mpeg');
 
 	await proof.action('switch-to-french', () => languageSelect.selectOption('fr-FR'));
+	await page.waitForTimeout(PROOF_TRANSITION_SETTLE_MS);
 	await proof.assert('french-visible', async () => {
 		await expect(languageSelect).toHaveValue('fr-FR');
 		await expect(page.getByTestId('assistant-ack-selection-summary')).toContainText(
@@ -93,6 +97,8 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 		await expect(page.getByTestId('assistant-ack-clip-card')).toHaveCount(12);
 		await expect(page.getByText('Bien sûr, regardons ça.', { exact: true })).toBeVisible();
 	});
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await expect(page.getByRole('link', { name: 'Back to preview index' })).toBeVisible();
 	await proof.checkpoint('french-library');
 	await page.waitForTimeout(PROOF_STATE_HOLD_MS);
 
