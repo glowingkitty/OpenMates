@@ -1370,6 +1370,10 @@ def _default_reviewer_runner(
         prompt_path.relative_to(run_dir)
     except ValueError as exc:
         raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
+    try:
+        reviewer_prompt_path = prompt_path.relative_to(REPO_ROOT)
+    except ValueError as exc:
+        raise WorkflowError("proof-video reviewer prompt must be inside the repository worktree") from exc
     command = [
         opencode_bin,
         "run",
@@ -1381,8 +1385,8 @@ def _default_reviewer_runner(
         "proof-video-reviewer",
         *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
-        str(CONTROL_PLANE_ROOT),
-        f"Read {prompt_path} in full and return only the required JSON review receipt.",
+        str(REPO_ROOT),
+        f"Read {reviewer_prompt_path} in full and return only the required JSON review receipt.",
     ]
     started_at = time.monotonic()
     print(
