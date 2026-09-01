@@ -45,7 +45,7 @@ const ACKNOWLEDGEMENT_LOCALES_PROOF = defineVideoProof({
 		{
 			id: 'french-visible',
 			checkpoint: 'french-library',
-			visual: 'The language control selects fr-FR and the page shows twelve French clips for Hiro.',
+			visual: 'The language control selects fr-FR and the page shows twelve French clips for Ace.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -65,13 +65,15 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 	expect(response?.status()).toBe(200);
 
 	const languageSelect = page.getByTestId('assistant-ack-language-select');
-	await expect(languageSelect).toHaveValue('es-ES');
 	await expect(languageSelect.getByRole('option')).toHaveCount(4);
-	await expect(page.getByTestId('assistant-ack-selection-summary')).toContainText(
-		'Showing 12 clips for es-ES / Hiro'
-	);
-	await expect(page.getByTestId('assistant-ack-clip-card')).toHaveCount(12);
-	await expect(page.getByText('Claro, vamos a verlo.', { exact: true })).toBeVisible();
+	await proof.assert('spanish-visible', async () => {
+		await expect(languageSelect).toHaveValue('es-ES');
+		await expect(page.getByTestId('assistant-ack-selection-summary')).toContainText(
+			'Showing 12 clips for es-ES / Hiro'
+		);
+		await expect(page.getByTestId('assistant-ack-clip-card')).toHaveCount(12);
+		await expect(page.getByText('Claro, vamos a verlo.', { exact: true })).toBeVisible();
+	});
 	await proof.checkpoint('spanish-library');
 
 	const spanishAudio = await page.request.get(
@@ -81,12 +83,14 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 	expect(spanishAudio.headers()['content-type']).toContain('audio/mpeg');
 
 	await languageSelect.selectOption('fr-FR');
-	await expect(languageSelect).toHaveValue('fr-FR');
-	await expect(page.getByTestId('assistant-ack-selection-summary')).toContainText(
-		'Showing 12 clips for fr-FR / Ace'
-	);
-	await expect(page.getByTestId('assistant-ack-clip-card')).toHaveCount(12);
-	await expect(page.getByText('Bien sûr, regardons ça.', { exact: true })).toBeVisible();
+	await proof.assert('french-visible', async () => {
+		await expect(languageSelect).toHaveValue('fr-FR');
+		await expect(page.getByTestId('assistant-ack-selection-summary')).toContainText(
+			'Showing 12 clips for fr-FR / Ace'
+		);
+		await expect(page.getByTestId('assistant-ack-clip-card')).toHaveCount(12);
+		await expect(page.getByText('Bien sûr, regardons ça.', { exact: true })).toBeVisible();
+	});
 	await proof.checkpoint('french-library');
 
 	const frenchAudio = await page.request.get(
@@ -94,4 +98,5 @@ test('Spanish and French acknowledgement libraries render and serve audio', asyn
 	);
 	expect(frenchAudio.status()).toBe(200);
 	expect(frenchAudio.headers()['content-type']).toContain('audio/mpeg');
+	await proof.attach();
 });
