@@ -126,7 +126,9 @@ test.describe.serial('Assistant response speech', () => {
 		expect(micBox, 'microphone control should have layout geometry').toBeTruthy();
 		expect(voiceBox!.x + voiceBox!.width).toBeLessThanOrEqual(micBox!.x);
 		expect(micBox!.x - (voiceBox!.x + voiceBox!.width)).toBeLessThanOrEqual(32);
-		const editor = messageField.getByTestId('message-editor');
+    const editor = messageField
+      .getByTestId('message-editor')
+      .locator('[contenteditable="true"]');
 		await editor.fill('Composer control verification');
 		await expect(messageField.getByTestId('composer-send-button')).toBeVisible({ timeout: 10_000 });
 		await editor.fill('');
