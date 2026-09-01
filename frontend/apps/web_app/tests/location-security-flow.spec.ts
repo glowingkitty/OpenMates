@@ -283,7 +283,6 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	log('Initial login done.');
 	await screenshot(page, 'initial-login-done');
 
-	await page.getByTestId('new-chat-button').click();
 	const messageEditor = page.getByTestId('message-editor').last();
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
