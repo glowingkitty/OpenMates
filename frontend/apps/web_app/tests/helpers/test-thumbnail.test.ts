@@ -17,6 +17,7 @@ const ONE_PIXEL_PNG = Buffer.from(
 	'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
 	'base64'
 );
+const FULL_VIEWPORT_PNG = scaleThumbnail(ONE_PIXEL_PNG);
 
 test('defines a fixed 1280x800 thumbnail contract', () => {
 	const definition = defineTestThumbnail({
@@ -89,7 +90,7 @@ test('captures a cropped thumbnail without mutating the recorded viewport', asyn
 		getByTestId: () => ({first: () => locator}),
 		screenshot: async (options: Record<string, unknown>) => {
 			screenshotOptions = options;
-			return ONE_PIXEL_PNG;
+			return FULL_VIEWPORT_PNG;
 		}
 	};
 	const testInfo = {
@@ -104,7 +105,6 @@ test('captures a cropped thumbnail without mutating the recorded viewport', asyn
 	assert.equal(scrollCalls, 0);
 	assert.deepEqual(screenshotOptions, {
 		type: 'png',
-		clip: {x: 320, y: 160, width: 640, height: 400},
 		scale: 'css'
 	});
 	assert.deepEqual(attachments, ['openmates-test-thumbnail', 'openmates-test-thumbnail-metadata']);
