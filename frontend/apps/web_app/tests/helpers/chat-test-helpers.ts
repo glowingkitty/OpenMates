@@ -31,6 +31,7 @@ const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
 const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
 const CHAT_PREFLIGHT_ACK_TIMEOUT_MS = 60_000;
 const SEND_ACCEPTED_TIMEOUT_MS = CHAT_PREFLIGHT_ACK_TIMEOUT_MS + 15_000;
+const SYNTHETIC_SEND_DRAFT_IDLE_TIMEOUT_MS = 45_000;
 const TRAILING_LIVE_TEST_MARKER = /\s*(<<<TEST_LIVE_(?:MOCK|RECORD):[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)?>>>)\s*$/;
 
 type LoginResponseDiagnostic = {
@@ -255,6 +256,30 @@ async function waitForNewChatSendContext(
 	logCheckpoint('New-chat send rebound to created chat context.', {
 		url: page.url()
 	});
+}
+
+async function waitForDraftSaveIdleBeforeSyntheticSend(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const readDraftState = async () => page.evaluate(() => {
+		const hook = (window as any).__openmatesE2EDraftState;
+		return typeof hook === 'function' ? hook() : null;
+	}).catch(() => null);
+
+	const initialState = await readDraftState();
+	if (!initialState?.isSaveInProgress) return;
+
+	logCheckpoint('Waiting for draft save to become idle before synthetic send.', { draftState: initialState });
+	await expect
+		.poll(
+			async () => {
+				const state = await readDraftState();
+				return state ? state.isSaveInProgress === false : true;
+			},
+			{ timeout: SYNTHETIC_SEND_DRAFT_IDLE_TIMEOUT_MS, intervals: [500, 1000, 2000, 5000] }
+		)
+		.toBe(true);
 }
 
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
@@ -1084,6 +1109,7 @@ async function sendMessage(
 		});
 	};
 	const dispatchSyntheticSend = async (reason: string) => {
+		await waitForDraftSaveIdleBeforeSyntheticSend(page, logCheckpoint);
 		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement, marker?: string) => {
 			return editor.dispatchEvent(new CustomEvent('custom-send-message', {
 				bubbles: true,

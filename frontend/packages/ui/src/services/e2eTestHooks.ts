@@ -5,6 +5,7 @@
  * explicit test-only probes on window without initializing the full app twice.
  * Production hosts never receive these globals.
  */
+import { get } from 'svelte/store';
 import { chatDB } from './db';
 import { draftEditorUIState } from './drafts/draftState';
 
@@ -71,6 +72,7 @@ export async function installE2ETestHooks() {
     __openmatesE2EReleaseDraftSelection?: () => void;
     __openmatesE2EDraftSelectionGate?: E2EDraftSelectionGate;
     __openmatesE2EDraftSelectionTrace?: E2EDraftSelectionDecision[];
+    __openmatesE2EDraftState?: () => Record<string, unknown>;
   };
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
@@ -119,4 +121,8 @@ export async function installE2ETestHooks() {
     testWindow.__openmatesE2EDraftSelectionGate?.release();
     delete testWindow.__openmatesE2EDraftSelectionGate;
   };
+
+  testWindow.__openmatesE2EDraftState = () => structuredClone(
+    get(draftEditorUIState) as unknown as Record<string, unknown>,
+  );
 }
