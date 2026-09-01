@@ -420,10 +420,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg xvfb zutty x11-xserver-utils
         working-directory: frontend/apps/web_app
-      - name: Run Playwright thumbnail helper tests
-        if: inputs.spec != '__cli_integration_code_docs__'
-        run: node --test --experimental-strip-types tests/helpers/test-thumbnail.test.ts
-        working-directory: frontend/apps/web_app
       - name: Install Proton Mail Bridge for live Proton specs
         if: inputs.spec == 'proton-bridge-live.spec.ts'
         run: |

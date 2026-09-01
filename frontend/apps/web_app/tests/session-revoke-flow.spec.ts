@@ -346,6 +346,7 @@ test('session revoke: revoking session B from session A does not log out session
 		const revokeBtn = nonCurrentCard.locator('[data-testid="session-revoke-btn"]');
 		await expect(revokeBtn).toBeVisible({ timeout: 5000 });
 		await screenshotA(pageA, '05-before-revoke-a');
+		await dismissBlockingNotifications(pageB, logB);
 		const proofWindowStartedAtMs = Date.now() - proofRecordingStartedAt;
 		const proof = createVideoProofRuntime(SESSION_REVOKE_LOGOUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -364,22 +365,20 @@ test('session revoke: revoking session B from session A does not log out session
 			await dialog.accept();
 		});
 
-		await revokeBtn.click();
-		logA("Session A: clicked Remove on Session B's session card.");
-		await screenshotA(pageA, '06-after-revoke-click-a');
-
 		// ── Step 5: Wait for Session B to be logged out ──────────────────────
 		// The backend broadcasts force_logout via WebSocket to Session B.
 		// Session B's chatSyncService handler calls logout() and redirects
 		// to the login screen (Login / Sign up button appears).
-		logB('Session B: waiting to receive force_logout and be logged out…');
 		const loginBtnB = pageB.getByTestId('header-login-signup-btn');
-		await expect(loginBtnB).toBeVisible({ timeout: 60000 });
-		logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
 		const guestBannerB = pageB.getByTestId('daily-inspiration-banner').first();
-		await expect(guestBannerB).toBeVisible({ timeout: 10000 });
 		await proof.action('session-a-revoke-session-b', async () => {
-			await pageB.waitForTimeout(100);
+			await revokeBtn.click();
+			logA("Session A: clicked Remove on Session B's session card.");
+			await screenshotA(pageA, '06-after-revoke-click-a');
+			logB('Session B: waiting to receive force_logout and be logged out…');
+			await expect(loginBtnB).toBeVisible({ timeout: 60000 });
+			logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
+			await expect(guestBannerB).toBeVisible({ timeout: 10000 });
 		});
 		await proof.assert('daily-inspiration.guest-isolated-after-force-logout', async () => {
 			await expect(guestBannerB).toBeVisible({ timeout: 5000 });
