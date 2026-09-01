@@ -23398,7 +23398,7 @@ assertions:
     direct_tests:
     - &id2641
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 23
+      line: 78
       name: renders complete read-only task context and closes from the keyboard
       surface: gui.web
     - &id2643
@@ -23415,7 +23415,7 @@ assertions:
     supporting_tests:
     - &id2642
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 46
+      line: 117
       name: keeps every detail section reachable on a phone viewport
       surface: gui.web
     - &id2644
@@ -24043,7 +24043,7 @@ assertions:
       surface: rest_api
     - &id2743
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 23
+      line: 78
       name: renders complete read-only task context and closes from the keyboard
       surface: gui.web
     - &id2744
