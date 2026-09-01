@@ -420,6 +420,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg xvfb zutty x11-xserver-utils
         working-directory: frontend/apps/web_app
+      - name: Run Playwright thumbnail helper tests
+        if: inputs.spec != '__cli_integration_code_docs__'
+        run: node --test --experimental-strip-types tests/helpers/test-thumbnail.test.ts
+        working-directory: frontend/apps/web_app
       - name: Install Proton Mail Bridge for live Proton specs
         if: inputs.spec == 'proton-bridge-live.spec.ts'
         run: |
@@ -512,6 +516,12 @@ jobs:
           E2E_RECORD_LIVE_FIXTURES: ${{ inputs.record_live_fixtures && '1' || '' }}
           E2E_DAILY_AI_RUN_ID: ${{ inputs.daily_ai_run_id }}
           CREATE_ACCOUNT_SLOT: ${{ inputs.create_account_slot }}
+      - name: Record finalized video timing
+        if: always() && inputs.spec != '__cli_integration_code_docs__'
+        run: |
+          python3 scripts/write_playwright_video_timing.py \
+            frontend/apps/web_app/test-results \
+            test-results/playwright-video-timing.json
       - name: Show results
         if: always()
         run: |
@@ -686,6 +696,7 @@ jobs:
           name: ${{ steps.artifact_name.outputs.name }}
           path: |
             test-results/playwright.json
+            test-results/playwright-video-timing.json
             test-results/cli-integration.json
             frontend/apps/web_app/test-results/
             frontend/apps/web_app/artifacts/

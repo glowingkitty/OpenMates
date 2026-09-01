@@ -3517,6 +3517,27 @@ class BatchRunner:
         proof_video_file: Optional[str] = None
         if raw_json_sources:
             report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
+            timing_sources = list(art_path.rglob("playwright-video-timing.json"))
+            if len(timing_sources) != 1:
+                raise RuntimeError("Playwright artifact requires one finalized video timing manifest")
+            timing_manifest = json.loads(timing_sources[0].read_text(encoding="utf-8"))
+            if timing_manifest.get("schema_version") != 1 or not isinstance(timing_manifest.get("videos"), list):
+                raise RuntimeError("Playwright finalized video timing manifest is invalid")
+            finalized_at_by_suffix: dict[str, float] = {}
+            for timing_record in timing_manifest["videos"]:
+                if not isinstance(timing_record, dict) or not isinstance(timing_record.get("path"), str):
+                    raise RuntimeError("Playwright finalized video timing record is invalid")
+                finalized_at_value = timing_record.get("finalized_at_epoch_ms")
+                if (
+                    not isinstance(finalized_at_value, (int, float))
+                    or isinstance(finalized_at_value, bool)
+                    or not math.isfinite(finalized_at_value)
+                ):
+                    raise RuntimeError("Playwright finalized video timestamp is invalid")
+                suffix = str(timing_record["path"]).split("test-results/", 1)[-1]
+                if suffix in finalized_at_by_suffix:
+                    raise RuntimeError("Playwright finalized video timing path is duplicated")
+                finalized_at_by_suffix[suffix] = float(finalized_at_value)
             proof_attachment_groups: list[dict[str, object]] = []
             thumbnail_requests: list[dict[str, object]] = []
 
@@ -3541,6 +3562,14 @@ class BatchRunner:
                             if len(matches) > 1:
                                 raise RuntimeError("Playwright result contains multiple explicit test thumbnails")
                             if matches:
+                                proof_timelines = [
+                                    item
+                                    for item in attachments
+                                    if isinstance(item, dict)
+                                    and item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                                ]
+                                if len(proof_timelines) > 1:
+                                    raise RuntimeError("Explicit test thumbnail result contains multiple proof timelines")
                                 video_attachments = [
                                     item
                                     for item in attachments
@@ -3552,6 +3581,7 @@ class BatchRunner:
                                 candidates.append((str(result.get("status") or ""), {
                                     "metadata": matches[0],
                                     "video": video_attachments[0],
+                                    "proof_timeline": proof_timelines[0] if proof_timelines else None,
                                     "start_time": result.get("startTime"),
                                     "duration_ms": result.get("duration"),
                                 }))
@@ -3603,6 +3633,13 @@ class BatchRunner:
             collect_explicit_thumbnails(report)
             collect_timeline_attachments(report)
             artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
+            proof_result = next(
+                (group for group in reversed(proof_attachment_groups) if group.get("status") == "passed"),
+                proof_attachment_groups[-1] if proof_attachment_groups else {},
+            )
+            if len(proof_attachment_groups) > 1:
+                raise RuntimeError("Playwright report contains ambiguous proof timeline test groups")
+            proof_group = proof_result.get("attachments") if isinstance(proof_result.get("attachments"), list) else []
             if len(thumbnail_requests) > 1:
                 raise RuntimeError("Playwright report contains multiple explicit test thumbnails")
             if thumbnail_requests:
@@ -3634,6 +3671,8 @@ class BatchRunner:
                     raise RuntimeError("Explicit test thumbnail geometry must use non-negative integers")
                 if viewport["width"] <= 0 or viewport["height"] <= 0 or clip["width"] <= 0 or clip["height"] <= 0:
                     raise RuntimeError("Explicit test thumbnail geometry must be positive")
+                if clip["x"] + clip["width"] > viewport["width"] or clip["y"] + clip["height"] > viewport["height"]:
+                    raise RuntimeError("Explicit test thumbnail crop exceeds the recorded viewport")
                 video_attachment = request.get("video")
                 video_attachment_path = video_attachment.get("path") if isinstance(video_attachment, dict) else None
                 if not isinstance(video_attachment_path, str):
@@ -3665,12 +3704,10 @@ class BatchRunner:
                 ):
                     raise RuntimeError("Explicit test thumbnail timestamp is invalid")
                 captured_at_ms = float(captured_at_value)
-                start_time = datetime.fromisoformat(str(request.get("start_time") or "").replace("Z", "+00:00"))
-                result_duration_ms = float(request.get("duration_ms") or 0)
-                if result_duration_ms <= 0:
-                    raise RuntimeError("Explicit test thumbnail result duration is missing")
-                result_end_epoch_ms = start_time.timestamp() * 1000 + result_duration_ms
-                video_start_epoch_ms = result_end_epoch_ms - video_duration * 1000
+                finalized_at_epoch_ms = finalized_at_by_suffix.get(video_attachment_suffix)
+                if finalized_at_epoch_ms is None:
+                    raise RuntimeError("Explicit test thumbnail finalized video timestamp is missing")
+                video_start_epoch_ms = finalized_at_epoch_ms - video_duration * 1000
                 timestamp = (captured_at_ms - video_start_epoch_ms) / 1000
                 if not math.isfinite(timestamp) or timestamp < 0 or timestamp >= video_duration:
                     raise RuntimeError("Explicit test thumbnail timestamp is outside the completed video")
@@ -3689,13 +3726,6 @@ class BatchRunner:
                 if extraction.returncode != 0 or not (dest / thumbnail).is_file():
                     raise RuntimeError(f"Explicit test thumbnail video extraction failed: {extraction.stderr.strip()}")
                 thumbnail_source = "video_frame"
-            proof_result = next(
-                (group for group in reversed(proof_attachment_groups) if group.get("status") == "passed"),
-                proof_attachment_groups[-1] if proof_attachment_groups else {},
-            )
-            if len(proof_attachment_groups) > 1:
-                raise RuntimeError("Playwright report contains ambiguous proof timeline test groups")
-            proof_group = proof_result.get("attachments") if isinstance(proof_result.get("attachments"), list) else []
             for item in proof_group:
                 attachment_path = item.get("path")
                 if not str(item.get("contentType") or "").startswith("video/") or not isinstance(attachment_path, str):
@@ -3752,18 +3782,11 @@ class BatchRunner:
                     raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
                 frames_dest = dest / "proof-frames"
                 frames_dest.mkdir(parents=True, exist_ok=True)
-                proof_video_start_epoch_ms: Optional[float] = None
                 proof_video_duration: Optional[float] = None
                 map_proof_timestamp: Optional[Callable[[object, str], float]] = None
                 if timeline_payload.get("schema_version") == 2:
                     if not proof_video_file:
                         raise RuntimeError("Spec proof checkpoint video is missing")
-                    proof_start_time = datetime.fromisoformat(
-                        str(proof_result.get("start_time") or "").replace("Z", "+00:00")
-                    )
-                    proof_duration_ms = float(proof_result.get("duration_ms") or 0)
-                    if proof_duration_ms <= 0:
-                        raise RuntimeError("Spec proof result duration is missing")
                     probe = subprocess.run(
                         [
                             "ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -3776,8 +3799,17 @@ class BatchRunner:
                     if probe.returncode != 0:
                         raise RuntimeError(f"Spec proof video probe failed: {probe.stderr.strip()}")
                     proof_video_duration = float(probe.stdout.strip())
-                    proof_result_end_ms = proof_start_time.timestamp() * 1000 + proof_duration_ms
-                    proof_video_start_epoch_ms = proof_result_end_ms - proof_video_duration * 1000
+                    proof_video_record = next(
+                        (record for record in video_records if record.get("file") == proof_video_file),
+                        None,
+                    )
+                    if proof_video_record is None:
+                        raise RuntimeError("Spec proof video source metadata is missing")
+                    proof_video_suffix = str(proof_video_record.get("source") or "").split("test-results/", 1)[-1]
+                    proof_finalized_at_epoch_ms = finalized_at_by_suffix.get(proof_video_suffix)
+                    if proof_finalized_at_epoch_ms is None:
+                        raise RuntimeError("Spec proof finalized video timestamp is missing")
+                    proof_video_start_epoch_ms = proof_finalized_at_epoch_ms - proof_video_duration * 1000
 
                     def to_video_timestamp(value: object, label: str) -> float:
                         if (

@@ -127,7 +127,6 @@ test.describe('Report Issue Email Fallback', () => {
 		});
 		await captureTestThumbnail(page, testInfo, REPORT_ISSUE_THUMBNAIL);
 		await proof.checkpoint('fallback-visible');
-		await proof.attach();
 		if (IS_PROOF_CAPTURE) {
 			await page.waitForTimeout(1500);
 		}
@@ -165,5 +164,6 @@ test.describe('Report Issue Email Fallback', () => {
 			/console_logs|indexeddb_report|last_messages_html|action_history|trace_ids|session_id|picked_element_html|estimated_location/i
 		);
 		logCheckpoint('Email fallback contains user-visible issue details and excludes hidden diagnostics.');
+		await proof.attach();
 	});
 });
