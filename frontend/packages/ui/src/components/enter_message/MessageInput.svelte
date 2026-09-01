@@ -311,6 +311,7 @@
 
     $effect(() => {
         const userId = $userProfile.user_id;
+        const isAuthenticated = $authStore.isAuthenticated;
         const chatId = currentChatId;
         const pendingSelection = pendingNewChatModelSelection;
         const previousContext = untrack(() => ({
@@ -318,7 +319,7 @@
             chatId: modelSelectionChatId
         }));
 
-        if (!userId) {
+        if (!userId || !isAuthenticated) {
             modelSelectionRestoreGeneration += 1;
             modelSelection = 'auto';
             modelSelectionUserId = null;
@@ -362,7 +363,7 @@
                 .catch((error) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     console.error('[MessageInput] Failed to persist new-chat model selection:', error);
-                    notificationStore.error($text('common.try_again'));
+                    notificationStore.error($text('enter_message.model_selector.save_failed'));
                 })
                 .finally(() => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
@@ -378,7 +379,7 @@
                 .catch((error) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
                     console.error('[MessageInput] Failed to restore chat model selection:', error);
-                    notificationStore.error($text('common.try_again'));
+                    notificationStore.error($text('enter_message.model_selector.load_failed'));
                 })
                 .finally(() => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
@@ -387,7 +388,7 @@
     });
     $effect(() => {
         const userId = $userProfile.user_id;
-        if (!userId || isIncognitoMode) return;
+        if (!userId || !$authStore.isAuthenticated || isIncognitoMode) return;
         return registerChatModelSelectionSync(userId, (chatId, selection, persistenceRevision) => {
             if ($userProfile.user_id === userId && chatId === currentChatId) {
                 modelSelection = selection;
@@ -2866,7 +2867,10 @@
                 .run();
             const selection = resolveModelMentionSelection(result);
             if (selection) void persistModelSelection(selection);
-            else notificationStore.error($text('common.try_again'));
+            else {
+                modelSelection = 'auto';
+                notificationStore.error($text('enter_message.model_selector.unavailable_reset'));
+            }
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
@@ -5024,7 +5028,7 @@
             return;
         }
         if (!modelSelectionReady) {
-            notificationStore.error($text('common.try_again'));
+            notificationStore.error($text('enter_message.model_selector.loading_wait'));
             return;
         }
 
@@ -5113,7 +5117,8 @@
                 }
             } catch (error) {
                 console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
-                notificationStore.error($text('common.try_again'));
+                modelSelection = 'auto';
+                notificationStore.error($text('enter_message.model_selector.unavailable_reset'));
                 hasContent = !isContentEmptyExceptMention(editor);
                 refreshDraftPreviewState(editor);
                 awaitingAITaskStart = false;
@@ -5172,6 +5177,10 @@
     async function persistModelSelection(selection: ChatModelSelection): Promise<void> {
         modelSelection = selection;
         if (isIncognitoMode) return;
+        if (!$authStore.isAuthenticated) {
+            modelSelection = 'auto';
+            return;
+        }
         const userId = $userProfile.user_id;
         if (!userId || !currentChatId) {
             pendingNewChatModelSelection = currentChatId
@@ -5203,7 +5212,7 @@
                 currentChatId !== selectionChatId
             ) return;
             console.error('[MessageInput] Failed to persist chat model selection:', error);
-            notificationStore.error($text('common.try_again'));
+            notificationStore.error($text('enter_message.model_selector.save_failed'));
         } finally {
             if (
                 selectionGeneration === modelSelectionRestoreGeneration &&

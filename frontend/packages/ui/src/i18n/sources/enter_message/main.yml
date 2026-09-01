@@ -94,6 +94,78 @@ model_selector.unavailable_reset:
   sv: Den valda modellen är inte tillgänglig. Chatten använder nu Auto.
   he: המודל שנבחר אינו זמין. הצ'אט משתמש כעת במצב אוטומטי.
   verified_by_human: []
+model_selector.load_failed:
+  context: Error shown when a chat's saved model setting cannot be loaded and Auto is used instead
+  en: Could not load this chat's model setting. Auto is being used.
+  de: Die Modelleinstellung dieses Chats konnte nicht geladen werden. Auto wird verwendet.
+  zh: 无法加载此聊天的模型设置。现已使用自动模式。
+  es: No se pudo cargar la configuración de modelo de este chat. Se usará Automático.
+  fr: Impossible de charger le modèle de cette discussion. Le mode Auto est utilisé.
+  pt: Não foi possível carregar a configuração de modelo deste chat. O modo Automático será usado.
+  ru: Не удалось загрузить настройку модели этого чата. Используется режим Авто.
+  ja: このチャットのモデル設定を読み込めませんでした。自動を使用します。
+  ko: 이 채팅의 모델 설정을 불러오지 못했습니다. 자동을 사용합니다.
+  it: Impossibile caricare l'impostazione del modello di questa chat. Verrà usato Auto.
+  tr: Bu sohbetin model ayarı yüklenemedi. Otomatik kullanılacak.
+  vi: Không thể tải cài đặt mô hình của cuộc trò chuyện này. Chế độ Tự động sẽ được dùng.
+  id: Pengaturan model chat ini tidak dapat dimuat. Mode Otomatis akan digunakan.
+  pl: Nie udało się wczytać ustawienia modelu tego czatu. Używany jest tryb Auto.
+  nl: De modelinstelling van deze chat kon niet worden geladen. Automatisch wordt gebruikt.
+  ar: تعذر تحميل إعداد النموذج لهذه المحادثة. سيتم استخدام الوضع التلقائي.
+  hi: इस चैट की मॉडल सेटिंग लोड नहीं हो सकी। ऑटो का उपयोग किया जा रहा है।
+  th: โหลดการตั้งค่าโมเดลของแชทนี้ไม่ได้ ระบบจะใช้โหมดอัตโนมัติ
+  cs: Nastavení modelu tohoto chatu se nepodařilo načíst. Použije se automatický režim.
+  sv: Det gick inte att läsa in chattens modellinställning. Auto används.
+  he: לא ניתן לטעון את הגדרת המודל של הצ'אט. נעשה שימוש במצב אוטומטי.
+  verified_by_human: []
+model_selector.save_failed:
+  context: Error shown when the selected chat model cannot be saved
+  en: Could not save the selected model. Select it again.
+  de: Das ausgewählte Modell konnte nicht gespeichert werden. Wähle es erneut aus.
+  zh: 无法保存所选模型。请重新选择。
+  es: No se pudo guardar el modelo seleccionado. Selecciónalo de nuevo.
+  fr: Impossible d'enregistrer le modèle sélectionné. Sélectionnez-le à nouveau.
+  pt: Não foi possível salvar o modelo selecionado. Selecione-o novamente.
+  ru: Не удалось сохранить выбранную модель. Выберите её снова.
+  ja: 選択したモデルを保存できませんでした。もう一度選択してください。
+  ko: 선택한 모델을 저장하지 못했습니다. 다시 선택하세요.
+  it: Impossibile salvare il modello selezionato. Selezionalo di nuovo.
+  tr: Seçilen model kaydedilemedi. Yeniden seçin.
+  vi: Không thể lưu mô hình đã chọn. Hãy chọn lại.
+  id: Model yang dipilih tidak dapat disimpan. Pilih lagi.
+  pl: Nie udało się zapisać wybranego modelu. Wybierz go ponownie.
+  nl: Het geselecteerde model kon niet worden opgeslagen. Selecteer het opnieuw.
+  ar: تعذر حفظ النموذج المحدد. حدده مرة أخرى.
+  hi: चुना गया मॉडल सेव नहीं हो सका। इसे फिर से चुनें।
+  th: บันทึกโมเดลที่เลือกไม่ได้ โปรดเลือกอีกครั้ง
+  cs: Vybraný model se nepodařilo uložit. Vyberte jej znovu.
+  sv: Det gick inte att spara den valda modellen. Välj den igen.
+  he: לא ניתן לשמור את המודל שנבחר. יש לבחור אותו שוב.
+  verified_by_human: []
+model_selector.loading_wait:
+  context: Error shown when sending is blocked briefly while the selected model is still loading
+  en: Model selection is still loading. Send again in a moment.
+  de: Die Modellauswahl wird noch geladen. Sende die Nachricht gleich erneut.
+  zh: 模型选择仍在加载。请稍后重新发送。
+  es: La selección de modelo aún se está cargando. Envía de nuevo en un momento.
+  fr: Le modèle est encore en cours de chargement. Renvoyez dans un instant.
+  pt: A seleção de modelo ainda está carregando. Envie novamente em instantes.
+  ru: Выбор модели ещё загружается. Отправьте сообщение снова через мгновение.
+  ja: モデル選択を読み込み中です。少し待ってからもう一度送信してください。
+  ko: 모델 선택을 아직 불러오는 중입니다. 잠시 후 다시 보내세요.
+  it: La selezione del modello è ancora in caricamento. Invia di nuovo tra poco.
+  tr: Model seçimi hâlâ yükleniyor. Birazdan yeniden gönderin.
+  vi: Lựa chọn mô hình vẫn đang tải. Hãy gửi lại sau giây lát.
+  id: Pilihan model masih dimuat. Kirim lagi sebentar lagi.
+  pl: Wybór modelu nadal się wczytuje. Wyślij ponownie za chwilę.
+  nl: De modelselectie wordt nog geladen. Verstuur over een moment opnieuw.
+  ar: لا يزال اختيار النموذج قيد التحميل. أرسل مرة أخرى بعد لحظات.
+  hi: मॉडल चयन अभी लोड हो रहा है। कुछ देर में फिर भेजें।
+  th: กำลังโหลดการเลือกโมเดล โปรดส่งอีกครั้งในอีกสักครู่
+  cs: Výběr modelu se stále načítá. Za chvíli zprávu odešlete znovu.
+  sv: Modellvalet läses fortfarande in. Skicka igen om en stund.
+  he: בחירת המודל עדיין נטענת. יש לשלוח שוב בעוד רגע.
+  verified_by_human: []
 click_to_enter_message:
   context: Placeholder text shown when message field is not focused
   en: Click here to ask anything
