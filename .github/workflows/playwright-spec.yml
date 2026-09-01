@@ -487,8 +487,9 @@ jobs:
           PLAYWRIGHT_WORKER_SLOT: "1"
           OPENMATES_CLI_RECORD_E2E: "1"
           OPENMATES_E2E_SPEC: ${{ inputs.spec }}
-          PLAYWRIGHT_VIDEO_WIDTH: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '1440' || inputs.proof_video_profile == 'web-phone' && '390' || '' }}
-          PLAYWRIGHT_VIDEO_HEIGHT: ${{ (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '900' || inputs.proof_video_profile == 'web-phone' && '844' || '' }}
+          PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile || (inputs.spec == 'proof-video-architecture.spec.ts' && 'web-laptop') || '' }}
+          PLAYWRIGHT_VIDEO_WIDTH: ${{ inputs.proof_video_profile == 'web-phone' && '390' || (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '1440' || '' }}
+          PLAYWRIGHT_VIDEO_HEIGHT: ${{ inputs.proof_video_profile == 'web-phone' && '630' || (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '900' || '' }}
           SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
           E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
           OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
