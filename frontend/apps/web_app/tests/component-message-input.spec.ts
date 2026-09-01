@@ -191,12 +191,11 @@ async function expectSpeechToggleState(
 	await expect(enabled ? mutedGlyph : audioGlyph).toHaveAttribute('data-visible', 'false');
 	const visibleGlyph = enabled ? audioGlyph : mutedGlyph;
 	const glyph = await visibleGlyph.evaluate((element) => {
-		const style = getComputedStyle(element);
 		const bounds = element.getBoundingClientRect();
-		return { opacity: style.opacity, width: bounds.width, height: bounds.height };
+		return { width: bounds.width, height: bounds.height };
 	});
 	await expect(visibleGlyph.locator('path')).not.toHaveCount(0);
-	expect(glyph.opacity).toBe('1');
+	await expect.poll(() => visibleGlyph.evaluate((element) => getComputedStyle(element).opacity)).toBe('1');
 	expect(glyph.width).toBeGreaterThanOrEqual(20);
 	expect(glyph.height).toBeGreaterThanOrEqual(20);
 }
