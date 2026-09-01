@@ -112,15 +112,20 @@ test.describe.serial('Assistant response speech', () => {
 		const attachmentMenu = messageField.getByTestId('composer-attachment-menu-button');
 		const modelSelector = messageField.getByTestId('composer-model-selector');
 		const voiceToggle = messageField.getByTestId('assistant-speech-toggle');
+		const mic = messageField.getByTestId('record-audio-button');
 		await expect(attachmentMenu).toBeVisible({ timeout: 15_000 });
 		await expect(modelSelector).toBeVisible({ timeout: 15_000 });
 		await expect(voiceToggle).toBeVisible({ timeout: 15_000 });
 		await expect(voiceToggle).toHaveAttribute('data-icon-only', 'true');
-		const [modelBox, voiceBox] = await Promise.all([modelSelector.boundingBox(), voiceToggle.boundingBox()]);
-		expect(modelBox, 'model selector should have layout geometry').toBeTruthy();
+		await attachmentMenu.click();
+		await expect(messageField.getByTestId('composer-attachment-camera')).toBeVisible();
+		await expect(messageField.getByTestId('composer-camera-button')).toHaveCount(0);
+		await attachmentMenu.click();
+		const [voiceBox, micBox] = await Promise.all([voiceToggle.boundingBox(), mic.boundingBox()]);
 		expect(voiceBox, 'speech control should have layout geometry').toBeTruthy();
-		expect(voiceBox!.x).toBeGreaterThanOrEqual(modelBox!.x + modelBox!.width);
-		expect(voiceBox!.x - (modelBox!.x + modelBox!.width)).toBeLessThanOrEqual(32);
+		expect(micBox, 'microphone control should have layout geometry').toBeTruthy();
+		expect(voiceBox!.x + voiceBox!.width).toBeLessThanOrEqual(micBox!.x);
+		expect(micBox!.x - (voiceBox!.x + voiceBox!.width)).toBeLessThanOrEqual(32);
 		const editor = messageField.getByTestId('message-editor');
 		await editor.fill('Composer control verification');
 		await expect(messageField.getByTestId('composer-send-button')).toBeVisible({ timeout: 10_000 });
@@ -128,6 +133,9 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'false');
 		await voiceToggle.click();
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true');
+		const speechStatus = messageField.getByTestId('assistant-speech-toggle-status');
+		await expect(speechStatus).toHaveText('Speech on');
+		await expect(speechStatus).not.toBeVisible({ timeout: 5_000 });
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
@@ -143,8 +151,8 @@ test.describe.serial('Assistant response speech', () => {
 
 		await reloadedToggle.click();
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'false');
-		const mic = page.getByTestId('message-field').last().getByTestId('record-audio-button');
-		await mic.dispatchEvent('mousedown');
+		const reloadedMic = page.getByTestId('message-field').last().getByTestId('record-audio-button');
+		await reloadedMic.dispatchEvent('mousedown');
 		const recording = page.getByTestId('record-overlay');
 		await expect(recording).toBeVisible({ timeout: 10_000 });
 		await page.waitForTimeout(700);

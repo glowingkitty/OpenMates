@@ -262,6 +262,54 @@ send:
   sv: "Skicka"
   he: שלח
   verified_by_human: []
+speech_on:
+  context: Brief status label and accessible name when automatic assistant speech is enabled for the chat
+  en: Speech on
+  de: Sprachausgabe an
+  zh: 语音已开启
+  es: Voz activada
+  fr: Lecture vocale activée
+  pt: Voz ativada
+  ru: Озвучивание включено
+  ja: 音声読み上げオン
+  ko: 음성 켜짐
+  it: Voce attiva
+  tr: Ses açık
+  vi: Đã bật giọng nói
+  id: Suara aktif
+  pl: Mowa włączona
+  nl: Spraak aan
+  ar: الصوت مفعّل
+  hi: वाणी चालू
+  th: เปิดเสียงพูด
+  cs: Hlas zapnutý
+  sv: Tal på
+  he: הקראה פעילה
+  verified_by_human: []
+speech_off:
+  context: Brief status label and accessible name when automatic assistant speech is disabled for the chat
+  en: Speech off
+  de: Sprachausgabe aus
+  zh: 语音已关闭
+  es: Voz desactivada
+  fr: Lecture vocale désactivée
+  pt: Voz desativada
+  ru: Озвучивание выключено
+  ja: 音声読み上げオフ
+  ko: 음성 꺼짐
+  it: Voce disattivata
+  tr: Ses kapalı
+  vi: Đã tắt giọng nói
+  id: Suara nonaktif
+  pl: Mowa wyłączona
+  nl: Spraak uit
+  ar: الصوت متوقف
+  hi: वाणी बंद
+  th: ปิดเสียงพูด
+  cs: Hlas vypnutý
+  sv: Tal av
+  he: הקראה כבויה
+  verified_by_human: []
 buy_credits:
   context: Button text shown instead of Send when a signed-in user has zero credits
   en: Buy credits
