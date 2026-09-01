@@ -155,7 +155,7 @@
   }
 
   async function maybeAutoStartThumbnailCapture() {
-    const resolvedChatId = chatId || activeChatStore.get() || undefined;
+    const resolvedChatId = chatId || $activeChatStore || undefined;
     if (
       autoStartRequested ||
       status !== 'finished' ||
