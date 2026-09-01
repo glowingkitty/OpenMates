@@ -118,8 +118,10 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "duration_seconds",
     "error",
     "retryable",
+    "sequence",
 )
 SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
+SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
 MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
 
@@ -758,20 +760,34 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             logger.info(f"AI Stream Listener: Forwarded '{event_type}' to active chat on {user_id_uuid}/{device_hash}")
                     continue
 
-                if event_type == "assistant_speech_status":
+                if event_type in {"assistant_speech_status", "assistant_speech_acknowledgement"}:
                     chat_id = redis_payload["chat_id"]
                     message_id = redis_payload["message_id"]
                     user_id_hash = redis_payload["user_id_hash"]
-                    status_payload = redis_payload.get("payload")
-                    if not isinstance(status_payload, dict):
+                    speech_payload = redis_payload.get("payload")
+                    if not isinstance(speech_payload, dict):
                         logger.warning(
-                            "AI Stream Listener: Malformed assistant speech status on channel "
+                            "AI Stream Listener: Malformed assistant speech event on channel "
                             f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
                         )
                         continue
-                    if status_payload.get("status") not in SAFE_ASSISTANT_SPEECH_STATUSES:
+                    if (
+                        event_type == "assistant_speech_status"
+                        and speech_payload.get("status") not in SAFE_ASSISTANT_SPEECH_STATUSES
+                    ):
                         logger.warning(
                             "AI Stream Listener: Invalid assistant speech status on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    if event_type == "assistant_speech_acknowledgement" and (
+                        not isinstance(speech_payload.get("clip_id"), str)
+                        or not str(speech_payload.get("audio_url") or "").startswith(
+                            "/audio/assistant-acknowledgements/"
+                        )
+                    ):
+                        logger.warning(
+                            "AI Stream Listener: Invalid assistant speech acknowledgement on channel "
                             f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
                         )
                         continue
@@ -782,17 +798,22 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     ]
                     if len(owner_ids) != 1:
                         logger.warning(
-                            "AI Stream Listener: Could not uniquely route assistant speech status "
+                            "AI Stream Listener: Could not uniquely route assistant speech event "
                             f"for chat {chat_id}."
                         )
                         continue
+                    safe_fields = (
+                        SAFE_ASSISTANT_SPEECH_STATUS_FIELDS
+                        if event_type == "assistant_speech_status"
+                        else SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS
+                    )
                     client_payload = {
                         "chat_id": chat_id,
                         "message_id": message_id,
                         **{
-                            field: status_payload[field]
-                            for field in SAFE_ASSISTANT_SPEECH_STATUS_FIELDS
-                            if field in status_payload
+                            field: speech_payload[field]
+                            for field in safe_fields
+                            if field in speech_payload
                         },
                     }
                     owner_id = owner_ids[0]

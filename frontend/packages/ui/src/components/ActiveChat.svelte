@@ -5401,7 +5401,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
       let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;
-      const autoSpokenMessageIds = new Set<string>();
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat ? 'ready' : 'idle',
      );
@@ -5483,28 +5482,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await assistantSpeechController.request(chatId, messageId, content);
       }
 
-      $effect(() => {
-        const chatId = currentChat?.chat_id;
-        const latestAssistant = [...currentMessages]
-          .reverse()
-          .find((message) => message.role === 'assistant');
-        if (
-          !autoSpeakResponse ||
-          !chatId ||
-          currentChat?.is_incognito ||
-          isPublicChat(chatId) ||
-          !latestAssistant ||
-          latestAssistant.status === 'streaming' ||
-          latestAssistant.status === 'processing' ||
-          typeof latestAssistant.content !== 'string' ||
-          autoSpokenMessageIds.has(latestAssistant.message_id)
-        ) return;
-        autoSpokenMessageIds.add(latestAssistant.message_id);
-        void speakAssistantMessage(latestAssistant.message_id, latestAssistant.content).catch((error) => {
-          autoSpokenMessageIds.delete(latestAssistant.message_id);
-          console.error('[ActiveChat] Automatic assistant speech request failed:', error);
-        });
-      });
       let hasActiveExampleChatSurface = $derived(Boolean(
          currentChat?.chat_id &&
          isExampleChat(currentChat.chat_id) &&

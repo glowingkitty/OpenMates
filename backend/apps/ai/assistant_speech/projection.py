@@ -20,6 +20,17 @@ _URL = re.compile(r"(?:https?|ftp)://[^\s)\]>]+|[a-z][a-z0-9+.-]*://[^\s)\]>]+",
 _MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
 _INLINE_CODE = re.compile(r"`[^`]*`")
 _MARKDOWN_SYNTAX = re.compile(r"(?:^|\s)[#>*_~]+|[_~]{1,3}")
+_ACTION_SKILL_MARKERS = (
+    "book",
+    "create",
+    "delete",
+    "generate",
+    "post",
+    "run",
+    "send",
+    "set",
+    "update",
+)
 
 
 def select_prerecorded_acknowledgement(
@@ -55,11 +66,33 @@ def select_prerecorded_acknowledgement(
     )
     digest = sha256(selection_identity.encode("utf-8")).digest()
     selected = ordered_candidates[int.from_bytes(digest[:8], "big") % len(ordered_candidates)]
-    return {
+    result: dict[str, object] = {
         "clip_id": selected["clip_id"],
         "runtime_generation": False,
         "runtime_credits_charged": 0,
     }
+    if selected.get("asset_url"):
+        result["asset_url"] = selected["asset_url"]
+    return result
+
+
+def classify_acknowledgement_category(
+    *,
+    relevant_app_skills: Iterable[str] | None,
+    complexity: str | None,
+) -> str:
+    """Classify an acknowledgement from existing deterministic preprocessor output."""
+    skills = tuple(str(skill).lower() for skill in (relevant_app_skills or ()))
+    if any(
+        any(marker in re.split(r"[-._/]", skill) for marker in _ACTION_SKILL_MARKERS)
+        for skill in skills
+    ):
+        return "action"
+    if skills:
+        return "lookup"
+    if str(complexity or "").lower() in {"complex", "high", "advanced"}:
+        return "reasoning"
+    return "general"
 
 
 def project_speech_segments(*, blocks: Iterable[Mapping[str, Any]], language: str) -> list[dict[str, object]]:

@@ -190,6 +190,7 @@ async def test_assistant_speech_status_listener_routes_safe_updates_only_to_owne
                     "payload": {
                         "segment_id": "segment-1",
                         "status": status,
+                        "sequence": 0,
                         "speakable_text": "must not leave the worker",
                         **extra_status,
                     },
@@ -223,7 +224,77 @@ async def test_assistant_speech_status_listener_routes_safe_updates_only_to_owne
                     "message_id": "message-1",
                     "segment_id": "segment-1",
                     "status": status,
+                    "sequence": 0,
                     **extra_status,
+                },
+            },
+            owner_id,
+            "owner-active",
+        ),
+    ]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.acknowledgement.deterministic-free
+async def test_assistant_speech_acknowledgement_routes_only_safe_static_metadata_to_owner(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+    owner_id = "owner-1"
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    sent = []
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return object()
+
+            return connected_client()
+
+        async def subscribe_to_channel(self, channel):
+            assert channel == "chat_stream::*"
+            yield {
+                "channel": "chat_stream::chat-1",
+                "data": {
+                    "type": "assistant_speech_acknowledgement",
+                    "chat_id": "chat-1",
+                    "user_id_hash": owner_hash,
+                    "message_id": "message-1",
+                    "payload": {
+                        "clip_id": "hiro-en-US-general-1",
+                        "audio_url": "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
+                        "text": "must not leave the server",
+                        "provider_voice_id": "must-not-leak",
+                    },
+                },
+            }
+
+    class Manager:
+        active_connections = {
+            owner_id: {"owner-active": object(), "owner-other-chat": object()},
+            "other-user": {"other-active": object()},
+        }
+
+        def get_connections_for_user(self, user_id):
+            return self.active_connections.get(user_id, {})
+
+        def get_active_chat(self, _user_id, device_hash):
+            return {"owner-active": "chat-1", "owner-other-chat": "chat-2", "other-active": "chat-1"}.get(device_hash)
+
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    monkeypatch.setattr(websockets, "manager", Manager())
+    await websockets.listen_for_ai_chat_streams(SimpleNamespace(state=SimpleNamespace(cache_service=Cache())))
+
+    assert sent == [
+        (
+            {
+                "type": "assistant_speech_acknowledgement",
+                "payload": {
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
+                    "clip_id": "hiro-en-US-general-1",
+                    "audio_url": "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
                 },
             },
             owner_id,

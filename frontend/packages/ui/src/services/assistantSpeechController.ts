@@ -28,12 +28,20 @@ interface SpeechStatusSegment {
   generated_asset_id?: string;
   duration_seconds?: number;
   retryable?: boolean;
+  sequence?: number;
 }
 
 interface SpeechStatusPayload extends SpeechStatusSegment {
   chat_id?: string;
   message_id?: string;
   segments?: SpeechStatusSegment[];
+}
+
+interface SpeechAcknowledgementPayload {
+  chat_id?: string;
+  message_id?: string;
+  clip_id?: string;
+  audio_url?: string;
 }
 
 export interface AssistantSpeechPlayerState extends AssistantSpeechQueueState {
@@ -54,6 +62,7 @@ const INITIAL_PLAYER_STATE: AssistantSpeechPlayerState = {
 };
 const GENERATED_ASSET_RETRY_MS = 150;
 const GENERATED_ASSET_RETRY_COUNT = 20;
+const MAX_STOPPED_MESSAGE_IDS = 50;
 
 class AssistantSpeechController {
   readonly player = writable<AssistantSpeechPlayerState>(INITIAL_PLAYER_STATE);
@@ -69,17 +78,23 @@ class AssistantSpeechController {
   private chatId: string | null = null;
   private messageId: string | null = null;
   private error: string | null = null;
+  private readonly stoppedMessageIds = new Set<string>();
 
   constructor() {
     webSocketService.on<SpeechStatusPayload>("assistant_speech_status", (payload) => {
       void this.handleStatus(payload);
+    });
+    webSocketService.on<SpeechAcknowledgementPayload>("assistant_speech_acknowledgement", (payload) => {
+      this.handleAcknowledgement(payload);
     });
   }
 
   async request(chatId: string, messageId: string, markdown: string): Promise<void> {
     const projected = projectAssistantSpeech(markdown);
     if (projected.length === 0) return;
+    this.supersedeCurrentMessage(messageId);
     this.pending = { chatId, messageId, projected };
+    this.stoppedMessageIds.delete(messageId);
     this.chatId = chatId;
     this.messageId = messageId;
     this.error = null;
@@ -100,6 +115,7 @@ class AssistantSpeechController {
   continueAfterUserGesture(): Promise<void> { return this.queue.continueAfterUserGesture(); }
 
   async stop(): Promise<void> {
+    if (this.messageId) this.rememberStoppedMessage(this.messageId);
     this.queue.stop();
     if (this.chatId && this.messageId) {
       await webSocketService.sendMessage("assistant_speech", {
@@ -111,6 +127,9 @@ class AssistantSpeechController {
   }
 
   private async handleStatus(payload: SpeechStatusPayload): Promise<void> {
+    const statusMessageId = payload.message_id ?? this.pending?.messageId;
+    if (statusMessageId && this.stoppedMessageIds.has(statusMessageId)) return;
+    if (payload.message_id) this.supersedeCurrentMessage(payload.message_id);
     if (payload.status === "accepted" && payload.segments && this.pending) {
       const { chatId, messageId, projected } = this.pending;
       this.pending = null;
@@ -127,17 +146,63 @@ class AssistantSpeechController {
           durationMs: Math.max(0, Number(status.duration_seconds ?? 0) * 1000),
         } satisfies AssistantSpeechSegment];
       });
-      this.queue.start(messageId, segments);
+      if (this.queue.state.responseId === messageId && this.queue.state.status !== "stopped") {
+        for (const segment of segments) this.queue.upsertSegment(segment);
+      } else {
+        this.queue.start(messageId, segments);
+      }
       await Promise.all(payload.segments.map((status) => this.hydrateReadySegment(status)));
       return;
     }
 
-    if (payload.status === "error") {
+    if (payload.status === "error" && !payload.segment_id) {
       this.error = "Speech is temporarily unavailable.";
       this.publish();
       return;
     }
-    if (payload.segment_id) await this.hydrateReadySegment(payload);
+    if (payload.segment_id) {
+      if (
+        typeof payload.sequence === "number" &&
+        payload.message_id &&
+        payload.chat_id
+      ) {
+        this.chatId = payload.chat_id;
+        this.messageId = payload.message_id;
+        this.segmentSequence.set(payload.segment_id, payload.sequence);
+        if (this.queue.state.responseId !== payload.message_id || this.queue.state.status === "stopped") {
+          this.queue.start(payload.message_id, [{
+            id: payload.segment_id,
+            sequence: payload.sequence,
+            status: payload.status === "ready" ? "ready" : payload.status === "error" ? "failed" : "generating",
+            durationMs: Math.max(0, Number(payload.duration_seconds ?? 0) * 1000),
+          }]);
+        }
+      }
+      await this.hydrateReadySegment(payload);
+    }
+  }
+
+  private handleAcknowledgement(payload: SpeechAcknowledgementPayload): void {
+    if (!payload.chat_id || !payload.message_id || !payload.clip_id || !payload.audio_url) return;
+    if (this.stoppedMessageIds.has(payload.message_id)) return;
+    this.supersedeCurrentMessage(payload.message_id);
+    this.chatId = payload.chat_id;
+    this.messageId = payload.message_id;
+    this.error = null;
+    const acknowledgement: AssistantSpeechSegment = {
+      id: `acknowledgement:${payload.clip_id}`,
+      sequence: -1,
+      status: "ready",
+      durationMs: 0,
+      audioUrl: payload.audio_url,
+      excludeFromWaveform: true,
+    };
+    if (this.queue.state.responseId === payload.message_id && this.queue.state.status !== "stopped") {
+      this.queue.upsertSegment(acknowledgement);
+    } else {
+      this.queue.start(payload.message_id, [acknowledgement]);
+    }
+    this.publish();
   }
 
   private async hydrateReadySegment(status: SpeechStatusSegment): Promise<void> {
@@ -175,6 +240,19 @@ class AssistantSpeechController {
       });
       this.publish();
     }
+  }
+
+  private supersedeCurrentMessage(nextMessageId: string): void {
+    if (this.messageId && this.messageId !== nextMessageId) {
+      this.rememberStoppedMessage(this.messageId);
+    }
+  }
+
+  private rememberStoppedMessage(messageId: string): void {
+    this.stoppedMessageIds.add(messageId);
+    if (this.stoppedMessageIds.size <= MAX_STOPPED_MESSAGE_IDS) return;
+    const oldestMessageId = this.stoppedMessageIds.values().next().value;
+    if (oldestMessageId) this.stoppedMessageIds.delete(oldestMessageId);
   }
 
   private publish(): void {

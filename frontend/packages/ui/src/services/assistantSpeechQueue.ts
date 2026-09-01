@@ -13,6 +13,7 @@ export interface AssistantSpeechSegment {
   status: AssistantSpeechSegmentStatus;
   durationMs: number;
   audioUrl?: string;
+  excludeFromWaveform?: boolean;
 }
 
 export type AssistantSpeechQueueStatus =
@@ -90,7 +91,7 @@ export class AssistantSpeechQueue {
   }
 
   get waveformRegions(): AssistantSpeechWaveformRegion[] {
-    const segments = this.orderedSegments;
+    const segments = this.orderedSegments.filter((segment) => !segment.excludeFromWaveform);
     const totalDuration = segments.reduce(
       (total, segment) => total + Math.max(segment.durationMs, 0),
       0,
@@ -142,6 +143,11 @@ export class AssistantSpeechQueue {
     if (cachedAudio && cachedAudio.url !== segment.audioUrl) {
       cachedAudio.audio.pause();
       this.audioBySegmentId.delete(segment.id);
+    }
+
+    if (!this.state.activeSegmentId) {
+      this.activateFirstSegment();
+      return;
     }
 
     const activeSegment = this.activeSegment;
@@ -237,7 +243,7 @@ export class AssistantSpeechQueue {
 
   private activateFirstSegment(): void {
     const firstSegment = this.orderedSegments[0];
-    if (!firstSegment) {
+    if (!firstSegment || (!firstSegment.excludeFromWaveform && firstSegment.sequence !== 0)) {
       return;
     }
     this.setState({ ...this.state, activeSegmentId: firstSegment.id });
@@ -247,7 +253,7 @@ export class AssistantSpeechQueue {
   }
 
   private async moveBy(direction: -1 | 1): Promise<void> {
-    const segments = this.orderedSegments;
+    const segments = this.orderedSegments.filter((segment) => !segment.excludeFromWaveform);
     const activeIndex = segments.findIndex((segment) => segment.id === this.state.activeSegmentId);
     const targetIndex = activeIndex === -1 ? 0 : activeIndex + direction;
     const targetSegment = segments[targetIndex];

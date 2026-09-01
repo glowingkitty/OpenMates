@@ -76,6 +76,57 @@ describe("AssistantSpeechQueue", () => {
     expect(audioFactory).toHaveBeenCalledTimes(1);
   });
 
+  // contract-test: direct surface=gui.web assertions=assistant-speech.acknowledgement.deterministic-free,assistant-speech.execution.first-segment-progressive,assistant-speech.playback.pinned-full-response-waveform
+  it("plays a prerecorded acknowledgement before paragraphs without adding it to the waveform", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    const acknowledgement: AssistantSpeechSegment = {
+      id: "acknowledgement-1",
+      sequence: -1,
+      status: "ready",
+      durationMs: 0,
+      audioUrl: "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
+      excludeFromWaveform: true,
+    };
+
+    queue.start("response-1", [acknowledgement]);
+    queue.upsertSegment(segment(0, "ready"));
+
+    await vi.waitFor(() => expect(audioByUrl.get(acknowledgement.audioUrl!)?.play).toHaveBeenCalledOnce());
+    expect(queue.waveformRegions).toEqual([
+      { segmentId: "segment-0", start: 0, end: 1, status: "ready", active: false },
+    ]);
+
+    audioByUrl.get(acknowledgement.audioUrl!)?.emit("ended");
+    await vi.waitFor(() => expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce());
+    expect(queue.state.activeSegmentId).toBe("segment-0");
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
+  it("waits for sequence zero when worker readiness arrives out of order", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+
+    queue.start("response-1", [segment(1, "ready")]);
+    await Promise.resolve();
+    expect(audioByUrl.get("blob:segment-1")?.play).not.toHaveBeenCalled();
+
+    queue.upsertSegment(segment(0, "ready"));
+    await vi.waitFor(() => expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce());
+    expect(queue.state.activeSegmentId).toBe("segment-0");
+  });
+
+  // contract-test: direct surface=gui.web assertions=assistant-speech.lifecycle.disable-delete-invalidate
+  it("does not restart from a delayed segment after stop", async () => {
+    const queue = new AssistantSpeechQueue({ audioFactory });
+    queue.start("response-1", [segment(0, "generating")]);
+
+    queue.stop();
+    queue.upsertSegment(segment(0, "ready"));
+    await Promise.resolve();
+
+    expect(queue.state.status).toBe("stopped");
+    expect(audioByUrl.get("blob:segment-0")?.play).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
   it("waits for the next ordered segment instead of skipping ahead", async () => {
     const queue = new AssistantSpeechQueue({ audioFactory });

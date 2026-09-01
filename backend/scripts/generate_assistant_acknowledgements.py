@@ -17,14 +17,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from backend.apps.audio.assistant_speech.acknowledgements import ACKNOWLEDGEMENT_TEXTS
-from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS
-from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL
-from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.elevenlabs.client import DEFAULT_OUTPUT_FORMAT, ElevenLabsClient
+import httpx
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from backend.apps.audio.assistant_speech.acknowledgements import ACKNOWLEDGEMENT_TEXTS  # noqa: E402
+from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS  # noqa: E402
+from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL  # noqa: E402
+from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+from backend.shared.providers.elevenlabs.client import DEFAULT_OUTPUT_FORMAT, ElevenLabsClient  # noqa: E402
 
 
-DEFAULT_OUTPUT_ROOT = Path("/app/frontend/apps/web_app/static/audio/assistant-acknowledgements")
+DEFAULT_OUTPUT_ROOT = REPOSITORY_ROOT / "frontend/apps/web_app/static/audio/assistant-acknowledgements"
 MANIFEST_FILENAME = "manifest.json"
 MANIFEST_SCHEMA_VERSION = 1
 
@@ -61,6 +67,18 @@ def _remaining_credits(subscription: dict[str, Any]) -> int | None:
     if not isinstance(used, int) or not isinstance(limit, int):
         return None
     return max(0, limit - used)
+
+
+def _missing_permission(response: httpx.Response) -> str | None:
+    try:
+        detail = response.json().get("detail")
+    except (ValueError, AttributeError):
+        return None
+    if not isinstance(detail, dict) or detail.get("status") != "missing_permissions":
+        return None
+    message = str(detail.get("message") or "")
+    marker = "missing the permission "
+    return message.split(marker, maxsplit=1)[1].split(maxsplit=1)[0] if marker in message else "unknown"
 
 
 def _public_entry(item: dict[str, Any], *, audio_bytes: bytes, duration_seconds: float | None) -> dict[str, Any]:
@@ -131,7 +149,14 @@ def _reconcile_existing_assets(
     return changed
 
 
-async def run(*, language: str, output_root: Path, generate: bool) -> int:
+async def run(
+    *,
+    language: str,
+    output_root: Path,
+    generate: bool,
+    verify_only: bool = False,
+    allow_missing_user_read: bool = False,
+) -> int:
     plan = build_plan(language, output_root)
     existing_entries = _load_manifest_entries(output_root)
     repaired_manifest = _reconcile_existing_assets(plan, existing_entries)
@@ -139,12 +164,53 @@ async def run(*, language: str, output_root: Path, generate: bool) -> int:
         _write_manifest(output_root, existing_entries)
     pending_plan = [item for item in plan if item["clip_id"] not in existing_entries]
     required_characters = sum(len(item["text"]) for item in pending_plan)
+    if verify_only:
+        if pending_plan:
+            print(
+                json.dumps(
+                    {
+                        "status": "fail",
+                        "language": language,
+                        "missing_clip_count": len(pending_plan),
+                    }
+                )
+            )
+            return 1
+        print(json.dumps({"status": "pass", "language": language, "clip_count": len(plan)}))
+        return 0
 
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
     client = ElevenLabsClient(secrets_manager=secrets_manager)
     try:
-        subscription = await client.get_subscription()
+        try:
+            subscription = await client.get_subscription()
+        except httpx.HTTPStatusError as error:
+            missing_permission = _missing_permission(error.response)
+            if missing_permission and generate and allow_missing_user_read:
+                print(
+                    json.dumps(
+                        {
+                            "status": "warning",
+                            "warning": "quota preflight waived",
+                            "missing_permission": missing_permission,
+                        }
+                    )
+                )
+                subscription = {}
+            elif missing_permission:
+                print(
+                    json.dumps(
+                        {
+                            "status": "fail",
+                            "error": "missing ElevenLabs API key permission",
+                            "required_permission": missing_permission,
+                        }
+                    )
+                )
+                return 2
+            else:
+                raise
         remaining_before = _remaining_credits(subscription)
         print(
             json.dumps(
@@ -187,7 +253,7 @@ async def run(*, language: str, output_root: Path, generate: bool) -> int:
             _write_manifest(output_root, existing_entries)
             generated_count += 1
 
-        subscription_after = await client.get_subscription()
+        subscription_after = {} if allow_missing_user_read else await client.get_subscription()
         print(
             json.dumps(
                 {
@@ -208,9 +274,26 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--language", required=True, choices=sorted(ACKNOWLEDGEMENT_TEXTS))
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
-    parser.add_argument("--generate", action="store_true")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--generate", action="store_true")
+    mode.add_argument("--verify-only", action="store_true")
+    parser.add_argument(
+        "--allow-missing-user-read",
+        action="store_true",
+        help="Explicitly waive the quota preflight when a restricted key lacks user_read.",
+    )
     arguments = parser.parse_args()
-    return asyncio.run(run(language=arguments.language, output_root=arguments.output_root, generate=arguments.generate))
+    if arguments.allow_missing_user_read and not arguments.generate:
+        parser.error("--allow-missing-user-read requires --generate")
+    return asyncio.run(
+        run(
+            language=arguments.language,
+            output_root=arguments.output_root,
+            generate=arguments.generate,
+            verify_only=arguments.verify_only,
+            allow_missing_user_read=arguments.allow_missing_user_read,
+        )
+    )
 
 
 if __name__ == "__main__":

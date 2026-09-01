@@ -7,17 +7,27 @@
 
 from pathlib import Path
 
+import httpx
 import pytest
 
 from backend.apps.ai.assistant_speech.projection import (
+    classify_acknowledgement_category,
     project_streaming_speech_segment,
     project_speech_segments,
     select_prerecorded_acknowledgement,
 )
 from backend.apps.ai.utils.mate_utils import load_mates_config
-from backend.apps.audio.assistant_speech.acknowledgements import ACKNOWLEDGEMENT_TEXTS
+from backend.apps.audio.assistant_speech.acknowledgements import (
+    ACKNOWLEDGEMENT_TEXTS,
+    build_acknowledgement_clips,
+)
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
-from backend.scripts.generate_assistant_acknowledgements import build_plan, _reconcile_existing_assets
+from backend.scripts.generate_assistant_acknowledgements import (
+    _reconcile_existing_assets,
+    _missing_permission,
+    build_plan,
+    run as run_acknowledgement_generator,
+)
 
 
 EXPECTED_MATE_PROFILE_KEYS = {
@@ -157,6 +167,62 @@ def test_acknowledgement_generation_repairs_orphans_and_rejects_corruption(tmp_p
     item["output_path"].write_bytes(b"corrupt audio")
     with pytest.raises(RuntimeError, match="checksum validation"):
         _reconcile_existing_assets([item], entries)
+
+
+# contract-test: supporting surface=gui.web assertions=assistant-speech.acknowledgement.deterministic-free
+@pytest.mark.asyncio
+async def test_acknowledgement_asset_verification_fails_without_static_clips(tmp_path: Path) -> None:
+    result = await run_acknowledgement_generator(
+        language="en-US",
+        output_root=tmp_path,
+        generate=False,
+        verify_only=True,
+    )
+
+    assert result == 1
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
+def test_acknowledgement_generation_reports_scoped_key_permission() -> None:
+    response = httpx.Response(
+        401,
+        request=httpx.Request("GET", "https://api.elevenlabs.io/v1/user/subscription"),
+        json={
+            "detail": {
+                "status": "missing_permissions",
+                "message": "The API key you used is missing the permission user_read to execute this operation.",
+            }
+        },
+    )
+
+    assert _missing_permission(response) == "user_read"
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
+def test_classifies_acknowledgements_from_existing_preprocessor_signals() -> None:
+    assert classify_acknowledgement_category(relevant_app_skills=["reminder-set"], complexity="simple") == "action"
+    assert classify_acknowledgement_category(relevant_app_skills=["calendar.create-event"], complexity="simple") == "action"
+    assert classify_acknowledgement_category(relevant_app_skills=["web-search"], complexity="simple") == "lookup"
+    assert classify_acknowledgement_category(relevant_app_skills=[], complexity="complex") == "reasoning"
+    assert classify_acknowledgement_category(relevant_app_skills=None, complexity="simple") == "general"
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
+def test_builds_public_static_clip_metadata_without_provider_identifiers() -> None:
+    clips = build_acknowledgement_clips(voice_profile_id="hiro", voice_profile_version=1, language="en")
+
+    assert len(clips) == 12
+    assert all(str(clip["asset_url"]).startswith("/audio/assistant-acknowledgements/hiro/en-US/") for clip in clips)
+    assert "provider" not in repr(clips).lower()
+    selected = select_prerecorded_acknowledgement(
+        clips=clips,
+        voice_profile_id="hiro",
+        voice_profile_version=1,
+        language="en",
+        request_category="general",
+        selection_seed="message-1",
+    )
+    assert selected and str(selected["asset_url"]).endswith(".mp3")
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.projection.deterministic-semantic,assistant-speech.projection.no-cleanup-inference

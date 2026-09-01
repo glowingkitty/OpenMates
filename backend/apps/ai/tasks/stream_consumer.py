@@ -24,6 +24,10 @@ from backend.core.api.app.services.sub_chat_orchestration_service import SubChat
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.assistant_speech.projection import (
+    classify_acknowledgement_category,
+    select_prerecorded_acknowledgement,
+)
 from backend.apps.ai.assistant_speech.streaming import ImmutableSpeechBoundaryTracker
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.core.api.app.schemas.chat import AIHistoryMessage
@@ -130,6 +134,9 @@ async def _dispatch_automatic_assistant_speech_segment(
     user_vault_key_id: Optional[str],
     voice_profile: dict[str, object],
     auto_speak: bool,
+    cache_service: Optional[CacheService],
+    redis_channel_name: str,
+    log_prefix: str,
 ) -> None:
     """Persist and queue one immutable segment outside the authoritative text path."""
     if directus_service is None:
@@ -159,6 +166,23 @@ async def _dispatch_automatic_assistant_speech_segment(
             },
         },
         queue="app_music",
+    )
+    await _publish_to_redis(
+        cache_service,
+        redis_channel_name,
+        {
+            "type": "assistant_speech_status",
+            "chat_id": str(segment["chat_id"]),
+            "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+            "message_id": str(segment["assistant_message_id"]),
+            "payload": {
+                "segment_id": str(segment["segment_id"]),
+                "status": "queued",
+                "sequence": int(segment["sequence"]),
+            },
+        },
+        log_prefix,
+        "assistant speech queued status",
     )
 
 
@@ -5050,13 +5074,54 @@ async def _consume_main_processing_stream(
                 "key": selected_mate.voice_profile.key,
                 "version": selected_mate.voice_profile.version,
             }
+            speech_language = (
+                preprocessing_result.output_language
+                or (request_data.user_preferences or {}).get("language", "en")
+            )
+            if request_data.auto_speak_response:
+                from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
+
+                acknowledgement_category = classify_acknowledgement_category(
+                    relevant_app_skills=preprocessing_result.relevant_app_skills,
+                    complexity=preprocessing_result.complexity,
+                )
+                acknowledgement = select_prerecorded_acknowledgement(
+                    clips=build_acknowledgement_clips(
+                        voice_profile_id=selected_mate.voice_profile.key,
+                        voice_profile_version=selected_mate.voice_profile.version,
+                        language=speech_language,
+                    ),
+                    voice_profile_id=selected_mate.voice_profile.key,
+                    voice_profile_version=selected_mate.voice_profile.version,
+                    language=speech_language,
+                    request_category=acknowledgement_category,
+                    selection_seed=assistant_message_id,
+                )
+                if acknowledgement and acknowledgement.get("asset_url"):
+                    _publish_to_redis(
+                        cache_service,
+                        redis_channel_name,
+                        {
+                            "type": "assistant_speech_acknowledgement",
+                            "chat_id": request_data.chat_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "message_id": assistant_message_id,
+                            "payload": {
+                                "chat_id": request_data.chat_id,
+                                "message_id": assistant_message_id,
+                                "clip_id": acknowledgement["clip_id"],
+                                "audio_url": acknowledgement["asset_url"],
+                            },
+                        },
+                        log_prefix,
+                        "assistant speech acknowledgement",
+                    )
             speech_metadata = {
                 "chat_id": request_data.chat_id,
                 "assistant_message_id": assistant_message_id,
                 "source_version": request_data.assistant_response_source_revision,
                 "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
-                "language": preprocessing_result.output_language
-                or (request_data.user_preferences or {}).get("language", "en"),
+                "language": speech_language,
             }
             speech_tracker = ImmutableSpeechBoundaryTracker(
                 metadata=speech_metadata,
@@ -5067,6 +5132,9 @@ async def _consume_main_processing_stream(
                     user_vault_key_id=user_vault_key_id,
                     voice_profile=voice_profile,
                     auto_speak=request_data.auto_speak_response,
+                    cache_service=cache_service,
+                    redis_channel_name=redis_channel_name,
+                    log_prefix=log_prefix,
                 ),
                 invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
                     segment=segment,

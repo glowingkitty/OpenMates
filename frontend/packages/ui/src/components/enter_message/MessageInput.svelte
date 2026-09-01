@@ -223,7 +223,7 @@
         /** Logged-out welcome CTA treatment with icon, centered copy, and direct mic affordance. */
         guestCtaMode?: boolean;
         autoSpeakResponse?: boolean;
-        onAssistantSpeechPreferenceChange?: (enabled: boolean, chatId?: string) => Promise<void> | void;
+        onAssistantSpeechPreferenceChange: (enabled: boolean, chatId?: string) => Promise<void> | void;
     }
     let { 
         currentChatId = undefined,
@@ -249,7 +249,7 @@
         anonymousFileAttachmentPending = $bindable(false),
         guestCtaMode = false,
         autoSpeakResponse = false,
-        onAssistantSpeechPreferenceChange = undefined
+        onAssistantSpeechPreferenceChange
     }: Props = $props();
 
     // --- Refs ---
@@ -4615,7 +4615,7 @@
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(chatIdForRecording || currentChatId, editor);
         if (!autoSpeakResponse && chatIdForRecording) {
-            await onAssistantSpeechPreferenceChange?.(true, chatIdForRecording);
+            await onAssistantSpeechPreferenceChange(true, chatIdForRecording);
         }
         handleStopRecordingCleanup(); // Called here after recording is inserted
         await tick();
@@ -6369,7 +6369,7 @@
                     on:recordMouseLeave={onRecordMouseLeave}
                     on:recordTouchStart={onRecordTouchStart}
                     on:recordTouchEnd={onRecordTouchEnd}
-                    on:assistantSpeechToggle={(event) => onAssistantSpeechPreferenceChange?.(event.detail.enabled)}
+                    on:assistantSpeechToggle={(event) => onAssistantSpeechPreferenceChange(event.detail.enabled)}
                 />
             </div>
         {/if}

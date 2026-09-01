@@ -146,7 +146,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     pytest.importorskip("celery", reason="real Celery task wiring requires the worker dependency")
     from backend.apps.audio.assistant_speech import segment_task
 
-    records = {"segment-3": {"id": "row-3", "segment_id": "segment-3", "status": "queued"}}
+    records = {"segment-3": {"id": "row-3", "segment_id": "segment-3", "sequence": 0, "status": "queued"}}
     calls: list[dict[str, object]] = []
 
     class Directus:
@@ -247,6 +247,9 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
                     "status": "ready",
                     "generated_asset_id": "segment-3",
                     "duration_seconds": 1.0,
+                    "sequence": 0,
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
                 },
             },
         ),
@@ -401,6 +404,7 @@ def test_status_serialization_excludes_plaintext_provider_and_internal_storage_f
             "status": "ready",
             "generated_asset_id": "segment-0",
             "duration_seconds": 1.2,
+            "sequence": 0,
             "speakable_text": "never send this",
             "provider_request_id": "provider-only",
             "billing_usage_id": "usage-only",
@@ -413,6 +417,7 @@ def test_status_serialization_excludes_plaintext_provider_and_internal_storage_f
         "status": "ready",
         "generated_asset_id": "segment-0",
         "duration_seconds": 1.2,
+        "sequence": 0,
     }
 
 

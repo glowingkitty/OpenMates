@@ -19,7 +19,6 @@ from backend.apps.audio.assistant_speech.persistence import (
     finalize_speech_segment_execution,
     get_speech_segment,
     safe_segment_status,
-    update_segment_status,
 )
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
 from backend.apps.audio.assistant_speech.worker import generate_speech_segment
@@ -215,23 +214,23 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
     except Exception:
         logger.exception("%s Assistant speech segment failed", log_prefix)
         result = {"segment_id": segment_id, "status": "error", "error": "Speech is temporarily unavailable.", "retryable": True}
-    if result.get("status") == "ready":
-        finalized = await finalize_speech_segment_execution(
-            task._directus_service,
-            segment_id,
-            result,
-            lease_id=lease_id,
-            execution_version=int(claimed["execution_version"]),
-        )
-        if not finalized:
-            if generated_asset_id:
-                try:
-                    await _delete_generated_speech_asset(task, generated_asset_id)
-                except Exception:
-                    logger.exception("%s Failed to compensate unfinalized assistant speech asset", log_prefix)
-            return {"segment_id": segment_id, "status": "cancelled"}
-    else:
-        await update_segment_status(task._directus_service, segment_id, result)
+    sequence = existing.get("sequence", arguments.get("sequence"))
+    if isinstance(sequence, int):
+        result["sequence"] = sequence
+    finalized = await finalize_speech_segment_execution(
+        task._directus_service,
+        segment_id,
+        result,
+        lease_id=lease_id,
+        execution_version=int(claimed["execution_version"]),
+    )
+    if not finalized:
+        if generated_asset_id:
+            try:
+                await _delete_generated_speech_asset(task, generated_asset_id)
+            except Exception:
+                logger.exception("%s Failed to compensate unfinalized assistant speech asset", log_prefix)
+        return {"segment_id": segment_id, "status": "cancelled"}
     status = safe_segment_status(result)
     await task._cache_service.publish_event(
         f"chat_stream::{arguments.get('chat_id')}",
@@ -240,7 +239,11 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             "chat_id": str(arguments.get("chat_id") or ""),
             "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
             "message_id": str(arguments.get("assistant_message_id") or ""),
-            "payload": status,
+            "payload": {
+                **status,
+                "chat_id": str(arguments.get("chat_id") or ""),
+                "message_id": str(arguments.get("assistant_message_id") or ""),
+            },
         },
     )
     return status

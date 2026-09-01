@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 
+ACKNOWLEDGEMENT_ASSET_ROOT = "/audio/assistant-acknowledgements"
 ACKNOWLEDGEMENT_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
     "en-US": {
         "general": (
@@ -54,3 +55,48 @@ ACKNOWLEDGEMENT_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
         ),
     },
 }
+
+
+def build_acknowledgement_clips(
+    *,
+    voice_profile_id: str,
+    voice_profile_version: int,
+    language: str,
+) -> list[dict[str, object]]:
+    """Build public static clip metadata for one approved mate and locale."""
+    locale = _resolve_locale(language)
+    if locale is None:
+        return []
+
+    clips: list[dict[str, object]] = []
+    for category, variants in ACKNOWLEDGEMENT_TEXTS[locale].items():
+        for variant, _text in enumerate(variants, start=1):
+            clip_id = f"{voice_profile_id}-{locale}-{category}-{variant}"
+            clips.append(
+                {
+                    "clip_id": clip_id,
+                    "voice_profile_id": voice_profile_id,
+                    "voice_profile_version": voice_profile_version,
+                    "language": locale,
+                    "request_category": category,
+                    "variant": variant,
+                    "asset_url": (
+                        f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{voice_profile_id}/{locale}/{category}-{variant}.mp3"
+                    ),
+                }
+            )
+    return clips
+
+
+def _resolve_locale(language: str) -> str | None:
+    if language in ACKNOWLEDGEMENT_TEXTS:
+        return language
+    base_language = language.split("-", maxsplit=1)[0].lower()
+    return next(
+        (
+            locale
+            for locale in ACKNOWLEDGEMENT_TEXTS
+            if locale.split("-", maxsplit=1)[0].lower() == base_language
+        ),
+        None,
+    )

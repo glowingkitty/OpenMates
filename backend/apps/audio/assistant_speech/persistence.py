@@ -150,7 +150,7 @@ async def finalize_speech_segment_execution(
     lease_id: str,
     execution_version: int,
 ) -> bool:
-    """Publish ready only from the exact worker claim that generated the asset."""
+    """Publish a terminal result only from the exact worker claim that produced it."""
     record = {field: result[field] for field in PERSISTED_STATUS_FIELDS if field in result}
     record.pop("segment_id", None)
     record.update({"lease_id": None, "lease_expires_at": None})
@@ -375,7 +375,10 @@ async def cleanup_generated_speech_asset(
 
 def safe_segment_status(result: Mapping[str, object]) -> dict[str, object]:
     """Build a client event without plaintext, provider, or billing internals."""
-    return {field: result[field] for field in SAFE_STATUS_FIELDS if field in result}
+    status = {field: result[field] for field in SAFE_STATUS_FIELDS if field in result}
+    if "sequence" in result:
+        status["sequence"] = result["sequence"]
+    return status
 
 
 def _parse_timestamp(value: object) -> datetime | None:
