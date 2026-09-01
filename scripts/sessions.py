@@ -243,10 +243,10 @@ REPO_ALIASES = {
     "openmates-cloud": OPENMATESCLOUD_REPO_ID,
     "cloud": OPENMATESCLOUD_REPO_ID,
 }
-CONTRACT_GENERATED_ARTIFACTS = {
-    "contracts/generated/assertion-index.yml",
-    "contracts/generated/coverage.yml",
-    "contracts/generated/registry.yml",
+SPECIFICATION_GENERATED_ARTIFACTS = {
+    "specifications/generated/assertion-index.yml",
+    "specifications/generated/coverage.yml",
+    "specifications/generated/registry.yml",
 }
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
@@ -262,7 +262,7 @@ ENV_FILE = CONTROL_PLANE_ROOT / ".env"
 VISUAL_SMOKE_UI_PATH_RE = re.compile(
     r"^(frontend/packages/ui/src/.+\.(svelte|css|ts)|frontend/apps/web_app/src/routes/.+\.(svelte|css|ts))$"
 )
-VISUAL_SMOKE_SPEC_PATH_RE = re.compile(r"^docs/specs/.+/spec\.yml$")
+VISUAL_SMOKE_PLAN_PATH_RE = re.compile(r"^docs/plans/.+/plan\.yml$")
 VISUAL_SMOKE_HIGH_RISK_RE = re.compile(
     r"(ActiveChat|Chat|MessageInput|Composer|Settings|Share|Embed|Landing|DailyInspiration|Welcome|Auth|Login|Signup|Billing|Usage|Navigation|Header|Sidebar)",
     re.IGNORECASE,
@@ -3883,10 +3883,10 @@ def _remove_integration_worktree(integration: dict) -> None:
         raise RuntimeError(f"Could not remove integration worktree {path}: {stderr}")
 
 
-def _split_contract_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
-    """Separate deterministic contract outputs from source patches."""
-    generated = [relative_path for relative_path in files if relative_path in CONTRACT_GENERATED_ARTIFACTS]
-    source = [relative_path for relative_path in files if relative_path not in CONTRACT_GENERATED_ARTIFACTS]
+def _split_specification_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
+    """Separate deterministic Specification outputs from source patches."""
+    generated = [relative_path for relative_path in files if relative_path in SPECIFICATION_GENERATED_ARTIFACTS]
+    source = [relative_path for relative_path in files if relative_path not in SPECIFICATION_GENERATED_ARTIFACTS]
     return source, generated
 
 
@@ -4001,13 +4001,13 @@ def _selected_paths_changed_between_refs(
     )
 
 
-def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
-    """Regenerate selected contract artifacts in an integration checkout."""
+def _regenerate_specification_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
+    """Regenerate selected Specification artifacts in an integration checkout."""
     if not generated_files:
         return
-    script = checkout_root / "scripts" / "contracts.py"
+    script = checkout_root / "scripts" / "specifications.py"
     if not script.exists():
-        raise RuntimeError("contract artifact generation unavailable: scripts/contracts.py is missing")
+        raise RuntimeError("Specification artifact generation unavailable: scripts/specifications.py is missing")
     result = subprocess.run(
         [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
         cwd=str(checkout_root),
@@ -4016,11 +4016,11 @@ def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[st
         timeout=120,
     )
     if result.returncode != 0:
-        detail = result.stderr or result.stdout or "contract artifact generation failed"
+        detail = result.stderr or result.stdout or "Specification artifact generation failed"
         raise RuntimeError(detail.strip())
     rc, _stdout, stderr = _run_cmd(["git", "add", "--", *sorted(generated_files)], cwd=str(checkout_root))
     if rc != 0:
-        raise RuntimeError(f"Could not stage regenerated contract artifacts: {stderr}")
+        raise RuntimeError(f"Could not stage regenerated Specification artifacts: {stderr}")
 
 
 def _apply_worktree_diff_to_checkout(
@@ -4037,7 +4037,7 @@ def _apply_worktree_diff_to_checkout(
     source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
-    patch_files, contract_generated_files = _split_contract_generated_artifacts(files)
+    patch_files, specification_generated_files = _split_specification_generated_artifacts(files)
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -4079,7 +4079,7 @@ def _apply_worktree_diff_to_checkout(
                     source_base=source_base,
                     final_base=prepared_base,
                 )
-        _regenerate_contract_artifacts(checkout_root, contract_generated_files)
+        _regenerate_specification_artifacts(checkout_root, specification_generated_files)
         _enforce_no_integration_deletion_amplification(
             source_metadata,
             patch_files,
@@ -4169,7 +4169,7 @@ def _apply_worktree_diff_to_checkout(
         if rc != 0:
             raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
 
-    _regenerate_contract_artifacts(checkout_root, contract_generated_files)
+    _regenerate_specification_artifacts(checkout_root, specification_generated_files)
     _enforce_no_integration_deletion_amplification(
         source_metadata,
         patch_files,
@@ -6636,7 +6636,7 @@ def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
 def _get_staged_files(*, checkout_root: Path | None = None) -> set[str]:
     """Return set of file paths currently in the git index (staged for commit)."""
     rc, stdout, _ = _run_cmd(
-        ["git", "diff", "--name-only", "--cached"],
+        ["git", "diff", "--name-only", "--cached", "--no-renames"],
         cwd=str(checkout_root or CONTROL_PLANE_ROOT),
     )
     if rc != 0 or not stdout:
@@ -11909,7 +11909,7 @@ def _requires_visual_smoke(files: list[str]) -> bool:
     ui_files = _visual_smoke_ui_files(files)
     if not ui_files:
         return False
-    if any(VISUAL_SMOKE_SPEC_PATH_RE.search(f) for f in files):
+    if any(VISUAL_SMOKE_PLAN_PATH_RE.search(f) for f in files):
         return True
     if len(ui_files) >= 2:
         return True
@@ -12438,21 +12438,33 @@ def _run_translation_build(*, checkout_root: Path | None = None) -> tuple[int, s
     return result.returncode, result.stdout, result.stderr
 
 
-def _run_contract_gate(files: list[str], *, session_id: str, checkout_root: Path) -> None:
-    """Block unresolved changed tests and unapproved contract bundle hashes."""
+SPECIFICATION_GATE_MIN_TIMEOUT_SECONDS = 60
+SPECIFICATION_GATE_MAX_TIMEOUT_SECONDS = 600
+
+
+def _specification_gate_timeout_seconds(relevant_file_count: int) -> int:
+    """Return a bounded timeout for Specification checks over large migrations."""
+    return min(
+        SPECIFICATION_GATE_MAX_TIMEOUT_SECONDS,
+        max(SPECIFICATION_GATE_MIN_TIMEOUT_SECONDS, SPECIFICATION_GATE_MIN_TIMEOUT_SECONDS + max(0, relevant_file_count)),
+    )
+
+
+def _run_specification_gate(files: list[str], *, session_id: str, checkout_root: Path) -> None:
+    """Block unresolved changed tests and unapproved Specification bundle hashes."""
     relevant = [
         path
         for path in files
-        if path.startswith("contracts/")
-        or path.startswith("docs/specs/") and Path(path).name == "spec.yml"
+        if path.startswith("specifications/")
+        or path.startswith("docs/plans/") and Path(path).name == "plan.yml"
         or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
         or Path(path).name.startswith("test_") and path.endswith(".py")
     ]
     if not relevant:
         return
-    script = checkout_root / "scripts" / "contracts.py"
+    script = checkout_root / "scripts" / "specifications.py"
     if not script.exists():
-        raise RuntimeError("contract gate unavailable: scripts/contracts.py is missing")
+        raise RuntimeError("Specification gate unavailable: scripts/specifications.py is missing")
     cmd = [
         sys.executable,
         str(script),
@@ -12463,63 +12475,70 @@ def _run_contract_gate(files: list[str], *, session_id: str, checkout_root: Path
         "--repo-root",
         str(checkout_root),
         "--approvals-file",
-        str(CONTROL_PLANE_ROOT / "scripts" / ".contracts-approvals-state.json"),
+        str(CONTROL_PLANE_ROOT / "scripts" / ".specifications-approvals-state.json"),
     ]
-    result = subprocess.run(cmd, cwd=str(checkout_root), capture_output=True, text=True, timeout=60)
+    timeout_seconds = _specification_gate_timeout_seconds(len(relevant))
+    try:
+        result = subprocess.run(cmd, cwd=str(checkout_root), capture_output=True, text=True, timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"SPECIFICATION GATE TIMEOUT — check-changed exceeded {timeout_seconds}s "
+            f"for {len(relevant)} changed file(s)."
+        ) from exc
     if result.returncode != 0:
-        detail = result.stderr or result.stdout or "contract gate failed"
-        raise RuntimeError(f"CONTRACT GATE FAILED\n{detail.strip()}")
-    print("Contract gate: PASSED")
+        detail = result.stderr or result.stdout or "Specification gate failed"
+        raise RuntimeError(f"SPECIFICATION GATE FAILED\n{detail.strip()}")
+    print("Specification gate: PASSED")
 
 
-CONTRACT_GENERATED_FILES = (
-    "contracts/generated/registry.yml",
-    "contracts/generated/assertion-index.yml",
-    "contracts/generated/coverage.yml",
+SPECIFICATION_GENERATED_FILES = (
+    "specifications/generated/registry.yml",
+    "specifications/generated/assertion-index.yml",
+    "specifications/generated/coverage.yml",
 )
 
 
-def _should_regenerate_contract_artifacts(files: list[str]) -> bool:
-    """Return True when deploy inputs can change contract-generated artifacts."""
+def _should_regenerate_specification_artifacts(files: list[str]) -> bool:
+    """Return True when deploy inputs can change Specification-generated artifacts."""
 
     return any(
-        path.startswith("contracts/")
-        or path.startswith("docs/specs/") and Path(path).name == "spec.yml"
+        path.startswith("specifications/")
+        or path.startswith("docs/plans/") and Path(path).name == "plan.yml"
         or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
         or Path(path).name.startswith("test_") and path.endswith(".py")
         for path in files
     )
 
 
-def _regenerate_contract_artifacts_for_deploy(files: list[str], *, checkout_root: Path) -> list[str]:
-    """Regenerate and stage contract artifacts inside a disposable deploy checkout."""
+def _regenerate_specification_artifacts_for_deploy(files: list[str], *, checkout_root: Path) -> list[str]:
+    """Regenerate and stage Specification artifacts inside a disposable deploy checkout."""
 
-    if not _should_regenerate_contract_artifacts(files):
+    if not _should_regenerate_specification_artifacts(files):
         return []
-    script = checkout_root / "scripts" / "contracts.py"
+    script = checkout_root / "scripts" / "specifications.py"
     if not script.exists():
-        raise RuntimeError("contract generation unavailable: scripts/contracts.py is missing")
-    print("Regenerating contract artifacts for integration checkout...")
+        raise RuntimeError("Specification generation unavailable: scripts/specifications.py is missing")
+    print("Regenerating Specification artifacts for integration checkout...")
     rc, stdout, stderr = _run_cmd(
         [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
         cwd=str(checkout_root),
         timeout=120,
     )
     if rc != 0:
-        detail = stderr or stdout or "contract artifact generation failed"
+        detail = stderr or stdout or "Specification artifact generation failed"
         raise RuntimeError(detail)
     rc, _stdout, stderr = _run_cmd(
-        ["git", "add", "--", *CONTRACT_GENERATED_FILES],
+        ["git", "add", "--", *SPECIFICATION_GENERATED_FILES],
         cwd=str(checkout_root),
     )
     if rc != 0:
-        raise RuntimeError(f"Could not stage contract-generated artifacts: {stderr}")
+        raise RuntimeError(f"Could not stage Specification-generated artifacts: {stderr}")
     staged = _get_staged_files(checkout_root=checkout_root)
-    generated = [path for path in CONTRACT_GENERATED_FILES if path in staged]
+    generated = [path for path in SPECIFICATION_GENERATED_FILES if path in staged]
     if generated:
-        print("Contract artifacts: REGENERATED")
+        print("Specification artifacts: REGENERATED")
     else:
-        print("Contract artifacts: CURRENT")
+        print("Specification artifacts: CURRENT")
     return generated
 
 
@@ -12534,7 +12553,7 @@ def _run_deploy_gates(
 ) -> None:
     """Run source-dependent deploy gates against one authoritative checkout."""
     if session_id:
-        _run_contract_gate(files, session_id=session_id, checkout_root=checkout_root)
+        _run_specification_gate(files, session_id=session_id, checkout_root=checkout_root)
 
     _enforce_embed_registry_validation(files, checkout_root=checkout_root)
 
@@ -12952,33 +12971,33 @@ def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
     return commit_msg
 
 
-def _validate_contract_commit_message(files: list[str], message: str) -> None:
+def _validate_specification_commit_message(files: list[str], message: str) -> None:
     governed = [
         path
         for path in files
-        if path.startswith("contracts/") and Path(path).name in {"contract.yml", "examples.yml"}
+        if path.startswith("specifications/") and Path(path).name in {"specification.yml", "examples.yml"}
     ]
     if not governed:
         return
     missing = [
         trailer
-        for trailer in ("Contracts:", "Assertions:", "Spec:", "Contract-Impact:")
+        for trailer in ("Specifications:", "Assertions:", "Plan:", "Specification-Impact:")
         if trailer not in message
     ]
     if missing:
         raise RuntimeError(
-            "contract-governed commit is missing required trailers: "
+            "Specification-governed commit is missing required trailers: "
             + ", ".join(missing)
-            + '. Use repeatable one-line arguments such as --trailer "Contracts: feature.example@1" '
-            + '--trailer "Assertions: example.behavior" --trailer "Spec: example" '
-            + '--trailer "Contract-Impact: implementation-only"; do not use ANSI-C shell quoting.'
+            + '. Use repeatable one-line arguments such as --trailer "Specifications: feature.example@1" '
+            + '--trailer "Assertions: example.behavior" --trailer "Plan: example" '
+            + '--trailer "Specification-Impact: implementation-only"; do not use ANSI-C shell quoting.'
         )
 
 
 def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
     """Reject deterministic commit-message errors before expensive deploy gates."""
     message = _integration_commit_message(args, session)
-    _validate_contract_commit_message(files, message)
+    _validate_specification_commit_message(files, message)
     return message
 
 
@@ -13164,11 +13183,11 @@ def _deploy_native_worktree(
         while True:
             checkout_root = Path(integration["path"])
             _bootstrap_integration_for_files(checkout_root, to_commit)
-            generated_contract_files = _regenerate_contract_artifacts_for_deploy(
+            generated_specification_files = _regenerate_specification_artifacts_for_deploy(
                 to_commit,
                 checkout_root=checkout_root,
             )
-            commit_files = sorted(set(to_commit).union(generated_contract_files))
+            commit_files = sorted(set(to_commit).union(generated_specification_files))
             _run_deploy_gates(
                 commit_files,
                 checkout_root=checkout_root,
@@ -13732,7 +13751,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         return
 
     # Contract/test traceability is never bypassed by --skip-tests or --no-verify.
-    _run_contract_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
+    _run_specification_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
 
     _enforce_embed_registry_validation(to_commit)
 
@@ -13922,7 +13941,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             if task_summary:
                 commit_msg += "\n\n" + task_summary
 
-    _validate_contract_commit_message(to_commit, commit_msg)
+    _validate_specification_commit_message(to_commit, commit_msg)
 
     no_verify = getattr(args, "no_verify", False)
     if no_verify:
@@ -14259,32 +14278,32 @@ def cmd_worktree(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
-def cmd_contract(args: argparse.Namespace) -> None:
-    """Run current Contract workflow tooling against one routed worktree."""
-    if args.contract_action != "approval-pdf":
-        print(f"Unknown contract action: {args.contract_action}", file=sys.stderr)
+def cmd_specification(args: argparse.Namespace) -> None:
+    """Run current Specification workflow tooling against one routed worktree."""
+    if args.specification_action != "approval-pdf":
+        print(f"Unknown Specification action: {args.specification_action}", file=sys.stderr)
         sys.exit(2)
     try:
         data = _load_sessions()
         session_id = _resolve_session_id(data, session_id=args.session)
         checkout_root = _session_checkout_root(data["sessions"][session_id]).resolve()
         if Path(args.bundle).is_absolute():
-            raise ValueError("Contract bundle must be a repository-relative path")
+            raise ValueError("Specification bundle must be a repository-relative path")
         relative_bundle = _canonical_stored_repo_path(args.bundle)
         bundle = (checkout_root / relative_bundle).resolve()
         bundle.relative_to(checkout_root)
 
         # Import from the immutable current control plane, but bind all source
         # and Git-baseline reads to the selected session checkout.
-        from scripts import contract_approval_pdf
+        from scripts import specification_approval_pdf
 
-        original_contract_root = contract_approval_pdf.contracts.REPO_ROOT
-        original_module_root = contract_approval_pdf.REPO_ROOT
-        contract_approval_pdf.contracts.REPO_ROOT = checkout_root
-        contract_approval_pdf.REPO_ROOT = checkout_root
+        original_specification_root = specification_approval_pdf.specifications.REPO_ROOT
+        original_module_root = specification_approval_pdf.REPO_ROOT
+        specification_approval_pdf.specifications.REPO_ROOT = checkout_root
+        specification_approval_pdf.REPO_ROOT = checkout_root
         command = [str(bundle), "--baseline-ref", args.baseline_ref]
-        if args.new_contract:
-            command.append("--new-contract")
+        if args.new_specification:
+            command.append("--new-specification")
         if args.no_upload:
             command.append("--no-upload")
         if args.dry_run_upload:
@@ -14292,10 +14311,10 @@ def cmd_contract(args: argparse.Namespace) -> None:
         if args.json:
             command.append("--json")
         try:
-            result = contract_approval_pdf.main(command)
+            result = specification_approval_pdf.main(command)
         finally:
-            contract_approval_pdf.contracts.REPO_ROOT = original_contract_root
-            contract_approval_pdf.REPO_ROOT = original_module_root
+            specification_approval_pdf.specifications.REPO_ROOT = original_specification_root
+            specification_approval_pdf.REPO_ROOT = original_module_root
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(2)
@@ -17588,19 +17607,19 @@ def main() -> None:
     )
     p_worktree_readiness.add_argument("--format", choices=["text", "json"], default="text")
 
-    p_contract = sub.add_parser("contract", help="Run current Contract tooling against a session worktree")
-    p_contract_sub = p_contract.add_subparsers(dest="contract_action", required=True)
-    p_contract_approval = p_contract_sub.add_parser(
+    p_specification = sub.add_parser("specification", help="Run current Specification tooling against a session worktree")
+    p_specification_sub = p_specification.add_subparsers(dest="specification_action", required=True)
+    p_specification_approval = p_specification_sub.add_parser(
         "approval-pdf",
         help="Render and publish an exact-fingerprint approval PDF from current tooling",
     )
-    p_contract_approval.add_argument("--session", "-s", required=True, help="sessions.py session ID")
-    p_contract_approval.add_argument("--bundle", required=True, help="Repository-relative Contract bundle")
-    p_contract_approval.add_argument("--baseline-ref", default="HEAD", help="Worktree Git ref used to highlight changes")
-    p_contract_approval.add_argument("--new-contract", action="store_true", help="Allow a bundle absent from the baseline")
-    p_contract_approval.add_argument("--no-upload", action="store_true", help="Generate without publishing")
-    p_contract_approval.add_argument("--dry-run-upload", action="store_true", help="Use a fake media upload")
-    p_contract_approval.add_argument("--json", action="store_true", help="Print structured output")
+    p_specification_approval.add_argument("--session", "-s", required=True, help="sessions.py session ID")
+    p_specification_approval.add_argument("--bundle", required=True, help="Repository-relative Specification bundle")
+    p_specification_approval.add_argument("--baseline-ref", default="HEAD", help="Worktree Git ref used to highlight changes")
+    p_specification_approval.add_argument("--new-specification", action="store_true", help="Allow a bundle absent from the baseline")
+    p_specification_approval.add_argument("--no-upload", action="store_true", help="Generate without publishing")
+    p_specification_approval.add_argument("--dry-run-upload", action="store_true", help="Use a fake media upload")
+    p_specification_approval.add_argument("--json", action="store_true", help="Print structured output")
 
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
@@ -18182,7 +18201,7 @@ def main() -> None:
         "media": cmd_media,
         "docker": cmd_docker,
         "worktree": cmd_worktree,
-        "contract": cmd_contract,
+        "specification": cmd_specification,
         "lock": cmd_lock,
         "unlock": cmd_unlock,
         "wait-lock": cmd_wait_lock,

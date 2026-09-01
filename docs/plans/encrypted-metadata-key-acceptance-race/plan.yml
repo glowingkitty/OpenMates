@@ -1,0 +1,446 @@
+schema_version: 2
+id: encrypted-metadata-key-acceptance-race
+title: Encrypted Metadata Key Acceptance Race
+status: verified
+
+goal: >
+  Prevent cross-device encrypted chat metadata sync from reusing a stale local
+  chat key after a device receives an authoritative encrypted_chat_key for the
+  same chat. A second logged-in browser session must decrypt the same newly
+  created chat metadata and messages that the sending session can decrypt.
+
+scope:
+  in:
+    - Web client handling of encrypted_chat_metadata WebSocket payloads.
+    - Ordering between incoming encrypted_chat_key acceptance, local key cache
+      clearing, IndexedDB persistence, and metadata/message decryption.
+    - Regression coverage for stale IndexedDB key reload after an incoming key
+      mismatch.
+    - Existing multi-session-encryption Playwright verification on dev.
+  out:
+    - Test-account cleanup hardening and login retry changes.
+    - Backend WebSocket contract changes.
+    - CLI, npm SDK, pip SDK, and Apple implementation changes.
+    - Broad chat-key redesign, key wrapper migration, or legacy chat repair.
+
+context_discovery:
+  github_issues:
+    - "GitHub issue search unavailable in this environment: GitHub MCP returned 401 Bad credentials."
+  docs:
+    - docs/architecture/core/encryption-architecture.md
+    - docs/architecture/core/chat-encryption-implementation.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/core/encryption-code-inventory.md
+    - docs/architecture/core/encryption-root-causes.md
+    - docs/plans/unified-key-wrappers/plan.yml
+    - docs/plans/workflows-cli-runtime/plan.yml
+  code_patterns:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts:handleEncryptedChatMetadataImpl
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts:receiveKeyFromServer
+    - frontend/packages/ui/src/services/db/chatKeyManagement.ts:clearChatKey
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+  tests:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+  observed_failure:
+    - command: python3 scripts/tests.py run --spec multi-session-encryption.spec.ts --expected-commit 322cf71 --lease-id lease-chat_sync_encryption-30e9a67ffe-8d534261
+      run_id: "2026-07-28T18:41:59Z / GitHub run 30389714794"
+      subject_commit: 322cf718d4bade5b083fb2a12ef892b4c9877fcc
+      summary: >
+        Session A created chat 2 and decrypted the assistant response containing
+        299,792. Session B opened the same chat and failed to render an
+        assistant message while console stderr reported key fingerprint
+        mismatches between incoming ciphertext and Session B's loaded key.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - The changed code path is the Svelte/web encrypted_chat_metadata handler; this spec does not alter the WebSocket payload contract consumed by Apple.
+  verification:
+    - Apple not affected for this slice; no native file or backend contract changes are planned.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should this spec and follow-up fix stay narrow to the encrypted_chat_metadata key-acceptance race, leaving cleanup/login hardening as separate work?
+      answer: Narrow race fix.
+    - question: Confirm the narrow product contract before writing spec.yml.
+      answer: Requested more context on tests, issue, and plan; after context, approved proceeding with the narrow spec.
+  vision_summary: >
+    Fix the real cross-device key mismatch exposed by multi-session-encryption
+    without expanding into account cleanup, login flake, or broader encryption
+    redesign work. The receiving device should accept the incoming authoritative
+    encrypted_chat_key before decrypting or saving encrypted metadata/messages.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-07-28T22:22:16Z"
+  plan:
+    status: not_required
+    reason: >
+      The approved contract is expected to map directly to one focused handler
+      ordering fix and existing regression tests; no separate architecture plan
+      is required unless implementation uncovers a contract or data-model change.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep the WebSocket encrypted_chat_metadata payload contract unchanged.
+    reason: The failure is in web client key-acceptance ordering, not missing backend data or a public API contract gap.
+    decided_at: "2026-07-28T20:48:00Z"
+  - id: D-2
+    status: active
+    decision: Treat test-account cleanup and login flakiness as out of scope for this slice.
+    reason: The user selected the narrow race fix; cleanup/login failures are residual test-infrastructure risks.
+    decided_at: "2026-07-28T20:48:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Deployed synchronous MessageInput editor focus on mousedown; multi-session-encryption still failed before Send button appeared at commit 06cf746.
+    outcome: rejected
+    recorded_at: "2026-07-28T18:24:02Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Routed multi-session-encryption through the stabilized shared sendMessage helper; original Send button failure progressed, exposing Session B key mismatch on chat 2.
+    outcome: succeeded
+    recorded_at: "2026-07-28T18:41:59Z"
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Reran the Playwright spec after deploy; the wrapper timed out locally after dispatching duplicate GitHub runs, then GitHub run 30407513739 completed successfully on the deployed commit.
+    outcome: succeeded
+    recorded_at: "2026-07-28T23:23:59Z"
+
+handoff:
+  current_task_id: TASK-3
+  next_action: Run spec verification and release/close the leased test work.
+  command: python3 scripts/plan_verify.py docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+  expected_outcome: Spec evidence verifies for the deployed subject commit.
+  blocker: null
+  last_verified_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+
+scenarios:
+  - id: S-1
+    title: Second browser accepts authoritative metadata key before decrypting chat
+    given:
+      - Alice is logged into two independent browser contexts with the same account and master key.
+      - Session A creates a new encrypted chat and syncs encrypted_chat_metadata with an encrypted_chat_key.
+      - Session B may already have a stale or mismatched key cached in memory or IndexedDB for that chat id.
+    when:
+      - Session B receives encrypted_chat_metadata for the chat with the authoritative encrypted_chat_key.
+    then:
+      - Session B unwraps and accepts the incoming encrypted_chat_key before any metadata validation/decryption uses withKey.
+      - Session B does not reload or use the stale IndexedDB key for the incoming metadata/messages.
+      - Session B decrypts the assistant message for the chat without key fingerprint mismatch errors.
+  - id: S-2
+    title: Existing matching key remains stable
+    given:
+      - Session B already has the same raw key as the encrypted_chat_metadata payload.
+    when:
+      - Session B receives encrypted_chat_metadata for that chat.
+    then:
+      - The handler does not rotate or replace the key unnecessarily.
+      - Metadata validation/decryption continues with the existing matching key.
+  - id: S-3
+    title: No plaintext or raw key leakage during race handling
+    given:
+      - Session B detects an incoming key mismatch for encrypted metadata.
+    when:
+      - The handler records diagnostics or warnings.
+    then:
+      - Logs may include sanitized fingerprints and chat ids needed for debugging.
+      - Logs do not include raw chat keys, master keys, decrypted private content, or encrypted payload bodies.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A receiving web session accepts the incoming encrypted_chat_key before validating or decrypting encrypted_chat_metadata when its cached key differs.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-001
+      - T-PLAYWRIGHT-001
+  - id: AC-2
+    scenario: S-1
+    text: A stale IndexedDB key cannot be reloaded and used for metadata/messages after a mismatched incoming key has been accepted.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-001
+      - T-PLAYWRIGHT-001
+  - id: AC-3
+    scenario: S-2
+    text: Matching incoming and cached keys keep the existing successful metadata handling path unchanged.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-001
+  - id: AC-4
+    scenario: S-3
+    text: The fix does not log raw chat keys, master keys, decrypted private content, or encrypted payload bodies.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-LINT-001
+
+assumptions:
+  - id: A-1
+    text: encrypted_chat_metadata carries the authoritative encrypted_chat_key for the chat when present.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/core/encryption-architecture.md
+        summary: The key distribution protocol says recipients receive encrypted_chat_key and call ChatKeyManager.receiveKeyFromServer to unwrap and inject it.
+      - source: docs/architecture/core/chat-encryption-implementation.md
+        summary: Multi-device sync stores and syncs encrypted chat keys through encrypted_chat_key.
+  - id: A-2
+    text: This slice does not require a backend WebSocket contract change.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: test-results/screenshots/current/multi-session-encryption/playwright.json
+        summary: The failing Session B run received data but used a mismatched local key, indicating client key ordering rather than absent backend payload.
+
+contracts:
+  api:
+    - route: WebSocket encrypted_chat_metadata event
+      access_model: first-party client surface only
+      request: Existing encrypted metadata payload; no schema change planned.
+      response: Existing client-side handler effects only.
+      auth: Logged-in user WebSocket session required.
+      rate_limits: Existing WebSocket limits unchanged.
+      credit_budget: Not applicable.
+      encryption_boundary: Payload contains client-side encrypted metadata and an encrypted_chat_key wrapped for the account; no decrypted plaintext or raw keys cross the server boundary.
+      errors:
+        - Existing visible decrypt failures remain possible for unrecoverable missing/corrupt keys; this fix covers recoverable incoming-key mismatch ordering.
+  data:
+    - The accepted encrypted_chat_key for a chat must be persisted before downstream metadata handling can reload a stale key from IndexedDB.
+    - Raw chat keys stay in ChatKeyManager memory and are never written to logs or server APIs.
+  ui_states:
+    - Session B opens the synced chat and sees decrypted user and assistant messages.
+    - No decryption error placeholder appears for the active newly-created chat.
+  privacy_security:
+    - No raw chat key, master key, decrypted message content, or full encrypted payload body is logged.
+    - The handler must not silently generate a replacement key for an existing synced chat.
+
+tests:
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - A mismatched incoming encrypted_chat_key is accepted via ChatKeyManager before metadata validation uses withKey.
+      - A stale IndexedDB key is not used after the incoming key is accepted.
+      - The existing matching-key path still validates/decrypts metadata successfully.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        command: "not run yet; regression test will be added before implementation"
+        reason: The focused unit regression did not exist before this implementation slice; the pre-existing Playwright failure supplied red evidence for the user-visible bug.
+        run_id: ""
+        subject_commit: 2a821221e78742b310eee708955a9d057835892d
+        timestamp: "2026-07-28T20:48:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: "2026-07-28T23:02:14Z / GitHub run 30406676150"
+        subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+        timestamp: "2026-07-28T23:03:29Z"
+  - id: T-PLAYWRIGHT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+    command: python3 scripts/tests.py run --spec multi-session-encryption.spec.ts --lease-id lease-chat_sync_encryption-30e9a67ffe-8d534261
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - Session A and Session B can read the same newly-created encrypted chats.
+      - Session B sees the assistant message for chat 2 without key fingerprint mismatch errors.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec multi-session-encryption.spec.ts --expected-commit 322cf71 --lease-id lease-chat_sync_encryption-30e9a67ffe-8d534261
+        run_id: "2026-07-28T18:41:59Z / GitHub run 30389714794"
+        subject_commit: 322cf718d4bade5b083fb2a12ef892b4c9877fcc
+        timestamp: "2026-07-28T19:00:44Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec multi-session-encryption.spec.ts --expected-commit 1106146 --lease-id lease-chat_sync_encryption-30e9a67ffe-8d534261
+        run_id: "GitHub run 30407513739"
+        subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+        timestamp: "2026-07-28T23:23:59Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_BZ5WsogpTYABTUHpph593ih7GDT4
+  - id: T-LINT-001
+    type: lint
+    file: frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    command: ./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    covers:
+      - AC-4
+    assertions:
+      - Changed code is type/lint clean.
+      - No raw key or plaintext logging is introduced in the changed handler path.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        command: "lint has no red phase for this bug fix"
+        run_id: ""
+        subject_commit: 2a821221e78742b310eee708955a9d057835892d
+        timestamp: "2026-07-28T20:48:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: ./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts --path frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+        run_id: "local 2026-07-28T23:00:00Z"
+        subject_commit: 1106146ab2c5ea27576d4a938c325f79adafb524
+        timestamp: "2026-07-28T23:00:00Z"
+
+implementation_notes:
+  plan_path: docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+  existing_patterns:
+    - ChatKeyManager.receiveKeyFromServer unwraps and injects server-provided encrypted_chat_key.
+    - chatSyncServiceHandlersChatUpdates.test.ts already mocks ChatKeyManager and chat DB collaborators for websocket handler regressions.
+  architecture: >
+    Keep the encrypted_chat_metadata WebSocket payload contract unchanged. In
+    the web handler, make incoming encrypted_chat_key acceptance the first
+    operation when a mismatch is detected, then run metadata validation and
+    persistence with the accepted key. Do not generate a replacement key for an
+    existing synced chat.
+  data_flow:
+    - Session B receives encrypted_chat_metadata for a synced chat.
+    - Handler detects incoming encrypted_chat_key is present and cached key differs or is missing.
+    - Handler accepts the incoming encrypted_chat_key through ChatKeyManager and persists the key state before validation.
+    - Metadata/messages decrypt with the accepted key; stale IndexedDB key is not reloaded.
+  affected_files:
+    - path: frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+      reason: Key-acceptance ordering in encrypted metadata handler.
+    - path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+      reason: Focused regression coverage for stale-key reload.
+    - path: docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+      reason: Durable encryption/sync contract and evidence ledger.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+    - python3 scripts/tests.py run --suite vitest
+    - ./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - Deploy to dev, wait for Vercel Ready, then python3 scripts/tests.py run --spec multi-session-encryption.spec.ts --expected-commit <commit> --lease-id lease-chat_sync_encryption-30e9a67ffe-8d534261
+    - python3 scripts/plan_verify.py docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+  verification_order:
+    - Spec validation and focused frontend unit regression first.
+    - Lint/static privacy check for changed handler path second.
+    - Web Playwright after dev deploy third.
+    - Apple not affected because no native files or WebSocket contract changes are in scope.
+
+tasks:
+  - id: TASK-1
+    title: Add encrypted metadata key race regression test
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+    verification_ids:
+      - T-VITEST-001
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersChatUpdates.test.ts
+      shared_files: []
+  - id: TASK-2
+    title: Fix encrypted metadata key acceptance ordering
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    verification_ids:
+      - T-VITEST-001
+      - T-LINT-001
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+      shared_files:
+        - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+  - id: TASK-3
+    title: Deploy and verify multi-session encryption
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - frontend/apps/web_app/tests/multi-session-encryption.spec.ts
+      - docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+    verification_ids:
+      - T-PLAYWRIGHT-001
+    dependencies:
+      - TASK-2
+    blockers: []
+    follow_up_tasks:
+      - Track test-account cleanup/login hardening if the Playwright retry still fails for those out-of-scope reasons.
+    ownership:
+      files:
+        - docs/plans/encrypted-metadata-key-acceptance-race/plan.yml
+      shared_files:
+        - frontend/apps/web_app/tests/multi-session-encryption.spec.ts

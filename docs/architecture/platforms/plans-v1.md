@@ -5,9 +5,9 @@ audience:
   - product
   - contributors
   - technical-users
-related_specs:
-  - docs/specs/plans-v1/spec.yml
-  - docs/specs/tasks-v1/spec.yml
+related_plans:
+  - docs/plans/plans-v1/plan.yml
+  - docs/plans/tasks-v1/plan.yml
 related_issues:
   - https://github.com/glowingkitty/OpenMates/issues/442
   - https://github.com/glowingkitty/OpenMates/issues/447
@@ -25,8 +25,8 @@ history. Tasks remain the execution units; plans define why and how work should
 be performed.
 
 This document is the editable product and architecture decision record. The
-executable implementation contract, task ledger, and verification evidence live
-in `docs/specs/plans-v1/spec.yml`.
+executable implementation Plan, Task ledger, and Check/Run evidence live in
+`docs/plans/plans-v1/plan.yml`.
 
 ## Current Foundation
 

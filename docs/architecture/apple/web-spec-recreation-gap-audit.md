@@ -6,7 +6,7 @@ Session: 3725
 
 ## Summary
 
-The current web suite has 167 Playwright `*.spec.ts` files. The Apple app has 12 XCTest files that directly exercise native app behavior, plus several executable specs already tracking Apple parity work.
+The current web suite has 167 Playwright `*.spec.ts` files. The Apple app has 12 XCTest files that directly exercise native app behavior, plus several Plans already tracking Apple parity work.
 
 Fresh static inventory from `scripts/apple_parity_audit.py` found:
 
@@ -38,28 +38,28 @@ These Apple XCTest files already cover part of the web spec surface:
 | `apple/OpenMatesTests/SubChatProcessingTests.swift` | Sub-chat payload and context contracts |
 | `apple/OpenMatesTests/ChatWindowLoadingTests.swift` | Bounded chat window logic |
 
-Existing executable specs already cover these Apple parity tracks:
+Existing Plans already cover these Apple parity tracks:
 
 | Spec | Surface |
 | --- | --- |
-| `docs/specs/apple-ui-contracts/spec.yml` | Web contract extraction and first composer parity pipeline |
-| `docs/specs/apple-responsive-shell-parity/spec.yml` | Responsive shell/chat layout parity |
-| `docs/specs/apple-chat-opening-parity/spec.yml` | Chat opening and bounded loading parity |
-| `docs/specs/apple-embed-rendering-parity/spec.yml` | Embed preview/fullscreen parity |
-| `docs/specs/apple-example-chat-visual-parity/spec.yml` | Example chat visual parity |
-| `docs/specs/apple-sub-chat-focus-parity/spec.yml` | Sub-chat and focus-mode parity |
+| `docs/plans/apple-ui-contracts/plan.yml` | Web contract extraction and first composer parity pipeline |
+| `docs/plans/apple-responsive-shell-parity/plan.yml` | Responsive shell/chat layout parity |
+| `docs/plans/apple-chat-opening-parity/plan.yml` | Chat opening and bounded loading parity |
+| `docs/plans/apple-embed-rendering-parity/plan.yml` | Embed preview/fullscreen parity |
+| `docs/plans/apple-example-chat-visual-parity/plan.yml` | Example chat visual parity |
+| `docs/plans/apple-sub-chat-focus-parity/plan.yml` | Sub-chat and focus-mode parity |
 
 ## Missing Or Not Yet Recreated Web Specs
 
-The following groups are not yet represented by a focused Apple implementation/testing spec. New executable specs were created for each group.
+The following groups are not yet represented by a focused Apple implementation/testing Plan. New Plans were created for each group.
 
 | New spec | Web spec group to recreate in Apple |
 | --- | --- |
-| `docs/specs/apple-auth-security-parity/spec.yml` | Signup, login, recovery key, backup code, passkey, 2FA reconnect, account recovery, session revoke, security/location checks |
-| `docs/specs/apple-settings-billing-parity/spec.yml` | Settings preferences, default/model toggle, language/interface, newsletter/report issue, billing, credits, gift card, invoices, referral, admin/free-testing visibility |
-| `docs/specs/apple-chat-management-sharing-parity/spec.yml` | Chat search, context actions, hidden/show-more/pinned chats, share/import/export, fork/explain, copy, highlights, PII, incognito, paste classification, interactive questions, projects |
-| `docs/specs/apple-reminders-public-content-parity/spec.yml` | Reminders, daily inspiration, demo/example/public/legal chat entry points and native notification scheduling boundaries |
-| `docs/specs/apple-skill-application-parity/spec.yml` | Skill-specific outputs, application previews, code/PDF/image/file flows, code-run details beyond generic embed chrome |
+| `docs/plans/apple-auth-security-parity/plan.yml` | Signup, login, recovery key, backup code, passkey, 2FA reconnect, account recovery, session revoke, security/location checks |
+| `docs/plans/apple-settings-billing-parity/plan.yml` | Settings preferences, default/model toggle, language/interface, newsletter/report issue, billing, credits, gift card, invoices, referral, admin/free-testing visibility |
+| `docs/plans/apple-chat-management-sharing-parity/plan.yml` | Chat search, context actions, hidden/show-more/pinned chats, share/import/export, fork/explain, copy, highlights, PII, incognito, paste classification, interactive questions, projects |
+| `docs/plans/apple-reminders-public-content-parity/plan.yml` | Reminders, daily inspiration, demo/example/public/legal chat entry points and native notification scheduling boundaries |
+| `docs/plans/apple-skill-application-parity/plan.yml` | Skill-specific outputs, application previews, code/PDF/image/file flows, code-run details beyond generic embed chrome |
 
 ## Verification Standard
 

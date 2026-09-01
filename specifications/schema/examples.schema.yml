@@ -1,0 +1,8 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: OpenMates specification examples
+type: object
+required: [schema_version, specification]
+properties:
+  schema_version: {const: 1}
+  specification: {type: string, pattern: "^[a-z][a-z0-9.-]+@[1-9][0-9]*$"}
+additionalProperties: true

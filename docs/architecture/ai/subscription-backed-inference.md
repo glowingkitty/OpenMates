@@ -3,7 +3,7 @@
 > Status: Research complete; implementation deferred
 > Last verified: 2026-08-04
 > Scope: OpenAI Codex subscriptions, local inference bridges, and future provider expansion
-> Related: `backend/apps/ai/processing/main_processor.py`, `backend/apps/ai/utils/llm_utils.py`, `frontend/packages/openmates-cli/src/remoteAccess.ts`, `docs/specs/cli-remote-access-live-bridge/spec.yml`
+> Related: `backend/apps/ai/processing/main_processor.py`, `backend/apps/ai/utils/llm_utils.py`, `frontend/packages/openmates-cli/src/remoteAccess.ts`, `docs/plans/cli-remote-access-live-bridge/plan.yml`
 
 ## Goal
 
@@ -270,7 +270,7 @@ for headless execution does not override Anthropic's third-party product policy.
 
 ## Deferred Implementation Order
 
-When this work is resumed, create a Tier 2 executable spec covering auth,
+When this work is resumed, create a Tier 2 Plan covering auth,
 privacy, billing, tool execution, provider policy, and cross-client behavior.
 The current recommended order is:
 

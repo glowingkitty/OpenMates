@@ -1,0 +1,88 @@
+{
+  "api_url": "https://api.dev.openmates.org",
+  "artifacts": [
+    {
+      "app": "audio",
+      "byte_length": 13836,
+      "credits_charged": 16,
+      "discord": {
+        "attachment_id": "1536850469207679007",
+        "message_id": "1536850469345824780",
+        "posted": true
+      },
+      "duration_seconds": 0.8,
+      "file": "docs/plans/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-sfx-confirmation-tick.mp3",
+      "generation_type": "sound_effect",
+      "id": "b35a-sfx-confirmation-tick",
+      "latency_ms": 2501,
+      "mime_type": "audio/mpeg",
+      "model": "eleven_text_to_sound_v2",
+      "provider": "ElevenLabs",
+      "sha256": "fcbe6578e4406611920e094756bf01dd34856451ca6bbbbe15dedc5ba071d716",
+      "skill": "generate",
+      "status": "finished",
+      "voice": null
+    },
+    {
+      "app": "audio",
+      "byte_length": 66499,
+      "credits_charged": 17,
+      "discord": {
+        "attachment_id": "1536850496705400963",
+        "message_id": "1536850497003327498",
+        "posted": true
+      },
+      "duration_seconds": 4.153,
+      "file": "docs/plans/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-speech-welcome-default.mp3",
+      "generation_type": "speech",
+      "id": "b35a-speech-welcome-default",
+      "latency_ms": 459,
+      "mime_type": "audio/mpeg",
+      "model": "eleven_multilingual_v2",
+      "provider": "ElevenLabs",
+      "sha256": "b5bf5a7c5a86e5d6c3ca8d93c42d236b012742da8ec11f3b70996535b58ad8a7",
+      "skill": "speak",
+      "status": "finished",
+      "voice": "warm_neutral"
+    },
+    {
+      "app": "audio",
+      "byte_length": 51453,
+      "credits_charged": 7,
+      "discord": {
+        "attachment_id": "1536850523817386045",
+        "message_id": "1536850524060778578",
+        "posted": true
+      },
+      "duration_seconds": 3.213,
+      "file": "docs/plans/elevenlabs-audio-skills/artifacts/2026-08-11/b35a-speech-welcome-flash.mp3",
+      "generation_type": "speech",
+      "id": "b35a-speech-welcome-flash",
+      "latency_ms": 394,
+      "mime_type": "audio/mpeg",
+      "model": "eleven_flash_v2_5",
+      "provider": "ElevenLabs",
+      "sha256": "9beb65fa282da1233b487039317a62280f205ec3ccae35549d89f09c06cfa368",
+      "skill": "speak",
+      "status": "finished",
+      "voice": "warm_neutral"
+    }
+  ],
+  "auth": {
+    "access_type": "cli",
+    "approved_device_count": 1,
+    "temporary_api_key_created": true,
+    "temporary_api_key_revoked": true
+  },
+  "endpoint_access_model": "developer_api_key_rest",
+  "generated_at": "2026-08-11T21:35:20+00:00",
+  "plan_sha256": "34855fb6e7c11e4e2103c2205a364ffcb9aa69b248544b06ea0752184fbbf93f",
+  "privacy": {
+    "api_key_persisted": false,
+    "inline_audio_base64_persisted": false,
+    "prompts_persisted": false,
+    "signed_download_url_persisted": false,
+    "webhook_url_persisted": false
+  },
+  "run_id": "elevenlabs-20260811-213454"
+}

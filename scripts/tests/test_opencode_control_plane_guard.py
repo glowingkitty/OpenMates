@@ -60,7 +60,7 @@ def test_protected_control_plane_paths_are_classified(path: str) -> None:
     [
         "frontend/packages/ui/src/components/Button.svelte",
         "backend/apps/ai/tasks/ask_skill_task.py",
-        "docs/specs/chat-settings-redesign/spec.yml",
+        "docs/plans/chat-settings-redesign/plan.yml",
         "scripts/tests/test_user_tasks_scheduler.py",
     ],
 )

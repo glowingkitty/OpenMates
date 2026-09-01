@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Presence-store concurrency, expiry, ordering, and task-claim contracts.
 
 The store is redirected to a temporary directory and never touches live state.
@@ -72,24 +73,24 @@ def test_explicit_child_role_can_replace_automatic_role(tmp_path):
 
 def test_task_claim_lifecycle_is_atomic_and_role_aware(tmp_path):
     store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path, now=lambda: "2026-08-05T00:00:00Z")
-    first = store.claim_task("docs/specs/example/spec.yml", "TASK-4", "ses-a", role="implementation", ttl_seconds=60)
+    first = store.claim_task("docs/plans/example/plan.yml", "TASK-4", "ses-a", role="implementation", ttl_seconds=60)
     assert first["owner_session_id"] == "ses-a"
     with pytest.raises(TaskClaimConflict):
-        store.claim_task("docs/specs/example/spec.yml", "TASK-4", "ses-b", role="implementation", ttl_seconds=60)
-    review = store.claim_task("docs/specs/example/spec.yml", "TASK-4", "ses-review", role="reviewer", ttl_seconds=60)
+        store.claim_task("docs/plans/example/plan.yml", "TASK-4", "ses-b", role="implementation", ttl_seconds=60)
+    review = store.claim_task("docs/plans/example/plan.yml", "TASK-4", "ses-review", role="reviewer", ttl_seconds=60)
     assert review["role"] == "reviewer"
-    renewed = store.renew_task("docs/specs/example/spec.yml", "TASK-4", "ses-a", ttl_seconds=120)
+    renewed = store.renew_task("docs/plans/example/plan.yml", "TASK-4", "ses-a", ttl_seconds=120)
     assert renewed["expires_at"] > first["expires_at"]
-    store.release_task("docs/specs/example/spec.yml", "TASK-4", "ses-a")
-    assert store.claim_task("docs/specs/example/spec.yml", "TASK-4", "ses-b", role="implementation", ttl_seconds=60)["owner_session_id"] == "ses-b"
+    store.release_task("docs/plans/example/plan.yml", "TASK-4", "ses-a")
+    assert store.claim_task("docs/plans/example/plan.yml", "TASK-4", "ses-b", role="implementation", ttl_seconds=60)["owner_session_id"] == "ses-b"
 
 
 def test_expired_implementation_claim_can_be_taken_over(tmp_path):
     current = ["2026-08-05T00:00:00Z"]
     store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path, now=lambda: current[0])
-    store.claim_task("docs/specs/example/spec.yml", "TASK-1", "ses-a", role="implementation", ttl_seconds=1)
+    store.claim_task("docs/plans/example/plan.yml", "TASK-1", "ses-a", role="implementation", ttl_seconds=1)
     current[0] = "2026-08-05T00:00:02Z"
-    claim = store.claim_task("docs/specs/example/spec.yml", "TASK-1", "ses-b", role="implementation", ttl_seconds=60)
+    claim = store.claim_task("docs/plans/example/plan.yml", "TASK-1", "ses-b", role="implementation", ttl_seconds=60)
     assert claim["owner_session_id"] == "ses-b"
 
 
@@ -97,7 +98,7 @@ def test_expired_claims_and_terminal_records_are_omitted_from_snapshot(tmp_path)
     current = ["2026-08-05T00:00:00Z"]
     store = PresenceStore(tmp_path / "presence.json", project_root=tmp_path, now=lambda: current[0])
     store.update(record("ses-idle", 1, execution="idle", turn="completed"))
-    store.claim_task("docs/specs/example/spec.yml", "TASK-1", "ses-a", role="implementation", ttl_seconds=1)
+    store.claim_task("docs/plans/example/plan.yml", "TASK-1", "ses-a", role="implementation", ttl_seconds=1)
     current[0] = "2026-08-06T00:00:02Z"
     snapshot = store.snapshot()
     assert snapshot["sessions"] == {}

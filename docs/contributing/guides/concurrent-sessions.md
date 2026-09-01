@@ -146,18 +146,18 @@ If another session has an active manual claim or OpenCode edit lease, `claim` ex
 
 **Note:** `modified_files` tracks all files touched in a session for deployment selection. It is not ownership and must not block another session's edit.
 
-### Executable Spec Task Claims
+### Plan Task Claims
 
 Claim an implementation task before starting its feature code:
 
 ```bash
 python3 scripts/sessions.py presence claim-task \
-  --spec docs/specs/<slug>/spec.yml --task TASK-2 \
+  --plan docs/plans/<slug>/plan.yml --task TASK-2 \
   --owner <OpenCode-session-ID> --role implementation --ttl 900
 ```
 
 Renew with `presence renew-task` and release with `presence release-task` using
-the same `--spec`, `--task`, and `--owner`. A second live implementation claim
+the same `--plan`, `--task`, and `--owner`. A second live implementation claim
 exits with code 2. Explicit `reviewer` and `read_only` claims remain non-blocking.
 Expired claims can be taken over deterministically.
 

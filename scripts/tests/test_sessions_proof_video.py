@@ -916,7 +916,7 @@ def test_proof_video_gate_ignores_docs_and_scripts_only_feature(monkeypatch: pyt
     sessions._enforce_proof_video_end_gate(
         "abcd",
         {"mode": "feature"},
-        ["scripts/spec_demo.py", "docs/specs/example/spec.yml"],
+        ["scripts/spec_demo.py", "docs/plans/example/plan.yml"],
     )
 
 

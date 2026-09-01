@@ -1,0 +1,174 @@
+schema_version: 1
+id: feature.notifications
+version: 1
+status: approved
+title: Notifications
+summary: >
+  OpenMates notifications let authenticated users persist notification settings,
+  receive eligible email and push notifications on first-party clients, and view
+  retained notification history through REST, CLI, SDK, web, and Apple surfaces
+  without exposing private chat or reminder content outside the approved channel.
+
+scope:
+  includes:
+    - Email notification settings saved through the first-party WebSocket contract.
+    - Web and Apple push subscription state, user preferences, and platform permission boundaries.
+    - Reminder, chat, workflow, security, billing, and system notification events eligible for user delivery.
+    - Retained notification history listing for REST, CLI, npm SDK, pip SDK, web, and Apple clients.
+    - Delivery idempotency, preference gating, and privacy-safe notification payloads.
+  excludes:
+    - Marketing newsletters, broadcast campaigns, and product-update emails.
+    - External provider inbox behavior after OpenMates dispatches an accepted email or push request.
+    - Operating-system notification center retention outside OpenMates-controlled history.
+    - Public unauthenticated notification history.
+
+models:
+  NotificationSettings:
+    user_id:
+      type: user_id
+      required: true
+      constraints: {owner_scope: true}
+    email_enabled:
+      type: boolean
+      required: true
+    encrypted_email_address:
+      type: encrypted_string
+      nullable: true
+      constraints: {plaintext_email_persisted: forbidden, required_when_email_enabled: true}
+    push_enabled:
+      type: boolean
+      required: true
+    preferences:
+      type: object
+      required: true
+      constraints: {per_channel_and_notification_kind: true}
+    persisted_ack:
+      type: boolean
+      required: true
+      constraints: {required_before_delivery_reliance: true}
+
+  PushSubscription:
+    device_id:
+      type: stable_id
+      required: true
+    endpoint_ciphertext:
+      type: encrypted_string
+      required: true
+      constraints: {plaintext_endpoint_persisted: forbidden}
+    platform:
+      type: enum
+      values: [web, apple]
+      required: true
+    permission_state:
+      type: enum
+      values: [default, granted, denied, unsupported]
+      required: true
+
+  NotificationEvent:
+    notification_id:
+      type: stable_id
+      required: true
+      constraints: {idempotent: true, unique_per_logical_event: true}
+    notification_kind:
+      type: string
+      required: true
+    delivery_channels:
+      type: array
+      required: true
+      constraints: {values_subset: [in_app, email, push]}
+    recipient_user_id:
+      type: user_id
+      required: true
+      constraints: {owner_scope: true}
+    delivery_state:
+      type: enum
+      values: [queued, dispatched, delivered, skipped, failed]
+      required: true
+
+  NotificationHistoryItem:
+    notification_id:
+      type: stable_id
+      required: true
+    created_at:
+      type: timestamp
+      required: true
+    read_at:
+      type: timestamp
+      nullable: true
+    summary:
+      type: string
+      required: true
+      constraints: {private_payload_redacted_or_client_decrypted: true}
+    target_ref:
+      type: object
+      nullable: true
+      constraints: {authorized_target_only: true}
+
+assertions:
+  - id: notifications.settings.ack-persisted
+    type: behavior
+    must: Email and push notification settings become reliable for later delivery only after the server acknowledges persistence; clients must not treat a send-only or optimistic local toggle as durable delivery configuration.
+    depends_on: [models.NotificationSettings.persisted_ack, examples.settings_ack]
+  - id: notifications.delivery.email-enabled
+    type: behavior
+    must: When an authenticated user's acknowledged settings enable email for an eligible notification kind and a decrypted notification address is available, a due notification event dispatches at most one email delivery request for that logical event, including when the web or native client is offline.
+    depends_on: [models.NotificationSettings, models.NotificationEvent, examples.email_delivery]
+  - id: notifications.delivery.push-enabled
+    type: behavior
+    must: Web and Apple push delivery is attempted only for granted, registered, non-revoked subscriptions whose user preferences allow the notification kind; unsupported or denied platforms degrade to retained history and any other enabled channels without fabricating push success.
+    depends_on: [models.PushSubscription, models.NotificationEvent, examples.push_delivery]
+  - id: notifications.history.retained-listable
+    type: behavior
+    must: Notification history retains authorized notification events with stable ids, timestamps, read state, safe summaries, and target references so REST, CLI, npm SDK, pip SDK, web, and Apple clients can list past notifications consistently.
+    depends_on: [models.NotificationHistoryItem, examples.notification_history]
+  - id: notifications.content.privacy-boundary
+    type: privacy
+    must: Notification storage, logs, email payloads, push payloads, and history summaries avoid durable plaintext private chat, reminder, workflow, billing, or account-secret content unless that channel is explicitly user-addressed and authorized; encrypted or redacted summaries are used otherwise.
+    depends_on: [models.NotificationHistoryItem.summary, models.PushSubscription.endpoint_ciphertext, examples.privacy_boundaries]
+  - id: notifications.delivery.idempotent
+    type: invariant
+    must: Retries, duplicate workers, reconnects, and multi-device clients preserve one logical notification history item and at most one successful delivery per channel for the same notification id.
+    depends_on: [models.NotificationEvent.notification_id, examples.delivery_idempotency]
+  - id: notifications.surface.semantic-parity
+    type: parity
+    must: REST, CLI, npm SDK, pip SDK, web, and Apple preserve the same authorization, history-listing, read-state, preference-gating, privacy-boundary, and delivery-state semantics for notification surfaces implemented on that client.
+    depends_on: [models, examples, applies_to]
+  - id: notifications.web.mobile-insets
+    type: behavior
+    must: In-app notification cards on mobile web keep exactly 10 pixels of visible space from the viewport top, inline-start edge, and inline-end edge without horizontal clipping.
+    depends_on: [applies_to.gui]
+  - id: notifications.web.timed-dismissal
+    type: behavior
+    must: A non-persistent in-app web notification shows a bottom progress indicator for its configured duration and closes when that duration completes unless the user dismisses or acts on it first.
+    depends_on: [applies_to.gui]
+  - id: notifications.web.stacked-deck
+    type: behavior
+    must: When multiple in-app web notifications are active, the front notification remains fully visible and interactive while the next two are visually stacked behind it with reduced opacity and scale, hidden from accessibility, and stack-state changes such as dismissal promote the next notification to the front with smooth transform and opacity transitions.
+    depends_on: [applies_to.gui, examples.web_stacked_deck]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated notification settings, history listing, read-state, and delivery status APIs own the canonical server-side contract.
+  cli:
+    required: true
+    parity: semantic
+    role: CLI lists retained notification history and read state; it is not a push delivery endpoint.
+  sdks:
+    required: true
+    parity: semantic
+    role: SDKs expose authenticated notification history and read-state APIs without bypassing user authorization or privacy boundaries.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [settings_ack, email_delivery, push_delivery, notification_history, privacy_boundaries, delivery_idempotency, web_stacked_deck]

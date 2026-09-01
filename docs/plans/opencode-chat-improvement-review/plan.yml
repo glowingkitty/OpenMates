@@ -1,0 +1,648 @@
+schema_version: 2
+id: opencode-chat-improvement-review
+title: Manual OpenCode Workflow Review
+status: verified
+
+goal: >
+  Let maintainers manually analyze recent local OpenCode chats with GPT-5.6
+  Luna, research evidence-backed improvements to skills, hooks, agents, and
+  agent instructions, save durable gitignored reports, and optionally notify
+  Discord without allowing any scheduled path to create report noise or edit
+  tracked files.
+
+scope:
+  in:
+    - Analyze top-level OpenCode sessions and their subagent sessions from the local SQLite store.
+    - Read full local prompts, responses, and tool results while keeping transcript evidence in gitignored local reports.
+    - Use GPT-5.6 Luna for the manual research and recommendation session.
+    - Save latest and dated JSON and Markdown reports under logs/nightly-reports/opencode-improvements/.
+    - Send a bounded Discord summary and attach the Markdown report only for explicit manual runs when configured.
+    - Retire automated host cron installation and provide an uninstall path for the old managed cron block.
+    - Add one user-invocable skill for manual workflow review and a separate user-invoked skill for implementing a saved report.
+    - Reuse and extend the existing OpenCode workflow collector, dispatch, Discord, and agent parity patterns.
+  out:
+    - Cron-triggered edits, commits, deploys, or implementation sessions.
+    - Automatically accepting or applying a recommendation.
+    - Product APIs, SDKs, web UI, Apple UI, or customer chat data.
+    - Sending raw transcripts, credentials, environment files, webhook URLs, or reasoning traces to Discord.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP discovery was unavailable because authentication returned HTTP 401; no issue was created.
+  docs:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/deterministic-workflow-guardrails/plan.yml
+    - docs/plans/agent-workflow-quality-parity/plan.yml
+    - docs/plans/deterministic-stale-code-reporting/plan.yml
+  code_patterns:
+    - scripts/_workflow_review_helper.py
+    - scripts/_opencode_utils.py
+    - scripts/_nightly_scanner_helper.py
+    - scripts/stale_code_daily.py
+    - scripts/discord_webhook.py
+    - scripts/sync_agent_parity.py
+  tests:
+    - scripts/tests/test_workflow_review_helper.py
+    - scripts/tests/test_stale_code_daily.py
+    - scripts/tests/test_opencode_automation_budget_audit.py
+  observed_baseline:
+    - The existing workflow collector reads OpenCode SQLite in read-only mode but intentionally excludes transcript prose and subagent analysis.
+    - The verified deterministic-workflow-guardrails contract previously prohibited scheduled workflow review; this revision returns the workflow to maintainer-invoked analysis only.
+    - run_opencode_session currently accepts but discards its model argument, so callers cannot guarantee GPT-5.6 Luna.
+    - Existing nightly reports and logs are already gitignored and shared into session worktrees.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is repository-local developer tooling with no Apple product counterpart.
+  verification:
+    - Apple verification is not required.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: May analysis inspect complete local OpenCode transcripts?
+      answer: Yes; outputs are gitignored, so local reports do not require an overcomplicated redaction pipeline.
+    - question: May cron implement recommendations?
+      answer: No. The managed cron is retired; implementation is started manually in a new chat with a separate skill.
+    - question: Should subagent sessions be analyzed?
+      answer: Yes; include top-level and subagent sessions and attribute children to their parent.
+    - question: Where should reports be stored?
+      answer: Use the existing gitignored nightly-report area.
+    - question: Should useful but mostly ignored daily Luna reports continue automatically?
+      answer: No. Keep the report-only research workflow, but make it weekly/on-demand by maintainer invocation and leave implementation explicit through implement-opencode-improvements.
+  vision_summary: >
+    A maintainer-invoked Luna research session examines bounded recent OpenCode
+    work, including delegated subagents, and writes actionable local
+    recommendations with optional manual Discord notification. The unattended
+    daily cron is retired; a maintainer explicitly starts a separate
+    implementation skill when ready.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree@73b0043e1b26e831e2440391b85efaf634f4756d
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-06"
+  plan:
+    status: not_required
+    reason: The approved contract fixes the material architecture boundary by separating report-only research from user-triggered implementation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Manual analysis may read local transcript content but may write only gitignored reports and notification state.
+    reason: Instruction and skill failures cannot be diagnosed reliably from aggregate counters alone.
+    decided_at: "2026-08-06"
+  - id: D-2
+    status: active
+    decision: The analyzer uses openai/gpt-5.6-luna explicitly.
+    reason: The user selected Luna for the workflow research workload.
+    decided_at: "2026-08-06"
+  - id: D-3
+    status: active
+    decision: Retired managed cron commands must not invoke the implementation skill or use an editing OpenCode agent.
+    reason: Recommendations require human selection and current-code revalidation before tracked changes, and unattended reports created noise.
+    decided_at: "2026-08-06"
+  - id: D-4
+    status: superseded
+    decision: This spec supersedes the explicit-only and aggregate-only workflow-review restriction in deterministic-workflow-guardrails and agent-workflow-quality-parity.
+    reason: The user explicitly requested automatic daily transcript research while preserving manual implementation.
+    decided_at: "2026-08-06"
+  - id: D-5
+    status: active
+    decision: Retire unattended daily OpenCode improvement analysis and expose the workflow as a weekly/on-demand report-only skill.
+    reason: The reports were useful but mostly ignored, so daily automated Luna analysis created notification and budget noise.
+    decided_at: "2026-08-10"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Reuse the existing explicit aggregate workflow collector unchanged.
+    outcome: rejected
+    notes: It excludes transcript prose and subagent evidence, so it cannot identify instruction or skill defects.
+    recorded_at: "2026-08-06"
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Run the real 24-hour Luna analysis from the isolated implementation worktree.
+    outcome: blocked
+    notes: The run stopped before model dispatch because the shared logs symlink resolved outside the worktree and the draft path could not be made relative to the worktree root. Normalize against the canonical checkout and rerun.
+    recorded_at: "2026-08-06T17:31:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Let the read-only Luna session write its designated gitignored draft after successful analysis.
+    outcome: blocked
+    notes: Luna completed research and identified four recommendations, but OpenCode worktree routing blocked every report write. Capture structured final JSON from the OpenCode JSONL stream and let the trusted runner publish it instead.
+    recorded_at: "2026-08-06T17:38:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Capture Luna's structured final response while passing raw bounded OpenCode row dictionaries as prompt evidence.
+    outcome: blocked
+    notes: The JSONL capture worked, but encrypted reasoning metadata and attachment-shaped payloads triggered compaction that discarded the evidence prompt. Project rows to observable text/tool outcomes and omit reasoning, snapshots, and binary content before rerunning.
+    recorded_at: "2026-08-06T17:45:00Z"
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Independent code review of the green implementation and live Luna proof.
+    outcome: succeeded
+    notes: The review identified enforced read-only permissions, Discord secret scanning, SQL-side limits, complete-payload byte bounds, generation consistency, and notification exception coverage. The implementation was hardened before final verification.
+    recorded_at: "2026-08-06T17:55:00Z"
+  - id: ATTEMPT-6
+    task_id: TASK-5
+    approach: Retire the managed daily cron while keeping the Luna research runner available through a manual skill.
+    outcome: succeeded
+    notes: The runner default was changed to 168 hours, cron installation was retired, uninstall removes the old managed block, skill mirrors were synchronized, and focused pytest plus OpenCode audits passed.
+    recorded_at: "2026-08-10T15:01:40Z"
+
+handoff:
+  current_task_id: TASK-5
+  next_action: No implementation work remains; invoke opencode-workflow-review for a weekly or on-demand report, then explicitly invoke implement-opencode-improvements only for selected recommendations.
+  command: python3 scripts/opencode_chat_improvement_review.py --hours 168 --dry-run-notify
+  expected_outcome: A strictly read-only GPT-5.6 Luna session publishes bounded local reports only when manually requested.
+  blocker: null
+  last_verified_commit: working-tree@73b0043e1b26e831e2440391b85efaf634f4756d
+
+scenarios:
+  - id: S-1
+    title: Manual research analyzes a bounded recent interval
+    given:
+      - Local OpenCode contains top-level and child sessions updated during the requested UTC interval.
+    when:
+      - The manual research runner executes.
+    then:
+      - It collects bounded transcript and tool evidence for the repository.
+      - Child sessions are attributed to their top-level parent.
+      - The analyzer session itself is excluded from its input.
+      - GPT-5.6 Luna researches likely improvements against current repository files and relevant documentation.
+
+  - id: S-2
+    title: Research results are durable and visible
+    given:
+      - Luna completes, partially completes, times out, or fails.
+    when:
+      - The runner finalizes the job.
+    then:
+      - Latest and dated JSON and Markdown artifacts remain under the gitignored report directory.
+      - Every recommendation names its evidence, target type, target files, expected benefit, risk, and verification.
+      - Discord receives a bounded status summary and the Markdown report only when an explicit manual run requests notification and the webhook is configured.
+      - Missing or failed Discord delivery is recorded without deleting the local report.
+
+  - id: S-3
+    title: Retired scheduled execution cannot run or implement recommendations
+    given:
+      - A host crontab may contain the previous managed OpenCode improvement research block.
+    when:
+      - A maintainer runs the uninstall path or attempts to install the retired cron.
+    then:
+      - The managed cron block is removed idempotently and no new scheduled entry is installed.
+      - Retired install exits visibly instead of silently re-enabling daily analysis.
+      - No tracked file, git ref, commit, deployment, or implementation session is changed.
+
+  - id: S-4
+    title: Maintainer implements a selected saved report
+    given:
+      - A maintainer explicitly invokes the implementation skill in a new chat.
+    when:
+      - The skill loads a latest or selected dated report.
+    then:
+      - It rechecks the evidence against current transcripts, source, documentation, and existing tests.
+      - It rejects stale, weak, duplicate, conflicting, or unsafe recommendations.
+      - It applies only selected valid changes and runs required skill, hook, instruction, and agent parity checks.
+      - Deployment uses the normal sessions.py workflow and never occurs from cron.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A bounded 1-168 hour collector includes repository top-level and subagent transcript/tool evidence, preserves parent attribution, and excludes the analyzer session.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-COLLECTOR]
+  - id: AC-2
+    scenario: S-1
+    text: The manual analysis command explicitly invokes openai/gpt-5.6-luna rather than relying on the OpenCode default model.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DISPATCH]
+  - id: AC-3
+    scenario: S-2
+    text: Success, empty, timeout, model failure, missing-webhook, and Discord-failure paths preserve latest and dated machine-readable and human-readable local reports with visible status.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-REPORTING]
+  - id: AC-4
+    scenario: S-3
+    text: The retired managed cron entry is removed, install fails visibly, and the runner has no path to editing agents, the implementation skill, commit, push, or deploy.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CRON]
+  - id: AC-5
+    scenario: S-4
+    text: Canonical research and implementation skills are synchronized across agent runtimes, and only the implementation skill may edit after explicit user invocation and evidence revalidation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SKILLS]
+
+assumptions:
+  - id: A-1
+    text: OpenCode SQLite message and part rows remain readable in query-only mode while the local server writes through WAL.
+    category: local_tooling
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/_workflow_review_helper.py and its focused tests
+        summary: The existing collector already opens the live database read-only and scopes rows by repository and UTC interval.
+  - id: A-2
+    text: OpenCode CLI accepts --model openai/gpt-5.6-luna for a persisted run.
+    category: model_routing
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: scripts/_zellij_utils.py and generated .opencode/agents
+        summary: Current OpenCode integrations use explicit openai/gpt-5.6-* model routes.
+  - id: A-3
+    text: DISCORD_WEBHOOK_DEV_NIGHTLY is the appropriate optional notification channel.
+    category: operations
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: docs/architecture/infrastructure/cronjobs.md
+        summary: Existing nightly jobs use this optional webhook convention.
+
+contracts:
+  api:
+    - No endpoint is added or changed; access model, authentication, rate limits, credits, and encryption boundaries are not applicable.
+  collection:
+    - Default interval is the previous 168 hours ending at runner start, expressed as inclusive UTC start and exclusive UTC end.
+    - Manual intervals are bounded to 1 through 168 hours.
+    - Repository directory filtering applies before transcript extraction.
+    - Top-level and child sessions are included; child evidence carries its parent identifier only inside the local analyzer input.
+    - Collection is bounded by explicit maximum sessions, messages, parts, per-field characters, and total serialized bytes.
+    - The session limit is applied in SQLite before transcript rows are materialized, and only selected parent ancestry is resolved.
+    - Evidence projection retains observable text and tool inputs, outputs, errors, roles, models, and outcomes while omitting reasoning, snapshots, encrypted metadata, and binary attachment content.
+    - Analyzer session IDs supplied by the runner are excluded.
+  reporting:
+    - Local JSON is the implementation-skill input and Markdown is the review and Discord attachment artifact.
+    - The latest report and dated history contain status, period, subject commit, model, source counts, recommendations, analysis session ID, and notification status.
+    - Discord payload contains a compact summary and a canonical-secret-scanned Markdown attachment but no raw transcript dump, environment values, or webhook URL.
+    - The analysis agent never writes files; the parent runner captures its structured final response and owns report publication.
+    - Dated artifacts are written first and latest.json is the final generation completion marker with the Markdown hash.
+  recommendation:
+    - Each recommendation includes stable ID, priority, category, evidence references, current behavior, proposed change, target files, expected benefit, risk, research sources, and verification commands.
+    - Allowed categories are skill, hook, agent, instruction, deterministic_guard, and no_change.
+    - The analyzer distinguishes observed evidence from inference and abstains when evidence is insufficient.
+  cron:
+    - Automated cron installation is retired and exits visibly when requested.
+    - The uninstall path idempotently removes the previously managed marked block from the user crontab and preserves unrelated jobs.
+    - No cron code imports, names, or invokes the implementation skill or deployment workflow.
+    - OpenCode dispatch selects the dedicated cron-research agent, which denies edit, Bash, child-agent, question, and todo tools.
+  skills:
+    - opencode-workflow-review is user-invocable, report-only, and hands selected recommendations to implement-opencode-improvements.
+    - opencode-improvement-research is safe for the manual runner, cannot edit files, and returns structured JSON to the parent runner.
+    - implement-opencode-improvements is user-invocable only and starts a normal sessions.py feature session before edits.
+    - Implementation rereads current source and docs, checks report age and subject revision, and requires user selection when multiple recommendations exist.
+    - Canonical skill files live under .claude/skills and are mirrored to .agents/skills.
+  privacy_security:
+    - Full OpenCode transcript content remains confined to local SQLite, temporary prompt files, and gitignored reports.
+    - Secrets and webhook values are never intentionally copied into Discord payloads or tracked files.
+    - Temporary analyzer prompts are deleted after OpenCode exits.
+
+tests:
+  - id: T-COLLECTOR
+    type: pytest
+    file: scripts/tests/test_opencode_chat_improvement_review.py
+    command: python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py -k collector
+    covers: [AC-1]
+    assertions:
+      - top-level and child sessions inside the interval are collected with parent attribution
+      - unrelated repositories, out-of-window rows, and excluded analyzer sessions are omitted
+      - configured session, row, field, and total-byte limits are enforced deterministically
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py scripts/tests/test_workflow_review_helper.py", run_id: "local:pytest-opencode-improvement-red-20260806T171934Z", subject_commit: "2531d380381a2fe60351944935c81cde375cb212", timestamp: "2026-08-06T17:19:34Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py", run_id: "local:pytest-opencode-improvement-manual-20260810T151636Z", subject_commit: "working-tree@73b0043e1b26e831e2440391b85efaf634f4756d", timestamp: "2026-08-10T15:16:36Z"}
+  - id: T-DISPATCH
+    type: pytest
+    file: scripts/tests/test_opencode_chat_improvement_review.py
+    command: python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py -k dispatch
+    covers: [AC-2]
+    assertions:
+      - run_opencode_session passes an explicit model to opencode run
+      - research dispatch requests openai/gpt-5.6-luna in read-only plan mode
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py scripts/tests/test_workflow_review_helper.py", run_id: "local:pytest-opencode-improvement-red-20260806T171934Z", subject_commit: "2531d380381a2fe60351944935c81cde375cb212", timestamp: "2026-08-06T17:19:34Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py", run_id: "local:pytest-opencode-improvement-manual-20260810T151636Z", subject_commit: "working-tree@73b0043e1b26e831e2440391b85efaf634f4756d", timestamp: "2026-08-10T15:16:36Z"}
+  - id: T-REPORTING
+    type: pytest
+    file: scripts/tests/test_opencode_chat_improvement_review.py
+    command: python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py -k reporting
+    covers: [AC-3]
+    assertions:
+      - latest and dated JSON and Markdown reports are atomically published
+      - empty, timeout, failed analysis, missing webhook, and failed notification retain visible local status
+      - Discord content is bounded and attaches the Markdown report without embedding transcript dumps
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py scripts/tests/test_workflow_review_helper.py", run_id: "local:pytest-opencode-improvement-red-20260806T171934Z", subject_commit: "2531d380381a2fe60351944935c81cde375cb212", timestamp: "2026-08-06T17:19:34Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py", run_id: "local:pytest-opencode-improvement-manual-20260810T151636Z", subject_commit: "working-tree@73b0043e1b26e831e2440391b85efaf634f4756d", timestamp: "2026-08-10T15:16:36Z"}
+  - id: T-CRON
+    type: pytest
+    file: scripts/tests/test_opencode_chat_improvement_review.py
+    command: python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py -k cron
+    covers: [AC-4]
+    assertions:
+      - render_crontab removes the retired managed block and preserves unrelated jobs
+      - install_cron fails visibly because automated analysis is retired
+      - runner and research sources contain no commit, push, or deploy path
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py scripts/tests/test_workflow_review_helper.py", run_id: "local:pytest-opencode-improvement-red-20260806T171934Z", subject_commit: "2531d380381a2fe60351944935c81cde375cb212", timestamp: "2026-08-06T17:19:34Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py", run_id: "local:pytest-opencode-improvement-manual-20260810T151636Z", subject_commit: "working-tree@73b0043e1b26e831e2440391b85efaf634f4756d", timestamp: "2026-08-10T15:16:36Z"}
+  - id: T-SKILLS
+    type: lint
+    file: scripts/sync_agent_parity.py
+    command: python3 scripts/sync_agent_parity.py --check && python3 scripts/audit_agent_tooling_parity.py && python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_opencode_spec_workflow.py && python3 scripts/audit_opencode_automation_budget.py scripts/opencode_chat_improvement_review.py scripts/prompts/opencode-improvement-research.md scripts/_opencode_utils.py opencode.json
+    covers: [AC-5]
+    assertions:
+      - canonical and mirrored manual review, research, and implementation skills match
+      - manual review and research skills are report-only, and implementation skill requires explicit invocation and current-evidence validation
+      - OpenCode automation budget, spec workflow, and output quality audits pass
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py scripts/tests/test_workflow_review_helper.py", run_id: "local:pytest-opencode-improvement-red-20260806T171934Z", subject_commit: "2531d380381a2fe60351944935c81cde375cb212", timestamp: "2026-08-06T17:19:34Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 scripts/sync_agent_parity.py --check && python3 scripts/audit_agent_tooling_parity.py && python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_opencode_spec_workflow.py && python3 scripts/audit_opencode_automation_budget.py scripts/opencode_chat_improvement_review.py scripts/prompts/opencode-improvement-research.md scripts/_opencode_utils.py opencode.json", run_id: "local:opencode-improvement-manual-audits-20260810T151246Z", subject_commit: "working-tree@73b0043e1b26e831e2440391b85efaf634f4756d", timestamp: "2026-08-10T15:12:46Z"}
+
+verifications:
+  - id: V-LUNA-RUN
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    status: passed
+    evidence:
+      status: passed
+      reason: Historical proof that the manual runner path can collect live SQLite evidence, use explicit model routing, generate reports, and stay research-only. The new cron-retirement change is covered by V-CRON-UNINSTALLED.
+      command: python3 scripts/opencode_chat_improvement_review.py --hours 24 --dry-run-notify
+      run_id: "opencode:ses_027b6cb26ffeE2os63UoJogtlu"
+      subject_commit: "working-tree@2531d380381a2fe60351944935c81cde375cb212"
+      summary: "Strict cron-research agent used openai/gpt-5.6-luna to analyze 84 top-level and subagent sessions with 225 bounded messages and 175 projected parts. It used only Brave search, web fetch, read, grep, glob, and skill tools; no Bash, edit, task, question, todo, GitHub write, commit, or deploy tool was available or used. The run produced four recommendations and atomically published generation 20260806T181449Z under gitignored logs/nightly-reports/opencode-improvements/. Independent code review finished with no findings after hardening."
+      timestamp: "2026-08-06T18:19:25Z"
+      actor: OpenCode
+  - id: V-CRON-UNINSTALLED
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-4]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/opencode_chat_improvement_review.py --uninstall-cron && crontab -l | python3 -c 'import sys; data=sys.stdin.read(); print("managed_opencode_improvement_cron_present=" + str("BEGIN OpenMates OpenCode improvement research" in data))'
+      run_id: local:opencode-improvement-cron-uninstall-20260810T150140Z
+      subject_commit: working-tree@73b0043e1b26e831e2440391b85efaf634f4756d
+      timestamp: "2026-08-10T15:01:40Z"
+
+implementation_notes:
+  plan_path: docs/plans/opencode-chat-improvement-review/plan.yml
+  existing_patterns:
+    - Extend scripts/_workflow_review_helper.py collection logic rather than adding another OpenCode database abstraction.
+    - Use scripts/_opencode_utils.py for persisted read-only OpenCode dispatch with explicit model routing.
+    - Reuse scripts/discord_webhook.py for confirmed Markdown attachment delivery.
+    - Follow stale_code_daily.py for atomic reports and optional Discord, while retiring this runner's user cron installation.
+    - Author skills canonically under .claude/skills and regenerate .agents/skills.
+  architecture: >
+    A bounded read-only collector extracts the requested repository interval from
+    OpenCode SQLite into a temporary local prompt. A persisted GPT-5.6 Luna plan
+    session researches current repository guidance and writes a structured draft.
+    The runner validates and atomically publishes latest and dated reports, then
+    optionally sends a bounded Discord notification for explicit manual runs. The
+    retired cron install path fails visibly, and the uninstall path removes the
+    old managed block. A separate user-invoked implementation skill consumes and
+    revalidates reports.
+  data_flow:
+    - Runner fixes the UTC interval and current subject commit, then queries OpenCode SQLite read-only when manually invoked.
+    - Collector groups top-level and child evidence, excludes the current analyzer, and applies deterministic bounds.
+    - Luna inspects the evidence and current skills, hooks, agents, instructions, tests, and official documentation where needed.
+    - Runner validates the result, publishes local JSON and Markdown, and optionally posts the Markdown to Discord when requested.
+    - Uninstall removes only the old managed crontab block and preserves unrelated cron entries.
+    - A maintainer later invokes the implementation skill, selects recommendations, and performs normal verified edits.
+  affected_files:
+    - path: scripts/_workflow_review_helper.py
+      reason: Bounded transcript and subagent evidence collection.
+    - path: scripts/_opencode_utils.py
+      reason: Honor explicit OpenCode model routing.
+    - path: scripts/opencode_chat_improvement_review.py
+      reason: Manual research, report publication, optional Discord notification, and retired cron install/uninstall behavior.
+    - path: scripts/prompts/opencode-improvement-research.md
+      reason: Research-only Luna analysis contract and report schema.
+    - path: scripts/tests/test_opencode_chat_improvement_review.py
+      reason: Collector, dispatch, reporting, notification, and cron contracts.
+    - path: .claude/skills/opencode-improvement-research/SKILL.md
+      reason: Canonical read-only research workflow used by the manual runner.
+    - path: .claude/skills/opencode-workflow-review/SKILL.md
+      reason: Canonical user-invocable workflow review entry point.
+    - path: .claude/skills/implement-opencode-improvements/SKILL.md
+      reason: Canonical user-triggered implementation workflow.
+    - path: docs/architecture/infrastructure/cronjobs.md
+      reason: Schedule, safety boundary, outputs, model, and manual commands.
+    - path: opencode.json
+      reason: Plan-mode prompt must include spec demonstration review terms enforced by audit_opencode_spec_workflow.py.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/opencode-chat-improvement-review/plan.yml
+    - python3 -m pytest scripts/tests/test_opencode_chat_improvement_review.py
+    - python3 scripts/sync_agent_parity.py --check
+    - python3 scripts/audit_agent_tooling_parity.py
+    - python3 scripts/audit_opencode_output_quality.py
+    - python3 scripts/opencode_chat_improvement_review.py --uninstall-cron
+    - python3 scripts/plan_verify.py docs/plans/opencode-chat-improvement-review/plan.yml
+  verification_order:
+    - Focused collector and runner tests
+    - Agent skill parity and OpenCode automation audits
+    - Managed cron uninstall proof
+    - Spec verification and scoped dev deploy
+
+tasks:
+  - id: TASK-1
+    title: Add red-phase workflow review contracts
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - scripts/tests/test_opencode_chat_improvement_review.py
+    verification: [T-COLLECTOR, T-DISPATCH, T-REPORTING, T-CRON, T-SKILLS]
+    verification_ids: [T-COLLECTOR, T-DISPATCH, T-REPORTING, T-CRON, T-SKILLS]
+    dependencies: []
+    ownership:
+      files: [scripts/tests/test_opencode_chat_improvement_review.py]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement bounded Luna research and notification
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - scripts/_workflow_review_helper.py
+      - scripts/_opencode_utils.py
+      - scripts/opencode_chat_improvement_review.py
+      - scripts/prompts/opencode-improvement-research.md
+      - docs/architecture/infrastructure/cronjobs.md
+    verification: [T-COLLECTOR, T-DISPATCH, T-REPORTING, T-CRON]
+    verification_ids: [T-COLLECTOR, T-DISPATCH, T-REPORTING, T-CRON]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - scripts/_workflow_review_helper.py
+        - scripts/_opencode_utils.py
+        - scripts/opencode_chat_improvement_review.py
+        - scripts/prompts/opencode-improvement-research.md
+        - docs/architecture/infrastructure/cronjobs.md
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Add research and manual implementation skills
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4]
+      acceptance_criteria: [AC-2, AC-5]
+    expected_files:
+      - .claude/skills/opencode-improvement-research/SKILL.md
+      - .claude/skills/opencode-workflow-review/SKILL.md
+      - .claude/skills/implement-opencode-improvements/SKILL.md
+      - .agents/skills/opencode-improvement-research/SKILL.md
+      - .agents/skills/opencode-workflow-review/SKILL.md
+      - .agents/skills/implement-opencode-improvements/SKILL.md
+    verification: [T-SKILLS]
+    verification_ids: [T-SKILLS]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - .claude/skills/opencode-improvement-research/SKILL.md
+        - .claude/skills/opencode-workflow-review/SKILL.md
+        - .claude/skills/implement-opencode-improvements/SKILL.md
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Run live Luna proof and finalize evidence
+    status: done
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - docs/plans/opencode-chat-improvement-review/plan.yml
+    verification: [V-LUNA-RUN]
+    verification_ids: [V-LUNA-RUN]
+    dependencies: [TASK-2, TASK-3]
+    ownership:
+      files: [docs/plans/opencode-chat-improvement-review/plan.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Retire daily cron and add manual workflow review entry point
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - scripts/opencode_chat_improvement_review.py
+      - scripts/tests/test_opencode_chat_improvement_review.py
+      - .claude/skills/opencode-improvement-research/SKILL.md
+      - .claude/skills/opencode-workflow-review/SKILL.md
+      - .agents/skills/opencode-improvement-research/SKILL.md
+      - .agents/skills/opencode-workflow-review/SKILL.md
+      - docs/architecture/infrastructure/cronjobs.md
+      - docs/plans/opencode-chat-improvement-review/plan.yml
+      - opencode.json
+    verification: [T-CRON, T-SKILLS, V-CRON-UNINSTALLED]
+    verification_ids: [T-CRON, T-SKILLS, V-CRON-UNINSTALLED]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - scripts/opencode_chat_improvement_review.py
+        - scripts/tests/test_opencode_chat_improvement_review.py
+        - .claude/skills/opencode-improvement-research/SKILL.md
+        - .claude/skills/opencode-workflow-review/SKILL.md
+        - docs/architecture/infrastructure/cronjobs.md
+        - docs/plans/opencode-chat-improvement-review/plan.yml
+        - opencode.json
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The feature is local maintenance tooling whose proof is a structured report, retired cron contract, and persisted analysis session rather than a browser, CLI product, or native user flow.
+    classified_at: "2026-08-06"
+    verification_ids: [V-CRON-UNINSTALLED]
+  narration_outline: []
+  evidence:
+    status: not_applicable
+    privacy_status: not_applicable
+    review_status: not_applicable
+    publication_status: not_applicable
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+risks:
+  - Transcript volume can exceed useful context; deterministic bounds and explicit truncation metadata are required.
+  - Local transcripts may contain secrets or private prose; reports are gitignored and Discord receives only a bounded report artifact rather than raw database exports.
+  - Self-analysis can create recursive noise; the current analyzer session must be excluded and prior analysis sessions should be identifiable.
+  - Model recommendations can be wrong or stale; the implementation skill must independently revalidate evidence and current files.
+  - Existing in-progress agent-workflow-quality-parity work may touch related audit files; implementation must reread and preserve concurrent changes.
+
+open_questions: []

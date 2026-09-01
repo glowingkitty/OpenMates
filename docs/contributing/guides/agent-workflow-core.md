@@ -56,7 +56,7 @@ the run failed, the proof is visually broken, or more debugging is still needed,
 because the operator needs to see visual progress over time. These run-type
 uploads use content-addressed S3 keys under `opencode-responses/runs/`, so an
 artifact embedded in an earlier response cannot be replaced by a later run.
-Every implemented executable spec requires its success response to include the
+Every implemented Plan requires its success response to include the
 delivered `snippet_html` for every required CLI, web, and native proof video in
 that same task-closing response. Do not replace embedded `<video>` elements with
 artifact paths, links, screenshots, or prose saying the proof was produced.
@@ -70,17 +70,17 @@ output includes `image_upload_command`, run it and embed the returned image
 Markdown in the blocker response. The image is required even when a video upload
 command is also available, so OpenCode can show the defect immediately.
 
-Before asking for approval for a new or modified Contract, run
-`python3 scripts/sessions.py contract approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD`
+Before asking for approval for a new or modified Specification, run
+`python3 scripts/sessions.py specification approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD`
 and paste the returned PDF Markdown link into the same response. The routed
 wrapper uses the current approval tooling and binds the PDF to the
-exact bundle fingerprint and includes the complete Contract plus examples. Only
+exact bundle fingerprint and includes the complete Specification plus examples. Only
 changed text is colored: inline green `+` insertions, inline red `-` deletions,
 and neutral unchanged text. A fingerprint, summary, raw local path, or unlinked
 claim that a PDF exists is not sufficient. Repair rendering or upload before
 asking for approval. The renderer also writes a JSON review artifact. After
-explicit approval, pass that artifact to `scripts/contracts.py approve
---review-artifact <path>` so approval cannot race ahead to a different Contract
+explicit approval, pass that artifact to `scripts/specifications.py approve
+--review-artifact <path>` so approval cannot race ahead to a different Specification
 fingerprint or PDF.
 
 Before editing, discover the relevant files, source patterns, docs, and tests.
@@ -164,8 +164,8 @@ ask-gated; use it only when repo docs, browser/Playwright evidence, or ordinary
 web fetches cannot produce the needed evidence. If verification was not run, say
 why. Do not include raw private logs, credentials, session titles, prompt text, or
 reasoning traces.
-Before a success final for executable-spec work, run `python3 scripts/spec_verify.py
-<spec> --phase complete --json`, require `complete: true`, and paste every delivered
+Before a success final for Plan work, run `python3 scripts/plan_verify.py
+<plan> --phase complete --json`, require `complete: true`, and paste every delivered
 proof-video `snippet_html` verbatim into the response.
 
 When a final answer needs more than one sentence, use a scan-first layout. Start

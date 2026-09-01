@@ -1,0 +1,1171 @@
+schema_version: 2
+id: travel-connection-transfer-quality
+title: Travel Connection Transfer Quality
+status: implementing
+
+goal: >
+  Improve `travel.search_connections` so users can ask for realistic transfer
+  windows, useful transfer-stop amenities, and Deutschland Ticket-friendly DB
+  regional alternatives without brittle provider fallbacks or unbounded third-party
+  calls. The same behavior must be proven through the direct app-skill REST
+  contract, OpenMates CLI, npm SDK, pip SDK, and natural-language chat paths.
+
+scope:
+  in:
+    - Extend the existing `travel.search_connections` skill contract instead of adding a new app or route.
+    - Add canonical request field `min_transfer_minutes` with default `10` for transfer/change filtering.
+    - Forward minimum change time to DB through `minUmstiegsdauer` and post-filter providers that only expose layover durations.
+    - Add transfer-stop amenities for train/bus transfer locations using Geoapify/OSM, source labels, bounded request groups, and persistent cache.
+    - Use three Geoapify category groups for transfer amenities: catering, shops/supermarket/convenience/bakery/kiosk, and toilets.
+    - Add separate normal connection results and `travel-connection` embeds for regional/Deutschland Ticket searches when bounded, cached full train stop lists from `/mob/zuglauf/{zuglaufId}` reveal a better feasible transfer station; the only visible difference is the fixed transfer and an `Optimized by OpenMates` badge/provenance marker.
+    - Preserve existing flight, Flix, DB, CLI, SDK, web embed, saved-memory, and provider-attribution behavior while adding new metadata.
+    - Update provider/privacy metadata and user-facing copy when Geoapify becomes a travel transfer-amenity source.
+  out:
+    - Adding a new public travel route or changing the booking-link route.
+    - Building a global train graph, importing GTFS feeds, self-hosting OSM, or preloading station amenities.
+    - Population-based station scoring or city population lookups.
+    - Guaranteeing exhaustive regional routes when DB rate limits, missing train-run data, or provider outages prevent enrichment.
+    - Indoor station routing, platform-to-platform walking times, accessibility routing, or live elevator/escalator status.
+    - Replacing DB, Flix, Google Flights, or Transitous ranking with Geoapify data.
+    - Storing user IDs, chat IDs, API keys, raw long provider payloads, or precise user-specific travel history in provider caches.
+
+context_discovery:
+  github_issues:
+    - "`gh issue list --search \"travel search connections min change Geoapify Deutschlandticket\"` returned `[]` in prior discovery."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/maps-geoapify-osm-enrichment/plan.yml
+    - docs/plans/sdk-cli-parity-v1/plan.yml
+    - docs/plans/app-skill-output-safety/plan.yml
+    - docs/architecture/apps/travel-train-api-research.md
+  code_patterns:
+    - backend/apps/travel/skills/search_connections.py currently accepts `max_layover_minutes`, `owned_passes`, `pass_only`, and `rail_products`, but not a minimum transfer field.
+    - backend/apps/travel/providers/base_provider.py defines `LayoverResult.duration_minutes`; flight and Flix providers can be post-filtered by existing layover metadata.
+    - backend/apps/travel/providers/db_provider.py uses DB `search_journeys()` and already maps Deutschland Ticket pass hints and regional rail products.
+    - backend/shared/providers/deutsche_bahn.py sends DB Navigator journey requests to `/mob/angebote/fahrplan` and currently has no train-run wrapper.
+    - backend/shared/providers/geoapify/places.py already provides Vault-backed, bounded, cached Geoapify Places and Place Details patterns for OSM-backed data.
+    - frontend/packages/openmates-cli/src/cli.ts builds direct app-skill inputs for `openmates apps travel search_connections --input ... --json`.
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts and packages/openmates-python/openmates/generated/app_skills.py are generated SDK app-skill wrappers.
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift registers `app:travel:search_connections` and `travel-connection` embed types.
+  tests:
+    - backend/tests/test_travel_search_connections.py covers the travel skill contract.
+    - backend/tests/test_travel_skill_constraints.py covers travel input/filter constraints.
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts covers CLI direct train search, CLI chat train search, and web train embed rendering.
+    - frontend/apps/web_app/tests/skill-travel-connections.spec.ts covers unified travel search preview, CLI direct skill, CLI chat, and web chat paths.
+    - packages/openmates-python/tests/test_sdk_generator.py covers generated Python SDK app-skill wrappers.
+  findings:
+    - Prior live DB probes confirmed `minUmstiegsdauer` works upstream for minimum change duration.
+    - "Prior live DB probes confirmed full train stop lists require `/mob/zuglauf/{zuglaufId}` with `Accept: application/x.db.vendo.mob.zuglauf.v2+json`; using the journey content type returned `405`."
+    - A broad, unpaced DB train-run probe hit `429`, while a conservative prototype completed with `journey_calls=10`, `train_run_calls=46`, `train_run_cache_hits=10`, `unique_train_runs_cached=46`, and `train_run_429=0`.
+    - Combined Geoapify category search was unreliable because of result caps; three small amenity groups are preferred.
+    - Live Geoapify access works inside the `api` container through Vault-managed secrets; local shell access without Vault token failed as expected.
+    - No app skill files were modified before this spec draft.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    - apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  parity_expectations:
+    - Apple must keep rendering travel search parent previews and travel-connection child previews when transfer-quality, amenity, and regional-overlap metadata is present.
+    - If web exposes visible transfer-quality badges or amenity summaries, Apple either matches the essential label/summary or records an intentional native difference after deployed web user approval.
+    - Apple verification starts only after REST/API, CLI, SDK, deployed web, Firecrawl when required, and user confirmation gates are complete.
+  verification:
+    - Run `python3 scripts/apple_remote.py status` and then `python3 scripts/apple_remote.py build-ios`, or a targeted iOS test if travel embed parity coverage is updated.
+  intentional_native_differences:
+    - Apple may initially render a simpler travel connection summary if all new transfer details remain available in generic app-skill metadata and the user accepts that native difference after web approval.
+
+clarification:
+  rounds:
+    - question: Should this session continue with the next spec step or stop for clarification?
+      answer: The user said to continue if there are next steps, or stop and ask for clarification only if unsure how to proceed.
+    - question: What default should be used for minimum change duration?
+      answer: Prior discovery established a default of 10 minutes.
+    - question: Should transfer amenities use Geoapify/OSM and include population counts?
+      answer: Prior discovery selected Geoapify/OSM with persistent cache and explicitly excluded population count.
+    - question: Should DB regional alternatives use full train-run stop lists?
+      answer: Prior discovery established that current journey responses include only boarded segment stops, so optimized regional connection results require bounded `/mob/zuglauf/{zuglaufId}` calls.
+    - question: Should OpenMates overwrite provider connection output when a better transfer station is found?
+      answer: The user challenged a metadata-only approach and proposed separate connection entries highlighted as `Optimized by OpenMates` when an existing route can be improved by changing the transfer station based on overlap and OSM amenity data.
+    - question: Should optimized routes use a special result/embed type?
+      answer: No. The user clarified that optimized routes should simply return additional connection results and embeds identical to other connections, except for the fixed transfer station and a badge showing the route is optimized by OpenMates.
+  vision_summary: >
+    Users should get travel results they can actually make: default ten-minute
+    transfer buffers, clear filtering of too-short layovers, amenity context at
+    transfer stops, and improved DB regional route candidates when a Deutschland
+    Ticket or regional-only request has a better feasible transfer station than
+    the provider's original connection. Optimized routes must be returned as
+    additional normal connection results/embeds with the same shape as other
+    connections, except for the changed transfer station and an `Optimized by
+    OpenMates` badge/provenance marker; the implementation must be conservative
+    with DB and Geoapify calls, cache provider data, and prove parity through
+    REST, CLI, SDK, web chat, and Apple render-contract gates.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 7e87b59fc40db7ec2dcb078e97e8cd1b62711952
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-01T21:30:15Z"
+    reason: User approved implementation after clarifying optimized routes should be additional normal connection results/embeds with an `Optimized by OpenMates` badge.
+  plan:
+    status: approved
+    approved_at: "2026-08-01T21:30:15Z"
+    reason: Initial implementation plan follows the approved REST, CLI, SDK, web, Firecrawl, user-confirmation, and Apple phase ladder.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use `min_transfer_minutes` as the canonical OpenMates request field and default it to 10 minutes.
+    reason: Existing `max_layover_minutes` is a maximum-duration filter; a separate minimum field avoids opposite semantics on one input.
+    decided_at: "2026-08-01T21:08:19Z"
+  - id: D-2
+    status: active
+    decision: Forward DB minimum change time through DB's `minUmstiegsdauer` request field.
+    reason: Prior live probes confirmed the upstream DB Navigator API supports the field, making provider-side filtering better than client-side guessing for DB journeys.
+    decided_at: "2026-08-01T21:08:19Z"
+  - id: D-3
+    status: active
+    decision: Apply minimum transfer filtering after overfetch for Flix, FlixTrain, and flights.
+    reason: Those providers already expose layover durations but do not share DB's `minUmstiegsdauer` request contract.
+    decided_at: "2026-08-01T21:08:19Z"
+  - id: D-4
+    status: active
+    decision: Use Geoapify/OSM for transfer amenities with three small category groups and persistent cache.
+    reason: Prior probes showed combined categories were capped unreliably; grouped requests give predictable food, shop, and toilet coverage without population data.
+    decided_at: "2026-08-01T21:08:19Z"
+  - id: D-5
+    status: active
+    decision: Fetch DB full train runs only for bounded regional-overlap candidate generation, with cache and low per-request caps.
+    reason: "`/mob/zuglauf/{zuglaufId}` is required for full train stop lists, but unpaced broad probing can trigger DB `429` responses."
+    decided_at: "2026-08-01T21:08:19Z"
+  - id: D-6
+    status: active
+    decision: Emit overlap-derived improvements as additional normal connection results/embeds with an `Optimized by OpenMates` badge, not by overwriting provider-returned trips in place.
+    reason: Provider trips carry official provenance, realtime, fare, and booking context; an overlap-derived route can be better, but it is an OpenMates synthesis and must preserve source transparency while still being recommendable and rankable.
+    decided_at: "2026-08-01T21:08:19Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Create the full Schema V2 product contract from prior discovery before implementation.
+    outcome: planned
+    recorded_at: "2026-08-01T21:08:19Z"
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Add backend red tests for minimum transfer filtering, transfer amenities, DB train-run wrapper, and optimized regional connection results before production code.
+    outcome: planned
+    recorded_at: "2026-08-01T21:08:19Z"
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Prove the changed app-skill REST contract against `https://api.dev.openmates.org` before CLI or SDK verification.
+    outcome: planned
+    recorded_at: "2026-08-01T21:08:19Z"
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Restart local dev `api` under the Docker lock and run the REST smoke against `https://api.dev.openmates.org`.
+    outcome: blocked
+    recorded_at: "2026-08-01T21:55:00Z"
+    evidence: "`python3 scripts/smoke_travel_transfer_quality.py --api https://api.dev.openmates.org --scenario deutschland-ticket-regional --min-transfer-minutes 10 --json` exited before network auth because OPENMATES_TEST_ACCOUNT_API_KEY/OPENMATES_API_KEY was unavailable in the shell."
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Add and use the existing CLI-session temporary API-key pattern for the travel REST smoke instead of requiring the key in the shell.
+    outcome: succeeded
+    recorded_at: "2026-08-01T22:10:40Z"
+    evidence: "`python3 scripts/smoke_travel_transfer_quality.py --api https://api.dev.openmates.org --scenario deutschland-ticket-regional --min-transfer-minutes 10 --create-api-key-from-cli-session --json` passed with 5 DB results, 5 transfer-quality results, 7 layovers, 7 amenity-enriched layovers, unauthenticated rejection, and no optimized candidates for this live route/date."
+  - id: ATTEMPT-6
+    task_id: TASK-4
+    approach: Fix the typed CLI travel request builder after discovering it advertised but dropped `--min-transfer-minutes` and `--max-results`.
+    outcome: succeeded
+    recorded_at: "2026-08-01T22:10:40Z"
+    evidence: "`npm --prefix frontend/packages/openmates-cli run test:unit:cli` passed 167 tests after updating `buildTravelConnectionsRequest`; live CLI output included `transfer_quality.min_transfer_minutes: 10`, Geoapify amenity groups, and `meets_min_transfer: true`."
+  - id: ATTEMPT-7
+    task_id: TASK-5
+    approach: Prove generated npm and pip SDK travel app-skill parity against the dev API using temporary API keys created from the local CLI session.
+    outcome: succeeded
+    recorded_at: "2026-08-01T22:10:40Z"
+    evidence: "npm and pip smoke scripts passed sequentially with 5 DB results, 5 transfer-quality results, 7 layovers, 7 amenity-enriched layovers, and temporary-key device approval via CLI session."
+  - id: ATTEMPT-8
+    task_id: TASK-4
+    approach: Run the natural-language CLI chat path against the real dev API after direct REST and CLI gates were green.
+    outcome: succeeded
+    recorded_at: "2026-08-01T22:16:00Z"
+    evidence: "`node frontend/packages/openmates-cli/dist/cli.js chats new \"I have a Deutschland Ticket...\" --json --api-url https://api.dev.openmates.org` completed, returned regional Berlin-Hamburg options with 15-20 minute transfers, Deutschland Ticket coverage, and transfer-station amenity descriptions."
+  - id: ATTEMPT-9
+    task_id: TASK-6
+    approach: Deploy the scoped travel transfer-quality implementation and run the deployed train Playwright spec.
+    outcome: succeeded
+    recorded_at: "2026-08-02T00:04:55Z"
+    evidence: "Initial deployed runs failed on stale pass-only fare and flattened transfer-quality assumptions; follow-up commits `41eb041` and `d71ced8` fixed the spec/fixture and UI normalization, then `python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts --gate-deploy --expected-commit d71ced8` passed in run 2026-08-01T23:56:14Z / GitHub Actions 30724447739."
+  - id: ATTEMPT-10
+    task_id: TASK-6
+    approach: Run Firecrawl visual smoke for the deployed travel preview route in laptop and mobile viewports.
+    outcome: blocked
+    recorded_at: "2026-08-02T00:04:55Z"
+    evidence: "Both Firecrawl screenshot requests for `https://app.dev.openmates.org/dev/preview/embeds/travel` failed before inspection with `Insufficient credits to perform this request`; `sessions.py visual-smoke` recorded a blocked smoke for session 833f and commit d71ced8."
+  - id: ATTEMPT-11
+    task_id: TASK-4
+    approach: Investigate why the live Berlin-Hamburg regional route had no optimized candidates despite DB returning Holthusen/Stendal/Uelzen transfer patterns.
+    outcome: succeeded
+    recorded_at: "2026-08-02T12:45:00Z"
+    evidence: "Live API-container train-run probe reproduced HTTP 422 for raw `/mob/zuglauf/{zuglaufId}` requests because DB train-run IDs include reserved characters (`#`, spaces, `|`). Commit `e922840` percent-encodes the path segment before lookup, allowing overlap discovery to see Schwerin Süd/Holthusen/Stendal options."
+  - id: ATTEMPT-12
+    task_id: TASK-4
+    approach: Fix transfer-amenity false outages for live Berlin-Hamburg regional transfer stations and verify REST, CLI, npm SDK, and pip SDK after restarting the dev API.
+    outcome: succeeded
+    recorded_at: "2026-08-02T12:45:00Z"
+    evidence: "Commits `e922840` and `25741dd` deployed backend fixes. `python3 scripts/smoke_travel_transfer_quality.py --create-api-key-from-cli-session --min-transfer-minutes 15 --json` passed with 7 results, 9 layovers, 9 amenity layovers, and `optimized_count: 2`. Direct CLI showed two `Optimized by OpenMates` Holthusen -> Schwerin Süd candidates, Stendal Hbf food/drink matched count 4, Uelzen food/drink matched count 3, Holthusen no_match, and Schwerin Süd `missing_coordinates` instead of an invalid Geoapify outage. npm and pip SDK smokes passed with the same result counts."
+  - id: ATTEMPT-13
+    task_id: TASK-4
+    approach: Resolve station coordinates for optimized transfer stops before Geoapify amenity lookup.
+    outcome: succeeded
+    recorded_at: "2026-08-02T13:20:00Z"
+    evidence: "Commit `7e87b59` resolves missing train transfer-stop coordinates through DB station search and caches the station coordinates before running bounded Geoapify category searches. After restarting `api`, REST smoke passed with 7 results, 9 layovers, 9 amenity layovers, and `optimized_count: 2`; direct CLI showed Schwerin Süd with latitude `53.5743`, longitude `11.376712`, and bounded Geoapify `no_match` groups instead of `missing_coordinates`. npm and pip SDK smokes passed with the same result counts."
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Resolve the prior Firecrawl credit blocker or use an approved alternate visual-smoke path, then request user confirmation and run Apple parity verification.
+  command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+  expected_outcome: Apple build or targeted travel embed parity check succeeds after web/user approval.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: true
+    reason: Firecrawl returned insufficient credits for required laptop/mobile visual smoke; user confirmation is also required before Apple parity.
+    question: Refill/authorize Firecrawl credits or approve skipping/replacing the Firecrawl visual-smoke gate, then confirm the deployed web behavior on dev.
+    next_action: Retry Firecrawl visual smoke for https://app.dev.openmates.org/dev/preview/embeds/travel in laptop and mobile viewports.
+  last_verified_commit: 7e87b59fc40db7ec2dcb078e97e8cd1b62711952
+
+scenarios:
+  - id: S-1
+    title: Minimum transfer time filters impossible connections
+    given:
+      - Alice searches Berlin to Munich by train for a future date without specifying a transfer buffer.
+      - DB, FlixTrain, and flight providers may return connections with transfers or layovers.
+    when:
+      - "`travel.search_connections` runs with default request settings."
+    then:
+      - The effective minimum transfer time is 10 minutes.
+      - DB receives the minimum change request through `minUmstiegsdauer`.
+      - Providers that only expose layover duration are overfetched and post-filtered so returned transfer windows are at least 10 minutes unless the provider cannot expose transfer duration.
+
+  - id: S-2
+    title: Caller can request a longer transfer buffer
+    given:
+      - "Alice wants more time to change trains and submits `min_transfer_minutes: 20`."
+    when:
+      - "`travel.search_connections` searches train and flight providers."
+    then:
+      - Returned connection metadata shows the effective minimum transfer time is 20 minutes.
+      - Connections with known transfer windows below 20 minutes are excluded or marked as filtered out in the request group's summary.
+      - Existing `max_layover_minutes` behavior still filters overly long layovers independently.
+
+  - id: S-3
+    title: Transfer stops include useful amenities
+    given:
+      - Alice has a connection with a transfer at a station such as Hannover Hbf.
+      - The transfer station has coordinates or an EVA/station record that can be resolved to coordinates.
+    when:
+      - Transfer amenities are included for the result.
+    then:
+      - The transfer metadata includes food/drink, shops, and toilets groups when Geoapify/OSM returns matches.
+      - Each amenity group includes source/provider status, cache status where available, and a bounded result count or short item list.
+      - Missing amenity data is represented as `unknown`, `not_configured`, `timed_out`, `rate_limited`, or `unavailable`, not as proof the station lacks amenities.
+
+  - id: S-4
+    title: Deutschland Ticket regional search can show optimized OpenMates candidates
+    given:
+      - "Alice asks for Berlin to Hamburg with Deutschland Ticket or uses `owned_passes: [\"deutschland_ticket\"]`, `pass_only: true`, and regional rail products."
+      - DB's normal journey response does not provide enough combined regional options for the route.
+    when:
+      - The DB provider performs bounded regional optimization discovery.
+    then:
+      - The provider fetches cached full train runs from `/mob/zuglauf/{zuglaufId}` for a small candidate pool.
+      - It detects feasible overlap stations and times between regional trains, respecting `min_transfer_minutes`.
+      - If the overlap station improves the route based on transfer feasibility, pass coverage, duration, or requested amenities, the response adds a separate normal connection result with the fixed transfer station.
+      - The original provider-returned connection remains present and unmodified except for optional explanatory metadata.
+      - The optimized result uses the same result and `travel-connection` embed shape as other connections, with an `Optimized by OpenMates` badge/provenance marker.
+      - The optimized result includes route provenance, confidence, fare/pass coverage, transfer explanation, and amenity counts or statuses.
+
+  - id: S-5
+    title: Provider limits degrade visibly without breaking base results
+    given:
+      - DB train-run lookup or Geoapify amenity lookup times out, is rate limited, or is not configured.
+    when:
+      - The base DB/Flix/flight search succeeds.
+    then:
+      - Base connection results still return.
+      - The response includes a bounded warning or enrichment status explaining which optional enrichment failed.
+      - Logs omit API keys, user identifiers, chat IDs, and raw long provider payloads.
+
+  - id: S-6
+    title: REST, CLI, and SDK callers receive the same contract
+    given:
+      - A developer calls the travel app skill directly through REST, OpenMates CLI, npm SDK, and pip SDK.
+    when:
+      - The request includes `min_transfer_minutes`, Deutschland Ticket/pass-only inputs, and train transport methods.
+    then:
+      - All programmatic clients send the same request shape and receive matching transfer-quality, amenity, warning, and optimized-connection fields.
+      - Unauthenticated REST calls are rejected and approved API-key/session calls work against the real dev API.
+      - SDK methods remain generated from app-skill metadata rather than hand-written divergent contracts.
+
+  - id: S-7
+    title: Natural-language chat can plan a regional Deutschland Ticket route
+    given:
+      - Alice tells OpenMates: "I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg next week with enough time to change and tell me what is at the transfer station."
+    when:
+      - The assistant invokes `travel.search_connections` from CLI chat or web chat.
+    then:
+      - The assistant passes regional/pass intent and transfer buffer into the app-skill request.
+      - The travel embed or assistant answer includes regional/pass coverage, minimum transfer information, transfer amenities or visible enrichment status, and no implementation error text.
+      - The saved travel connection flow still works when the result is saved from fullscreen.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "`travel.search_connections` applies a default 10-minute minimum transfer buffer and forwards it to DB as `minUmstiegsdauer`."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BACKEND
+      - T-REST-LIVE
+  - id: AC-2
+    scenario: S-2
+    text: Callers can override the minimum buffer with `min_transfer_minutes`, while `max_layover_minutes` continues to filter overly long layovers independently.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BACKEND
+      - T-CLI-DIRECT
+  - id: AC-3
+    scenario: S-3
+    text: Transfer stops expose source-labelled food/drink, shop, and toilet amenities or explicit enrichment status without treating missing data as `false`.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-GEOAPIFY
+      - T-REST-LIVE
+      - T-PLAYWRIGHT-TRAIN
+  - id: AC-4
+    scenario: S-4
+    text: DB regional/Deutschland Ticket searches can add additional normal connection results from cached full train-run stop lists when a feasible transfer station improves the provider route; optimized results differ only by the fixed transfer station plus `Optimized by OpenMates` badge/provenance metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BACKEND
+      - T-REST-LIVE
+      - T-CLI-CHAT
+  - id: AC-5
+    scenario: S-5
+    text: DB train-run and Geoapify enrichment calls have explicit per-request caps, cache use, timeout/rate-limit statuses, and safe logging.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BACKEND
+      - T-PYTEST-GEOAPIFY
+      - T-REST-LIVE
+  - id: AC-6
+    scenario: S-6
+    text: The direct app-skill REST endpoint remains authenticated, rejects unauthenticated calls, handles no client-side encrypted material, and documents rate/budget/provider-spend behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-REST-LIVE
+  - id: AC-7
+    scenario: S-6
+    text: OpenMates CLI direct skill and CLI chat paths work against `https://api.dev.openmates.org` with the new request and response fields.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-DIRECT
+      - T-CLI-CHAT
+  - id: AC-8
+    scenario: S-6
+    text: npm SDK and pip SDK generated app-skill methods preserve parity with CLI for `min_transfer_minutes`, transfer amenities, warnings, and optimized connection results.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids:
+      - T-NPM-SDK
+      - T-PIP-SDK
+  - id: AC-9
+    scenario: S-7
+    text: Deployed web chat and travel fullscreen rendering show the regional/transfer-quality result without implementation error text, clipped preview details, or broken save-to-memory flow.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TRAIN
+      - V-FIRECRAWL-VISUAL-SMOKE
+      - V-USER-CONFIRMATION
+  - id: AC-10
+    scenario: S-7
+    text: Apple travel embed render contracts continue to build or test successfully with the new metadata present.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-BUILD
+
+assumptions:
+  - id: A-1
+    text: DB Navigator still accepts `minUmstiegsdauer` on `/mob/angebote/fahrplan` for the deployed implementation window.
+    category: provider_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: prior live DB probe
+        summary: Prior discovery confirmed DB minimum change behavior upstream through `minUmstiegsdauer`.
+  - id: A-2
+    text: Full DB train runs remain available through `/mob/zuglauf/{zuglaufId}` with `application/x.db.vendo.mob.zuglauf.v2+json`.
+    category: provider_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: prior live DB probe
+        summary: Prior discovery confirmed the train-run endpoint and content type; using the journey content type returned 405.
+  - id: A-3
+    text: The dev `api` container can access the Geoapify Vault secret for live transfer-amenity verification.
+    category: provider_secret
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: prior api-container Geoapify probe
+        summary: Live Geoapify worked inside the `api` container through Vault; local shell failed without Vault token as expected.
+
+contracts:
+  api:
+    - route: POST /v1/apps/travel/skills/search_connections
+      access_model: first-party client surface plus approved developer API-key app-skill access; no unauthenticated public access
+      auth: Authenticated user session or approved API key with app-skill access; unauthenticated requests return 401.
+      request: >
+        Existing search request plus `min_transfer_minutes?: integer` defaulting to 10.
+        Existing `max_layover_minutes`, `owned_passes`, `pass_only`, and
+        `rail_products` retain their current semantics.
+      response: >
+        Existing grouped travel results plus transfer-quality metadata, optional
+        transfer amenity groups, bounded enrichment warnings/status, and optional
+        additional normal connection results marked with `Optimized by OpenMates`
+        provenance when OpenMates fixes the transfer station.
+      rate_limits: Existing app-skill/API-key route limits apply; provider enrichment adds stricter per-request DB train-run and Geoapify caps.
+      credit_budget: Uses existing app-skill credit accounting plus provider-spend caps for Geoapify and DB optional enrichment; no uncapped background crawl.
+      encryption_boundary: The route handles plaintext travel search parameters and provider data, not client-side encrypted chat, memory, file, key, sync, or share material.
+      errors:
+        - 401 when unauthenticated.
+        - 400 for invalid negative or non-integer `min_transfer_minutes`.
+        - Bounded warning/status fields, not whole-request failure, for optional DB train-run or Geoapify enrichment failure when base results succeed.
+  data:
+    - "`min_transfer_minutes` is normalized per request item and recorded in result metadata as the effective minimum transfer buffer."
+    - Transfer metadata includes known duration minutes, whether it meets the minimum, and optional amenity enrichment status.
+    - "Provider-returned connections are not silently overwritten; overlap-derived improvements are emitted as additional normal connection records with the same result shape, the fixed transfer station, `source_provider: openmates_optimized`, original-provider references, confidence, and explanation metadata."
+    - Geoapify transfer amenity cache keys use station/coordinate/provider context, not user IDs, chat IDs, or raw query text beyond necessary location/category normalization.
+    - DB train-run cache keys use train-run identifiers, date/provider version, and sanitized route context only.
+  ui_states:
+    - Transfer buffer summary visible in travel connection details when transfers exist.
+    - Transfer amenity groups visible or summarized when available; missing data shows a neutral status, not a negative claim.
+    - Optimized routes render as the same travel connection card/fullscreen layout as other results, with a visible `Optimized by OpenMates` badge and transfer-station change explanation.
+    - Existing no-results, loading, booking CTA, calendar, and save-to-memory states continue to render.
+  privacy_security:
+    - Do not log API keys, session tokens, user identifiers, chat IDs, raw long DB/Geoapify payloads, or precise user-specific travel history.
+    - Provider/privacy disclosures must include Geoapify as a travel transfer-amenity data source if not already disclosed for the Travel app.
+    - Optional provider failures must be visible in structured status/warnings; do not silently fabricate amenities or optimized connection results.
+
+tests:
+  - id: T-PYTEST-BACKEND
+    type: pytest
+    file: backend/tests/test_travel_search_connections.py
+    command: python3 -m pytest backend/tests/test_travel_search_connections.py backend/tests/test_travel_skill_constraints.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+    assertions:
+      - default `min_transfer_minutes` is 10 and is forwarded to the DB provider wrapper as `minUmstiegsdauer`
+      - explicit `min_transfer_minutes` overrides the default and filters known shorter layovers
+      - "`max_layover_minutes` keeps maximum-duration semantics independently from the new minimum field"
+      - DB regional optimization uses capped train-run calls and cache hits instead of unbounded probing
+      - overlap-derived route improvements are returned as additional normal connection results rather than overwriting provider connections
+      - optimized results preserve the same connection schema and differ by fixed transfer station plus `Optimized by OpenMates` badge/provenance metadata
+      - optional enrichment failures return warnings/status while base results remain usable
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_travel_search_connections.py backend/tests/test_travel_skill_constraints.py
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_travel_search_connections.py backend/tests/test_travel_skill_constraints.py
+        run_id: local-pytest-2026-08-02T00:07Z
+        subject_commit: d71ced874560dd403758b177e1957299974daa77
+        timestamp: "2026-08-02T00:07:00Z"
+        summary: 33 passed, 3 warnings.
+
+  - id: T-PYTEST-GEOAPIFY
+    type: pytest
+    file: backend/tests/test_travel_search_connections.py
+    command: python3 -m pytest backend/tests/test_travel_search_connections.py -k "transfer_amenities or geoapify"
+    covers:
+      - AC-3
+      - AC-5
+    assertions:
+      - transfer amenity enrichment uses the three approved Geoapify category groups
+      - missing or failed Geoapify results produce explicit neutral statuses instead of `false` amenities
+      - amenity cache keys avoid user identifiers, chat IDs, and raw long payloads
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 -m pytest backend/tests/test_travel_search_connections.py -k "transfer_amenities or geoapify"
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_travel_search_connections.py -k "transfer_amenities or geoapify"
+        run_id: local-pytest-2026-08-02T00:08Z
+        subject_commit: d71ced874560dd403758b177e1957299974daa77
+        timestamp: "2026-08-02T00:08:00Z"
+        summary: 1 passed, 26 deselected, 3 warnings.
+
+  - id: T-REST-LIVE
+    type: manual
+    command: python3 scripts/smoke_travel_transfer_quality.py --api https://api.dev.openmates.org --scenario deutschland-ticket-regional --min-transfer-minutes 10 --create-api-key-from-cli-session
+    covers:
+      - AC-1
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+    assertions:
+      - unauthenticated REST request to the app-skill endpoint returns 401
+      - authenticated dev-server request returns transfer-quality metadata with effective minimum 10
+      - a regional/Deutschland Ticket request returns either additional optimized normal connection results or an explicit bounded no-candidate status
+      - optional Geoapify and DB train-run statuses are present and do not expose secrets or raw long payloads
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/smoke_travel_transfer_quality.py --api https://api.dev.openmates.org --scenario deutschland-ticket-regional --min-transfer-minutes 10
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/smoke_travel_transfer_quality.py --api https://api.dev.openmates.org --scenario deutschland-ticket-regional --min-transfer-minutes 10 --create-api-key-from-cli-session --json
+        run_id: local-rest-smoke-2026-08-01T22:10Z
+        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+        timestamp: "2026-08-01T22:10:40Z"
+        summary: "Passed against dev API with unauthenticated rejection, 5 DB results, transfer_quality on all 5 results, 7 layovers, 7 Geoapify amenity-enriched layovers, and no optimized candidates for this route/date."
+        reason: Manual live REST smoke uses a temporary API key from the local CLI session because no test-account API key was exported in the shell.
+
+  - id: T-CLI-DIRECT
+    type: manual
+    command: node frontend/packages/openmates-cli/dist/cli.js apps travel search_connections --origin Berlin --destination Hamburg --date 2026-08-15 --transport train --providers deutsche_bahn --owned-passes deutschland_ticket --pass-only --rail-products regional,regional_express,s_bahn --min-transfer-minutes 10 --max-results 8 --json --api-url https://api.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-7
+    assertions:
+      - CLI sends the canonical `min_transfer_minutes` field to the dev API
+      - CLI output includes effective minimum transfer metadata and no schema/serialization error
+      - existing direct app-skill JSON output shape remains parseable
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: OPENMATES_API_URL=https://api.dev.openmates.org openmates apps travel search_connections --input '{...}' --json
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node frontend/packages/openmates-cli/dist/cli.js apps travel search_connections --origin Berlin --destination Hamburg --date 2026-08-15 --transport train --providers deutsche_bahn --owned-passes deutschland_ticket --pass-only --rail-products regional,regional_express,s_bahn --min-transfer-minutes 10 --max-results 8 --json --api-url https://api.dev.openmates.org
+        run_id: local-cli-direct-2026-08-01T22:10Z
+        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+        timestamp: "2026-08-01T22:10:40Z"
+        summary: "Passed against dev API with successful typed CLI output, transfer_quality.min_transfer_minutes 10, meets_min_transfer true on layovers, and Geoapify amenity groups for food_drink, shops, and toilets."
+        reason: Manual live CLI direct gate verifies the typed command path against the dev API with the local authenticated CLI session.
+
+  - id: T-CLI-CHAT
+    type: manual
+    command: OPENMATES_API_URL=https://api.dev.openmates.org openmates chats new "I have a Deutschland Ticket. Find regional trains from Berlin to Hamburg next week with at least 15 minutes to change and tell me what is at the transfer station." --json
+    covers:
+      - AC-4
+      - AC-7
+    assertions:
+      - CLI chat reaches the real dev API and triggers `travel.search_connections`
+      - natural-language pass, regional, and transfer-buffer intent are reflected in the app-skill request or response evidence
+      - result includes regional/pass explanation, optimized-route badge/provenance when applicable, and transfer amenity/status text without implementation error text
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: OPENMATES_API_URL=https://api.dev.openmates.org openmates chats new "I have a Deutschland Ticket..." --json
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: OPENMATES_API_URL=https://api.dev.openmates.org openmates chats new "I have a Deutschland Ticket..." --json
+        run_id: local-cli-chat-2026-08-01T22:16Z
+        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+        timestamp: "2026-08-01T22:16:00Z"
+        summary: "Passed against dev API; assistant returned regional Berlin-Hamburg options covered by Deutschland Ticket with 16m, 19m, and 20m transfer examples plus transfer-station amenity descriptions."
+        reason: Manual live CLI chat gate verifies natural-language routing through the real dev API and AI/tool pipeline.
+
+  - id: T-NPM-SDK
+    type: manual
+    command: node scripts/smoke_travel_transfer_quality_npm.mjs --api https://api.dev.openmates.org --min-transfer-minutes 10 --create-api-key-from-cli-session --skip-build
+    covers:
+      - AC-8
+    assertions:
+      - generated npm SDK app-skill method accepts the new field through typed/native app-skill input
+      - npm SDK response preserves transfer-quality, amenity, warnings, and optimized connection fields from the dev API
+      - mocked SDK clients or fixture replay are not used for this gate
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: node scripts/smoke_travel_transfer_quality_npm.mjs --api https://api.dev.openmates.org --min-transfer-minutes 15
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node scripts/smoke_travel_transfer_quality_npm.mjs --api https://api.dev.openmates.org --min-transfer-minutes 10 --create-api-key-from-cli-session --skip-build --json
+        run_id: local-npm-sdk-smoke-2026-08-01T22:10Z
+        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+        timestamp: "2026-08-01T22:10:40Z"
+        summary: "Passed against dev API with 5 DB results, transfer_quality on all 5 results, 7 layovers, and 7 Geoapify amenity-enriched layovers."
+        reason: Manual live npm SDK gate verifies the generated TypeScript app-skill wrapper against the dev API using a temporary API key from the local CLI session.
+
+  - id: T-PIP-SDK
+    type: manual
+    command: python3 scripts/smoke_travel_transfer_quality_pip.py --api https://api.dev.openmates.org --min-transfer-minutes 10 --create-api-key-from-cli-session
+    covers:
+      - AC-8
+    assertions:
+      - generated pip SDK app-skill method accepts the new field through typed/native app-skill input
+      - pip SDK response preserves transfer-quality, amenity, warnings, and optimized connection fields from the dev API
+      - mocked SDK clients or fixture replay are not used for this gate
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/smoke_travel_transfer_quality_pip.py --api https://api.dev.openmates.org --min-transfer-minutes 15
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/smoke_travel_transfer_quality_pip.py --api https://api.dev.openmates.org --min-transfer-minutes 10 --create-api-key-from-cli-session --json
+        run_id: local-pip-sdk-smoke-2026-08-01T22:10Z
+        subject_commit: 73bb9a9a7e55fe4d4754975755c53288dff1009a
+        timestamp: "2026-08-01T22:10:40Z"
+        summary: "Passed against dev API with 5 DB results, transfer_quality on all 5 results, 7 layovers, and 7 Geoapify amenity-enriched layovers."
+        reason: Manual live pip SDK gate verifies the generated Python app-skill wrapper against the dev API using a temporary API key from the local CLI session.
+
+  - id: T-PLAYWRIGHT-TRAIN
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    command: python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-3
+      - AC-9
+    assertions:
+      - deployed web train chat returns a finished travel search embed
+      - optimized routes render as additional normal connection cards with the fixed transfer station and visible `Optimized by OpenMates` badge
+      - fullscreen connection details show transfer buffer and amenity or enrichment-status text for a regional/Deutschland Ticket scenario
+      - preview/fullscreen content has no implementation error text or clipped visible preview details
+      - save-to-memory still creates and deletes a saved travel connection entry
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts --gate-deploy --expected-commit d71ced8
+        run_id: 2026-08-01T23:56:14Z / gha-30724447739
+        subject_commit: d71ced874560dd403758b177e1957299974daa77
+        timestamp: "2026-08-02T00:04:15Z"
+        summary: "Passed after Vercel deployment dpl_GSaL3yhsMU7SM855F94MW4nteyVZ reached Ready; fallback account slot 2 was used because slot 1 preflight failed user lookup."
+        target: https://app.dev.openmates.org
+        deployment_reference: dpl_GSaL3yhsMU7SM855F94MW4nteyVZ
+
+  - id: T-APPLE-BUILD
+    type: manual
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-10
+    assertions:
+      - Apple remote status is reachable or records a sanitized blocker class
+      - iOS build or targeted travel embed parity test succeeds after web/user approval
+      - travel embed metadata changes do not break native model decoding or preview rendering
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: skipped
+        reason: Apple verification is the final phase and starts only after earlier gates are green.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-PRODUCT-CONTRACT
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-FIRECRAWL-VISUAL-SMOKE
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-9
+    status: blocked
+    evidence:
+      status: blocked
+      route: https://app.dev.openmates.org/dev/preview/embeds/travel
+      viewports:
+        - laptop
+        - mobile
+      summary: "Attempted Firecrawl screenshot visual smoke in laptop and mobile viewports after deployed Playwright passed; both requests failed before inspection with insufficient credits."
+      run_id: firecrawl-insufficient-credits-2026-08-02T00:05Z
+      timestamp: "2026-08-02T00:04:55Z"
+      reason: Firecrawl account has insufficient credits for screenshot visual-smoke requests.
+      actor: OpenCode
+      next_action: Refill/authorize Firecrawl credits or explicitly approve an alternate visual-smoke evidence path, then rerun laptop and mobile smoke for the deployed route.
+      blocker: Firecrawl returned `Insufficient credits to perform this request` for both viewport requests.
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-9
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_notes:
+  plan_path: docs/plans/travel-connection-transfer-quality/plan.yml
+  existing_patterns:
+    - backend/apps/travel/skills/search_connections.py uses Pydantic request normalization and provider fan-out for app-skill requests.
+    - backend/apps/travel/providers/db_provider.py already maps Deutschland Ticket/pass-only and regional product filters.
+    - backend/shared/providers/deutsche_bahn.py centralizes DB Navigator HTTP headers, TLS transport, and location/journey calls.
+    - backend/shared/providers/geoapify/places.py provides bounded, Vault-backed, cached Geoapify request patterns.
+    - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts already proves CLI direct, CLI chat, and deployed web train flows.
+  architecture: >
+    Add one request field at the travel skill boundary, pass minimum transfer
+    intent down to providers, enrich only bounded transfer stops, and build DB
+    optimized regional alternatives as additional normal connection results behind
+    capped cached train-run lookups. Keep shared behavior backend-first, then
+    verify the exact deployed REST, CLI, SDK, web, Firecrawl, user, and Apple
+    sequence.
+  data_flow:
+    - User or direct client submits travel search request with optional `min_transfer_minutes`.
+    - Skill normalizes the minimum transfer buffer and provider filters once per request item.
+    - DB receives `minUmstiegsdauer`; Flix/flight providers overfetch then post-filter known layovers.
+    - For transfer stops with coordinates, the travel provider asks Geoapify for three bounded amenity groups and caches normalized summaries.
+    - For regional/Deutschland Ticket searches, DB fetches a capped candidate pool and cached train-run stop lists, then emits additional normal connection results with fixed transfer stations and `Optimized by OpenMates` badges when feasible.
+    - REST, CLI, SDK, web, and Apple renderers consume the same response shape.
+  affected_files:
+    - path: backend/apps/travel/skills/search_connections.py
+      reason: Add request field, validation, normalization, response metadata, and result grouping for transfer quality.
+    - path: backend/apps/travel/providers/base_provider.py
+      reason: Extend provider interface/result models for minimum transfer filtering and transfer amenity metadata.
+    - path: backend/apps/travel/providers/db_provider.py
+      reason: Forward DB minimum change time, build optimized regional connection results, and call train-run wrapper.
+    - path: backend/shared/providers/deutsche_bahn.py
+      reason: Add `minUmstiegsdauer` support and `/mob/zuglauf/{zuglaufId}` wrapper with correct content type.
+    - path: backend/apps/travel/providers/flix_provider.py
+      reason: Overfetch and post-filter Flix/FlixTrain results by known minimum transfer duration.
+    - path: backend/apps/travel/providers/serpapi_provider.py
+      reason: Post-filter flight layovers by known minimum transfer duration.
+    - path: backend/tests/test_travel_search_connections.py
+      reason: Backend contract/red-green tests for transfer buffers, amenities, provider failures, and optimized connection results.
+    - path: backend/tests/test_travel_skill_constraints.py
+      reason: Input validation tests for `min_transfer_minutes` and interaction with existing filters.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Ensure direct CLI app-skill input accepts and passes the new field without special-case loss.
+    - path: frontend/packages/openmates-cli/src/generated/appSkills.ts
+      reason: Regenerated npm SDK app-skill wrapper after schema changes.
+    - path: packages/openmates-python/openmates/generated/app_skills.py
+      reason: Regenerated pip SDK app-skill wrapper after schema changes.
+    - path: frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+      reason: Deployed web/CLI natural-language train scenario assertions for transfer quality.
+    - path: frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+      reason: Render transfer buffer, amenities/status, and the `Optimized by OpenMates` badge on normal travel connection cards.
+    - path: frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+      reason: Render per-connection transfer amenity and buffer details.
+    - path: shared/docs/privacy_policy.yml
+      reason: Add or confirm Geoapify travel transfer-amenity disclosure.
+    - path: apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      reason: Confirm native decoding/rendering tolerates new travel metadata.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/travel-connection-transfer-quality/plan.yml
+    - python3 -m pytest backend/tests/test_travel_search_connections.py backend/tests/test_travel_skill_constraints.py
+    - python3 scripts/smoke_travel_transfer_quality.py --api https://api.dev.openmates.org --scenario deutschland-ticket-regional --min-transfer-minutes 10
+    - OPENMATES_API_URL=https://api.dev.openmates.org openmates apps travel search_connections --input '{...}' --json
+    - OPENMATES_API_URL=https://api.dev.openmates.org openmates chats new "I have a Deutschland Ticket..." --json
+    - node scripts/smoke_travel_transfer_quality_npm.mjs --api https://api.dev.openmates.org --min-transfer-minutes 15
+    - python3 scripts/smoke_travel_transfer_quality_pip.py --api https://api.dev.openmates.org --min-transfer-minutes 15
+    - python3 scripts/audit_sdk_cli_parity.py
+    - python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts
+    - python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/dev/preview/embeds/travel --viewport laptop --viewport mobile --result passed --run-id <firecrawl-id> --summary "Checked travel preview/fullscreen rendering, implementation error text, loading states, and responsive layout."
+    - python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    - python3 scripts/plan_verify.py docs/plans/travel-connection-transfer-quality/plan.yml
+  verification_order:
+    - Direct REST API app-skill contract against `https://api.dev.openmates.org` first, with authenticated success, unauthenticated rejection, rate/budget/provider-spend notes, and encryption-boundary classification.
+    - Real OpenMates CLI direct skill and CLI chat commands against the dev server second, with no mocked OpenMates API/WebSocket calls.
+    - npm SDK and pip SDK parity locally against the dev server third, plus `python3 scripts/audit_sdk_cli_parity.py` when generated wrappers change.
+    - GitHub Actions or daily-test reproduction only after local REST/API, CLI, and SDK evidence is green.
+    - Deployed web Playwright fourth through `python3 scripts/tests.py run --spec skill-travel-train-connections.spec.ts` after deploy.
+    - Firecrawl visual smoke fifth for the deployed travel preview/fullscreen route in laptop and mobile viewports.
+    - User confirmation sixth for deployed dev web behavior and visible transfer-quality output.
+    - Apple remote status plus build/test last.
+
+tasks:
+  - id: TASK-1
+    title: Finalize and approve product contract
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+    expected_files:
+      - docs/plans/travel-connection-transfer-quality/plan.yml
+    verification:
+      - V-PRODUCT-CONTRACT
+    verification_ids:
+      - V-PRODUCT-CONTRACT
+    dependencies: []
+    ownership:
+      files:
+        - docs/plans/travel-connection-transfer-quality/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add backend red tests and provider contract scaffolding
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/tests/test_travel_search_connections.py
+      - backend/tests/test_travel_skill_constraints.py
+    verification:
+      - T-PYTEST-BACKEND
+      - T-PYTEST-GEOAPIFY
+    verification_ids:
+      - T-PYTEST-BACKEND
+      - T-PYTEST-GEOAPIFY
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/tests/test_travel_search_connections.py
+        - backend/tests/test_travel_skill_constraints.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement backend transfer quality and enrichment
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/apps/travel/skills/search_connections.py
+      - backend/apps/travel/providers/base_provider.py
+      - backend/apps/travel/providers/db_provider.py
+      - backend/shared/providers/deutsche_bahn.py
+      - backend/apps/travel/providers/flix_provider.py
+      - backend/apps/travel/providers/serpapi_provider.py
+      - shared/docs/privacy_policy.yml
+    verification:
+      - T-PYTEST-BACKEND
+      - T-PYTEST-GEOAPIFY
+    verification_ids:
+      - T-PYTEST-BACKEND
+      - T-PYTEST-GEOAPIFY
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/apps/travel/skills/search_connections.py
+        - backend/apps/travel/providers/base_provider.py
+        - backend/apps/travel/providers/db_provider.py
+        - backend/shared/providers/deutsche_bahn.py
+        - backend/apps/travel/providers/flix_provider.py
+        - backend/apps/travel/providers/serpapi_provider.py
+        - shared/docs/privacy_policy.yml
+      shared_files:
+        - backend/shared/providers/geoapify/places.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Prove live REST and CLI contract gates
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+    expected_files:
+      - scripts/smoke_travel_transfer_quality.py
+      - frontend/packages/openmates-cli/src/cli.ts
+    verification:
+      - T-REST-LIVE
+      - T-CLI-DIRECT
+      - T-CLI-CHAT
+    verification_ids:
+      - T-REST-LIVE
+      - T-CLI-DIRECT
+      - T-CLI-CHAT
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - scripts/smoke_travel_transfer_quality.py
+        - frontend/packages/openmates-cli/src/cli.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Prove npm and pip SDK parity
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/src/generated/appSkills.ts
+      - packages/openmates-python/openmates/generated/app_skills.py
+      - scripts/smoke_travel_transfer_quality_npm.mjs
+      - scripts/smoke_travel_transfer_quality_pip.py
+    verification:
+      - T-NPM-SDK
+      - T-PIP-SDK
+    verification_ids:
+      - T-NPM-SDK
+      - T-PIP-SDK
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/generated/appSkills.ts
+        - packages/openmates-python/openmates/generated/app_skills.py
+        - scripts/smoke_travel_transfer_quality_npm.mjs
+        - scripts/smoke_travel_transfer_quality_pip.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/cli.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Update web rendering and deployed train E2E
+    status: blocked
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-3
+        - S-7
+      acceptance_criteria:
+        - AC-3
+        - AC-9
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+    verification:
+      - T-PLAYWRIGHT-TRAIN
+      - V-FIRECRAWL-VISUAL-SMOKE
+      - V-USER-CONFIRMATION
+    verification_ids:
+      - T-PLAYWRIGHT-TRAIN
+      - V-FIRECRAWL-VISUAL-SMOKE
+      - V-USER-CONFIRMATION
+    dependencies:
+      - TASK-5
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/travel/TravelSearchEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - frontend/apps/web_app/tests/skill-travel-train-connections.spec.ts
+      shared_files: []
+    blockers:
+      - Firecrawl visual smoke is blocked by insufficient Firecrawl credits for both laptop and mobile screenshot requests.
+      - User confirmation is pending after deployed Playwright passed.
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Verify Apple travel embed parity
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-10
+    expected_files:
+      - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+      - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+    verification:
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-BUILD
+    dependencies:
+      - TASK-6
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+        - apple/OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+      shared_files:
+        - apple/OpenMatesTests/AppleComposerRendererRegistryTests.swift
+        - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

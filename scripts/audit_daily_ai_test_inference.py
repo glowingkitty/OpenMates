@@ -25,7 +25,7 @@ from scripts import daily_ai_test_policy  # noqa: E402
 
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 CACHE_DIR = PROJECT_ROOT / "backend" / "apps" / "ai" / "testing" / "api_cache"
-SPEC_PATH = PROJECT_ROOT / "docs" / "specs" / "cost-safe-daily-ai-tests" / "spec.yml"
+PLAN_PATH = PROJECT_ROOT / "docs" / "plans" / "cost-safe-daily-ai-tests" / "plan.yml"
 MOCK_CONTEXT_PATH = PROJECT_ROOT / "backend" / "shared" / "testing" / "mock_context.py"
 BACKFILL_PATH = PROJECT_ROOT / "scripts" / "daily_ai_cache_backfill.py"
 RUNNER_PATH = PROJECT_ROOT / "scripts" / "run_tests.py"
@@ -79,22 +79,22 @@ def audit() -> list[str]:
                 if not (CACHE_DIR / group_id).is_dir():
                     errors.append(f"{path.name}: missing live cache group {group_id}")
 
-    errors.extend(_audit_spec_references())
+    errors.extend(_audit_plan_references())
     errors.extend(_audit_raw_http_dispatch_guard())
     errors.extend(_audit_backfill_guards())
 
     return errors
 
 
-def _audit_spec_references() -> list[str]:
-    """Reject stale implementation file and command references in the spec."""
+def _audit_plan_references() -> list[str]:
+    """Reject stale implementation file and command references in the Plan."""
     errors: list[str] = []
-    if not SPEC_PATH.is_file():
-        return [f"missing executable spec: {SPEC_PATH.relative_to(PROJECT_ROOT)}"]
+    if not PLAN_PATH.is_file():
+        return [f"missing executable Plan: {PLAN_PATH.relative_to(PROJECT_ROOT)}"]
     try:
-        document = yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8")) or {}
+        document = yaml.safe_load(PLAN_PATH.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
-        return [f"could not parse executable spec: {exc}"]
+        return [f"could not parse executable Plan: {exc}"]
 
     def walk(node: object, path: tuple[str, ...]) -> None:
         if isinstance(node, dict):
@@ -111,7 +111,7 @@ def _audit_spec_references() -> list[str]:
             for index, item in enumerate(node):
                 walk(item, (*path, str(index)))
 
-    walk(document, (SPEC_PATH.relative_to(PROJECT_ROOT).as_posix(),))
+    walk(document, (PLAN_PATH.relative_to(PROJECT_ROOT).as_posix(),))
     return errors
 
 

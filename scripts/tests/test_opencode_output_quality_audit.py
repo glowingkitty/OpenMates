@@ -76,7 +76,7 @@ def write_clarifying_guidance_files(root: Path) -> None:
     for name in (
         ".claude/rules/planning.md",
         ".claude/skills/clarify/SKILL.md",
-        ".claude/skills/specify/SKILL.md",
+        ".claude/skills/create-plan/SKILL.md",
         ".claude/skills/create-pr/SKILL.md",
         ".claude/skills/next-tasks/SKILL.md",
         ".claude/skills/add-focus-mode/SKILL.md",
@@ -178,16 +178,16 @@ def test_rejects_required_discord_proof_delivery_guidance(tmp_path: Path) -> Non
     assert any("still requires Discord" in issue.message for issue in issues)
 
 
-def test_requires_highlighted_pdf_before_contract_approval(tmp_path: Path) -> None:
+def test_requires_highlighted_pdf_before_specification_approval(tmp_path: Path) -> None:
     audit = load_audit_module()
-    canonical = tmp_path / ".claude" / "skills" / "define-contract" / "SKILL.md"
+    canonical = tmp_path / ".claude" / "skills" / "define-specification" / "SKILL.md"
     canonical.parent.mkdir(parents=True)
     canonical.write_text("Ask for approval from a fingerprint.", encoding="utf-8")
 
-    issues = audit._audit_contract_approval_pdf_guidance(tmp_path)
+    issues = audit._audit_specification_approval_pdf_guidance(tmp_path)
 
-    assert any(issue.path == "scripts/contract_approval_pdf.py" for issue in issues)
-    assert any("Contract approval PDF guidance" in issue.message for issue in issues)
+    assert any(issue.path == "scripts/specification_approval_pdf.py" for issue in issues)
+    assert any("Specification approval PDF guidance" in issue.message for issue in issues)
 
 
 def test_requires_recommendations_and_examples_for_clarifying_questions(tmp_path: Path) -> None:

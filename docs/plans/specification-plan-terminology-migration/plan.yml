@@ -1,0 +1,715 @@
+schema_version: 3
+id: specification-plan-terminology-migration
+title: Specification And Plan Terminology Migration
+status: approved
+
+specification_refs:
+  - id: feature.specifications
+    version: 1
+    role: primary
+    fingerprint: acecc3a927b54f6859210d30fab5d310780c24db666c49f0d4170389c758ccc5
+  - id: feature.plans
+    version: 1
+    role: inherited
+    fingerprint: 42bdef146759edab2103675caead7c9449df0ff43f669c2f40abe4602f335683
+
+specification_impact:
+  classification: semantic_change
+  specification_update_required: true
+  affected_assertions:
+    - contracts.definition.durable-truth
+    - contracts.composition.capability-first
+    - contracts.ui.structured-interactions
+    - contracts.ui.human-readable-default
+    - contracts.links.revision-traceable
+    - contracts.surface.semantic-parity
+    - plans.contract-links.contextual
+    - plans.execution.gates-evidence
+    - plans.ui.edit-approve-resume
+    - plans.surface.semantic-parity
+  reason: >
+    Rename durable Contracts to Specifications, broaden Specifications beyond
+    software-only concepts, and identify executable full-spec ledgers as Plans
+    whose only universally required user-authored field is the goal.
+
+documentation_impact:
+  generated_reference:
+    status: update_required
+    reason: Generated Specification registries, assertion indexes, and coverage move to the new namespace.
+    documents:
+      - specifications/generated/registry.yml
+      - specifications/generated/assertion-index.yml
+      - specifications/generated/coverage.yml
+  user_docs:
+    status: update_required
+    reason: Contributor and agent workflow documentation must use Specification, Plan, Task, Check, and Run consistently.
+    documents:
+      - AGENTS.md
+      - docs/contributing/guides/agent-workflow-core.md
+      - docs/contributing/guides/spec-driven-development.md
+      - docs/plans/README.md
+  semantic_layer:
+    status: update_required
+    reason: Durable truth becomes Specification terminology and implementation ledgers become Plans.
+    documents:
+      - specifications/features/specifications/specification.yml
+      - specifications/features/plans/specification.yml
+
+goal: >
+  Establish Specification, Plan, Task, Check, and Run as the consistent OpenMates
+  work model; move durable truth from contracts/ to specifications/ and executable
+  implementation ledgers from docs/specs/ to docs/plans/ without losing history,
+  evidence, approvals, assertion identity, or agent workflow enforcement.
+
+scope:
+  in:
+    - Rename the OpenMates Contracts feature and durable bundle vocabulary to Specifications.
+    - Move contracts/ to specifications/ and contract.yml to specification.yml while preserving examples.yml.
+    - Use docs/plans/<slug>/plan.yml as the canonical executable Plan path, including archived plans and artifacts.
+    - Rename Specification and Plan scripts, schemas, hooks, tests, skills, agents, generated files, metadata, help text, and documentation.
+    - Replace user-facing and workflow “surfaces” language with “Applies to” while preserving canonical test surface identifiers where machine compatibility requires them.
+    - Broaden Specification categories, model concepts, applicability, templates, and examples for UX/UI, finance, marketing, research, operations, events, and other domains.
+    - Define separate UI Specifications only when substantial, reusable, independently owned, independently approved, or independently versioned.
+    - Make goal the only universally required user-authored Plan field; assumptions, Tasks, and Checks are recommended lightweight additions and all other sections are optional.
+    - Remove implicit universal completion gates for optional Plan sections unless present and marked required or imposed by a governing Specification.
+    - Rename canonical Claude skills and agents, then regenerate OpenCode and Codex mirrors.
+    - Preserve stable assertion IDs even when their legacy contracts.* prefix remains part of immutable evidence identity.
+  out:
+    - Renaming Playwright *.spec.ts files or the established software-testing term “spec”.
+    - Renaming generic API, SDK, provider, schema, protocol, legal, or type-level “contract” terminology unrelated to the OpenMates Specifications feature.
+    - Changing product REST APIs, database schemas, persisted encrypted records, routes, or currently shipped UI in this repository-only migration.
+    - Automatically splitting every existing Specification into separate UI Specifications.
+    - Rewriting historical git commits, release notes, or immutable evidence records.
+
+context_discovery:
+  github_issues:
+    - gh issue search returned no matching issue.
+  docs:
+    - docs/plans/contract-driven-development/plan.yml
+    - docs/plans/sdd-v2/plan.yml
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - AGENTS.md
+  specifications:
+    - specifications/features/specifications/specification.yml is the durable-truth model.
+    - specifications/features/plans/specification.yml is the current draft Plan model.
+  code_patterns:
+    - scripts/specifications.py owns durable bundle validation, generation, approvals, evidence, documentation, and release tracing.
+    - scripts/plan_validate.py and scripts/plan_verify.py own executable implementation-ledger validation and completion evidence.
+    - scripts/sessions.py enforces changed-test mappings, generated files, approval receipts, and deploy metadata.
+    - Canonical skills and agents live under .claude and are mirrored by scripts/sync_agent_parity.py.
+    - Existing test annotations use contract-test metadata and canonical surface IDs that require deliberate migration or compatibility treatment.
+  tests:
+    - scripts/tests/test_specifications_workflow.py
+    - scripts/tests/test_specification_test_metadata.py
+    - scripts/tests/test_specification_evidence.py
+    - scripts/tests/test_sessions_specification_gate.py
+    - scripts/tests/test_plan_workflow_validation.py
+    - scripts/tests/test_opencode_plan_workflow_audit.py
+    - scripts/tests/test_agent_tooling_parity_audit.py
+  current_findings:
+    - The repository contains more than 40 durable bundles and more than 100 executable implementation ledgers.
+    - The existing durable Contracts model is software-specific through fixed surfaces, Requirement categories, model kinds, and examples.
+    - Existing full specs primarily behave as Plans because they own decisions, Tasks, attempts, handoff, and evidence.
+    - The former intermediate planning stage duplicates planning inside an artifact that is itself becoming a Plan.
+
+clarification:
+  rounds:
+    - question: How should Specifications adapt across domains?
+      answer: Use a universal core with optional removable domain templates.
+    - question: Should one consistent object name be used?
+      answer: Use Specification, with Specs as a compact UI label.
+    - question: When should UI behavior use a separate Specification?
+      answer: Only when substantial, reusable, independently owned, independently approved, or independently versioned.
+    - question: How should “Applies to” be represented?
+      answer: Use Applies to instead of Surfaces and support channels, audiences, locations, systems, devices, markets, teams, and artifacts.
+    - question: How should Plan creation expose optionality?
+      answer: Use goal-first progressive creation; only goal is required and optional sections are suggested contextually.
+  vision_summary: >
+    Specifications define durable approved truth across software and non-software
+    domains. Plans coordinate one outcome and may contain only a goal, while Tasks
+    execute work and Checks/Runs prove only the requirements or criteria that
+    actually apply.
+  approved_by_user: true
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This migration changes repository workflow terminology, not Apple product behavior.
+  verification:
+    - Apple build and runtime verification are not required.
+  intentional_native_differences:
+    - Existing Swift types using Contract for protocol or API semantics remain unchanged.
+
+implementation_state:
+  subject_commit: working-tree@4f176f212
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-31"
+    reason: User completed five clarification rounds, confirmed the recommendations, and explicitly requested creation and execution of the migration Plan.
+  plan:
+    status: approved
+    approved_at: "2026-08-31"
+    reason: The user explicitly requested that the Plan be created and executed, including repository-wide folder and skill renames.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use Specification as the one durable-truth object name.
+    reason: It matches approved Requirements, flows, models, applicability, evidence, and revisions without legal-contract ambiguity.
+    decided_at: "2026-08-31"
+  - id: D-2
+    status: active
+    decision: Treat current full implementation specs as Plans.
+    reason: They own goal, scope, decisions, Tasks, attempts, handoff, and evidence rather than reusable durable truth.
+    decided_at: "2026-08-31"
+  - id: D-3
+    status: active
+    decision: Goal is the only universally required user-authored Plan field.
+    reason: Plans must support a minimal goal-only flow while progressively suggesting assumptions, Tasks, Checks, and other optional sections.
+    decided_at: "2026-08-31"
+  - id: D-4
+    status: active
+    decision: Remove the former intermediate planning stage.
+    reason: A Plan must not contain a second nested implementation plan; Tasks are derived directly from the Plan when needed.
+    decided_at: "2026-08-31"
+  - id: D-5
+    status: active
+    decision: Preserve generic software spec and contract terminology outside the OpenMates workflow model.
+    reason: Playwright filenames, API contracts, legal contracts, and protocol contracts have established independent meanings.
+    decided_at: "2026-08-31"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Inventory durable bundles, executable ledgers, tooling, hooks, tests, skills, agents, and compatibility-sensitive terminology before editing.
+    outcome: succeeded
+    recorded_at: "2026-08-31"
+    notes: Discovery identified a broad repository-tooling migration with no product API or persisted-data changes.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run focused path, workflow-name, and goal-only Plan fixtures before moving files.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-31T23:21:48Z"
+    notes: New Specification/Plan paths and plan_validate.py are absent; failures match the intended migration boundary.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Deploy the verified repository migration to dev.
+  command: 'python3 scripts/sessions.py deploy --session fa2e --title "refactor: establish Specification and Plan terminology"'
+  expected_outcome: The scoped migration commits and pushes after all deploy gates pass.
+  blocker: null
+  last_verified_commit: 4f176f212
+
+scenarios:
+  - id: S-1
+    title: Author defines durable truth as a Specification
+    given:
+      - A Project needs durable Requirements for a software or non-software capability.
+    when:
+      - The author invokes the Specification workflow.
+    then:
+      - The durable bundle uses specifications/<namespace>/<slug>/specification.yml plus examples.yml.
+      - The author can use a universal core and optional domain template sections.
+      - The author sees Applies to rather than software-only Surfaces language.
+
+  - id: S-2
+    title: Author creates a goal-only Plan
+    given:
+      - Alice wants to organize a birthday dinner.
+    when:
+      - Alice creates a Plan containing only the goal.
+    then:
+      - The Plan is valid.
+      - Assumptions, Tasks, and Checks are suggested but not required.
+      - Missing optional sections do not block completion unless explicitly required later.
+
+  - id: S-3
+    title: Governed implementation links Specification to Plan
+    given:
+      - An approved Specification defines a Settings navigation Requirement and flow.
+    when:
+      - An implementation Plan is created.
+    then:
+      - The Plan references the exact Specification revision, Requirement, flow, and applicable Checks.
+      - It does not copy durable Specification text or contain a second nested planning stage.
+
+  - id: S-4
+    title: Substantial UI behavior uses a linked UI Specification
+    given:
+      - Settings has extensive navigation, responsive, accessibility, and motion behavior.
+    when:
+      - Authors separate UI truth from functional feature truth.
+    then:
+      - Settings Specification links Settings UI and shared Motion Specifications.
+      - A separate Specification is not required merely because a feature has several screens.
+
+  - id: S-5
+    title: Existing repository history migrates without loss
+    given:
+      - Durable bundles, Plans, artifacts, approvals, evidence, and stable assertion IDs already exist.
+    when:
+      - Paths and workflow terminology are migrated.
+    then:
+      - Every old bundle and Plan maps one-to-one to its new path.
+      - Generated output is current.
+      - Historical evidence and stable assertion IDs remain traceable.
+
+  - id: S-6
+    title: Skills follow the new workflow model
+    given:
+      - Claude is the canonical skill and agent source.
+    when:
+      - Agent tooling is regenerated.
+    then:
+      - define-specification, create-plan, tasks-from-plan, verify-plan, backfill-specification, and specification-verifier exist across supported runtimes.
+      - The former intermediate planning stage is removed, and tasks-from-plan is optional.
+
+  - id: S-7
+    title: Unrelated contract and spec terminology stays intact
+    given:
+      - The repository contains Playwright specs, API contracts, provider contracts, and legal contracts.
+    when:
+      - The terminology migration audit runs.
+    then:
+      - Those established generic meanings remain unchanged.
+      - Only OpenMates Specification and Plan workflow terminology is renamed.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Durable truth is stored and validated under specifications/ with specification.yml and human-readable Applies to terminology.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MIGRATION, T-SPECIFICATIONS]
+    specification_assertions: [contracts.definition.durable-truth, contracts.ui.human-readable-default]
+  - id: AC-2
+    scenario: S-2
+    text: Plan validation accepts a goal-only Plan and treats assumptions, Tasks, Checks, criteria, risks, references, and learnings as optional unless explicitly required.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PLAN-VALIDATION]
+    specification_assertions: [plans.execution.gates-evidence, plans.ui.edit-approve-resume]
+  - id: AC-3
+    scenario: S-3
+    text: Plans reference exact Specifications directly and contain no second nested planning stage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PLAN-VALIDATION, T-WORKFLOW-AUDIT]
+    specification_assertions: [plans.contract-links.contextual]
+  - id: AC-4
+    scenario: S-4
+    text: Specification composition documents the threshold for linked UI Specifications without requiring one Specification per screen.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SPECIFICATIONS]
+    specification_assertions: [contracts.composition.capability-first, contracts.ui.structured-interactions]
+  - id: AC-5
+    scenario: S-5
+    text: All durable bundles and executable ledgers move one-to-one with generated files current and evidence identity preserved.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MIGRATION, T-GENERATED]
+    specification_assertions: [contracts.links.revision-traceable]
+  - id: AC-6
+    scenario: S-6
+    text: Canonical and generated skills, agents, hooks, and audits use Specification and Plan workflow terminology consistently.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WORKFLOW-AUDIT, V-AGENT-PARITY]
+    specification_assertions: [contracts.surface.semantic-parity, plans.surface.semantic-parity]
+  - id: AC-7
+    scenario: S-7
+    text: A bounded terminology audit preserves Playwright specs and generic API, protocol, provider, legal, and type-level contract terminology.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MIGRATION]
+    specification_assertions: [contracts.definition.durable-truth]
+
+assumptions:
+  - id: A-1
+    text: The migration can preserve stable assertion IDs while changing bundle paths and display terminology.
+    category: compatibility
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/specifications.py
+        summary: Assertion IDs are semantic keys independent from bundle paths.
+  - id: A-2
+    text: No shipped product API or persisted product data currently exposes the Contracts feature name.
+    category: rollout
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: repository inventory
+        summary: Discovery found repository tooling and drafts but no product route, endpoint, or persisted field requiring data migration.
+
+tests:
+  - id: T-MIGRATION
+    type: pytest
+    file: scripts/tests/test_specification_plan_terminology_migration.py
+    command: python3 -m pytest scripts/tests/test_specification_plan_terminology_migration.py -q
+    covers: [AC-1, AC-5, AC-7]
+    assertions:
+      - old workflow-owned paths are absent and new paths are complete
+      - every durable bundle and executable Plan maps one-to-one
+      - unrelated generic spec and contract terminology is allowlisted
+    specification_assertions: [contracts.definition.durable-truth, contracts.links.revision-traceable]
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_specification_plan_terminology_migration.py -q
+        run_id: local:terminology-migration-red
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-08-31T23:21:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_specification_plan_terminology_migration.py -q
+        run_id: local:terminology-migration-green
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-09-01T11:09:29Z"
+  - id: T-SPECIFICATIONS
+    type: pytest
+    file: scripts/tests/test_specifications_workflow.py
+    command: python3 -m pytest scripts/tests/test_specifications_workflow.py scripts/tests/test_specification_evidence.py -q
+    covers: [AC-1, AC-4]
+    assertions:
+      - Specification bundles validate deterministically
+      - exact-hash approval and evidence behavior remain intact
+      - Applies to and extensible domain concepts validate
+    specification_assertions: [contracts.definition.durable-truth, contracts.composition.capability-first, contracts.ui.structured-interactions]
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_specification_plan_terminology_migration.py -q
+        run_id: local:terminology-migration-red
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-08-31T23:21:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_specifications_workflow.py scripts/tests/test_specification_evidence.py -q
+        run_id: local:specifications-green
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-09-01T11:09:29Z"
+  - id: T-PLAN-VALIDATION
+    type: pytest
+    file: scripts/tests/test_plan_workflow_validation.py
+    command: python3 -m pytest scripts/tests/test_plan_workflow_validation.py -q
+    covers: [AC-2, AC-3]
+    assertions:
+      - goal-only Plans validate
+      - optional present fields enforce only their declared requirements
+      - Plan evidence and handoff remain resumable when used
+    specification_assertions: [plans.contract-links.contextual, plans.execution.gates-evidence, plans.ui.edit-approve-resume]
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_plan_workflow_validation.py -q
+        run_id: local:plan-validation-red
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-08-31T23:21:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_plan_workflow_validation.py -q
+        run_id: local:plan-validation-green
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-09-01T11:09:29Z"
+  - id: T-GENERATED
+    type: lint
+    file: scripts/specifications.py
+    command: python3 scripts/specifications.py check-generated
+    covers: [AC-5]
+    assertions:
+      - registry, assertion index, and coverage match Specification sources
+    specification_assertions: [contracts.links.revision-traceable]
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/specifications.py check-generated
+        run_id: local:generated-specifications-red
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-08-31T23:21:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/specifications.py check-generated
+        run_id: local:generated-specifications-green
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-09-01T11:09:29Z"
+  - id: T-WORKFLOW-AUDIT
+    type: pytest
+    file: scripts/tests/test_opencode_plan_workflow_audit.py
+    command: python3 -m pytest scripts/tests/test_opencode_plan_workflow_audit.py scripts/tests/test_agent_tooling_parity_audit.py -q
+    covers: [AC-3, AC-6]
+    assertions:
+      - workflow order is define Specification, create Plan, derive Tasks, verify Plan
+      - removed skill names are absent from active configuration
+    specification_assertions: [contracts.surface.semantic-parity, plans.surface.semantic-parity]
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_plan_workflow_audit.py scripts/tests/test_agent_tooling_parity_audit.py -q
+        run_id: local:plan-workflow-red
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-08-31T23:21:48Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_plan_workflow_audit.py scripts/tests/test_agent_tooling_parity_audit.py -q
+        run_id: local:plan-workflow-green
+        subject_commit: working-tree@4f176f212
+        timestamp: "2026-09-01T11:09:29Z"
+
+verifications:
+  - id: V-AGENT-PARITY
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-6]
+    status: passed
+    evidence:
+      status: passed
+      summary: Canonical Claude sources and generated OpenCode/Codex mirrors are synchronized.
+      command: python3 scripts/sync_agent_parity.py --check
+      run_id: local:agent-parity-green
+      subject_commit: working-tree@4f176f212
+      timestamp: "2026-09-01T11:09:29Z"
+  - id: V-NON-VISUAL
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    status: skipped
+    evidence:
+      status: skipped_with_reason
+      summary: Repository-only terminology and workflow migration has no changed product UI to capture.
+      timestamp: "2026-08-31"
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: The migration changes repository files, deterministic tooling, and agent workflows without a product UI, CLI product command, or native surface.
+    classified_at: "2026-08-31T00:00:00Z"
+    verification_ids: [T-MIGRATION, T-SPECIFICATIONS, T-PLAN-VALIDATION, T-GENERATED, T-WORKFLOW-AUDIT]
+
+implementation_notes:
+  plan_path: docs/plans/specification-plan-terminology-migration/plan.yml
+  first_slice: Add red one-to-one path, goal-only Plan, and workflow-name fixtures.
+  existing_patterns:
+    - scripts/specifications.py
+    - scripts/plan_validate.py
+    - scripts/plan_verify.py
+    - scripts/sync_agent_parity.py
+    - scripts/tests/test_specifications_workflow.py
+    - scripts/tests/test_plan_workflow_validation.py
+  architecture: >
+    Preserve the existing deterministic engines while renaming their public and
+    internal workflow concepts coherently. Specifications retain stable assertion
+    identity and exact-hash approval. Plans retain optional progressive records,
+    Tasks, handoff, and evidence without a nested implementation-plan phase.
+  data_flow:
+    - An author creates or amends specifications/<namespace>/<slug>/specification.yml and examples.yml.
+    - specifications.py validates and generates the registry, assertion index, and coverage.
+    - An author creates docs/plans/<slug>/plan.yml with a goal and optional linked Specification references.
+    - plan_validate.py validates only fields that are present plus explicit required gates.
+    - tasks-from-plan optionally derives executable Tasks directly from the Plan.
+    - plan_verify.py evaluates declared required Checks and evidence before completion.
+  boundaries:
+    - No REST API, authentication, rate-limit, credit, encryption, or persisted product-data behavior changes.
+    - Stable assertion IDs and historical evidence remain immutable even if names contain contracts.*.
+    - Generic software and legal uses of contract/spec remain outside the migration.
+  affected_files:
+    - path: specifications/
+      reason: Renamed durable truth bundles, schemas, examples, and generated indexes.
+    - path: docs/plans/
+      reason: Renamed executable implementation Plans and retained artifacts/history.
+    - path: scripts/specifications.py
+      reason: Renamed Specification validation, approval, indexing, evidence, docs, archive, and release CLI.
+    - path: scripts/plan_validate.py
+      reason: Validate goal-first executable Plans and optional progressive sections.
+    - path: scripts/plan_verify.py
+      reason: Verify only declared required Plan gates and evidence.
+    - path: scripts/sessions.py
+      reason: Update deploy discovery, generated-file staging, approval checks, and commit metadata.
+    - path: .claude/skills/
+      reason: Rename and simplify canonical Specification and Plan workflows.
+    - path: .claude/agents/specification-verifier.md
+      reason: Rename independent durable-truth verifier.
+    - path: AGENTS.md
+      reason: Establish the new workflow vocabulary and paths.
+  migration_rollout:
+    - Add failing deterministic migration fixtures first.
+    - Move Specification bundles and tooling in one atomic source change.
+    - Move all executable Plans and update internal paths in one atomic source change.
+    - Rename canonical skills/agents and regenerate mirrors.
+    - Regenerate indexes and run focused tests plus tooling parity audits.
+    - Retain compatibility only for persisted approval receipts, historical commit trailers, and immutable evidence that concretely require it.
+  observability:
+    - New CLIs keep concise human and deterministic JSON output.
+    - Migration audit reports unresolved active old paths separately from allowlisted generic terminology.
+  verification_strategy:
+    - Run focused red fixtures before source moves.
+    - Run Specification workflow, Plan validator/verifier, hook/deploy, release/archive, and parity suites after migration.
+    - Run specifications.py validate and check-generated against the complete repository.
+    - Run sync_agent_parity.py --check, audit_agent_tooling_parity.py, and audit_opencode_output_quality.py.
+  verification_order:
+    - Migration inventory and red tests.
+    - Specification bundle/tooling rename.
+    - Plan corpus/validator/verifier rename.
+    - Skill, agent, hook, instruction, and audit rename.
+    - Generated output and focused regression suites.
+    - Scoped dev deploy; no browser or Apple gate applies.
+  acceptance_criteria_mapping:
+    - AC-1 and AC-4 are proven by Specification fixtures and bundle validation.
+    - AC-2 and AC-3 are proven by goal-only Plan and direct Specification-link fixtures.
+    - AC-5 is proven by one-to-one migration and generated-integrity audits.
+    - AC-6 is proven by workflow and agent parity audits.
+    - AC-7 is proven by bounded allowlist-based terminology checks.
+  open_questions: []
+
+tasks:
+  - id: TASK-1
+    title: Add red terminology migration fixtures
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-5, AC-6, AC-7]
+    expected_files:
+      - scripts/tests/test_specification_plan_terminology_migration.py
+      - scripts/tests/test_plan_workflow_validation.py
+    ownership:
+      files:
+        - scripts/tests/test_specification_plan_terminology_migration.py
+        - scripts/tests/test_plan_workflow_validation.py
+      shared_files: []
+    verification_ids: [T-MIGRATION, T-PLAN-VALIDATION]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Rename and broaden durable Specifications
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-4, AC-5]
+    expected_files:
+      - specifications/
+      - scripts/specifications.py
+      - scripts/tests/test_specifications_workflow.py
+      - scripts/tests/test_specification_evidence.py
+    ownership:
+      files: [specifications/, scripts/specifications.py]
+      shared_files: [scripts/sessions.py]
+    verification_ids: [T-SPECIFICATIONS, T-GENERATED]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Rename executable specs to Plans and simplify Plan validation
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-2, S-3, S-5]
+      acceptance_criteria: [AC-2, AC-3, AC-5]
+    expected_files:
+      - docs/plans/
+      - scripts/plan_validate.py
+      - scripts/plan_verify.py
+      - scripts/tests/test_plan_workflow_validation.py
+    ownership:
+      files: [docs/plans/, scripts/plan_validate.py, scripts/plan_verify.py]
+      shared_files: [scripts/specifications.py, scripts/sessions.py]
+    verification_ids: [T-PLAN-VALIDATION, T-MIGRATION]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Rename Specification and Plan skills agents hooks and instructions
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-3, S-6, S-7]
+      acceptance_criteria: [AC-3, AC-6, AC-7]
+    expected_files:
+      - .claude/skills/define-specification/SKILL.md
+      - .claude/skills/create-plan/SKILL.md
+      - .claude/skills/tasks-from-plan/SKILL.md
+      - .claude/skills/verify-plan/SKILL.md
+      - .claude/skills/backfill-specification/SKILL.md
+      - .claude/agents/specification-verifier.md
+      - AGENTS.md
+      - opencode.json
+    ownership:
+      files: [.claude/skills/, .claude/agents/, AGENTS.md, opencode.json]
+      shared_files: [docs/contributing/guides/agent-workflow-core.md, docs/contributing/guides/spec-driven-development.md]
+    verification_ids: [T-WORKFLOW-AUDIT, V-AGENT-PARITY]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Regenerate indexes and verify the complete migration
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]
+    expected_files:
+      - specifications/generated/registry.yml
+      - specifications/generated/assertion-index.yml
+      - specifications/generated/coverage.yml
+      - docs/plans/specification-plan-terminology-migration/plan.yml
+    ownership:
+      files: [specifications/generated/, docs/plans/specification-plan-terminology-migration/plan.yml]
+      shared_files: []
+    verification_ids: [T-MIGRATION, T-SPECIFICATIONS, T-PLAN-VALIDATION, T-GENERATED, T-WORKFLOW-AUDIT, V-AGENT-PARITY]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

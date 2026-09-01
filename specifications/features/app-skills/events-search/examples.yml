@@ -1,0 +1,51 @@
+schema_version: 1
+specification: feature.app-skill.events-search@1
+
+requests:
+  - id: city-search
+    input: {requests: [{id: berlin, query: technology, location: Berlin, event_type: PHYSICAL, count: 10}]}
+    expect: {accepted: true, group_ids: [berlin]}
+  - id: mixed-validity-batch
+    input: {requests: [{id: valid, query: AI, location: Berlin}, malformed]}
+    expect: {valid_group_preserved: true, malformed_item_error_visible: true}
+
+provider_routing:
+  - id: explicit-eventbrite
+    input: {provider: Eventbrite, requests: [{query: technology, location: Berlin}]}
+    expect: {queried_providers: [eventbrite], auto_fallback: false}
+  - id: unknown-provider
+    input: {provider: Unknown, requests: [{query: technology, location: Berlin}]}
+    expect_error: {visible: true, auto_fallback: false}
+  - id: queried-without-hits
+    input: {providers: [Meetup, Luma], requests: [{query: uncommon topic, location: Berlin}]}
+    expect: {providers_include: [meetup, luma]}
+
+results:
+  - id: booking-url-fallback
+    provider_event: {title: Event, url: null, booking_url: https://example.com/book, provider: meetup, date_start: "2026-08-25T19:00:00+02:00"}
+    expect: {url: https://example.com/book, retained: true, external_text_scanned: true}
+  - id: unusable-event
+    provider_event: {title: Event, url: null, booking_url: null, provider: meetup, date_start: "2026-08-25T19:00:00+02:00"}
+    expect: {retained: false}
+
+conferences:
+  - id: conference-only
+    input: {provider: GPN24, requests: [{conference: GPN24}]}
+    expect: {accepted: true, past_events: false}
+  - id: conference-topic
+    input: {provider: GPN24, requests: [{conference: GPN24, query: AI}]}
+    expect: {topic_filter_preserved: AI}
+
+performance:
+  - id: warmed-direct-cli
+    command: openmates apps events search --input <JSON> --json
+    environment: controlled_dev
+    expect: {typical_max_seconds: 5, hard_deadline_seconds: 10, output_safety: enabled}
+
+surface_parity:
+  - id: two-date-ranges
+    input:
+      requests:
+        - {id: first, query: tech, location: Berlin, start_date: "2026-06-20T00:00:00+02:00", end_date: "2026-06-21T23:59:59+02:00"}
+        - {id: second, query: tech, location: Berlin, start_date: "2026-06-27T00:00:00+02:00", end_date: "2026-06-28T23:59:59+02:00"}
+    expect: {groups: 2, date_ranges_preserved: true, web_grouped_map_resolves: true}

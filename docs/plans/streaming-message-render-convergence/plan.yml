@@ -1,0 +1,698 @@
+schema_version: 2
+id: streaming-message-render-convergence
+title: Streaming Message Render Convergence
+status: implementing
+
+goal: >
+  Render each completed assistant Markdown block once inside one TipTap editor,
+  preserve already-rendered prose and embeds while later blocks stream, and make
+  the live final, reloaded, reopened, synced, and shared-chat message structurally
+  and visually equivalent without whole-message replacement.
+
+scope:
+  in:
+    - Authenticated and anonymous web assistant-message rendering.
+    - One TipTap editor per assistant message with a committed block prefix and one mutable trailing block.
+    - Canonical encrypted Markdown as the authoritative persisted ordering source.
+    - Paragraph-buffered cumulative WebSocket snapshots mapped to stable semantic blocks.
+    - Complete inline embed links, large previews, source quotes, result views, and formatting during streaming.
+    - One permanent app-skill execution group at the top of the assistant message, ordered newest execution first.
+    - Targeted replacement of only blocks changed by explicit final validation or correction.
+    - Stable ProseMirror and Svelte NodeView identity across streaming, completion, metadata refresh, layout changes, reload, and reopen.
+    - Exact structural parity between the live final document and a fresh compile of persisted Markdown.
+    - Bounded parsing, document mutation, embed resolution, component mounting, and heavy map hydration.
+    - Desktop and mobile deployed verification followed by explicit user confirmation.
+    - Mandatory handoff to the existing Apple chat-streaming parity spec after web confirmation.
+  out:
+    - A new persisted render-block manifest or migration away from canonical Markdown.
+    - One TipTap editor per transport chunk or paragraph.
+    - Replacing TipTap/ProseMirror.
+    - Moving authored result previews or inline embed links into the top app-skill group.
+    - Rendering syntactically incomplete internal JSON, links, result-view fences, or code fences as complete previews.
+    - Eager hydration of hidden carousel slides or offscreen maps.
+    - Changing inference, billing, provider, encryption, CLI, or SDK behavior.
+    - Apple implementation before deployed web behavior is visually reviewed and user-confirmed.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP authentication returned 401 during the original discovery; no duplicate public issue was created.
+  reported_issues:
+    - "7LZDH / OPE-607: finalization changes message topology, introduces Loading preview, and displaces app-skill embeds."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/messaging/message-parsing.md
+    - docs/architecture/messaging/message-previews-grouping.md
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/anonymous-streaming-ui/plan.yml
+    - docs/plans/apple-chat-streaming-parity/plan.yml
+  code_patterns:
+    - backend/apps/ai/utils/stream_utils.py aggregates provider tokens at double-newline paragraph and closed-code-fence boundaries, with bounded forced-yield exceptions.
+    - backend/apps/ai/tasks/stream_consumer.py publishes cumulative full_content_so_far after each aggregated chunk.
+    - frontend/packages/ui/src/components/ActiveChat.svelte stores cumulative raw Markdown and persists the final server-verified Markdown.
+    - frontend/packages/ui/src/message_parsing/parse_message.ts currently performs document-wide grouping, promotion, hoisting, and scattered app-skill collection.
+    - frontend/packages/ui/src/components/ChatHistory.svelte currently recompiles cumulative full documents on a bounded scheduler.
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte currently diffs full documents and retains setContent fallbacks that can destroy all NodeViews.
+    - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts can preserve unchanged ProseMirror ranges but does not define committed semantic block ownership.
+    - frontend/packages/ui/src/services/embedStore.ts provides event-driven stable embed ID/ref resolution independently of message parsing.
+  tests:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_large_promotion.test.ts
+
+apple_impact:
+  affected_files:
+    - none in the web-first implementation slice
+    - docs/plans/apple-chat-streaming-parity/plan.yml after web user confirmation
+  parity_expectations:
+    - Web remains the rendered source of truth for block ordering, progressive semantics, app-skill placement, and final/reopen parity.
+    - Apple must later implement equivalent committed-block and persistence convergence using native rendering primitives.
+  verification:
+    - Record an upstream_web_handoff in the Apple spec with the confirmed web commit and evidence IDs.
+    - Resume Apple verification only after V-USER-CONFIRMATION passes.
+  intentional_native_differences:
+    - Apple may use SwiftUI render documents rather than TipTap, but no visible ordering or lifecycle difference is approved.
+
+clarification:
+  rounds:
+    - question: Should map/calendar result views mount during streaming once their descriptor is complete?
+      answer: Yes; show lightweight unresolved entries and defer expensive hydration.
+    - question: Does Apple parity immediately follow confirmed web behavior?
+      answer: Yes.
+    - question: Should canonical encrypted Markdown remain the sole persisted ordering source?
+      answer: Yes; do not introduce a persisted render-block manifest.
+    - question: Where and in what order should app-skill execution embeds render?
+      answer: Always in one top group regardless of execution time, with the most recently executed skill first.
+    - question: Should authored previews and inline links retain their Markdown position while final corrections update only their affected block?
+      answer: Yes.
+    - question: Should one TipTap editor own immutable committed blocks plus one mutable trailing block?
+      answer: Yes.
+  vision_summary: >
+    Canonical encrypted Markdown remains authoritative. One TipTap editor renders
+    a permanent newest-first app-skill group at the top, committed prose and
+    authored embed blocks in Markdown order, and one mutable tail. Complete
+    streamed constructs immediately use final display semantics; completion does
+    not rebuild the message; targeted corrections touch only changed blocks; and
+    reload, reopen, sync, and sharing reproduce the same ordered document.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: f2e556f1f
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-05T16:49:01Z"
+  plan:
+    status: approved
+    approved_at: "2026-08-05T16:49:01Z"
+    reason: The user approved the single-editor committed-block architecture and explicitly requested implementation after the spec update.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep canonical encrypted Markdown as the sole persisted content and ordering authority.
+    reason: This preserves existing encryption, sync, sharing, CLI, SDK, and cross-device contracts.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-2
+    status: active
+    decision: Use one TipTap editor per assistant message with stable committed blocks and one mutable tail.
+    reason: ProseMirror can mutate only changed ranges while retaining cross-block selection, highlighting, accessibility, and mounted NodeViews.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-3
+    status: active
+    decision: Treat complete server paragraphs as commit candidates, subject to a safe Markdown-boundary check.
+    reason: Transport chunks are primarily paragraphs, but lists, tables, fences, embed runs, and forced-size chunks can require a mutable suffix.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-4
+    status: active
+    decision: Render all app-skill executions in one permanent top group ordered newest execution first.
+    reason: This restores established product behavior and keeps execution UI separate from authored result references.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-5
+    status: active
+    decision: Keep result previews, inline embed links, source quotes, and result views at their authored Markdown positions.
+    reason: These nodes are part of the assistant answer, not app-skill execution history.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-6
+    status: active
+    decision: Apply explicit final corrections as stable block replacements and prohibit silent whole-message replacement.
+    reason: Source validation may legitimately change one block but must not move or remount unaffected content.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-7
+    status: active
+    decision: Prohibit setContent after initial editor creation for normal streaming, completion, embed metadata refresh, and layout changes.
+    reason: Full replacement destroys correctly hydrated NodeViews and caused the visible convergence regression.
+    decided_at: "2026-08-05T16:49:01Z"
+  - id: D-8
+    status: active
+    decision: Require normalized structural equality between live final and fresh persisted-Markdown compilation.
+    reason: Visual continuity is incomplete unless reload, reopen, sync, and shared-chat reconstruction preserve order and identity.
+    decided_at: "2026-08-05T16:49:01Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-2
+    approach: Use write-mode parsing while streaming and read-mode parsing after completion.
+    outcome: rejected
+    recorded_at: "2026-08-05T10:55:56Z"
+    reason: Parser modes produce incompatible embed and grouping semantics.
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Recompile each cumulative full document at an 80 ms cadence and apply a whole-document diff with setContent fallbacks.
+    outcome: rejected
+    recorded_at: "2026-08-05T16:49:01Z"
+    reason: Issue 7LZDH proved completion can still change topology, insert an unresolved large preview, move app-skill UI, and lose loaded preview state.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Commit safe semantic blocks, mutate only the tail or explicitly corrected blocks, and reconstruct once from persisted Markdown on reopen.
+    outcome: planned
+    recorded_at: "2026-08-05T16:49:01Z"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Add and run red block-commit, ordering, correction, and reopen-parity tests before source changes.
+  command: python3 scripts/tests.py run --suite vitest
+  expected_outcome: New append-oriented contracts fail against the current cumulative whole-document implementation.
+  blocker: null
+  last_verified_commit: f2e556f1f
+
+scenarios:
+  - id: S-1
+    title: Completed streamed paragraphs immediately use final display semantics
+    given:
+      - A cumulative assistant response contains prose, inline embed links, large previews, source quotes, and formatting.
+    when:
+      - A paragraph reaches a safe semantic boundary while later content is still pending.
+    then:
+      - The paragraph is committed within the bounded update interval using final read/display semantics.
+      - Complete inline links and previews are interactive during streaming.
+      - Only the syntactically incomplete mutable tail may remain provisional.
+
+  - id: S-2
+    title: App-skill execution UI remains at the top and newest first
+    given:
+      - Skills execute before and between assistant prose paragraphs.
+    when:
+      - New app-skill references arrive, finish, the message completes, or the chat reopens.
+    then:
+      - One app-skill group remains above all assistant prose.
+      - The newest execution appears first and earlier executions follow in reverse chronological order.
+      - Existing cards update in place and retain loaded preview content.
+
+  - id: S-3
+    title: Authored result references retain Markdown positions
+    given:
+      - Assistant Markdown contains a large result preview and an inline embed link between prose paragraphs.
+    when:
+      - Later paragraphs, app-skill executions, or completion arrive.
+    then:
+      - The result preview and inline link remain at their authored positions.
+      - They are not extracted into or confused with the top app-skill group.
+      - Their semantic IDs, presentation variants, and interactions remain stable.
+
+  - id: S-4
+    title: Finalization commits the tail without rebuilding the message
+    given:
+      - The top app-skill group and at least two prose/embed blocks are already rendered.
+    when:
+      - The final cumulative event contains no correction to committed content.
+    then:
+      - Only the remaining tail is committed and streaming presentation ends.
+      - No committed node changes position or type.
+      - No existing NodeView remounts and no new Loading preview shell appears.
+
+  - id: S-5
+    title: Explicit final correction replaces only affected blocks
+    given:
+      - Source or URL validation removes or changes content in one previously rendered block.
+    when:
+      - The final cumulative Markdown is not a strict extension of the previous snapshot.
+    then:
+      - Stable block comparison identifies and replaces only changed blocks.
+      - Unaffected prose, app-skill cards, previews, selections, and hydration state remain mounted and ordered.
+      - Every changed stable block is replaced in one atomic transaction; transaction or schema failure emits a sanitized visible fallback rather than silent setContent.
+
+  - id: S-6
+    title: Reload and reopen reproduce the live final message
+    given:
+      - A completed message contains a newest-first top app-skill group, prose, inline links, and previews.
+    when:
+      - The page reloads, the chat closes and reopens, another device syncs it, or a shared chat renders it.
+    then:
+      - Fresh compilation of persisted Markdown produces the normalized live-final block sequence.
+      - App-skill order, authored positions, node types, semantic identities, and preview variants match.
+      - Resolved embeds recover through persisted IDs/refs without permanent loading placeholders.
+
+  - id: S-7
+    title: Result views render progressively with deferred heavy hydration
+    given:
+      - A valid result-view descriptor closes before the message completes.
+    when:
+      - Referenced entries resolve over time.
+    then:
+      - One stable result-view node renders during streaming and after completion.
+      - Lightweight unresolved rows recover in place.
+      - Leaflet and other heavy work remain visibility/idle-gated and initialize once per stable instance.
+
+  - id: S-8
+    title: Large responses perform work proportional to changed blocks
+    given:
+      - A 10000-character response streams 20-35 transport chunks per second and contains ten previews and one result view.
+    when:
+      - It streams, completes, and receives an embed metadata refresh.
+    then:
+      - Parsing and ProseMirror mutation are bounded to the mutable tail, newly committed blocks, the top app-skill group, or explicitly corrected blocks.
+      - No normal lifecycle performs setContent after editor creation.
+      - Rendering triggers no IndexedDB writes, provider calls, or work proportional to full chat history.
+
+  - id: S-9
+    title: Authenticated and anonymous paths share lifecycle guarantees
+    given:
+      - Authenticated and anonymous chats receive equivalent supported cumulative streams.
+    when:
+      - They render, complete, persist locally, reload, or are interrupted.
+    then:
+      - Both use committed blocks, stable identity, targeted corrections, and safe cleanup.
+      - Existing encryption and anonymous persistence boundaries remain unchanged.
+
+  - id: S-10
+    title: Confirmed web behavior hands directly to Apple parity
+    given:
+      - Unit, deployed Playwright, performance, reopen-parity, and visual-smoke gates pass.
+      - The user confirms deployed laptop and mobile behavior.
+    when:
+      - The web phase closes.
+    then:
+      - The Apple parity spec receives the web commit and evidence handoff and becomes the next implementation ledger.
+
+acceptance_criteria:
+  - {id: AC-1, scenario: S-1, text: "Every safe completed streamed block immediately uses final semantic node types, inline links, preview variants, and interactions; only an incomplete tail may be provisional.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-2, scenario: S-2, text: "All app-skill executions remain in one top group ordered newest first during streaming, completion, metadata refresh, reload, and reopen while loaded cards retain mounted state.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-APP-SKILLS, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-REOPEN]}
+  - {id: AC-3, scenario: S-3, text: "Authored large previews, inline embed links, source quotes, and result views retain Markdown positions and never merge into the app-skill execution group.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-4, scenario: S-4, text: "Normal completion commits only the tail, changes streaming presentation, performs zero existing NodeView remounts, and creates no new loading shell.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-LIFECYCLE, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-CHAT-FLOW]}
+  - {id: AC-5, scenario: S-5, text: "Final corrections replace only changed stable blocks in one atomic transaction; transaction failures are observable and cannot silently invoke whole-message setContent.", required: true, status: satisfied, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-CORRECTIONS, T-PLAYWRIGHT-STREAM]}
+  - {id: AC-6, scenario: S-6, text: "Normalized live-final and freshly reopened documents have identical ordered block roles, app-skill order, node types, semantic identities, and presentation variants.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-REOPEN, T-PLAYWRIGHT-REOPEN]}
+  - {id: AC-7, scenario: S-7, text: "Stable result views recover entries in place and hydrate expensive map/calendar presentation only when eligible, once per mounted identity.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-NODEVIEWS, T-PLAYWRIGHT-MAP]}
+  - {id: AC-8, scenario: S-8, text: "Large-stream parsing and mutation are proportional to changed blocks, normal post-init setContent count is zero, and rendering causes no storage writes or provider requests.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-BLOCKS, T-PLAYWRIGHT-PERF]}
+  - {id: AC-9, scenario: S-9, text: "Authenticated and anonymous rendering preserve committed blocks, cleanup, persistence, and encryption boundaries through completion and reload.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-LIFECYCLE, T-PLAYWRIGHT-CHAT-FLOW, T-PLAYWRIGHT-ANONYMOUS]}
+  - {id: AC-10, scenario: S-10, text: "After deployed web confirmation, the existing Apple streaming parity spec receives the exact web commit and evidence handoff as the immediate next phase.", required: true, status: pending, coverage_status: covered, verification_scope: manual, verification_ids: [V-USER-CONFIRMATION, V-APPLE-HANDOFF]}
+
+assumptions:
+  - id: A-1
+    text: Backend text streaming is primarily paragraph-buffered and each WebSocket payload contains cumulative full_content_so_far.
+    category: protocol
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - {source: backend/apps/ai/utils/stream_utils.py, summary: "aggregate_paragraphs yields double-newline paragraphs, closed code blocks, forced-size segments, and the final remainder."}
+      - {source: backend/apps/ai/tasks/stream_consumer.py, summary: "Each published payload includes the joined cumulative response."}
+  - id: A-2
+    text: Final encrypted Markdown and separately persisted embed records are sufficient to reconstruct deterministic message order without a new render manifest.
+    category: persistence
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - {source: docs/architecture/messaging/message-parsing.md, summary: "Messages persist as Markdown and parse client-side; embed references preserve their authored locations."}
+  - id: A-3
+    text: Stable block IDs can be derived deterministically from semantic role, canonical source range/content, and persisted embed identity without leaking content into telemetry.
+    category: identity
+    required_before: implementation
+    status: checking
+    blocker: Confirm the exact identity algorithm in the regenerated implementation plan and red tests.
+
+contracts:
+  api:
+    - route: Existing authenticated and anonymous chat WebSocket/message-sync surfaces only
+      access_model: first-party client surface only
+      auth: Existing session, approved device auth, or anonymous identity; unchanged.
+      rate_limits: Existing chat and WebSocket limits; unchanged.
+      credit_budget: Existing inference and skill costs; rendering spends no credits.
+      encryption_boundary: Cumulative plaintext exists only in approved first-party client memory; persisted messages and embeds retain client-side encryption.
+      change: none
+  data:
+    - Canonical encrypted Markdown remains authoritative for content and relative authored ordering.
+    - App-skill execution refs compile into one derived top group sorted by execution chronology newest first.
+    - Authored result refs compile at their Markdown positions.
+    - Live render state contains stable committed blocks and one mutable tail but is not separately persisted.
+    - Fresh compilation of final Markdown is the reopen oracle and must equal normalized live-final structure.
+    - Embed metadata and content update through stable persisted IDs/refs without message-level replacement.
+  ui_states:
+    - Empty stream and mutable initial tail.
+    - Permanent newest-first top app-skill group in processing, finished, error, and cancelled states.
+    - Committed prose with complete inline links, previews, quotes, formatting, and result views.
+    - Incomplete mutable Markdown tail.
+    - Targeted corrected block.
+    - Final converged message.
+    - Reloaded, reopened, synced, and shared reconstruction.
+    - Visible sanitized convergence failure fallback.
+  privacy_security:
+    - No telemetry may contain private Markdown, decrypted embed content, readable embed refs, or share fragment keys.
+    - Structural diagnostics may record block counts, roles, node types, durations, revisions, remount counts, and sanitized failure classes only.
+    - Rendering introduces no provider calls, decrypted-content uploads, or persistence writes.
+
+tests:
+  - id: T-BACKEND-PARAGRAPHS
+    type: pytest
+    file: backend/tests/test_stream_paragraph_contract.py
+    command: python3 -m pytest backend/tests/test_stream_paragraph_contract.py
+    covers: [AC-1, AC-5]
+    assertions:
+      - Paragraph and closed-code-fence chunks preserve cumulative prefix order.
+      - Forced-size and final-remainder chunks are explicitly classified as unsafe commit candidates until frontend boundary validation.
+      - Final validation correction fixtures identify non-prefix cumulative content.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-VITEST-BLOCKS
+    type: vitest
+    file: frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-1, AC-3, AC-8]
+    assertions:
+      - Safe completed paragraphs commit once using final read semantics.
+      - Incomplete links, fences, lists, tables, quotes, and embed runs remain in the mutable tail.
+      - Later text does not reparse or replace committed unrelated blocks.
+      - Complete inline links and previews exist before finalization.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-VITEST-APP-SKILLS
+    type: vitest
+    file: frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-2, AC-3]
+    assertions:
+      - App-skill executions from anywhere in cumulative Markdown compile into one top group.
+      - The group sorts by execution chronology newest first with deterministic tie-breaking.
+      - Authored result refs remain outside the group at their Markdown positions.
+      - Adding or updating one execution preserves existing card identity.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-VITEST-CORRECTIONS
+    type: vitest
+    file: frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-4, AC-5]
+    assertions:
+      - Normal completion commits only the tail.
+      - One changed paragraph or source quote replaces only its stable block.
+      - Multiple changed blocks produce targeted replacements; an actual transaction failure is sanitized and never requests setContent.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-VITEST-REOPEN
+    type: vitest
+    file: frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-6]
+    assertions:
+      - Normalized live-final blocks equal a fresh compile of persisted final Markdown.
+      - Equality includes top-group newest-first order, authored positions, node roles, semantic IDs, and variants.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-VITEST-NODEVIEWS
+    type: vitest
+    file: frontend/packages/ui/src/components/enter_message/extensions/__tests__/streamingNodeViewIdentity.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-2, AC-4, AC-7]
+    assertions:
+      - Completion, metadata refresh, group growth, and layout changes preserve stable NodeViews.
+      - Normal post-init setContent count is zero.
+      - Map/result-view hydration initializes once and cancels pending work on destroy.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-VITEST-LIFECYCLE
+    type: vitest
+    file: frontend/packages/ui/src/message_parsing/__tests__/streamingRenderLifecycle.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-4, AC-9]
+    assertions:
+      - Revisions, navigation, errors, removal, and destruction cannot mutate stale messages.
+      - Committed blocks remain visible while invalid mutable tails fail safely.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-PLAYWRIGHT-STREAM
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-events-search.spec.ts
+    command: python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    assertions:
+      - During controlled pauses, complete paragraphs already show inline links, previews, source quotes, and interactions.
+      - App-skill cards stay at the top and reorder newest first as later skills execute.
+      - Finalization preserves exact element order, dimensions, visible preview content, and semantic test IDs.
+      - No Loading preview shell appears at completion or after opening Report Issue.
+      - Instrumentation records zero remounts for existing cards and zero normal post-init setContent calls.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit f2e556f", run_id: "GitHub Actions 31023853273", subject_commit: f2e556f1f, timestamp: "2026-08-05T16:13:00Z", target: "https://app.dev.openmates.org", reason: "Issue 7LZDH class reproduced: completion/layout refresh yields unresolved preview UI and loses stable card presentation."}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit 4c7b2f2", run_id: "GitHub Actions 31042829225", subject_commit: 4c7b2f2ec, timestamp: "2026-08-05T20:13:44Z", target: "https://app.dev.openmates.org"}}
+  - id: T-PLAYWRIGHT-CHAT-FLOW
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-flow.spec.ts
+    command: python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-4, AC-9]
+    assertions:
+      - The canonical authenticated login, send, streaming, completion, persistence, and cleanup flow passes unchanged.
+      - The completed assistant message remains visible and interactive without a loading shell or duplicate/reordered message content.
+    red_phase: {required: true, expected: pass_or_fail_for_recorded_baseline, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit a56797e33", run_id: "GitHub Actions 31038417124", subject_commit: a56797e33, timestamp: "2026-08-05T19:19:10Z", target: "https://app.dev.openmates.org"}}
+  - id: T-PLAYWRIGHT-REOPEN
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-events-search.spec.ts
+    command: python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-2, AC-6]
+    assertions:
+      - Capture sanitized live-final structure, reload, close/reopen, and compare reconstructed structure.
+      - Repeat through the existing shared-chat path without logging private content or refs.
+      - Top app-skill order, authored embed positions, node identities, and variants match.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec skill-events-search.spec.ts --gate-deploy --expected-commit 4c7b2f2", run_id: "GitHub Actions 31042829225", subject_commit: 4c7b2f2ec, timestamp: "2026-08-05T20:13:44Z", target: "https://app.dev.openmates.org"}}
+  - id: T-PLAYWRIGHT-MAP
+    type: playwright
+    file: frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-7]
+    assertions:
+      - A closed result view appears during streaming, recovers unresolved rows, hydrates once when visible, and remains interactive through completion and reopen.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed_after_deploy, command: "python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit a56797e33", run_id: "GitHub Actions 31040109584", subject_commit: a56797e33, timestamp: "2026-08-05T19:36:59Z", target: "https://app.dev.openmates.org"}}
+  - id: T-PLAYWRIGHT-PERF
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    command: python3 scripts/tests.py run --spec chat-streaming-render-performance.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-8]
+    assertions:
+      - A deterministic 10000-character stream parses and mutates only changed blocks.
+      - Median parser-plus-transaction p95 stays below 32 ms and no owned measure exceeds 50 ms on the pinned runner.
+      - Existing NodeView remounts, post-init setContent, rendering-triggered writes, and provider requests are zero.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
+  - id: T-PLAYWRIGHT-ANONYMOUS
+    type: playwright
+    file: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    command: python3 scripts/tests.py run --spec anonymous-free-chat.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-9]
+    assertions:
+      - Supported inline and preview constructs render during streaming and survive finalization and anonymous IndexedDB reload with identical sanitized structure.
+    red_phase: {required: true, expected: fail, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: "", target: ""}}
+
+verifications:
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-6, AC-7]
+    status: passed
+    target: app.dev.openmates.org
+    viewports: [laptop, mobile]
+    evidence: {status: passed, method: playwright, run_id: "GitHub Actions 31042829225", screenshot_paths: ["test-results/screenshots/current/skill-events-search/07-events-search-embeds-after-reload.png", "test-results/screenshots/current/skill-events-search/08-events-search-embeds-after-reload-mobile.png"], summary: "Reviewed authenticated completed/reloaded app-skill screenshots at 1280x720 and 390x844. Defects: none; cards remain populated and no Loading preview shell appears. Accepted differences: mobile result cards use the intended horizontal carousel and the fixed composer remains visible.", timestamp: "2026-08-05T20:13:44Z"}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-6, AC-10]
+    status: pending
+    evidence: {status: "", summary: "", actor: user, timestamp: ""}
+  - id: V-APPLE-HANDOFF
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-10]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: "", next_action: "After user confirmation, add the confirmed web commit and evidence IDs to docs/plans/apple-chat-streaming-parity/plan.yml."}
+
+implementation_notes:
+  plan_path: docs/plans/streaming-message-render-convergence/plan.yml
+  status: approved
+  existing_patterns:
+    - backend/apps/ai/utils/stream_utils.py
+    - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/streamingNodeIdentity.ts
+    - frontend/packages/ui/src/services/embedRefIndex.ts
+  architecture: >
+    Replace cumulative whole-document recompilation with one per-message TipTap
+    editor containing a derived newest-first app-skill top group, immutable
+    committed authored blocks, and one mutable tail. Persist only canonical
+    Markdown and reconstruct once on reopen. Apply explicit corrections through
+    stable block transactions; never use setContent after initialization during
+    normal lifecycle events.
+  data_flow:
+    - ActiveChat receives cumulative paragraph-buffered Markdown and persists the final server-verified Markdown unchanged.
+    - ChatHistory separates one derived newest-first app-skill group, safe committed authored blocks, and the mutable suffix.
+    - ReadOnlyMessage applies append, tail-replace, app-skill-group-update, or targeted-correction ProseMirror transactions.
+    - Embed NodeViews resolve and update through stable persisted IDs/refs without message reconstruction.
+    - Reload and reopen compile persisted Markdown once and compare against the normalized live-final structure.
+  affected_files:
+    - {path: frontend/packages/ui/src/components/ChatHistory.svelte, reason: "Own cumulative snapshot block state and ordering."}
+    - {path: frontend/packages/ui/src/components/ReadOnlyMessage.svelte, reason: "Apply block-scoped ProseMirror transactions without post-init setContent."}
+    - {path: frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts, reason: "Define safe boundaries, identities, corrections, and normalized parity."}
+    - {path: frontend/packages/ui/src/message_parsing/embedGrouping.ts, reason: "Restore newest-first permanent app-skill top grouping."}
+    - {path: frontend/apps/web_app/tests/skill-events-search.spec.ts, reason: "Prove deployed streaming-to-final topology and preview stability."}
+    - {path: frontend/apps/web_app/tests/chat-streaming-reopen-parity.spec.ts, reason: "Prove reload, reopen, and share reconstruction parity."}
+  required_slices:
+    - Define safe commit boundaries, stable block identities, correction diffing, and normalized structure comparison as pure tested utilities.
+    - Integrate committed blocks and mutable-tail transactions into ChatHistory and ReadOnlyMessage.
+    - Restore permanent newest-first top app-skill grouping while preserving authored result positions.
+    - Remove normal post-init setContent fallbacks and make broad divergence observable.
+    - Prove completion, metadata refresh, Report Issue, reload, reopen, anonymous persistence, sharing, maps, and performance on deployed dev.
+  verification_order:
+    - Backend paragraph contract and focused frontend red tests.
+    - Focused backend/frontend green tests.
+    - Scoped dev deploy and exact-commit Playwright gates.
+    - Laptop and mobile reviewed visual smoke.
+    - User confirmation.
+    - Apple parity handoff.
+  verification_strategy:
+    - Capture red evidence for safe block commits, newest-first app-skill ordering, targeted correction, and reopen parity before source changes.
+    - Run focused backend and frontend unit contracts before deployment.
+    - Deploy the scoped web implementation and run exact-commit authenticated, reopen, map, performance, and anonymous Playwright gates.
+    - Review laptop and mobile screenshots before requesting user confirmation.
+  rollout:
+    - No persisted-data migration, API rollout, or feature availability change is planned.
+    - Existing REST, CLI, and SDK contracts are unchanged; their phase gates are not applicable to this browser rendering implementation.
+  observability:
+    - Record sanitized block commits, tail replacements, targeted corrections, setContent attempts, NodeView mounts, hydration counts, and convergence failures.
+  risks:
+    - Markdown constructs spanning paragraph boundaries require conservative tail retention.
+    - Stable source-range identities must tolerate targeted corrections without colliding or exposing content.
+    - Scattered app-skill collection must preserve execution chronology independently from authored result refs.
+    - Reopen parity must include legacy persisted messages without introducing compatibility-only rendering divergence.
+  open_questions: []
+  material_plan_approval_required: false
+
+tasks:
+  - id: TASK-1
+    title: Regenerate plan and add revised red contracts
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]}
+    expected_files:
+      - docs/plans/streaming-message-render-convergence/plan.yml
+      - backend/tests/test_stream_paragraph_contract.py
+      - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+      - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+      - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+      - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+      - frontend/apps/web_app/tests/chat-streaming-reopen-parity.spec.ts
+    verification_ids: [T-BACKEND-PARAGRAPHS, T-VITEST-BLOCKS, T-VITEST-APP-SKILLS, T-VITEST-CORRECTIONS, T-VITEST-REOPEN, T-PLAYWRIGHT-REOPEN]
+    dependencies: []
+    ownership:
+      files:
+        - docs/plans/streaming-message-render-convergence/plan.yml
+        - backend/tests/test_stream_paragraph_contract.py
+        - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+        - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+        - frontend/packages/ui/src/message_parsing/__tests__/streamingBlockCorrections.test.ts
+        - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+        - frontend/apps/web_app/tests/chat-streaming-reopen-parity.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement committed blocks, mutable tail, and targeted corrections
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-4, S-5, S-8, S-9], acceptance_criteria: [AC-1, AC-4, AC-5, AC-8, AC-9]}
+    expected_files:
+      - frontend/packages/ui/src/components/ChatHistory.svelte
+      - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+      - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+      - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+    verification_ids: [T-VITEST-BLOCKS, T-VITEST-CORRECTIONS, T-VITEST-LIFECYCLE, T-PLAYWRIGHT-PERF]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/ChatHistory.svelte
+        - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+        - frontend/packages/ui/src/message_parsing/streamingMessageBlocks.ts
+        - frontend/packages/ui/src/message_parsing/streamingDocDiff.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Restore top app-skill ordering and persistence parity
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-2, S-3, S-6, S-7], acceptance_criteria: [AC-2, AC-3, AC-6, AC-7]}
+    expected_files:
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/apps/ai/utils/app_skill_json_cleanup.py
+      - backend/tests/test_app_skill_json_cleanup.py
+      - frontend/packages/ui/src/message_parsing/embedGrouping.ts
+      - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+      - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
+      - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+    verification_ids: [T-VITEST-APP-SKILLS, T-VITEST-REOPEN, T-VITEST-NODEVIEWS, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-REOPEN, T-PLAYWRIGHT-MAP]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - frontend/packages/ui/src/message_parsing/embedGrouping.ts
+        - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+        - frontend/packages/ui/src/components/enter_message/extensions/EmbedPreviewLargeNode.ts
+        - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/EmbedsMapViewRenderer.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Deploy and prove web convergence
+    status: pending
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]}
+    expected_files: [docs/plans/streaming-message-render-convergence/plan.yml]
+    verification_ids: [T-PLAYWRIGHT-CHAT-FLOW, T-PLAYWRIGHT-STREAM, T-PLAYWRIGHT-REOPEN, T-PLAYWRIGHT-MAP, T-PLAYWRIGHT-PERF, T-PLAYWRIGHT-ANONYMOUS, V-UI-VISUAL-SMOKE]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - docs/plans/streaming-message-render-convergence/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+  - id: TASK-5
+    title: Obtain user confirmation and hand off to Apple parity
+    status: pending
+    phase: awaiting_approval
+    covers: {scenarios: [S-10], acceptance_criteria: [AC-10]}
+    expected_files: [docs/plans/apple-chat-streaming-parity/plan.yml]
+    verification_ids: [V-USER-CONFIRMATION, V-APPLE-HANDOFF]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - docs/plans/apple-chat-streaming-parity/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

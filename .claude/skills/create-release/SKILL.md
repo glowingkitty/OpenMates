@@ -37,7 +37,7 @@ its implemented contract versions, verified assertions, and approved exceptions
 in the release metadata/notes:
 
 ```bash
-python3 scripts/contracts.py release-summary --git-range <previous-tag>..<target> --json
+python3 scripts/specifications.py release-summary --git-range <previous-tag>..<target> --json
 ```
 
 Write human-readable notes aimed at **users and contributors** (not a commit dump):

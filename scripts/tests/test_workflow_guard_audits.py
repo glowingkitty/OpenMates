@@ -227,7 +227,7 @@ def test_figma_visual_evidence_warns_for_figma_claimed_ui_without_artifacts() ->
 
     issues = audit.audit_paths(
         [ROOT / "frontend/packages/ui/src/components/tasks/TaskBoard.svelte"],
-        added_lines=[("docs/specs/tasks/spec.yml", 10, "The UI should match the Figma task board.")],
+        added_lines=[("docs/plans/tasks/plan.yml", 10, "The UI should match the Figma task board.")],
         evidence_paths=[],
     )
 
@@ -254,7 +254,7 @@ def test_figma_visual_evidence_accepts_spec_artifact_review(tmp_path) -> None:
     audit.REPO_ROOT = tmp_path
     try:
         ui_path = tmp_path / "frontend/packages/ui/src/components/tasks/TaskBoard.svelte"
-        spec_path = tmp_path / "docs/specs/tasks/spec.yml"
+        spec_path = tmp_path / "docs/plans/tasks/plan.yml"
         ui_path.parent.mkdir(parents=True)
         spec_path.parent.mkdir(parents=True)
         ui_path.write_text("<div data-testid=\"task-board\"></div>\n", encoding="utf-8")
@@ -262,11 +262,14 @@ def test_figma_visual_evidence_accepts_spec_artifact_review(tmp_path) -> None:
             "verifications:\n  - id: V-FIGMA-ARTIFACT-REVIEW\n    kind: artifact_review\n    evidence: reference PNG, rendered screenshot, and accepted differences\n",
             encoding="utf-8",
         )
+        artifact_path = tmp_path / "test-results/figma/tasks-review.md"
+        artifact_path.parent.mkdir(parents=True)
+        artifact_path.write_text("Reviewed reference PNG and rendered screenshot.\n", encoding="utf-8")
 
         issues = audit.audit_paths(
             [ui_path, spec_path],
-            added_lines=[("docs/specs/tasks/spec.yml", 10, "The UI should match the Figma task board.")],
-            evidence_paths=[spec_path],
+            added_lines=[("docs/plans/tasks/plan.yml", 10, "The UI should match the Figma task board.")],
+            evidence_paths=[artifact_path],
         )
     finally:
         audit.REPO_ROOT = original_root

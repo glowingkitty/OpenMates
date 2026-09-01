@@ -1,0 +1,172 @@
+schema_version: 1
+specification: feature.assistant-response-speech@1
+
+preferences:
+  - id: manual-enable-affects-current-chat-only
+    given: {chat_a_auto_speak: false, chat_b_auto_speak: false}
+    action: enable_auto_speak_in_chat_a
+    expect: {chat_a_auto_speak: true, chat_b_auto_speak: false, synchronized_across_owner_devices: true}
+  - id: recording-enables-with-visible-glow
+    given: {chat_auto_speak: false, composer_has_voice_recording: false}
+    action: finish_voice_recording_embed
+    expect: {chat_auto_speak: true, activation_source: voice_recording, speech_control_briefly_highlighted: true, send_blocked: false}
+
+acknowledgements:
+  - id: german-travel-lookup
+    given: {mate_voice: travel_mate_v1, language: de-DE, request_category: lookup}
+    expect: {selection: exact_catalog_match, prerecorded: true, runtime_tts_called: false, credits_charged: 0}
+  - id: category-fallback
+    given: {mate_voice: general_mate_v2, language: en-US, request_category: unsupported_new_category}
+    expect: {selection: same_voice_language_general_clip, deterministic: true, cleanup_model_called: false}
+
+voice_profiles:
+  - id: fixed-mate-voice
+    given: {mate_id: research_mate, response_language: en-US}
+    expect: {stable_profile_selected: true, user_voice_picker_visible: false, raw_provider_voice_id_visible: false}
+  - id: unsupported-language-fallback
+    given: {mate_id: research_mate, response_language: nl-NL, primary_profile_supports: [en-US, de-DE]}
+    expect: {configured_multilingual_fallback_used: true, random_voice_used: false, silent_provider_substitution: false}
+
+segmentation:
+  - id: three-paragraph-response-three-files
+    given:
+      assistant_response: |-
+        I found three suitable trains.
+
+        The fastest leaves at 09:10 and takes four hours.
+
+        I also attached the timetable.
+    expect:
+      manifest_segment_count: 3
+      elevenlabs_request_count: 3
+      encrypted_s3_object_count: 3
+      combined_message_audio_object: absent
+      playback_order: [segment-0, segment-1, segment-2]
+  - id: paragraph-and-map-summary-are-separate-files
+    given: {prose_paragraphs: 1, map_embed_summary: I attached a map with three hotel options.}
+    expect: {segments: [prose_paragraph, embed_summary], encrypted_s3_object_count: 2, each_object_independently_skippable: true}
+  - id: final-revision-invalidates-one-paragraph
+    given: {ready_segments: [segment-0, segment-1, segment-2], changed_source_segments: [segment-1]}
+    expect: {reused_segments: [segment-0, segment-2], invalidated_segments: [segment-1], combined_regeneration: false}
+
+projection:
+  - id: app-use-announcement
+    given: {language: en-US, selected_apps: [Web, Images, Travel]}
+    expect: {speakable_text: I will use the Web, Images, and Travel apps to fulfill your request. One second., generated_by: localized_deterministic_template}
+  - id: prose-link-and-code
+    given:
+      semantic_blocks:
+        - {type: prose, text: The official guide explains the setup.}
+        - {type: link, label: official guide, url: 'https://<PLACEHOLDER>'}
+        - {type: code, language: python, content: '<PYTHON_CODE>'}
+    expect:
+      spoken_prose_preserved: true
+      raw_url_spoken: false
+      raw_code_spoken: false
+      code_summary: I also included a Python example.
+      cleanup_model_called: false
+  - id: structured-calendar-summary
+    given: {embed_type: calendar, structured_summary: I found four events. The first starts Tuesday at 10 AM.}
+    expect: {raw_json_spoken: false, structured_summary_spoken: true, invented_fields: false}
+
+playback:
+  - id: start-after-first-paragraph
+    given: {segment_0: ready, segment_1: generating, segment_2: queued}
+    action: auto_play
+    expect: {segment_0_starts: true, waits_for_all_segments: false, text_stream_waits_for_audio: false, visible_wait_after_segment_0_if_needed: true, pinned_active_chat_bar_visible: true, segment_0_region_highlighted: true}
+  - id: full-response-waveform-bar
+    given:
+      surface: gui.web
+      manifest_final: true
+      segments:
+        - {id: segment-0, duration_seconds: 3, waveform: <ENCRYPTED_WAVEFORM_SUMMARY>, status: ready}
+        - {id: segment-1, duration_seconds: 6, waveform: <ENCRYPTED_WAVEFORM_SUMMARY>, status: playing}
+        - {id: segment-2, duration_seconds: 2, waveform: <ENCRYPTED_WAVEFORM_SUMMARY>, status: ready}
+    expect:
+      bar_pinned_to_active_chat_top: true
+      global_viewport_fixed: false
+      full_response_waveform_visible: true
+      segment_widths_duration_proportional: true
+      segment_1_highlighted: true
+      previous_next_controls_visible: true
+      transcript_obscured: false
+  - id: streaming-waveform-expands
+    given: {manifest_final: false, known_segments: [segment-0, segment-1], segment_2_not_yet_emitted: true}
+    action: receive_segment_2
+    expect: {existing_waveform_regions_preserved: true, waveform_expands_with_segment_2: true, current_segment_highlight_preserved: true, combined_audio_file_created: false}
+  - id: skip-to-next-summary
+    given: {active_segment: segment-1, next_segment: map-summary-segment}
+    action: next_segment
+    expect: {segment_1_stops: true, map_summary_starts_when_ready: true, paragraph_files_unchanged: true}
+  - id: browser-without-media-session
+    given: {surface: gui.web, media_session_supported: false}
+    expect: {in_app_play_pause_visible: true, in_app_previous_next_visible: true, feature_blocked: false}
+  - id: start-another-message-queue
+    given: {message_a_queue: playing, message_b_queue: ready}
+    action: play_message_b
+    expect: {message_a_queue: stopped, message_b_queue: playing, message_a_files_deleted: false}
+
+on_demand:
+  - id: speak-historical-response
+    given: {auto_speak_was_enabled: false, existing_ready_segments: 0, assistant_message_decrypted_on_owner_client: true}
+    action: select_speak
+    expect: {deterministic_client_projection: true, first_party_authenticated_request: true, playback_starts_after_first_ready_segment: true, waits_for_complete_message_audio: false}
+  - id: replay-ready-response
+    given: {matching_ready_segments: 4, source_hashes_current: true, voice_profile_version_current: true}
+    action: select_speak
+    expect: {provider_requests: 0, additional_credits: 0, playback_starts_from_segment_0: true}
+
+billing:
+  - id: two-successful-paragraphs
+    given: {chat_id: chat-1, assistant_message_id: message-2, generated_segments: 2}
+    expect: {usage_rows: 2, each_row_has_chat_message_segment_provider_model_duration: true, idempotent_charge_per_segment: true}
+  - id: prerecorded-and-replay-free
+    given: {prerecorded_acknowledgement_plays: 1, ready_segment_replays: 3}
+    expect: {provider_generation_calls: 0, additional_credits: 0}
+  - id: disable-during-provider-request
+    given: {segment_0_provider_accepted: true, segment_1_queued: true}
+    action: disable_auto_speak
+    expect: {playback_stopped: true, segment_1_cancelled_before_dispatch: true, segment_1_credits: 0, segment_0_may_finish_and_charge_once: true}
+
+failures:
+  - id: insufficient-credits-before-first-paragraph
+    given: {credit_preflight: rejected, text_response: streaming}
+    expect: {provider_called: false, text_response_continues: true, auto_speak_enabled: false, visible_credit_status: true, chat_usage_action_visible: true}
+  - id: provider-fails-third-paragraph
+    given: {segment_0: ready, segment_1: ready, segment_2: provider_error}
+    expect: {text_response_succeeds: true, first_two_segments_replayable: true, queue_stops_at_segment_2: true, auto_speak_enabled: false, retry_starts_at_segment_2: true}
+  - id: autoplay-blocked
+    given: {segment_0: ready, browser_autoplay: rejected}
+    expect: {auto_speak_enabled: true, provider_error_shown: false, regeneration: false, tap_to_continue_visible: true, additional_credits: 0}
+  - id: safety-rejects-segment
+    given: {segment_safety_decision: rejected}
+    expect: {elevenlabs_called: false, credits_charged: 0, text_response_continues: true, safe_visible_error: true}
+
+privacy:
+  - id: automatic-current-paragraph-provider-payload
+    given: {current_segment: segment-2, unrelated_chat_messages: 30, embed_payload_contains_json: true}
+    expect:
+      elevenlabs_receives: [segment-2-speakable-text, required-voice-settings]
+      elevenlabs_does_not_receive: [unrelated-chat-history, raw-embed-json, encryption-keys, provider-credentials]
+      durable_plaintext_segment: false
+      plaintext_logs: false
+  - id: historical-message-owner-boundary
+    given: {owner_client_decrypts_message: true, request_access: first_party_authenticated}
+    expect: {chat_owner_authorized: true, assistant_message_membership_verified: true, other_user_access: forbidden, developer_api_key_access: forbidden}
+  - id: no-cleanup-provider
+    given: {speakable_segment_ready: true}
+    expect: {rewrite_llm_called: false, compression_llm_called: false, semantic_safety_may_classify_without_rewriting: true}
+
+lifecycle:
+  - id: delete-message-deletes-paragraph-files
+    given: {assistant_message_segments: 5, encrypted_s3_objects: 5}
+    action: delete_assistant_message
+    expect: {speech_manifest_deleted: true, segment_records_deleted: 5, encrypted_s3_objects_deleted: 5, other_message_audio_unchanged: true}
+  - id: delete-chat-deletes-all-speech
+    given: {chat_speech_manifests: 7}
+    action: delete_chat
+    expect: {all_chat_speech_manifests_deleted: true, all_chat_speech_objects_deleted: true}
+  - id: voice-profile-version-change
+    given: {stored_profile_version: 1, current_profile_version: 2, source_text_unchanged: true}
+    action: select_speak
+    expect: {old_files_not_presented_as_current: true, segments_regenerated_with_version_2: true, old_files_lifecycle_cleanup_required: true}

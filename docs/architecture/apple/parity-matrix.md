@@ -83,7 +83,7 @@ Current Apple accessibility identifiers:
 
 ## Apple UI Parity Program
 
-Executable spec: `docs/specs/apple-ui-parity-program/spec.yml`
+Program Plan: `docs/plans/apple-ui-parity-program/plan.yml`
 
 Program inventory source: `test-results/apple-parity-inventory.json` under `programs.apple_ui_parity_program`.
 
@@ -186,4 +186,4 @@ Verification:
 - Counterpart paths that no longer exist
 - Chat-first program surfaces, expected web/native files, expected identifiers, native test coverage, gap types, and ranked follow-up order
 
-The script should not invent product priority. It reports against the priority order approved in the matrix and executable specs.
+The script should not invent product priority. It reports against the priority order approved in the matrix and Plans.

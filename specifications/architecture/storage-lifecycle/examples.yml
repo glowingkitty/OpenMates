@@ -1,0 +1,118 @@
+schema_version: 1
+specification: architecture.storage-lifecycle@1
+
+region_replication:
+  - id: active-write-survives-replica-outage
+    given: {configured_regions: [nbg1, fsn1, hel1], active_write_region: nbg1, fsn1_health: unavailable, hel1_health: healthy}
+    when: {operation: put, object_key: chatfiles/user/object.enc}
+    expect: {write_acknowledged_after_nbg1: true, hel1_replication: present, fsn1_replication: pending_retry, failure_visible: true}
+  - id: degraded-primary-fails-over-and-reconciles
+    given: {active_write_region: nbg1, nbg1_health: sustained_failure, fsn1_health: healthy}
+    when: {writes_continue_in: fsn1, nbg1_later_recovers: true}
+    expect: {active_write_region: fsn1, nbg1_state: reconciling, immediate_failback: false, checksum_reconciliation_required: true}
+  - id: missing-object-does-not-fail-over
+    given: {active_write_region: nbg1, nbg1_health: healthy}
+    when: {get_result: not_found}
+    expect: {regional_failover: false, result: not_found}
+
+archive_eligibility:
+  - id: inactive-personal-chat-moves-cold
+    given: {owner_context: personal, inactive_days: 35, pinned: false, shared: false, processing_task: false}
+    expect: {eligible: true, archive_unit: complete_chat_graph}
+  - id: pinned-shared-or-processing-chat-stays-hot
+    cases:
+      - {inactive_days: 180, pinned: true}
+      - {inactive_days: 180, shared: true}
+      - {inactive_days: 180, processing_task: true}
+    expect: {eligible: false}
+  - id: team-chat-uses-same-policy
+    given: {owner_context: team, inactive_days: 35, pinned: false, shared: false, processing_task: false}
+    expect: {eligible: true, authorization_scope: team}
+  - id: workspace-resource-policies
+    cases:
+      - {resource: task, lifecycle: done, terminal_days: 30, eligible: true}
+      - {resource: plan, lifecycle: active, inactive_days: 90, eligible: false}
+      - {resource: workflow_run, lifecycle: completed, terminal_days: 30, eligible: true}
+      - {resource: workflow, lifecycle: enabled, inactive_days: 180, eligible: false}
+      - {resource: project, lifecycle: inactive, inactive_days: 90, active_dependencies: true, eligible: false}
+
+cold_discovery:
+  - id: show-more-pages-cold-chat-metadata
+    given: {recent_hot_items: 100, cold_items: 2268, page_size: 100}
+    when: {action: show_more, cursor: cold-page-1}
+    expect: {returned_items_maximum: 100, next_cursor_present: true, complete: false, content_rows_loaded: false}
+  - id: final-page-proves-complete-list
+    given: {remaining_cold_items: 18, page_size: 100}
+    when: {action: show_more, cursor: final-page}
+    expect: {returned_items: 18, next_cursor: null, complete: true}
+
+shared_team_access:
+  - id: cold-team-project-role-checked
+    given: {resource: project, storage_state: cold, requester_role: viewer, membership_status: active}
+    when: {operation: read}
+    expect: {ciphertext_returned: true, mutation_allowed: false, plaintext_server_visible: false}
+  - id: removed-member-cannot-read-cold-data
+    given: {owner_context: team, storage_state: cold, membership_status: removed}
+    expect: {metadata_returned: false, archive_returned: false, result: forbidden}
+  - id: share-cold-chat-promotes-before-sharing
+    given: {resource: chat, storage_state: cold, owner_authorized: true}
+    when: {operation: create_share}
+    expect: {promotion_completed_before_share: true, resulting_storage_state: hot, share_created: true}
+
+rehydration:
+  - id: cold-chat-read-does-not-restore
+    given: {resource: chat, storage_state: cold, messages: 2000}
+    when: {operation: read_first_page}
+    expect: {bounded_ciphertext_page: true, directus_rows_restored: 0}
+  - id: cold-chat-new-message-promotes-once
+    given: {resource: chat, storage_state: cold, archive_generation: 4, concurrent_mutations: 2}
+    when: {operation: add_message}
+    expect: {successful_promotions: 1, duplicate_rows: 0, accepted_mutation_uses_generation: 4}
+
+deletion:
+  - id: delete-during-region-outage-never-resurrects
+    given: {configured_regions: [nbg1, fsn1, hel1], hel1_health: unavailable, archive_generations: [2, 3]}
+    when: {operation: authorized_delete}
+    expect: {visible_immediately: false, nbg1_deleted: true, fsn1_deleted: true, hel1_delete_pending: true, resurrect_after_hel1_recovery: false}
+  - id: shared-file-reference-preserved
+    given: {file_references: [deleted_chat, surviving_project]}
+    when: {operation: delete_chat}
+    expect: {deleted_chat_reference_removed: true, physical_file_deleted: false, surviving_project_readable: true}
+  - id: system-generation-seven-day-window
+    given: {archive_generation: 3, replacement_generation: 4, replacement_reason: compaction}
+    expect: {generation_3_max_retention_days: 7, generation_4_active: true}
+  - id: explicit-delete-bypasses-generation-window
+    given: {archive_generations: [3, 4], deletion_reason: user_requested}
+    expect: {generation_3_retained_for_rollback: false, generation_4_retained_for_rollback: false, purge_all_regions: true}
+
+account_export:
+  - id: large-browser-export-is-bounded
+    given: {chats: 5000, browser_streaming_file_api: false, target_part_size_mib: 100}
+    when: {operation: export_all}
+    expect: {output_mode: multipart_archives, independently_readable_parts: true, complete_account_in_memory: false, resumable: true}
+  - id: capable-browser-streams-single-archive
+    given: {browser_streaming_file_api: true, cold_and_hot_data: present}
+    expect: {output_mode: streaming_single_archive, server_plaintext: absent, complete_account_in_memory: false}
+  - id: cli-streams-to-disk
+    given: {surface: cli, cold_and_hot_data: present}
+    expect: {incremental_decryption: true, incremental_disk_write: true, complete_zip_buffer_in_memory: false}
+  - id: missing-required-cold-part-is-not-complete
+    given: {required_archive_part: missing}
+    expect: {status: partial, complete: false, affected_item_visible: true, retry_available: true}
+
+media_scope:
+  - id: product-media-remains-current-surface
+    given: {bucket: openmates-product-media, nbg1_health: unavailable}
+    expect: {custom_media_domain_created: false, temporary_unavailability_accepted: true, replicated_availability_claim: false}
+  - id: buffer-media-falls-forward-without-replication
+    given: {bucket: openmates-buffer-media, preferred_region: nbg1, nbg1_health: unavailable, fsn1_health: healthy}
+    when: {operation: upload_temporary_review_media}
+    expect: {uploaded_region: fsn1, replicate_existing_object: false, private_presigned_access: true, lifecycle_expiry: true}
+
+integrity:
+  - id: referenced-object-missing
+    given: {authoritative_reference: present, configured_replicas_present: []}
+    expect: {silent_success: false, alert: true, destructive_repair: false}
+  - id: unreferenced-object-found
+    given: {authoritative_reference: absent, object_replicas: [nbg1, fsn1]}
+    expect: {immediate_delete: false, orphan_reported: true, policy_or_tombstone_required_before_delete: true}

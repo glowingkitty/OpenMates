@@ -1,0 +1,170 @@
+schema_version: 1
+specification: feature.daily-inspiration@1
+
+source_transitions:
+  - id: authenticated-cold-boot-seeds-fallback
+    given:
+      source: none
+      authenticated: true
+      async_recovery: pending
+    expect:
+      immediate_source: authenticated-fallback
+      visible_count: 10
+      empty_visible_emission: false
+  - id: guest-to-auth-seeds-fallback
+    given:
+      source: guest-onboarding
+      authenticated: true
+      async_recovery: pending
+    expect:
+      immediate_source: authenticated-fallback
+      visible_count: 10
+      guest_signup_visible: false
+      empty_visible_emission: false
+  - id: fallback-upgrades-to-public-or-personalized
+    given:
+      source: authenticated-fallback
+      visible_count: 10
+    actions:
+      - recovery_source: IndexedDB
+        incoming_source: personalized
+        expect_source: personalized
+      - recovery_source: public_defaults
+        incoming_source: public-daily
+        expect_source: public-daily
+    expect:
+      empty_visible_emission: false
+      crossfade_when_visible_sets_differ: true
+
+personalized_priority:
+  - id: duplicate-personalized-preserves-state
+    given:
+      source: personalized
+      current_index: 1
+      opened_record: daily-2
+    action: duplicate_personalized_delivery
+    expect:
+      source: personalized
+      current_index: 1
+      opened_record_preserved: true
+  - id: incomplete-personalized-can-fallback
+    given:
+      source: personalized
+      valid_authenticated_set: false
+    action: authenticated_fallback_available
+    expect:
+      source: authenticated-fallback
+      valid_authenticated_set: true
+  - id: public-cannot-overwrite-complete-personalized
+    given:
+      source: personalized
+      valid_authenticated_set: true
+      incoming_source: public-daily
+    expect:
+      source: personalized
+      personalized_opened_state_preserved: true
+
+guest_isolation:
+  - id: logout-restores-guest-set
+    given:
+      previous_source: personalized
+      action: logout
+    expect:
+      source: guest-onboarding
+      ids:
+        - openmates-intro
+        - openmates-actionable-events
+        - openmates-privacy-safety
+        - openmates-mates-focus
+        - openmates-provider-cross-platform
+        - openmates-signup-cta
+  - id: guest-cannot-overwrite-authenticated
+    given:
+      source: personalized
+      incoming_source: guest-onboarding
+    expect:
+      source: personalized
+      guest_signup_visible: false
+
+fallback_sets:
+  - id: authenticated-static-fallback-shape
+    given:
+      source: authenticated-fallback
+    expect:
+      count: 10
+      content_mix: {video: 3, wiki: 3, feature: 4}
+      excludes_ids: [openmates-signup-cta]
+      feature_cards_have_settings_paths: true
+
+public_defaults:
+  - id: public-defaults-contract
+    given:
+      request: GET /v1/default-inspirations?lang=unsupported
+      authenticated: false
+    expect:
+      effective_lang: en
+      rate_limit: 60/minute
+      cache_ttl_seconds: 3600
+      max_count: 10
+      cleartext_public_content_only: true
+      excludes_guest_onboarding_features: true
+      excludes_authenticated_only_features: true
+  - id: public-defaults-fallback-order
+    given:
+      today_defaults: absent
+      yesterday_defaults: absent
+    expect:
+      fallback_sources: [static_wiki, static_public_features]
+      deterministic_shuffle_seed: date_and_language
+
+encrypted_persistence:
+  - id: indexeddb-encrypts-content
+    given:
+      personalized_record: present
+    expect:
+      encrypted_fields:
+        - phrase
+        - assistant_response
+        - title
+        - category
+        - video_metadata
+        - wiki_metadata
+        - feature_metadata
+        - follow_up_suggestions
+      cleartext_metadata:
+        - inspiration_id
+        - embed_id
+        - generated_at
+        - content_type
+        - is_opened
+        - opened_chat_id
+      local_ttl_hours: 72
+  - id: authenticated-api-bounds
+    given:
+      endpoint: /v1/daily-inspirations
+      auth: session
+    expect:
+      post_batch_min: 1
+      post_batch_max: 10
+      retained_server_records_max: 30
+      get_limit: 10
+      incomplete_legacy_set_returns_empty: true
+
+opened_state:
+  - id: opened-card-remains-visible
+    given:
+      source: personalized
+      opened_record: daily-2
+    expect:
+      opened_record_visible: true
+      preferred_index: first_unopened_or_zero
+      opened_chat_id_preserved: true
+  - id: viewed-and-opened-side-effects-deduplicated
+    given:
+      visible_threshold: 0.5
+      repeated_delivery: same_ordered_ids
+    expect:
+      viewed_event_sent_once_per_id: true
+      opened_self_echo_ignored_when_already_opened: true
+      duplicate_delivery_preserves_current_index: true
+      duplicate_delivery_merges_embed_and_opened_state: true

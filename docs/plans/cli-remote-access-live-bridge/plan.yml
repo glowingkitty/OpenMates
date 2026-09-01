@@ -1,0 +1,1019 @@
+schema_version: 2
+id: cli-remote-access-live-bridge
+title: CLI Remote Access Live Read-Only Bridge
+status: verified
+
+goal: >
+  Make `openmates remote-access` a truthful, long-running foreground connection
+  between user-approved project folders and OpenMates, with automatic Project
+  discovery and background encryption, plus bounded list, search, and text-file
+  read/preview operations that become unavailable when the command disconnects.
+
+scope:
+  in:
+    - One canonical `openmates remote-access` foreground command with no start, stop, status, or search subcommands.
+    - A live authenticated first-party bridge that remains connected until Ctrl+C, process exit, forced logout, or unrecoverable authentication failure.
+    - Automatic reconnect with bounded backoff after temporary network interruption.
+    - Heartbeats and accurate connected/offline source state after clean shutdown, crashes, network loss, and revocation.
+    - Default recursive Git-repository discovery under the command's starting folder.
+    - Reconnection of existing repository-to-Project associations and one reviewed confirmation before creating missing OpenMates Projects.
+    - Preservation of ordinary folders in the owner-only local discovery tree, with no remote operation until the user explicitly binds an ordinary-folder subtree to a Project.
+    - Up to 16 repeated `--path <folder>` values that replace starting-folder discovery and may select roots inside or outside the current folder.
+    - Realpath-based approved-root enforcement, broad-root warnings, symlink escape prevention, Git ignored-file exclusion, secret/high-risk path exclusion, and content-aware binary exclusion.
+    - Bounded directory listing, text search, and selected text-file read/preview operations over the live bridge.
+    - Cleartext-only user-facing CLI input and output, with key handling, encryption, and decryption performed automatically inside trusted first-party clients.
+    - Removal of public `--encrypted-display-name` and `--encrypted-metadata` requirements from normal remote-access usage.
+    - Accurate CLI, package, user-guide, architecture, and VS Code setup documentation for the implemented foreground command.
+    - Real dev-server REST/WebSocket and CLI evidence proving the live bridge, followed by deployed Projects UI verification.
+  out:
+    - Public lifecycle subcommands such as `remote-access start`, `stop`, `status`, or `search`.
+    - A hidden daemon, operating-system service, or bridge that remains active after the foreground command exits.
+    - File creation, update, delete, rename, patch application, chmod, or any other filesystem mutation.
+    - Shell commands, package installation, test execution, Git mutation, or arbitrary process execution requested by OpenMates.
+    - Background repository synchronization, bulk upload, or automatic mirroring of source contents.
+    - BYOC Claude subscription worker mode or routing model inference through a local Claude Code process.
+    - Remote-access source management in the public npm or pip SDKs; the source-machine bridge remains CLI-only.
+    - Automatic creation of Projects without a reviewed user confirmation.
+    - Apple-native hosting of the source-machine bridge.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP authentication returned 401, so current issue lookup could not be completed. Existing projects-remote-sources discovery records #447, #442, and closed #140 as related context."
+  docs:
+    - docs/plans/projects-remote-sources/plan.yml
+    - docs/plans/forced-logout-local-data-purge/plan.yml
+    - docs/plans/vscode-extension-v1/plan.yml
+    - docs/architecture/platforms/cli-package.md
+    - docs/user-guide/cli/remote-access.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts currently registers a source, prints foreground-session copy, and returns immediately.
+    - frontend/packages/openmates-cli/src/remoteAccess.ts contains local source persistence and bounded rg search primitives but no live transport wiring.
+    - frontend/packages/openmates-cli/src/ws.ts provides an authenticated first-party WebSocket and force-logout event support.
+    - frontend/packages/openmates-cli/src/protonBridgeConnector.ts provides a reusable foreground connector, heartbeat, reconnect, and correlated-request pattern.
+    - backend/core/api/app/routes/projects.py exposes authenticated Project source create/list routes but no source heartbeat, status update, revocation, or bridge request lifecycle.
+    - backend/core/api/app/services/connected_accounts_service.py provides a reusable pending/result request-correlation pattern for local connectors.
+    - frontend/packages/ui/src/services/projectService.ts decrypts Project source metadata with the Project key.
+    - frontend/packages/ui/src/services/projectRemoteSources.ts normalizes bounded virtual previews and explicit upload candidates.
+  tests:
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/remoteSources.test.ts
+    - backend/tests/test_project_remote_sources.py
+    - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+  verified_facts:
+    - id: VF-1
+      finding: The current command writes local metadata, optionally registers one Project source, prints that a foreground session started, and returns without a live bridge.
+      evidence: frontend/packages/openmates-cli/src/cli.ts:2907-2944
+    - id: VF-2
+      finding: Internal source search is root-scoped and capped but has no production caller outside remoteAccess.ts.
+      evidence: frontend/packages/openmates-cli/src/remoteAccess.ts:136-250
+    - id: VF-3
+      finding: Normal Project registration currently requires callers to supply encrypted display-name and metadata flags.
+      evidence: frontend/packages/openmates-cli/src/cli.ts:2981-3013
+    - id: VF-4
+      finding: The deployed Projects E2E test inserts synthetic encrypted preview metadata directly through REST instead of exercising a running CLI bridge.
+      evidence: frontend/apps/web_app/tests/projects-remote-sources.spec.ts:42-140
+    - id: VF-5
+      finding: Current user and package documentation advertises lifecycle/search subcommands that current CLI tests require to fail.
+      evidence: docs/user-guide/cli/remote-access.md:15-32; frontend/packages/openmates-cli/tests/cli.test.ts:995-1044
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsProjectsView.swift
+  parity_expectations:
+    - Apple does not host the CLI bridge and does not gain local filesystem authority.
+    - Existing native Project source settings continue to decrypt source names and represent connected/offline state from the shared backend contract.
+    - No Apple implementation begins until backend, CLI, deployed web, visual review, and user-confirmation gates are complete.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios
+  intentional_native_differences:
+    - Starting, supervising, and stopping remote access remains a terminal workflow on the source machine.
+
+clarification:
+  rounds:
+    - question: Should the first live bridge support only remote search, or bounded list, search, and text-file read/preview operations?
+      answer: Support bounded list, search, and text-file read/preview operations.
+    - question: How should the command choose Projects?
+      answer: By default connect all projects discovered in the folder where the command starts, except when explicit project paths are supplied.
+    - question: Should missing OpenMates Projects be created automatically?
+      answer: Detect repository candidates, reconnect existing associations, and ask once before creating and connecting missing Projects; never create silently.
+    - question: How should temporary disconnection, clean shutdown, and forced logout behave?
+      answer: Reconnect automatically with bounded backoff, mark sources offline on shutdown or heartbeat expiry, and exit plus purge credentials on forced logout.
+    - question: Do repeated explicit paths add to or replace current-folder discovery?
+      answer: Explicit `--path` values replace current-folder discovery so only those roots are connected.
+  vision_summary: >
+    `openmates remote-access` is one foreground command that actually remains
+    connected and serves bounded read-only filesystem operations. It discovers
+    repository Projects under the starting folder by default, uses explicit
+    paths as a complete scope override, keeps ordinary folders browsable, and
+    requires review before creating missing Projects. Users always work with
+    cleartext names, paths, queries, and results; trusted clients perform all
+    encryption, decryption, and key handling invisibly.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-02T00:00:00Z"
+    reason: User explicitly instructed implementation after reviewing the validated product contract.
+  plan:
+    status: approved
+    approved_at: "2026-08-02T00:00:00Z"
+    reason: The initial plan introduces no material decision beyond the approved security, privacy, command, and lifecycle contract, and the user instructed implementation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep `openmates remote-access` as the only public lifecycle command and make its process lifetime the source of truth for connection state.
+    reason: The user explicitly rejected start/stop commands and wants foreground lifetime to control availability.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Support list, search, and selected text-file read/preview in the first live bridge slice.
+    reason: Search results need bounded navigation and inspection to provide useful remote Project context.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Default discovery connects repository Projects beneath the starting folder; explicit repeated paths replace that discovery scope.
+    reason: This gives convenient workspace-wide startup while keeping explicit invocations predictable and least-privileged.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Never expose ciphertext or encryption-key handling as a normal user-facing remote-access input or output.
+    reason: OpenMates encryption and decryption must be transparent first-party implementation details while users operate on cleartext.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Keep the first live bridge strictly read-only and separate from daemon, mutation, command-execution, and BYOC worker designs.
+    reason: A narrow live transport and filesystem security boundary must be proven before adding higher-risk capabilities.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Project requests may access only their explicitly bound repository or ordinary-folder subtree, even when several Projects share one owner-only workspace source tree.
+    reason: A parent workspace view must not allow one Project to traverse another Project's repository or unrelated ordinary folders.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Encrypt bridge operation payloads end-to-end with an ephemeral source-session key; the backend validates opaque routing metadata but never decrypts paths, queries, snippets, or file content.
+    reason: The backend must coordinate the bridge without becoming a plaintext filesystem proxy or durable plaintext store.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Only one foreground session may own a source ID; a second process requires confirmed takeover and atomically revokes the old session.
+    reason: Accurate connected/offline state and request routing require one authoritative session while allowing intentional recovery from a stale process.
+    decided_at: "2026-08-02T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Use one stable source ID per exact Project binding root; one foreground process may supervise several independently scoped source IDs.
+    reason: The existing unique source/owner index remains valid while each request retains an unambiguous Project subtree and takeover authority.
+    decided_at: "2026-08-02T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-3
+    approach: Treat local source registration and tested rg helpers as a completed foreground bridge.
+    outcome: rejected
+    recorded_at: "2026-08-02T00:00:00Z"
+    reason: The current command returns immediately, has no request transport, and cannot truthfully represent a connected source.
+  - id: ATTEMPT-2
+    task_id: TASK-5
+    approach: Document start, stop, status, and search as public remote-access subcommands.
+    outcome: rejected
+    recorded_at: "2026-08-02T00:00:00Z"
+    reason: The approved command model has no lifecycle subcommands; process lifetime and Projects UI provide status.
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Require users or scripts to provide pre-encrypted source display names and metadata.
+    outcome: rejected
+    recorded_at: "2026-08-02T00:00:00Z"
+    reason: Users must provide and receive cleartext while trusted clients handle encryption and decryption automatically.
+
+handoff:
+  current_task_id: TASK-6
+  next_action: None; all required implementation and verification gates are complete.
+  command: python3 scripts/plan_verify.py docs/plans/cli-remote-access-live-bridge/plan.yml --json
+  expected_outcome: Reports complete with no missing evidence.
+  blocker: null
+  last_verified_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+
+scenarios:
+  - id: S-1
+    title: Starting-folder discovery connects repository Projects
+    given:
+      - Alice is authenticated in the CLI and starts in `/work`.
+      - "`/work/api` is a Git repository already associated with the OpenMates Project `API`."
+      - "`/work/web` is a Git repository with no OpenMates Project association."
+      - "`/work/notes` is an ordinary folder."
+    when:
+      - Alice runs `openmates remote-access`.
+    then:
+      - The CLI preserves `/work` as one browsable approved source tree.
+      - The CLI reconnects `/work/api` to `API`.
+      - The CLI shows `/work/web` in one reviewed missing-Project confirmation and creates it only if Alice approves.
+      - The CLI keeps `/work/notes` visible in Alice's owner-only local discovery tree without silently granting `API` or `Web` access to it or sending its names to OpenMates.
+      - Alice must explicitly bind `/work/notes` or a child subtree to a Project before that Project can request its content.
+      - The command remains running and shows live source connection state.
+  - id: S-2
+    title: Explicit paths replace starting-folder discovery
+    given:
+      - Alice is in `/work`, which contains several repositories.
+      - Alice wants to expose only `/work/web` and `/srv/private-api`.
+    when:
+      - Alice runs `openmates remote-access --path ./web --path /srv/private-api`.
+    then:
+      - The CLI approves only the canonical realpaths of `/work/web` and `/srv/private-api`.
+      - The CLI does not discover or expose other repositories under `/work`.
+      - The outside-current-folder path is shown clearly before connection.
+      - Any broad root requires an additional strong local confirmation.
+  - id: S-3
+    title: OpenMates performs bounded list, search, and text read
+    given:
+      - Alice has a connected source rooted at `/work/api`.
+      - The source contains safe text files, ignored files, binary files, `.env`, and a symlink escaping to `/etc`.
+    when:
+      - Alice browses a directory, searches for `billing`, and opens one selected safe text result from OpenMates.
+    then:
+      - The live request reaches only Alice's authenticated foreground bridge.
+      - Listing, search results, and file content stay within configured item, byte, line, depth, duration, and concurrency caps.
+      - Git ignored, secret/high-risk, binary, and outside-root paths are excluded or fail closed with an actionable reason.
+      - The selected safe text file appears as a bounded virtual preview and is not uploaded as a durable embed unless Alice explicitly chooses Upload to OpenMates.
+      - A request from another Project cannot traverse into `/work/api`, even when both Projects share the same workspace bridge session.
+  - id: S-4
+    title: Encryption is automatic and invisible to the user
+    given:
+      - Alice connects `/work/api` to the encrypted Project `API`.
+    when:
+      - The CLI stores source metadata and exchanges bridge requests and responses requiring Project encryption.
+    then:
+      - Alice enters and sees cleartext Project names, paths, queries, statuses, and results.
+      - The CLI obtains approved key material through existing first-party key flows and encrypts or decrypts automatically.
+      - Normal remote-access help and execution expose no ciphertext flags, ciphertext prompts, raw encryption keys, or copy-paste encrypted payloads.
+      - The backend persists only approved sparse operational fields plus opaque ciphertext for user-facing source metadata.
+      - Logs, traces, errors, and analytics never contain raw keys or decrypted file contents.
+      - An ephemeral source-session key encrypts path, query, snippet, and file-content payloads end-to-end between the requesting first-party client and CLI; the backend sees only opaque routing metadata.
+      - Assistant-initiated retrieval is client-mediated: the client approves and encrypts the bridge request, decrypts the bounded result, and sends only explicitly approved context through the existing assistant plaintext boundary.
+      - The ephemeral key agreement transcript is authenticated with key material derived from the Project key and binds the owner, Project, source, source-session, and requesting-client identities so the backend cannot substitute either party's key.
+  - id: S-5
+    title: Temporary network loss reconnects without lying about state
+    given:
+      - Alice's foreground bridge is connected for the `API` and `Web` Projects.
+    when:
+      - Network connectivity is temporarily lost and later restored while the process remains running.
+    then:
+      - The CLI reports reconnecting and retries with bounded backoff and jitter.
+      - Heartbeat expiry marks affected sources offline while the connection is unavailable.
+      - Restoration re-authenticates the bridge and marks only successfully reconnected sources connected.
+      - Requests during the offline interval fail clearly and never use silent stale filesystem content.
+  - id: S-6
+    title: Shutdown and revocation terminate access
+    given:
+      - Alice has a connected foreground bridge.
+    when:
+      - Alice presses Ctrl+C, the process exits unexpectedly, or the session receives `force_logout`.
+    then:
+      - Clean shutdown sends a disconnect transition before exiting when the network is available.
+      - Crash or unreachable-client heartbeat expiry marks sources offline within the documented timeout.
+      - Forced logout stops requests immediately, closes the bridge, marks sources offline or revoked, and uses the canonical credential and local-account-data purge path.
+      - Source revocation, Project deletion, Project access removal, source unbinding, or source-session key replacement immediately rejects new work and invalidates in-flight requests for the affected scope.
+      - A second process for the same source ID connects only after Alice confirms takeover; the old session is revoked atomically, and a later stale disconnect cannot mark the replacement offline.
+      - No hidden process continues serving filesystem access.
+  - id: S-7
+    title: Documentation matches the shipped command
+    given:
+      - A user reads CLI help, the npm package README, user documentation, architecture documentation, or VS Code setup guidance.
+    when:
+      - The user follows the remote-access instructions.
+    then:
+      - Every surface uses `openmates remote-access` without start, stop, status, or search subcommands.
+      - Every surface explains starting-folder discovery, explicit-path replacement, foreground lifetime, reconnect/offline behavior, read-only operations, and automatic encryption.
+      - No surface claims that source registration alone proves a live bridge.
+      - Documentation labels deferred daemon, file mutation, command execution, and BYOC worker work as separate future features.
+  - id: S-8
+    title: End-to-end evidence uses a real live bridge
+    given:
+      - A dedicated test account and bounded temporary repository are available against `https://api.dev.openmates.org` and `https://app.dev.openmates.org`.
+    when:
+      - The remote-access verification suite runs.
+    then:
+      - A real CLI process registers and stays alive against the dev WebSocket/API path.
+      - The test requests list, search, and selected-file preview through that live process.
+      - The test observes connected, reconnecting or offline, and clean shutdown states.
+      - Synthetic direct source metadata insertion and mocked transports are supplemental only and cannot satisfy the live bridge gate.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The canonical command discovers repository Projects beneath the starting folder, reconnects existing associations, reviews missing Project creation once, preserves ordinary folders in the owner-only workspace tree without cross-Project access, and remains running.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UNIT, T-CLI-LIVE]
+  - id: AC-2
+    scenario: S-2
+    text: Repeated explicit paths replace default discovery, are realpath-resolved, and require clear local review for outside-current-folder or broad roots.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UNIT, T-CLI-LIVE]
+  - id: AC-3
+    scenario: S-3
+    text: The live bridge serves capped directory listing, search, and selected text-file preview only within the deterministic always_ask, ask_for_broad_access, or allow_for_mentions grant scope, while failing closed for ignored, secret/high-risk, binary, race-swapped, symlink-escaped, outside-root, and cross-Project paths.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT, T-CLI-LIVE, T-PLAYWRIGHT-REMOTE-SOURCES]
+  - id: AC-4
+    scenario: S-4
+    text: User-facing remote access accepts and returns cleartext only, performs Project and ephemeral source-session encryption, decryption, and key handling internally, exposes no public ciphertext flags, keeps bridge payloads opaque to the backend, and prevents decrypted file content or keys from entering logs or persistence.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-CONTRACT, T-CRYPTO-UNIT, T-CLI-UNIT, T-CLI-LIVE, T-PRIVACY-AUDIT]
+  - id: AC-5
+    scenario: S-5
+    text: Temporary network loss uses bounded reconnect behavior, heartbeat expiry produces offline state, and only successfully restored sources return to connected state.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT, T-CLI-LIVE]
+  - id: AC-6
+    scenario: S-6
+    text: Ctrl+C, process failure, heartbeat expiry, forced logout, source revocation, Project deletion, access removal, unbinding, and source-session key replacement terminate affected filesystem availability and in-flight requests without leaving a hidden serving process.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT, T-CLI-LIVE]
+  - id: AC-7
+    scenario: S-7
+    text: CLI help, package README, user guide, architecture docs, and VS Code guidance describe only the implemented canonical foreground behavior and clearly distinguish deferred features.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DOCS-AUDIT]
+  - id: AC-8
+    scenario: S-8
+    text: Completion evidence proves list, search, read/preview, status, reconnect, and shutdown through a real authenticated CLI process and real dev API/WebSocket path rather than synthetic source metadata alone.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-API-LIVE, T-CLI-LIVE, T-PLAYWRIGHT-REMOTE-SOURCES, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
+
+assumptions:
+  - id: A-1
+    text: The existing authenticated user WebSocket can carry or fan out a typed remote-source request envelope and `force_logout` without introducing a public/developer endpoint.
+    category: backend_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/websockets.py:2126-2238
+        summary: The authenticated first-party WebSocket exposes owner and device identity and dispatches typed messages.
+      - source: backend/core/api/app/routes/connection_manager.py:225-257
+        summary: Exact device-targeted delivery exists and can use the current Redis listener pattern for cross-process routing.
+  - id: A-2
+    text: Existing Project key wrappers can provide the authenticated CLI with approved Project key material without asking the user for ciphertext or raw keys.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/cli.ts:1280-1347
+        summary: The CLI already lists encrypted Projects and unwraps encrypted_project_key with its locally held account master key.
+      - source: frontend/packages/ui/src/services/projectService.ts:299-318
+        summary: Browser source metadata encryption provides the first-party pattern for automatic CLI encryption.
+  - id: A-3
+    text: Repository discovery uses Git work-tree boundaries and persisted OpenMates association metadata without reading repository remotes or uploading source contents.
+    category: privacy
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/remoteAccess.ts:32-117
+        summary: Existing local metadata persists opaque source IDs and canonical roots with owner-only permissions.
+      - source: frontend/packages/openmates-cli/src/cli.ts:8661-8695
+        summary: Repeated flags are preserved as newline-separated values, allowing remote-access-specific repeated path parsing.
+  - id: A-4
+    text: Browser and assistant-context flows can mediate Project-key-authenticated ephemeral source-session key establishment without exposing that key to the backend.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/crypto.ts:161-260
+        summary: CLI already has X25519, HKDF/AES-GCM, and authenticated additional-data patterns reusable for source-session envelopes.
+      - source: frontend/packages/ui/src/utils/chatCompletionRecovery.ts:123-248
+        summary: Browser peer crypto already implements the corresponding first-party X25519 and authenticated-envelope pattern.
+
+contracts:
+  api:
+    - surface: Remote-source bridge register, heartbeat, disconnect, request, and completion lifecycle
+      access_model: first-party client surface only
+      auth: Authenticated CLI session and authenticated requesting first-party client; API keys and anonymous sessions are rejected.
+      owner_scope: Source sessions, requests, and results are scoped to the authenticated owner and associated Project; cross-user and unrelated-Project access fails closed.
+      transport: Authenticated WebSocket for request delivery and account events, with REST only where durable source metadata or correlated completion requires it.
+      rate_limits: At most 4 in-flight operations and 16 queued operations per source session, 60 operation requests per minute per user, and one heartbeat no more often than every 10 seconds; excess work returns 429 without delivery.
+      credit_budget: Filesystem list, search, and read do not consume AI credits; later model operations using approved context follow normal model budget controls.
+      encryption_boundary: User-facing source metadata is encrypted with the Project key. Each live bridge session uses an ephemeral source-session key established between the requesting first-party client and CLI through a Project-key-authenticated transcript bound to owner, Project, source, source session, and requesting-client identity; the backend never receives that key and cannot decrypt operation paths, queries, snippets, or file content. Only client-decrypted context authorized by the explicit context-grant contract may enter assistant plaintext processing.
+      errors:
+        - 401 or WebSocket authentication failure for unauthenticated sessions.
+        - 403 for owner, Project, source, capability, or grant mismatch.
+        - 404 or explicit offline error for absent or expired sessions without revealing source existence cross-user.
+        - 409 for stale or duplicate session state when it cannot be reconciled safely.
+        - 413 for bounded request or response payload overflow.
+        - 429 for request, byte, or concurrency limits.
+        - Timeout and connector-offline errors fail closed without stale broad-context fallback.
+  bridge_operations:
+    - operation: list
+      request: Source ID, approved relative directory, depth, item cap, and request ID.
+      response: Bounded relative entries with safe type and display metadata; no unrestricted recursive tree.
+    - operation: search
+      request: Source ID, cleartext user query inside the trusted endpoint, result cap, snippet cap, and request ID.
+      response: Bounded safe relative paths, line numbers, and snippets plus omitted/excluded counts.
+    - operation: read_text
+      request: Source ID, one selected safe relative path, byte/line cap, expected metadata when available, and request ID.
+      response: Bounded text preview and safe file metadata; binary or disallowed content fails closed.
+  lifecycle_limits:
+    - Heartbeat interval is 15 seconds and three missed heartbeats, 45 seconds total, marks the source offline.
+    - Reconnect delays start at 1 second, double to a maximum of 30 seconds, include up to 20 percent jitter, and continue only while the foreground process and credentials remain valid.
+    - Bridge requests expire after 45 seconds, are single-use, and reject late or duplicate completion.
+    - A source session permits at most 4 in-flight operations and 16 queued operations.
+    - Exactly one live source session owns a source ID; confirmed takeover atomically invalidates the previous session, and status transitions include the session ID so stale disconnects cannot overwrite current state.
+  operation_limits:
+    - At most 16 approved roots may be active in one process.
+    - Repository discovery does not follow symlinks and continues through all accessible descendants; candidate review is paged in batches of 100 without truncating discovery or silently omitting deeper repositories.
+    - Directory list returns at most 500 entries and at most 3 levels per request.
+    - Search returns at most 20 matches, at most 2,000 UTF-8 characters per snippet, and at most 256 KiB total response data.
+    - Text read returns at most 200 KiB and 4,000 lines, whichever is reached first.
+    - Each local operation has a 15-second execution deadline and a 256 KiB serialized response ceiling.
+    - Files with a null byte in the first 8 KiB or any invalid UTF-8 sequence in the bounded read window are treated as binary or unsupported and rejected.
+    - Broad roots are filesystem root, the current user's home/profile directory, or any ancestor of that home/profile directory.
+  data:
+    - Backend source rows retain hashed ownership, opaque IDs, sparse capability/status/timestamps, and encrypted user-facing metadata only.
+    - Local source association and cache state remains under `~/.openmates` with owner-only filesystem permissions.
+    - Connected state requires a live authenticated session or unexpired heartbeat and cannot be set permanently by source creation alone.
+    - Request IDs are single-use, expire promptly, and cannot be completed by another user, source, Project, or stale session.
+    - Durable preview embeds are created only after explicit Upload to OpenMates; normal list/search/read responses are ephemeral virtual context.
+    - A locally generated opaque source ID plus canonical-root association metadata identifies reconnectable sources; repository name or remote URL alone is never an identity key.
+    - Nested Git repositories and submodules are separate candidates only when their work-tree root differs from the parent; duplicate or symlink-aliased roots are canonicalized and shown once, while intentional overlapping explicit roots are shown and require confirmation of the narrower Project bindings.
+    - Permission-denied discovery paths are skipped with a reviewed partial-result warning and are never inferred as safe or empty.
+  cli:
+    - "Canonical syntax: `openmates remote-access [--path <folder>]... [--json]`."
+    - No public remote-access positional subcommands are accepted.
+    - No public ciphertext, encrypted-metadata, raw-key, daemon, write, execute, or BYOC-worker flags are part of this spec.
+    - Human output displays discovered Projects, approval choices, live connection/reconnect state, approved roots, and safe actionable errors.
+    - JSON mode emits structured lifecycle events while keeping the process alive and does not print remotely requested decrypted file contents.
+    - The missing-Project review allows per-candidate selection, rename, attach to an existing Project, create, or skip; rejection leaves the candidate unbound and inaccessible remotely.
+    - Ordinary-folder candidates use the same review to bind an exact subtree to an existing or newly approved Project; until binding, they remain local discovery output only and support no remote list, search, or read operation.
+    - If Project creation or binding requires a decision and stdin is not an interactive TTY, the command fails before connecting with a structured list of unresolved candidates and instructions to rerun interactively; `--json` does not imply approval.
+  privacy_security:
+    - Canonical realpaths are checked at startup and for every operation, but validation alone is insufficient: file access must use race-resistant no-follow or descriptor-relative traversal and verify the opened object remains inside the approved root before reading.
+    - List, search, and read exclude names and content ignored by the containing Git work tree, `.git/**`, the canonical patterns exported by `projectFileRisk.ts`, Project-specific protected patterns stored in encrypted Project settings, null-byte files, invalid UTF-8, and unsupported non-text content.
+    - Content-based binary detection supplements extension filtering.
+    - Filesystem operations use argument arrays and dedicated filesystem APIs, never a remotely supplied shell string.
+    - Each operation enforces explicit item, byte, line, depth, duration, and concurrency caps before buffering or returning content.
+    - Requests are authenticated, correlated, replay-resistant, owner-scoped, Project-scoped, source-scoped, and session-scoped.
+    - One owner-only workspace session may contain several Project bindings, but a request is restricted to its Project's explicit subtree bindings and cannot traverse sibling Project repositories or unbound ordinary folders.
+    - Source revocation, Project deletion, owner/team access removal, source unbinding, or source-session key rotation invalidates queued and in-flight requests for the affected binding.
+    - >
+      Owner-initiated browser list/search/read authorizes only that operation.
+      Assistant retrieval uses the three existing Project privacy modes:
+      `always_ask` requires approval for every list, search, and read;
+      `ask_for_broad_access` allows a mentioned Project/folder map for the current
+      chat but requires approval for every search or read unless an exact file
+      mention grants that file for the current message; `allow_for_mentions`
+      allows bounded list, search, and read under the mentioned Project/folder
+      subtree for the current chat. Folder grants include descendants only inside
+      the same explicit Project binding. Grants expire when their message/chat
+      scope ends and are invalidated immediately by user revocation, source
+      unbinding, Project access removal, or session-key replacement.
+    - Plaintext paths, queries, snippets, file contents, keys, and ciphertext are excluded from logs, traces, analytics, and error reporting except sanitized counts and opaque IDs.
+    - Forced logout immediately stops request handling before local account credentials and cached account data are purged.
+
+tests:
+  - id: T-BACKEND-CONTRACT
+    type: pytest
+    file: backend/tests/test_project_remote_access_bridge.py
+    command: docker exec api python -m pytest /app/backend/tests/test_project_remote_access_bridge.py
+    covers: [AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - Unauthenticated, cross-user, unrelated-Project, wrong-source, stale-session, replayed, oversized, rate-limited, and offline requests fail closed.
+      - Registration, heartbeat, request correlation, completion, disconnect, expiry, and force-logout state transitions are deterministic.
+      - Source revocation, Project deletion, access removal, unbinding, and session-key replacement invalidate queued and in-flight requests.
+      - Confirmed session takeover invalidates the old session atomically, and a stale disconnect cannot mark the replacement session offline.
+      - Persistent records and logs do not receive decrypted path, query, snippet, file content, raw key, or user-facing metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_project_remote_access_bridge.py
+        run_id: "local red run: service module missing during collection"
+        timestamp: "2026-08-02T19:39:02Z"
+        subject_commit: 0bbaa0c25989d7ee1ce90b6d57bef5a6291f7ab4
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_project_remote_access_bridge.py
+        run_id: local-9-passed-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+  - id: T-API-LIVE
+    type: manual
+    file: scripts/verify_project_remote_access_api.py
+    command: python3 scripts/verify_project_remote_access_api.py --api-url https://api.dev.openmates.org
+    covers: [AC-8]
+    assertions:
+      - A real authenticated dev WebSocket registers a source session and receives one correlated bounded request.
+      - Unauthorized, wrong-owner, and unrelated-Project probes fail through the real dev API/WebSocket path.
+      - The real dev path enforces 60 operation requests per minute per user, returning 429 without delivering excess work.
+      - Heartbeat expiry and explicit disconnect produce observable offline state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: The real dev-server wrapper was created only after the missing backend route and WebSocket contract had already been proven red by T-BACKEND-CONTRACT; no historical dev deployment was retained for a second live red run.
+        timestamp: "2026-08-02T23:28:41Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/project_remote_access_live.mjs api https://api.dev.openmates.org
+        run_id: local-real-dev-api-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        reason: Authenticated first-party dev API and WebSocket lifecycle, opaque routing, unrelated-Project, wrong-requester, replay, exact-device delivery, completion, and disconnect probes passed.
+  - id: T-CRYPTO-UNIT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access-crypto
+    covers: [AC-4]
+    assertions:
+      - Valid requesting-client and CLI handshakes derive the same ephemeral source-session key without sending it to the backend relay.
+      - Tampered transcripts, substituted public keys, wrong owner, wrong Project, wrong source, wrong source-session, and wrong requesting-client bindings are rejected.
+      - Replayed handshake messages and payload nonces are rejected, and key replacement invalidates ciphertext from the prior session.
+      - Opaque relay envelopes expose only routing metadata and cannot reveal path, query, snippet, or file content without the ephemeral key.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access-crypto
+        run_id: "local red run: remoteAccessCrypto.ts missing"
+        timestamp: "2026-08-02T19:39:02Z"
+        subject_commit: 0bbaa0c25989d7ee1ce90b6d57bef5a6291f7ab4
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access-crypto
+        run_id: local-5-passed-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+  - id: T-CLI-UNIT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - Default discovery detects Git boundaries, reuses associations, groups missing Project confirmation, and preserves ordinary folders.
+      - Repeated explicit paths replace default discovery and canonicalize roots.
+      - Per-operation realpath checks block traversal and symlink escapes.
+      - Race-resistant open tests replace a validated path with a symlink before read and prove no outside-root bytes are returned.
+      - Listing, rg search, and text reads enforce the specified ignored, protected, binary, result, byte, line, depth, timeout, and concurrency limits.
+      - Signal handling, reconnect backoff, heartbeat state, forced logout, and cleanup stop request service correctly.
+      - Nested repos, submodules, overlapping roots, permission failures, non-TTY review, rejection, and JSON mode follow the discovery contract.
+      - Discovery finds repositories deeper than six levels and pages more than 100 candidates without truncation.
+      - Unbound ordinary folders remain local-only until an exact subtree is explicitly bound to a Project.
+      - Invalid UTF-8, canonical high-risk patterns, encrypted Project protected patterns, and containing-work-tree Git ignores fail deterministically.
+      - Normal CLI parsing and help contain no encrypted metadata or lifecycle subcommands.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+        run_id: "local red run: discovery/list/read exports missing"
+        timestamp: "2026-08-02T19:39:02Z"
+        subject_commit: 0bbaa0c25989d7ee1ce90b6d57bef5a6291f7ab4
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+        run_id: local-16-passed-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+  - id: T-CLI-LIVE
+    type: manual
+    file: scripts/verify_project_remote_access_cli.py
+    command: python3 scripts/verify_project_remote_access_cli.py --api-url https://api.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8]
+    assertions:
+      - A real CLI command connects a bounded temporary repository against `https://api.dev.openmates.org` and remains running.
+      - Real correlated list, search, and selected text-read requests return bounded results from the running process.
+      - CLI startup and Project creation or reconnection require no ciphertext or key input.
+      - Network interruption or transport closure shows reconnect/offline behavior, and Ctrl+C produces clean offline state.
+      - A real session revocation stops the bridge and triggers canonical local credential cleanup.
+      - Confirmed second-process takeover reroutes requests to the replacement session and ignores the old session's later disconnect.
+      - Always ask and mention-scoped Project context policies produce the specified per-operation, per-chat, and per-message authorization behavior.
+      - Test setup creates a bounded temporary repository and test Project; teardown stops the CLI, removes the temporary root, and removes test-owned source/Project records.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: The live foreground CLI wrapper was added after unit red evidence had already established the missing discovery and operation exports; no historical dev deployment was retained for a second live red run.
+        timestamp: "2026-08-02T23:28:41Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/project_remote_access_live.mjs cli https://api.dev.openmates.org
+        run_id: local-real-dev-cli-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        reason: A real foreground CLI process passed encrypted list, search, read, protected-file rejection, SIGINT shutdown, and offline projection against api.dev.openmates.org.
+  - id: T-PLAYWRIGHT-REMOTE-SOURCES
+    type: playwright
+    file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-3, AC-8]
+    assertions:
+      - A source created by the real running CLI appears connected in Projects.
+      - Browser list/search/read requests use the live bridge rather than directly inserted synthetic preview metadata.
+      - A selected text file renders as a bounded virtual preview and persists only after explicit upload.
+      - Stopping the CLI changes the source to offline and blocks new reads without stale fallback.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts --gate-deploy --expected-commit 3e0f6ee33b8dd6366301142f8ad56cf28298eff8
+        run_id: "30771410376"
+        timestamp: "2026-08-02T23:06:40Z"
+        subject_commit: 3e0f6ee33b8dd6366301142f8ad56cf28298eff8
+        target: https://app.dev.openmates.org/projects
+        deployment_reference: dpl_GGQnG4CyKn3V1Z6onAJT25nj92T6
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts --gate-deploy --expected-commit 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        run_id: "30772177272"
+        timestamp: "2026-08-02T23:26:48Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+        target: https://app.dev.openmates.org/projects
+        deployment_reference: dpl_HK9Rh1EBiftAUCett5bAkcNrqWSh
+  - id: T-DOCS-AUDIT
+    type: lint
+    file: scripts/audit_cli_remote_access_docs.py
+    command: python3 scripts/audit_cli_remote_access_docs.py
+    covers: [AC-7]
+    assertions:
+      - Canonical docs and VS Code setup contain no start, stop, status, or search subcommand examples.
+      - Docs explain foreground lifetime, discovery defaults, explicit path replacement, read-only operations, reconnect/offline behavior, and transparent encryption.
+      - Architecture and roadmap copy distinguishes current behavior from daemon, mutation, execution, and BYOC plans.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Obsolete lifecycle commands were found during source discovery before the deterministic audit script existed, so there is no separately recorded command run for that pre-implementation state.
+        timestamp: "2026-08-02T23:28:41Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_cli_remote_access_docs.py
+        run_id: local-docs-audit-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+  - id: T-PRIVACY-AUDIT
+    type: lint
+    file: scripts/audit_cli_remote_access_privacy.py
+    command: python3 scripts/audit_cli_remote_access_privacy.py
+    covers: [AC-4]
+    assertions:
+      - Public CLI help and parsing expose no ciphertext or raw-key inputs.
+      - Bridge logs and persistence calls use opaque IDs, encrypted metadata, sanitized counts, and enumerated errors rather than decrypted file data.
+      - API and transport definitions remain first-party authenticated surfaces rather than developer API-key routes.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: The privacy audit was introduced after crypto and CLI unit red runs had already proven the missing boundary; no separate pre-audit command run was recorded.
+        timestamp: "2026-08-02T23:28:41Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_cli_remote_access_privacy.py
+        run_id: local-privacy-audit-2026-08-02T23:28:41Z
+        timestamp: "2026-08-02T23:28:41Z"
+        subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+
+verifications:
+  - id: V-SDK-PARITY
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers: [AC-4]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/audit_sdk_cli_parity.py
+      run_id: local-sdk-cli-parity-2026-08-02T23:28:41Z
+      timestamp: "2026-08-02T23:28:41Z"
+      subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+    command: python3 scripts/audit_sdk_cli_parity.py
+    expected: Remote access remains an explicitly documented CLI-only exclusion with no accidental npm/pip source-management API.
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-8]
+    status: passed
+    evidence:
+      status: passed
+      command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/projects --session 4429
+      run_id: test-results/visual-smoke/2026-08-02T23-27-11-617Z/summary.json
+      timestamp: "2026-08-02T23:27:22Z"
+      subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+      target: https://app.dev.openmates.org/projects
+      viewports: [laptop, mobile]
+      reason: Reviewed the standalone laptop/mobile screenshots and authenticated Playwright completion screenshot after the live source flow passed.
+      summary: "Reviewed laptop and mobile screenshots plus the authenticated Playwright completion screenshot. Defects: none; no clipping, overlap, horizontal overflow, broken media, error text, or stuck loading was visible, and live controls completed responsively. Accepted differences: standalone smoke is unauthenticated and validates route chrome; authenticated connected, preview/upload, and offline states were exercised by run 30772177272, whose retained completion screenshot is laptop-sized."
+    target: https://app.dev.openmates.org/projects
+    viewports: [laptop, mobile]
+    required_review:
+      - Review Playwright laptop and mobile screenshots for connected, preview, and offline states.
+      - Record screenshot and summary paths plus Defects and Accepted differences.
+      - Fix clipping, overlap, overflow, hidden controls, broken previews, implementation error text, stuck loading, and unresponsive controls before passing.
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-8]
+    status: waived
+    evidence:
+      status: waived
+      actor: user
+      timestamp: "2026-08-02T23:29:00Z"
+      reason: The user did not have a connected remote-access account available for quick manual testing and explicitly instructed the agent to ensure the setup through automated testing; real-CLI Playwright run 30772177272 and reviewed screenshots provide the substituted product evidence.
+    expected: User confirms the deployed dev Projects flow works and the visible source lifecycle is understandable.
+  - id: V-APPLE-BUILD
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-6]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py doctor && python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+      run_id: remote-mac-ios-build-2026-08-02T23:30Z
+      timestamp: "2026-08-02T23:30:00Z"
+      subject_commit: 9ddb69e2ef06f42337f69ac03fea83ad0e101a6d
+    command: python3 scripts/apple_remote.py build-ios
+    expected: Existing native Project source settings continue to build against the shared source status contract.
+
+implementation_notes:
+  plan_path: docs/plans/cli-remote-access-live-bridge/plan.yml
+  maturity: Initial product-contract outline; refine with create-plan only after product-contract approval.
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/protonBridgeConnector.ts for foreground lifetime, heartbeat, abort, and reconnect behavior.
+    - frontend/packages/openmates-cli/src/ws.ts for authenticated WebSocket events and forced logout.
+    - backend/core/api/app/services/connected_accounts_service.py for correlated local-connector requests and expiration.
+    - frontend/packages/openmates-cli/src/remoteAccess.ts for source persistence, root-scoped rg search, and path-risk filtering.
+    - frontend/packages/ui/src/services/projectRemoteSources.ts for bounded virtual previews and explicit upload conversion.
+  architecture: >
+    Extend the authenticated first-party transport with a source-session registry
+    and correlated, expiring read-only bridge requests. The foreground CLI owns
+    all filesystem access and validates every operation against canonical
+    approved roots. Trusted clients handle Project metadata encryption and
+    decryption automatically; the backend relays operational state and opaque
+    envelopes without becoming a durable plaintext filesystem store. A live
+    heartbeat, not source creation, determines connected state.
+  data_flow:
+    - CLI authenticates, discovers default or explicit roots, reuses associations, and obtains reviewed confirmation for missing Projects and any ordinary-folder-to-Project bindings.
+    - CLI acquires approved Project keys through existing first-party key flows and registers encrypted source metadata without user-visible ciphertext.
+    - CLI opens the authenticated foreground transport, registers source session capabilities, and establishes an ephemeral source-session encryption key with the requesting first-party client without exposing the key to the backend.
+    - First-party Projects UI or client-mediated assistant-context orchestration creates and encrypts a bounded correlated list, search, or read request.
+    - Backend validates auth, owner, Project, source, capability, session, limits, and expiry before delivery.
+    - CLI validates request correlation and canonical path policy, executes only the typed read-only operation, and returns a bounded result.
+    - Requesting client decrypts and renders ephemeral virtual context; only explicitly approved bounded context crosses into assistant plaintext processing, and selected upload follows the existing encrypted embed path.
+    - Heartbeats and disconnect events drive connected/offline status; forced logout aborts service before purging credentials.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Canonical long-running command, repeated path parsing, discovery review, and removal of ciphertext-facing flags.
+    - path: frontend/packages/openmates-cli/src/remoteAccess.ts
+      reason: Project discovery, bounded list/read operations, per-request path safety, and live bridge orchestration.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Typed remote-source request delivery, reconnect, and forced-logout integration.
+    - path: frontend/packages/openmates-cli/src/remoteAccessCrypto.ts
+      reason: Project-key-authenticated ephemeral source-session handshake, envelope encryption, replay protection, and key rotation.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Project key/source registration and bridge lifecycle API calls.
+    - path: backend/core/api/app/routes/projects.py
+      reason: First-party source session, heartbeat, disconnect, and correlated completion contracts if REST participation is required.
+    - path: backend/core/api/app/services/project_remote_access_service.py
+      reason: Expiring owner/source/session-scoped registry and request correlation.
+    - path: backend/tests/test_project_remote_access_bridge.py
+      reason: Auth, isolation, lifecycle, limits, and plaintext-persistence contract tests.
+    - path: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+      reason: Replace synthetic-only evidence with a real live CLI bridge path.
+    - path: docs/user-guide/cli/remote-access.md
+      reason: Canonical user-facing command and behavior.
+    - path: frontend/packages/openmates-cli/README.md
+      reason: Package command examples and foreground behavior.
+    - path: docs/architecture/platforms/cli-package.md
+      reason: Correct partial-implementation and current architecture claims.
+    - path: frontend/apps/vscode_extension/src/extension.ts
+      reason: Correct setup command and live bridge explanation.
+    - path: frontend/apps/vscode_extension/src/webviewHtml.ts
+      reason: Correct setup copy shown inside VS Code.
+    - path: scripts/audit_cli_remote_access_docs.py
+      reason: Prevent lifecycle-command and capability documentation drift.
+    - path: scripts/audit_cli_remote_access_privacy.py
+      reason: Prevent ciphertext-facing CLI and plaintext persistence/logging regressions.
+  verification_strategy:
+    - Validate this spec before planning and after material contract changes.
+    - Prove authenticated source lifecycle and request isolation directly against the real dev API/WebSocket first.
+    - Prove the real foreground CLI and list/search/read path against the same dev server second.
+    - Run CLI-only SDK parity audit third; no npm/pip remote-source API is added.
+    - Add CI/daily reproduction only after direct dev API and CLI gates pass.
+    - Deploy web changes, run the Projects Playwright spec against the expected commit, then inspect laptop and mobile screenshots.
+    - Obtain user confirmation of deployed source lifecycle before Apple build verification.
+  verification_order:
+    - Real authenticated REST/WebSocket dev-server contract and negative security probes.
+    - Real foreground CLI dev-server lifecycle plus list, search, and read/preview.
+    - SDK parity audit confirming the intentional CLI-only exclusion.
+    - GitHub Actions or daily-test reproduction of already-green live contracts.
+    - Deployed Projects Playwright verification against the expected commit.
+    - Reviewed laptop and mobile visual smoke for connected, preview, and offline states.
+    - User confirmation of deployed dev behavior.
+    - Apple remote build for shared Project source status compatibility.
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract and confirm blocking assumptions
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-4, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-4, AC-5, AC-6]
+    expected_files: [docs/plans/cli-remote-access-live-bridge/plan.yml]
+    verification_ids: [T-BACKEND-CONTRACT, T-CLI-UNIT]
+    dependencies: []
+    ownership:
+      files: [docs/plans/cli-remote-access-live-bridge/plan.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement and prove backend live bridge contract
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-3, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-8]
+    expected_files:
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/services/project_remote_access_service.py
+      - backend/tests/test_project_remote_access_bridge.py
+      - scripts/verify_project_remote_access_api.py
+    verification_ids: [T-BACKEND-CONTRACT, T-API-LIVE]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/core/api/app/services/project_remote_access_service.py
+        - backend/tests/test_project_remote_access_bridge.py
+        - scripts/verify_project_remote_access_api.py
+      shared_files:
+        - backend/core/api/app/routes/projects.py
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement and prove foreground CLI discovery and read-only operations
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-8]
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/remoteAccess.ts
+      - frontend/packages/openmates-cli/src/ws.ts
+      - frontend/packages/openmates-cli/src/remoteAccessCrypto.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+      - frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - scripts/verify_project_remote_access_cli.py
+    verification_ids: [T-CRYPTO-UNIT, T-CLI-UNIT, T-CLI-LIVE, T-PRIVACY-AUDIT, V-SDK-PARITY]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/remoteAccess.ts
+        - frontend/packages/openmates-cli/src/remoteAccessCrypto.ts
+        - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+        - frontend/packages/openmates-cli/tests/remoteAccessCrypto.test.ts
+        - frontend/packages/openmates-cli/tests/cli.test.ts
+        - scripts/verify_project_remote_access_cli.py
+      shared_files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/ws.ts
+        - frontend/packages/openmates-cli/src/client.ts
+    blockers: []
+    follow_up_tasks: [TASK-4, TASK-5]
+    independently_deployable: false
+  - id: TASK-4
+    title: Replace synthetic-only web evidence with live bridge verification
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-3, S-5, S-6, S-8]
+      acceptance_criteria: [AC-3, AC-5, AC-6, AC-8]
+    expected_files:
+      - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+      - frontend/packages/ui/src/services/projectService.ts
+      - frontend/packages/ui/src/services/projectRemoteSources.ts
+    verification_ids: [T-PLAYWRIGHT-REMOTE-SOURCES, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
+    dependencies: [TASK-3]
+    ownership:
+      files: [frontend/apps/web_app/tests/projects-remote-sources.spec.ts]
+      shared_files:
+        - frontend/packages/ui/src/services/projectService.ts
+        - frontend/packages/ui/src/services/projectRemoteSources.ts
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-5
+    title: Correct and guard all remote-access documentation
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-4, S-7]
+      acceptance_criteria: [AC-4, AC-7]
+    expected_files:
+      - docs/user-guide/cli/remote-access.md
+      - frontend/packages/openmates-cli/README.md
+      - docs/architecture/platforms/cli-package.md
+      - frontend/apps/vscode_extension/src/extension.ts
+      - frontend/apps/vscode_extension/src/webviewHtml.ts
+      - scripts/audit_cli_remote_access_docs.py
+      - scripts/audit_cli_remote_access_privacy.py
+    verification_ids: [T-DOCS-AUDIT, T-PRIVACY-AUDIT, V-SDK-PARITY]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - docs/user-guide/cli/remote-access.md
+        - frontend/packages/openmates-cli/README.md
+        - docs/architecture/platforms/cli-package.md
+        - scripts/audit_cli_remote_access_docs.py
+        - scripts/audit_cli_remote_access_privacy.py
+      shared_files:
+        - frontend/apps/vscode_extension/src/extension.ts
+        - frontend/apps/vscode_extension/src/webviewHtml.ts
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-6
+    title: Complete deployed, user, and Apple verification gates
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-5, S-6, S-8]
+      acceptance_criteria: [AC-5, AC-6, AC-8]
+    expected_files: [docs/plans/cli-remote-access-live-bridge/plan.yml]
+    verification_ids: [T-API-LIVE, T-CLI-LIVE, T-PLAYWRIGHT-REMOTE-SOURCES, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE-BUILD]
+    dependencies: [TASK-4, TASK-5]
+    ownership:
+      files: [docs/plans/cli-remote-access-live-bridge/plan.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

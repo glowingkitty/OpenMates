@@ -23,7 +23,7 @@ Valid proof strengths are `direct` and `supporting`. Valid product surfaces are
 Repository-only test files may use `contract-test: infrastructure` or
 `contract-test: tooling`; a file-level `contract-test-file` marker is allowed
 only for those non-product classifications. New or changed tests cannot use
-`legacy_unmapped`. Run `python3 scripts/contracts.py check-test <path>` to inspect
+`legacy_unmapped`. Run `python3 scripts/specifications.py check-test <path>` to inspect
 a touched test. Assertion links are traceability, not proof by themselves; only
 current successful direct evidence with a matching assertion fingerprint counts.
 
@@ -109,7 +109,7 @@ larger deployed UI work unless the change is Tier 0/non-visual or a documented
 waiver explains why browser review would add no signal. Do not mark Apple
 `not affected` unless there is no native counterpart. Do not start a later client
 while an earlier phase is unimplemented, untested, or blocked unless the spec or
-session contract records an explicit user-approved waiver or accepted external
+session Specification records an explicit user-approved waiver or accepted external
 blocker.
 
 REST/API, CLI, and SDK tests must prove the exact behavior on the dev server before being

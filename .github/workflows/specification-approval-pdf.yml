@@ -1,0 +1,57 @@
+# .github/workflows/specification-approval-pdf.yml
+#
+# Verifies the deterministic Specification approval PDF and private-link helpers.
+# This dedicated job installs Chromium so the rendered inline-diff test is
+# mandatory in CI rather than silently skipped by dependency-light unit jobs.
+
+name: "Specifications: Approval PDF"
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "scripts/specification_approval_pdf.py"
+      - "scripts/specifications.py"
+      - "scripts/opencode_response_media.py"
+      - "scripts/tests/test_specification_approval_pdf.py"
+      - "scripts/tests/test_specifications_workflow.py"
+      - "scripts/tests/test_opencode_response_media.py"
+      - ".github/workflows/specification-approval-pdf.yml"
+  pull_request:
+    branches: [dev]
+    paths:
+      - "scripts/specification_approval_pdf.py"
+      - "scripts/specifications.py"
+      - "scripts/opencode_response_media.py"
+      - "scripts/tests/test_specification_approval_pdf.py"
+      - "scripts/tests/test_specifications_workflow.py"
+      - "scripts/tests/test_opencode_response_media.py"
+      - ".github/workflows/specification-approval-pdf.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install focused dependencies
+        run: pip install pillow playwright pytest pyyaml
+      - name: Install Chromium
+        run: python3 -m playwright install --with-deps chromium
+      - name: Verify approval PDF workflow
+        env:
+          SPECIFICATION_PDF_RENDER_REQUIRED: "1"
+          PYTHONPATH: ${{ github.workspace }}
+        run: >-
+          python3 -m pytest
+          scripts/tests/test_specification_approval_pdf.py
+          scripts/tests/test_specifications_workflow.py
+          scripts/tests/test_opencode_response_media.py
+          -v --tb=short --color=no

@@ -1,0 +1,99 @@
+schema_version: 1
+specification: feature.plans@1
+
+plan_private_content:
+  - id: encrypted-draft
+    input: {title: Fix stale Plan title, goal: Restore immediate rendering after rename}
+    expect: {durable_plaintext_title: false, durable_plaintext_goal: false, client_decryptable: true}
+
+plan_lifecycle:
+  - id: approved-plan-executes
+    input: {approval_state: approved, execution_state: ready, next_task: task-1}
+    expect: {execution_state_after_start: executing, current_task_id: task-1}
+  - id: independent-state-axes
+    input: {approval_state: approved, execution_state: checking_assumptions}
+    expect: {valid: true, approval_lost: false}
+
+plan_approval:
+  - id: material-change-requires-reapproval
+    input: {approved_revision: 4, change: add_mobile_to_scope}
+    expect: {new_revision: 5, approval_state: reapproval_required, execution_paused: true}
+  - id: split-task-within-scope
+    input: {approved_revision: 4, change: split_task_into_three_equivalent_tasks}
+    expect: {approval_state: approved, reapproval_required: false}
+  - id: stronger-check-within-scope
+    input: {approved_revision: 4, change: add_regression_check_for_existing_criterion}
+    expect: {approval_state: approved, reapproval_required: false}
+
+plan_specification_links:
+  - id: personal-event-plan-without-specification
+    input: {plan: organize_birthday, applicable_specifications: []}
+    expect: {valid: true, specification_link_required: false}
+  - id: coding-plan-finds-existing-specification
+    input: {plan: fix_plan_rename, applicable_specification: feature.plans@1, requirements: [plans.lifecycle.visible]}
+    expect: {specification_link_required: true, specification_text_copied: false}
+  - id: governed-plan-references-flow-and-check
+    input: {plan: implement_team_creation, specification_id: specification-1, specification_revision_id: specification-rev-4, flow_id: create-team, required_check_revision_id: check-rev-2}
+    expect: {flow_definition_copied_into_plan: false, exact_flow_reference_present: true, same_check_reference_used_for_completion: true}
+  - id: feature-changes-product-truth
+    input: {plan: add_plan_approval_bypass, changes_rule: plans.approval.revision-bound}
+    expect: {specification_amendment_required: true, ordinary_plan_approval_sufficient: false}
+
+plan_tasks:
+  - id: tasks-own-execution
+    input: {plan: plan-1, phases: [research, implementation], tasks: [task-1, task-2, task-3]}
+    expect: {executable_plan_steps: 0, task_status_source: feature.tasks, phases_are_groups: true}
+  - id: no-recursive-subtasks
+    input: {task: task-1, requested_child_work: independently_trackable}
+    expect: {create_normal_task: true, nested_task_tree: false, dependency_link_allowed: true}
+
+plan_context_wrappers:
+  - id: owner-chat-project-context
+    input: {plan: plan-1, owner: user-1, primary_chat: chat-1, project: project-1}
+    expect: {master_wrapper: true, chat_wrapper: true, project_wrapper: true, raw_plan_key_durable: false}
+
+plan_project_links:
+  - id: project-link-remains-encrypted
+    input: {plan: plan-1, project_ids: [project-1]}
+    expect: {raw_ids_durable_plaintext: false, linked_project_hashes_present: true, project_wrapper_present: true}
+
+plan_completion_gates:
+  - id: failed-check-returns-to-work
+    input: {tasks_done: true, required_check_latest_run: failed}
+    expect: {completed: false, execution_state: blocked, follow_up_task_created_or_proposed: true}
+  - id: minimal-plan-completes-with-goal
+    input: {goal: coordinate_event_setup, assumptions: omitted, tasks: omitted, checks: omitted}
+    expect: {completion_allowed: true}
+  - id: explicitly-required-gates-satisfied
+    input: {goal: release_change, required_assumptions: confirmed, required_tasks: done, required_checks: passed_and_current, criteria: satisfied}
+    expect: {completion_allowed: true}
+  - id: stale-check-run-does-not-complete
+    input: {required_check_latest_run: passed, check_revision_id: check-rev-4, latest_run_check_revision_id: check-rev-4, subject_revision: git-def, latest_run_subject_revision: git-abc}
+    expect: {freshness: stale, completion_allowed: false, rerun_required: true}
+  - id: mismatched-check-revision-does-not-complete
+    input: {required_check_latest_run: passed, check_revision_id: check-rev-4, latest_run_check_revision_id: check-rev-3, subject_revision: git-def, latest_run_subject_revision: git-def}
+    expect: {freshness: stale, completion_allowed: false, rerun_required: true}
+
+plan_active_context:
+  - id: expired-context-blocks
+    input: {execution_context: expired, durable_plan_ciphertext: available}
+    expect: {backend_decrypts_durable_plan: false, visible_resume_required: true}
+
+plan_ui_review:
+  - id: unchanged-draft
+    input: {url: '/plans/<PLAN_ID>', unsaved_edits: false}
+    expect: {primary_action: Approve plan, undo_visible: false}
+  - id: edited-draft
+    input: {url: '/plans/<PLAN_ID>', unsaved_edits: true}
+    expect: {primary_action: Save and Approve, undo_accessible: true}
+  - id: approve-unblocks-agent
+    input: {waiting_agent: true, approved_revision: 7}
+    expect: {agent_resumes_automatically: true, exact_revision_reloaded: true}
+  - id: no-design-artboard
+    input: {ui_specification_present: true, design_reference: omitted}
+    expect: {implementation_can_follow_elements_interactions_states: true}
+
+plan_surface_parity:
+  - id: approval-wait-parity
+    input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], plan_revision: 7}
+    expect: {same_approval_identity: true, stale_revision_rejected: true, visible_failure: true}

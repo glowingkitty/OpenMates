@@ -1,0 +1,54 @@
+schema_version: 1
+specification: architecture.storage-resilience@1
+
+core_availability:
+  - id: startup-continues-during-provider-503
+    given: {s3_configured: true, s3_head_bucket_status: 503, s3_cors_status: 503}
+    expect: {api_started: true, liveness_status: 200, storage_status: unavailable}
+  - id: text-ai-continues
+    given: {s3_status: unavailable, request: text_only_ai}
+    expect: {request_accepted: true, inference_allowed: true, storage_access_attempted: false}
+  - id: non-storage-skill-continues
+    given: {s3_status: unavailable, request: web_search_without_files}
+    expect: {request_accepted: true, skill_allowed: true, storage_access_attempted: false}
+
+storage_operations:
+  - id: upload-rejected-before-work
+    given: {s3_status: unavailable, request: encrypted_file_upload}
+    expect: {status: 503, code: storage_temporarily_unavailable, retryable: true, credits_charged: false}
+  - id: generated-media-rejected-before-provider
+    given: {s3_status: unavailable, request: generated_image_requiring_persistence}
+    expect: {provider_work_started: false, credits_charged: false, code: storage_temporarily_unavailable}
+  - id: existing-object-temporarily-unavailable
+    given: {s3_status: unavailable, request: read_existing_pdf}
+    expect: {metadata_deleted: false, retryable: true, code: storage_temporarily_unavailable}
+
+background_jobs:
+  - id: archive-source-preserved
+    given: {s3_status: unavailable, job: archive_usage_then_delete_hot_rows}
+    expect: {hot_rows_deleted: false, pending_intent_preserved: true, retry_scheduled: true}
+  - id: deletion-intent-preserved
+    given: {s3_status: unavailable, job: delete_account_storage_objects}
+    expect: {false_success: false, deletion_intent_preserved: true, retry_scheduled: true}
+
+operator_alerts:
+  - id: transient-failure-does-not-alert
+    given: {environment: development, failed_probes: 1, next_probe: successful}
+    expect: {warning_events: 0, recovery_events: 0}
+  - id: warning-escalation-recovery
+    given: {environment: production, failed_probes: 2, continuous_outage: 1h, then_successful_probes: 1}
+    expect: {warning_events: 1, critical_events: 1, resolved_events: 1, duplicate_warning_events: 0, channels: all_configured}
+  - id: self-host-isolated
+    given: {environment: self_host, s3_configured: true, failed_probes: 2}
+    expect: {incident_namespace: self_host, official_destinations_used: false, warning_events: 1}
+  - id: intentionally-not-configured
+    given: {environment: self_host, s3_configured: false}
+    expect: {storage_status: not_configured, outage_incident: absent, storage_features_available: false}
+
+privacy_boundaries:
+  - id: sanitized-storage-alert
+    given:
+      available_fields: [environment, check_id, failure_class, bucket_name, object_key, filename, user_id, provider_response]
+    expect:
+      included: [environment, check_id, failure_class]
+      excluded: [bucket_name, object_key, filename, user_id, provider_response]

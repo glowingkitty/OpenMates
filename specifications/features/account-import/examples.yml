@@ -1,0 +1,35 @@
+schema_version: 1
+specification: feature.account-import@1
+
+source_selection:
+  - id: web-selects-openmates-before-upload
+    given: {surface: gui.web, authenticated: true, route: settings_account_import, selected_source: null}
+    expect: {source_selector_visible: true, file_upload_absent: true}
+    action: select_source_openmates
+    then: {file_upload_visible: true, selected_source: openmates}
+  - id: generic-source-identity-is-not-parser-claim
+    given: {selected_source: gemini, parser_format: generic_role_content_json}
+    expect: {assistant_identity: gemini, raw_takeout_compatibility_claimed: false}
+
+review_and_results:
+  - id: parsed-chat-review
+    given: {source: openmates, archive_chat_count: 2, message_counts: [3, 2]}
+    action: upload_supported_archive
+    expect: {preview_chat_count: 2, message_counts_visible: [3, 2], explicit_import_action_visible: true}
+  - id: itemized-import-completion
+    given: {selected_chat_count: 2, import_outcomes: [success, success]}
+    action: confirm_import
+    expect: {completion_visible: true, successful_result_count: 2, import_another_action_visible: true}
+  - id: partial-import-does-not-mask-failure
+    given: {selected_chat_count: 2, import_outcomes: [success, failed]}
+    expect: {successful_result_count: 1, failed_result_count: 1, complete_success_claimed: false}
+
+encrypted_persistence:
+  - id: transient-scan-client-encrypted-storage
+    given: {selected_chat_contains_plaintext: true, authenticated: true}
+    action: import_selected_chat
+    expect: {plaintext_scanned_transiently: true, client_encryption_before_persistence: true, durable_plaintext_absent: true}
+  - id: repeated-import-creates-new-chat
+    given: {source_fingerprint_already_imported: true}
+    action: confirm_repeated_import
+    expect: {dedupe_warning_visible: true, new_chat_created: true, existing_chat_modified: false}

@@ -1,0 +1,1042 @@
+schema_version: 3
+id: apple-core-cross-client-parity
+title: Apple Core Cross-Client Parity
+status: implementing
+
+specification_refs:
+  - id: architecture.sync
+    version: 1
+    role: primary
+    fingerprint: 3b0204824a9c59a247d19c930ad8edd08b29605f7f8a34dd111bfc4407e5d694
+  - id: feature.auth
+    version: 1
+    role: inherited
+    fingerprint: 7c28784cab1aa913a75eb954ddd94484f12c6f5e6599af0214b53de4abcfd772
+  - id: feature.chats
+    version: 2
+    role: inherited
+    fingerprint: 13d258a587aad182838e9f6eef2e09ae6a4a7f9f51dd6f7fbb8ec59c26ba336b
+  - id: feature.chat-navigation
+    version: 2
+    role: inherited
+    fingerprint: 6491efd839b237c6a26a5b75d15c4540d29b2b5d4cd59ca65a24a55eb7aa2b7a
+  - id: feature.apple-notifications
+    version: 1
+    role: inherited
+    fingerprint: 21f0d3cd3897d23a161e0134e603b84a7c2342cfa478a6fc5e40ace00ceb8fa4
+
+specification_impact:
+  classification: implementation_only
+  specification_update_required: false
+  affected_assertions:
+    - auth.keys.client-wrapped
+    - auth.lookup.anti-enumeration
+    - auth.login.method-convergence
+    - auth.passkey.origin-prf-bound
+    - auth.session.lifecycle
+    - auth.surface.first-party-boundary
+    - sync.access.first-party-authenticated
+    - sync.status.incomplete-window-rewarms
+    - sync.startup.bounded-phases
+    - sync.phase2.metadata-only
+    - sync.deletion.partial-window-not-authoritative
+    - sync.surface.semantic-parity
+    - chats.persistence.client-encrypted
+    - chats.message.identity-idempotent
+    - chats.local-state.precedence
+    - chats.sync.key-gated-recovery
+    - chats.surface.semantic-parity
+    - chat-navigation.open.local-first-coherent
+    - apple-notifications.registration.lifecycle
+    - apple-notifications.payload.privacy-safe
+    - apple-notifications.action.routing-coherent
+    - apple-notifications.delivery.idempotent-visible
+  reason: >
+    This program closes confirmed Apple implementation and evidence gaps against
+    existing contract assertions. It does not change approved auth, sync, chat,
+    navigation, encryption, or notification semantics.
+
+documentation_impact:
+  generated_reference:
+    status: unchanged
+    reason: No public API, CLI, or SDK contract changes are planned.
+    documents: []
+  user_docs:
+    status: update_required
+    reason: Apple parity architecture and testing documentation must reflect the verified implementation and evidence gates.
+    documents:
+      - docs/architecture/apple/parity-matrix.md
+      - docs/architecture/apple/sync-parity.md
+      - docs/architecture/apple/notifications-parity.md
+      - apple/AGENTS.md
+  semantic_layer:
+    status: unchanged
+    reason: Existing contracts remain the product and architecture source of truth.
+    documents:
+      - specifications/features/auth/specification.yml
+      - specifications/architecture/sync/specification.yml
+      - specifications/features/chats/specification.yml
+      - specifications/features/chat-navigation/specification.yml
+      - specifications/features/apple-notifications/specification.yml
+
+goal: >
+  Make the Apple app a reliable first-party OpenMates client for core account
+  access and chat continuation. A user can log in on iPhone or iPad, restore an
+  encrypted session, list and open chats created on web or CLI, continue those
+  chats bidirectionally, recover across cold boot and reconnect, and receive
+  privacy-safe actionable push notifications. Apple E2E runs automatically
+  record clean iPhone and iPad videos and feed the same proof workflow used by
+  deployed web and real CLI tests.
+
+scope:
+  in:
+    - Contract-driven parity for password plus OTP login, passkey login where available, session restoration, expiration, and logout.
+    - Client-wrapped master-key readiness before authenticated chat sync.
+    - Apple parity for phased startup sync, metadata versions, key replacement, deletion authority, bounded content, reconnect, and stale-event fencing.
+    - On-demand hydration and explicit loading, retry, and error states for metadata-only existing chats.
+    - Real cross-client flows where deployed web and real CLI create encrypted chats that fresh Apple installations list, open, and decrypt.
+    - Apple-created encrypted chats that web and CLI can subsequently list and decrypt.
+    - APNs registration, backend worker delivery, notification service extension, foreground behavior, cold/warm tap, inline reply, unread state, badges, and token lifecycle.
+    - Automatic iPhone portrait and iPad landscape recording, result-bundle export, timeline attachments, captions, bounded frame review, and response-media publication.
+    - macOS source parity and build verification for shared changes, with iPhone and iPad as the blocking interaction-test devices.
+  out:
+    - Replacing existing auth, sync, encryption, chat, or notification product contracts.
+    - Making startup sync public or developer-API accessible.
+    - Server-side decryption of private chat content, chat keys, master keys, or notification previews.
+    - Full signup, recovery-key, backup-code, account-management, settings, embed, or broad visual parity beyond states required for core use.
+    - Watch parity, except preventing shared-source regressions.
+    - Treating macOS UI runtime evidence as a blocking gate while reliable macOS UI testing remains unavailable.
+
+context_discovery:
+  tracker:
+    - No issue was provided; this approved program originates from a direct parity investigation request.
+  contracts:
+    - architecture.sync@1 defines first-party phased startup, bounded content, metadata-only Phase 2, deletion authority, and web/Apple/CLI semantic parity.
+    - feature.auth@1 defines client-wrapped keys, converged login, session lifecycle, and Apple first-party boundaries.
+    - feature.chats@2 defines encrypted persistence, stable identities, local-state precedence, key gating, and web/Apple/CLI parity.
+    - feature.chat-navigation@2 defines coherent local-first existing-chat opening and target-specific loading or error states.
+    - feature.apple-notifications@1 defines acknowledged APNs registration, privacy-safe payloads, native action routing, unread/badge coherence, and idempotency.
+  existing_specs:
+    - docs/plans/apple-ui-parity-program/plan.yml
+    - docs/plans/apple-auth-security-parity/plan.yml
+    - docs/plans/apple-chat-opening-parity/plan.yml
+    - docs/plans/apple-sync-decryption-performance/plan.yml
+    - docs/plans/apple-durable-chat-persistence-parity/plan.yml
+    - docs/plans/unified-notifications/plan.yml
+    - docs/plans/progressive-chat-opening/plan.yml
+  confirmed_findings:
+    - Apple builds on the configured remote iPhone simulator.
+    - Current AuthSecurityParityUITests fails before the login tab appears.
+    - Apple routes chat_content_batch_response but has no request_chat_content_batch sender.
+    - Cached Apple chat keys can suppress newer server key material.
+    - Apple sync state omits metadata_v and reconnect reuses initial client state.
+    - Push workers can execute without initializing the push service singleton.
+    - The main Apple entitlement lacks aps-environment and project.yml does not own the notification service extension target.
+    - APNs device-token logging violates native diagnostics privacy rules.
+    - Apple tests produce screenshots but no automatic test-run video or proof finalization.
+  tests:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/background-chat-notification.spec.ts
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/AuthManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Features/Auth
+    - apple/OpenMates/Sources/Features/Chat
+    - apple/OpenMatesTests
+    - apple/OpenMatesUITests
+    - apple/project.yml
+  parity_expectations:
+    - iPhone and iPad must pass the same semantic auth, sync, existing-chat, bidirectional-chat, resilience, and simulated-push contracts.
+    - Owned Apple loading, error, chat, and notification states use the rendered web state and approved web UI contracts as visual source of truth.
+    - Shared Swift sources preserve macOS compilation and equivalent behavior even though macOS UI interaction evidence is not blocking.
+  verification:
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
+    - python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
+    - python3 scripts/apple_remote.py build-macos
+  intentional_native_differences:
+    - OS-owned passkey and notification permission prompts remain native system UI.
+    - Physical APNs provider acceptance is proven on iPhone; iPad must prove the same notification interaction semantics through simulator coverage.
+    - macOS UI automation is not a blocking program gate, but shared source mapping and build evidence remain required.
+
+clarification:
+  rounds:
+    - question: Which Apple devices are blocking runtime-test targets for the first parity milestone?
+      answer: iPhone and iPad. macOS must receive corresponding source updates, but macOS UI testing is not a blocking gate because it cannot currently be tested properly.
+    - question: Should the implementation use the approved contracts as source of truth and proceed through the proposed phases?
+      answer: Yes. Contracts are the semantic source of truth, and the phased plan is approved.
+  vision_summary: >
+    Core Apple parity means seamless encrypted chat continuation across web, CLI,
+    iPhone, and iPad, including reliable login, cold sync, existing-chat opening,
+    bidirectional messages, and push notifications. Existing contracts govern
+    semantics, rendered web governs owned visual states, iPhone and iPad provide
+    blocking runtime proof, and macOS stays source-aligned with documented test limits.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-24T02:04:23Z"
+    reason: User approved the phased parity program, its governing auth/navigation contracts, and the focused Apple notification contract, then instructed autonomous completion.
+  plan:
+    status: approved
+    approved_at: "2026-08-24T02:04:23Z"
+    reason: User explicitly agreed with the phase plan and instructed implementation to proceed end to end.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Existing contracts are semantic source of truth; rendered web states remain the owned visual source of truth.
+    reason: The contract system was created to make parity explicit and enforceable without copying client implementations line by line.
+    decided_at: "2026-08-24T00:42:19Z"
+  - id: D-2
+    status: active
+    decision: iPhone and iPad runtime tests are blocking; macOS receives shared source/build parity but its UI runtime limitation is accepted for this program.
+    reason: The user explicitly selected iPhone and iPad as the reliable Apple test devices.
+    decided_at: "2026-08-24T00:42:19Z"
+  - id: D-3
+    status: active
+    decision: One program spec coordinates existing Apple vertical specs instead of duplicating their product semantics.
+    reason: One ledger provides ordered ownership and evidence while contract assertion links prevent competing sources of truth.
+    decided_at: "2026-08-24T00:42:19Z"
+  - id: D-4
+    status: active
+    decision: Automatic proof recording is part of the core Apple parity gate, not optional post-processing.
+    reason: Native regressions need reviewable evidence equivalent to web and CLI runs.
+    decided_at: "2026-08-24T00:42:19Z"
+
+scenarios:
+  - id: S-1
+    title: Fresh Apple installation logs in and restores securely
+    given:
+      - Alice has an existing OpenMates account with password plus OTP and usable client-wrapped master-key material.
+      - The iPhone or iPad app container is freshly installed.
+    when:
+      - Alice logs in, reaches the chat shell, closes the app, and launches it again.
+    then:
+      - Login converges on the normal first-party session contract without exposing account existence or secrets.
+      - The master key is unwrapped locally before encrypted chat sync requires it.
+      - Relaunch restores a valid session or shows an explicit expired or revoked session state.
+      - Logout removes account-scoped local state and push registration without removing another account's state.
+
+  - id: S-2
+    title: Apple opens chats created by deployed web and real CLI
+    given:
+      - A deployed web Playwright producer creates a uniquely marked saved encrypted chat for a reserved dev test account.
+      - A real OpenMates CLI producer creates a different uniquely marked saved encrypted chat for the same account.
+      - Apple starts with an empty local chat store.
+    when:
+      - Alice logs in on iPhone or iPad and opens each producer chat.
+    then:
+      - Both chat shells appear once in authoritative newest-first order.
+      - Metadata-only chats request a bounded content batch instead of settling on an empty transcript.
+      - Apple accepts current server key and metadata versions, decrypts the bounded message window locally, and renders no ciphertext.
+      - Missing keys, delayed hydration, or decryption failure remain explicit target-specific loading, retry, or error states.
+
+  - id: S-3
+    title: Apple-created chat continues on web and CLI
+    given:
+      - Alice is authenticated on Apple with usable chat encryption material.
+    when:
+      - Alice creates a saved chat, receives an assistant completion, and then opens that chat from web and CLI.
+    then:
+      - Durable user and assistant rows are client-encrypted and use stable identities.
+      - Web and CLI decrypt the same ordered conversation without duplicate terminal messages.
+      - A queued, retried, or reconnecting Apple send cannot advance durable metadata without recoverable encrypted message rows.
+
+  - id: S-4
+    title: Cold boot, reconnect, and rapid navigation remain coherent
+    given:
+      - Alice has local encrypted cache state and server-side changes from another client.
+    when:
+      - Apple cold boots, loses and restores connectivity, or selects chat B while chat A hydration is pending.
+    then:
+      - Startup remains pending while a known server window is incomplete and never fabricates sync completion.
+      - Reconnect uses current client versions and does not repeat a completed full sync unnecessarily.
+      - Partial windows do not delete older local chats without complete authority or tombstones.
+      - Stale chat A events cannot overwrite chat B, duplicate messages, regress ordering, or replace current keys with stale keys.
+
+  - id: S-5
+    title: Privacy-safe Apple push opens and continues the correct chat
+    given:
+      - Alice grants notification permission and has an acknowledged, non-revoked APNs registration.
+      - An assistant completes a chat response while no visible first-party client is viewing that chat.
+    when:
+      - The backend worker dispatches APNs and Alice receives, taps, or replies to the notification.
+    then:
+      - APNs alert fields contain generic safe text and optional preview content remains device-encrypted.
+      - Warm and cold taps select the target chat and use authoritative hydration.
+      - Inline reply creates one encrypted user message in the target chat.
+      - Foreground presentation is not duplicated by a custom banner, and opening the chat clears its unread state and badge coherently.
+      - Token rotation, logout, reinstall, and invalid-token provider responses cannot leave fabricated push success.
+
+  - id: S-6
+    title: Apple E2E automatically records reviewable iPhone and iPad proof
+    given:
+      - A proof-enabled Apple UI test defines actions, checkpoints, assertions, and device-scoped narration intent.
+    when:
+      - The unified test control plane runs the test on iPhone portrait or iPad landscape.
+    then:
+      - The remote runner records the complete clean simulator frame and writes an xcresult bundle plus named attachments.
+      - Raw and exact-profile media, timeline, hashes, captions, frames, and review receipts share one run directory.
+      - Passing runs automatically enter bounded frame-and-caption review and response-media publication.
+      - Failures retain diagnostic video and representative screenshots without being published as passing proof.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Fresh-install password plus OTP login and relaunch restoration pass on iPhone and iPad with local client-wrapped key handling and explicit expired-session behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-AUTH-DIRECT-CONTRACT, T-APPLE-AUTH-IPHONE, T-APPLE-AUTH-IPAD]
+    specification_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
+  - id: AC-2
+    scenario: S-2
+    text: A fresh Apple store lists, opens, and locally decrypts uniquely marked saved chats created through deployed web and real CLI producers.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-WS-SYNC-CONTRACT, T-CLI-CHAT-PRODUCER, T-WEB-CHAT-PRODUCER, T-APPLE-CROSS-CLIENT-IPHONE, T-APPLE-CROSS-CLIENT-IPAD]
+    specification_assertions: [sync.access.first-party-authenticated, sync.startup.bounded-phases, sync.phase2.metadata-only, sync.surface.semantic-parity, chats.surface.semantic-parity]
+  - id: AC-3
+    scenario: S-2
+    text: Opening a metadata-only Apple chat sends one bounded content hydration request and exposes target-specific loading, retry, and failure states until usable encrypted content and keys are available.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-SYNC-UNIT, T-APPLE-CROSS-CLIENT-IPHONE, T-APPLE-CROSS-CLIENT-IPAD]
+    specification_assertions: [chat-navigation.open.local-first-coherent, chats.sync.key-gated-recovery, chats.persistence.client-encrypted]
+  - id: AC-4
+    scenario: S-3
+    text: A saved Apple-created chat produces durable encrypted user and assistant rows that web and CLI load once in the same order.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-BIDIRECTIONAL-IPHONE, T-APPLE-BIDIRECTIONAL-IPAD, T-WEB-APPLE-CONSUMER, T-CLI-APPLE-CONSUMER]
+    specification_assertions: [chats.persistence.client-encrypted, chats.message.identity-idempotent, chats.surface.semantic-parity]
+  - id: AC-5
+    scenario: S-4
+    text: Cold boot, reconnect, incomplete startup, rapid navigation, and partial deletion evidence preserve current versions, keys, selection, ordering, and visible pending state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-SYNC-UNIT, T-APPLE-RESILIENCE-IPHONE, T-APPLE-RESILIENCE-IPAD]
+    specification_assertions: [sync.status.incomplete-window-rewarms, sync.deletion.partial-window-not-authoritative, chats.message.identity-idempotent, chats.local-state.precedence, chat-navigation.open.local-first-coherent]
+  - id: AC-6
+    scenario: S-5
+    text: Push worker initialization, APNs entitlement and extension configuration, registration lifecycle, and privacy-safe provider dispatch pass deterministic backend and Apple configuration gates.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-NOTIFICATION-DIRECT-CONTRACT, T-PUSH-BACKEND, T-PUSH-CONFIG, T-APPLE-PUSH-SIMULATOR-IPHONE, T-APPLE-PUSH-SIMULATOR-IPAD, V-APPLE-PUSH-DEVICE]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible]
+  - id: AC-7
+    scenario: S-5
+    text: Physical-device sandbox APNs and TestFlight production APNs prove background and killed-app delivery, cold and warm tap, inline reply, unread clearing, badges, token rotation, and generic fallback content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [V-APPLE-PUSH-DEVICE, V-APPLE-PUSH-TESTFLIGHT]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible]
+  - id: AC-8
+    scenario: S-6
+    text: Proof-enabled Apple UI tests automatically retain raw video, xcresult, timeline, attachments, exact-profile media, captions, manifest, bounded frames, and review receipt under one run id.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-RECORDING-TOOLING, T-APPLE-PROOF-IPHONE, T-APPLE-PROOF-IPAD]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
+  - id: AC-9
+    scenario: S-6
+    text: Passing iPhone portrait and iPad landscape recordings automatically complete caption generation, bounded review, and response-media publication without burning captions into or cropping the clean frame.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-APPLE-PROOF-IPHONE, T-APPLE-PROOF-IPAD, V-APPLE-PROOF-REVIEW]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
+  - id: AC-10
+    scenario: S-1
+    text: Shared Apple source changes compile for macOS where applicable, while iPhone and iPad remain the only blocking Apple interaction-test devices for this program.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [V-MACOS-SOURCE-PARITY]
+    specification_assertions: [auth.surface.first-party-boundary, sync.surface.semantic-parity, chats.surface.semantic-parity, apple-notifications.registration.lifecycle]
+
+assumptions:
+  - id: A-1
+    text: Existing backend and web behavior already implements the referenced contracts and can serve as the parity oracle without semantic changes.
+    category: contracts
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: specifications/generated/registry.yml
+        summary: Referenced contract fingerprints and required Apple surfaces are registered.
+    blocker: Any failing earlier-surface contract must be fixed before Apple parity or recorded as an accepted external blocker.
+  - id: A-2
+    text: The reserved dev E2E account can safely carry run-scoped encrypted producer chats from web, CLI, and Apple without exposing secrets in manifests.
+    category: testing
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: apple/OpenMatesUITests/RealAccountUITestSupport.swift
+        summary: Existing Apple tests consume reserved test-account credentials through environment-only configuration.
+      - source: test-results/apple-recordings/apple-39da1db4ecca4a91/manifest.json
+        summary: The GitHub ciphertext broker supplied reserved slot 14 without exposing credentials, and exact-commit iPhone and iPad proof runs completed with opaque run IDs.
+    blocker: Add an opaque test-control-plane manifest and cleanup path before cross-client E2E if no safe shared run state exists.
+  - id: A-3
+    text: Remote iPhone and iPad simulators can record their full app frame while xcodebuild executes and can export sanitized artifacts back to the Linux control plane.
+    category: testing
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: scripts/apple_remote.py
+        summary: Exact-commit iPhone and iPad runs retained hash-verified raw recordings and xcresult bundles, derived exact-profile proof media, and completed bounded review and publication.
+    blocker: ""
+  - id: A-4
+    text: Physical Apple hardware and TestFlight signing are available for final APNs verification.
+    category: external_dependency
+    required_before: completion
+    status: unchecked
+    evidence: []
+    blocker: Simulator push cannot prove APNs token registration, provider acceptance, notification-extension keychain access, or production delivery.
+
+contracts:
+  api:
+    - surface: Authenticated first-party WebSocket phased sync and chat events
+      access_model: first-party_client_only
+      auth: Session or approved-device authentication; server derives user scope.
+      rate_limits: Existing WebSocket connection and chat-send limits; unchanged.
+      credit_budget: Sync and hydration do not charge credits; AI sends retain existing budget checks.
+      encryption_boundary: Metadata, messages, drafts, embeds, and keys remain ciphertext or wrapped key material on transport and durable storage; plaintext exists only transiently on authorized clients or inference paths already covered by the chat contract.
+    - surface: POST /v1/notifications/register-device
+      access_model: first-party_client_only
+      auth: Authenticated Apple session with expected native client headers.
+      rate_limits: Existing notification registration limits; add deterministic abuse coverage if absent.
+      credit_budget: No credit charge.
+      encryption_boundary: Device token and notification public key are routing/key material, never message plaintext; full token logging is forbidden.
+    - surface: Internal push worker dispatch
+      access_model: internal_only
+      auth: Celery task invocation with server-held provider configuration.
+      rate_limits: Existing retry and idempotency policy.
+      credit_budget: No credit charge.
+      encryption_boundary: Generic alert text plus optional device-encrypted preview only.
+  data:
+    - Apple sync client state includes every contract-relevant version used by backend reconciliation, including metadata versions.
+    - Current server chat keys replace stale local candidates through the same acceptance rules used by web.
+    - Metadata-only chat shells remain addressable and request bounded encrypted content on open.
+    - Durable authenticated chat rows remain client-encrypted with stable identities and coherent messages_v state.
+    - Push registration records stable device identity, environment, token lifecycle, permission state, and optional public preview-encryption material without logging full tokens.
+    - Proof artifacts contain synthetic or reserved-account test content only and never include credentials, keys, tokens, or raw private logs.
+  ui_states:
+    - Auth loading, method selection, OTP, passkey system prompt boundary, success, expired session, revoked session, and visible error.
+    - Sync pending, local-ready, metadata-only hydration, retry, decryption/key error, offline, reconnecting, and complete.
+    - Existing-chat selected shell, bounded transcript, send, streaming, completion, and cross-client restored state.
+    - Push permission, registered, denied, foreground notification, background notification, tap, reply, unread, and cleared badge.
+  privacy_security:
+    - Never log message plaintext, auth/session tokens, APNs tokens, notification preview plaintext, chat keys, master keys, OTP secrets, or private test-account identifiers.
+    - Test artifacts use opaque run IDs and synthetic markers; environment-only credentials are removed after use.
+    - APNs alert fields are generic. Optional previews are encrypted to the device and decrypted only by the notification service extension.
+    - Apple sync remains first-party only and must not be exposed through public or developer API-key startup-sync routes.
+  phase_gates:
+    - Direct authenticated WebSocket and notification-route proof against https://api.dev.openmates.org runs first.
+    - A real OpenMates CLI producer and consumer run against the dev server second.
+    - npm and pip SDK startup-sync proof is not applicable because architecture.sync explicitly excludes SDK-owned startup and offline queues; existing notification SDK regressions run only if notification history/read APIs change.
+    - Deployed web producer and consumer Playwright proof runs after earlier shared gates.
+    - User confirmation of the existing web contract is inherited from the approved contract and current deployed web evidence; new web UI confirmation is required only if implementation changes web behavior.
+    - iPhone and iPad Apple implementation and runtime proof run last.
+
+tests:
+  - id: T-CONTRACT-MAPPING
+    type: lint
+    file: docs/plans/apple-core-cross-client-parity/plan.yml
+    command: python3 scripts/specifications.py check-changed && python3 scripts/plan_validate.py docs/plans/apple-core-cross-client-parity/plan.yml
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    specification_assertions: [auth.surface.first-party-boundary, sync.surface.semantic-parity, chats.surface.semantic-parity, apple-notifications.registration.lifecycle]
+    assertions:
+      - Every acceptance criterion maps to stable contract assertion IDs.
+      - Referenced contract fingerprints remain current.
+    red_phase: {required: false, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WS-SYNC-CONTRACT
+    type: manual
+    file: scripts/apple_cross_client_sync_test.py
+    command: python3 scripts/apple_cross_client_sync_test.py --api https://api.dev.openmates.org --producer websocket --json
+    target: api.dev.openmates.org
+    covers: [AC-2, AC-3, AC-5]
+    specification_assertions: [sync.access.first-party-authenticated, sync.startup.bounded-phases, sync.phase2.metadata-only, sync.surface.semantic-parity]
+    assertions:
+      - Authenticated first-party startup sends rich current client state and receives bounded phases.
+      - Metadata-only chat open returns bounded encrypted content.
+      - Unauthorized and unsupported developer access is rejected.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py contract sync --slot 14 --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-contract-sync-30f2fac8e, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:13:00Z", notes: Unauthorized and developer WebSockets were rejected; first-party rich state, bounded Phase 1/2 metadata, and ciphertext hydration passed.}}
+  - id: T-CLI-CHAT-PRODUCER
+    type: manual
+    file: frontend/packages/openmates-cli/tests/apple-cross-client-chat.e2e.ts
+    command: openmates chat send --save --json "Apple parity CLI marker <RUN_ID>"
+    target: api.dev.openmates.org
+    covers: [AC-2]
+    specification_assertions: [chats.persistence.client-encrypted, chats.surface.semantic-parity]
+    assertions:
+      - Real CLI creates one saved client-encrypted chat and emits only opaque manifest identifiers.
+      - The run is automatically recorded through the existing real CLI PTY recorder.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-CHAT-PRODUCER
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
+    command: python3 scripts/tests.py run --spec apple-cross-client-chat.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-2]
+    specification_assertions: [chats.persistence.client-encrypted, chats.surface.semantic-parity]
+    assertions:
+      - Deployed web creates one saved encrypted marker chat for Apple consumption.
+      - The producer publishes an opaque run-scoped manifest through the test control plane.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: ""}}
+  - id: T-AUTH-DIRECT-CONTRACT
+    type: manual
+    file: scripts/apple_auth_contract_test.py
+    command: python3 scripts/apple_auth_contract_test.py --api https://api.dev.openmates.org --json
+    target: api.dev.openmates.org
+    covers: [AC-1]
+    specification_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
+    assertions:
+      - Existing and missing-account lookup preserve the same public shape and stable decoy semantics.
+      - Native client headers are accepted while unauthorized origins and missing native identity are rejected.
+      - Password plus OTP and passkey challenge/session paths preserve wrapped-key and raw-token boundaries.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: failed, command: 'python3 scripts/apple_remote.py contract auth --slot 14 --expected-commit 287efcccf89668443a0b7a380b052d65cb2d76f3', run_id: apple-contract-auth-287efcccf, subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3, timestamp: "2026-08-25T02:08:00Z", notes: The live dev API emitted nullable tfa_app_name in lookup despite checked-in response_model_exclude_none; the active Docker runtime was rebuilt from another session checkout and does not match current source.}}
+  - id: T-APPLE-AUTH-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/AuthSecurityParityUITests" --record-profile apple-iphone-portrait
+    covers: [AC-1]
+    specification_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
+    assertions: [fresh install login, password plus OTP, passkey system boundary, local key readiness, relaunch restoration, explicit expired session, logout cleanup]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/AuthSecurityParityUITests"', run_id: remote-20260824-auth-current, subject_commit: 59f9fae71, timestamp: "2026-08-24T00:28:04Z", notes: auth-login-tab never appeared}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 16 Pro" --only-testing "OpenMatesUITests/AuthSecurityParityUITests" --record-profile apple-iphone-portrait --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-ba7abcbe41004f0e, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:19:39Z", notes: The credential-free auth-entry smoke passed with all custom login identifiers and no default table chrome.}}
+  - id: T-APPLE-AUTH-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/AuthSecurityParityUITests" --record-profile apple-ipad-landscape
+    covers: [AC-1]
+    specification_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
+    assertions: [same semantic auth and passkey boundary as iPhone, regular-layout product controls visible and actionable]
+    red_phase: {required: true, expected: fail, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/AuthSecurityParityUITests" --record-profile apple-ipad-landscape --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-be886326b66e4889, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:21:49Z", notes: The same credential-free auth-entry smoke passed under regular iPad landscape layout.}}
+  - id: T-APPLE-SYNC-UNIT
+    type: unit
+    file: apple/OpenMatesTests/ChatSyncParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSyncParityTests"
+    covers: [AC-3, AC-5]
+    specification_assertions: [sync.status.incomplete-window-rewarms, sync.deletion.partial-window-not-authoritative, chats.sync.key-gated-recovery, chat-navigation.open.local-first-coherent]
+    assertions: [metadata_v transport, server-key acceptance, single rich sync path, no synthetic completion, hydration request, reconnect current state, selection fencing, typing-event ordering]
+    red_phase: {required: true, expected: fail, evidence: {status: passed_unexpectedly, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSyncParityTests"', run_id: remote-20260824-sync-current, subject_commit: 59f9fae71, timestamp: "2026-08-24T00:26:13Z", notes: Existing six model tests pass but do not cover the new assertions.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSyncParityTests" --expected-commit 5329d6d6b17501ac058d3eb2f8076477cc5bb274', run_id: remote-20260824-sync-exact, subject_commit: 5329d6d6b17501ac058d3eb2f8076477cc5bb274, timestamp: "2026-08-24T15:00:30Z", notes: All 11 sync parity unit tests passed on the registered Mac.}}
+  - id: T-APPLE-CROSS-CLIENT-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/CrossClientChatSyncUITests" --record-profile apple-iphone-portrait
+    covers: [AC-2, AC-3]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity, chat-navigation.open.local-first-coherent]
+    assertions: [fresh store, web marker visible and decryptable, CLI marker visible and decryptable, metadata-only hydration, no ciphertext, no duplicates]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-CROSS-CLIENT-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/CrossClientChatSyncUITests" --record-profile apple-ipad-landscape
+    covers: [AC-2, AC-3]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity, chat-navigation.open.local-first-coherent]
+    assertions: [same semantic cross-client flow as iPhone, regular-layout chat list and transcript remain usable]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-BIDIRECTIONAL-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/CrossClientChatSyncUITests/testAppleCreatedChatProducesConsumerManifest" --record-profile apple-iphone-portrait
+    covers: [AC-4]
+    specification_assertions: [chats.persistence.client-encrypted, chats.message.identity-idempotent, chats.surface.semantic-parity]
+    assertions: [saved Apple chat, encrypted user row, encrypted assistant row, stable ids, opaque consumer manifest]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-BIDIRECTIONAL-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/CrossClientChatSyncUITests/testAppleCreatedChatProducesConsumerManifest" --record-profile apple-ipad-landscape
+    covers: [AC-4]
+    specification_assertions: [chats.persistence.client-encrypted, chats.message.identity-idempotent, chats.surface.semantic-parity]
+    assertions: [same saved encrypted Apple chat and opaque manifest flow as iPhone under regular layout]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB-APPLE-CONSUMER
+    type: playwright
+    file: frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
+    command: python3 scripts/tests.py run --spec apple-cross-client-chat.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-4]
+    specification_assertions: [chats.message.identity-idempotent, chats.surface.semantic-parity]
+    assertions: [Apple marker chat opens and decrypts once in correct order]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: ""}}
+  - id: T-CLI-APPLE-CONSUMER
+    type: manual
+    file: frontend/packages/openmates-cli/tests/apple-cross-client-chat.e2e.ts
+    command: openmates chats show <APPLE_CHAT_ID> --json
+    target: api.dev.openmates.org
+    covers: [AC-4]
+    specification_assertions: [chats.message.identity-idempotent, chats.surface.semantic-parity]
+    assertions: [Apple marker chat decrypts with one ordered user and assistant turn]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-RESILIENCE-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/CrossClientChatSyncUITests/testColdBootReconnectAndRapidNavigation" --record-profile apple-iphone-portrait
+    covers: [AC-5]
+    specification_assertions: [sync.status.incomplete-window-rewarms, sync.deletion.partial-window-not-authoritative, chats.local-state.precedence, chat-navigation.open.local-first-coherent]
+    assertions: [cold boot, incomplete sync remains pending, reconnect current state, partial deletion safety, rapid selection fencing]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-RESILIENCE-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/CrossClientChatSyncUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/CrossClientChatSyncUITests/testColdBootReconnectAndRapidNavigation" --record-profile apple-ipad-landscape
+    covers: [AC-5]
+    specification_assertions: [sync.status.incomplete-window-rewarms, sync.deletion.partial-window-not-authoritative, chats.local-state.precedence, chat-navigation.open.local-first-coherent]
+    assertions: [same semantic resilience flow as iPhone under regular layout]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-NOTIFICATION-DIRECT-CONTRACT
+    type: manual
+    file: scripts/apple_notification_contract_test.py
+    command: python3 scripts/apple_notification_contract_test.py --api https://api.dev.openmates.org --json
+    target: api.dev.openmates.org
+    covers: [AC-6]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe]
+    assertions:
+      - Authenticated native registration receives a persistence acknowledgment before reporting readiness.
+      - Missing native identity and unauthorized requests are rejected.
+      - Rotation replaces the same device and environment target without exposing token or preview plaintext.
+      - Logout or explicit unregister makes the target ineligible for later delivery.
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: failed, command: 'python3 scripts/apple_remote.py contract notification --slot 14 --expected-commit 30f2fac8e818bb9b0911483ae200320938d746d8', run_id: apple-contract-notification-30f2fac8e, subject_commit: 30f2fac8e818bb9b0911483ae200320938d746d8, timestamp: "2026-08-25T02:14:00Z", notes: The live dev API accepted registration without native identity and returned 404 for token cleanup, indicating the active Docker runtime predates the checked-in notification lifecycle routes.}}
+  - id: T-PUSH-BACKEND
+    type: pytest
+    file: backend/tests/test_unified_notifications.py
+    command: python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_push_notification_worker.py
+    covers: [AC-6]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.delivery.idempotent-visible]
+    assertions: [acknowledged registration state, worker initializes provider service, generic APNs alert, encrypted preview optional, retries idempotent, unavailable provider visible]
+    red_phase: {required: true, expected: fail, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_push_notification_worker.py, run_id: pytest-push-backend-20260824, subject_commit: 5329d6d6b17501ac058d3eb2f8076477cc5bb274, timestamp: "2026-08-24T14:54:19Z", notes: Eight registration, worker initialization, privacy-safe payload, retry, and visible failure tests passed.}}
+  - id: T-PUSH-CONFIG
+    type: lint
+    file: scripts/audit_apple_release_preflight.py
+    command: python3 scripts/audit_apple_release_preflight.py
+    covers: [AC-6]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe]
+    assertions: [aps-environment declared, notification extension generated by project.yml, extension embedded, no full token logging, registration cleanup present]
+    red_phase: {required: true, expected: fail, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: python3 scripts/audit_apple_release_preflight.py, run_id: audit-apple-release-preflight-20260824, subject_commit: 5329d6d6b17501ac058d3eb2f8076477cc5bb274, timestamp: "2026-08-24T14:54:19Z", notes: Entitlements, notification extension wiring, registration cleanup, and token logging guards passed.}}
+  - id: T-APPLE-PUSH-SIMULATOR-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    command: python3 scripts/apple_background_notification_simulator_test.py --record-profile apple-iphone-portrait
+    covers: [AC-6]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible]
+    assertions: [simulated generic payload, foreground dedup, warm tap, cold tap, reply, unread clear, badge clear]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/BackgroundChatNotificationUITests"', run_id: remote-20260824-push-timeout, subject_commit: 59f9fae71, timestamp: "2026-08-24T00:32:00Z", notes: Current class exceeded the 180-second caller timeout and covers display only.}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-PUSH-SIMULATOR-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    command: python3 scripts/apple_background_notification_simulator_test.py --simulator "iPad Pro 13-inch (M5)" --record-profile apple-ipad-landscape
+    covers: [AC-6]
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible]
+    assertions: [same simulated payload, routing, reply, unread, badge, and foreground-dedup semantics as iPhone under regular layout]
+    red_phase: {required: true, expected: fail, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: not_run, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-APPLE-RECORDING-TOOLING
+    type: pytest
+    file: scripts/tests/test_apple_remote_recording.py
+    command: python3 -m pytest scripts/tests/test_apple_remote_recording.py scripts/tests/test_apple_proof_finalization.py
+    covers: [AC-8]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
+    assertions: [record command lifecycle, timeout cleanup, result bundle, artifact transfer, timeline validation, hashes, failed-run retention, pass-only finalization]
+    red_phase: {required: true, expected: fail, evidence: {status: missing_test, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: python3 -m pytest scripts/tests/test_apple_remote_recording.py scripts/tests/test_apple_proof_finalization.py, run_id: pytest-apple-recording-20260825, subject_commit: e57d4471c77573984e8fc0c5c6cd93091a93ee0d, timestamp: "2026-08-25T02:04:00Z", notes: All 27 recording lifecycle, transfer, timeline, hash, retention, and pass-only finalization tests passed.}}
+  - id: T-APPLE-PROOF-IPHONE
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 15 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
+    covers: [AC-8, AC-9]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
+    assertions: [fresh login, web and CLI chat continuation, 393x852 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 16 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --expected-commit bf3a8efc95e325816fc03038388f65f0c44029db --test-account-slot 14 --github-secret-broker', run_id: apple-348272a5fac84159, subject_commit: bf3a8efc95e325816fc03038388f65f0c44029db, timestamp: "2026-08-25T01:28:31Z", notes: The long proof prompt exposed unreliable XCUI keystroke injection and failed the exact sent-message assertion before publication.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPhone 16 Pro" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-iphone-portrait --proof --expected-commit a099a0df195e401b947c892790b7d07b3ef3eea0 --test-account-slot 14 --github-secret-broker', run_id: apple-39da1db4ecca4a91, subject_commit: a099a0df195e401b947c892790b7d07b3ef3eea0, timestamp: "2026-08-25T01:38:05Z", notes: XCTest passed; exact 393x852 media, hash-bound captions, 11-frame bounded review, and response-media publication all passed with no incidental findings.}}
+  - id: T-APPLE-PROOF-IPAD
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --test-account-slot 14 --github-secret-broker --expected-commit <FULL_DEV_SHA>
+    covers: [AC-8, AC-9]
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
+    assertions: [fresh login, web and CLI chat continuation, 1366x1024 exact-profile clean frame, raw source retained, timeline hash bound, WebVTT sidecar, bounded frame review, response publication]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --expected-commit 00745631a2899f4458630c924bfc464bf4fda05c --test-account-slot 14 --github-secret-broker', run_id: apple-ec0fcce88da54fef, subject_commit: 00745631a2899f4458630c924bfc464bf4fda05c, timestamp: "2026-08-25T01:44:12Z", notes: Landscape login failed because the email field did not retain keyboard focus after a single tap.}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: 'python3 scripts/apple_remote.py test-ios --simulator "iPad Pro 13-inch (M5)" --only-testing "OpenMatesUITests/ChatFlowRealAccountUITests/testAppleCoreParityProof" --record-profile apple-ipad-landscape --proof --expected-commit 287efcccf89668443a0b7a380b052d65cb2d76f3 --test-account-slot 14 --github-secret-broker', run_id: apple-134e4393b2bd4df7, subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3, timestamp: "2026-08-25T01:59:52Z", notes: XCTest passed; exact 1366x1024 media, hash-bound captions, 12-frame bounded review, and response-media publication all passed with no incidental findings.}}
+
+verifications:
+  - id: V-APPLE-PUSH-DEVICE
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-6, AC-7]
+    status: pending
+    evidence: {status: pending, summary: "", timestamp: "", actor: physical iPhone operator, next_action: Run sandbox APNs registration, delivery, extension decrypt, cold/warm tap, reply, unread, badge, rotation, and logout matrix.}
+  - id: V-APPLE-PUSH-TESTFLIGHT
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-7]
+    status: pending
+    evidence: {status: pending, summary: "", timestamp: "", actor: TestFlight operator, next_action: Verify production topic, archive entitlements, killed-app delivery, reinstall, and token invalidation.}
+  - id: V-APPLE-PROOF-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-9]
+    status: passed
+    evidence: {status: passed, summary: Exact-commit iPhone run apple-39da1db4ecca4a91 and iPad run apple-134e4393b2bd4df7 passed bounded frame review with both auth.ready and chat.response supported, no incidental findings, exact profile dimensions, hash-bound captions, and delivered response media., timestamp: "2026-08-25T01:59:52Z", actor: proof-video-reviewer, next_action: Preserve both delivered snippet_html values in the task-closing response.}
+  - id: V-MACOS-SOURCE-PARITY
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers: [AC-10]
+    status: passed
+    evidence:
+      status: passed
+      summary: Shared Apple source compiled and linked for macOS at the exact dev commit with code signing disabled; signed local output remains unavailable because the registered Mac has no Apple Developer account or development profiles. macOS UI interaction proof is not blocking by user decision D-2.
+      command: python3 scripts/apple_remote.py repo bash -lc 'DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS -destination platform=macOS CODE_SIGNING_ALLOWED=NO build'
+      timestamp: "2026-08-24T15:04:18Z"
+      actor: OpenCode remote Mac wrapper
+      next_action: Configure an Apple Developer account and development profiles only if signed local macOS runtime evidence becomes required.
+  - id: V-APPLE-DOCS
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-10]
+    status: pending
+    evidence: {status: pending, summary: "", timestamp: "", actor: OpenCode, next_action: Verify parity matrix, sync, notifications, and Apple agent guidance describe current contract-linked gates and evidence.}
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: not_applicable
+    required_for_done: false
+    covers: [AC-2, AC-4]
+    status: skipped
+    evidence:
+      status: skipped
+      summary: No web product UI is changed by this Apple implementation program; deployed Playwright producer and consumer tests provide the required existing-web contract evidence.
+      reason: Web visual smoke adds no implementation signal until a web source change is required by a discovered contract regression.
+      timestamp: "2026-08-24T00:42:19Z"
+      actor: OpenCode
+      next_action: Promote this gate to required laptop and mobile smoke if implementation changes deployed web UI.
+  - id: V-WEB-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: not_applicable
+    required_for_done: false
+    covers: [AC-2, AC-4]
+    status: skipped
+    evidence:
+      status: skipped
+      summary: The user confirmed existing contracts and web behavior are the source of truth; this program does not propose a new web product behavior.
+      reason: New deployed web confirmation is required only if implementation changes web semantics or visuals.
+      timestamp: "2026-08-24T00:42:19Z"
+      actor: user
+      next_action: Request deployed web confirmation before Apple verification if any web implementation changes become necessary.
+
+implementation_notes:
+  plan_path: docs/plans/apple-core-cross-client-parity/plan.yml
+  existing_patterns:
+    - specifications/architecture/sync/specification.yml
+    - specifications/features/auth/specification.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/chat-navigation/specification.yml
+    - specifications/features/notifications/specification.yml
+    - docs/plans/apple-ui-parity-program/plan.yml
+    - scripts/apple_remote.py
+    - scripts/tests.py
+    - scripts/proof_video_workflow.py
+  architecture: >
+    Preserve the existing backend and web contracts, repair Apple as a conforming
+    first-party client, and add a cross-client test orchestrator whose web, CLI,
+    and Apple phases exchange only opaque run-scoped manifests. Extend the remote
+    Apple runner to capture xcresult, full-frame video, timeline attachments, and
+    proof artifacts, then reuse the existing proof renderer and reviewer.
+  data_flow:
+    - Contract-indexed tests prove existing dev WebSocket and notification boundaries first.
+    - Deployed web and real CLI create encrypted run-scoped producer chats and publish opaque manifests.
+    - Fresh Apple tests consume the manifests, sync shells and keys, request bounded content, and render decrypted windows.
+    - Apple emits an opaque manifest for its own saved chat; web and CLI consume and verify it.
+    - Notification tests progress from worker/config to simulator behavior to physical-device sandbox and TestFlight production proof.
+    - Remote test execution captures raw video and xcresult; the Linux control plane validates, renders, reviews, and publishes iPhone/iPad proof.
+  affected_files:
+    - path: docs/plans/apple-core-cross-client-parity/plan.yml
+      reason: Durable program contract, implementation ledger, and evidence source.
+    - path: apple/OpenMates/Sources/Core/Networking
+      reason: Auth, WebSocket sync, notification registration, and routing parity.
+    - path: apple/OpenMates/Sources/Core/Crypto
+      reason: Current server-key acceptance and client-wrapped key readiness.
+    - path: apple/OpenMates/Sources/Core/Persistence
+      reason: Versioned encrypted shell and bounded content persistence.
+    - path: apple/OpenMates/Sources/Features/Auth
+      reason: Login and session-state UI parity.
+    - path: apple/OpenMates/Sources/Features/Chat
+      reason: Existing-chat hydration, bidirectional send, and visible state parity.
+    - path: apple/OpenMatesTests
+      reason: Native sync, key, persistence, and notification unit contracts.
+    - path: apple/OpenMatesUITests
+      reason: iPhone and iPad contract-driven E2E journeys and proof timelines.
+    - path: apple/project.yml
+      reason: Authoritative APNs capability and notification-extension generation.
+    - path: backend/core/api/app/tasks/push_notification_task.py
+      reason: Worker-local push service initialization and visible failures.
+    - path: scripts/apple_remote.py
+      reason: Remote result-bundle, recording, artifact transfer, and cleanup orchestration.
+    - path: scripts/tests.py
+      reason: Unified Apple evidence ingestion and automatic proof finalization.
+    - path: frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts
+      reason: Deployed web producer and Apple-chat consumer evidence.
+    - path: frontend/packages/openmates-cli/tests/apple-cross-client-chat.e2e.ts
+      reason: Real CLI producer and Apple-chat consumer evidence.
+  verification_strategy:
+    - Validate contract fingerprints and spec assertion mappings.
+    - Record missing/failing tests before product changes.
+    - Run shared dev API/WebSocket, CLI, and web producer/consumer gates before Apple green evidence.
+    - Run iPhone and iPad auth, cross-client, resilience, push simulator, and proof tests.
+    - Run physical-device and TestFlight APNs checks.
+    - Run macOS build/source parity and record the accepted runtime-test limitation.
+  verification_order:
+    - Contract mapping and direct dev WebSocket/API proof.
+    - Real CLI producer and consumer.
+    - SDK gate explicitly not applicable for startup sync; run notification SDK regressions only if shared history/read APIs change.
+    - Deployed web producer and consumer.
+    - Phase 1 push/config safety and recording-tool unit tests.
+    - iPhone and iPad native tests with automatic proof capture.
+    - Physical-device APNs, TestFlight APNs, proof review, and macOS source/build parity.
+
+tasks:
+  - id: TASK-1
+    title: Approve and validate contract-driven program ledger
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
+    specification_assertions: [auth.surface.first-party-boundary, sync.surface.semantic-parity, chats.surface.semantic-parity, apple-notifications.registration.lifecycle]
+    expected_files: [docs/plans/apple-core-cross-client-parity/plan.yml]
+    verification_ids: [T-CONTRACT-MAPPING]
+    dependencies: []
+    ownership: {session: "2172", files: [docs/plans/apple-core-cross-client-parity/plan.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3]
+    independently_deployable: true
+  - id: TASK-2
+    title: Build cross-client test orchestration and record red evidence
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-2, S-3, S-4], acceptance_criteria: [AC-2, AC-3, AC-4, AC-5]}
+    specification_assertions: [sync.startup.bounded-phases, sync.surface.semantic-parity, chats.surface.semantic-parity, chat-navigation.open.local-first-coherent]
+    expected_files: [scripts/apple_cross_client_sync_test.py, frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts, frontend/packages/openmates-cli/tests/apple-cross-client-chat.e2e.ts, apple/OpenMatesUITests/CrossClientChatSyncUITests.swift]
+    verification_ids: [T-WS-SYNC-CONTRACT, T-CLI-CHAT-PRODUCER, T-WEB-CHAT-PRODUCER, T-APPLE-CROSS-CLIENT-IPHONE, T-APPLE-CROSS-CLIENT-IPAD, T-APPLE-BIDIRECTIONAL-IPHONE, T-APPLE-BIDIRECTIONAL-IPAD, T-WEB-APPLE-CONSUMER, T-CLI-APPLE-CONSUMER, T-APPLE-RESILIENCE-IPHONE, T-APPLE-RESILIENCE-IPAD]
+    dependencies: [TASK-1]
+    ownership: {session: "2172", files: [scripts/apple_cross_client_sync_test.py, frontend/apps/web_app/tests/apple-cross-client-chat.spec.ts, frontend/packages/openmates-cli/tests/apple-cross-client-chat.e2e.ts, apple/OpenMatesUITests/CrossClientChatSyncUITests.swift], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-4, TASK-5]
+    independently_deployable: false
+  - id: TASK-3
+    title: Add automatic Apple recording and proof pipeline test-first
+    status: in_progress
+    phase: running_checks
+    covers: {scenarios: [S-6], acceptance_criteria: [AC-8, AC-9]}
+    specification_assertions: [sync.surface.semantic-parity, chats.surface.semantic-parity]
+    expected_files: [scripts/apple_remote.py, scripts/tests.py, scripts/spec_demo.py, scripts/proof_video_workflow.py, scripts/tests/test_apple_remote_recording.py, scripts/tests/test_apple_proof_finalization.py]
+    verification_ids: [T-APPLE-RECORDING-TOOLING]
+    dependencies: [TASK-1]
+    ownership: {session: "2172", files: [scripts/apple_remote.py, scripts/tests.py, scripts/spec_demo.py, scripts/proof_video_workflow.py, scripts/tests/test_apple_remote_recording.py, scripts/tests/test_apple_proof_finalization.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: true
+  - id: TASK-4
+    title: Repair push safety, worker initialization, and Apple project configuration
+    status: pending
+    phase: drafting
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-6]}
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.delivery.idempotent-visible]
+    expected_files: [backend/core/api/app/tasks/push_notification_task.py, backend/tests/test_push_notification_worker.py, apple/project.yml, apple/OpenMates/Resources/OpenMatesPasskey.entitlements, apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift, scripts/audit_apple_release_preflight.py]
+    verification_ids: [T-NOTIFICATION-DIRECT-CONTRACT, T-PUSH-BACKEND, T-PUSH-CONFIG]
+    dependencies: [TASK-2]
+    ownership: {session: "2172", files: [backend/core/api/app/tasks/push_notification_task.py, backend/tests/test_push_notification_worker.py, apple/project.yml, apple/OpenMates/Resources/OpenMatesPasskey.entitlements, apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift, scripts/audit_apple_release_preflight.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: true
+  - id: TASK-5
+    title: Repair login and encrypted session bootstrap parity
+    status: pending
+    phase: drafting
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    specification_assertions: [auth.keys.client-wrapped, auth.lookup.anti-enumeration, auth.login.method-convergence, auth.passkey.origin-prf-bound, auth.session.lifecycle, auth.surface.first-party-boundary]
+    expected_files: [scripts/apple_auth_contract_test.py, apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Features/Auth, apple/OpenMates/Sources/Core/Networking/AuthManager.swift, apple/OpenMatesUITests/AuthSecurityParityUITests.swift]
+    verification_ids: [T-AUTH-DIRECT-CONTRACT, T-APPLE-AUTH-IPHONE, T-APPLE-AUTH-IPAD]
+    dependencies: [TASK-2, TASK-3]
+    ownership: {session: "2172", files: [scripts/apple_auth_contract_test.py, apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Features/Auth, apple/OpenMates/Sources/Core/Networking/AuthManager.swift, apple/OpenMatesUITests/AuthSecurityParityUITests.swift], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+  - id: TASK-6
+    title: Repair sync, hydration, keys, reconnect, and bidirectional chat parity
+    status: pending
+    phase: drafting
+    covers: {scenarios: [S-2, S-3, S-4], acceptance_criteria: [AC-2, AC-3, AC-4, AC-5]}
+    specification_assertions: [sync.status.incomplete-window-rewarms, sync.startup.bounded-phases, sync.phase2.metadata-only, sync.deletion.partial-window-not-authoritative, chats.persistence.client-encrypted, chats.message.identity-idempotent, chats.local-state.precedence, chats.sync.key-gated-recovery, chat-navigation.open.local-first-coherent]
+    expected_files: [apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Core/Models/ChatModels.swift, apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, apple/OpenMates/Sources/Core/Networking/SyncManager.swift, apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift, apple/OpenMates/Sources/Core/Persistence/ChatStore.swift, apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift, apple/OpenMatesTests/ChatSyncParityTests.swift, apple/OpenMatesUITests/CrossClientChatSyncUITests.swift]
+    verification_ids: [T-APPLE-SYNC-UNIT, T-APPLE-CROSS-CLIENT-IPHONE, T-APPLE-CROSS-CLIENT-IPAD, T-APPLE-BIDIRECTIONAL-IPHONE, T-APPLE-BIDIRECTIONAL-IPAD, T-WEB-APPLE-CONSUMER, T-CLI-APPLE-CONSUMER, T-APPLE-RESILIENCE-IPHONE, T-APPLE-RESILIENCE-IPAD]
+    dependencies: [TASK-5]
+    ownership: {session: "2172", files: [apple/OpenMates/Sources/App/MainAppView.swift, apple/OpenMates/Sources/Core/Models/ChatModels.swift, apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift, apple/OpenMates/Sources/Core/Networking/SyncManager.swift, apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift, apple/OpenMates/Sources/Core/Persistence/ChatStore.swift, apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift, apple/OpenMatesTests/ChatSyncParityTests.swift, apple/OpenMatesUITests/CrossClientChatSyncUITests.swift], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-7, TASK-8]
+    independently_deployable: false
+  - id: TASK-7
+    title: Complete simulator, physical-device, and TestFlight push parity
+    status: pending
+    phase: drafting
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-6, AC-7]}
+    specification_assertions: [apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe, apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible]
+    expected_files: [apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift, apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift, apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift]
+    verification_ids: [T-APPLE-PUSH-SIMULATOR-IPHONE, T-APPLE-PUSH-SIMULATOR-IPAD, V-APPLE-PUSH-DEVICE, V-APPLE-PUSH-TESTFLIGHT]
+    dependencies: [TASK-4, TASK-6]
+    ownership: {session: "2172", files: [apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift, apple/OpenMates/Sources/Core/Services/UnreadMessagesStore.swift, apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift], shared_files: []}
+    blockers: [Physical iPhone sandbox APNs and TestFlight production APNs evidence from assumption A-4 are required before TASK-7 can complete.]
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+  - id: TASK-8
+    title: Record, review, publish, and close iPhone/iPad parity evidence
+    status: in_progress
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
+    specification_assertions: [auth.surface.first-party-boundary, sync.surface.semantic-parity, chats.surface.semantic-parity, apple-notifications.registration.lifecycle]
+    expected_files: [docs/plans/apple-core-cross-client-parity/plan.yml, docs/architecture/apple/parity-matrix.md, docs/architecture/apple/sync-parity.md, docs/architecture/apple/notifications-parity.md, apple/AGENTS.md]
+    verification_ids: [T-CONTRACT-MAPPING, T-APPLE-PROOF-IPHONE, T-APPLE-PROOF-IPAD, V-APPLE-PROOF-REVIEW, V-MACOS-SOURCE-PARITY, V-APPLE-DOCS]
+    dependencies: [TASK-3, TASK-6, TASK-7]
+    ownership: {session: "2172", files: [docs/plans/apple-core-cross-client-parity/plan.yml, docs/architecture/apple/parity-matrix.md, docs/architecture/apple/sync-parity.md, docs/architecture/apple/notifications-parity.md, apple/AGENTS.md], shared_files: [test-results/apple-recordings]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: Core native login, chat continuation, resilience, push, and recording behavior require visible iPhone and iPad proof.
+    classified_at: "2026-08-24T00:42:19Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show fresh Apple login and restored account chat list.
+      expected_proof: The authenticated shell appears and uniquely marked web and CLI chats are visible after a fresh install.
+      scenario_ids: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    - id: NARR-2
+      purpose: Show a metadata-only existing chat hydrating and rendering locally decrypted content.
+      expected_proof: A target-specific loading state resolves to the correct transcript without ciphertext, stale content, or duplicates.
+      scenario_ids: [S-2, S-4]
+      acceptance_criteria: [AC-3, AC-5]
+    - id: NARR-3
+      purpose: Show bidirectional Apple chat continuation.
+      expected_proof: Apple sends a saved turn, receives completion, and the same encrypted ordered chat opens from web and CLI.
+      scenario_ids: [S-3]
+      acceptance_criteria: [AC-4]
+    - id: NARR-4
+      purpose: Show automatic native evidence on both approved device profiles.
+      expected_proof: Clean iPhone and iPad frames match the asserted actions and captions, with no test chrome or frame reduction.
+      scenario_ids: [S-6]
+      acceptance_criteria: [AC-8, AC-9]
+  evidence:
+    status: passed
+    privacy_status: not_applicable
+    audio_status: not_required
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 1
+    subject_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3
+    manifest_path: test-results/proof-videos/2172/apple-core-parity-apple-134e4393b2bd4df7/manifest.json
+    manifest_hash: sha256:81f8d2e6b921c77c2e51c04f9a6a67227ea8f58787985fdd0324cfd96ac7d79c
+    review_run_id: review-apple-core-parity-apple-134e4393b2bd4df7
+    timestamp: "2026-08-25T01:59:52Z"
+    source: Passing remote Apple UI evidence from iPhone run apple-39da1db4ecca4a91 and iPad run apple-134e4393b2bd4df7, captured, reviewed, and published automatically by scripts/apple_remote.py.
+    device_profiles: [apple_iphone_portrait_393x852, apple_ipad_landscape_1366x1024]
+    captions: Exact hash-bound device-scoped WebVTT written after normal green gates.
+    full_video_in_model_context: forbidden
+    frame_sampling: Bounded canonical frame-only review with event boundaries.
+    publication: Upload approved video and captions through scripts/opencode_response_media.py.
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Treat existing native unit tests and screenshots as sufficient parity evidence.
+    outcome: rejected
+    recorded_at: "2026-08-24T00:42:19Z"
+    evidence: Current auth UI proof fails, sync unit tests omit live hydration, push simulator coverage is display-only, and no automatic Apple video exists.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Create disconnected Apple tests by mirroring every web spec.
+    outcome: rejected
+    recorded_at: "2026-08-24T00:42:19Z"
+    evidence: Existing contracts define semantic parity; targeted cross-client journeys and contract-indexed assertions provide stronger and less redundant coverage.
+
+handoff:
+  current_task_id: TASK-7
+  next_action: Complete the remaining automated shared-surface gates, then have an authorized physical-device operator run sandbox and TestFlight APNs verification.
+  command: python3 scripts/plan_verify.py docs/plans/apple-core-cross-client-parity/plan.yml --phase complete --json
+  expected_outcome: Automated gates pass and final verification reports only the explicitly recorded physical-device and TestFlight dependencies until an operator supplies those results.
+  blocker:
+    task_id: TASK-7
+    requires_user_input: true
+    reason: Simulator evidence cannot prove physical APNs token registration, provider acceptance, notification-service-extension keychain access, sandbox background delivery, or TestFlight production delivery.
+    question: Can an authorized operator run the physical iPhone sandbox and TestFlight APNs matrices after the automated gates are complete?
+    next_action: Record sanitized physical-device and TestFlight results under V-APPLE-PUSH-DEVICE and V-APPLE-PUSH-TESTFLIGHT without exposing tokens, keys, or account data.
+  last_verified_commit: 287efcccf89668443a0b7a380b052d65cb2d76f3
+
+risks:
+  - A broad parity program can hide ordering dependencies; task dependencies and contract-linked acceptance criteria keep slices explicit.
+  - Live cross-client E2E can leak or collide with test-account state; use opaque run manifests, leases, cleanup, and environment-only credentials.
+  - Sync/key changes can cause destructive local reconciliation; require red tests for partial deletion, stale keys, and stale selection before product edits.
+  - Simulator push cannot prove APNs; physical-device sandbox and TestFlight production checks remain required.
+  - Simulator video dimensions may differ from logical proof profiles; retain raw source and permit only full-frame aspect-preserving normalization with explicit provenance, never crop, pad, border, or caption burn-in.
+  - Shared Swift changes may affect macOS even when UI automation is unavailable; require source mapping and build attempts with sanitized blockers.
+
+open_questions: []

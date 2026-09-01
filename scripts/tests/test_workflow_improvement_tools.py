@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Regression tests for deterministic workflow-improvement helper scripts.
 
 Purpose: keep workflow helper behavior covered without remote services.
@@ -94,4 +95,4 @@ def test_feature_readiness_workflows_returns_cross_surface_rows():
     rows = readiness.workflows_readiness()
 
     surfaces = {row.surface for row in rows}
-    assert {"backend API", "CLI", "npm SDK", "pip SDK", "web UI", "web E2E", "Apple parity", "spec evidence"} <= surfaces
+    assert {"backend API", "CLI", "npm SDK", "pip SDK", "web UI", "web E2E", "Apple parity", "Plan evidence"} <= surfaces

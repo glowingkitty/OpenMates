@@ -1,0 +1,69 @@
+schema_version: 1
+specification: feature.tasks@2
+
+task_private_content:
+  - id: encrypted-task
+    input: {title: Fix hydrated Plan response, description: Return key wrappers after mutation}
+    expect: {durable_plaintext_title: false, durable_plaintext_description: false, raw_task_key: absent}
+
+task_lifecycle:
+  - id: explicit-block
+    input: {task: task-1, status: in_progress, blocker: waiting_for_user}
+    expect: {status_after: blocked, blocked_reason_visible: true}
+  - id: prose-does-not-complete
+    input: {assistant_message: The task is done, task_status: in_progress}
+    expect: {task_status_after_message: in_progress}
+
+task_dependencies:
+  - id: flat-blocked-by
+    input: {task_2_blocked_by: task-1, task_1_status: todo}
+    expect: {task_2_eligible: false, child_task_collection_created: false}
+  - id: reject-cycle
+    input: {dependencies: [task-1->task-2, task-2->task-1]}
+    expect_error: {code: TASK_DEPENDENCY_CYCLE, mutation: false}
+
+task_plan_links:
+  - id: phase-is-presentation-only
+    input: {plan: plan-1, phase: implementation, task: task-1}
+    expect: {task_owns_status: true, phase_owns_status: false, executable_step_created: false}
+
+task_check_links:
+  - id: failed-check-creates-fix-task
+    input: {check: check-1, failed_run: run-1, task: fix-check-1}
+    expect: {task_source_check_id: check-1, check_status_after_task_done: failed}
+  - id: human-check-work-task
+    input: {check: physical-device-check, task: inspect-device, assignee: user}
+    expect: {task_is_normal_task: true, human_confirmation_still_required: true}
+
+task_project_links:
+  - id: encrypted-project-link
+    input: {task: task-1, project: project-1}
+    expect: {raw_project_id_plaintext: false, project_hash_present: true, project_wrapper_present: true}
+
+task_workflow_projections:
+  - id: workflow-run-card
+    input: {workflow_run: run-1, projection: current_run}
+    expect: {user_task_row_created: false, read_only: true, nodes_inside_run_detail: true}
+
+task_detail_presentation:
+  - id: laptop-split-detail
+    input: {viewport: laptop, selected_task: task-1}
+    expect: {workspace_visible: true, detail_beside_workspace: true}
+  - id: phone-fullscreen-detail
+    input: {viewport: phone, selected_task: task-1}
+    expect: {fullscreen_overlay: true, close_restores_board: true}
+
+task_execution_capacity:
+  - id: capacity-wait
+    input: {scope: personal, capacity_available: false, task: task-1}
+    expect: {status: todo, waiting_state: waiting_for_capacity, auto_reconsider: true}
+
+task_execution_order:
+  - id: dependency-before-priority
+    input: {task_1_priority: low, task_2_priority: urgent, task_2_blocked_by: task-1}
+    expect: {next_task: task-1, urgent_bypass: false}
+
+task_surface_parity:
+  - id: same-dependency-blocker
+    input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-2}
+    expect: {same_status: blocked, same_dependency: task-1, visible_failure: true}

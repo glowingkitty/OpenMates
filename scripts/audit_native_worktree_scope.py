@@ -35,12 +35,12 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         "do not set Bash `workdir` to root",
         "follow its `Next:` action",
     ),
-    "docs/specs/opencode-native-worktree-binding/spec.yml": (
+    "docs/plans/opencode-native-worktree-binding/plan.yml": (
         "id: agent-worktree-deploy",
         "verification_ids: [T-REGRESSION-WORKTREE",
-        "Implementing docs/specs/agent-presence-coordination/spec.yml",
+        "Implementing docs/plans/agent-presence-coordination/plan.yml",
     ),
-    "docs/specs/agent-presence-coordination/spec.yml": (
+    "docs/plans/agent-presence-coordination/plan.yml": (
         "id: opencode-native-worktree-binding",
         "relationship: blocked_by",
         "status: verified",

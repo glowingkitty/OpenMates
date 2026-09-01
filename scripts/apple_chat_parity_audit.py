@@ -33,7 +33,7 @@ CHAT_RENDERING_ORACLE_SPEC = REPO_ROOT / "frontend/apps/web_app/tests/chat-rende
 APPLE_REAL_ACCOUNT_TEST = REPO_ROOT / "apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift"
 CHAT_RENDERING_COMPARATOR = REPO_ROOT / "scripts/compare_chat_render_parity.py"
 CHAT_RENDERING_PARITY_DOC = REPO_ROOT / "docs/architecture/apple/chat-rendering-parity.md"
-APPLE_UI_PARITY_PROGRAM_SPEC = REPO_ROOT / "docs/specs/apple-ui-parity-program/spec.yml"
+APPLE_UI_PARITY_PROGRAM_PLAN = REPO_ROOT / "docs/plans/apple-ui-parity-program/plan.yml"
 APPLE_CHAT_UI_CONTRACT_SPEC = REPO_ROOT / "frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts"
 PARITY_INVENTORY = REPO_ROOT / "test-results/apple-parity-inventory.json"
 
@@ -220,8 +220,8 @@ def audit_loaded_chat_parity_harness() -> list[str]:
 
 def audit_program_inventory() -> list[str]:
     failures: list[str] = []
-    if not APPLE_UI_PARITY_PROGRAM_SPEC.exists():
-        return [fail(f"Missing Apple UI parity program spec {APPLE_UI_PARITY_PROGRAM_SPEC.relative_to(REPO_ROOT)}")]
+    if not APPLE_UI_PARITY_PROGRAM_PLAN.exists():
+        return [fail(f"Missing Apple UI parity program Plan {APPLE_UI_PARITY_PROGRAM_PLAN.relative_to(REPO_ROOT)}")]
     if not APPLE_CHAT_UI_CONTRACT_SPEC.exists():
         failures.append(fail(f"Missing broad chat UI contract spec {APPLE_CHAT_UI_CONTRACT_SPEC.relative_to(REPO_ROOT)}"))
 
@@ -238,8 +238,8 @@ def audit_program_inventory() -> list[str]:
     if not isinstance(program, dict):
         failures.append(fail("Parity inventory missing programs.apple_ui_parity_program"))
         return failures
-    if program.get("spec_path") != "docs/specs/apple-ui-parity-program/spec.yml":
-        failures.append(fail("Apple UI parity program inventory points at the wrong spec path"))
+    if program.get("plan_path") != "docs/plans/apple-ui-parity-program/plan.yml":
+        failures.append(fail("Apple UI parity program inventory points at the wrong Plan path"))
     if program.get("first_rollout") != "chat":
         failures.append(fail("Apple UI parity program inventory no longer prioritizes chat first"))
 

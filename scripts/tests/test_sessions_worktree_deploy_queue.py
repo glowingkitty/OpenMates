@@ -227,17 +227,17 @@ def test_session_state_removes_orphaned_and_merged_blocked_deploys():
     ]
 
 
-def test_contract_generated_artifacts_are_not_replayed_as_source_patches():
+def test_specification_generated_artifacts_are_not_replayed_as_source_patches():
     sessions = load_sessions_module()
 
-    source, generated = sessions._split_contract_generated_artifacts([
+    source, generated = sessions._split_specification_generated_artifacts([
         "frontend/apps/web_app/tests/startup-sync-contract.spec.ts",
-        "contracts/generated/assertion-index.yml",
-        "contracts/generated/coverage.yml",
+        "specifications/generated/assertion-index.yml",
+        "specifications/generated/coverage.yml",
     ])
 
     assert source == ["frontend/apps/web_app/tests/startup-sync-contract.spec.ts"]
-    assert generated == ["contracts/generated/assertion-index.yml", "contracts/generated/coverage.yml"]
+    assert generated == ["specifications/generated/assertion-index.yml", "specifications/generated/coverage.yml"]
 
 
 def test_worktree_retry_blocks_root_drift_and_refreshes_safe_amendment(monkeypatch, tmp_path):
@@ -276,7 +276,7 @@ def test_worktree_retry_can_safely_expand_files_unchanged_from_source_base(monke
     sessions_file = tmp_path / "sessions.json"
     root = tmp_path / "root"
     worktree = tmp_path / "worktree"
-    first = "docs/spec.yml"
+    first = "docs/plans/example/plan.yml"
     added = "scripts/new.py"
     for base in (root, worktree):
         path = base / first

@@ -127,7 +127,7 @@ If only one breakpoint is provided in Figma, **note this explicitly** — it wil
 ### Step 3 — Write The Design Brief
 
 Before editing code, capture the design contract in the session, issue, or
-`docs/specs/<slug>/spec.yml` for Tier 2 work:
+`docs/plans/<slug>/plan.yml` for Tier 2 Plan work:
 
 - Figma file key, node IDs, frame names, dimensions, and file version.
 - Whether each frame is an exact target, directional reference, future concept,
@@ -385,7 +385,7 @@ Recommended contents:
 - `notes.md` or spec evidence that lists node IDs, file version, viewport sizes,
   inspected states, accepted differences, and blocked Figma endpoints.
 
-If the work uses a full executable spec, record a `kind: artifact_review`
+If the work uses a Plan, record a `kind: artifact_review`
 verification such as `V-FIGMA-ARTIFACT-REVIEW`. If the work is a smaller inline
 task, include the same evidence summary in the final response.
 

@@ -4,7 +4,7 @@ Focused daily AI runner policy regression tests.
 
 These cover manifest classifications and deterministic selection without
 dispatching Playwright or calling inference providers. Architecture:
-contracts/architecture/daily-ai-test-inference/.
+specifications/architecture/daily-ai-test-inference/.
 """
 
 # contract-test-file: tooling
@@ -153,14 +153,14 @@ def test_runner_daily_discovery_uses_policy_and_rejects_record_mode(monkeypatch,
         orchestrator._discover_specs()
 
 
-def test_audit_rejects_stale_spec_file_and_command_references(monkeypatch, tmp_path):
+def test_audit_rejects_stale_plan_file_and_command_references(monkeypatch, tmp_path):
     audit = load_module("daily_ai_audit_stale_refs", AUDIT_PATH)
-    spec_path = tmp_path / "docs" / "specs" / "cost-safe-daily-ai-tests" / "spec.yml"
+    plan_path = tmp_path / "docs" / "plans" / "cost-safe-daily-ai-tests" / "plan.yml"
     scripts_dir = tmp_path / "scripts"
-    spec_path.parent.mkdir(parents=True)
+    plan_path.parent.mkdir(parents=True)
     scripts_dir.mkdir()
     (scripts_dir / "tests.py").write_text('sub.add_parser("run", help="Run tests")\n', encoding="utf-8")
-    spec_path.write_text(
+    plan_path.write_text(
         """
 tests:
   - id: T-STALE
@@ -179,9 +179,9 @@ tasks:
 
     monkeypatch.setattr(audit, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(audit, "SPEC_DIR", tmp_path / "frontend" / "apps" / "web_app" / "tests")
-    monkeypatch.setattr(audit, "SPEC_PATH", spec_path)
+    monkeypatch.setattr(audit, "PLAN_PATH", plan_path)
 
-    errors = audit._audit_spec_references()
+    errors = audit._audit_plan_references()
 
     assert any("missing/file.py" in error for error in errors)
     assert any("unknown scripts/tests.py command 'cache'" in error for error in errors)

@@ -1,0 +1,64 @@
+schema_version: 1
+specification: feature.newsletter-campaigns@1
+
+event_selection:
+  - id: biweekly-run-selects-next-four-weeks
+    given: {run_at: "2026-08-20T09:00:00Z", event_starts: ["2026-08-25T19:00:00+02:00", "2026-09-15T19:00:00+02:00", "2026-09-18T19:00:00+02:00"]}
+    when: events_campaign_is_generated
+    expect: {included_event_indexes: [0, 1], excluded_event_indexes: [2]}
+  - id: unchanged-cadence-run-is-idempotent
+    given: {cadence_window: "2026-08-17/2026-08-30", registry_payload_hash_unchanged: true, campaign_exists: true}
+    when: generator_runs_again
+    expect: {new_campaign_created: false, existing_campaign_reused: true}
+
+review_window:
+  - id: previews-start-review-window
+    given: {localized_bodies: [en, de], previews_succeeded: true, latest_preview_at: "2026-08-20T10:00:00Z"}
+    when: automatic_send_is_scheduled
+    expect: {scheduled_for: "2026-08-21T10:00:00Z"}
+  - id: correction-restarts-review-window
+    given: {scheduled_for: "2026-08-21T10:00:00Z", material_correction_at: "2026-08-21T06:00:00Z", replacement_previews_succeeded_at: "2026-08-21T06:05:00Z"}
+    when: corrected_campaign_is_saved
+    expect: {old_schedule_cancelled: true, scheduled_for: "2026-08-22T06:05:00Z"}
+  - id: cancellation-prevents-send
+    given: {campaign_status: cancelled, scheduled_for_in_past: true}
+    when: due_campaign_processor_runs
+    expect: {broadcast_started: false}
+
+link_fallback:
+  - id: live-openmates-event-page-wins
+    given: {openmates_event_url_http_status: 200, luma_url_present: true}
+    when: event_destination_is_resolved
+    expect: {destination: openmates_event_url}
+  - id: unpublished-openmates-event-uses-luma
+    given: {openmates_event_url_http_status: 404, luma_url: "https://luma.com/qfwdd70e"}
+    when: event_destination_is_resolved
+    expect: {destination: "https://luma.com/qfwdd70e"}
+  - id: no-live-destination-blocks-campaign
+    given: {openmates_event_url_http_status: 404, luma_url_present: false}
+    when: preview_is_requested
+    expect: {preview_sent: false, validation_error_visible: true}
+
+accessible_layout:
+  - id: exported-header-and-card-retain-readable-details
+    given: {localized_header_image_present: true, localized_event_card_present: true}
+    when: email_is_rendered
+    expect: {localized_alt_text_present: true, event_details_present_as_html_text: true, destination_is_html_link: true}
+  - id: required-export-is-missing
+    given: {required_event_card_path_exists: false}
+    when: preview_is_requested
+    expect: {preview_sent: false, validation_error_visible: true}
+
+delivery_safety:
+  - id: opted-in-confirmed-subscriber-receives-event-campaign
+    given: {confirmed: true, ignored: false, categories: {openmates_events: true}, delivery_record_exists: false}
+    when: campaign_is_sent
+    expect: {email_sent: true, delivery_record_reserved: true}
+  - id: opted-out-or-unconfirmed-subscriber-is-excluded
+    given: {confirmed: false, categories: {openmates_events: false}}
+    when: campaign_is_sent
+    expect: {email_sent: false}
+  - id: partial-send-resumes-without-duplicates
+    given: {delivery_record_exists: true, campaign_status: failed}
+    when: campaign_send_is_resumed
+    expect: {email_resent_to_recorded_subscriber: false}

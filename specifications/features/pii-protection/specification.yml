@@ -1,0 +1,106 @@
+schema_version: 1
+id: feature.pii-protection
+version: 1
+status: approved
+title: PII Placeholder Protection
+summary: >
+  OpenMates first-party clients detect configured personal data before chat send,
+  replace active detections with placeholders before server or model exposure,
+  and keep owner-only restoration controls local to the authenticated client.
+
+scope:
+  includes:
+    - Web composer detection for supported PII patterns such as email addresses and phone numbers.
+    - Per-value manual exclusion before send, preserving the user's current-send visibility choice.
+    - Message-level and embed-level placeholder mappings that default hidden in chat, previews, and fullscreen embeds.
+    - Owner-local reveal/hide controls that synchronize between the chat header and embed fullscreen surfaces.
+    - Follow-up send rewrite using previously decrypted owner-only mappings, as approved in docs/plans/pii-placeholder-rewrite-v1/plan.yml.
+  excludes:
+    - Redesigning detector categories, detector confidence, or placeholder token format.
+    - Server-side restoration of original PII values.
+    - Sharing owner-only originals with public or non-owner viewers.
+    - SDK-owned consumer UI controls for PII reveal/hide.
+
+models:
+  PIIMapping:
+    placeholder:
+      type: string
+      required: true
+      constraints: {format: bracketed_type_token, stable_for_mapping: true}
+    original:
+      type: client_secret
+      required: true
+      constraints: {server_plaintext: forbidden, owner_only: true}
+    type:
+      type: enum
+      required: true
+      values: [EMAIL, PHONE, IBAN, API_KEY, MERCHANT, PAYEE, PAYER, TRANSFER_INTERNAL, OTHER]
+
+  ComposerDetection:
+    detected_values:
+      type: array
+      required: true
+      items: PIIMapping
+    excluded_values:
+      type: array
+      required: true
+      items: string
+      constraints: {current_send_only: true, re_redaction_forbidden: true}
+
+  RevealState:
+    default:
+      type: enum
+      values: [hidden]
+      required: true
+    owner_toggle:
+      type: boolean
+      required: true
+      constraints: {local_only: true, synchronized_across_chat_and_embed: true}
+
+assertions:
+  - id: pii.composer.detect-redact-exclude
+    type: privacy
+    must: The web composer detects supported PII before send, replaces active detections with placeholders in the sent chat content, and does not re-redact a value the user explicitly excluded for that current send.
+    depends_on: [models.ComposerDetection, models.PIIMapping, examples.composer_detection]
+  - id: pii.message.owner-local-reveal
+    type: privacy
+    must: Message-level PII mappings default to placeholders in chat history, and only the owning authenticated client can locally reveal or hide originals without making the server, model providers, logs, traces, or shared viewers receive those originals.
+    depends_on: [models.PIIMapping, models.RevealState, examples.message_reveal]
+  - id: pii.embed.owner-local-reveal-sync
+    type: privacy
+    must: Embed previews and fullscreen embeds that render PII-backed fields default to placeholders, restore originals only through owner-local mappings, and keep chat-header and fullscreen reveal/hide state synchronized for the same chat.
+    depends_on: [models.PIIMapping, models.RevealState, examples.embed_reveal_sync]
+  - id: pii.outbound.known-original-rewrite
+    type: privacy
+    must: Follow-up outbound messages using an original value from a decrypted owner-only message or embed mapping are rewritten to the existing placeholder before inference payloads leave the browser, while unknown values are never assigned guessed placeholders.
+    depends_on: [models.PIIMapping, examples.followup_rewrite]
+  - id: pii.surface.semantic-parity
+    type: parity
+    must: First-party web, CLI, SDK-adjacent secret-scanner paths, and Apple preserve the same placeholder-boundary and owner-only restoration semantics where those surfaces handle chat send or PII mapping display; surfaces without a consumer PII UI cannot bypass the placeholder boundary.
+    depends_on: [models.PIIMapping, examples.surface_parity, applies_to]
+
+applies_to:
+  rest_api:
+    required: false
+    role: REST and WebSocket routes carry encrypted chat payloads and placeholder-safe content; they do not own restoration UI or server-side original recovery.
+  cli:
+    required: true
+    parity: semantic
+    role: CLI file and chat send paths must redact supported local content before sending through the dev API.
+  sdks:
+    required: false
+    role: SDKs may expose placeholder-safe chat/file payload helpers but do not own consumer reveal controls.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [composer_detection, message_reveal, embed_reveal_sync, followup_rewrite, surface_parity]

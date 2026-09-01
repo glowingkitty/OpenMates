@@ -51,7 +51,7 @@ If an interaction state is needed, drive the existing `*.spec.ts` test or a temp
 
 ## Apple/Web Parity Program
 
-For broad Apple UI parity work, use the program contract in `docs/specs/apple-ui-parity-program/spec.yml` and the matrix in `docs/architecture/apple/parity-matrix.md` before adding one-off native UI tests.
+For broad Apple UI parity work, use the program Plan in `docs/plans/apple-ui-parity-program/plan.yml` and the matrix in `docs/architecture/apple/parity-matrix.md` before adding one-off native UI tests.
 
 For deterministic debugging and parity evidence, start with `python3 scripts/apple_evidence_bundle.py --surface chat` or `--surface all`. This writes a sanitized JSON bundle under `test-results/apple-evidence/`, runs the Linux-safe static parity gates by default, and can opt into remote Mac evidence with `--remote build-ios`, `--remote test-ios --only-testing <target>`, or `--remote startup-ios`.
 

@@ -1,0 +1,135 @@
+schema_version: 1
+specification: feature.chats@2
+
+encryption_boundary:
+  - id: private-chat-durable-row
+    durable_state:
+      contains: [chat_id, message_id, role, status, encrypted_content, encrypted_sender_name]
+      forbidden: [plaintext_content, raw_chat_key, master_key, recovery_private_key, unwrapped_key_material]
+  - id: sealed-recovery-job
+    durable_state:
+      contains: [job_id, chat_id, turn_id, assistant_message_id, chat_key_version, sealed_payload, lease_generation]
+      forbidden: [plaintext_content, raw_chat_key, recovery_private_key, master_key]
+
+identity_idempotency:
+  - id: same-assistant-id-replaces-provisional
+    input: {local_status: streaming, assistant_message_id: assistant-1, incoming_message_id: assistant-1}
+    expect: {terminal_messages: 1, duplicate_messages: 0, final_message_id: assistant-1}
+  - id: already-terminal-recovery-is-handled
+    input: {recovery_job_state: TERMINAL, assistant_message_id: assistant-1}
+    expect: {treated_as_handled: true, duplicate_messages: 0}
+
+recovery_takeover:
+  - id: secondary-client-persists-completion
+    input: {origin_disconnected: true, eligible_secondary_device: true, chat_key_available: true}
+    expect: {encrypted_assistant_rows_written: 1, terminal_acknowledgements: 1, duplicate_messages: 0}
+  - id: synced-local-row-still-acks-job
+    input: {local_status: synced, recovery_job_available: true, assistant_message_id: assistant-1}
+    expect: {terminal_acknowledgements: 1, duplicate_messages: 0}
+
+lease_fencing:
+  - id: delayed-claim-frame-ignored
+    input: {current_request_id: claim-2, delayed_request_id: claim-1, event: recovery_job_claimed}
+    expect: {persist_started_from_delayed_claim: false, current_attempt_continues: true}
+  - id: delayed-persist-frame-ignored
+    input: {current_request_id: persist-2, delayed_request_id: persist-1, event: recovery_job_persisted}
+    expect: {settled_from_delayed_persist: false, current_attempt_continues: true}
+  - id: version-conflict-refreshes-and-retries
+    input: {persist_result: version_conflict, authoritative_messages_v: 3}
+    expect: {job_retained_for_retry: true, next_persist_uses_messages_v: 3}
+  - id: independent-job-progress
+    input: {jobs: [job-blocked, job-available], first_job_waiting: true}
+    expect: {second_job_can_claim_and_persist: true}
+
+pending_completion:
+  - id: provisional-completion-accepted
+    input: {local_status: streaming, message_id: assistant-1, pending_completion: present}
+    expect: {final_status: synced, completion_ack_sent: true, duplicate_messages: 0}
+  - id: already-delivered-completion-reconciled
+    input: {local_status: delivered, message_id: assistant-1, pending_completion: present}
+    expect: {final_status: synced, completion_ack_sent: true, duplicate_messages: 0}
+
+local_state_precedence:
+  - id: waiting-for-user-preserved
+    input: {local_status: waiting_for_user, message_id: assistant-1, incoming_completion: present}
+    expect: {row_replaced: false, completion_ack_sent: false, visible_user_gate_preserved: true}
+  - id: provisional-state-can-complete
+    input: {local_status: processing, message_id: assistant-1, incoming_completion: present}
+    expect: {row_replaced: true, final_status: synced}
+
+key_gated_recovery:
+  - id: wait-for-chat-shell-and-key
+    input: {recovery_job_available: true, chat_shell_present: false, chat_key_available: false}
+    expect: {claim_sent_before_ready: false, job_retryable: true}
+  - id: hydrate-owner-before-claim
+    input: {recovery_job_available: true, chat_shell_user_id_missing: true, chat_key_available: true}
+    expect: {owner_hydrated_before_claim: true, claim_sent_after_ready: true}
+  - id: cold-boot-initial-sync-wins-readiness
+    input: {recovery_job_available_early: true, initial_sync_complete: false}
+    expect: {job_dropped: false, claim_sent_after_sync_ready: true}
+
+conversation_fork:
+  - id: fork-through-first-assistant-message
+    input: {source_messages: [user-1, assistant-1, user-2, assistant-2], boundary_message_id: assistant-1}
+    expect: {fork_messages: [user-1, assistant-1], source_messages_unchanged: true, active_chat_replaced_automatically: false, open_action_available: true}
+
+streaming_delivery:
+  - id: bounded-content-coalescing
+    given: {provider_chunks_arrive_faster_than_delivery: true}
+    expect: {maximum_coalescing_ms: 50, chunk_order_preserved: true, exact_final_content: true, final_flush: true}
+  - id: structural-event-flush
+    given: {pending_content: true, next_event: tool_or_embed_or_error_or_cancellation_or_final_marker}
+    expect: {pending_content_flushed_first: true, structural_event_immediate: true, original_order_preserved: true}
+
+streaming_presentation:
+  - id: successive-content-snapshots-are-visible
+    input: {message_id: assistant-1, snapshots: [First, First-second, First-second-final], terminal_after_last: true}
+    expect: {assistant_rows: 1, visible_snapshots_in_order: [First, First-second, First-second-final], final_content: First-second-final}
+  - id: typing-does-not-create-empty-assistant-row
+    input: {typing_started: true, thinking_content: "", answer_content: "", embeds: []}
+    expect: {typing_status_visible: true, assistant_rows: 0, assistant_avatar_visible: false, assistant_bubble_visible: false}
+
+follow_up_retention:
+  - id: sync-does-not-clear-accepted-follow-ups
+    input: {accepted_suggestions: [Question-one, Question-two], incoming_message_sync_suggestions: []}
+    expect: {visible_suggestions: [Question-one, Question-two]}
+  - id: later-turn-without-follow-ups-does-not-clear-accepted-follow-ups
+    input: {accepted_suggestions: [Question-one, Question-two], later_turn_completed: true, newer_post_processing_suggestions: []}
+    expect: {visible_suggestions: [Question-one, Question-two]}
+  - id: newer-non-empty-follow-ups-replace-older-set
+    input: {accepted_suggestions: [Question-one], newer_post_processing_suggestions: [Question-two]}
+    expect: {visible_suggestions: [Question-two]}
+
+assistant_rendering:
+  - id: streamed-rich-response-converges
+    input:
+      stages: [safe_prose, inline_embed, large_preview, source_quote, result_view, final]
+      app_skill_executions: [skill-old, skill-new]
+    expect:
+      progressive_final_semantics: true
+      app_skill_group: [skill-new, skill-old]
+      authored_block_positions_preserved: true
+      unaffected_content_remounted: false
+      live_final_equals_reopened: true
+  - id: incomplete-protocol-stays-hidden
+    input: {stream_tail: incomplete_internal_embed_or_tool_protocol}
+    expect: {raw_protocol_visible: false, previously_committed_content_visible: true}
+
+inline_entities:
+  - id: embed-inline-link-opens-authored-target
+    input: {markdown: "Read [the source](embed:source-ref#L10-L20).", embed_resolved: true}
+    expect: {display_text: the-source, markdown_position_preserved: true, target_opened: source-ref, focus_lines: [10, 20]}
+  - id: wiki-inline-link-opens-wiki-target
+    input: {markdown: "Compare [Kyoto](wiki:Kyoto) and [Osaka](wiki:Osaka)."}
+    expect: {readable_links: [Kyoto, Osaka], wiki_targets: [Kyoto, Osaka], raw_protocol_visible: false}
+  - id: unresolved-inline-link-keeps-readable-fallback
+    input: {markdown: "Read [the source](embed:missing-ref).", embed_resolved: false}
+    expect: {display_text: the-source, raw_protocol_visible: false, broken_empty_control_visible: false}
+
+responsive_history:
+  - id: compact-phone-history
+    given: {web_viewport: [390, 844], chat_container_width_at_most: 500}
+    expect: {assistant_identity_stacked: true, content_max_width: 1000, horizontal_clipping: false, composer_obscures_latest_content: false}
+  - id: regular-wide-history
+    given: {web_viewport: [1440, 900], chat_container_width_above: 500}
+    expect: {assistant_identity_beside_content: true, content_centered: true, content_max_width: 1000, horizontal_clipping: false}

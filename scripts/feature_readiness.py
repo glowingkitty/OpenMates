@@ -93,10 +93,10 @@ def workflows_readiness() -> list[ReadinessRow]:
             "Record Apple not affected or add native workflow parity evidence.",
         ),
         _row(
-            "spec evidence",
-            _exists("docs/specs/workflows-v1/spec.yml") or _exists("docs/specs/workflows-cli-runtime/spec.yml"),
-            "docs/specs/workflows-*/spec.yml",
-            "Create or update executable workflow spec evidence.",
+            "Plan evidence",
+            _exists("docs/plans/workflows-v1/plan.yml") or _exists("docs/plans/workflows-cli-runtime/plan.yml"),
+            "docs/plans/workflows-*/plan.yml",
+            "Create or update executable workflow Plan evidence.",
         ),
     ]
 

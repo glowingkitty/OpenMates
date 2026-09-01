@@ -1,0 +1,281 @@
+schema_version: 1
+id: feature.ai-model-routing
+version: 1
+status: draft
+title: AI Model Settings And Chat Routing
+summary: >
+  Authenticated users configure one automatic or explicit model for each request
+  tier and may override that routing per chat through a synchronized composer
+  selector, while provider-specific model variants, availability, pricing, and
+  capability remain understandable without exposing provider reasoning controls.
+
+scope:
+  includes:
+    - Three-tier request classification and user defaults for simple, complex, and most-demanding requests.
+    - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
+    - Provider recommendations per tier and provider-independent model capability indicators.
+    - Provider-specific user-facing model variants such as Gemini 3.7 Flash and Gemini 3.7 Flash (High).
+    - Per-user, per-chat exact-model selection, encrypted persistence, cross-device convergence, and restore on chat load.
+    - Composer Auto/model selection, exact-model and alias mention synchronization, and unavailable-model recovery.
+    - Consolidated composer attachment menu and responsive model-selector presentation shown by the approved redesign.
+    - Semantic parity across first-party REST/WebSocket, CLI, SDK, web, and Apple clients where the surface is implemented.
+  excludes:
+    - Adding GPT-5.6 Luna, Terra, Sol, or Sol (Max) provider metadata, which is owned by a separate implementation session.
+    - A universal user-facing reasoning-level control or one reasoning vocabulary imposed across providers.
+    - Automatic mutation of a saved preference merely because rankings or recommendations change.
+    - Image-generation pricing or historical-image billing when no authoritative model metadata defines it.
+    - Exact framework structure, component filenames, DOM structure, raw Figma values, or hardcoded model catalogs in UI code.
+
+models:
+  RequestTier:
+    value:
+      type: enum
+      values: [simple, complex, most_demanding]
+      required: true
+    classification_policy:
+      type: conservative_routing_policy
+      required: true
+      constraints:
+        simple_is_majority: true
+        most_demanding_requires_sustained_multistage_reasoning: true
+        most_demanding_requires_additional_exceptional_factor: true
+        long_prompt_importance_tools_attachments_or_dissatisfaction_alone_insufficient: true
+        uncertainty_resolves_to_complex: true
+
+  TierModelPreference:
+    owner:
+      type: authenticated_user_id
+      required: true
+    tier:
+      type: RequestTier
+      required: true
+    selection:
+      type: exclusive_model_choice
+      required: true
+      constraints: {values: [auto, exact_model], one_value_per_tier: true}
+    default_profiles:
+      type: provider_specific_defaults
+      required: true
+      constraints:
+        simple: {model: google/gemini-3.5-flash-lite, thinking_level: LOW}
+        complex: {model: google/gemini-3.7-flash, thinking_level: MEDIUM}
+        most_demanding: {model: google/gemini-3.7-flash-high, thinking_level: HIGH}
+
+  ModelCatalogEntry:
+    identity:
+      type: stable_model_variant_id
+      required: true
+      constraints: {provider_and_variant_routable: true, display_name_localizable: true}
+    capability:
+      type: enum
+      values: [low, medium, high, max]
+      required: true
+      constraints: {provider_independent_user_guidance: true, not_provider_reasoning_value: true}
+    recommended_tiers:
+      type: array
+      required: true
+      constraints: {values_from: [simple, complex, most_demanding]}
+    provider_reasoning:
+      type: provider_specific_configuration
+      required: false
+      constraints: {not_exposed_as_generic_user_control: true, supported_values_only: true}
+    availability:
+      type: route_health
+      required: true
+      constraints: {requires_at_least_one_usable_route: true, stale_static_ui_catalog_forbidden: true}
+    commercial_details:
+      type: metadata_projection
+      required: true
+      constraints: {pricing_from_authoritative_metadata: true, unsupported_modalities_not_invented: true}
+
+  ProviderTierCatalog:
+    context_tier:
+      type: RequestTier
+      required: true
+      constraints: {visible_in_breadcrumb_heading_and_instruction: true}
+    provider:
+      type: provider_family
+      required: true
+    entries:
+      type: array
+      required: true
+      constraints: {capability_visible_for_each: true, exact_selection_exclusive_globally_for_tier: true}
+    recommendation:
+      type: model_variant_reference
+      required: true
+      constraints: {one_recommended_model_for_context_tier: true, visibly_identified: true}
+
+  ChatModelPreference:
+    subject:
+      type: user_chat_pair
+      required: true
+      constraints: {per_user: true, per_chat: true, not_shared_with_other_participants: true}
+    selection:
+      type: enum_or_model_reference
+      required: true
+      constraints: {values: [auto, exact_model], alias_not_persisted: true}
+    persistence:
+      type: client_encrypted_sync_metadata
+      required: true
+      constraints:
+        local_first: true
+        cross_device_convergent: true
+        durable_server_plaintext_forbidden: true
+        restored_before_composer_selection_is_shown: true
+
+  RoutingDecision:
+    precedence:
+      type: ordered_rules
+      required: true
+      constraints: {values: [chat_exact_model, tier_user_preference, automatic_selection, configured_fallback]}
+    explicit_chat_behavior:
+      type: bypass
+      required: true
+      constraints:
+        skips_request_tier_classification_for_model_routing: true
+        non_model_preprocessing_continues: true
+    automatic_behavior:
+      type: preprocessor_tier_route
+      required: true
+      constraints: {preprocessor_selects_one_of_three_tiers: true, selected_tier_preference_applied: true}
+
+  ComposerModelControl:
+    visible_selection:
+      type: auto_or_exact_model
+      required: true
+      constraints: {always_reachable: true, selected_model_identifiable: true, icon_only_when_space_constrained: true}
+    picker:
+      type: two_stage_model_picker
+      required: true
+      constraints: {auto_available: true, provider_then_model: true, exact_model_help_deep_link: true}
+    mention_synchronization:
+      type: editor_to_selection_resolution
+      required: true
+      constraints:
+        accepted_shortcuts: [exact_model, best, fast]
+        resolves_to_exact_model_before_send: true
+        updates_chat_preference: true
+        removes_redundant_visible_mention: true
+    action_layout:
+      type: responsive_composer_actions
+      required: true
+      constraints:
+        attachment_menu: [drawing, location, files]
+        immediate_actions: [camera, audio, send]
+        keyboard_operable: true
+        horizontal_clipping_forbidden: true
+
+  UnavailableSelection:
+    detection:
+      type: send_and_load_validation
+      required: true
+      constraints: {unavailable_unhealthy_or_no_usable_route: true}
+    recovery:
+      type: user_visible_reset
+      required: true
+      constraints:
+        notification_required: true
+        reset_selection_to_auto: true
+        reset_persisted: true
+        normal_automatic_routing_resumes: true
+
+  AISettingsHierarchy:
+    overview_sections:
+      type: ordered_settings_groups
+      required: true
+      constraints: {values: [default_models, models_and_accounts, response_settings]}
+    routes:
+      type: hierarchical_settings_routes
+      required: true
+      constraints: {values: [overview, tier, provider_tier_catalog, model_detail, response_feature_detail]}
+    composition:
+      type: canonical_settings_component_system
+      required: true
+      constraints:
+        existing_heading_types: true
+        canonical_rows_controls_feedback_and_loading: true
+        raw_figma_component_copy_forbidden: true
+    model_detail:
+      type: model_information_page
+      required: true
+      constraints: {shows: [use_case, capability, pricing, provider_region_availability, example_chats]}
+    response_feature_rows:
+      type: navigable_toggle_rows
+      required: true
+      constraints: {values: [followup_suggestions, quick_tips], detail_explainer_reachable: true}
+
+assertions:
+  - id: ai-model-routing.tiers.conservative-three-way
+    type: behavior
+    must: Automatic model routing classifies each request as simple, complex, or most demanding; most demanding is selected only for sustained multi-stage reasoning plus an exceptional complexity or correctness factor, prompt length, stated importance, tool use, attachments, or dissatisfaction alone never qualify, and uncertainty resolves to complex.
+    depends_on: [models.RequestTier, examples.tier_classification]
+  - id: ai-model-routing.preferences.exclusive-tier-defaults
+    type: invariant
+    must: Each authenticated user has exactly one Auto or exact-model preference for each of the three request tiers, changing one exact model replaces the prior exact model for that tier, and provider recommendations never silently mutate the preference.
+    depends_on: [models.TierModelPreference, models.ProviderTierCatalog, examples.tier_preferences]
+  - id: ai-model-routing.catalog.capability-recommendation-variants
+    type: behavior
+    must: Every selectable model variant exposes one provider-independent low, medium, high, or max capability indicator; every visible provider identifies one recommended eligible model for each request tier; and provider-specific reasoning variants appear as distinct models only when the provider supports a meaningful stable configuration.
+    depends_on: [models.ModelCatalogEntry, models.ProviderTierCatalog, examples.catalog]
+  - id: ai-model-routing.defaults.google-tier-profiles
+    type: behavior
+    must: The initial automatic defaults use Gemini 3.5 Flash-Lite with Google LOW thinking for simple, Gemini 3.7 Flash with Google MEDIUM thinking for complex, and the distinct Gemini 3.7 Flash (High) variant with Google HIGH thinking for most-demanding requests, without exposing those thinking levels as a universal user control.
+    depends_on: [models.TierModelPreference.default_profiles, models.ModelCatalogEntry.provider_reasoning, examples.catalog]
+  - id: ai-model-routing.chat-selection.encrypted-user-chat-scope
+    type: privacy
+    must: An exact composer model choice or Auto is stored per authenticated user and chat, is client-side encrypted before durable sync, converges across that user's devices, is restored before the composer presents its selection, and never changes another chat participant's selection.
+    depends_on: [models.ChatModelPreference, examples.chat_selection]
+  - id: ai-model-routing.precedence.chat-over-tier-over-auto
+    type: invariant
+    must: A chat-scoped exact model bypasses request-tier classification for model routing while unrelated preprocessing continues; otherwise the preprocessor chooses one of three tiers, applies that tier's user preference, and only then uses automatic and configured fallback selection.
+    depends_on: [models.RoutingDecision, models.TierModelPreference, examples.routing]
+  - id: ai-model-routing.composer.mention-to-exact-selection
+    type: behavior
+    must: Selecting or typing an exact model, @best, or @fast resolves to one concrete routable model before send, updates and visibly identifies the chat-scoped selector, removes the redundant model mention from editable message text, and persists the exact model rather than a symbolic alias.
+    depends_on: [models.ComposerModelControl, models.ChatModelPreference, examples.mentions]
+  - id: ai-model-routing.unavailable.notify-reset-auto
+    type: failure
+    must: If a saved exact model is unavailable, unhealthy, or has no usable route when loaded or sent, the client visibly notifies the user, resets and synchronizes that selection to Auto, and resumes normal three-tier automatic routing rather than silently retaining or substituting the unavailable exact selection.
+    depends_on: [models.UnavailableSelection, models.RoutingDecision, examples.unavailable]
+  - id: ai-model-routing.settings.hierarchy-canonical
+    type: behavior
+    must: AI settings use canonical OpenMates settings headings, groups, rows, controls, loading, and feedback states to provide an overview, tier-specific selection, provider models in tier context, model details, and response-feature explainers without requiring Figma access to reconstruct the hierarchy.
+    depends_on: [models.AISettingsHierarchy, models.ProviderTierCatalog, examples.settings_hierarchy]
+  - id: ai-model-routing.composer.responsive-actions
+    type: parity
+    must: The composer keeps Auto or the exact selected model directly reachable, collapses the model name to an accessible icon when width is constrained, groups Drawing, Location, and Files behind the attachment menu, keeps camera, audio, and send directly reachable, and avoids clipping or state loss across compact and regular layouts.
+    depends_on: [models.ComposerModelControl, examples.composer_layout]
+  - id: ai-model-routing.surface.semantic-parity
+    type: parity
+    must: First-party REST and WebSocket contracts, CLI, npm SDK, pip SDK, web, and Apple preserve the same tier preferences, explicit-selection precedence, exact alias resolution, unavailable-model recovery, authorization, and user/chat scoping wherever those capabilities are exposed.
+    depends_on: [models, examples, applies_to]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated first-party settings and chat/WebSocket contracts persist owner-scoped tier preferences and transient decrypted routing choices while durable chat selection metadata remains client-encrypted.
+  cli:
+    required: true
+    parity: semantic
+    role: CLI exposes equivalent tier-default and chat exact-model routing outcomes without graphical settings or composer chrome.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions:
+      - id: platform-native-picker-chrome
+        implementation: gui.apple
+        reason: Apple may use native menus and attachment pickers rather than web popovers.
+        equivalent_outcome: Auto and exact model selection, tier context, help navigation, attachment reachability, encrypted persistence, and recovery semantics remain equivalent.
+
+examples:
+  file: examples.yml
+  required_groups: [tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]

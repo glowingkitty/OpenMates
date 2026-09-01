@@ -1,0 +1,99 @@
+schema_version: 1
+id: feature.account-import
+version: 1
+status: draft
+title: Account Import
+summary: >
+  Authenticated users can import supported chat exports through an explicit
+  source-aware preview and confirmation flow that safety-scans plaintext only
+  transiently and permanently stores client-encrypted OpenMates records.
+
+scope:
+  includes:
+    - Importing supported Claude, ChatGPT, OpenCode, OpenMates, Gemini, and generic transcript exports.
+    - Explicit source selection, local parsing, preview, confirmation, completion results, and imported-chat cleanup.
+    - Shared scan, client-encryption, encrypted-persistence, dedupe, limit, and billing semantics across first-party clients and SDKs.
+  excludes:
+    - Full-account restore of projects, tasks, plans, workflows, memories, or settings.
+    - Browser extensions and raw third-party provider APIs.
+    - Merging imported content into or overwriting an existing chat.
+
+models:
+  ImportSourceSelection:
+    supported_sources:
+      type: array
+      required: true
+      constraints: {values: [openmates, chatgpt, claude, gemini, opencode, other]}
+    upload_requires_source:
+      type: boolean
+      required: true
+      constraints: {value: true}
+    source_identity_independent_from_parser:
+      type: boolean
+      required: true
+      constraints: {value: true}
+
+  ImportReview:
+    local_parse:
+      type: behavior
+      required: true
+    preview:
+      type: behavior
+      required: true
+      constraints: {shows_selected_chats: true, shows_message_counts: true, explicit_confirmation: true}
+    completion:
+      type: behavior
+      required: true
+      constraints: {itemized_results: true, failed_items_not_reported_as_success: true}
+
+  ImportPersistence:
+    plaintext_handling:
+      type: boundary
+      required: true
+      constraints: {transient_safety_scan_only: true, durable_plaintext_storage: false}
+    permanent_records:
+      type: boundary
+      required: true
+      constraints: {client_encrypted: true, creates_new_chats: true, merge_or_overwrite: false}
+    imported_roles:
+      type: behavior
+      required: true
+      constraints: {selected_provider_identity_encrypted: true, user_and_system_roles_preserved: true}
+
+assertions:
+  - id: account-import.source.explicit-selection
+    type: behavior
+    must: Import requires selecting OpenMates, ChatGPT, Claude, Gemini, OpenCode, or Other before file upload; selected provider identity remains independent from parser-format validation and controls imported assistant presentation.
+    depends_on: [models.ImportSourceSelection, examples.source_selection]
+  - id: account-import.review.confirmed-results
+    type: behavior
+    must: Import parses supported files locally where feasible, previews the discovered chats and message counts before an explicit import action, and reports itemized completion without presenting failed items as successful.
+    depends_on: [models.ImportReview, examples.review_and_results]
+  - id: account-import.persistence.client-encrypted
+    type: privacy
+    must: Selected plaintext is safety-scanned only transiently; permanent chat, message, imported-provider, embed, and referenced-upload fields are encrypted by the client, imported content creates new chats, and existing chats are never merged or overwritten.
+    depends_on: [models.ImportPersistence, examples.encrypted_persistence]
+
+applies_to:
+  rest_api:
+    required: true
+    role: First-party import control-plane endpoints accept transient scan input and client-encrypted persistence payloads; they expose no durable plaintext persistence shortcut.
+  cli:
+    required: true
+    role: CLI performs local parsing, confirmation, client encryption, and the shared import protocol.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [source_selection, review_and_results, encrypted_persistence]

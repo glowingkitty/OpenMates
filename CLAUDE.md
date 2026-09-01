@@ -41,8 +41,8 @@ OpenMates/
 
 ## Contract-Driven Development
 
-- Approved bundles under `contracts/` define durable product truth. New features use `define-contract` before full specs or implementation.
-- Contract edits stay in the session worktree and require exact user approval: quote the full new `contract.yml` or every explicit existing bundle change, then record the approved bundle hash. Later edits invalidate approval and deploy blocks.
+- Approved bundles under `specifications/` define durable truth. New reusable behavior uses `define-specification` before a Plan or implementation.
+- Specification edits stay in the session worktree and require exact user approval through the generated approval PDF, then record the approved bundle hash. Later edits invalidate approval and deploy blocks.
 - Full specs remain complete implementation/evidence ledgers. New or changed behavioral tests link stable contract assertions and surfaces; touched unmapped tests trigger backfill.
 - Reference contracts from specs, tests, commits, and releases, not product source headers.
 
@@ -97,7 +97,7 @@ For each observed preventable process problem or inefficiency, check the relevan
 - Use this only for intentionally shareable screenshots, diagrams, synthetic test media, or demo clips. Do not upload secrets, private user data, raw logs, production evidence, or anything that must remain available after 48 hours.
 - External video playback in OpenCode Web requires the `code.dev.openmates.org` CSP to allow `media-src https:`; if video controls render but playback fails, verify Caddy applied `deployment/dev_server/Caddyfile`.
 - When a screenshot or short clip materially helps explain a visual UI state, bug fix, visual-smoke result, proof-video, or implementation defect, include the uploaded media directly in the chat response instead of only naming an artifact path.
-- Before asking the user to approve a new or modified Contract, run `python3 scripts/sessions.py contract approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD` and paste the returned PDF Markdown link in the same response. This canonical wrapper runs the current `scripts/contract_approval_pdf.py` tooling against the routed session worktree. The exact-fingerprint PDF must show the complete Contract and examples with changed-text-only diffs: inline green `+` insertions, inline red `-` deletions, and neutral unchanged text. After explicit approval, pass the generated JSON review artifact to `scripts/contracts.py approve --review-artifact <path>` so the receipt cannot bind a different fingerprint or PDF. Never request or record Contract approval from a fingerprint or summary alone; repair PDF generation or upload first if it fails.
+- Before asking the user to approve a new or modified Specification, run `python3 scripts/sessions.py specification approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD` and paste the returned PDF Markdown link in the same response. This canonical wrapper runs `scripts/specification_approval_pdf.py` against the routed session worktree. The exact-fingerprint PDF must show the complete Specification and examples with changed-text-only diffs: inline green `+` insertions, inline red `-` deletions, and neutral unchanged text. After explicit approval, pass the generated JSON review artifact to `scripts/specifications.py approve --review-artifact <path>` so the receipt cannot bind a different fingerprint or PDF. Never request or record Specification approval from a fingerprint or summary alone; repair PDF generation or upload first if it fails.
 
 ---
 

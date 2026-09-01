@@ -39,7 +39,7 @@ python3 scripts/sessions.py end --session <ID>
 - **Deploy locks are atomic and short-lived:** `python3 scripts/sessions.py deploy` acquires the dev deploy push lock for root integration, commit, and push, then releases it immediately after push. Do not run a separate `wait-lock` before normal deploys; use it only for diagnostics/manual inspection. Vercel and test verification must be commit-scoped with `--expected-commit`, not protected by a long-lived global lock.
 - **Forgotten mutating chats are recoverable by default:** idle or closed top-level OpenCode chats create a local checkpoint ref. After the grace period, the hourly controller may integrate only the unchanged checkpoint through the normal deploy gates. Explicit holds, live edits, sensitive paths, changed patches, conflicts, and failed gates remain visible; question chats, children, legacy state, and uncheckpointed work are never implicit auto-integration inputs.
 - **Execution and workspace state are separate:** OpenCode presence reports whether a chat is busy, idle, stopped, or closed. Durable session metadata independently reports whether its worktree is clean, checkpointed, integrating, integrated, held, or needs recovery.
-- **Active executable specs are non-interruptible:** When the current work has an active `docs/specs/<slug>/spec.yml`, do not stop, summarize, or defer because the task is large, the turn is long, tests fail, the worktree is concurrent, or context is tight. Continue the smallest actionable task, compact if needed, and use the durable handoff to resume. A success final response is allowed only after `python3 scripts/spec_verify.py <spec> --phase complete --json` reports `complete: true` and every proof publication's delivered `snippet_html` is pasted verbatim into that same response. A blocker response is allowed only after the current task records a structured `handoff.blocker` with `task_id`, `requires_user_input: true`, `reason`, `question`, and `next_action`. Future-task gates never block the current task.
+- **Active Plans are non-interruptible:** When the current work has an active `docs/plans/<slug>/plan.yml`, do not stop, summarize, or defer because the task is large, the turn is long, tests fail, the worktree is concurrent, or context is tight. Continue the smallest actionable Task, compact if needed, and use the durable handoff to resume. A success final response is allowed only after `python3 scripts/plan_verify.py <plan> --phase complete --json` reports `complete: true` and every proof publication's delivered `snippet_html` is pasted verbatim into that same response. A blocker response is allowed only after the current Task records a structured `handoff.blocker` with `task_id`, `requires_user_input: true`, `reason`, `question`, and `next_action`. Future-task gates never block the current Task.
 - **File waits are not user blockers:** Temporary lock, deploy, Vercel, or test-dispatch waits are execution state, not a reason to stop unless the current task records a structured user-input blocker.
 - If deploy fails due to a **pre-existing hook bug**, use `sessions.py deploy --no-verify`.
 - **Concurrent sessions:** `modified_files` means a session touched a file; it is not ownership. OpenCode execute edits automatically acquire short-lived `edit-lease` records for exact files and block overlapping edits while the lease is live. Re-read before editing and proceed unless another session has a current `WRITING` claim or `edit-lease` on that exact file. Treat short session IDs as diagnostic only: check status, work on non-conflicting files, or retry after release. Do not ask the user to interpret IDs or choose an ownership boundary unless all useful progress is blocked. Manage the dev Docker lifecycle only with `openmates server start|stop|restart|update|status|logs|verify`; direct mutating `docker compose` commands are blocked. Acquire the `sessions.py` Docker lock before lifecycle mutations and release it immediately afterward. Use `openmates server restart --services ...` for scoped restarts and `openmates server restart --rebuild --services ...` when local source images must be rebuilt.
@@ -73,7 +73,7 @@ python3 scripts/sessions.py spawn-chat --prompt-file prompt.txt --name "fix-task
 
 ## Multi-Session Tasks
 
-For inline-spec or non-spec tasks spanning >1 session or touching >3 files:
+For inline-Specification or work without a Plan spanning >1 session or touching >3 files:
 ```bash
 python3 scripts/sessions.py task-create --session <ID> --title "..." --context "..."
 python3 scripts/sessions.py task-step --id t001 --add "[ ] Step one"
@@ -82,8 +82,8 @@ python3 scripts/sessions.py task-ac --id t001 --add "[ ] Acceptance criterion"
 # Complete: sessions.py task-update --id t001 --status done --summary "..."
 ```
 
-For full-spec work, `docs/specs/<slug>/spec.yml` is the only durable plan, task,
-evidence, and handoff ledger. Do not create a session task file that duplicates
-its scenarios, acceptance criteria, tasks, or status. Start a session with the
-spec path in `--task`, then update the spec handoff before and after non-trivial
-actions.
+For Plan work, `docs/plans/<slug>/plan.yml` is the durable Plan, Task, Check,
+Run-evidence, and handoff ledger. A Plan requires only a user-authored goal;
+optional fields never become implicit completion gates. Do not create a session
+task file that duplicates explicit Plan Tasks or status. Start a session with the
+Plan path in `--task`, then update its handoff before and after non-trivial actions.

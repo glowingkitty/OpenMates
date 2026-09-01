@@ -1,0 +1,501 @@
+schema_version: 3
+id: progressive-chat-opening
+title: Progressive Local-First Chat Opening
+status: implementing
+
+specification_refs:
+  - id: feature.chat-navigation
+    version: 2
+    role: primary
+    fingerprint: 6491efd839b237c6a26a5b75d15c4540d29b2b5d4cd59ca65a24a55eb7aa2b7a
+  - id: architecture.sync
+    version: 1
+    role: inherited
+    fingerprint: 3b0204824a9c59a247d19c930ad8edd08b29605f7f8a34dd111bfc4407e5d694
+  - id: feature.chats
+    version: 2
+    role: inherited
+    fingerprint: 13d258a587aad182838e9f6eef2e09ae6a4a7f9f51dd6f7fbb8ec59c26ba336b
+
+specification_impact:
+  classification: semantic_change
+  specification_update_required: true
+  affected_assertions:
+    - chat-navigation.open.local-first-coherent
+    - sync.startup.bounded-phases
+    - chats.persistence.client-encrypted
+    - chats.message.identity-idempotent
+  reason: >
+    The approved chat-navigation amendment makes a selected chat shell and valid
+    local encrypted window non-blocking while preserving optional server repair,
+    client-side decryption, ordering, and deduplication.
+
+documentation_impact:
+  generated_reference:
+    status: regenerate
+    reason: Contract registries were regenerated for feature.chat-navigation@2.
+    documents:
+      - specifications/generated/registry.yml
+      - specifications/generated/assertion-index.yml
+      - specifications/generated/coverage.yml
+  user_docs:
+    status: unchanged
+    reason: This fixes existing chat-opening behavior without changing user instructions.
+    documents: []
+  semantic_layer:
+    status: update_required
+    reason: The durable chat-navigation contract now defines coherent local-first opening.
+    documents:
+      - specifications/features/chat-navigation/specification.yml
+      - specifications/features/chat-navigation/examples.yml
+
+goal: >
+  Make opening a saved chat feel immediate and coherent: commit the selected
+  chat shell, cached header, and bounded locally encrypted message window before
+  optional remote completeness repair, without ever mixing the workspace welcome
+  surface or previous-chat plaintext with the selected chat.
+
+scope:
+  in:
+    - Authenticated web navigation to a locally known saved chat from welcome, another chat, or a chat-id deep link.
+    - Immediate target-chat shell selection and welcome-surface removal.
+    - Local IndexedDB message-window decryption before optional bounded server repair.
+    - Background repair with existing generation, ordering, and deduplication guards.
+    - Target-specific loading and error behavior when local content or keys are unavailable.
+    - Deployed Playwright coverage with the sidebar closed and delayed real window requests.
+  out:
+    - Backend message-window API changes.
+    - New plaintext caches or durable decrypted chat content.
+    - Full chat-sync or IndexedDB schema redesign.
+    - Changes to anonymous, incognito, public example, or shared-recipient chat loading unless regression fixes are required.
+    - Apple product-code changes unless native verification finds a contract mismatch.
+
+context_discovery:
+  issue:
+    - Dev issue R5L8Q reports a slow chat open with selected-chat and workspace-welcome surfaces visible together.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/long-chat-compression-history/plan.yml
+    - docs/plans/apple-live-chat-accessibility-fixes/plan.yml
+    - docs/architecture/data/sync.md
+  contracts:
+    - feature.chat-navigation@2 approved in session ae23 with fingerprint dff658bb7a42d4abb73795b3bc492cb653c12a1c871beb562166bcde304fc4f0.
+    - architecture.sync@1 preserves bounded Phase 1 metadata and encrypted content sync.
+    - feature.chats@1 preserves client ciphertext, stable identities, and deduplication.
+  code_patterns:
+    - frontend/packages/ui/src/components/ActiveChat.svelte assigns currentChat before awaited decryption and remote repair, then reconciles showWelcome at load completion.
+    - frontend/apps/web_app/src/routes/+page.svelte waits for full phased sync for authenticated deep links even when local metadata exists.
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts keeps recent decrypted header metadata in Phase 1 state and persists recent encrypted messages to IndexedDB.
+    - frontend/packages/ui/src/services/db/messageOperations.ts decrypts bounded IndexedDB windows into returned UI copies.
+  tests:
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/packages/ui/src/services/db/__tests__/messageWindowOperations.test.ts
+
+apple_impact:
+  affected_files:
+    - none expected
+  parity_expectations:
+    - Apple chat navigation must continue showing a selected-chat loading or ready surface rather than stale prior content when a local window is unavailable.
+    - This web-only state race must not introduce a backend or encryption contract change for Apple.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - Review existing Apple chat-loading contract coverage; run a targeted build or test only if shared behavior changed.
+  intentional_native_differences:
+    - Apple uses native ChatView loading states and does not share ActiveChat.svelte or the web welcome surface.
+
+clarification:
+  rounds:
+    - question: Should recent chats block on server completeness repair before rendering?
+      answer: No. Render cached header and local history first, then repair asynchronously.
+    - question: What should appear when local history is not ready?
+      answer: Show the selected chat header and a target-specific loading transcript, never the workspace landing page.
+  vision_summary: >
+    Recent chats should open from local encrypted state without a network-gated
+    transition. Missing or stale local history may repair in the background, but
+    all intermediate states must belong exclusively to the selected chat.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-16T15:13:47Z"
+    reason: User explicitly approved feature.chat-navigation@2 after reviewing the exact assertion and examples.
+  plan:
+    status: approved
+    approved_at: "2026-08-16T15:13:47Z"
+    reason: User approved the investigation plan and instructed implementation to proceed; no additional architecture or privacy decision is introduced.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Preserve remote completeness repair but remove it from the first-paint critical path when a valid local window exists.
+    reason: The repair closes a real cross-device stale-window race, while awaiting it causes the reported broken transition.
+    decided_at: "2026-08-16T15:13:47Z"
+  - id: D-2
+    status: active
+    decision: Commit a target-specific shell immediately and never retain welcome or previous-chat plaintext after selection.
+    reason: A coherent shell is safe and useful even while keys or messages are still loading.
+    decided_at: "2026-08-16T15:13:47Z"
+  - id: D-3
+    status: active
+    decision: Keep decrypted messages bounded to active UI memory and persist only ciphertext in IndexedDB.
+    reason: Faster opening must not weaken the existing client-side encryption boundary.
+    decided_at: "2026-08-16T15:13:47Z"
+
+scenarios:
+  - id: S-1
+    title: Warm recent chat opens before delayed repair
+    given:
+      - Alice is authenticated on the web app with the sidebar closed.
+      - A saved chat has decrypted recent metadata, a usable local key, and a short encrypted IndexedDB window.
+      - The bounded server window response is delayed.
+    when:
+      - Alice opens that chat from the workspace welcome surface.
+    then:
+      - The selected-chat shell replaces welcome immediately.
+      - Cached header metadata and locally decrypted messages render before the delayed response.
+      - Background repair may merge newer messages without duplicates or ordering changes.
+  - id: S-2
+    title: Cold local history keeps a coherent target shell
+    given:
+      - Alice selects a saved chat whose metadata is known but whose local message window is empty or not yet decrypted.
+    when:
+      - OpenMates requests bounded content hydration.
+    then:
+      - The selected chat header and transcript loading state remain visible.
+      - Welcome content, previous-chat messages, and ciphertext remain hidden.
+      - A failed repair produces a visible target-specific retry or error state.
+  - id: S-3
+    title: Rapid navigation rejects stale completion
+    given:
+      - Alice opens chat A and its local or remote hydration remains pending.
+    when:
+      - Alice selects chat B before chat A finishes.
+    then:
+      - Chat B remains the only visible chat surface.
+      - Stale chat A header, messages, repair, and welcome reconciliation cannot commit into chat B.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A locally cached short chat removes welcome and renders its valid local header and bounded message window before a delayed real server-window response completes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-PROGRESSIVE-OPEN]
+    specification_assertions: [chat-navigation.open.local-first-coherent]
+  - id: AC-2
+    scenario: S-2
+    text: Missing local content or keys show only a selected-chat loading, retry, or error surface and never welcome, stale previous-chat plaintext, or ciphertext.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-PROGRESSIVE-OPEN, V-UI-VISUAL-SMOKE]
+    specification_assertions: [chat-navigation.open.local-first-coherent, chats.persistence.client-encrypted]
+  - id: AC-3
+    scenario: S-3
+    text: A stale local or remote completion for chat A cannot overwrite selected chat B, duplicate messages, or regress chronological ordering.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-PROGRESSIVE-OPEN, T-WEB-MESSAGE-SYNC]
+    specification_assertions: [chat-navigation.open.local-first-coherent, chats.message.identity-idempotent]
+
+assumptions:
+  - id: A-1
+    text: Phase 1 and the chat list cache already provide enough encrypted chat metadata to commit a target shell before full phased sync.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+        summary: Phase 1a persists recent chat shells, decrypts recent headers, and stores them in phased sync state.
+      - source: frontend/packages/ui/src/services/chatListCache.ts
+        summary: Pending and cached chat metadata are addressable by chat id without mounting the sidebar.
+  - id: A-2
+    text: Existing message persistence and generation guards can safely merge an asynchronous repaired window after local paint.
+    category: reliability
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/ActiveChat.svelte
+        summary: loadChatGeneration rejects stale completions and message merge paths preserve in-flight identities.
+      - source: frontend/packages/ui/src/services/db/messageOperations.ts
+        summary: Bounded local reads preserve stable message IDs and created-at ordering.
+
+contracts:
+  api:
+    changed: false
+    access_model: first-party client surface only
+    auth: Existing authenticated owner session for GET /v1/chats/{chat_id}/messages/window.
+    rate_limits: Existing bounded message-window route limits apply.
+    credit_budget: No OpenMates credits or AI budget consumption.
+    encryption_boundary: Existing route returns client-encrypted message material only; decryption remains client-side.
+  ui:
+    selected_chat_shell: Visible immediately after selection, with welcome and prior-chat content removed.
+    local_ready: Decrypted cached header and bounded local messages render without waiting for remote repair.
+    repairing: Existing local content remains interactive while repair is pending.
+    error: Target-specific retry or error state; no ciphertext or stale plaintext.
+  privacy_security:
+    - Do not add durable plaintext caches.
+    - Do not log decrypted titles, message content, keys, or ciphertext payloads.
+    - Keep generation guards around every asynchronous UI commit.
+
+tests:
+  - id: T-WEB-PROGRESSIVE-OPEN
+    type: playwright
+    file: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3]
+    specification_assertions: [chat-navigation.open.local-first-coherent, sync.startup.bounded-phases, chats.persistence.client-encrypted, chats.message.identity-idempotent]
+    assertions:
+      - Select a locally cached short chat while delaying its real bounded-window request.
+      - Welcome disappears and the selected chat shell/local count becomes visible before the delayed request completes.
+      - Cold local history remains target-specific while hydration is pending.
+      - Rapid A-to-B selection rejects stale A completion and preserves unique ordered B messages.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec startup-sync-contract.spec.ts --gate-deploy --expected-commit 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646", run_id: "31959715689", subject_commit: "106b79999d6f45eaa5b1e03fd635ba0f8cfb2646", target: app.dev.openmates.org, timestamp: "2026-08-16T16:51:03Z", summary: "The delayed real bounded-window response kept welcome-content visible after the short cached chat was selected, reproducing R5L8Q."}}
+    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {}}
+  - id: T-WEB-MESSAGE-SYNC
+    type: playwright
+    file: frontend/apps/web_app/tests/message-sync.spec.ts
+    command: python3 scripts/tests.py run --spec message-sync.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-3]
+    specification_assertions: [chats.message.identity-idempotent]
+    assertions:
+      - Existing multi-message persistence and reopen behavior remains ordered and duplicate-free.
+    red_phase: {required: false, expected: existing_regression_coverage, status: not_required, evidence: {reason: Existing adjacent regression coverage.}}
+    green_phase: {required: true, expected: pass_after_deploy, status: pending, evidence: {}}
+
+verifications:
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-2]
+    status: pending
+    routes: [https://app.dev.openmates.org/]
+    viewports: [laptop, mobile]
+    method: playwright
+    assertions:
+      - No welcome/chat overlap, stale content, clipping, error text, or long loading state.
+      - Primary chat navigation remains responsive with the sidebar closed.
+    evidence: {status: pending, method: playwright, run_id: "", subject_commit: "", screenshots: [], summary: "", timestamp: ""}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3]
+    status: pending
+    evidence: {status: pending, actor: user, summary: "", timestamp: "", next_action: Ask the user to confirm deployed web behavior and visuals before Apple parity.}
+  - id: V-APPLE-IMPACT
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-2, AC-3]
+    status: pending
+    command: python3 scripts/apple_remote.py status
+    evidence: {status: pending, command: "python3 scripts/apple_remote.py status", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+
+implementation_notes:
+  spec: docs/plans/progressive-chat-opening/plan.yml
+  plan_path: docs/plans/progressive-chat-opening/plan.yml
+  contract_classification: semantic_change
+  permanent_assertions: [chat-navigation.open.local-first-coherent, sync.startup.bounded-phases, chats.persistence.client-encrypted, chats.message.identity-idempotent]
+  existing_patterns:
+    - ActiveChat.loadChatGeneration already rejects stale asynchronous chat loads.
+    - ChatKeyManager and chatDB already unwrap keys and decrypt bounded IndexedDB windows client-side.
+    - fetchAuthenticatedMessageWindow already persists and rereads encrypted bounded server repair results.
+    - phasedSyncState and chatListCache already expose locally known recent chat shells before full sync completes.
+  phase_order:
+    - Browser-only Svelte state transition; REST, CLI, and SDK implementation gates are not applicable because no endpoint or shared programmable behavior changes.
+    - Add and deploy the Playwright regression, then record the expected red result against current dev.
+    - Implement the web local-first state transition and asynchronous repair.
+    - Deploy and run Playwright green evidence, adjacent message sync, and reviewed laptop/mobile visual smoke.
+    - Request user confirmation, then complete Apple impact review last.
+  architecture: >
+    Keep the existing encrypted IndexedDB and bounded server-window architecture,
+    but split selected-chat shell commitment, local decryption, and optional
+    remote repair into ordered UI stages guarded by the existing load generation.
+  architecture_steps:
+    - At load generation start, commit the target chat identity and hide welcome before awaited work.
+    - Clear previous-chat messages on a real chat switch; keep same-chat in-flight preservation unchanged.
+    - Publish the local bounded window as soon as decryption completes.
+    - Run short-window completeness repair asynchronously after local publication and guard every merge with generation plus chat id.
+    - For metadata-known deep links, use local cache/IndexedDB after crypto readiness instead of full phased-sync completion; retain the sync waiter when no local shell exists.
+  data_flow:
+    - Alice selects chat-b while welcome is visible.
+    - ActiveChat commits chat-b shell and showWelcome=false.
+    - The client unwraps chat-b key locally and decrypts its bounded IndexedDB window.
+    - Four local messages render while GET /v1/chats/chat-b/messages/window remains delayed.
+    - Repair persists ciphertext, rereads the bounded window, and merges only if chat-b is still the current generation.
+  affected_files:
+    - path: frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+      reason: Add the failing delayed-repair and coherent-shell contract assertions.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Commit target shell/local window before optional asynchronous repair.
+    - path: frontend/apps/web_app/src/routes/+page.svelte
+      reason: Avoid full-sync gating for a locally known authenticated deep link if required by the red test.
+    - path: specifications/features/chat-navigation/specification.yml
+      reason: Durable approved behavior assertion.
+    - path: specifications/features/chat-navigation/examples.yml
+      reason: Concrete warm, cold, stale, and failure examples.
+  migrations: none
+  observability:
+    - Add stage timing without decrypted metadata or message content only if the regression cannot diagnose local-ready versus repair-ready transitions.
+    - Remove existing decrypted-title debug logging encountered in the touched load path.
+  verification:
+    - python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+    - python3 scripts/tests.py run --spec message-sync.spec.ts
+    - python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/ --session ae23
+    - python3 scripts/apple_remote.py status
+  verification_strategy:
+    - Record a deployed Playwright red failure while the real bounded-window request is deliberately delayed.
+    - Deploy the source fix and require the same startup-sync spec to pass for the exact commit.
+    - Run adjacent message-sync coverage, then inspect laptop and mobile visual-smoke screenshots.
+    - Obtain user confirmation before the final Apple impact review.
+  verification_order: [T-WEB-PROGRESSIVE-OPEN, T-WEB-MESSAGE-SYNC, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION, V-APPLE-IMPACT]
+  documentation: Generated contract indexes only; no user-doc change.
+  risks:
+    - Publishing a stale local window without repair could hide cross-device messages; repair remains mandatory when current predicates detect uncertainty.
+    - Clearing state too broadly could break same-chat streaming preservation; distinguish real chat switches from same-chat reloads.
+    - A stale asynchronous repair could cross chat boundaries; generation and chat-id checks are mandatory.
+  open_questions: []
+  separate_technical_approval_required: false
+  first_slice: Add the deployed delayed-window red regression before product code.
+
+tasks:
+  - id: T-1
+    title: Reproduce incoherent delayed-repair opening
+    phase: working_tasks
+    status: done
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    specification_assertions: [chat-navigation.open.local-first-coherent]
+    surface: gui.web
+    expected_files: [frontend/apps/web_app/tests/startup-sync-contract.spec.ts]
+    verification_ids: [T-WEB-PROGRESSIVE-OPEN]
+    command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+    dependencies: []
+    follow_up_tasks: [T-2]
+    ownership: {session: ae23, files: [frontend/apps/web_app/tests/startup-sync-contract.spec.ts], shared_files: []}
+    independently_deployable: true
+    blockers: []
+  - id: T-2
+    title: Commit local-first target shell and background repair
+    phase: working_tasks
+    status: in_progress
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    specification_assertions: [chat-navigation.open.local-first-coherent, chats.persistence.client-encrypted, chats.message.identity-idempotent]
+    surface: gui.web
+    expected_files: [frontend/packages/ui/src/components/ActiveChat.svelte, frontend/apps/web_app/src/routes/+page.svelte]
+    verification_ids: [T-WEB-PROGRESSIVE-OPEN]
+    command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+    dependencies: [T-1]
+    follow_up_tasks: [T-3]
+    ownership: {session: ae23, files: [frontend/packages/ui/src/components/ActiveChat.svelte, frontend/apps/web_app/src/routes/+page.svelte], shared_files: []}
+    independently_deployable: true
+    blockers: []
+  - id: T-3
+    title: Verify deployed chat opening and adjacent sync
+    phase: running_checks
+    status: pending
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    specification_assertions: [chat-navigation.open.local-first-coherent, chats.message.identity-idempotent]
+    surface: gui.web
+    expected_files: [frontend/apps/web_app/tests/startup-sync-contract.spec.ts, frontend/apps/web_app/tests/message-sync.spec.ts]
+    verification_ids: [T-WEB-PROGRESSIVE-OPEN, T-WEB-MESSAGE-SYNC, V-UI-VISUAL-SMOKE]
+    command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+    dependencies: [T-2]
+    follow_up_tasks: [T-4]
+    ownership: {session: ae23, files: [frontend/apps/web_app/tests/startup-sync-contract.spec.ts, frontend/apps/web_app/tests/message-sync.spec.ts], shared_files: []}
+    independently_deployable: false
+    blockers: []
+  - id: T-4
+    title: Confirm web behavior and review Apple impact
+    phase: awaiting_approval
+    status: pending
+    covers:
+      scenarios: [S-1, S-2, S-3]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    specification_assertions: [chat-navigation.open.local-first-coherent]
+    surface: gui.apple
+    expected_files: [docs/plans/progressive-chat-opening/plan.yml]
+    verification_ids: [V-USER-CONFIRMATION, V-APPLE-IMPACT]
+    command: python3 scripts/apple_remote.py status
+    dependencies: [T-3]
+    follow_up_tasks: []
+    ownership: {session: ae23, files: [docs/plans/progressive-chat-opening/plan.yml], shared_files: []}
+    independently_deployable: false
+    blockers: []
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: The fix changes a user-visible browser transition and must prove that welcome and selected-chat surfaces never overlap.
+    classified_at: "2026-08-16T15:13:47Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show that selecting a recent chat immediately replaces the workspace welcome surface.
+      expected_proof: The target header and chat shell appear without overlap.
+      scenario_ids: [S-1]
+      acceptance_criteria: [AC-1]
+    - id: NARR-2
+      purpose: Show progressive local history followed by seamless background repair.
+      expected_proof: Local messages remain stable and no duplicate or broken transition appears.
+      scenario_ids: [S-1, S-3]
+      acceptance_criteria: [AC-1, AC-3]
+  evidence:
+    status: pending
+    privacy_status: pending
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+    source: passing deployed startup-sync-contract.spec.ts recording
+    device_profiles: [web_phone_390x844, web_laptop_1440x900]
+    captions: Exact device-scoped WebVTT written only after normal green gates.
+    full_video_in_model_context: forbidden
+    frame_sampling: Bounded canonical frame-only review.
+    pii_replacement: disabled_for_proof_workflow
+    publication: Upload approved video and captions through scripts/opencode_response_media.py.
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: T-2
+    approach: Remove the small-window server recheck entirely.
+    outcome: rejected
+    recorded_at: "2026-08-16T15:13:47Z"
+    evidence: The recheck closes a real cross-device stale-window race introduced by stale local messages_v and IndexedDB state.
+  - id: ATTEMPT-2
+    task_id: T-1
+    approach: Hold route.continue behind a test gate and unroute immediately after release.
+    outcome: blocked
+    recorded_at: "2026-08-16T15:48:04Z"
+    evidence: Run 31956558622 failed with Route is already handled because active route teardown raced the resumed continue call; the test now fetches the real response and fulfills it once after the gate.
+
+handoff:
+  current_task_id: T-2
+  next_action: Commit the target chat shell before awaited hydration and move short-window completeness repair off the local first-paint path.
+  command: python3 scripts/tests.py run --spec startup-sync-contract.spec.ts
+  expected_outcome: The same deployed regression passes after the selected shell and local window render before repair completion.
+  blocker: null
+  last_verified_commit: 106b79999d6f45eaa5b1e03fd635ba0f8cfb2646

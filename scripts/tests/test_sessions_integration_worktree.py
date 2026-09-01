@@ -76,6 +76,18 @@ def create_fixture(tmp_path: Path) -> tuple[Path, Path, str]:
     return root, source, base
 
 
+def test_staged_files_include_both_sides_of_rename(tmp_path):
+    sessions = load_sessions_module()
+    root, _source, _base = create_fixture(tmp_path)
+    (root / "changed.txt").rename(root / "renamed.txt")
+    git(root, "add", "-A")
+
+    staged = sessions._get_staged_files(checkout_root=root)
+
+    assert "changed.txt" in staged
+    assert "renamed.txt" in staged
+
+
 def test_selected_patch_is_reproduced_without_mutating_root_or_source(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     root, source, base = create_fixture(tmp_path)
@@ -249,7 +261,11 @@ def test_gate_runner_generates_embed_registry_before_lint(monkeypatch, tmp_path)
     checkout.mkdir()
     calls: list[str] = []
 
-    monkeypatch.setattr(sessions, "_run_contract_gate", lambda *_args, **_kwargs: calls.append("contracts"))
+    monkeypatch.setattr(
+        sessions,
+        "_run_specification_gate",
+        lambda *_args, **_kwargs: calls.append("specifications"),
+    )
     monkeypatch.setattr(
         sessions,
         "_enforce_embed_registry_validation",
@@ -275,9 +291,9 @@ def test_gate_runner_generates_embed_registry_before_lint(monkeypatch, tmp_path)
         session_id="abcd",
     )
 
-    assert calls[:3] == ["contracts", "embed-registry", "lint"]
+    assert calls[:3] == ["specifications", "embed-registry", "lint"]
     assert calls == [
-        "contracts",
+        "specifications",
         "embed-registry",
         "lint",
         "translations",

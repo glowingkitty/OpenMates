@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """
 Regression tests for deterministic documentation Markdown link validation.
 
@@ -6,7 +7,7 @@ These tests keep broken docs links out of the repository without requiring a
 browser, Playwright, or the public docs web app. The validator is intentionally
 static so hooks, CI, and local agents can run it cheaply.
 
-Architecture: docs/specs/docs-claims-enforcement-cleanup/spec.yml
+Architecture: docs/plans/docs-claims-enforcement-cleanup/plan.yml
 """
 
 from __future__ import annotations
@@ -47,20 +48,20 @@ def test_relative_markdown_links_must_resolve(tmp_path):
     assert "replace, update, remove, fold, or delete" in findings[0].message
 
 
-def test_docs_specs_links_are_validated_as_git_files(tmp_path):
+def test_docs_plan_links_are_validated_as_git_files(tmp_path):
     docs = tmp_path / "docs"
     (docs / "architecture").mkdir(parents=True)
-    (docs / "specs" / "example").mkdir(parents=True)
+    (docs / "plans" / "example").mkdir(parents=True)
     (docs / "architecture" / "index.md").write_text(
-        "[Spec](../specs/example/spec.yml)\n[Missing spec](../specs/missing/spec.yml)\n",
+        "[Plan](../plans/example/plan.yml)\n[Missing plan](../plans/missing/plan.yml)\n",
         encoding="utf-8",
     )
-    (docs / "specs" / "example" / "spec.yml").write_text("id: example\n", encoding="utf-8")
+    (docs / "plans" / "example" / "plan.yml").write_text("id: example\n", encoding="utf-8")
     module = load_module()
 
     findings = module.validate_markdown_links(docs)
 
-    assert [finding.target for finding in findings] == ["../specs/missing/spec.yml"]
+    assert [finding.target for finding in findings] == ["../plans/missing/plan.yml"]
 
 
 def test_external_links_are_not_checked_by_static_validator(tmp_path):
