@@ -1083,7 +1083,7 @@ def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path
     assert Path(attestation["artifact_path"]).read_bytes() == b"verified-video"
 
 
-def test_record_latest_run_artifact_publishes_latest_playwright_video_response_media(tmp_path, monkeypatch):
+def test_record_latest_run_artifact_keeps_cropped_thumbnail_out_of_video_player(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     artifact = tests_control.RESULTS_DIR / "last-run.json"
     artifact.parent.mkdir(parents=True)
@@ -1129,7 +1129,7 @@ def test_record_latest_run_artifact_publishes_latest_playwright_video_response_m
     assert recorded == commit[:9]
     assert uploads == [{
         "path": video.resolve(),
-        "poster_path": thumbnail.resolve(),
+        "poster_path": None,
         "run_type": "spec-ts-web-laptop",
         "alt": "Playwright example.spec.ts latest run video",
     }]
