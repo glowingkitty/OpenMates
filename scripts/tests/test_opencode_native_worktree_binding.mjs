@@ -300,6 +300,24 @@ test("root absolute paths in shell commands are rejected with an actionable alte
   );
 });
 
+test("proof-video rendering can consume its immutable control-plane source artifact", () => {
+  const runtime = "/home/superdev/projects/.openmates-runtime/opencode-server";
+  const source = `${ROOT}/test-results/proof-video-source-artifacts/source-id/artifact.webm`;
+  const command = `python3 scripts/sessions.py proof-video produce-playwright --source-video ${source}`;
+  assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).workdir, runtime);
+
+  for (const blockedCommand of [
+    `python3 scripts/sessions.py proof-video produce-playwright --source-video ${ROOT}/test-results/other.webm`,
+    `python3 scripts/sessions.py proof-video produce-playwright --source-video ${source} --contract-path ${ROOT}/contract.json`,
+    `python3 scripts/sessions.py status --source-video ${source}`,
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest("bash", { command: blockedCommand }, WORKTREE),
+      /session isolation/,
+    );
+  }
+});
+
 test("repeated isolation blocks stop identical retries", () => {
   const counts = new Map();
   const args = { command: `git -C ${ROOT} status` };
