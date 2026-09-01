@@ -1079,6 +1079,7 @@
 
     // Modify handleLogout to track signup state and reset signup step
     async function handleLogout() {
+        const landingIntroResetTokenBeforeLogout = guestLandingIntroResetToken;
         isLoggingOut.set(true);
         
         // Reset signup step to 1
@@ -1099,11 +1100,16 @@
             }
 
             resetComposerWelcomeState();
-            if (isExampleChat(currentChat?.chat_id ?? activeChatStore.get() ?? '')) {
-                console.debug("[ActiveChat] Preserving static example chat after logout");
+            const activeChatIdAtLogout = currentChat?.chat_id ?? activeChatStore.get() ?? '';
+            const shouldPreservePublicChat = isExampleChat(activeChatIdAtLogout) || currentChat?.is_shared_by_others;
+            if (shouldPreservePublicChat) {
+                console.debug("[ActiveChat] Preserving public chat after logout");
                 return;
             }
 
+            if (guestLandingIntroResetToken === landingIntroResetTokenBeforeLogout) {
+                resetGuestLandingIntroState();
+            }
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -1196,6 +1202,7 @@
                 
                 // Clear current chat state
                 resetComposerWelcomeState();
+                resetGuestLandingIntroState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -5881,6 +5888,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         guestLandingIntroPhase = phase;
     }
 
+    function resetGuestLandingIntroState() {
+        guestAllExamplesVisible = false;
+        guestSkipLandingIntro = false;
+        guestLandingIntroPhase = 'expanded';
+        guestLandingIntroResetToken += 1;
+    }
+
     $effect(() => {
         const inspirationIds = $dailyInspirationStore.inspirations.map((inspiration) => inspiration.inspiration_id).join('|');
         const personalizationKey = `${$authStore.isAuthenticated ? 'auth' : 'guest'}:${guestInterestContinueConfirmed}:${selectedGuestInterestTagIds.join(',')}:${inspirationIds}`;
@@ -7532,11 +7546,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
-            guestAllExamplesVisible = false;
-            guestSkipLandingIntro = isGuestExampleChat;
-            guestLandingIntroPhase = isGuestExampleChat ? 'regular' : 'expanded';
-            if (!isGuestExampleChat) {
-                guestLandingIntroResetToken += 1;
+            if (isGuestExampleChat) {
+                guestAllExamplesVisible = false;
+                guestSkipLandingIntro = true;
+                guestLandingIntroPhase = 'regular';
+            } else {
+                resetGuestLandingIntroState();
             }
         } else {
             guestLandingIntroPhase = 'regular';
@@ -11410,10 +11425,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 chatHistoryRef?.updateMessages([]);
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
                 showWelcome = true;
-                guestAllExamplesVisible = false;
-                guestSkipLandingIntro = false;
-                guestLandingIntroPhase = 'expanded';
-                guestLandingIntroResetToken += 1;
+                resetGuestLandingIntroState();
                 isAtBottom = false;
                 
                 // Clear the persistent store
@@ -12810,17 +12822,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             inert={hideWelcomeForKeyboard || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
                             data-testid="daily-inspiration-area"
                         >
-                            <DailyInspirationBanner
-                                onStartChat={handleStartChatFromInspiration}
-                                onEmbedFullscreen={handleInspirationEmbedFullscreen}
-                                onVisibleInspirationChange={handleVisibleInspirationChange}
-                                onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
-                                containerWidth={effectiveChatWidth}
-                                variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
-                                landingIntroResetToken={guestLandingIntroResetToken}
-                                landingSignupSlideToken={guestInterestSignupSlideToken}
-                                skipLandingIntro={guestSkipLandingIntro}
-                            />
+                            {#key guestLandingIntroResetToken}
+                                <DailyInspirationBanner
+                                    onStartChat={handleStartChatFromInspiration}
+                                    onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                                    onVisibleInspirationChange={handleVisibleInspirationChange}
+                                    onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
+                                    containerWidth={effectiveChatWidth}
+                                    variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
+                                    landingIntroResetToken={guestLandingIntroResetToken}
+                                    landingSignupSlideToken={guestInterestSignupSlideToken}
+                                    skipLandingIntro={guestSkipLandingIntro}
+                                />
+                            {/key}
                         </div>
                     {/if}
 

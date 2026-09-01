@@ -17959,7 +17959,7 @@ assertions:
       surface: gui.web
     - &id2047
       path: scripts/tests/test_message_input_welcome_contract.py
-      line: 92
+      line: 93
       name: test_expanded_landing_intro_preserves_measurable_composer_reserve
       surface: gui.web
     tests:
@@ -18112,7 +18112,7 @@ assertions:
       surface: gui.web
     - &id2064
       path: scripts/tests/test_message_input_welcome_contract.py
-      line: 92
+      line: 93
       name: test_expanded_landing_intro_preserves_measurable_composer_reserve
       surface: gui.web
     tests:

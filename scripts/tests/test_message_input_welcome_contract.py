@@ -64,10 +64,11 @@ def test_logout_resets_composer_state_before_restoring_guest_welcome() -> None:
         assert reset in helper_body, f"Logout composer reset is missing: {reset}"
 
     manual_logout_reset = source.index("resetComposerWelcomeState();", source.index("Skipping welcome reset after logout"))
-    manual_public_preserve = source.index("Preserving static example chat after logout")
+    manual_public_preserve = source.index("Preserving public chat after logout")
     assert manual_logout_reset < manual_public_preserve, (
-        "Manual logout must reset the composer before a public example chat can be preserved"
+        "Manual logout must reset the composer before a public chat can be preserved"
     )
+    assert "isExampleChat(activeChatIdAtLogout) || currentChat?.is_shared_by_others" in source
 
     forced_logout_reset = source.index("resetComposerWelcomeState();", source.index("Logout event received - clearing user chat"))
     forced_public_preserve = source.index("Logout event received while viewing public chat")
@@ -105,6 +106,8 @@ def test_expanded_landing_intro_preserves_measurable_composer_reserve() -> None:
     assert 'style:--landing-intro-input-reserve={`${messageInputWrapperHeight}px`}' in source
     assert 'inert={showWelcome && guestLandingIntroContentCovered}' in source
     assert 'aria-hidden={showWelcome && guestLandingIntroContentCovered}' in source
+    assert "{#key guestLandingIntroResetToken}" in source
+    assert source.count("resetGuestLandingIntroState();") >= 4
     assert "bottom: calc(0px - var(--landing-intro-input-reserve, 0px));" in banner_source, (
         "The landing intro overlay must extend through the measured composer reserve"
     )
