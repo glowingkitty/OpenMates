@@ -122,7 +122,6 @@
     function handleAssistantSpeechToggle(): void {
         const enabled = !speechEnabled;
         speechEnabled = enabled;
-        previousAutoSpeakResponse = enabled;
         showSpeechStatus(enabled);
         dispatch('assistantSpeechToggle', { enabled });
     }
@@ -178,7 +177,7 @@
             {/if}
             <button
                 type="button"
-                class="clickable-icon assistant-speech-icon"
+                class="assistant-speech-icon"
                 data-testid="assistant-speech-toggle"
                 data-icon-only="true"
                 data-speech-state={speechEnabled ? 'on' : 'off'}
@@ -187,18 +186,25 @@
                 onclick={handleAssistantSpeechToggle}
                 use:tooltip
             >
-                <span
+                <svg
                     class="assistant-speech-glyph muted"
                     data-testid="assistant-speech-muted-icon"
                     data-visible={!speechEnabled}
                     aria-hidden="true"
-                ></span>
-                <span
+                    viewBox="0 0 48 48"
+                >
+                    <path d="M20.159 6.661 11.818 15H2.25A2.25 2.25 0 0 0 0 17.25v13.5A2.25 2.25 0 0 0 2.25 33h9.568l8.341 8.339C21.568 42.748 24 41.758 24 39.748V8.251c0-2.011-2.434-2.998-3.841-1.59ZM43.279 24l4.278-4.279a1.513 1.513 0 0 0 0-2.139l-2.139-2.14a1.513 1.513 0 0 0-2.139 0L39 19.722l-4.279-4.279a1.513 1.513 0 0 0-2.139 0l-2.139 2.14a1.513 1.513 0 0 0 0 2.139L34.721 24l-4.278 4.277a1.513 1.513 0 0 0 0 2.14l2.14 2.139a1.513 1.513 0 0 0 2.139 0L39 28.278l4.279 4.279a1.513 1.513 0 0 0 2.139 0l2.139-2.139a1.513 1.513 0 0 0 0-2.139L43.279 24Z" />
+                </svg>
+                <svg
                     class="assistant-speech-glyph audio"
                     data-testid="assistant-speech-audio-icon"
                     data-visible={speechEnabled}
                     aria-hidden="true"
-                ></span>
+                    viewBox="0 0 48 48"
+                >
+                    <path d="M30.003-.001v16.203a8.996 8.996 0 0 1 0 15.594v16.203l-16-12h-14v-24h14l16-12Zm-6 12-8.001 6h-10v12h10l8 6v-24Z" />
+                    <path d="m40.8 9.6-2.396-1.8-3.603 4.797 2.4 1.8a12 12 0 0 1 2.4 2.406A11.909 11.909 0 0 1 42 24c0 2.706-.891 5.19-2.4 7.2a12 12 0 0 1-2.4 2.4l-2.4 1.803 3.603 4.8 2.4-1.803a18 18 0 0 0 3.594-3.6A17.94 17.94 0 0 0 48 24c0-4.05-1.341-7.794-3.6-10.8a18.001 18.001 0 0 0-3.6-3.6Z" />
+                </svg>
             </button>
         </div>
 
@@ -314,41 +320,33 @@
     }
 
     .assistant-speech-icon {
+        all: unset;
         position: relative;
+        display: block;
+        width: 25px;
+        height: 25px;
+        color: var(--color-primary);
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .assistant-speech-icon:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
     }
 
     .assistant-speech-glyph {
         position: absolute;
         inset: 0;
-        background: currentColor;
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
         opacity: 0;
         pointer-events: none;
         transition: opacity 180ms ease;
     }
 
     .assistant-speech-glyph[data-visible='true'] { opacity: 1; }
-
-    .assistant-speech-glyph.muted {
-        -webkit-mask-image: url('@openmates/ui/static/icons/mute.svg');
-        mask-image: url('@openmates/ui/static/icons/mute.svg');
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-    }
-
-    .assistant-speech-glyph.audio {
-        -webkit-mask-image: url('@openmates/ui/static/icons/audio.svg');
-        mask-image: url('@openmates/ui/static/icons/audio.svg');
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
-        -webkit-mask-size: contain;
-        mask-size: contain;
-    }
 
     .icon_recordaudio { touch-action: none; }
 

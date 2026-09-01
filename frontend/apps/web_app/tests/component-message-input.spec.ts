@@ -193,9 +193,9 @@ async function expectSpeechToggleState(
 	const glyph = await visibleGlyph.evaluate((element) => {
 		const style = getComputedStyle(element);
 		const bounds = element.getBoundingClientRect();
-		return { mask: style.maskImage, opacity: style.opacity, width: bounds.width, height: bounds.height };
+		return { opacity: style.opacity, width: bounds.width, height: bounds.height };
 	});
-	expect(glyph.mask).not.toBe('none');
+	await expect(visibleGlyph.locator('path')).not.toHaveCount(0);
 	expect(glyph.opacity).toBe('1');
 	expect(glyph.width).toBeGreaterThanOrEqual(20);
 	expect(glyph.height).toBeGreaterThanOrEqual(20);
