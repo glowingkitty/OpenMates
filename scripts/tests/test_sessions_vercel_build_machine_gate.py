@@ -28,6 +28,11 @@ def load_sessions_module():
     return module
 
 
+def allow_control_plane_deploy_protocol(monkeypatch, sessions) -> None:
+    monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: "origin-dev")
+    monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", lambda _origin_ref: None)
+
+
 def test_vercel_build_machine_gate_allows_standard_fixed(monkeypatch):
     sessions = load_sessions_module()
 
@@ -419,6 +424,7 @@ def test_deploy_releases_vercel_lock_after_successful_push(monkeypatch, tmp_path
     monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -487,6 +493,7 @@ def test_deploy_can_start_verification_handoff_after_successful_push(monkeypatch
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
     monkeypatch.setattr(sessions, "cmd_start", fake_start)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -631,6 +638,7 @@ def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, c
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -695,6 +703,7 @@ def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, 
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",

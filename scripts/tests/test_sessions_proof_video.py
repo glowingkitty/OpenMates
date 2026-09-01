@@ -59,6 +59,11 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
     return module
 
 
+def allow_control_plane_deploy_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: "origin-dev")
+    monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", lambda _origin_ref: None)
+
+
 def test_proof_video_produce_does_not_enable_typed_anonymization(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -789,6 +794,7 @@ def test_cmd_deploy_records_proof_pending_without_failing_plain_deploy(
     monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+    allow_control_plane_deploy_protocol(monkeypatch)
 
     sessions.cmd_deploy(
         argparse.Namespace(
@@ -876,6 +882,7 @@ def test_cmd_deploy_end_hard_blocks_without_proof_video(
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
     monkeypatch.setattr(sessions, "_enforce_visual_smoke_end_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "finalize_session_worktree", fake_finalize)
+    allow_control_plane_deploy_protocol(monkeypatch)
 
     with pytest.raises(SystemExit) as exc:
         sessions.cmd_deploy(

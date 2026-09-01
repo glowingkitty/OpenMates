@@ -7,6 +7,8 @@ session deploy path, so the canonical sessions.py gate rejects these files for
 every OpenCode product session rather than trusting a prompt-level capability.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -74,6 +76,41 @@ def test_product_session_deploy_rejects_protected_manifest() -> None:
     with pytest.raises(RuntimeError, match="CONTROL-PLANE DEPLOY BLOCKED"):
         sessions.validate_product_session_deploy_paths(
             ["frontend/packages/ui/src/components/Button.svelte", "scripts/sessions.py"]
+        )
+
+
+def test_codex_unbound_session_may_deploy_control_plane_recovery(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    monkeypatch.setenv("CODEX_SESSION_ID", "codex-session")
+    monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
+
+    sessions.validate_product_session_deploy_paths(
+        ["scripts/sessions.py", ".opencode/plugins/openmates-hooks.js"],
+        session={"opencode_session_id": None, "opencode_top_level_session_id": None},
+    )
+
+
+def test_codex_cannot_deploy_protected_files_for_opencode_bound_session(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    monkeypatch.setenv("CODEX_SESSION_ID", "codex-session")
+    monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
+
+    with pytest.raises(RuntimeError, match="CONTROL-PLANE DEPLOY BLOCKED"):
+        sessions.validate_product_session_deploy_paths(
+            ["scripts/sessions.py"],
+            session={"opencode_session_id": "ses_bound"},
+        )
+
+
+def test_opencode_runtime_cannot_use_codex_control_plane_allowance(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    monkeypatch.setenv("CODEX_SESSION_ID", "codex-session")
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+
+    with pytest.raises(RuntimeError, match="CONTROL-PLANE DEPLOY BLOCKED"):
+        sessions.validate_product_session_deploy_paths(
+            ["scripts/sessions.py"],
+            session={"opencode_session_id": None, "opencode_top_level_session_id": None},
         )
 
 

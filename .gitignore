@@ -346,6 +346,7 @@ backend/tests/output/
 !.opencode/agents/*.md
 !.opencode/commands/
 !.opencode/commands/*.md
+!.opencode/deploy-protocol-version
 !.opencode/plugins/
 !.opencode/plugins/openmates-claude-hooks.js
 

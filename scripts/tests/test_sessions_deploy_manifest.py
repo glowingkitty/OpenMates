@@ -15,6 +15,8 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SESSIONS_PATH = PROJECT_ROOT / "scripts" / "sessions.py"
@@ -112,6 +114,69 @@ def test_local_control_plane_lag_is_informational_and_does_not_fast_forward(monk
     assert "informational only" in warning
     assert "deployment_affected=false" in warning
     assert fast_forward_calls == []
+
+
+def test_missing_deploy_protocol_marker_defaults_to_legacy_v1(monkeypatch):
+    sessions = load_sessions_module()
+
+    def fake_run_cmd(command, **_kwargs):
+        if command[:2] == ["git", "show"]:
+            return 128, "", "path missing"
+        if command[:3] == ["git", "cat-file", "-e"]:
+            return 0, "", ""
+        raise AssertionError(command)
+
+    monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+
+    assert sessions._required_control_plane_deploy_protocol_version("origin/dev") == 1
+
+
+def test_higher_deploy_protocol_marker_blocks_stale_runtime(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION", 2)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda command, **_kwargs: (0, "3", ""))
+
+    with pytest.raises(RuntimeError, match="requires control-plane deploy protocol v3"):
+        sessions._enforce_control_plane_deploy_protocol_compatible("origin/dev")
+
+
+def test_malformed_deploy_protocol_marker_fails_closed(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_run_cmd", lambda command, **_kwargs: (0, "two", ""))
+
+    with pytest.raises(RuntimeError, match="Malformed control-plane deploy protocol"):
+        sessions._required_control_plane_deploy_protocol_version("origin/dev")
+
+
+def test_validate_staged_deploy_files_allows_clean_noop_selected_path(monkeypatch):
+    sessions = load_sessions_module()
+    checked: list[str] = []
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda **_kwargs: {"real.py"})
+
+    def path_has_diff(relative_path: str, **_kwargs) -> bool:
+        checked.append(relative_path)
+        return False
+
+    monkeypatch.setattr(sessions, "_path_has_unstaged_diff", path_has_diff)
+
+    assert sessions._validate_staged_deploy_files({"real.py", "contracts/generated/registry.yml"}, context="test")
+    assert checked == ["contracts/generated/registry.yml"]
+
+
+def test_validate_staged_deploy_files_rejects_dirty_missing_selected_path(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda **_kwargs: {"real.py"})
+    monkeypatch.setattr(sessions, "_path_has_unstaged_diff", lambda _relative_path, **_kwargs: True)
+
+    assert not sessions._validate_staged_deploy_files({"real.py", "dirty.py"}, context="test")
+
+
+def test_path_has_unstaged_diff_fails_closed_on_git_status_error(monkeypatch):
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_run_cmd", lambda command, **_kwargs: (128, "", "fatal status"))
+
+    with pytest.raises(RuntimeError, match="Could not inspect deploy path status"):
+        sessions._path_has_unstaged_diff("selected.py")
 
 
 def test_legacy_grandfathered_managed_worktree_uses_native_integration(monkeypatch, tmp_path):

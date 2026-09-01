@@ -133,6 +133,8 @@ OPENCODE_STALE_READ_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-
 OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.lock"
 OPENCODE_PRESENCE_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.json"
 OPENCODE_PRESENCE_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.lock"
+CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = ".opencode/deploy-protocol-version"
+CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION = 2
 OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
 OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
 OPENCODE_RESTART_ACTIVE_STATUSES = {"busy", "retry"}
@@ -2964,15 +2966,16 @@ def _session_worktree_warnings(session_id: str, session: dict) -> list[str]:
     return warnings
 
 
+def _is_deployable_worktree_path(relative_path: str) -> bool:
+    return not any(relative_path.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES)
+
+
 def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     """Return the deploy file set, preferring the isolated worktree diff."""
-    def deployable(relative_path: str) -> bool:
-        return not any(relative_path.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES)
-
     if not _session_is_control_plane_repo(session):
         dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
-        return sorted(f for f in tracked if f in dirty_files and f not in exclude and deployable(f))
+        return sorted(f for f in tracked if f in dirty_files and f not in exclude and _is_deployable_worktree_path(f))
 
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
@@ -2980,6 +2983,7 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
         if metadata.get("merged_commit"):
             changed.update(tracked)
+        changed = {relative_path for relative_path in changed if _is_deployable_worktree_path(relative_path)}
         deployed_states = metadata.get("root_applied_files")
         if metadata.get("merged_commit"):
             current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
@@ -3015,11 +3019,11 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
             except RuntimeError:
                 # A missing/stale remote-tracking ref must not hide real work.
                 pass
-        return sorted(f for f in changed if f not in exclude and deployable(f))
+        return sorted(f for f in changed if f not in exclude)
     dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
     return sorted(
         f for f in session.get("modified_files", [])
-        if f in dirty_files and f not in exclude and deployable(f)
+        if f in dirty_files and f not in exclude and _is_deployable_worktree_path(f)
     )
 
 
@@ -3031,10 +3035,27 @@ def is_protected_control_plane_path(path: str) -> bool:
     return any(normalized.startswith(prefix) for prefix in PROTECTED_CONTROL_PLANE_PREFIXES)
 
 
-def validate_product_session_deploy_paths(paths: list[str]) -> None:
+def _session_is_bound_to_opencode(session: dict | None) -> bool:
+    if not isinstance(session, dict):
+        return False
+    return bool(session.get("opencode_session_id") or session.get("opencode_top_level_session_id"))
+
+
+def _current_runtime_allows_control_plane_deploy(session: dict | None) -> bool:
+    return (
+        isinstance(session, dict)
+        and bool(os.environ.get("CODEX_SESSION_ID"))
+        and not os.environ.get("OPENCODE_SESSION_ID")
+        and not _session_is_bound_to_opencode(session)
+    )
+
+
+def validate_product_session_deploy_paths(paths: list[str], session: dict | None = None) -> None:
     """Reject control-plane changes from the product-session deployment lane."""
     protected = sorted({path for path in paths if is_protected_control_plane_path(path)})
     if not protected:
+        return
+    if _current_runtime_allows_control_plane_deploy(session):
         return
     rendered = ", ".join(protected)
     raise RuntimeError(
@@ -3947,6 +3968,73 @@ def _enforce_no_integration_deletion_amplification(
         )
 
 
+def _selected_paths_changed_between_refs(
+    repo_root: Path,
+    source_ref: str,
+    target_ref: str,
+    files: list[str],
+) -> list[str]:
+    """Return selected paths whose upstream content changed between two refs."""
+    if not files or source_ref == target_ref:
+        return []
+    result = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "-z",
+            source_ref,
+            target_ref,
+            "--",
+            *(f":(literal){relative_path}" for relative_path in files),
+        ],
+        cwd=str(repo_root),
+        capture_output=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"Could not inspect selected upstream changes: {detail}")
+    return sorted(
+        {
+            raw_path.decode("utf-8", errors="replace")
+            for raw_path in result.stdout.split(b"\0")
+            if raw_path
+        }
+    )
+
+
+def _enforce_no_selected_upstream_overlap(
+    source_metadata: dict,
+    files: list[str],
+    *,
+    patch_id: str,
+    prepared_base: str,
+) -> None:
+    """Block automatic rebases when current dev touched a selected path."""
+    if not files:
+        return
+    source_path = Path(str(source_metadata.get("path") or ""))
+    source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
+    if not source_path.is_dir() or not source_base:
+        raise RuntimeError("Session source worktree metadata is incomplete")
+    changed_upstream = _selected_paths_changed_between_refs(
+        source_path,
+        source_base,
+        prepared_base,
+        files,
+    )
+    if changed_upstream:
+        raise IntegrationConflict(
+            "Selected deploy file(s) changed upstream since the source worktree base: "
+            + ", ".join(changed_upstream)
+            + ". Reconcile these file(s) with current origin/dev before deploying.",
+            patch_id=patch_id,
+            source_base=source_base,
+            final_base=prepared_base,
+        )
+
+
 def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
     """Regenerate selected contract artifacts in an integration checkout."""
     if not generated_files:
@@ -3984,6 +4072,12 @@ def _apply_worktree_diff_to_checkout(
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
     patch_files, contract_generated_files = _split_contract_generated_artifacts(files)
+    _enforce_no_selected_upstream_overlap(
+        source_metadata,
+        patch_files,
+        patch_id=patch_id,
+        prepared_base=prepared_base,
+    )
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -4652,31 +4746,31 @@ def checkpoint_idle_sessions(*, now: str | None = None) -> list[dict]:
     for _session_id, session in sorted(data.get("sessions", {}).items()):
         if not isinstance(session, dict) or session.get("auto_integration_policy") != "enabled":
             continue
-        opencode_session_id = str(session.get("opencode_session_id") or "")
-        if not opencode_session_id or _auto_integration_presence_is_live(session):
-            continue
-        last_active = str(session.get("last_active") or session.get("started") or "")
         try:
-            idle_minutes = (current_time - _parse_iso(last_active)).total_seconds() / 60
-        except (TypeError, ValueError):
-            continue
-        if idle_minutes < WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES:
-            continue
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
-        files = _session_deploy_files(session, set())
-        if not files:
-            continue
-        retryable_status = auto.get("status") in {"blocked", "recovery_needed"} or (
-            auto.get("status") == "held" and auto.get("block_reason") != "explicit_hold"
-        )
-        if not retryable_status and auto.get("patch_id") and auto.get("files") == files:
+            opencode_session_id = str(session.get("opencode_session_id") or "")
+            if not opencode_session_id or _auto_integration_presence_is_live(session):
+                continue
+            last_active = str(session.get("last_active") or session.get("started") or "")
             try:
-                if _worktree_patch_id(metadata, files) == auto.get("patch_id"):
-                    continue
-            except (OSError, RuntimeError):
-                pass
-        try:
+                idle_minutes = (current_time - _parse_iso(last_active)).total_seconds() / 60
+            except (TypeError, ValueError):
+                continue
+            if idle_minutes < WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES:
+                continue
+            auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+            metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+            files = _session_deploy_files(session, set())
+            if not files:
+                continue
+            retryable_status = auto.get("status") in {"blocked", "recovery_needed"} or (
+                auto.get("status") == "held" and auto.get("block_reason") != "explicit_hold"
+            )
+            if not retryable_status and auto.get("patch_id") and auto.get("files") == files:
+                try:
+                    if _worktree_patch_id(metadata, files) == auto.get("patch_id"):
+                        continue
+                except (OSError, RuntimeError):
+                    pass
             results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
         except (OSError, RuntimeError) as exc:
             # One corrupt or unrecoverable worktree must not suppress every
@@ -6590,6 +6684,17 @@ def _get_staged_files(*, checkout_root: Path | None = None) -> set[str]:
     return {line.strip() for line in stdout.splitlines() if line.strip()}
 
 
+def _path_has_unstaged_diff(relative_path: str, *, checkout_root: Path | None = None) -> bool:
+    """Return whether a selected path has staged, unstaged, or untracked changes."""
+    rc, stdout, stderr = _run_cmd(
+        ["git", "status", "--porcelain", "--untracked-files=all", "--", relative_path],
+        cwd=str(checkout_root or CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect deploy path status for {relative_path}: {stderr}")
+    return bool(stdout.strip())
+
+
 def _validate_staged_deploy_files(
     to_commit: set[str],
     *,
@@ -6602,7 +6707,11 @@ def _validate_staged_deploy_files(
         if checkout_root is None
         else _get_staged_files(checkout_root=checkout_root)
     )
-    missing_staged = sorted(to_commit - staged_files)
+    missing_staged = sorted(
+        relative_path
+        for relative_path in to_commit - staged_files
+        if _path_has_unstaged_diff(relative_path, checkout_root=checkout_root)
+    )
     foreign_staged = sorted(staged_files - to_commit)
     if not missing_staged and not foreign_staged:
         return True
@@ -12794,6 +12903,43 @@ def _fetch_origin_dev_commit() -> str:
     return stdout.strip()
 
 
+def _required_control_plane_deploy_protocol_version(origin_ref: str) -> int:
+    """Read the deploy protocol required by origin/dev, defaulting legacy refs to v1."""
+    rc, stdout, stderr = _run_cmd(
+        ["git", "show", f"{origin_ref}:{CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        commit_rc, _commit_stdout, commit_stderr = _run_cmd(
+            ["git", "cat-file", "-e", f"{origin_ref}^{{commit}}"],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        if commit_rc == 0:
+            return 1
+        raise RuntimeError(f"Could not inspect control-plane deploy protocol at {origin_ref}: {stderr or commit_stderr}")
+    try:
+        version = int(stdout.strip())
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Malformed control-plane deploy protocol in {CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}: {stdout!r}"
+        ) from exc
+    if version < 1:
+        raise RuntimeError(
+            f"Malformed control-plane deploy protocol in {CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}: {stdout!r}"
+        )
+    return version
+
+
+def _enforce_control_plane_deploy_protocol_compatible(origin_ref: str) -> None:
+    required = _required_control_plane_deploy_protocol_version(origin_ref)
+    if required > CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION:
+        raise RuntimeError(
+            f"origin/dev requires control-plane deploy protocol v{required}, "
+            f"but this runtime supports v{CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION}. "
+            "Restart OpenCode onto the current control plane before deploying."
+        )
+
+
 def _fast_forward_control_plane(commit_hash: str) -> None:
     """Advance the local dev checkout after a successful integration push."""
     if not commit_hash:
@@ -12961,6 +13107,7 @@ def _deploy_native_worktree(
 
     try:
         prepared_base = _fetch_origin_dev_commit()
+        _enforce_control_plane_deploy_protocol_compatible(prepared_base)
         prepare_args = (
             sid,
             worktree_metadata,
@@ -13004,6 +13151,7 @@ def _deploy_native_worktree(
             )
             deploy_lock_held = True
             final_base = _fetch_origin_dev_commit()
+            _enforce_control_plane_deploy_protocol_compatible(final_base)
             if final_base != integration["prepared_base"]:
                 _release_session_lock("vercel_deploy", released_by=sid)
                 deploy_lock_held = False
@@ -13347,7 +13495,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         print(f"{_session_repo_name(session).upper()} DEPLOY FAILED — {exc}", file=sys.stderr)
         sys.exit(1)
     try:
-        validate_product_session_deploy_paths(to_commit)
+        validate_product_session_deploy_paths(to_commit, session=session)
     except RuntimeError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
@@ -13453,6 +13601,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
                 sys.exit(1)
             print("Vercel build machine: standard/fixed")
+
+            try:
+                _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
+            except RuntimeError as exc:
+                if deploy_lock_held:
+                    _release_session_lock("vercel_deploy", released_by=sid)
+                print(f"CONTROL-PLANE DEPLOY PROTOCOL GATE FAILED — {exc}", file=sys.stderr)
+                sys.exit(1)
 
             print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
             rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
@@ -13637,6 +13793,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         sys.exit(1)
     print("Dev deploy push lock acquired for commit preparation.")
 
+    try:
+        _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
+    except RuntimeError as exc:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        print(f"CONTROL-PLANE DEPLOY PROTOCOL GATE FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
     staged_files = _get_staged_files()
@@ -13753,6 +13917,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # 4. Git push. Vercel/test readiness is commit-scoped via
     # --expected-commit, so this mutex must not outlive the push.
+    try:
+        _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
+    except RuntimeError as exc:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        print(f"CONTROL-PLANE DEPLOY PROTOCOL GATE FAILED — {exc}", file=sys.stderr)
+        print("Commit was created locally but not pushed.", file=sys.stderr)
+        sys.exit(1)
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:

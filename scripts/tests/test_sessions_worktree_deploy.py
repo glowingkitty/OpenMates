@@ -209,6 +209,38 @@ def test_session_deploy_files_exclude_runtime_proof_artifacts(monkeypatch, tmp_p
     ]
 
 
+def test_session_deploy_files_filters_runtime_artifact_dirs_before_snapshot(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-abcd"
+    artifact_dir = worktree / "test-results" / "proof-videos" / "abcd" / "example.spec" / "frames"
+    artifact_dir.mkdir(parents=True)
+    (worktree / "safe.py").write_text("pending\n", encoding="utf-8")
+    session = {
+        "modified_files": [
+            "safe.py",
+            "test-results/proof-videos/abcd/example.spec/frames",
+        ],
+        "worktree": {
+            "path": str(worktree),
+            "base_commit": "base",
+            "merged_commit": "merged",
+            "status": "active",
+        },
+    }
+    monkeypatch.setattr(
+        sessions,
+        "_worktree_changed_files",
+        lambda _metadata: list(session["modified_files"]),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_snapshot_worktree_base_states",
+        lambda _metadata, files: {relative_path: {"exists": False} for relative_path in files},
+    )
+
+    assert sessions._session_deploy_files(session, exclude=set()) == ["safe.py"]
+
+
 def test_session_deploy_files_exclude_changes_already_on_target_branch(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     worktree = tmp_path / "agent-abcd"

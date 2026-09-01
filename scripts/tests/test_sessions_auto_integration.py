@@ -384,3 +384,56 @@ def test_idle_worker_isolates_checkpoint_failure_and_continues(monkeypatch) -> N
         {"session_id": "broken", "status": "blocked", "reason": "ignored deploy path"},
         {"session_id": "healthy", "status": "eligible"},
     ]
+
+
+def test_idle_worker_isolates_deploy_file_inspection_failure_and_continues(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    data["sessions"] = {
+        "broken": {
+            **data["sessions"]["abcd"],
+            "opencode_session_id": "ses-broken",
+            "last_active": "2026-08-06T15:00:00Z",
+        },
+        "healthy": {
+            **data["sessions"]["abcd"],
+            "opencode_session_id": "ses-healthy",
+            "last_active": "2026-08-06T15:00:00Z",
+        },
+    }
+    data["sessions"]["broken"]["auto_integration"] = {
+        "status": "blocked",
+        "block_reason": "stale directory state",
+    }
+    data["sessions"]["healthy"]["auto_integration"] = {
+        "status": "blocked",
+        "block_reason": "temporary failure",
+    }
+    checkpointed: list[str] = []
+
+    def deploy_files(session: dict, _exclude: set[str]) -> list[str]:
+        if session.get("opencode_session_id") == "ses-broken":
+            raise RuntimeError("Unsupported non-file deploy path: test-results/proof-videos/frames")
+        return ["safe.py"]
+
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: False)
+    monkeypatch.setattr(sessions, "_session_deploy_files", deploy_files)
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata, _files: "patch-1")
+    monkeypatch.setattr(
+        sessions,
+        "checkpoint_session_worktree",
+        lambda opencode_id, *, event: checkpointed.append(opencode_id) or {"session_id": "healthy", "status": "eligible"},
+    )
+
+    result = sessions.checkpoint_idle_sessions(now="2026-08-06T17:00:00Z")
+
+    assert checkpointed == ["ses-healthy"]
+    assert result == [
+        {
+            "session_id": "broken",
+            "status": "blocked",
+            "reason": "Unsupported non-file deploy path: test-results/proof-videos/frames",
+        },
+        {"session_id": "healthy", "status": "eligible"},
+    ]

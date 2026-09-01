@@ -176,6 +176,49 @@ def test_advanced_base_conflict_is_explicit_and_leaves_dev_unchanged(monkeypatch
     assert "origin/dev" in item["next_action"]
 
 
+def test_selected_upstream_overlap_blocks_clean_three_way_rebase(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source_a, _source_b, _base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+
+    base_lines = [f"line {index}\n" for index in range(1, 13)]
+    (root / "a.txt").write_text("".join(base_lines), encoding="utf-8")
+    git(root, "add", "a.txt")
+    git(root, "commit", "-m", "multi-line base")
+    git(root, "push", "origin", "dev")
+    source = tmp_path / "source-overlap"
+    source_base = git(root, "rev-parse", "HEAD")
+    git(root, "worktree", "add", "--detach", str(source), source_base)
+    source_lines = base_lines.copy()
+    source_lines[9] = "source edit\n"
+    (source / "a.txt").write_text("".join(source_lines), encoding="utf-8")
+
+    upstream_lines = base_lines.copy()
+    upstream_lines[0] = "upstream edit\n"
+    (root / "a.txt").write_text("".join(upstream_lines), encoding="utf-8")
+    git(root, "add", "a.txt")
+    git(root, "commit", "-m", "advance selected file")
+    git(root, "push", "origin", "dev")
+    final_base = git(root, "rev-parse", "origin/dev")
+
+    metadata = {"path": str(source), "base_commit": source_base}
+    files = ["a.txt"]
+    patch_id = sessions._worktree_patch_id(metadata, files)
+
+    with pytest.raises(sessions.IntegrationConflict, match="changed upstream") as exc_info:
+        sessions._prepare_integration_worktree("cccc", metadata, files, patch_id, final_base)
+
+    assert exc_info.value.patch_id == patch_id
+    assert exc_info.value.source_base == source_base
+    assert exc_info.value.final_base == final_base
+    assert git(root, "rev-parse", "origin/dev") == final_base
+    assert git(root, "status", "--porcelain", "-uall") == ""
+
+
 def test_stale_worktree_rebase_blocks_deletion_amplification(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     root, source_a, _source_b, base = create_fixture(tmp_path)
@@ -184,6 +227,7 @@ def test_stale_worktree_rebase_blocks_deletion_amplification(monkeypatch, tmp_pa
     monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
     monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+    monkeypatch.setattr(sessions, "_enforce_no_selected_upstream_overlap", lambda *_args, **_kwargs: None)
 
     (source_a / "a.txt").write_text("a0\nspeech toggle\n", encoding="utf-8")
     (root / "a.txt").write_text("a0\nmodel selector\nplus button\nsend button\n", encoding="utf-8")
@@ -235,8 +279,10 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     commands: list[tuple[list[str], str | None]] = []
     releases: list[str] = []
     removed: list[str] = []
+    protocol_refs: list[str] = []
 
     monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: next(fetched))
+    monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", protocol_refs.append)
     monkeypatch.setattr(sessions, "_create_worktree_checkpoint_commit", lambda *_args: "checkpoint")
     monkeypatch.setattr(sessions, "_prepare_integration_worktree", lambda *_args, **_kwargs: prepared_first)
     monkeypatch.setattr(sessions, "_rebuild_integration_worktree", lambda *_args: prepared_second)
@@ -288,6 +334,7 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     )
 
     assert gate_checkouts == [first_checkout, second_checkout]
+    assert protocol_refs == ["dev-one", "dev-two", "dev-two"]
     assert (["git", "push", "origin", "HEAD:refs/heads/dev"], str(second_checkout)) in commands
     assert releases == ["", "commit-two"]
     assert removed == ["integration-second"]
