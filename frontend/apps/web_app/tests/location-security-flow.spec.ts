@@ -283,6 +283,14 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	log('Initial login done.');
 	await screenshot(page, 'initial-login-done');
 
+	await page.getByTestId('new-chat-button').click();
+	const messageEditor = page.getByTestId('message-editor').last();
+	await expect(messageEditor).toBeVisible({ timeout: 15000 });
+	await messageEditor.click();
+	await page.keyboard.type('Keep this local draft through security verification.');
+	await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', /.+/);
+
 	const modelPreferenceRequests: string[] = [];
 	page.on('websocket', (websocket: any) => {
 		websocket.on('framesent', (frame: { payload?: string | Buffer }) => {
