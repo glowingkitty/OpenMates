@@ -1208,6 +1208,38 @@ function isApprovedControlPlaneRuntimeSearchPath(candidate) {
   return relativePath === "test-results" || relativePath.startsWith(`test-results${sep}`);
 }
 
+function approvedProofVideoSourceTokenForTest(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return "";
+  const segments = commandSegmentTokens(String(command || ""));
+  if (segments.length !== 1) return "";
+  const tokens = segments[0].map(shellUnescape);
+  let index = 0;
+  while (index < tokens.length && isAssignment(tokens[index])) index += 1;
+  if (!["python", "python3"].includes(tokens[index] || "")) return "";
+  if ((tokens[index + 1] || "").replace(/^\.\//, "") !== "scripts/sessions.py") return "";
+  if (tokens[index + 2] !== "proof-video" || tokens[index + 3] !== "produce-playwright") return "";
+
+  let source = "";
+  for (let cursor = index + 4; cursor < tokens.length; cursor += 1) {
+    const token = tokens[cursor];
+    if (token === "--source-video") {
+      if (source || cursor + 1 >= tokens.length) return "";
+      source = tokens[++cursor];
+      continue;
+    }
+    if (token.startsWith("--source-video=")) {
+      if (source) return "";
+      source = token.slice("--source-video=".length);
+    }
+  }
+  if (!source || !isAbsolute(source)) return "";
+  const artifactRoot = resolve(PROJECT_ROOT, "test-results/proof-video-source-artifacts");
+  const resolvedSource = resolve(source);
+  const artifactRelative = relative(artifactRoot, resolvedSource);
+  if (!artifactRelative || artifactRelative.startsWith("..") || isAbsolute(artifactRelative)) return "";
+  return source;
+}
+
 function routeLocalToolArgsForTest(tool, args, worktreePath) {
   const input = toolInput(args);
   if (!worktreePath) return input;
@@ -1292,7 +1324,10 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
-    const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
+    const approvedProofSource = approvedProofVideoSourceTokenForTest(command);
+    const rootReferences = tokensWithoutOwnWorktree.filter((token) => (
+      token.includes(PROJECT_ROOT) && token !== approvedProofSource && token !== `--source-video=${approvedProofSource}`
+    ));
     const rootHelperInvocations = commandSegmentTokens(command).filter((tokens) => {
       let index = 0;
       while (index < tokens.length && isAssignment(tokens[index])) index += 1;
@@ -3503,6 +3538,7 @@ OpenMatesHooks.test = Object.freeze({
   repeatedRoutingFailureMessageForTest,
   completedAssistantMessageID,
   apiHealthWaitUrlForTest,
+  approvedProofVideoSourceTokenForTest,
   appendFigmaReferenceEmbedHint,
   appendResponseMediaEmbedHint,
   figmaExportPathForTest,

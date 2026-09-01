@@ -150,7 +150,7 @@ test("runtime lifecycle commands bypass stale session-local coordinators", () =>
       { command: "python3 scripts/sessions.py deploy --session abcd --title test --message test", workdir: process.cwd() },
       process.cwd(),
     ).workdir,
-    process.cwd(),
+    runtime,
   );
   assert.throws(
     () => routeLocalToolArgsForTest(
