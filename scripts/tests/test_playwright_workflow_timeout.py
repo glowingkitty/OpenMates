@@ -40,7 +40,7 @@ def test_signup_invite_secret_is_scoped_to_invite_required_specs() -> None:
     workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
 
     assert (
-        "E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') "
+        "E2E_SIGNUP_INVITE_CODE: ${{ inputs.requires_account && (contains(inputs.spec, 'signup') "
         "|| inputs.spec == 'referral-signup-purchase.spec.ts' "
         "|| inputs.spec == 'create-test-account.spec.ts') "
         "&& secrets.E2E_SIGNUP_INVITE_CODE || '' }}"

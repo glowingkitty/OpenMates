@@ -143,6 +143,8 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
+PLAYWRIGHT_ACCOUNT_NOT_REQUIRED_MARKER = "// playwright-account: not_required reason=isolated_component_preview"
+ACCOUNT_FREE_WORKFLOW_ACCOUNT = 0
 PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
@@ -1803,6 +1805,47 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
     return ""
 
 
+def _read_playwright_spec_source(spec_name: str, deployed_git_ref: str | None = None) -> str:
+    """Return the selected committed spec source, or empty text to fail closed."""
+    spec_path = (SPEC_DIR / spec_name).resolve()
+    try:
+        rel_path = spec_path.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return ""
+
+    if deployed_git_ref:
+        committed = subprocess.run(
+            ["git", "show", f"{deployed_git_ref}:{rel_path}"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return committed.stdout if committed.returncode == 0 else ""
+
+    try:
+        return spec_path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def _playwright_spec_requires_account(spec_name: str, deployed_git_ref: str | None = None) -> bool:
+    """Return False only for the exact committed isolated-component opt-out marker."""
+    source = _read_playwright_spec_source(spec_name, deployed_git_ref)
+    return PLAYWRIGHT_ACCOUNT_NOT_REQUIRED_MARKER not in source.splitlines()
+
+
+def _playwright_account_requirements_for_specs(
+    specs: list[str],
+    deployed_git_ref: str | None = None,
+) -> dict[str, bool]:
+    """Map specs to the fail-closed account requirement used for dispatch."""
+    return {
+        spec: _playwright_spec_requires_account(spec, deployed_git_ref)
+        for spec in specs
+    }
+
+
 def _safe_write_json(path: Path, data: dict) -> None:
     """Write JSON, removing existing file first to avoid permission issues."""
     try:
@@ -2138,6 +2181,7 @@ class GitHubActionsClient:
         seeded_gift_card_code: Optional[str] = None,
         proof_video_profile: str = "",
         daily_ai_run_id: str = "",
+        requires_account: bool = True,
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
@@ -2153,6 +2197,7 @@ class GitHubActionsClient:
             seeded_gift_card_code=seeded_gift_card_code,
             proof_video_profile=proof_video_profile,
             daily_ai_run_id=daily_ai_run_id,
+            requires_account=requires_account,
         )
         if dispatch_token is None:
             return None
@@ -2169,6 +2214,7 @@ class GitHubActionsClient:
         seeded_gift_card_code: Optional[str] = None,
         proof_video_profile: str = "",
         daily_ai_run_id: str = "",
+        requires_account: bool = True,
     ) -> Optional[str]:
         """Submit a workflow without serially waiting for GitHub's run ID."""
         self.last_dispatch_error = None
@@ -2188,6 +2234,7 @@ class GitHubActionsClient:
             "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
             "-f", f"record_live_fixtures={'true' if record_live_fixtures else 'false'}",
             "-f", f"allow_credential_updates={'true' if allow_credential_updates else 'false'}",
+            "-f", f"requires_account={'true' if requires_account else 'false'}",
             "-f", f"dispatch_token={dispatch_token}",
         ]
         if self.git_sha:
@@ -2517,27 +2564,54 @@ def build_playwright_dispatch_plan(
     specs: list[str],
     batch_size: int,
     normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+    requires_account_by_spec: Optional[dict[str, bool]] = None,
 ) -> list[tuple[int, str, int]]:
     """Build (batch_index, spec, account) tuples using the credential-isolation policy."""
+    account_requirements = {
+        spec: requires_account_by_spec.get(spec, True)
+        if requires_account_by_spec is not None else True
+        for spec in specs
+    }
     effective_batch_size = _effective_playwright_batch_size(batch_size, normal_account_slots)
     if effective_batch_size <= 0:
+        if specs and all(not requires_account for requires_account in account_requirements.values()):
+            return [(0, spec, ACCOUNT_FREE_WORKFLOW_ACCOUNT) for spec in specs]
         return []
     plan: list[tuple[int, str, int]] = []
-    for batch_idx, start in enumerate(range(0, len(specs), effective_batch_size)):
-        normal_index = 0
-        for spec in specs[start:start + effective_batch_size]:
+    batch_idx = 0
+    normal_index = 0
+    account_required_specs_in_batch = 0
+    for spec in specs:
+        requires_account = account_requirements[spec]
+        if requires_account and account_required_specs_in_batch >= effective_batch_size:
+            batch_idx += 1
+            normal_index = 0
+            account_required_specs_in_batch = 0
+        if requires_account:
             account = _account_for_spec_in_batch(spec, normal_index, normal_account_slots)
+            account_required_specs_in_batch += 1
             if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                 normal_index += 1
-            plan.append((batch_idx, spec, account))
+        else:
+            account = ACCOUNT_FREE_WORKFLOW_ACCOUNT
+        plan.append((batch_idx, spec, account))
     return plan
 
 
-def _preflight_accounts_for_specs(specs: list[str], batch_size: int) -> list[int]:
+def _preflight_accounts_for_specs(
+    specs: list[str],
+    batch_size: int,
+    requires_account_by_spec: Optional[dict[str, bool]] = None,
+) -> list[int]:
     """Preflight only account slots that the pending Playwright plan can use."""
     return list(dict.fromkeys(
         account
-        for _batch_index, _spec, account in build_playwright_dispatch_plan(specs, batch_size)
+        for _batch_index, _spec, account in build_playwright_dispatch_plan(
+            specs,
+            batch_size,
+            requires_account_by_spec=requires_account_by_spec,
+        )
+        if account != ACCOUNT_FREE_WORKFLOW_ACCOUNT
     ))
 
 
@@ -2568,6 +2642,7 @@ def _single_spec_fallback_accounts(failed_account: int) -> list[int]:
 def _apply_preflight_account_availability(
     specs: list[str],
     preflight_results: list[SpecResult],
+    requires_account_by_spec: Optional[dict[str, bool]] = None,
 ) -> tuple[list[str], list[SpecResult], tuple[int, ...], Optional[str]]:
     """Filter out specs whose reserved account is unavailable.
 
@@ -2578,11 +2653,26 @@ def _apply_preflight_account_availability(
     """
     passed_slots = _passed_preflight_slots(preflight_results)
     normal_slots = tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
-    missing_normal_slots = tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot not in passed_slots)
+    uses_normal_slots = any(
+        (requires_account_by_spec.get(spec, True) if requires_account_by_spec is not None else True)
+        and spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC
+        for spec in specs
+    )
+    missing_normal_slots = (
+        tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot not in passed_slots)
+        if uses_normal_slots else ()
+    )
     blocked: list[SpecResult] = []
     runnable: list[str] = []
 
     for spec in specs:
+        requires_account = (
+            requires_account_by_spec.get(spec, True)
+            if requires_account_by_spec is not None else True
+        )
+        if not requires_account:
+            runnable.append(spec)
+            continue
         reserved_slot = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(spec)
         if reserved_slot is not None and reserved_slot not in passed_slots:
             blocked.append(SpecResult(
@@ -2628,6 +2718,7 @@ class BatchRunner:
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
         daily_ai_run_id: str = "",
+        requires_account_by_spec: Optional[dict[str, bool]] = None,
         progress_callback: Optional[Callable[[SuiteResult], None]] = None,
         coordinate_accounts: bool | None = None,
     ) -> None:
@@ -2643,6 +2734,7 @@ class BatchRunner:
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
         self.daily_ai_run_id = daily_ai_run_id
+        self.requires_account_by_spec = requires_account_by_spec or {}
         self.progress_callback = progress_callback
         external_account_lease_held = os.environ.get(PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV) == "1"
         self.coordinate_accounts = (
@@ -2650,6 +2742,9 @@ class BatchRunner:
             if coordinate_accounts is None
             else coordinate_accounts
         )
+
+    def _spec_requires_account(self, spec: str) -> bool:
+        return self.requires_account_by_spec.get(spec, True)
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
@@ -2704,7 +2799,10 @@ class BatchRunner:
         all_results: list[SpecResult] = []
         effective_batch_size = _effective_playwright_batch_size(self.batch_size, self.normal_account_slots)
         if effective_batch_size <= 0:
-            return SuiteResult(status="failed", reason="no available normal Playwright account slots")
+            if all(not self._spec_requires_account(spec) for spec in self.specs):
+                effective_batch_size = self.batch_size if self.batch_size > 0 else len(self.specs)
+            else:
+                return SuiteResult(status="failed", reason="no available normal Playwright account slots")
         suite_start = time.time()
         refresh_budget = getattr(self.client, "refresh_dispatch_budget", None)
         if callable(refresh_budget):
@@ -2719,6 +2817,8 @@ class BatchRunner:
         state_lock = threading.Lock()
         stop_dispatch = threading.Event()
         worker_slots = self.normal_account_slots[:min(effective_batch_size, len(self.specs))]
+        if not worker_slots:
+            worker_slots = (ACCOUNT_FREE_WORKFLOW_ACCOUNT,) * min(effective_batch_size, len(self.specs))
 
         _log(f"Dynamic Playwright queue: {len(self.specs)} specs across {len(worker_slots)} account workers")
 
@@ -2784,8 +2884,8 @@ class BatchRunner:
     ) -> list[SpecResult]:
         """Dispatch and wait for a single batch of specs."""
         # Dispatch all specs in this batch
-        dispatched: list[tuple[str, int, int]] = []  # (spec, account, run_id)
-        pending_dispatches: dict[str, tuple[str, int]] = {}
+        dispatched: list[tuple[str, int, int, bool]] = []  # (spec, account, run_id, requires_account)
+        pending_dispatches: dict[str, tuple[str, int, bool]] = {}
         dispatch_errors: list[SpecResult] = []
         normal_account_index = 0
         account_leases: dict[int, tuple[str, set[str]]] = {}
@@ -2830,7 +2930,10 @@ class BatchRunner:
                     _log(f"Could not release Playwright account lease {lease_id}: {exc}", "WARN")
 
         for i, spec in enumerate(specs):
-            if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+            requires_account = self._spec_requires_account(spec)
+            if not requires_account:
+                account = ACCOUNT_FREE_WORKFLOW_ACCOUNT
+            elif spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                 account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC[spec]
             elif account_overrides is not None:
                 account = account_overrides[i]
@@ -2838,17 +2941,19 @@ class BatchRunner:
                 account = i + 1
             else:
                 account = _account_for_spec_in_batch(spec, normal_account_index, self.normal_account_slots)
-            if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
+            if requires_account and spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
                 normal_account_index += 1
-            if spec != ACCOUNT_PREFLIGHT_SPEC:
+            if requires_account and spec != ACCOUNT_PREFLIGHT_SPEC:
                 account = claim_account(
                     account,
                     reserved=spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC,
                 )
-            _log(f"  Dispatching {spec} (account {account})")
+            account_label = f"account {account}" if requires_account else "account-free"
+            _log(f"  Dispatching {spec} ({account_label})")
 
-            create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
-            seeded_gift_card = self.seeded_gift_cards.get(spec)
+            create_account_slot = self.create_account_slot if requires_account and spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
+            seeded_gift_card = self.seeded_gift_cards.get(spec) if requires_account else None
+            allow_credential_updates = self.allow_credential_updates and requires_account
             if hasattr(self.client, "request_spec_dispatch"):
                 dispatch_token = self.client.request_spec_dispatch(
                     spec,
@@ -2856,10 +2961,11 @@ class BatchRunner:
                     self.use_mocks,
                     self.record_live_fixtures,
                     create_account_slot=create_account_slot,
-                    allow_credential_updates=self.allow_credential_updates,
+                    allow_credential_updates=allow_credential_updates,
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                     proof_video_profile=self.proof_video_profile,
                     daily_ai_run_id=self.daily_ai_run_id,
+                    requires_account=requires_account,
                 )
             else:
                 run_id = self.client.dispatch_spec(
@@ -2868,10 +2974,11 @@ class BatchRunner:
                     self.use_mocks,
                     self.record_live_fixtures,
                     create_account_slot=create_account_slot,
-                    allow_credential_updates=self.allow_credential_updates,
+                    allow_credential_updates=allow_credential_updates,
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                     proof_video_profile=self.proof_video_profile,
                     daily_ai_run_id=self.daily_ai_run_id,
+                    requires_account=requires_account,
                 )
                 dispatch_token = f"immediate:{run_id}" if run_id is not None else None
             circuit = getattr(self.client, "dispatch_circuit", None)
@@ -2893,10 +3000,11 @@ class BatchRunner:
                         self.use_mocks,
                         self.record_live_fixtures,
                         create_account_slot=create_account_slot,
-                        allow_credential_updates=self.allow_credential_updates,
+                        allow_credential_updates=allow_credential_updates,
                         seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                         proof_video_profile=self.proof_video_profile,
                         daily_ai_run_id=self.daily_ai_run_id,
+                        requires_account=requires_account,
                     )
                 else:
                     run_id = self.client.dispatch_spec(
@@ -2905,10 +3013,11 @@ class BatchRunner:
                         self.use_mocks,
                         self.record_live_fixtures,
                         create_account_slot=create_account_slot,
-                        allow_credential_updates=self.allow_credential_updates,
+                        allow_credential_updates=allow_credential_updates,
                         seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                         proof_video_profile=self.proof_video_profile,
                         daily_ai_run_id=self.daily_ai_run_id,
+                        requires_account=requires_account,
                     )
                     dispatch_token = f"immediate:{run_id}" if run_id is not None else None
 
@@ -2918,7 +3027,7 @@ class BatchRunner:
                     error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
                 ))
             else:
-                pending_dispatches[dispatch_token] = (spec, account)
+                pending_dispatches[dispatch_token] = (spec, account, requires_account)
 
         immediate = {
             token: int(token.partition(":")[2])
@@ -2927,14 +3036,14 @@ class BatchRunner:
         }
         unresolved = {
             token: spec
-            for token, (spec, _account) in pending_dispatches.items()
+            for token, (spec, _account, _requires_account) in pending_dispatches.items()
             if token not in immediate
         }
         resolved = {
             **immediate,
             **(self.client.resolve_dispatch_tokens(unresolved) if unresolved else {}),
         }
-        for token, (spec, account) in pending_dispatches.items():
+        for token, (spec, account, requires_account) in pending_dispatches.items():
             run_id = resolved.get(token)
             if run_id is None:
                 dispatch_errors.append(SpecResult(
@@ -2944,7 +3053,7 @@ class BatchRunner:
                     error=self.client.last_dispatch_error or "Workflow run ID was not resolved",
                 ))
             else:
-                dispatched.append((spec, account, run_id))
+                dispatched.append((spec, account, run_id, requires_account))
 
         if not dispatched:
             release_account_leases()
@@ -2974,7 +3083,7 @@ class BatchRunner:
         lease_heartbeat.start()
 
         # Wait for all dispatched runs
-        run_ids = [rid for _, _, rid in dispatched]
+        run_ids = [rid for _, _, rid, _requires_account in dispatched]
         _log(f"  Waiting for {len(run_ids)} runs...")
         statuses = self.client.wait_for_runs(run_ids, self.fail_fast)
         print()  # Clear the polling line
@@ -2983,7 +3092,7 @@ class BatchRunner:
         results: list[SpecResult] = list(dispatch_errors)
         artifact_dir = Path(tempfile.mkdtemp(prefix="pw-artifacts-"))
 
-        for spec, account, rid in dispatched:
+        for spec, account, rid, requires_account in dispatched:
             status_data = statuses.get(rid, {})
             conclusion = status_data.get("conclusion", "unknown")
 
@@ -3085,12 +3194,12 @@ class BatchRunner:
                 "not_started": "⊘",
             }.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")
-            if status not in {"passed", "skipped"}:
+            if requires_account and status not in {"passed", "skipped"}:
                 _update_preflight_cache(set(), {account})
 
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
-                error=error, run_id=rid, account=account, account_email=account_email,
+                error=error, run_id=rid, account=account if requires_account else None, account_email=account_email,
                 retries=retries, flaky=flaky, attempt_statuses=attempt_statuses,
                 playwright_errors=pw_errors,
                 steps=pw_steps,
@@ -8399,13 +8508,33 @@ class TestOrchestrator:
         if not specs and not clear_backend_mock_preflight:
             return SuiteResult(status="skipped", reason="no specs to run")
 
+        account_requirements_ref = self.git_sha if self.environment == "development" else None
+        requires_account_by_spec = _playwright_account_requirements_for_specs(
+            specs,
+            account_requirements_ref,
+        )
+        account_free_specs = [spec for spec in specs if not requires_account_by_spec.get(spec, True)]
+        if account_free_specs:
+            _log(
+                "Playwright account-free dispatch: "
+                f"{len(account_free_specs)} spec(s) skip account preflight and credentials"
+            )
+
         effective_batch_size = _effective_playwright_batch_size(self.max_concurrent)
         _log(f"Playwright: {len(specs)} spec(s) via GitHub Actions (batch size: {effective_batch_size})")
 
         if self.dry_run:
             _log("Dry run — would dispatch these specs:")
             plan_account_slots = (self.account,) if self.account is not None else NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
-            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent, plan_account_slots):
+            for _batch_idx, spec, account in build_playwright_dispatch_plan(
+                specs,
+                self.max_concurrent,
+                plan_account_slots,
+                requires_account_by_spec,
+            ):
+                if not requires_account_by_spec.get(spec, True):
+                    print(f"    account-free  {spec}")
+                    continue
                 reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
@@ -8471,67 +8600,84 @@ class TestOrchestrator:
         blocked_preflight_results: list[SpecResult] = []
         preflight_reason: Optional[str] = None
         normal_account_slots = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+        account_required_specs = [spec for spec in specs if requires_account_by_spec.get(spec, True)]
 
         if not self.spec:
-            preflight_accounts = _preflight_accounts_for_specs(specs, self.max_concurrent)
-            preflight = self._run_account_preflight(client, accounts=preflight_accounts)
-            preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
-            specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
-                _apply_preflight_account_availability(specs, preflight_results)
-            )
-            if not normal_account_slots:
-                return SuiteResult(
-                    status="failed",
-                    tests=[BatchRunner._spec_result_to_dict(result) for result in blocked_preflight_results],
-                    duration_seconds=preflight.duration_seconds,
-                    reason=(preflight_reason or "No available normal Playwright account slots"),
+            if account_required_specs:
+                preflight_accounts = _preflight_accounts_for_specs(
+                    specs,
+                    self.max_concurrent,
+                    requires_account_by_spec,
                 )
-            if preflight_reason:
-                _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
+                preflight = self._run_account_preflight(client, accounts=preflight_accounts)
+                preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
+                specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
+                    _apply_preflight_account_availability(
+                        specs,
+                        preflight_results,
+                        requires_account_by_spec,
+                    )
+                )
+                account_required_specs = [spec for spec in specs if requires_account_by_spec.get(spec, True)]
+                if not normal_account_slots and account_required_specs:
+                    return SuiteResult(
+                        status="failed",
+                        tests=[BatchRunner._spec_result_to_dict(result) for result in blocked_preflight_results],
+                        duration_seconds=preflight.duration_seconds,
+                        reason=(preflight_reason or "No available normal Playwright account slots"),
+                    )
+                if preflight_reason:
+                    _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
+            else:
+                _log("Playwright account preflight skipped: all selected specs are account-free")
         elif self.spec == ACCOUNT_PREFLIGHT_SPEC and self.account is not None:
             return self._run_account_preflight(client, accounts=[self.account])
         elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
-            reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
-            if self.account is not None and reserved_account is not None and self.account != reserved_account:
-                return SuiteResult(
-                    status="failed",
-                    tests=[{
-                        "name": self.spec,
-                        "status": "failed",
-                        "duration_seconds": 0,
-                        "error": f"{self.spec} requires reserved account slot {reserved_account}; received --account {self.account}",
-                    }],
-                    reason=f"Reserved-account spec requires slot {reserved_account}",
-                )
-
-            account = self.account if self.account is not None else _account_for_spec_in_batch(self.spec, 0)
-            preflight = self._run_account_preflight(client, accounts=[account])
-            if preflight.status == "failed":
-                if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
-                    return preflight
-
-                fallback_accounts = _single_spec_fallback_accounts(account)
-                fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
-                fallback_slots = _passed_normal_preflight_slots([
-                    self._dict_to_spec_result(test)
-                    for test in fallback_preflight.tests
-                ])
-                if not fallback_slots:
+            if not requires_account_by_spec.get(self.spec, True):
+                if self.account is not None:
+                    _log(f"{self.spec} is account-free; ignoring --account {self.account}", "WARN")
+            else:
+                reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
+                if self.account is not None and reserved_account is not None and self.account != reserved_account:
                     return SuiteResult(
                         status="failed",
-                        tests=[*preflight.tests, *fallback_preflight.tests],
-                        duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
-                        reason="No healthy normal Playwright account slots after single-spec preflight fallback",
+                        tests=[{
+                            "name": self.spec,
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": f"{self.spec} requires reserved account slot {reserved_account}; received --account {self.account}",
+                        }],
+                        reason=f"Reserved-account spec requires slot {reserved_account}",
                     )
 
-                normal_account_slots = (fallback_slots[0],)
-                preflight_reason = (
-                    f"Selected normal account slot {account} failed preflight; "
-                    f"using fallback slot {fallback_slots[0]} for {self.spec}"
-                )
-                _log(preflight_reason, "WARN")
-            else:
-                normal_account_slots = (account,)
+                account = self.account if self.account is not None else _account_for_spec_in_batch(self.spec, 0)
+                preflight = self._run_account_preflight(client, accounts=[account])
+                if preflight.status == "failed":
+                    if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                        return preflight
+
+                    fallback_accounts = _single_spec_fallback_accounts(account)
+                    fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+                    fallback_slots = _passed_normal_preflight_slots([
+                        self._dict_to_spec_result(test)
+                        for test in fallback_preflight.tests
+                    ])
+                    if not fallback_slots:
+                        return SuiteResult(
+                            status="failed",
+                            tests=[*preflight.tests, *fallback_preflight.tests],
+                            duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
+                            reason="No healthy normal Playwright account slots after single-spec preflight fallback",
+                        )
+
+                    normal_account_slots = (fallback_slots[0],)
+                    preflight_reason = (
+                        f"Selected normal account slot {account} failed preflight; "
+                        f"using fallback slot {fallback_slots[0]} for {self.spec}"
+                    )
+                    _log(preflight_reason, "WARN")
+                else:
+                    normal_account_slots = (account,)
 
         try:
             seeded_gift_cards = _seed_playwright_fixtures_for_specs(specs, self.environment)
@@ -8569,6 +8715,7 @@ class TestOrchestrator:
                 if getattr(self, "daily", False)
                 else ""
             ),
+            requires_account_by_spec=requires_account_by_spec,
             progress_callback=self._save_playwright_progress_snapshot,
             coordinate_accounts=self.account is None,
         )

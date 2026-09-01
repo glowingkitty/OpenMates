@@ -10,7 +10,7 @@
 # Architecture: docs/architecture/github-actions-ci.md
 
 name: "Playwright: Single Spec"
-run-name: "Playwright: ${{ inputs.spec }} account ${{ inputs.account }} ${{ inputs.dispatch_token }}"
+run-name: "Playwright: ${{ inputs.spec }} ${{ inputs.requires_account && format('account {0}', inputs.account) || 'account-free' }} ${{ inputs.dispatch_token }}"
 
 on:
   workflow_dispatch:
@@ -24,6 +24,10 @@ on:
         required: true
         type: string
         default: "1"
+      requires_account:
+        description: "Whether this spec may receive configured test-account credentials."
+        type: boolean
+        default: true
       record_fixtures:
         description: "Record LLM fixtures instead of replaying mocks"
         type: boolean
@@ -81,6 +85,10 @@ on:
       account:
         required: true
         type: string
+      requires_account:
+        required: false
+        type: boolean
+        default: true
       record_fixtures:
         required: false
         type: boolean
@@ -129,9 +137,9 @@ on:
       E2E_DEV_TEST_BASE_URL: {required: true}
       OPENMATES_TEST_ACCOUNT_API_KEY: {required: false}
       OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON: {required: false}
-      TEST_ACCOUNT_EMAIL: {required: true}
-      TEST_ACCOUNT_PASSWORD: {required: true}
-      TEST_ACCOUNT_OTP_KEY: {required: true}
+      TEST_ACCOUNT_EMAIL: {required: false}
+      TEST_ACCOUNT_PASSWORD: {required: false}
+      TEST_ACCOUNT_OTP_KEY: {required: false}
       SIGNUP_TEST_EMAIL_DOMAINS: {required: false}
       E2E_SIGNUP_INVITE_CODE: {required: false}
       GMAIL_CLIENT_ID: {required: false}
@@ -150,7 +158,7 @@ on:
       GH_SECRETS_TOKEN: {required: false}
 
 concurrency:
-  group: ${{ (inputs.migrate_account_secrets_to_expanded_bundle || inputs.create_account_slot != '') && 'playwright-account-secret-writes' || format('playwright-account-{0}', inputs.account) }}
+  group: ${{ !inputs.requires_account && format('playwright-account-free-{0}', inputs.spec) || (inputs.migrate_account_secrets_to_expanded_bundle || inputs.create_account_slot != '') && 'playwright-account-secret-writes' || format('playwright-account-{0}', inputs.account) }}
   cancel-in-progress: false
 
 permissions:
@@ -164,11 +172,30 @@ jobs:
         with:
           ref: ${{ inputs.checkout_ref }}
           persist-credentials: false
+      - name: Validate account-free spec marker
+        if: ${{ !inputs.requires_account }}
+        run: |
+          set -euo pipefail
+          SPEC_PATH="frontend/apps/web_app/tests/${{ inputs.spec }}"
+          MARKER="// playwright-account: not_required reason=isolated_component_preview"
+          if [ ! -f "$SPEC_PATH" ]; then
+            echo "Account-free dispatch requires an existing Playwright spec: $SPEC_PATH" >&2
+            exit 1
+          fi
+          if ! grep -Fxq "$MARKER" "$SPEC_PATH"; then
+            echo "Account-free dispatch requires exact marker: $MARKER" >&2
+            exit 1
+          fi
+          if [ -n "${{ inputs.create_account_slot }}" ] || [ -n "${{ inputs.seeded_gift_card_code }}" ] || [ "${{ inputs.migrate_account_secrets_to_expanded_bundle }}" = "true" ]; then
+            echo "Account-free dispatch cannot use account-only mutation inputs." >&2
+            exit 1
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
       - uses: pnpm/action-setup@v4
       - name: Load selected test account credentials
+        if: inputs.requires_account
         env:
           DIRECT_EMAIL: ${{ secrets.TEST_ACCOUNT_EMAIL != '' && secrets.TEST_ACCOUNT_EMAIL || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.account)] }}
           DIRECT_PASSWORD: ${{ secrets.TEST_ACCOUNT_PASSWORD != '' && secrets.TEST_ACCOUNT_PASSWORD || secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account)] }}
@@ -242,7 +269,7 @@ jobs:
             } >> "$GITHUB_ENV"
           fi
       - name: Migrate expanded account secrets to consolidated bundle
-        if: inputs.migrate_account_secrets_to_expanded_bundle
+        if: inputs.requires_account && inputs.migrate_account_secrets_to_expanded_bundle
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
           EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
@@ -275,7 +302,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Export seeded gift card code
-        if: inputs.seeded_gift_card_code != ''
+        if: inputs.requires_account && inputs.seeded_gift_card_code != ''
         run: |
           set -euo pipefail
           echo "::add-mask::${{ inputs.seeded_gift_card_code }}"
@@ -284,6 +311,7 @@ jobs:
         run: pnpm --filter openmates build
         working-directory: frontend
       - name: Prepare API key for CLI specs
+        if: inputs.requires_account
         run: |
           set -euo pipefail
           mkdir -p frontend/apps/web_app/artifacts
@@ -402,7 +430,7 @@ jobs:
         env:
           OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
       - name: Run CLI integration checks
-        if: inputs.spec == '__cli_integration_code_docs__'
+        if: inputs.requires_account && inputs.spec == '__cli_integration_code_docs__'
         id: cli_run
         continue-on-error: true
         run: |
@@ -487,35 +515,35 @@ jobs:
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
           OPENMATES_E2E_API_URL: ${{ secrets.E2E_DEV_API_URL }}
-          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.account }}
-          PLAYWRIGHT_WORKER_SLOT: "1"
+          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: ${{ inputs.requires_account && inputs.account || '' }}
+          PLAYWRIGHT_WORKER_SLOT: ${{ inputs.requires_account && '1' || '' }}
           OPENMATES_CLI_RECORD_E2E: "1"
           OPENMATES_E2E_SPEC: ${{ inputs.spec }}
           PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile || (inputs.spec == 'proof-video-architecture.spec.ts' && 'web-laptop') || '' }}
           PLAYWRIGHT_VIDEO_WIDTH: ${{ inputs.proof_video_profile == 'web-phone' && '390' || (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '1440' || '' }}
           PLAYWRIGHT_VIDEO_HEIGHT: ${{ inputs.proof_video_profile == 'web-phone' && '630' || (inputs.proof_video_profile == 'web-laptop' || inputs.spec == 'proof-video-architecture.spec.ts' || inputs.spec == 'deep-research-real-inference.spec.ts') && '900' || '' }}
-          SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
-          E2E_SIGNUP_INVITE_CODE: ${{ (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
-          OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
-          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
-          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
-          GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
-          GOOGLE_CALENDAR_TEST_EMAIL: ${{ secrets.GOOGLE_CALENDAR_TEST_EMAIL }}
-          GOOGLE_CALENDAR_TEST_PASSWORD: ${{ secrets.GOOGLE_CALENDAR_TEST_PASSWORD }}
-          GOOGLE_CALENDAR_TEST_TOTP_KEY: ${{ secrets.GOOGLE_CALENDAR_TEST_TOTP_KEY }}
-          GOOGLE_TEST_EMAIL: ${{ secrets.GOOGLE_TEST_EMAIL }}
-          GOOGLE_TEST_PASSWORD: ${{ secrets.GOOGLE_TEST_PASSWORD }}
-          GOOGLE_TEST_TOTP_KEY: ${{ secrets.GOOGLE_TEST_TOTP_KEY }}
-          PROTON_BRIDGE_TEST_EMAIL: ${{ secrets.PROTON_BRIDGE_TEST_EMAIL }}
-          PROTON_BRIDGE_TEST_PASSWORD: ${{ secrets.PROTON_BRIDGE_TEST_PASSWORD }}
-          PROTON_BRIDGE_TEST_TOTP_KEY: ${{ secrets.PROTON_BRIDGE_TEST_TOTP_KEY }}
+          SIGNUP_TEST_EMAIL_DOMAINS: ${{ inputs.requires_account && secrets.SIGNUP_TEST_EMAIL_DOMAINS || '' }}
+          E2E_SIGNUP_INVITE_CODE: ${{ inputs.requires_account && (contains(inputs.spec, 'signup') || inputs.spec == 'referral-signup-purchase.spec.ts' || inputs.spec == 'create-test-account.spec.ts') && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
+          OPENMATES_CLI_SIGNUP_INVITE_CODE: ${{ inputs.requires_account && inputs.spec == 'cli-provision-auth-accounts.spec.ts' && secrets.E2E_SIGNUP_INVITE_CODE || '' }}
+          GMAIL_CLIENT_ID: ${{ inputs.requires_account && secrets.GMAIL_CLIENT_ID || '' }}
+          GMAIL_CLIENT_SECRET: ${{ inputs.requires_account && secrets.GMAIL_CLIENT_SECRET || '' }}
+          GMAIL_REFRESH_TOKEN: ${{ inputs.requires_account && secrets.GMAIL_REFRESH_TOKEN || '' }}
+          GMAIL_TEST_ADDRESS: ${{ inputs.requires_account && secrets.GMAIL_TEST_ADDRESS || '' }}
+          GOOGLE_CALENDAR_TEST_EMAIL: ${{ inputs.requires_account && secrets.GOOGLE_CALENDAR_TEST_EMAIL || '' }}
+          GOOGLE_CALENDAR_TEST_PASSWORD: ${{ inputs.requires_account && secrets.GOOGLE_CALENDAR_TEST_PASSWORD || '' }}
+          GOOGLE_CALENDAR_TEST_TOTP_KEY: ${{ inputs.requires_account && secrets.GOOGLE_CALENDAR_TEST_TOTP_KEY || '' }}
+          GOOGLE_TEST_EMAIL: ${{ inputs.requires_account && secrets.GOOGLE_TEST_EMAIL || '' }}
+          GOOGLE_TEST_PASSWORD: ${{ inputs.requires_account && secrets.GOOGLE_TEST_PASSWORD || '' }}
+          GOOGLE_TEST_TOTP_KEY: ${{ inputs.requires_account && secrets.GOOGLE_TEST_TOTP_KEY || '' }}
+          PROTON_BRIDGE_TEST_EMAIL: ${{ inputs.requires_account && secrets.PROTON_BRIDGE_TEST_EMAIL || '' }}
+          PROTON_BRIDGE_TEST_PASSWORD: ${{ inputs.requires_account && secrets.PROTON_BRIDGE_TEST_PASSWORD || '' }}
+          PROTON_BRIDGE_TEST_TOTP_KEY: ${{ inputs.requires_account && secrets.PROTON_BRIDGE_TEST_TOTP_KEY || '' }}
           E2E_USE_MOCKS: ${{ inputs.use_mocks && '1' || '' }}
           E2E_RECORD_FIXTURES: ${{ inputs.record_fixtures && '1' || '' }}
           E2E_USE_LIVE_MOCKS: ${{ inputs.use_live_mocks && '1' || '' }}
           E2E_RECORD_LIVE_FIXTURES: ${{ inputs.record_live_fixtures && '1' || '' }}
-          E2E_DAILY_AI_RUN_ID: ${{ inputs.daily_ai_run_id }}
-          CREATE_ACCOUNT_SLOT: ${{ inputs.create_account_slot }}
+          E2E_DAILY_AI_RUN_ID: ${{ inputs.requires_account && inputs.daily_ai_run_id || '' }}
+          CREATE_ACCOUNT_SLOT: ${{ inputs.requires_account && inputs.create_account_slot || '' }}
       - name: Record finalized video timing
         if: always() && inputs.spec != '__cli_integration_code_docs__'
         run: |
@@ -551,7 +579,7 @@ jobs:
           PY
           fi
       - name: Update OTP key if changed by test
-        if: always() && inputs.allow_credential_updates
+        if: always() && inputs.requires_account && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
           EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
@@ -587,7 +615,7 @@ jobs:
             fi
           fi
       - name: Update API key if changed by test
-        if: always() && inputs.allow_credential_updates
+        if: always() && inputs.requires_account && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
         run: |
@@ -599,7 +627,7 @@ jobs:
             gh secret set OPENMATES_TEST_ACCOUNT_API_KEY --body "$NEW_API_KEY" && echo "✅ Updated OPENMATES_TEST_ACCOUNT_API_KEY" || echo "⚠️ Failed to update OPENMATES_TEST_ACCOUNT_API_KEY"
           fi
       - name: Revoke per-run CLI API key
-        if: always()
+        if: always() && inputs.requires_account
         run: |
           set -euo pipefail
           if [ -z "${OPENMATES_CI_API_KEY_ID:-}" ]; then
@@ -614,7 +642,7 @@ jobs:
             settings developers api-keys revoke "$OPENMATES_CI_API_KEY_ID" --yes --json \
             || echo "⚠️ Failed to revoke per-run CLI API key $OPENMATES_CI_API_KEY_ID"
       - name: Update account credentials if created by utility spec
-        if: always() && inputs.allow_credential_updates
+        if: always() && inputs.requires_account && inputs.allow_credential_updates
         env:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
           EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
