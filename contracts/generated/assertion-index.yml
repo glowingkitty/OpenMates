@@ -10534,7 +10534,7 @@ assertions:
       surface: rest_api
     - &id1158
       path: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-      line: 119
+      line: 83
       name: plays a real assistant response with synchronized controls
       surface: gui.web
     supporting_tests:
@@ -10571,7 +10571,7 @@ assertions:
     direct_tests:
     - &id1159
       path: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-      line: 119
+      line: 83
       name: plays a real assistant response with synchronized controls
       surface: gui.web
     supporting_tests: []
@@ -10883,7 +10883,7 @@ assertions:
     direct_tests:
     - &id1189
       path: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-      line: 119
+      line: 83
       name: plays a real assistant response with synchronized controls
       surface: gui.web
     - &id1190
@@ -10929,7 +10929,7 @@ assertions:
     direct_tests:
     - &id1194
       path: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-      line: 119
+      line: 83
       name: plays a real assistant response with synchronized controls
       surface: gui.web
     - &id1195
@@ -10986,7 +10986,7 @@ assertions:
     direct_tests:
     - &id1199
       path: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-      line: 119
+      line: 83
       name: plays a real assistant response with synchronized controls
       surface: gui.web
     - &id1200
@@ -11022,7 +11022,7 @@ assertions:
       surface: rest_api
     - &id1203
       path: frontend/apps/web_app/tests/assistant-response-speech.spec.ts
-      line: 119
+      line: 83
       name: plays a real assistant response with synchronized controls
       surface: gui.web
     supporting_tests: []

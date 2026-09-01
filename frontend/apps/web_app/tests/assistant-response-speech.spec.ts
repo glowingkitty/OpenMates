@@ -12,14 +12,11 @@ const {
 	archiveExistingScreenshots,
 	createSignupLogger,
 	createStepScreenshotter,
-	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
-const { deriveApiUrl, expectCliSuccess, parseCliJson, runCli } = require('./helpers/cli-test-helpers');
+const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
-const CHAT_TIMEOUT_MS = 420_000;
 const SPEECH_TIMEOUT_MS = 240_000;
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
@@ -81,39 +78,6 @@ test.use({
 
 test.describe.serial('Assistant response speech', () => {
 	test.setTimeout(900_000);
-	let apiUrl = '';
-	let chatId = '';
-
-	test.beforeAll(async () => {
-		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
-		const result = await runCli(
-			apiUrl,
-			[
-				'chats',
-				'new',
-				'Answer with exactly two short plain-text paragraphs. The first paragraph must say that assistant speech starts progressively. The second paragraph must say that paragraph controls remain available.',
-				'--json',
-				'--response-timeout-seconds',
-				'300'
-			],
-			CHAT_TIMEOUT_MS
-		);
-		expectCliSuccess(result, 'assistant-response speech source chat');
-		const parsed = parseCliJson(result);
-		chatId = String(
-			parsed.chat_id ||
-			parsed.chatId ||
-			parsed.payload?.chat_id ||
-			parsed.payload?.chatId ||
-			parsed.data?.chat_id ||
-			''
-		);
-		expect(chatId, 'source chat should return a chat_id').toBeTruthy();
-	});
-
-	test.afterAll(async () => {
-		if (chatId) await runCli(apiUrl, ['chats', 'delete', chatId, '--yes'], 30_000).catch(() => undefined);
-	});
 
 	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.autoplay-recovery-visible
 	test('plays a real assistant response with synchronized controls', async ({ page }: { page: any }, testInfo: any) => {
@@ -130,8 +94,18 @@ test.describe.serial('Assistant response speech', () => {
 			: null;
 
 		await loginToTestAccount(page, log, screenshot);
-		await page.goto(getE2EDebugUrl(`/#chat-id=${chatId}`), { waitUntil: 'domcontentloaded' });
-		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
+		await startNewChat(page, log);
+		await sendMessage(
+			page,
+			'Answer with exactly two short plain-text paragraphs. The first paragraph must say that assistant speech starts progressively. The second paragraph must say that paragraph controls remain available.',
+			log,
+			screenshot,
+			'assistant-speech-source'
+		);
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
+		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
+		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+		expect(chatId, 'browser chat should expose a chat-id').toBeTruthy();
 
 		const messageField = page.getByTestId('message-field').last();
 		await messageField.click();
@@ -203,6 +177,7 @@ test.describe.serial('Assistant response speech', () => {
 			await proof.checkpoint('paragraph-navigation-visible');
 			await proof.attach();
 		}
+		await deleteActiveChat(page, log);
 	});
 });
 
