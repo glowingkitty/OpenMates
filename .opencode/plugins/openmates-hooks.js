@@ -2504,6 +2504,11 @@ function commandMutatesFilesForTest(command) {
   return /(?:^|[;&|]\s*|\s)(?:apply_patch|chmod|chown|cp|install|mv|perl\s+-[^\n]*i|rm|sed\s+-[^\n]*i|tee|truncate)(?:\s|$)|(?:^|[^<])>{1,2}(?!>)/.test(value);
 }
 
+function directSessionsSpawnChatCommandForTest(command) {
+  const args = directPythonScriptArgs(String(command || ""));
+  return Boolean(args && args[0] === "scripts/sessions.py" && args[1] === "spawn-chat");
+}
+
 function controlPlaneToolDecisionForTest({ tool = "", args = {}, cwd = activeCwd() } = {}) {
   const files = EDIT_TOOLS.has(tool)
     ? editedFilesForTest(args, cwd)
@@ -2522,6 +2527,14 @@ function controlPlaneToolDecisionForTest({ tool = "", args = {}, cwd = activeCwd
   }
   if (BASH_TOOLS.has(tool)) {
     const command = bashCommand(args);
+    // spawn-chat receives a quoted prompt as opaque data. Inspecting that
+    // payload as shell syntax creates false positives when the handoff names a
+    // protected path or embeds HTML such as `<audio controls>`. Only exempt a
+    // single, directly parsed sessions.py invocation; chained shell commands,
+    // substitutions, and redirections still fail directPythonScriptArgs().
+    if (directSessionsSpawnChatCommandForTest(command)) {
+      return { decision: "allow", message: "canonical spawn-chat prompt is opaque data" };
+    }
     if (commandReferencesSecretConfigForTest(command)) {
       return {
         decision: "block",
@@ -3470,6 +3483,7 @@ OpenMatesHooks.test = Object.freeze({
   continuationSignalForTest,
   continuationSuppressedForTest,
   controlPlaneToolDecisionForTest,
+  directSessionsSpawnChatCommandForTest,
   createWorktreeActivationSchedulerForTest,
   createWorktreeCheckpointSchedulerForTest,
   createPresenceSchedulerForTest,

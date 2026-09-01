@@ -399,6 +399,24 @@ test("ordinary product tools cannot mutate control-plane paths or read secret co
   assert.equal(decide({ tool: "read", args: { filePath: `${process.cwd()}/frontend/packages/ui/src/index.ts` } }).decision, "allow");
 });
 
+test("spawn-chat treats its quoted handoff prompt as opaque data", () => {
+  const decide = pluginModule.OpenMatesHooks.test.controlPlaneToolDecisionForTest;
+  const command = [
+    "python3 scripts/sessions.py spawn-chat --name audio-review --mode execute --prompt",
+    "'Run python3 scripts/sessions.py start, update scripts/opencode_response_media.py, and return <audio controls>.'",
+  ].join(" ");
+  assert.equal(decide({ tool: "bash", args: { command } }).decision, "allow");
+});
+
+test("spawn-chat exemption does not allow chained control-plane mutations", () => {
+  const decide = pluginModule.OpenMatesHooks.test.controlPlaneToolDecisionForTest;
+  const command = [
+    "python3 scripts/sessions.py spawn-chat --name audio-review --prompt 'Review audio'",
+    "; sed -i s/old/new/ scripts/sessions.py",
+  ].join(" ");
+  assert.equal(decide({ tool: "bash", args: { command } }).decision, "block");
+});
+
 test("optional hook queues require matching sessions.py subcommands", async () => {
   const supports = pluginModule.OpenMatesHooks.test.sessionsCommandSupportedForTest;
   const calls = [];
