@@ -3852,6 +3852,7 @@ class BatchRunner:
                         if map_proof_timestamp is None:
                             raise RuntimeError(f"Spec proof checkpoint frame timestamp is invalid: {checkpoint}")
                         timestamp = map_proof_timestamp(captured_at_ms, f"checkpoint {checkpoint}")
+                        frame_record["at_ms"] = round(timestamp * 1000)
                         extraction = subprocess.run(
                             [
                                 "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",

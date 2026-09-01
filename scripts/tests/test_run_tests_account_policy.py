@@ -96,7 +96,7 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
         }],
         "checkpoint_frames": [{
             "checkpoint": "welcome-visible",
-            "at_ms": 500,
+            "at_ms": 0,
             "captured_at_epoch_ms": 1767225601000,
         }],
     }).encode()
@@ -140,6 +140,7 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     assert persisted_timeline["checkpoint_frames"][0]["sha256"] == (
         "sha256:" + hashlib.sha256(persisted_frame.read_bytes()).hexdigest()
     )
+    assert persisted_timeline["checkpoint_frames"][0]["at_ms"] == pytest.approx(500, abs=100)
     assert persisted_timeline["events"][0]["start_ms"] == pytest.approx(200, abs=100)
     assert persisted_timeline["events"][0]["end_ms"] == pytest.approx(400, abs=100)
     assert persisted_timeline["events"][1]["at_ms"] == pytest.approx(500, abs=100)
