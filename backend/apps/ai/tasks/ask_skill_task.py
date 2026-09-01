@@ -1199,7 +1199,7 @@ async def _async_process_ai_skill_ask_task(
             None,
         )
         if last_user_msg:
-            marker_content = request_data.current_user_content or last_user_msg.content
+            marker_content = last_user_msg.content
             _live_marker = resolve_live_marker_or_raise(marker_content, request_data.user_id)
             if _live_marker and _test_marker:
                 raise RuntimeError("Cannot combine TEST_MOCK/TEST_RECORD with TEST_LIVE marker")
