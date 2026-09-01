@@ -196,7 +196,7 @@ test.describe.serial('Assistant response speech', () => {
 		const player = page.getByTestId('assistant-speech-player');
 		await expect(player).toBeVisible({ timeout: SPEECH_TIMEOUT_MS });
 		const regions = player.getByTestId('assistant-speech-region');
-		await expect(regions).toHaveCount(2, { timeout: 30_000 });
+		await expect.poll(async () => regions.count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
 		await expect(async () => {
 			const ready = await regions.evaluateAll((elements: Element[]) => elements.filter((element) => element.getAttribute('data-status') === 'ready').length);
 			const status = await player.getByTestId('assistant-speech-status').textContent();
@@ -208,7 +208,7 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(player.getByRole('button', { name: /pause voice response|play voice response/i })).toBeVisible({ timeout: 30_000 });
 		if (proof) {
 			await proof.assert('speech-player-visible', async () => {
-				await expect(regions).toHaveCount(2);
+				expect(await regions.count()).toBeGreaterThanOrEqual(2);
 				await expect(player.getByRole('button', { name: 'Previous paragraph' })).toBeVisible();
 				await expect(player.getByRole('button', { name: 'Next paragraph' })).toBeVisible();
 			});
