@@ -26882,7 +26882,7 @@ assertions:
     direct_tests:
     - &id3058
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -26923,7 +26923,7 @@ assertions:
       surface: rest_api
     - &id3062
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -26961,7 +26961,7 @@ assertions:
     direct_tests:
     - &id3063
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -26980,7 +26980,7 @@ assertions:
     direct_tests:
     - &id3064
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -27006,7 +27006,7 @@ assertions:
     direct_tests:
     - &id3067
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -27039,7 +27039,7 @@ assertions:
     direct_tests:
     - &id3069
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -27064,7 +27064,7 @@ assertions:
       surface: gui.web
     - &id3072
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -27092,7 +27092,7 @@ assertions:
     direct_tests:
     - &id3073
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web
@@ -27117,7 +27117,7 @@ assertions:
       surface: gui.web
     - &id3075
       path: frontend/apps/web_app/tests/workflows-ui-contract.spec.ts
-      line: 161
+      line: 170
       name: preserves identity while editing versions and inspecting a cancellable
         run
       surface: gui.web

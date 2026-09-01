@@ -12,6 +12,7 @@ export {};
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
+const { captureTestThumbnail, defineTestThumbnail } = require('./helpers/test-thumbnail');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
@@ -20,6 +21,14 @@ const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 1
 const PROOF_STATE_SETTLE_MS = 750;
 const PROOF_TEMPLATE_HOLD_MS = 2500;
 const WORKFLOW_TITLE_PREFIX = 'Workflow UI contract';
+const WORKFLOWS_UI_THUMBNAIL = defineTestThumbnail({
+	id: 'workflows-workspace',
+	focus: [{ testId: 'daily-inspiration-banner' }],
+	context: [
+		{ testId: 'workflows-show-all' },
+		{ testId: 'workflow-input-composer' }
+	]
+});
 
 const WORKFLOWS_UI_PROOF = defineVideoProof({
 	id: 'workflows-ui-contract',
@@ -226,6 +235,7 @@ test.describe('Workflows web UI contract', () => {
 			await expect(editorCard).toHaveAttribute('data-category', 'science');
 			await expect(editorCard).toHaveAttribute('data-icon', 'cloud-rain');
 			await expectNoPageOverflow(page);
+			await captureTestThumbnail(page, testInfo, WORKFLOWS_UI_THUMBNAIL);
 			if (proof) {
 				await settleProofState(page);
 				await proof.assert('workspace-visible.assertion', async () => {
