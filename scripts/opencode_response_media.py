@@ -2,7 +2,7 @@
 # scripts/opencode_response_media.py
 #
 # Upload temporary media/documents for OpenCode responses without making a
-# public bucket. The host script copies a local image/video into the API
+# public bucket. The host script copies a local response file into the API
 # container, where Vault-backed Hetzner S3 credentials are available, then
 # creates/reconciles a private 48-hour bucket and returns a presigned URL.
 #
@@ -45,6 +45,7 @@ CONTENT_TYPES = {
     ".gif": "image/gif",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
+    ".mp3": "audio/mpeg",
     ".mov": "video/quicktime",
     ".mp4": "video/mp4",
     ".png": "image/png",
@@ -180,6 +181,7 @@ async def main():
 
     content = Path(REQUEST["container_path"]).read_bytes()
     metadata = {
+        "media-kind": REQUEST["media_kind"],
         "purpose": "opencode-response-media",
         "lifecycle-policy": f"expire-after-{REQUEST['lifecycle_days']}-days",
         "source-sha256": REQUEST["sha256"],
@@ -216,6 +218,8 @@ def guess_content_type(path: Path) -> str:
 
 
 def media_kind(content_type: str) -> str:
+    if content_type == "audio/mpeg":
+        return "audio"
     if content_type.startswith("image/"):
         return "image"
     if content_type.startswith("video/"):
@@ -247,7 +251,7 @@ def run_object_prefix(run_type: str, content_sha256: str) -> str:
 
 
 def latest_run_object_key(path: Path, content_type: str, run_type: str, content_sha256: str) -> str:
-    stem = "video" if content_type.startswith("video/") else "image"
+    stem = media_kind(content_type)
     return f"{run_object_prefix(run_type, content_sha256)}/{stem}{path.suffix.lower()}"
 
 
@@ -358,6 +362,19 @@ def build_snippets(
                 f'type="application/pdf">{escaped_alt}</a>'
             ),
         }
+    if kind == "audio":
+        return {
+            "markdown": f"[{alt}]({url})",
+            "html": (
+                "<figure>\n"
+                f"  <figcaption>{escaped_alt}</figcaption>\n"
+                '  <audio controls crossorigin="anonymous" preload="metadata" style="width: 100%;">\n'
+                f'    <source src="{escaped_url}" type="{html.escape(content_type, quote=True)}">\n'
+                f'    Audio fallback text: <a href="{escaped_url}">{escaped_alt}</a>\n'
+                "  </audio>\n"
+                "</figure>"
+            ),
+        }
     if kind == "image":
         width_attr = f' width="{width}"' if width else ""
         return {
@@ -407,6 +424,46 @@ def render_text(result: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
+def human_label(value: str) -> str:
+    return re.sub(r"[-_]+", " ", value).strip().title()
+
+
+def default_alt_for_path(source: Path, root: Path | None = None) -> str:
+    if root is None:
+        return source.stem.replace("-", " ").replace("_", " ")
+    relative = source.relative_to(root).with_suffix("")
+    parts = relative.parts
+    if len(parts) >= 3 and re.fullmatch(
+        r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*",
+        parts[-2],
+    ):
+        return f"{human_label(parts[-3])} {human_label(parts[-1])}"
+    return human_label(" ".join(parts))
+
+
+def is_uploadable_response_file(path: Path) -> bool:
+    try:
+        media_kind(guess_content_type(path))
+    except ValueError:
+        return False
+    return True
+
+
+def collect_sources(path: Path, *, recursive: bool) -> list[Path]:
+    if path.is_file():
+        return [path]
+    if not path.is_dir():
+        raise ValueError(f"Media path does not exist: {path}")
+    if not recursive:
+        raise ValueError("Directory uploads require --recursive")
+    sources = sorted(
+        candidate for candidate in path.rglob("*") if candidate.is_file() and is_uploadable_response_file(candidate)
+    )
+    if not sources:
+        raise ValueError(f"No supported response media files found under {path}")
+    return sources
+
+
 def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str, object]:
     source = Path(args.path).expanduser().resolve()
     if not source.is_file():
@@ -437,6 +494,7 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
         "expires_in": expires_in,
         "key": key,
         "lifecycle_days": LIFECYCLE_DAYS,
+        "media_kind": kind,
         "sha256": sha256,
     }
 
@@ -592,6 +650,63 @@ def build_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str
     }
 
 
+def build_batch_result(args: argparse.Namespace, *, dry_run: bool = False) -> dict[str, object]:
+    root = Path(args.path).expanduser().resolve()
+    sources = collect_sources(root, recursive=args.recursive)
+    if len(sources) == 1 and sources[0] == root:
+        return build_result(args, dry_run=dry_run)
+
+    files: list[dict[str, object]] = []
+    for source in sources:
+        item_args = argparse.Namespace(**vars(args))
+        item_args.path = str(source)
+        item_args.alt = default_alt_for_path(source, root)
+        result = build_result(item_args, dry_run=dry_run)
+        result["relative_path"] = source.relative_to(root).as_posix()
+        files.append(result)
+    return {
+        "count": len(files),
+        "expires_in": ensure_expires(args.expires_in),
+        "files": files,
+        "kind": "batch",
+        "root": str(root),
+    }
+
+
+def is_batch_result(result: dict[str, object]) -> bool:
+    return "files" in result
+
+
+def render_batch_snippets(result: dict[str, object], output: str) -> str:
+    files = result["files"]
+    assert isinstance(files, list)
+    lines: list[str] = []
+    for file_result in files:
+        assert isinstance(file_result, dict)
+        snippets = file_result["snippets"]
+        assert isinstance(snippets, dict)
+        lines.append(str(snippets[output]))
+    return "\n\n".join(lines)
+
+
+def render_batch_text(result: dict[str, object]) -> str:
+    files = result["files"]
+    assert isinstance(files, list)
+    lines = [
+        f"Uploaded {result['count']} files:",
+        "",
+    ]
+    for file_result in files:
+        assert isinstance(file_result, dict)
+        lines.extend([
+            str(file_result["relative_path"]),
+            str(file_result["url"]),
+            "",
+        ])
+    lines.append(f"Expires in: {result['expires_in']} seconds")
+    return "\n".join(lines)
+
+
 def upload_file(
     path: str | Path,
     *,
@@ -612,15 +727,16 @@ def upload_file(
         captions_language="und",
         captions_label="Captions",
         latest_run_type="",
+        recursive=False,
     )
     return build_result(args, dry_run=dry_run)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Upload temporary images, videos, or PDF documents for OpenCode responses.",
+        description="Upload temporary images, videos, audio clips, or PDF documents for OpenCode responses.",
     )
-    parser.add_argument("path", help="Image, video, or PDF file to upload")
+    parser.add_argument("path", help="Image, video, audio, PDF, or directory to upload")
     parser.add_argument("--alt", help="Alt text or video label")
     parser.add_argument("--container", default=DEFAULT_CONTAINER, help="API container name")
     parser.add_argument(
@@ -640,6 +756,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Group test or CLI response media by run type while keeping each emitted artifact immutable",
     )
     parser.add_argument(
+        "--recursive",
+        action="store_true",
+        help="Upload supported files under a directory recursively",
+    )
+    parser.add_argument(
         "--output",
         choices=("text", "json", "url", "markdown", "html"),
         default="text",
@@ -651,7 +772,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
-        result = build_result(args, dry_run=args.dry_run)
+        result = build_batch_result(args, dry_run=args.dry_run)
     except Exception as exc:
         print(f"opencode_response_media: {exc}", file=sys.stderr)
         return 1
@@ -659,13 +780,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.output == "json":
         print(json.dumps(result, indent=2, sort_keys=True))
     elif args.output == "url":
-        print(result["url"])
+        if is_batch_result(result):
+            files = result["files"]
+            assert isinstance(files, list)
+            for file_result in files:
+                assert isinstance(file_result, dict)
+                print(file_result["url"])
+        else:
+            print(result["url"])
     elif args.output in {"markdown", "html"}:
-        snippets = result["snippets"]
-        assert isinstance(snippets, dict)
-        print(snippets[args.output])
+        if is_batch_result(result):
+            print(render_batch_snippets(result, args.output))
+        else:
+            snippets = result["snippets"]
+            assert isinstance(snippets, dict)
+            print(snippets[args.output])
     else:
-        print(render_text(result))
+        print(render_batch_text(result) if is_batch_result(result) else render_text(result))
     return 0
 
 

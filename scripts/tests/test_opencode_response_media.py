@@ -2,7 +2,8 @@
 """Tests for the OpenCode response-media upload helper.
 
 Purpose: agents need a deterministic way to upload temporary screenshots,
-videos, and PDFs for responses without exposing files through public buckets.
+videos, audio clips, and PDFs for responses without exposing files through
+public buckets.
 Security: tests use dry-run URLs only; no Docker, Vault, or S3 calls run here.
 Run: python3 -m pytest scripts/tests/test_opencode_response_media.py.
 """
@@ -59,6 +60,56 @@ def test_dry_run_video_outputs_html_video(tmp_path: Path, capsys) -> None:
     assert "<video controls" in data["snippets"]["html"]
     assert 'type="video/mp4"' in data["snippets"]["html"]
     assert 'style="width: 100%; height: auto;"' in data["snippets"]["html"]
+
+
+def test_dry_run_audio_outputs_html_audio_player(tmp_path: Path, capsys) -> None:
+    audio = tmp_path / "ace-action-1.mp3"
+    audio.write_bytes(b"fake mp3 bytes")
+
+    code = media.main([
+        str(audio),
+        "--alt",
+        "Ace action 1",
+        "--dry-run",
+        "--output",
+        "json",
+    ])
+
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["content_type"] == "audio/mpeg"
+    assert data["kind"] == "audio"
+    assert data["snippets"]["markdown"].startswith("[Ace action 1](https://example.invalid/")
+    html = data["snippets"]["html"]
+    assert "<figcaption>Ace action 1</figcaption>" in html
+    assert '<audio controls crossorigin="anonymous" preload="metadata"' in html
+    assert 'type="audio/mpeg"' in html
+    assert "Audio fallback text:" in html
+
+
+def test_audio_upload_request_includes_audio_metadata(tmp_path: Path, monkeypatch, capsys) -> None:
+    audio = tmp_path / "ace-action-1.mp3"
+    audio.write_bytes(b"fake mp3 bytes")
+    uploads: list[dict[str, object]] = []
+
+    def fake_upload(**kwargs):
+        request = kwargs["request"]
+        uploads.append(request)
+        return {
+            "bucket": media.DEV_BUCKET_NAME,
+            "key": request["key"],
+            "url": f"https://example.invalid/{request['key']}",
+        }
+
+    monkeypatch.setattr(media, "upload_via_api_container", fake_upload)
+
+    code = media.main([str(audio), "--alt", "Ace action 1", "--output", "json"])
+
+    assert code == 0
+    assert len(uploads) == 1
+    assert uploads[0]["content_type"] == "audio/mpeg"
+    assert uploads[0]["media_kind"] == "audio"
+    assert json.loads(capsys.readouterr().out)["kind"] == "audio"
 
 
 def test_dry_run_pdf_outputs_readable_document_link(tmp_path: Path, capsys) -> None:
@@ -152,6 +203,25 @@ def test_latest_run_type_uses_content_addressed_immutable_keys(tmp_path: Path, c
     assert "/latest/" not in second["key"]
 
 
+def test_latest_run_type_uses_audio_key_stem(tmp_path: Path, capsys) -> None:
+    audio = tmp_path / "ack.mp3"
+    audio.write_bytes(b"fake mp3 bytes")
+
+    code = media.main([
+        str(audio),
+        "--latest-run-type",
+        "assistant-acknowledgements",
+        "--dry-run",
+        "--output",
+        "json",
+    ])
+
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    digest = media.hashlib.sha256(audio.read_bytes()).hexdigest()
+    assert data["key"] == f"opencode-responses/runs/assistant-acknowledgements/{digest}/audio.mp3"
+
+
 def test_latest_run_type_rejects_unsafe_scope(tmp_path: Path, capsys) -> None:
     video = tmp_path / "demo.webm"
     video.write_bytes(b"fake webm bytes")
@@ -240,6 +310,37 @@ def test_rejects_presigned_url_ttl_above_bucket_retention(tmp_path: Path, capsys
 
     assert code == 1
     assert "--expires-in must be at most" in capsys.readouterr().err
+
+
+def test_recursive_directory_upload_outputs_labeled_audio_batch(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "assistant-acknowledgements"
+    (root / "ace" / "en-US").mkdir(parents=True)
+    (root / "ace" / "en-US" / "action-1.mp3").write_bytes(b"fake action mp3 bytes")
+    (root / "ace" / "en-US" / "general-1.mp3").write_bytes(b"fake general mp3 bytes")
+    (root / "manifest.json").write_text("{}", encoding="utf-8")
+
+    code = media.main([str(root), "--recursive", "--dry-run", "--output", "json"])
+
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["count"] == 2
+    assert data["kind"] == "batch"
+    assert [item["relative_path"] for item in data["files"]] == [
+        "ace/en-US/action-1.mp3",
+        "ace/en-US/general-1.mp3",
+    ]
+    assert all(item["content_type"] == "audio/mpeg" for item in data["files"])
+    assert "<figcaption>Ace Action 1</figcaption>" in data["files"][0]["snippets"]["html"]
+
+
+def test_directory_upload_requires_recursive_flag(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "assistant-acknowledgements"
+    root.mkdir()
+
+    code = media.main([str(root), "--dry-run"])
+
+    assert code == 1
+    assert "Directory uploads require --recursive" in capsys.readouterr().err
 
 
 def test_dry_run_video_with_poster_outputs_uploaded_poster(tmp_path: Path, capsys) -> None:
