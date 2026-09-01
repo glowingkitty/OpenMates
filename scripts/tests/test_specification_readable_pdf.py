@@ -175,16 +175,15 @@ def test_html_renders_chaptered_contract_presentation(tmp_path: Path) -> None:
 
 
 # contract-test: tooling
-def test_missing_presentation_metadata_fails_closed(tmp_path: Path) -> None:
+def test_missing_presentation_metadata_uses_default_modern_layout(tmp_path: Path) -> None:
     current = bundle(tmp_path)
     current.specification.pop("presentation")
 
-    try:
-        readable_pdf.build_html(current)
-    except readable_pdf.ReadableSpecificationError as exc:
-        assert "presentation" in str(exc)
-    else:
-        raise AssertionError("missing presentation metadata should fail")
+    document = readable_pdf.build_html(current)
+
+    assert 'href="#chapter-overview"' in document
+    assert "Requirements Overview" in document
+    assert '<svg class="icon"' in document
 
 
 # contract-test: tooling

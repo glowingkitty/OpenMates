@@ -11,6 +11,8 @@ Approval still uses scripts/specification_approval_pdf.py and scripts/specificat
 from __future__ import annotations
 
 import argparse
+import copy
+from dataclasses import replace
 import html
 import json
 from pathlib import Path
@@ -53,6 +55,93 @@ ICON_PATHS = {
 
 class ReadableSpecificationError(ValueError):
     """Raised when a bundle lacks the presentation fields needed here."""
+
+
+def _default_surface_catalog(contract: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Build presentation-only surface metadata from the canonical surface matrix."""
+    matrix = contract.get("surfaces") if isinstance(contract.get("surfaces"), dict) else {}
+    sdks = matrix.get("sdks") if isinstance(matrix.get("sdks"), dict) else {}
+    sdk_implementations = sdks.get("implementations") if isinstance(sdks.get("implementations"), dict) else {}
+    gui = matrix.get("gui") if isinstance(matrix.get("gui"), dict) else {}
+    gui_implementations = gui.get("implementations") if isinstance(gui.get("implementations"), dict) else {}
+    definitions = (
+        ("rest_api", "REST API", "api", matrix.get("rest_api")),
+        ("cli", "CLI", "cli", matrix.get("cli")),
+        ("npm", "npm SDK", "sdk", sdk_implementations.get("npm")),
+        ("pip", "pip SDK", "sdk", sdk_implementations.get("pip")),
+        ("web", "Web", "web", gui_implementations.get("web")),
+        ("apple", "Apple", "native", gui_implementations.get("apple")),
+    )
+    surfaces = []
+    required_ids = []
+    for surface_id, label, kind, config in definitions:
+        if not isinstance(config, dict) or config.get("required") is not True:
+            continue
+        surfaces.append({"id": surface_id, "label": label, "kind": kind, "status": "active"})
+        required_ids.append(surface_id)
+    return {
+        "home_project_id": "openmates",
+        "revision_id": "derived-for-pdf",
+        "surfaces": surfaces,
+    }, required_ids
+
+
+def with_default_presentation(bundle: specifications.SpecificationBundle) -> specifications.SpecificationBundle:
+    """Add a modern presentation view without changing fingerprinted source data."""
+    if isinstance(bundle.specification.get("presentation"), dict):
+        return bundle
+
+    contract = copy.deepcopy(bundle.specification)
+    catalog, required_surface_ids = _default_surface_catalog(contract)
+    assertions = contract.get("assertions") if isinstance(contract.get("assertions"), list) else []
+    flows = contract.get("flows") if isinstance(contract.get("flows"), list) else []
+    models = contract.get("models") if isinstance(contract.get("models"), dict) else {}
+    checks = contract.get("check_obligations") if isinstance(contract.get("check_obligations"), list) else []
+
+    for assertion in assertions:
+        if isinstance(assertion, dict) and not isinstance(assertion.get("project_surface_ids"), list):
+            assertion["project_surface_ids"] = required_surface_ids
+    for flow in flows:
+        if isinstance(flow, dict) and not isinstance(flow.get("surface_ids"), list):
+            flow["surface_ids"] = required_surface_ids
+
+    chapter_id = "overview"
+    contract.update({
+        "outcome": contract.get("outcome") or contract.get("summary") or "",
+        "presentation": {
+            "document_kind": "capability_specification",
+            "chapter_order": [chapter_id],
+            "generated_indexes": ["requirements", "user_flows", "edge_cases", "models", "checks", "examples", "history"],
+            "legend": {
+                "requirement": "Durable behavior the implementation must preserve.",
+                "user_flow": "Goal-oriented path through the capability.",
+                "edge_case": "Boundary or recovery behavior.",
+                "model": "Canonical data shape.",
+                "check": "Verification obligation.",
+                "surface": "Client or API surface covered by this Specification.",
+            },
+        },
+        "project_surface_catalog": catalog,
+        "scope": contract.get("scope") if isinstance(contract.get("scope"), dict) else {"includes": [], "excludes": []},
+        "chapters": [{
+            "id": chapter_id,
+            "title": "Requirements Overview",
+            "summary": str(contract.get("summary") or "Review the Specification requirements and supporting material."),
+            "requirement_ids": [str(item["id"]) for item in assertions if isinstance(item, dict) and item.get("id")],
+            "user_flow_ids": [str(item["id"]) for item in flows if isinstance(item, dict) and item.get("id") and item.get("kind") != "edge_case"],
+            "edge_case_ids": [str(item["id"]) for item in flows if isinstance(item, dict) and item.get("id") and item.get("kind") == "edge_case"],
+            "model_ids": [str(model_id) for model_id in models],
+        }],
+        "assertions": assertions,
+        "flows": flows,
+        "models": models,
+        "check_obligations": checks,
+        "model_placements": contract.get("model_placements") if isinstance(contract.get("model_placements"), list) else [],
+    })
+    scope = contract["scope"]
+    scope["includes"] = scope.get("includes") if isinstance(scope.get("includes"), list) else []
+    scope["excludes"] = scope.get("excludes") if isinstance(scope.get("excludes"), list) else []
+    return replace(bundle, specification=contract)
 
 
 def _display_text(value: object) -> str:
@@ -532,6 +621,7 @@ def _render_generated_indexes(bundle: specifications.SpecificationBundle, surfac
 
 
 def build_html(bundle: specifications.SpecificationBundle) -> str:
+    bundle = with_default_presentation(bundle)
     contract = bundle.specification
     _as_mapping(contract.get("presentation"), "presentation")
     surface_lookup = _surface_lookup(contract)
@@ -554,6 +644,7 @@ def build_html(bundle: specifications.SpecificationBundle) -> str:
     status = str(contract.get("status") or "unknown")
     outcome = str(contract.get("outcome") or contract.get("summary") or "")
     summary = str(contract.get("summary") or "")
+    summary_html = f'<p>{_escape(summary)}</p>' if summary and summary != outcome else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -653,7 +744,7 @@ li {{ margin: .8mm 0; }}
   </div>
   <p class="fingerprint">Fingerprint: {bundle.fingerprint}</p>
   <p class="lead">{_escape(outcome)}</p>
-  <p>{_escape(summary)}</p>
+  {summary_html}
 </section>
 {_render_legend(contract)}
 {_render_navigation(chapters)}

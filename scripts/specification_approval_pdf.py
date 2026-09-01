@@ -432,6 +432,15 @@ def _render_technical_appendix(contract: dict[str, Any], baseline_contract: dict
     )
 
 
+def _render_complete_specification_appendix(contract: dict[str, Any], baseline_contract: dict[str, Any]) -> str:
+    return (
+        f'<section class="approval-appendix technical" id="approval-specification">'
+        f'{readable_pdf._heading(2, "model", "Complete Specification")}'
+        '<p class="appendix-intro">This appendix preserves every fingerprinted field and inline change after the scan-friendly overview.</p>'
+        f'{render_node("Specification", contract, baseline_contract, level=3)}</section>'
+    )
+
+
 def _render_removal_appendix(contract: dict[str, Any], baseline_contract: dict[str, Any]) -> str:
     removed_blocks = []
     for field in ("chapters", "flows", "check_obligations", "assertions"):
@@ -548,23 +557,17 @@ def build_html(
 ) -> str:
     baseline_contract = baseline_contract or {}
     baseline_examples = baseline_examples or {}
-    if not isinstance(bundle.specification.get("presentation"), dict):
-        return build_legacy_html(
-            bundle,
-            baseline_contract=baseline_contract,
-            baseline_examples=baseline_examples,
-            baseline_ref=baseline_ref,
-        )
-
-    document = readable_pdf.build_html(bundle)
+    has_custom_presentation = isinstance(bundle.specification.get("presentation"), dict)
+    document = readable_pdf.build_html(readable_pdf.with_default_presentation(bundle))
     document = _annotate_readable_changes(document, bundle.specification, baseline_contract)
     change_summary = _change_summary(bundle, baseline_contract, baseline_examples, baseline_ref)
     document = document.replace('<section class="legend" id="legend">', change_summary + '<section class="legend" id="legend">', 1)
-    appendices = (
-        _render_examples_appendix(bundle.examples, baseline_examples)
-        + _render_technical_appendix(bundle.specification, baseline_contract)
-        + _render_removal_appendix(bundle.specification, baseline_contract)
+    technical_appendix = (
+        _render_technical_appendix(bundle.specification, baseline_contract)
+        if has_custom_presentation
+        else _render_complete_specification_appendix(bundle.specification, baseline_contract)
     )
+    appendices = _render_examples_appendix(bundle.examples, baseline_examples) + technical_appendix + _render_removal_appendix(bundle.specification, baseline_contract)
     document = document.replace(
         '<p class="footer-note">This is a readable Specification presentation, not an approval receipt. Exact approval must use the highlighted approval PDF and matching review artifact.</p>',
         appendices
@@ -574,7 +577,7 @@ def build_html(
     navigation_additions = (
         f'<a class="utility-link" href="#change-summary">{readable_pdf._icon("history")}<span>Change summary</span></a>'
         f'<a class="utility-link" href="#approval-examples">{readable_pdf._icon("examples")}<span>Complete examples</span></a>'
-        f'<a class="utility-link" href="#approval-technical">{readable_pdf._icon("model")}<span>Technical fields</span></a>'
+        f'<a class="utility-link" href="#{"approval-technical" if has_custom_presentation else "approval-specification"}">{readable_pdf._icon("model")}<span>{"Technical fields" if has_custom_presentation else "Complete Specification"}</span></a>'
     )
     document = document.replace('<div class="utility-links">', f'<div class="utility-links">{navigation_additions}', 1)
     approval_css = """

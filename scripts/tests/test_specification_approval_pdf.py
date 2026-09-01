@@ -66,11 +66,30 @@ def test_html_highlights_changes_and_keeps_removals_visible(tmp_path: Path) -> N
     assert "Must remain visible as removed" in document
     assert "Removed" in document
     assert current.fingerprint in document
-    assert "Only changed text is colored" in document
+    assert "Unchanged text remains neutral" in document
     assert 'class="diff-insert"' in document
     assert 'class="diff-delete"' in document
     assert '<span class="diff-delete"><b>-</b>Old summary</span>' in document
     assert '<span class="diff-insert"><b>+</b>Updated-summary</span>' in document
+
+
+# contract-test: tooling
+def test_specification_without_custom_presentation_uses_modern_layout(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+
+    document = approval_pdf.build_html(
+        current,
+        baseline_contract={"id": "feature.example", "version": 1, "title": "Example", "summary": "Old summary", "assertions": []},
+        baseline_examples={"specification": "feature.example@1", "cases": []},
+        baseline_ref="HEAD",
+    )
+
+    assert '<section class="front-page">' in document
+    assert '<svg class="icon"' in document
+    assert 'id="change-summary"' in document
+    assert 'href="#chapter-overview"' in document
+    assert 'id="approval-specification"' in document
+    assert "Complete Specification" in document
 
 
 # contract-test: tooling
