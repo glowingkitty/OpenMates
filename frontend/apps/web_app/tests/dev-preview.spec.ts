@@ -1,5 +1,49 @@
 import { expect, test } from './helpers/cookie-audit';
 // contract-test-file: tooling
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+
+const COMPONENT_CAPTURE_PROOF = defineVideoProof({
+	id: 'url-configured-component-capture',
+	title: 'URL-configured component capture',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'configured-preview',
+			text: 'Open a component preview URL with custom text, width, theme, and background settings.',
+			checkpoint: 'configured-preview',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'capture-ready',
+			text: 'The selected component renders by itself on the requested background, ready for a screenshot.',
+			checkpoint: 'configured-preview',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'component-only',
+			checkpoint: 'configured-preview',
+			visual: 'Only the configured notification and its custom background are visible, without preview controls.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'custom-content',
+			checkpoint: 'configured-preview',
+			visual: 'The URL-provided notification title and message are readable.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
+
 /**
  * Tests for the /dev/preview/ component preview system.
  * Runs against the deployed dev instance (app.dev.openmates.org).
@@ -91,7 +135,12 @@ test.describe('Component Preview System', () => {
 		await expect(page.getByTestId('breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
 	});
 
-	test('capture URL renders only the configured component on a custom background', async ({ page }) => {
+	test('capture URL renders only the configured component on a custom background', async ({ page }, testInfo) => {
+		const proof = createVideoProofRuntime(COMPONENT_CAPTURE_PROOF, {
+			device: PROOF_DEVICE,
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => page.screenshot({ type: 'png' })
+		});
 		const props = JSON.stringify({
 			notification: {
 				id: 'capture-notification',
@@ -129,6 +178,7 @@ test.describe('Component Preview System', () => {
 		expect(canvasBackground).toBe('rgb(219, 234, 254)');
 		await expect(page.getByTestId('component-preview-viewport')).toHaveCSS('max-width', '420px');
 		expect(await page.locator('html').getAttribute('data-theme')).toBe('light');
+		await proof.checkpoint('configured-preview');
 	});
 
 	test('client-side preview navigation reapplies URL configuration', async ({ page }) => {
