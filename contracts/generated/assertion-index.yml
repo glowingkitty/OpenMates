@@ -11468,7 +11468,7 @@ assertions:
       surface: gui.web
     - &id1254
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 109
+      line: 116
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web
@@ -11571,7 +11571,7 @@ assertions:
       surface: gui.web
     - &id1273
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 109
+      line: 116
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web
@@ -11695,7 +11695,7 @@ assertions:
       surface: rest_api
     - &id1282
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 68
+      line: 75
       name: lookup response does not reveal whether an account exists
       surface: gui.web
     supporting_tests:
@@ -11794,7 +11794,7 @@ assertions:
       surface: gui.web
     - &id1300
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 109
+      line: 116
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web
@@ -11996,7 +11996,7 @@ assertions:
       surface: gui.web
     - &id1324
       path: frontend/apps/web_app/tests/signup-skip-2fa-flow.spec.ts
-      line: 109
+      line: 116
       name: completes password signup, login with password, and delete account via
         email OTP
       surface: gui.web

@@ -1862,7 +1862,7 @@ def playwright_response_media_run_type(options: ControlRunOptions) -> str:
     return f"spec-ts-{profile}" if profile else "spec-ts"
 
 
-def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[str, Path] | None:
+def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[str, Path, Path | None] | None:
     git_sha = str(run_data.get("git_sha") or "")
     for suite, test in iter_tests(run_data):
         if suite != "playwright":
@@ -1889,13 +1889,15 @@ def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[st
         for artifact_path_text in artifact_paths:
             artifact_path = Path(artifact_path_text).resolve()
             if artifact_path.is_file() and artifact_path.suffix.lower() in {".webm", ".mp4", ".mov"}:
-                return Path(spec_path).name, artifact_path
+                poster_path = artifact_path.parent.parent / "thumbnail.png"
+                return Path(spec_path).name, artifact_path, poster_path if poster_path.is_file() else None
     return None
 
 
 def upload_response_media_video(
     *,
     path: Path,
+    poster_path: Path | None,
     run_type: str,
     alt: str,
     dry_run: bool = False,
@@ -1911,6 +1913,8 @@ def upload_response_media_video(
         "--output",
         "json",
     ]
+    if poster_path is not None:
+        command.extend(["--poster", str(poster_path)])
     if dry_run:
         command.append("--dry-run")
     result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
@@ -1937,10 +1941,11 @@ def publish_latest_playwright_response_media(
     candidate = latest_playwright_response_media_video(run_data)
     if candidate is None:
         return {"status": "missing", "run_type": run_type, "reason": "no downloaded Playwright video artifact was found"}
-    spec_name, video_path = candidate
+    spec_name, video_path, poster_path = candidate
     active_uploader = uploader or upload_response_media_video
     upload = active_uploader(
         path=video_path,
+        poster_path=poster_path,
         run_type=run_type,
         alt=f"Playwright {spec_name} latest run video",
     )
@@ -1955,6 +1960,7 @@ def publish_latest_playwright_response_media(
         "artifact_path": str(video_path),
         "artifact_sha256": _file_sha256(video_path),
         "response_media_key": upload.get("key"),
+        "response_media_poster_key": (upload.get("poster") or {}).get("key") if isinstance(upload.get("poster"), dict) else None,
         "response_media_html": snippets.get("html"),
         "response_media_markdown": snippets.get("markdown"),
     }

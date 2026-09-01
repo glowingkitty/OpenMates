@@ -53,6 +53,7 @@ import signal
 import secrets
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
 import threading
@@ -3497,6 +3498,7 @@ class BatchRunner:
             screenshot_records.append({"file": copied_name, "source": src.as_posix()})
 
         thumbnail = None
+        thumbnail_source = "none"
         step_screenshots = [p for p in copied_screenshots if "test-failed" not in p.lower()]
         thumbnail_candidates = step_screenshots or copied_screenshots
         if thumbnail_candidates:
@@ -3504,6 +3506,7 @@ class BatchRunner:
             thumb_source = dest / thumb_source_rel
             thumbnail = f"thumbnail{thumb_source.suffix.lower()}"
             shutil.copy2(thumb_source, dest / thumbnail)
+            thumbnail_source = "fallback"
 
         if step_log_source:
             shutil.copy2(step_log_source, dest / "step-log.json")
@@ -3515,6 +3518,42 @@ class BatchRunner:
         if raw_json_sources:
             report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
             proof_attachment_groups: list[list[dict[str, object]]] = []
+            explicit_thumbnail_attachments: list[dict[str, object]] = []
+
+            def collect_explicit_thumbnails(value: object) -> None:
+                if isinstance(value, dict):
+                    results = value.get("results")
+                    if isinstance(results, list):
+                        candidates: list[tuple[str, dict[str, object]]] = []
+                        for result in results:
+                            if not isinstance(result, dict):
+                                continue
+                            attachments = result.get("attachments")
+                            if not isinstance(attachments, list):
+                                continue
+                            matches = [
+                                item
+                                for item in attachments
+                                if isinstance(item, dict)
+                                and item.get("name") == "openmates-test-thumbnail"
+                                and item.get("contentType") == "image/png"
+                            ]
+                            if len(matches) > 1:
+                                raise RuntimeError("Playwright result contains multiple explicit test thumbnails")
+                            if matches:
+                                candidates.append((str(result.get("status") or ""), matches[0]))
+                        if candidates:
+                            selected = next(
+                                (attachment for status, attachment in reversed(candidates) if status == "passed"),
+                                candidates[-1][1],
+                            )
+                            explicit_thumbnail_attachments.append(selected)
+                    for key, child in value.items():
+                        if key != "results":
+                            collect_explicit_thumbnails(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        collect_explicit_thumbnails(child)
 
             def collect_timeline_attachments(value: object) -> None:
                 if isinstance(value, dict):
@@ -3534,7 +3573,35 @@ class BatchRunner:
                     for child in value:
                         collect_timeline_attachments(child)
 
+            collect_explicit_thumbnails(report)
             collect_timeline_attachments(report)
+            artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
+            if len(explicit_thumbnail_attachments) > 1:
+                raise RuntimeError("Playwright report contains multiple explicit test thumbnails")
+            if explicit_thumbnail_attachments:
+                explicit_thumbnail = explicit_thumbnail_attachments[0]
+                body = explicit_thumbnail.get("body")
+                attachment_path = explicit_thumbnail.get("path")
+                if isinstance(body, str):
+                    thumbnail_bytes = base64.b64decode(body, validate=True)
+                elif isinstance(attachment_path, str):
+                    attachment_name = Path(attachment_path).name
+                    sources = [path for path in artifact_files if path.name == attachment_name]
+                    if len(sources) != 1:
+                        raise RuntimeError("Explicit test thumbnail file is missing")
+                    thumbnail_bytes = sources[0].read_bytes()
+                else:
+                    raise RuntimeError("Explicit test thumbnail has no content")
+                if len(thumbnail_bytes) < 24 or thumbnail_bytes[:8] != b"\x89PNG\r\n\x1a\n":
+                    raise RuntimeError("Explicit test thumbnail is not a PNG")
+                width, height = struct.unpack(">II", thumbnail_bytes[16:24])
+                if (width, height) != (1280, 800):
+                    raise RuntimeError(
+                        f"Explicit test thumbnail must be 1280x800, got {width}x{height}"
+                    )
+                thumbnail = "thumbnail.png"
+                (dest / thumbnail).write_bytes(thumbnail_bytes)
+                thumbnail_source = "explicit"
             if len(proof_attachment_groups) > 1:
                 raise RuntimeError("Playwright report contains ambiguous proof timeline attachment groups")
             proof_group = proof_attachment_groups[0] if proof_attachment_groups else []
@@ -3567,7 +3634,6 @@ class BatchRunner:
                 if name in proof_frame_attachments:
                     raise RuntimeError(f"Playwright proof result contains duplicate frame attachment: {name}")
                 proof_frame_attachments[name] = item
-            artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
             for attachment in timeline_attachments:
                 proof_timeline_path = dest / "proof-timeline.json"
                 body = attachment.get("body")
@@ -3634,6 +3700,7 @@ class BatchRunner:
             "screenshot_files": copied_screenshots,
             "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
+            "thumbnail_source": thumbnail_source,
             "proof_timeline_file": proof_timeline_path.name if proof_timeline_path else None,
             "proof_video_file": proof_video_file,
         }

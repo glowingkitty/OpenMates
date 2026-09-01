@@ -18,6 +18,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -100,6 +101,50 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
     assert metadata["proof_video_file"] == "videos/proof-flow.webm"
+
+
+def test_recording_artifacts_prefer_explicit_fixed_thumbnail(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    artifact = tmp_path / "artifact"
+    artifact.mkdir(parents=True)
+    png = b"\x89PNG\r\n\x1a\n" + struct.pack(">I4sII", 13, b"IHDR", 1280, 800) + b"synthetic"
+    report = {
+        "suites": [{
+            "specs": [{
+                "tests": [{
+                    "results": [
+                        {
+                            "status": "failed",
+                            "attachments": [{
+                                "name": "openmates-test-thumbnail",
+                                "contentType": "image/png",
+                                "body": base64.b64encode(png + b"failed").decode("ascii"),
+                            }],
+                        },
+                        {
+                            "status": "passed",
+                            "attachments": [{
+                                "name": "openmates-test-thumbnail",
+                                "contentType": "image/png",
+                                "body": base64.b64encode(png).decode("ascii"),
+                            }],
+                        },
+                    ]
+                }]
+            }]
+        }]
+    }
+    (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
+    recordings = tmp_path / "recordings"
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", recordings)
+
+    run_tests.BatchRunner._persist_recording_artifacts("signup.spec.ts", artifact)
+
+    thumbnail = recordings / "signup" / "thumbnail.png"
+    assert thumbnail.read_bytes() == png
+    metadata = json.loads((recordings / "signup" / "artifact-meta.json").read_text(encoding="utf-8"))
+    assert metadata["thumbnail_file"] == "thumbnail.png"
+    assert metadata["thumbnail_source"] == "explicit"
 
 
 def test_recording_artifacts_reject_ambiguous_proof_results(tmp_path, monkeypatch):

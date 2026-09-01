@@ -1092,6 +1092,8 @@ def test_record_latest_run_artifact_publishes_latest_playwright_video_response_m
     video = recording_dir / "videos" / "example.webm"
     video.parent.mkdir(parents=True)
     video.write_bytes(b"verified-video")
+    thumbnail = recording_dir / "thumbnail.png"
+    thumbnail.write_bytes(b"verified-thumbnail")
     (recording_dir / "manifest.json").write_text(json.dumps({
         "spec": "example.spec.ts",
         "run_id": "parent-run",
@@ -1127,6 +1129,7 @@ def test_record_latest_run_artifact_publishes_latest_playwright_video_response_m
     assert recorded == commit[:9]
     assert uploads == [{
         "path": video.resolve(),
+        "poster_path": thumbnail.resolve(),
         "run_type": "spec-ts-web-laptop",
         "alt": "Playwright example.spec.ts latest run video",
     }]

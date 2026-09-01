@@ -240,3 +240,46 @@ def test_rejects_presigned_url_ttl_above_bucket_retention(tmp_path: Path, capsys
 
     assert code == 1
     assert "--expires-in must be at most" in capsys.readouterr().err
+
+
+def test_dry_run_video_with_poster_outputs_uploaded_poster(tmp_path: Path, capsys) -> None:
+    video = tmp_path / "demo.mp4"
+    poster = tmp_path / "poster.png"
+    video.write_bytes(b"fake mp4 bytes")
+    poster.write_bytes(b"fake png bytes")
+
+    code = media.main([
+        str(video),
+        "--poster",
+        str(poster),
+        "--latest-run-type",
+        "spec-ts-web-laptop",
+        "--dry-run",
+        "--output",
+        "json",
+    ])
+
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    video_digest = media.hashlib.sha256(video.read_bytes()).hexdigest()
+    poster_digest = media.hashlib.sha256(poster.read_bytes()).hexdigest()
+    assert data["poster"]["key"] == (
+        f"opencode-responses/runs/spec-ts-web-laptop/{video_digest}/poster-{poster_digest}.png"
+    )
+    assert f'poster="{data["poster"]["url"]}"' in data["snippets"]["html"]
+
+
+def test_rejects_oversized_poster_before_any_upload(tmp_path: Path, monkeypatch, capsys) -> None:
+    video = tmp_path / "demo.mp4"
+    poster = tmp_path / "poster.png"
+    video.write_bytes(b"v")
+    poster.write_bytes(b"oversized")
+    uploads = []
+    monkeypatch.setattr(media, "MAX_MEDIA_BYTES", 4)
+    monkeypatch.setattr(media, "upload_via_api_container", lambda **kwargs: uploads.append(kwargs))
+
+    code = media.main([str(video), "--poster", str(poster)])
+
+    assert code == 1
+    assert uploads == []
+    assert "Poster file exceeds" in capsys.readouterr().err
