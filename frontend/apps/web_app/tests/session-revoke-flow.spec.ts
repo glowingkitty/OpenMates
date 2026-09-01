@@ -434,7 +434,20 @@ test('session revoke: revoking session B from session A does not log out session
 			);
 			await expect(pageB.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
 			await expect(guestBannerB).toHaveAttribute('data-landing-intro-phase', 'expanded');
-			await expect(pageB.getByTestId('message-input-wrapper')).toBeHidden({ timeout: 10000 });
+			const coveredComposer = pageB.getByTestId('message-input-wrapper');
+			await expect(coveredComposer).toHaveAttribute('inert', '', { timeout: 10000 });
+			await expect(coveredComposer).toHaveAttribute('aria-hidden', 'true', { timeout: 10000 });
+			const composerCoverageState = await coveredComposer.evaluate((element: HTMLElement) => {
+				const style = getComputedStyle(element);
+				return {
+					height: element.getBoundingClientRect().height,
+					opacity: Number.parseFloat(style.opacity || '1'),
+					pointerEvents: style.pointerEvents
+				};
+			});
+			expect(composerCoverageState.height, 'covered composer reserve must remain measurable').toBeGreaterThan(0);
+			expect(composerCoverageState.opacity, 'covered composer must be transparent').toBe(0);
+			expect(composerCoverageState.pointerEvents, 'covered composer must not accept pointer input').toBe('none');
 			const geometry = await pageB.evaluate(() => {
 				const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
 				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');

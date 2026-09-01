@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ACTIVE_CHAT_PATH = ROOT / "frontend/packages/ui/src/components/ActiveChat.svelte"
+DAILY_INSPIRATION_PATH = ROOT / "frontend/packages/ui/src/components/DailyInspirationBanner.svelte"
 
 
 def _hide_welcome_expression() -> str:
@@ -87,23 +88,30 @@ def test_logout_resets_composer_state_before_restoring_guest_welcome() -> None:
     )
 
 
-# contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
-def test_expanded_landing_intro_removes_covered_composer_from_layout() -> None:
+# contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
+def test_expanded_landing_intro_preserves_measurable_composer_reserve() -> None:
     source = _active_chat_source()
+    banner_source = DAILY_INSPIRATION_PATH.read_text(encoding="utf-8")
     rules = re.findall(
         r"\.chat-wrapper\.landing-intro-content-covered\s+\.message-input-wrapper\s*\{([^}]*)\}",
         source,
         re.S,
     )
     assert rules, "Expanded landing intro must define a covered-composer rule"
-    assert any("display:none;" in re.sub(r"\s+", "", rule) for rule in rules), (
-        "Opacity alone leaves the hidden composer in layout and prevents the logout intro "
-        "from covering the complete chat shell"
+    assert not any("display:none;" in re.sub(r"\s+", "", rule) for rule in rules), (
+        "The covered composer must remain measurable so the landing overlay can reserve and cover its height"
+    )
+    assert 'bind:clientHeight={messageInputWrapperHeight}' in source
+    assert 'style:--landing-intro-input-reserve={`${messageInputWrapperHeight}px`}' in source
+    assert 'inert={showWelcome && guestLandingIntroContentCovered}' in source
+    assert 'aria-hidden={showWelcome && guestLandingIntroContentCovered}' in source
+    assert "bottom: calc(0px - var(--landing-intro-input-reserve, 0px));" in banner_source, (
+        "The landing intro overlay must extend through the measured composer reserve"
     )
 
 
 if __name__ == "__main__":
     test_focused_new_chat_welcome_suppression_includes_authenticated_desktop()
     test_logout_resets_composer_state_before_restoring_guest_welcome()
-    test_expanded_landing_intro_removes_covered_composer_from_layout()
+    test_expanded_landing_intro_preserves_measurable_composer_reserve()
     print("ActiveChat welcome/logout contracts: PASS")

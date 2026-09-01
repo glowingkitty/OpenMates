@@ -13706,6 +13706,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:guest-welcome-input-context={showWelcome && !$authStore.isAuthenticated}
                     data-testid="message-input-wrapper"
                     bind:clientHeight={messageInputWrapperHeight}
+                    inert={showWelcome && guestLandingIntroContentCovered}
+                    aria-hidden={showWelcome && guestLandingIntroContentCovered}
                 >
                     {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
                         <a
@@ -16299,10 +16301,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         opacity: 0;
         pointer-events: none;
         visibility: visible;
-    }
-
-    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
-        display: none;
     }
 
     /* Adjust top-buttons position on small screens (absolute mode only) */
