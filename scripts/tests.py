@@ -1889,8 +1889,7 @@ def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[st
         for artifact_path_text in artifact_paths:
             artifact_path = Path(artifact_path_text).resolve()
             if artifact_path.is_file() and artifact_path.suffix.lower() in {".webm", ".mp4", ".mov"}:
-                poster_path = artifact_path.parent.parent / "thumbnail.png"
-                return Path(spec_path).name, artifact_path, poster_path if poster_path.is_file() else None
+                return Path(spec_path).name, artifact_path, None
     return None
 
 
