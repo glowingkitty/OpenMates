@@ -74,6 +74,13 @@ order by default:
    browser-specific flow through `python3 scripts/tests.py run --spec
    <name>.spec.ts`. Web specs prove Svelte, TipTap, IndexedDB/localStorage,
    rendering, screenshots, and user interaction behavior.
+   For new or modified UI elements, components, and screens, start with a
+   focused component spec against
+   `https://app.dev.openmates.org/dev/preview/{component-path}` before broader
+   flow specs. The preview must render one semantically valid default state using
+   a `.preview.ts` fixture when needed, and the spec should drive meaningful
+   hover, focus, click, expanded/collapsed, and on/off states with assertions
+   before named proof checkpoints.
 5. **UI visual smoke fifth:** for larger user-visible web/UI changes, inspect the
    deployed `app.dev.openmates.org` route with Playwright after Playwright specs
    in both laptop and mobile viewports. Run
@@ -115,6 +122,13 @@ Do not count a mocked API-call test as dev-server REST/API or CLI evidence. The
 acceptance artifact should show the real request or command that was executed,
 the dev API URL or test environment target, and the observable product result
 returned by the dev server.
+
+For UI component proof, publish the focused component video in the OpenCode
+response for every modified UI component. Use separate phone and laptop proof
+profiles only when responsive behavior differs. Derive still frames from the
+completed video only for failures, explicit requests, or ambiguous visual-intent
+inspection; do not add screenshot galleries or browser-side screenshot calls for
+component proof.
 
 Use the parity verifier when a change spans shared product behavior or multiple
 clients:

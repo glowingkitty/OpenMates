@@ -51,6 +51,12 @@ opt-in.
   segments from the attested Playwright recording. Checkpoint frames may only be
   short freeze segments; never publish checkpoint-frame-only screenshot montages
   or a manifest with `rendered_from: spec_timeline_checkpoint_frames`.
+- For web UI component proofs, use the focused component spec recording from
+  `https://app.dev.openmates.org/dev/preview/{component-path}`. Publish the
+  component video for every modified UI component, use separate phone/laptop
+  profiles only when responsive behavior differs, and derive still frames only
+  from the completed video for failures, explicit requests, or ambiguous visual
+  inspection.
 - Use CLI proof only when the actual `openmates` CLI is the product surface being
   demonstrated or fixed. Do not use CLI proof for generic smoke scripts, pytest
   helpers, Node scripts, or shell wrappers that do not visibly execute the

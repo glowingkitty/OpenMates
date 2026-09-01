@@ -113,6 +113,21 @@ When checking deployed-code readiness from a session worktree that lacks
 `frontend/apps/web_app/.vercel/project.json`, prefer the same `scripts/tests.py`
 `--gate-deploy --expected-commit <sha>` path instead of retrying Vercel helper
 commands that require local Vercel metadata.
+
+For web UI elements, components, and screens, use the deployed component preview
+endpoint as the default verification surface before broader flow specs:
+`https://app.dev.openmates.org/dev/preview/{component-path}`. Render one
+component or screen fixture in a semantically valid default state, adding a
+colocated `.preview.ts` fixture when props, stores, or state are needed. Create a
+focused component Playwright spec before broader flow specs; it must drive
+meaningful hover, focus, click, expanded/collapsed, and on/off states with
+assertions before named proof checkpoints. Use separate phone and laptop proof
+profiles only when responsive behavior differs. Embed the focused component video
+for every modified UI component. Derive still frames only from the completed
+video for failures, explicit requests, or ambiguous visual-intent inspection; do
+not add screenshot galleries or browser-side screenshot calls for component
+proof.
+
 For browser inspection or visual-smoke screenshots from a dependency-light
 session worktree, use
 `python3 scripts/playwright_visual_smoke.py --url <url> --session <id>` or the

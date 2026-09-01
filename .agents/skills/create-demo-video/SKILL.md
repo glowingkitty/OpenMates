@@ -18,30 +18,30 @@ The command resolves the current sessions.py session, subject commit, and matchi
 passing run. If evidence is missing or ambiguous, follow its single reported next
 action instead of searching artifacts manually.
 
-## Contract Authorization
+## Approval Boundary
 
-For Playwright/spec proofs, the deployed spec and checked-in proof timeline are
-the contract authority. Do not ask the user for a separate pre-render proof
-contract approval; continue directly to render/review/publish from the
-tool-authorized contract.
+If `start --current --spec ...` returns `status: contract_approved` with
+`approval_source: spec_timeline`, the deployed spec already emitted its checked-in
+proof contract and passed every declared assertion. Do not ask for a second chat
+approval; continue directly to render/review/publish.
 
-Only for legacy proofs without a spec-owned timeline, draft the complete proof
-contract before capture:
+Only for legacy proofs without a spec-owned timeline, draft and show the user the
+complete proof contract before capture:
 
 - Three to five short tutorial-style caption sentences.
 - One to five assertions describing what must be visibly or terminally true.
 - Required device profiles.
 - Every caption sentence and assertion lists the exact device profiles where it applies.
 
-For legacy proofs, save the canonical contract as a tooling-authorized contract
-before rendering:
+For legacy proofs, save the canonical contract only after explicit approval, then
+persist the approval record before rendering:
 
 ```bash
 python3 scripts/proof_video_workflow.py approve --session <short-session> --spec <name>.spec.ts --contract <contract.json>
 ```
 
-An unchanged already-authorized contract may be reused. The spec-owned or
-authorized transcript is canonical; audio is off by default and `--audio-path` is an explicit
+An unchanged already-approved contract may be reused. The spec-owned or approved
+transcript is canonical; audio is off by default and `--audio-path` is an explicit
 opt-in.
 
 ## Capture And Render
@@ -51,6 +51,12 @@ opt-in.
   segments from the attested Playwright recording. Checkpoint frames may only be
   short freeze segments; never publish checkpoint-frame-only screenshot montages
   or a manifest with `rendered_from: spec_timeline_checkpoint_frames`.
+- For web UI component proofs, use the focused component spec recording from
+  `https://app.dev.openmates.org/dev/preview/{component-path}`. Publish the
+  component video for every modified UI component, use separate phone/laptop
+  profiles only when responsive behavior differs, and derive still frames only
+  from the completed video for failures, explicit requests, or ambiguous visual
+  inspection.
 - Use CLI proof only when the actual `openmates` CLI is the product surface being
   demonstrated or fixed. Do not use CLI proof for generic smoke scripts, pytest
   helpers, Node scripts, or shell wrappers that do not visibly execute the
@@ -95,6 +101,9 @@ the defect intent as `obvious`, automatically add or strengthen a failing test,
 fix the product, deploy, and recapture. When intent is `unclear`, upload the
 representative blocker frame and ask the user for consent before product-code
 changes. Never hide defects through trimming, cropping, caption edits, or transcript edits.
+Contrast, text-size, opacity, font-weight, and related typography/readability findings
+are advisory design concerns from frame-only review: report them to the user as
+`unclear` warnings and never route them to automatic product correction.
 Do not ask that visual-intent question until the exact cited blocker image is
 successfully embedded in the same response with a short explanation of what the
 user should inspect. If media delivery fails, repair or retry it first; never

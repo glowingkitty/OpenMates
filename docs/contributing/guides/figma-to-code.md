@@ -148,6 +148,10 @@ not-required` reason. Do not treat intentional carousel clipping, viewport crops
 or token drift as defects unless the task's approved design brief says they are
 in scope.
 
+For component proof, do not add screenshot galleries or browser-side screenshot
+calls. When a still image is needed for a failure, explicit request, or ambiguous
+visual-intent decision, derive it from the completed focused component video.
+
 ### Step 4 — Map to Existing Design System
 
 Compare approved Figma intent against the current implementation and the
@@ -316,8 +320,9 @@ Follow `docs/contributing/standards/frontend.md` strictly. Key reminders:
 
 ### Preview Files (for the Component Preview System)
 
-When creating a new component, also create a `.preview.ts` companion file with mock
-props so the component can be previewed at `/dev/preview/`:
+When creating or materially changing a component, also create or update a
+`.preview.ts` companion file with mock props so the component can be previewed at
+`/dev/preview/{component-path}`:
 
 ```typescript
 // ComponentName.preview.ts (same directory as ComponentName.svelte)
@@ -390,23 +395,24 @@ OpenMates includes a built-in component preview system at `/dev/preview/`.
 It is accessible on dev environments (localhost and `app.dev.openmates.org`) but
 blocked on production.
 
-- **Dev deployment**: `https://app.dev.openmates.org/dev/preview/`
-- **Local dev server**: `http://localhost:5173/dev/preview/` (if running `pnpm dev`)
+- **Dev deployment**: `https://app.dev.openmates.org/dev/preview/{component-path}`
+- **Local dev server**: `http://localhost:5173/dev/preview/{component-path}` (if running `pnpm dev`)
 
-1. Navigate to the preview URL to browse all components
-2. Find the component you implemented in the component tree
-3. Compare the approved design aspects against the Figma screenshot and preserve unrelated current behavior
+1. Navigate directly to the component preview URL for the changed component or screen.
+2. Confirm the `.preview.ts` default export renders one semantically valid state.
+3. Compare the approved design aspects against the Figma screenshot and preserve unrelated current behavior.
 
-### Using Playwright MCP for Automated Validation
+### Using Playwright For Automated Validation
 
-For precise validation, use the **Playwright MCP** browser tools:
+For precise validation, create a focused component Playwright spec before any
+broader flow spec:
 
 ```
-1. Navigate to the component preview URL or the page containing the component
-2. Resize to match Figma frame dimensions (browser_resize)
-3. Take a screenshot (browser_take_screenshot)
-4. Compare the task's approved design aspects against the Figma screenshot from Phase 1
-5. Use browser_evaluate to verify computed CSS properties:
+1. Navigate to https://app.dev.openmates.org/dev/preview/{component-path}
+2. Assert the semantically valid default state rendered from .preview.ts
+3. Drive meaningful hover, focus, click, expanded/collapsed, and on/off states
+4. Add assertions before named proof checkpoints
+5. Use browser_evaluate to verify computed CSS properties only when needed
 ```
 
 Example computed style verification:
@@ -431,6 +437,12 @@ Example computed style verification:
 Compare these computed values only where the approved task uses the Figma node as
 an implementation target. For Apple parity, the rendered web result remains the
 source of truth after the web change is approved.
+
+Embed the completed focused component proof video for every modified UI
+component. Use separate phone and laptop proof profiles only when responsive
+behavior differs. Do not create a screenshot gallery or add browser-side
+screenshot calls. If a still image is needed for a failure, explicit request, or
+ambiguous visual-intent decision, derive it from the completed video.
 
 ### Validation Checklist
 
