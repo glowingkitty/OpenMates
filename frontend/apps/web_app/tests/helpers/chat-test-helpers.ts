@@ -258,6 +258,19 @@ async function waitForNewChatSendContext(
 	});
 }
 
+async function refreshStaleAppShellIfPrompted(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const refreshButton = page.getByRole('button', { name: /refresh now/i });
+	if (!(await refreshButton.isVisible({ timeout: 1000 }).catch(() => false))) return;
+
+	logCheckpoint('Software update prompt visible after login; refreshing to current deployed app shell.');
+	await refreshButton.click();
+	await page.waitForLoadState('load');
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+}
+
 async function waitForDraftSaveIdleBeforeSyntheticSend(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
@@ -783,6 +796,7 @@ async function loginToTestAccount(
 			await page.waitForTimeout(1000);
 			const messageEditor = page.getByTestId('message-editor');
 			await expect(messageEditor).toBeVisible({ timeout: 20000 });
+			await refreshStaleAppShellIfPrompted(page, logCheckpoint);
 			logCheckpoint('Chat interface loaded - message editor visible.');
 		} else {
 			logCheckpoint('Login complete (skipping editor wait).');
