@@ -21,8 +21,8 @@ const PLAYER_PROOF = defineVideoProof({
 	devices: ['web-laptop', 'web-phone'],
 	domain: 'app.dev.openmates.org',
 	transcript: [
-		{ id: 'playing', text: 'The responsive player shows Sophia, a waveform, and named response chapters.', checkpoint: 'playing', devices: ['web-laptop', 'web-phone'] },
-		{ id: 'pending', text: 'Selecting a pending chapter switches immediately to Loading and a flat placeholder waveform.', checkpoint: 'pending', devices: ['web-laptop', 'web-phone'] },
+		{ id: 'playing', text: 'The player centers the active chapter and shows the previous, current, and next waveforms as one compact window.', checkpoint: 'playing', devices: ['web-laptop', 'web-phone'] },
+		{ id: 'pending', text: 'Advancing shifts the chapter and waveform window by one while the pending active clip uses a flat placeholder.', checkpoint: 'pending', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'ready', text: 'When audio becomes ready, real waveform bars transition into place and playback resumes.', checkpoint: 'ready', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'paused', text: 'Pausing reveals separate Play and Close controls without hiding chapter navigation.', checkpoint: 'paused', devices: ['web-laptop', 'web-phone'] }
 	],
