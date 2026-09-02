@@ -2408,6 +2408,7 @@ function implicitTaskMutationPayloadForTest(snapshot, { tool = "", command = "",
     action: "create",
     title,
     description: "Automatically created before the first repository mutation in this OpenCode chat.",
+    status: "in_progress",
   };
 }
 

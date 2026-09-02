@@ -10745,9 +10745,13 @@ def _openmates_task_tool(
         created = cli_runner(command).get("task")
         if not isinstance(created, dict) or not created.get("task_id"):
             raise RuntimeError("Task create returned an invalid record")
-        return cli_runner([
-            "tasks", "edit", str(created["task_id"]), "--assign", "ai", *scope, "--json",
-        ])
+        assignment = ["tasks", "edit", str(created["task_id"]), "--assign", "ai"]
+        status = input_payload.get("status")
+        if status is not None:
+            if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
+                raise RuntimeError("Task tool received an invalid status")
+            assignment.extend(["--status", str(status)])
+        return cli_runner([*assignment, *scope, "--json"])
 
     task_id = text_field("task_id", required=True, maximum=200)
     if action == "show":

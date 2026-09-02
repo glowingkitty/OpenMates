@@ -66,6 +66,7 @@ test("the first repository mutation requires an implicit Task when none exists",
       action: "create",
       title: "Implement account settings",
       description: "Automatically created before the first repository mutation in this OpenCode chat.",
+      status: "in_progress",
     },
   );
   assert.equal(

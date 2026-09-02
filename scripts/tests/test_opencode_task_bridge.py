@@ -234,7 +234,7 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
 
     created = sessions._openmates_task_tool(
         "ses_parent",
-        {"action": "create", "title": "Private new title", "description": "Private body"},
+        {"action": "create", "title": "Private new title", "description": "Private body", "status": "in_progress"},
         cli_runner=cli,
     )
     started = sessions._openmates_task_tool(
@@ -262,7 +262,7 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
             "--assign", "user", "--external-chat", "opencode:ses_parent", "--json",
         ],
         [
-            "tasks", "edit", "uuid-TASK-9", "--assign", "ai",
+            "tasks", "edit", "uuid-TASK-9", "--assign", "ai", "--status", "in_progress",
             "--external-chat", "opencode:ses_parent", "--json",
         ],
         [
