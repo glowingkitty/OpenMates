@@ -67,6 +67,7 @@ type TestStateDeclaration = {
 
 type SendMessageOptions = {
 	testMockMarker?: string;
+	preserveExistingContent?: boolean;
 };
 
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
@@ -1058,8 +1059,13 @@ async function sendMessage(
 			.catch(() => '')
 	);
 	const waitForEditorMessage = async (timeout = 2500): Promise<boolean> => expect
-		.poll(currentEditorText, { timeout, intervals: [100, 250, 500] })
-		.toBe(expectedEditorText)
+		.poll(async () => {
+			const editorText = await currentEditorText();
+			return options.preserveExistingContent
+				? editorText.includes(expectedEditorText)
+				: editorText === expectedEditorText;
+		}, { timeout, intervals: [100, 250, 500] })
+		.toBe(true)
 		.then(() => true)
 		.catch(() => false);
 	const retypeEditorMessage = async (reason: string): Promise<void> => {

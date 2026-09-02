@@ -148,13 +148,18 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
 		await expect(speechStatus).toHaveText('Speech turned on');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
+		const recordedAudio = messageField
+			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
+			.last();
+		await expect(recordedAudio).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
 
 		await sendMessage(
 			page,
 			withRequiredLiveMock('Reply with one short sentence confirming this encrypted chat is ready for a voice playback test.'),
 			log,
 			screenshot,
-			'assistant-speech-source'
+			'assistant-speech-source',
+			{ preserveExistingContent: true }
 		);
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
 		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
