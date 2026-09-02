@@ -141,8 +141,9 @@ describe("OpenMatesClient session API URL", () => {
       pairKey,
       plaintext,
     );
+    const sessionCookies: string[] = [];
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
-      response.writeHead(200, { "content-type": "application/json" });
+      response.setHeader("content-type", "application/json");
       if (request.url === "/v1/auth/pair/initiate") {
         response.end(JSON.stringify({ token }));
       } else if (request.url === `/v1/auth/pair/complete/${token}`) {
@@ -152,8 +153,10 @@ describe("OpenMatesClient session API URL", () => {
           iv: Buffer.from(iv).toString("base64"),
         }));
       } else if (request.url === "/v1/auth/login") {
+        response.setHeader("set-cookie", "auth_refresh_token=test-refresh-token; Path=/; HttpOnly");
         response.end(JSON.stringify({ success: true, ws_token: "test-ws-token" }));
       } else if (request.url === "/v1/auth/session") {
+        sessionCookies.push(String(request.headers.cookie ?? ""));
         response.end(JSON.stringify({ success: true, user: { id: "personal-account-id" } }));
       } else {
         response.end(JSON.stringify({ success: false }));
@@ -178,6 +181,11 @@ describe("OpenMatesClient session API URL", () => {
       await client.loginWithPairAuth();
       const user = await client.whoAmI();
       assert.equal(user.id, "personal-account-id");
+
+      const reloadedClient = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const reloadedUser = await reloadedClient.whoAmI();
+      assert.equal(reloadedUser.id, "personal-account-id");
+      assert.match(sessionCookies.at(-1) ?? "", /auth_refresh_token=test-refresh-token/);
     } finally {
       clearSession();
       await new Promise<void>((resolve) => server.close(() => resolve()));

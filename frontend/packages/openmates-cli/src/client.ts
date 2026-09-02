@@ -4282,6 +4282,8 @@ export class OpenMatesClient {
     const session = this.requireSession();
     const response = await this.http.post<{
       success?: boolean;
+      message?: string;
+      re_auth_reason?: string;
       user?: Record<string, unknown>;
       ws_token?: string;
     }>(
@@ -4290,7 +4292,9 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.success) {
-      throw new Error("Session is invalid. Please run `openmates login`.");
+      throw new Error(
+        `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`openmates login\`.`,
+      );
     }
     if (response.data.ws_token) {
       session.wsToken = response.data.ws_token;
@@ -9514,10 +9518,12 @@ export class OpenMatesClient {
     return response.data.proposed_tasks;
   }
 
-  async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
+  async updateUserTask(taskId: string, input: UserTaskUpdateInput, context: TeamContextOptions = {}): Promise<UserTaskRecord> {
     this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
     const response = await this.http.patch<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
-      `/v1/user-tasks/${encodeURIComponent(taskId)}`,
+      `/v1/user-tasks/${encodeURIComponent(taskId)}${query}`,
       input,
       this.getCliRequestHeaders(),
     );

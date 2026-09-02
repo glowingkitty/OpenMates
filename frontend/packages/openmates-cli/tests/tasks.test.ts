@@ -13,7 +13,14 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
-import { decryptUserTask, findTask, type DecryptedUserTask, workflowProjectionDeleteGuidance } from "../src/tasksCli.ts";
+import {
+  decryptUserTask,
+  findTask,
+  taskEditLookupScope,
+  taskLookupScopes,
+  type DecryptedUserTask,
+  workflowProjectionDeleteGuidance,
+} from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -90,6 +97,10 @@ describe("OpenMatesClient user tasks", () => {
         assert.equal((await client.listUserTasks({ status: "todo", chatId: "chat-1", projectId: "project-1", limit: 1000 }))[0]?.task_id, "task-1");
         assert.equal((await client.createUserTask(task)).encrypted_title, "cipher-title");
         assert.equal((await client.updateUserTask("task-1", { status: "done", version: 1 })).status, "done");
+        assert.equal((await client.updateUserTask("team-task", { status: "done", version: 1 }, { teamId: "team-1" })).status, "done");
+        const activeTeamClient = new OpenMatesClient({ apiUrl, session: { ...testSession(), activeTeamId: "team-active" } });
+        assert.equal((await activeTeamClient.updateUserTask("active-team-task", { status: "done", version: 1 })).status, "done");
+        assert.equal((await activeTeamClient.updateUserTask("personal-task", { status: "done", version: 1 }, { personal: true })).status, "done");
         assert.equal((await client.startUserTaskWithAI("task-1", {
           version: 2,
           plaintext_title: "Draft launch plan",
@@ -100,11 +111,17 @@ describe("OpenMatesClient user tasks", () => {
           ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=1000"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
+          ["PATCH", "/v1/user-tasks/team-task?team_id=team-1"],
+          ["PATCH", "/v1/user-tasks/active-team-task?team_id=team-active"],
+          ["PATCH", "/v1/user-tasks/personal-task"],
           ["POST", "/v1/user-tasks/task-1/start-ai"],
         ]);
         assert.deepEqual(seen[1]?.body, task);
         assert.deepEqual(seen[2]?.body, { status: "done", version: 1 });
-        assert.deepEqual(seen[3]?.body, {
+        assert.deepEqual(seen[3]?.body, { status: "done", version: 1 });
+        assert.deepEqual(seen[4]?.body, { status: "done", version: 1 });
+        assert.deepEqual(seen[5]?.body, { status: "done", version: 1 });
+        assert.deepEqual(seen[6]?.body, {
           version: 2,
           plaintext_title: "Draft launch plan",
           plaintext_description: "Use project context",
@@ -122,6 +139,24 @@ describe("OpenMatesClient user tasks", () => {
 
     assert.throws(() => findTask(tasks, "TASK-1234"), /ambiguous/);
     assert.equal(findTask(tasks, "task-2").taskId, "task-2");
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+  it("resolves task IDs across statuses without filtering on edited values", () => {
+    const scopes = taskLookupScopes({ status: "todo", priority: 2, teamId: null, personal: true });
+    assert.deepEqual(scopes.map((scope) => scope.status), ["backlog", "todo", "in_progress", "blocked", "done"]);
+    assert.ok(scopes.every((scope) => scope.priority === 2 && scope.personal === true));
+
+    assert.deepEqual(taskEditLookupScope({
+      status: "done",
+      chatId: "new-chat",
+      projectId: "new-project",
+      planId: "new-plan",
+      labelHashes: ["new-label"],
+      priority: 4,
+      teamId: "team-1",
+      personal: false,
+    }), { teamId: "team-1", personal: false });
   });
 
   // contract-test: direct surface=cli assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity

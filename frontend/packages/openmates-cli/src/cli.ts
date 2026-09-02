@@ -170,6 +170,8 @@ import {
   renderTaskDetail,
   renderTaskList,
   splitCsvFlag,
+  taskEditLookupScope,
+  taskLookupScopes,
   workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
   type TaskCreateOptions,
@@ -808,7 +810,7 @@ async function handleTasks(
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
     const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
-    const updated = await client.updateUserTask(task.taskId, patch);
+    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -818,7 +820,7 @@ async function handleTasks(
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "remove-from-project");
     const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: removeId(task.linkedProjectIds, project.projectId) });
-    const updated = await client.updateUserTask(task.taskId, patch);
+    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -950,7 +952,7 @@ async function handleTasks(
   if (subcommand === "edit") {
     const id = rest[0];
     if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
-    const task = await resolveTask(client, masterKey, id, scope);
+    const task = await resolveTask(client, masterKey, id, taskEditLookupScope(scope));
     const patch = await buildUpdateUserTaskInput(task, masterKey, await resolveTaskUpdateOptions(client, masterKey, flags, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
@@ -965,7 +967,7 @@ async function handleTasks(
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
     }));
-    const updated = await client.updateUserTask(task.taskId, patch);
+    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -1104,8 +1106,9 @@ async function loadTasks(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  limit?: number,
 ): Promise<DecryptedUserTask[]> {
-  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal });
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
   const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
@@ -1116,7 +1119,14 @@ async function resolveTask(
   id: string,
   scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
 ): Promise<DecryptedUserTask> {
-  return findTask(await loadTasks(client, masterKey, { ...scope, status: undefined }), id);
+  const candidates: DecryptedUserTask[] = [];
+  for (const lookupScope of taskLookupScopes(scope)) {
+    const tasks = await loadTasks(client, masterKey, lookupScope, 500);
+    const exactMatch = tasks.find((task) => task.taskId === id);
+    if (exactMatch) return exactMatch;
+    candidates.push(...tasks);
+  }
+  return findTask(candidates, id);
 }
 
 async function requiredResolvedTask(

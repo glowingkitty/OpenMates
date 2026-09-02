@@ -30,12 +30,31 @@ import {
   objectSlugMatches,
 } from "./objectSlugs.js";
 
-const TASK_STATUSES: UserTaskStatus[] = ["backlog", "todo", "in_progress", "blocked", "done"];
+export const TASK_STATUSES: UserTaskStatus[] = ["backlog", "todo", "in_progress", "blocked", "done"];
 const DEFAULT_STANDALONE_PREFIX = "TASK";
 const PRIORITY_LEVELS = ["none", "low", "medium", "high", "urgent"] as const;
 const LABEL_INDEX_INFO = "openmates-task-label-index-v1";
 
 export type TaskPriorityLevel = typeof PRIORITY_LEVELS[number];
+
+export interface TaskLookupScope {
+  status?: UserTaskStatus;
+  chatId?: string;
+  projectId?: string;
+  planId?: string;
+  labelHashes?: string[];
+  priority?: number;
+  teamId?: string | null;
+  personal?: boolean;
+}
+
+export function taskLookupScopes(scope: TaskLookupScope): TaskLookupScope[] {
+  return TASK_STATUSES.map((status) => ({ ...scope, status }));
+}
+
+export function taskEditLookupScope(scope: TaskLookupScope): TaskLookupScope {
+  return { teamId: scope.teamId, personal: scope.personal };
+}
 
 export interface DecryptedUserTask {
   taskId: string;
