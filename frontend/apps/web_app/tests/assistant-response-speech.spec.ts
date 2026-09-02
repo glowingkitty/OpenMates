@@ -92,17 +92,6 @@ test.describe.serial('Assistant response speech', () => {
 
 		await loginToTestAccount(page, log, screenshot);
 		await startNewChat(page, log);
-		await sendMessage(
-			page,
-			withRequiredLiveMock('Reply with one short sentence confirming this encrypted chat is ready for a voice playback test.'),
-			log,
-			screenshot,
-			'assistant-speech-source'
-		);
-		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
-		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
-		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
-		expect(chatId, 'browser chat should expose a chat-id').toBeTruthy();
 
 		const messageField = page.getByTestId('message-field').last();
 		await messageField.click();
@@ -159,6 +148,19 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
 		await expect(speechStatus).toHaveText('Speech turned on');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
+		expect(page.url()).not.toMatch(/chat-id=/);
+
+		await sendMessage(
+			page,
+			withRequiredLiveMock('Reply with one short sentence confirming this encrypted chat is ready for a voice playback test.'),
+			log,
+			screenshot,
+			'assistant-speech-source'
+		);
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
+		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
+		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
+		expect(chatId, 'voice-first chat should become durable after its first message').toBeTruthy();
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
