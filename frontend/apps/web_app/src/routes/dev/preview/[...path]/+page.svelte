@@ -902,16 +902,16 @@
 
 	.capture-mode .preview-container {
 		display: flex;
-		align-items: center;
-		justify-content: center;
+		align-items: safe center;
+		justify-content: safe center;
 		padding: 32px;
 	}
 
 	.capture-mode .preview-viewport,
 	.capture-mode .component-mount {
 		display: flex;
-		align-items: center;
-		justify-content: center;
+		align-items: safe center;
+		justify-content: safe center;
 	}
 
 	.capture-mode .component-mount {
