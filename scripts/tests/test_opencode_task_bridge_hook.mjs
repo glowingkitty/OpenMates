@@ -53,6 +53,22 @@ test("empty chats instruct the model to create tracking for implicit non-trivial
 });
 
 
+test("failed Task context tells the model not to retry or create another record", () => {
+  const { taskContextSystemTextForTest } = OpenMatesHooks.test;
+  const text = taskContextSystemTextForTest({
+    decision: "failed_closed",
+    active: null,
+    remaining: [],
+    error: "Passkey verification required (location_change). Please run openmates login.",
+  });
+
+  assert.match(text, /temporarily unavailable/i);
+  assert.match(text, /do not retry/i);
+  assert.match(text, /openmates login/i);
+  assert.doesNotMatch(text, /create an AI-assigned record/i);
+});
+
+
 test("the first repository mutation requires an implicit Task when none exists", () => {
   const { implicitTaskMutationPayloadForTest } = OpenMatesHooks.test;
   const empty = { decision: "no_work", active: null, remaining: [] };

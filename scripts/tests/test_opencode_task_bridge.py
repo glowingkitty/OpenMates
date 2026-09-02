@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -71,6 +72,34 @@ def state() -> dict:
 
 def install_mutator(monkeypatch, sessions, data):
     monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+
+
+def test_task_cli_auth_failure_preserves_actionable_reason(monkeypatch) -> None:
+    sessions = load_sessions_module()
+
+    def run(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=["openmates", "tasks", "list"],
+            returncode=1,
+            stdout=json.dumps({
+                "error": {
+                    "code": "command_failed",
+                    "message": "Session validation failed (HTTP 200): Passkey verification required (location_change). Please run `openmates login`.",
+                }
+            }),
+            stderr="Decrypting data...\n",
+        )
+
+    monkeypatch.setattr(sessions.subprocess, "run", run)
+    try:
+        sessions._run_openmates_task_cli(["tasks", "list", "--json"])
+    except RuntimeError as error:
+        message = str(error)
+        assert "Passkey verification required (location_change)" in message
+        assert "openmates login" in message
+        assert "do not retry" in message.lower()
+    else:
+        raise AssertionError("Task CLI authentication failures must fail with actionable context")
 
 
 def test_snapshot_classification_is_deterministic_and_fail_closed() -> None:

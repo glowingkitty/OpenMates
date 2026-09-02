@@ -2357,6 +2357,16 @@ function taskBridgeCompletionForTest(event, { topLevelSessionID = "" } = {}) {
 
 function taskContextSystemTextForTest(snapshot) {
   if (!snapshot || snapshot.decision === "unbound") return "";
+  if (snapshot.decision === "failed_closed") {
+    const loginRequired = snapshot.recovery === "login_required" || /openmates login|passkey verification/i.test(String(snapshot.error || ""));
+    return [
+      TASK_CONTEXT_MARKER,
+      "The OpenMates Task bridge is temporarily unavailable. Do not retry openmates_task in this response and do not create another Task.",
+      loginRequired
+        ? "Preserve the completed work and report that `openmates login` must complete before Task state can be reconciled."
+        : "Preserve the completed work and report the bridge failure once so it can be reconciled later.",
+    ].join("\n");
+  }
   const active = snapshot.active;
   const remaining = Array.isArray(snapshot.remaining) ? snapshot.remaining : [];
   const lines = [
@@ -3276,7 +3286,13 @@ export const OpenMatesHooks = async ({
       return snapshot;
     } catch (error) {
       console.warn(`[OpenMates Task bridge diagnostic] context failed: ${error?.message || error}`);
-      const failed = { decision: "failed_closed", active: null, remaining: [] };
+      const message = String(error?.message || error || "");
+      const failed = {
+        decision: "failed_closed",
+        active: null,
+        remaining: [],
+        recovery: /openmates login|passkey verification/i.test(message) ? "login_required" : "bridge_unavailable",
+      };
       taskContextCache.set(sessionID, failed);
       return failed;
     }
@@ -3642,8 +3658,6 @@ export const OpenMatesHooks = async ({
           console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
         }
       }
-      bindSessionStart(input, output);
-
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
       await recordResolvedChildRole(route);
@@ -3655,6 +3669,7 @@ export const OpenMatesHooks = async ({
         routingBlockCounts.set(key, count);
         throw new Error(repeatedRoutingFailureMessageForTest(childMutation.message, count));
       }
+      bindSessionStart(input, output);
       const routeRecorded = recordRouting
         && route.decision === "worktree_routed"
         && route.topLevelOpenCodeSessionID
@@ -3666,11 +3681,13 @@ export const OpenMatesHooks = async ({
       ) {
         recordedRoutes.add(route.topLevelOpenCodeSessionID);
       }
-      await ensureImplicitTaskBeforeMutation({
-        sessionID: routedOpenCodeSessionID,
-        tool,
-        command: BASH_TOOLS.has(tool) ? bashCommand(output?.args || input?.args) : "",
-      });
+      if (input.sessionID === routedOpenCodeSessionID) {
+        await ensureImplicitTaskBeforeMutation({
+          sessionID: routedOpenCodeSessionID,
+          tool,
+          command: BASH_TOOLS.has(tool) ? bashCommand(output?.args || input?.args) : "",
+        });
+      }
       if (route.decision !== "worktree_routed") {
         const currentArgs = output?.args || input?.args;
         const command = bashCommand(currentArgs);

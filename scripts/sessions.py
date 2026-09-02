@@ -10561,6 +10561,23 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
     except (OSError, subprocess.TimeoutExpired) as error:
         raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
     if result.returncode != 0:
+        failure_message = ""
+        if len(result.stdout.encode("utf-8")) <= OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+            try:
+                failure_payload = json.loads(result.stdout)
+            except json.JSONDecodeError:
+                failure_payload = None
+            if isinstance(failure_payload, dict):
+                failure = failure_payload.get("error")
+                if isinstance(failure, dict) and isinstance(failure.get("message"), str):
+                    failure_message = re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
+        if "Passkey verification required" in failure_message:
+            raise RuntimeError(
+                f"OpenMates Task authentication required: {failure_message} "
+                "Do not retry Task operations until `openmates login` completes."
+            )
+        if failure_message:
+            raise RuntimeError(f"OpenMates Task CLI failed: {failure_message[:500]}")
         raise RuntimeError(f"OpenMates Task CLI failed with exit status {result.returncode}")
     if len(result.stdout.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
         raise RuntimeError("OpenMates Task CLI returned an oversized JSON response")

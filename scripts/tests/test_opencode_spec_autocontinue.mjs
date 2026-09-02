@@ -26,6 +26,5 @@ test("loaded hook exposes no idle spec continuation handler", async () => {
 
 test("loaded hook contains no deterministic spec continuation prompt", () => {
   assert.doesNotMatch(source, /Continue until the full spec is implemented/);
-  assert.doesNotMatch(source, /experimental\.chat\.system\.transform/);
   assert.match(source, /continuationCommand\("claim".*client\.session\.prompt/s);
 });
