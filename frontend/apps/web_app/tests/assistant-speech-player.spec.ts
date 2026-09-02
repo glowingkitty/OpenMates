@@ -75,8 +75,8 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-2');
-			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-1,segment-2');
-			await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(2);
+			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-1,segment-2,segment-3');
+			await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(3);
 		});
 		await proof.checkpoint('pending');
 
@@ -97,5 +97,21 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		});
 		await proof.checkpoint('paused');
 		await proof.attach();
+	});
+
+	// contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform
+	test('moves exactly one chapter and preserves white content in dark mode', async ({ page }) => {
+		await page.goto('/dev/preview/AssistantSpeechPlayer?theme=dark&chrome=0&width=1155', { waitUntil: 'networkidle' });
+		const player = page.getByTestId('assistant-speech-player');
+		const waveform = player.getByTestId('assistant-speech-waveform');
+
+		await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Key considerations');
+		await player.getByTestId('assistant-speech-next-chapter').click();
+		await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
+		await expect(waveform).toHaveAttribute('data-window', 'segment-1,segment-2,segment-3');
+		await player.getByTestId('assistant-speech-previous-chapter').click();
+		await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Key considerations');
+		await expect(waveform).toHaveAttribute('data-window', 'segment-0,segment-1,segment-2');
+		await expect.poll(() => player.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)');
 	});
 });

@@ -7,6 +7,7 @@
   -->
 <script lang="ts">
   import { text } from '@repo/ui';
+  import { scale } from 'svelte/transition';
   import {
     assistantSpeechController,
     type AssistantSpeechPlaybackController,
@@ -181,23 +182,27 @@
     </div>
 
     <div class="assistant-speech-primary-controls" class:paused={isPaused}>
-      <button
-        type="button"
-        class="assistant-speech-primary-control"
-        data-testid="assistant-speech-primary-control"
-        aria-label={isPlaying ? 'Pause voice response' : 'Play voice response'}
-        onclick={() => isPlaying ? controller.pause() : void controller.play()}
-      >
-        <span
-          class="assistant-speech-icon"
-          class:pause={isPlaying}
-          class:play={!isPlaying}
-          data-testid="assistant-speech-primary-icon"
-          data-icon={isPlaying ? 'pause' : 'play'}
-        ></span>
-      </button>
+      {#key isPlaying}
+        <button
+          transition:scale={{ duration: 180, start: 0.65 }}
+          type="button"
+          class="assistant-speech-primary-control"
+          data-testid="assistant-speech-primary-control"
+          aria-label={isPlaying ? 'Pause voice response' : 'Play voice response'}
+          onclick={() => isPlaying ? controller.pause() : void controller.play()}
+        >
+          <span
+            class="assistant-speech-icon"
+            class:pause={isPlaying}
+            class:play={!isPlaying}
+            data-testid="assistant-speech-primary-icon"
+            data-icon={isPlaying ? 'pause' : 'play'}
+          ></span>
+        </button>
+      {/key}
       {#if isPaused}
         <button
+          transition:scale={{ duration: 180, start: 0.65 }}
           type="button"
           class="assistant-speech-primary-control"
           data-testid="assistant-speech-close"
@@ -221,9 +226,14 @@
           <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous"></span>
         </button>
       {/if}
-      <strong data-testid="assistant-speech-current-chapter">
-        {activeRegion ? chapterLabel(activeRegion.chapter) : $text('common.loading')}
-      </strong>
+      <div class="assistant-speech-current-slot">
+        <strong data-testid="assistant-speech-current-chapter">
+          {activeRegion ? chapterLabel(activeRegion.chapter) : $text('common.loading')}
+        </strong>
+        {#if isLoading}
+          <small class="assistant-speech-loading" data-testid="assistant-speech-loading">{$text('common.loading')}</small>
+        {/if}
+      </div>
       {#if $player.presentationMode === 'replayable_track_queue' && nextRegion}
         <button
           type="button"
@@ -234,11 +244,6 @@
         >
           <span class="assistant-speech-icon chevron next"></span><span>{chapterLabel(nextRegion.chapter)}</span>
         </button>
-      {/if}
-      {#if isLoading && !nextRegion}
-        <span class="assistant-speech-loading" data-testid="assistant-speech-loading">
-          {$text('common.loading')}
-        </span>
       {/if}
     </div>
   </section>
@@ -258,7 +263,7 @@
     padding: 8px 24px 6px;
     overflow: hidden;
     border-radius: var(--radius-8);
-    color: var(--color-grey-0);
+    color: var(--color-font-button);
     background: var(--gradient-primary);
     box-shadow: var(--shadow-sm);
   }
@@ -289,7 +294,7 @@
     width: 15px;
     height: 15px;
     border-radius: var(--radius-full);
-    color: var(--color-primary-start);
+    color: var(--color-font-primary);
     background: var(--color-grey-0);
   }
 
@@ -353,7 +358,7 @@
     width: 40px;
     height: 40px;
     border-radius: var(--radius-full);
-    color: var(--color-primary-start);
+    color: var(--color-font-primary);
     background: var(--color-grey-0);
     box-shadow: var(--shadow-xs);
     cursor: pointer;
@@ -424,9 +429,16 @@
     line-height: 1;
   }
 
-  .assistant-speech-chapters strong {
+  .assistant-speech-current-slot {
     grid-column: 2;
     justify-self: center;
+    display: grid;
+    justify-items: center;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .assistant-speech-chapters strong {
     max-width: 210px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -451,11 +463,8 @@
   .assistant-speech-adjacent:focus-visible { opacity: 1; }
   .assistant-speech-adjacent span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .assistant-speech-loading {
-    grid-column: 3;
-    justify-self: start;
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
+    font-size: var(--font-size-xxs);
+    line-height: 1;
     opacity: 0.54;
     white-space: nowrap;
   }

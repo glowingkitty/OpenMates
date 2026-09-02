@@ -5,7 +5,7 @@
  * Access at: /dev/preview/AssistantSpeechPlayer
  */
 
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 import type { AssistantSpeechPlayerState } from "../services/assistantSpeechController";
 
 const readyWaveform = [32, 58, 82, 44, 72, 96, 54, 76, 38, 68, 88, 48];
@@ -23,9 +23,10 @@ function createPreviewController() {
     mateName: "Sophia",
     mateCategory: "software_development",
     regions: [
-      { segmentId: "segment-0", sequence: 0, start: 0, end: 0.28, status: "ready", active: false, chapter: { kind: "heading", text: "Short answer" }, waveform: readyWaveform },
-      { segmentId: "segment-1", sequence: 1, start: 0.28, end: 0.72, status: "ready", active: true, chapter: { kind: "heading", text: "Key considerations" }, waveform: readyWaveform },
-      { segmentId: "segment-2", sequence: 2, start: 0.72, end: 1, status: "generating", active: false, chapter: { kind: "heading", text: "Optimization" }, waveform: [] },
+      { segmentId: "segment-0", sequence: 0, start: 0, end: 0.24, status: "ready", active: false, chapter: { kind: "heading", text: "Short answer" }, waveform: readyWaveform },
+      { segmentId: "segment-1", sequence: 1, start: 0.24, end: 0.52, status: "ready", active: true, chapter: { kind: "heading", text: "Key considerations" }, waveform: readyWaveform },
+      { segmentId: "segment-2", sequence: 2, start: 0.52, end: 0.76, status: "generating", active: false, chapter: { kind: "heading", text: "Optimization" }, waveform: [] },
+      { segmentId: "segment-3", sequence: 3, start: 0.76, end: 1, status: "ready", active: false, chapter: { kind: "heading", text: "Implementation" }, waveform: readyWaveform },
     ],
   });
 
@@ -33,18 +34,44 @@ function createPreviewController() {
     player.update((state) => ({ ...state, status }));
   }
 
+  async function activateSegment(segmentId: string) {
+    let shouldHydrate = false;
+    player.update((state) => {
+      const target = state.regions.find((region) => region.segmentId === segmentId);
+      if (!target) return state;
+      shouldHydrate = target.status !== "ready";
+      return {
+        ...state,
+        activeSegmentId: target.segmentId,
+        status: target.status === "ready" ? "playing" : "waiting_for_segment",
+        regions: state.regions.map((region) => ({ ...region, active: region.segmentId === target.segmentId })),
+      };
+    });
+    if (!shouldHydrate) return;
+    window.setTimeout(() => {
+      player.update((state) => ({
+        ...state,
+        status: state.activeSegmentId === segmentId ? "playing" : state.status,
+        regions: state.regions.map((region) => region.segmentId === segmentId ? { ...region, status: "ready", waveform: readyWaveform } : region),
+      }));
+    }, 500);
+  }
+
+  async function move(direction: -1 | 1) {
+    const state = get(player);
+    const replayable = state.regions.filter((region) => region.sequence >= 0);
+    const activeIndex = replayable.findIndex((region) => region.segmentId === state.activeSegmentId);
+    const target = replayable[activeIndex + direction];
+    if (target) await activateSegment(target.segmentId);
+  }
+
   return {
     player,
     pause: () => updateStatus("paused"),
     play: async () => updateStatus("playing"),
-    previous: async () => player.update((state) => ({ ...state, activeSegmentId: "segment-0", status: "playing", regions: state.regions.map((region) => ({ ...region, active: region.segmentId === "segment-0" })) })),
-    next: async () => {
-      player.update((state) => ({ ...state, activeSegmentId: "segment-2", status: "waiting_for_segment", regions: state.regions.map((region) => ({ ...region, active: region.segmentId === "segment-2" })) }));
-      window.setTimeout(() => {
-        player.update((state) => ({ ...state, status: "playing", regions: state.regions.map((region) => region.segmentId === "segment-2" ? { ...region, status: "ready", waveform: readyWaveform } : region) }));
-      }, 500);
-    },
-    selectSegment: async () => {},
+    previous: () => move(-1),
+    next: () => move(1),
+    selectSegment: activateSegment,
     continueAfterUserGesture: async () => updateStatus("playing"),
     close: async () => updateStatus("stopped"),
   };
