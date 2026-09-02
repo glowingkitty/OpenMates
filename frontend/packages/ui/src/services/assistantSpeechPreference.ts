@@ -66,6 +66,7 @@ export async function setAssistantSpeechPreference(
   markAssistantSpeechPreferenceIntent(chatId, enabled);
   const chat = await chatDB.getChat(chatId);
   if (!chat) return;
+  if ((chat.messages_v ?? 0) === 0 && !chat.encrypted_chat_key) return;
   const key = await chatKeyManager.getKey(chatId);
   if (!key) throw new Error(`Chat key unavailable for assistant speech preference: ${chatId}`);
   const encryptedPreference = await encryptWithChatKey(String(enabled), key);
@@ -76,6 +77,7 @@ export async function setAssistantSpeechPreference(
     await webSocketService.sendMessage("encrypted_chat_metadata", {
       chat_id: chatId,
       ...(chat.team_id ? { team_id: chat.team_id } : {}),
+      ...(chat.encrypted_chat_key ? { encrypted_chat_key: chat.encrypted_chat_key } : {}),
       encrypted_auto_speak_response: encryptedPreference,
       versions: {
         messages_v: chat.messages_v,

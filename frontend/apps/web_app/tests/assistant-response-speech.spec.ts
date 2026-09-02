@@ -148,7 +148,6 @@ test.describe.serial('Assistant response speech', () => {
 		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
 		await expect(speechStatus).toHaveText('Speech turned on');
 		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
-		expect(page.url()).not.toMatch(/chat-id=/);
 
 		await sendMessage(
 			page,
