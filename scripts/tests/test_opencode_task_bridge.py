@@ -277,3 +277,29 @@ def test_typed_tool_rejects_unknown_actions_and_unbound_sessions(monkeypatch) ->
             assert message in str(error).lower()
         else:
             raise AssertionError(f"{payload} must fail closed")
+
+
+def test_staged_reconciliation_survives_process_restart(tmp_path, monkeypatch) -> None:
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(json.dumps(state()), encoding="utf-8")
+    first_process = load_sessions_module()
+    monkeypatch.setattr(first_process, "SESSIONS_FILE", sessions_file)
+    assert first_process._stage_openmates_task_reconciliation("ses_parent", "msg_restart")["staged"]
+
+    second_process = load_sessions_module()
+    monkeypatch.setattr(second_process, "SESSIONS_FILE", sessions_file)
+    calls: list[list[str]] = []
+
+    def cli(args: list[str]) -> dict:
+        calls.append(args)
+        return {"tasks": [task("TASK-1", status="in_progress", version=8)]}
+
+    reconciled = second_process._reconcile_openmates_tasks("ses_parent", cli_runner=cli)
+    duplicate = second_process._reconcile_openmates_tasks("ses_parent", cli_runner=cli)
+
+    assert reconciled["decision"] == "resume_active"
+    assert duplicate["decision"] == "already_reconciled"
+    assert len(calls) == 1
+    durable = sessions_file.read_text(encoding="utf-8")
+    assert "Private title" not in durable
+    assert "Private description" not in durable
