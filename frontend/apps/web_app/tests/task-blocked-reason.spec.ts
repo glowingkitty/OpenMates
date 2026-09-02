@@ -70,7 +70,7 @@ test.describe('Task blocked reason component', () => {
     });
     await proof.checkpoint('encrypted-explanation');
 
-    await openPreview(page, 'codeFallback');
+    await proof.action('show-code-fallback', async () => openPreview(page, 'codeFallback'));
     const fallbackReason = page.getByTestId('task-detail-blocked-reason');
     await expect(fallbackReason).toContainText('Credentials are required before this Task can continue.');
     await expect(fallbackReason).not.toContainText('repository write access');
