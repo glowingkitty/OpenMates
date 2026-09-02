@@ -11108,7 +11108,7 @@ assertions:
       surface: gui.web
     - &id1219
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 104
+      line: 106
       name: moves exactly one chapter and preserves white content in dark mode
       surface: gui.web
     - &id1220
@@ -11193,7 +11193,7 @@ assertions:
       surface: gui.web
     - &id1228
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 104
+      line: 106
       name: moves exactly one chapter and preserves white content in dark mode
       surface: gui.web
     - &id1229

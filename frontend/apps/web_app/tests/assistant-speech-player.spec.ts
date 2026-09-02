@@ -79,6 +79,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(3);
 		});
 		await proof.checkpoint('pending');
+		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
 		await proof.action('wait-for-ready-audio', async () => {
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false', { timeout: 5_000 });
@@ -87,6 +88,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByRole('button', { name: 'Pause voice response' })).toBeVisible();
 		});
 		await proof.checkpoint('ready');
+		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
 		await proof.action('pause-playback', async () => player.getByRole('button', { name: 'Pause voice response' }).click());
 		await proof.assert('assistant-speech.playback.single-queue-segment-control', async () => {
