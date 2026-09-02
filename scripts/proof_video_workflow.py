@@ -1472,9 +1472,13 @@ def review_run(
         from spec_demo import record_review_receipt, review_request_hash, validate_review_request_files
 
     run_dir = run_dir.resolve()
-    canonical_runs_root = (RESULTS_DIR / "proof-videos").resolve()
-    if not run_dir.is_relative_to(canonical_runs_root):
-        raise WorkflowError(f"review run directory must be inside {canonical_runs_root}")
+    canonical_runs_roots = {
+        (RESULTS_DIR / "proof-videos").resolve(),
+        (CONTROL_PLANE_ROOT / "test-results" / "proof-videos").resolve(),
+    }
+    if not any(run_dir.is_relative_to(root) for root in canonical_runs_roots):
+        allowed_roots = ", ".join(str(root) for root in sorted(canonical_runs_roots))
+        raise WorkflowError(f"review run directory must be inside one of: {allowed_roots}")
     request = _load_json(run_dir / "review-request.json")
     existing_manifest = _load_json(run_dir / "manifest.json")
     try:

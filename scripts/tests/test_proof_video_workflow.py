@@ -1403,6 +1403,51 @@ def test_review_run_preserves_reviewer_frame_hash_and_contract_budget(
     spec_demo.require_review_receipt_integrity(second_dir, cached["manifest"])
 
 
+def test_review_run_accepts_control_plane_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    control_plane_root = tmp_path / "control-plane"
+    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", control_plane_root)
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(
+        control_plane_root / "test-results" / "proof-videos" / "session" / "run"
+    )
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
+                "assertions": [
+                    {
+                        "id": "visible",
+                        "verdict": "supported",
+                        "frames": ["frames/frame.png"],
+                        "observation": "Visible.",
+                    }
+                ],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    result = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=reviewer,
+    )
+
+    assert result["status"] == "passed"
+
+
 def test_review_run_recovers_receipt_written_before_cache_attachment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -2405,8 +2450,12 @@ def test_default_reviewer_reuses_canonical_project_instance(tmp_path: Path, monk
     assert "--dir" in observed["command"]
     assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
     assert observed["command"][observed["command"].index("--dir") + 1] == str(repo_root)
-    assert "test-results/proof-videos/run/review-prompt-round-0.json" in " ".join(observed["command"])
-    assert str(prompt.resolve()) not in " ".join(observed["command"])
+    attached_files = [
+        observed["command"][index + 1]
+        for index, value in enumerate(observed["command"])
+        if value == "--file"
+    ]
+    assert attached_files == [str(prompt.resolve())]
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
 
