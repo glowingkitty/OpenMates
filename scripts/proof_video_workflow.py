@@ -52,6 +52,7 @@ def _resolve_control_plane_root(checkout_root: Path) -> Path:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(REPO_ROOT)
+OPENCODE_RUNTIME_ROOT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "opencode-server"
 SESSIONS_FILE = CONTROL_PLANE_ROOT / ".claude/sessions.json"
 RESULTS_DIR = REPO_ROOT / "test-results"
 APPROVALS_DIR = RESULTS_DIR / "proof-video-approvals"
@@ -1373,7 +1374,7 @@ def _default_reviewer_runner(
     reviewer_root = next(
         (
             root.resolve()
-            for root in (CONTROL_PLANE_ROOT, REPO_ROOT)
+            for root in (CONTROL_PLANE_ROOT, REPO_ROOT, OPENCODE_RUNTIME_ROOT)
             if run_dir.is_relative_to(root.resolve())
         ),
         None,
@@ -1475,6 +1476,7 @@ def review_run(
     canonical_runs_roots = {
         (RESULTS_DIR / "proof-videos").resolve(),
         (CONTROL_PLANE_ROOT / "test-results" / "proof-videos").resolve(),
+        (OPENCODE_RUNTIME_ROOT / "test-results" / "proof-videos").resolve(),
     }
     if not any(run_dir.is_relative_to(root) for root in canonical_runs_roots):
         allowed_roots = ", ".join(str(root) for root in sorted(canonical_runs_roots))

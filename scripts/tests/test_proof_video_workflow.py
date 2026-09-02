@@ -1448,6 +1448,51 @@ def test_review_run_accepts_control_plane_results(
     assert result["status"] == "passed"
 
 
+def test_review_run_accepts_opencode_runtime_results(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "runtime"
+    monkeypatch.setattr(workflow, "OPENCODE_RUNTIME_ROOT", runtime_root)
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, request = _write_review_run(
+        runtime_root / "test-results" / "proof-videos" / "session" / "run"
+    )
+
+    def reviewer(_prompt: Path, **_kwargs: object) -> tuple[dict[str, object], str]:
+        return (
+            {
+                "status": "passed",
+                "confidence": 0.99,
+                "frame_index_hash": request["frame_index_hash"],
+                "reviewed_frames": ["frames/frame.png"],
+                "frame_reviews": [frame_quality_review("frames/frame.png")],
+                "assertions": [
+                    {
+                        "id": "visible",
+                        "verdict": "supported",
+                        "frames": ["frames/frame.png"],
+                        "observation": "Visible.",
+                    }
+                ],
+                "incidental_findings": [],
+                "return_stage": "complete",
+                "next_action": "Publish.",
+            },
+            "ses_reviewer",
+        )
+
+    result = workflow.review_run(
+        run_dir=run_dir,
+        correction_round=0,
+        correction_kind="none",
+        reviewer_runner=reviewer,
+    )
+
+    assert result["status"] == "passed"
+
+
 def test_review_run_recovers_receipt_written_before_cache_attachment(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
