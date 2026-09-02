@@ -72,14 +72,14 @@
             ]
         },
         {
-            id: 'projects', labelKey: 'settings.api_keys.category_projects', icon: 'puzzle', scopes: [
+            id: 'projects', labelKey: 'settings.api_keys.category_projects', icon: 'project', scopes: [
                 { id: 'project:read', labelKey: 'settings.api_keys.scope_project_read' },
                 { id: 'project:create', labelKey: 'settings.api_keys.scope_project_create' },
                 { id: 'project:write', labelKey: 'settings.api_keys.scope_project_write' },
             ]
         },
         {
-            id: 'plans', labelKey: 'settings.api_keys.category_plans', icon: 'puzzle', scopes: [
+            id: 'plans', labelKey: 'settings.api_keys.category_plans', icon: 'planning', scopes: [
                 { id: 'plan:read', labelKey: 'settings.api_keys.scope_plan_read' },
                 { id: 'plan:read_metadata', labelKey: 'settings.api_keys.scope_plan_read_metadata' },
                 { id: 'plan:create', labelKey: 'settings.api_keys.scope_plan_create' },
