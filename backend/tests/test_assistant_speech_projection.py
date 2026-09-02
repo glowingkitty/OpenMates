@@ -69,7 +69,7 @@ def test_resolves_a_provider_neutral_profile_without_exposing_voice_ids() -> Non
     resolved = resolve_assistant_voice_profile("hiro", version=1)
 
     assert resolved.provider == "elevenlabs"
-    assert resolved.model == "eleven_v3"
+    assert resolved.model == "eleven_v3_conversational"
     assert resolved.output_format == "mp3_44100_128"
     assert resolved.voice_settings == {"speed": 1.0}
     assert not hasattr(resolved, "voice_id")
@@ -136,7 +136,7 @@ def test_selects_a_deterministic_prerecorded_acknowledgement_without_charge() ->
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free
 def test_approved_acknowledgement_catalog_has_three_confirming_variants_per_category() -> None:
-    assert set(ACKNOWLEDGEMENT_TEXTS) == {"en-US", "de-DE"}
+    assert set(ACKNOWLEDGEMENT_TEXTS) == {"en-US", "de-DE", "es-ES", "fr-FR"}
     for language_catalog in ACKNOWLEDGEMENT_TEXTS.values():
         assert set(language_catalog) == {"general", "lookup", "reasoning", "action"}
         assert all(len(variants) == 3 for variants in language_catalog.values())

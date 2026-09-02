@@ -11308,7 +11308,7 @@ assertions:
       surface: rest_api
     - &id1240
       path: backend/tests/test_assistant_speech_api.py
-      line: 498
+      line: 505
       name: test_event_request_requeues_retryable_error_when_plaintext_is_resupplied
       surface: rest_api
     - &id1241
@@ -11440,7 +11440,7 @@ assertions:
     supporting_tests:
     - &id1252
       path: backend/tests/test_assistant_speech_api.py
-      line: 617
+      line: 624
       name: test_authenticated_websocket_router_registers_only_the_first_party_assistant_speech_event
       surface: rest_api
     - &id1254
@@ -11545,7 +11545,7 @@ assertions:
       surface: rest_api
     - &id1265
       path: backend/tests/test_assistant_speech_api.py
-      line: 498
+      line: 505
       name: test_event_request_requeues_retryable_error_when_plaintext_is_resupplied
       surface: rest_api
     - &id1268
@@ -11744,7 +11744,7 @@ assertions:
       surface: rest_api
     - &id1289
       path: backend/tests/test_assistant_speech_api.py
-      line: 498
+      line: 505
       name: test_event_request_requeues_retryable_error_when_plaintext_is_resupplied
       surface: rest_api
     - &id1291
@@ -11775,7 +11775,7 @@ assertions:
     supporting_tests:
     - &id1290
       path: backend/tests/test_assistant_speech_api.py
-      line: 617
+      line: 624
       name: test_authenticated_websocket_router_registers_only_the_first_party_assistant_speech_event
       surface: rest_api
     - &id1296
@@ -11830,7 +11830,7 @@ assertions:
       surface: rest_api
     - &id1300
       path: backend/tests/test_assistant_speech_api.py
-      line: 642
+      line: 649
       name: test_shared_message_deletion_tombstones_and_enqueues_speech_cleanup
       surface: rest_api
     - &id1301
@@ -11881,7 +11881,7 @@ assertions:
     supporting_tests:
     - &id1299
       path: backend/tests/test_assistant_speech_api.py
-      line: 630
+      line: 637
       name: test_directus_chat_deletion_service_owns_speech_tombstone_and_cleanup_dispatch
       surface: rest_api
     - &id1303

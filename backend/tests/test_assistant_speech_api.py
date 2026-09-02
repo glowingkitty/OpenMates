@@ -457,6 +457,13 @@ async def test_event_request_creates_and_dispatches_missing_historical_segments(
             rows[collection].append(dict(record))
             return record, None
 
+        async def update_item(self, collection, row_id, patch):
+            for row in rows[collection]:
+                if row.get("id") == row_id or row.get("manifest_id") == row_id:
+                    row.update(patch)
+                    return row
+            return None
+
     async def credit_headroom(**_kwargs):
         return None
 
