@@ -770,7 +770,7 @@ tests:
     command: python3 -m pytest backend/tests/test_assistant_speech_worker.py
     covers: [AC-4, AC-9, AC-11, AC-12]
     assertions:
-      - Each segment dispatches once, stores one encrypted object, and creates one idempotent successful usage row.
+      - Each segment dispatches once and stores one encrypted object; all successful segments contribute to one idempotent message-level character-priced usage row.
       - Cache/replay, cancellation, retry, insufficient credit, safety, provider, storage, invalidation, and deletion paths preserve exact segment semantics.
       - No combined message audio object or durable segment plaintext is written.
       - Binary audio replay is enabled only for the exact marked non-production live-mock group; production, unmarked, and unrelated test groups cannot bypass provider or billing behavior.
@@ -907,8 +907,8 @@ verifications:
     phase: final
     required_for_done: true
     covers: [AC-11, AC-15]
-    status: pending
-    evidence: {}
+    status: passed
+    evidence: {command: "node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/src/cli.ts chats speak <chat-id> --message <assistant-message-id> --json", run_id: assistant-speech-billing-live-20260902T131024Z, subject_commit: 64a0d02034a7662b03e94ff6b19ee800f4ffe16b, timestamp: "2026-09-02T13:10:24Z", summary: "Real paired dev CLI generated one encrypted segment; usage details contained exactly one 3-credit assistant_response_speech entry attributed to elevenlabs/eleven_v3_conversational for 29 submitted characters. Immediate replay returned generated_segments=0, reused_segments=1, and charged_segments=0. The temporary chat was deleted."}
   - id: V-UI-VISUAL-SMOKE
     kind: artifact_review
     phase: final
