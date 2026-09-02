@@ -29,8 +29,7 @@ export function shouldDispatchDraftChatAsNewChat(args: {
   existingChatHasUsableKey: boolean;
 }): boolean {
   return Boolean(
-    !args.currentChatId &&
-      args.draftChatId &&
+    args.draftChatId &&
       args.chatIdToUse === args.draftChatId &&
       args.existingChat &&
       args.existingChatHasUsableKey &&

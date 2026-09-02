@@ -91,6 +91,17 @@ describe('shouldDispatchDraftChatAsNewChat', () => {
     })).toBe(true);
   });
 
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,assistant-speech.preference.chat-scoped-default-off
+  it('dispatches newChat when a voice draft is already the active chat', () => {
+    expect(shouldDispatchDraftChatAsNewChat({
+      currentChatId: 'chat-1',
+      draftChatId: 'chat-1',
+      chatIdToUse: 'chat-1',
+      existingChat: { messages_v: 0 },
+      existingChatHasUsableKey: true,
+    })).toBe(true);
+  });
+
   // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chat-navigation.draft-only.addressable
   it('does not dispatch newChat when the draft chat id does not match', () => {
     expect(shouldDispatchDraftChatAsNewChat({
