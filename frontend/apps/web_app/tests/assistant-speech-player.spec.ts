@@ -54,11 +54,14 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-previous-chapter')).toContainText('Short answer');
 			await expect(player.getByTestId('assistant-speech-next-chapter')).toContainText('Optimization');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-1');
+			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-0,segment-1,segment-2');
+			await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(3);
 			await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Pause voice response');
 			await expect(player.getByTestId('assistant-speech-primary-icon')).toHaveAttribute('data-icon', 'pause');
 			await expect(player.getByTestId('assistant-speech-waveform-bar')).not.toHaveCount(0);
 			if (PROOF_DEVICE === 'web-laptop') {
 				await expect(player.getByTestId('assistant-speech-mate')).toBeVisible();
+				await expect(player.getByTestId('assistant-speech-mate')).toHaveAttribute('data-mate-category', 'software_development');
 				await expect.poll(() => player.getByTestId('assistant-speech-mate').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
 			}
 		});
@@ -70,6 +73,8 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-2');
+			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-1,segment-2');
+			await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(2);
 		});
 		await proof.checkpoint('pending');
 

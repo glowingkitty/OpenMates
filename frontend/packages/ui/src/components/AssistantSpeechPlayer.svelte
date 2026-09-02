@@ -12,6 +12,28 @@
     type AssistantSpeechPlaybackController,
   } from '../services/assistantSpeechController';
   import type { AssistantSpeechChapter, AssistantSpeechWaveformRegion } from '../services/assistantSpeechQueue';
+  import playIconUrl from '../../static/icons/play.svg?url';
+  import pauseIconUrl from '../../static/icons/pause.svg?url';
+  import closeIconUrl from '../../static/icons/close.svg?url';
+  import backIconUrl from '../../static/icons/back.svg?url';
+  import aiIconUrl from '../../static/icons/ai.svg?url';
+  import softwareDevelopmentMateUrl from '../../static/images/mates/software_development.jpeg?url';
+  import businessDevelopmentMateUrl from '../../static/images/mates/business_development.jpeg?url';
+  import medicalHealthMateUrl from '../../static/images/mates/medical_health.jpeg?url';
+  import legalLawMateUrl from '../../static/images/mates/legal_law.jpeg?url';
+  import makerPrototypingMateUrl from '../../static/images/mates/maker_prototyping.jpeg?url';
+  import marketingSalesMateUrl from '../../static/images/mates/marketing_sales.jpeg?url';
+  import financeMateUrl from '../../static/images/mates/finance.jpeg?url';
+  import designMateUrl from '../../static/images/mates/design.jpeg?url';
+  import electricalEngineeringMateUrl from '../../static/images/mates/electrical_engineering.jpeg?url';
+  import moviesTvMateUrl from '../../static/images/mates/movies_tv.jpeg?url';
+  import historyMateUrl from '../../static/images/mates/history.jpeg?url';
+  import scienceMateUrl from '../../static/images/mates/science.jpeg?url';
+  import lifeCoachPsychologyMateUrl from '../../static/images/mates/life_coach_psychology.jpeg?url';
+  import cookingFoodMateUrl from '../../static/images/mates/cooking_food.jpeg?url';
+  import activismMateUrl from '../../static/images/mates/activism.jpeg?url';
+  import generalKnowledgeMateUrl from '../../static/images/mates/general_knowledge.jpeg?url';
+  import onboardingSupportMateUrl from '../../static/images/mates/onboarding_support.jpeg?url';
 
   interface Props {
     controller?: AssistantSpeechPlaybackController;
@@ -24,13 +46,27 @@
   }: Props = $props();
 
   let player = $derived(controller.player);
-  const WAVEFORM_BAR_COUNT = 96;
-  const placeholderBars = Array.from({ length: WAVEFORM_BAR_COUNT }, () => 8);
-  const mateImages = import.meta.glob('../../static/images/mates/*.jpeg', {
-    eager: true,
-    query: '?url',
-    import: 'default',
-  }) as Record<string, string>;
+  const WAVEFORM_BARS_PER_SLOT = 32;
+  const placeholderBars = Array.from({ length: WAVEFORM_BARS_PER_SLOT }, () => 8);
+  const mateImages: Record<string, string> = {
+    software_development: softwareDevelopmentMateUrl,
+    business_development: businessDevelopmentMateUrl,
+    medical_health: medicalHealthMateUrl,
+    legal_law: legalLawMateUrl,
+    maker_prototyping: makerPrototypingMateUrl,
+    marketing_sales: marketingSalesMateUrl,
+    finance: financeMateUrl,
+    design: designMateUrl,
+    electrical_engineering: electricalEngineeringMateUrl,
+    movies_tv: moviesTvMateUrl,
+    history: historyMateUrl,
+    science: scienceMateUrl,
+    life_coach_psychology: lifeCoachPsychologyMateUrl,
+    cooking_food: cookingFoodMateUrl,
+    activism: activismMateUrl,
+    general_knowledge: generalKnowledgeMateUrl,
+    onboarding_support: onboardingSupportMateUrl,
+  };
   let isPlaying = $derived($player.status === 'playing');
   let isPaused = $derived($player.status === 'paused');
   let isLoading = $derived(
@@ -45,10 +81,12 @@
   let previousRegion = $derived(previousReplayableRegion($player.regions, activeIndex));
   let nextRegion = $derived(nextReplayableRegion($player.regions, activeIndex));
   let hasPlaceholder = $derived(Boolean(activeRegion && activeRegion.waveform.length === 0));
-  let activeWaveform = $derived(waveformBars(activeRegion?.waveform ?? []));
-  let mateImageUrl = $derived(
-    Object.entries(mateImages).find(([path]) => path.endsWith(`/${$player.mateCategory}.jpeg`))?.[1] ?? '',
-  );
+  let waveformWindow = $derived([
+    previousRegion ? { position: 'previous', region: previousRegion } : null,
+    activeRegion ? { position: 'current', region: activeRegion } : null,
+    nextRegion ? { position: 'next', region: nextRegion } : null,
+  ].filter(Boolean) as Array<{ position: 'previous' | 'current' | 'next'; region: AssistantSpeechWaveformRegion }>);
+  let mateImageUrl = $derived(mateImages[$player.mateCategory] ?? generalKnowledgeMateUrl);
 
   function observeHeight(node: HTMLElement) {
     const reportHeight = () => onHeightChange(node.getBoundingClientRect().height);
@@ -72,9 +110,9 @@
 
   function waveformBars(samples: number[]): number[] {
     if (samples.length === 0) return placeholderBars;
-    if (samples.length === WAVEFORM_BAR_COUNT) return samples;
-    return Array.from({ length: WAVEFORM_BAR_COUNT }, (_, index) => {
-      const sampleIndex = Math.round((index / (WAVEFORM_BAR_COUNT - 1)) * (samples.length - 1));
+    if (samples.length === WAVEFORM_BARS_PER_SLOT) return samples;
+    return Array.from({ length: WAVEFORM_BARS_PER_SLOT }, (_, index) => {
+      const sampleIndex = Math.round((index / (WAVEFORM_BARS_PER_SLOT - 1)) * (samples.length - 1));
       return samples[sampleIndex] ?? 8;
     });
   }
@@ -111,9 +149,10 @@
       data-testid="assistant-speech-mate"
       role="img"
       aria-label={$player.mateName}
-      style:background-image={mateImageUrl ? `url(${mateImageUrl})` : undefined}
+      data-mate-category={$player.mateCategory}
+      style:background-image={`url(${mateImageUrl})`}
     >
-      <span class="assistant-speech-mate-badge" aria-hidden="true"><span class="assistant-speech-icon ai"></span></span>
+      <span class="assistant-speech-mate-badge" aria-hidden="true"><span class="assistant-speech-icon ai" style={`--speech-icon-url: url(${aiIconUrl})`}></span></span>
     </div>
 
     <div
@@ -122,15 +161,26 @@
       data-testid="assistant-speech-waveform"
       data-placeholder={hasPlaceholder}
       data-segment-id={activeRegion?.segmentId ?? ''}
+      data-window={waveformWindow.map(({ region }) => region.segmentId).join(',')}
       aria-label="Response waveform"
     >
-      {#each activeWaveform as height, index (index)}
-        <span
-          class="assistant-speech-waveform-bar"
-          data-testid="assistant-speech-waveform-bar"
-          style:height={`${Math.max(4, height)}%`}
-          style:transition-delay={`${index * 5}ms`}
-        ></span>
+      {#each waveformWindow as slot (slot.position)}
+        <div
+          class="assistant-speech-waveform-region {slot.position}"
+          data-testid="assistant-speech-waveform-region"
+          data-position={slot.position}
+          data-segment-id={slot.region.segmentId}
+          data-placeholder={slot.region.waveform.length === 0}
+        >
+          {#each waveformBars(slot.region.waveform) as height, index (index)}
+            <span
+              class="assistant-speech-waveform-bar"
+              data-testid="assistant-speech-waveform-bar"
+              style:height={`${Math.max(4, height)}%`}
+              style:transition-delay={`${index * 7}ms`}
+            ></span>
+          {/each}
+        </div>
       {/each}
     </div>
 
@@ -148,6 +198,7 @@
           class:play={!isPlaying}
           data-testid="assistant-speech-primary-icon"
           data-icon={isPlaying ? 'pause' : 'play'}
+          style={`--speech-icon-url: url(${isPlaying ? pauseIconUrl : playIconUrl})`}
         ></span>
       </button>
       {#if isPaused}
@@ -158,7 +209,7 @@
           aria-label={$text('common.close')}
           onclick={() => void controller.close()}
         >
-          <span class="assistant-speech-icon close" data-testid="assistant-speech-close-icon"></span>
+          <span class="assistant-speech-icon close" data-testid="assistant-speech-close-icon" style={`--speech-icon-url: url(${closeIconUrl})`}></span>
         </button>
       {/if}
     </div>
@@ -172,7 +223,7 @@
           aria-label={`Previous chapter: ${chapterLabel(previousRegion.chapter)}`}
           onclick={() => void controller.previous()}
         >
-          <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous"></span>
+          <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous" style={`--speech-icon-url: url(${backIconUrl})`}></span>
         </button>
       {/if}
       <strong data-testid="assistant-speech-current-chapter">
@@ -186,7 +237,7 @@
           aria-label={`Next chapter: ${chapterLabel(nextRegion.chapter)}`}
           onclick={() => void controller.next()}
         >
-          <span class="assistant-speech-icon chevron next"></span><span>{chapterLabel(nextRegion.chapter)}</span>
+          <span class="assistant-speech-icon chevron next" style={`--speech-icon-url: url(${backIconUrl})`}></span><span>{chapterLabel(nextRegion.chapter)}</span>
         </button>
       {/if}
       {#if isLoading && !nextRegion}
@@ -221,7 +272,7 @@
     position: absolute;
     z-index: 2;
     top: 13px;
-    left: calc(50% - 148px);
+    left: calc(50% - 95px);
     width: 34px;
     height: 34px;
     border-radius: var(--radius-full);
@@ -248,7 +299,8 @@
   }
 
   .assistant-speech-waveform {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: center;
     justify-self: center;
     width: min(100%, 220px);
@@ -258,7 +310,22 @@
   }
 
   .assistant-speech-player.expanded .assistant-speech-waveform { width: min(100%, 300px); }
-  .assistant-speech-waveform.pending { opacity: 0.55; }
+
+  .assistant-speech-waveform-region {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    min-width: 0;
+    gap: 1px;
+    overflow: hidden;
+    opacity: 0.42;
+    transition: opacity var(--duration-normal) var(--easing-default);
+  }
+
+  .assistant-speech-waveform-region.previous { grid-column: 1; }
+  .assistant-speech-waveform-region.current { grid-column: 2; opacity: 1; }
+  .assistant-speech-waveform-region.next { grid-column: 3; }
+  .assistant-speech-waveform-region.current[data-placeholder='true'] { opacity: 0.55; }
 
   .assistant-speech-waveform-bar {
     display: block;
@@ -307,13 +374,12 @@
     mask-position: center;
     mask-repeat: no-repeat;
     mask-size: contain;
+    -webkit-mask-image: var(--speech-icon-url);
+    mask-image: var(--speech-icon-url);
   }
 
-  .assistant-speech-icon.play { -webkit-mask-image: var(--icon-url-play); mask-image: var(--icon-url-play); }
-  .assistant-speech-icon.pause { -webkit-mask-image: var(--icon-url-pause); mask-image: var(--icon-url-pause); }
-  .assistant-speech-icon.close { -webkit-mask-image: var(--icon-url-close); mask-image: var(--icon-url-close); }
-  .assistant-speech-icon.ai { width: 9px; height: 9px; -webkit-mask-image: var(--icon-url-ai); mask-image: var(--icon-url-ai); }
-  .assistant-speech-icon.chevron { width: 11px; height: 11px; -webkit-mask-image: var(--icon-url-back); mask-image: var(--icon-url-back); }
+  .assistant-speech-icon.ai { width: 9px; height: 9px; }
+  .assistant-speech-icon.chevron { width: 11px; height: 11px; }
   .assistant-speech-icon.chevron.next { transform: rotate(180deg); }
 
   .assistant-speech-primary-control:hover { transform: scale(1.06); }
