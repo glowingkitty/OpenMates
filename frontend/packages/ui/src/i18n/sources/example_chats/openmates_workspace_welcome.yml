@@ -1,0 +1,313 @@
+title:
+  context: "Title of example chat: Welcome Back to OpenMates"
+  en: "Welcome Back to OpenMates"
+  de: Willkommen zurück bei OpenMates
+  zh: 欢迎回到 OpenMates
+  es: Bienvenido de nuevo a OpenMates
+  fr: Bon retour sur OpenMates
+  pt: Bem-vindo de volta ao OpenMates
+  ru: С возвращением в OpenMates
+  ja: OpenMatesへおかえりなさい
+  ko: OpenMates에 다시 오신 것을 환영합니다
+  it: Bentornato su OpenMates
+  tr: "OpenMates'e Tekrar Hoş Geldin"
+  vi: Chào mừng bạn quay trở lại với OpenMates
+  id: Selamat Datang Kembali di OpenMates
+  pl: Witaj ponownie w OpenMates
+  nl: Welkom terug bij OpenMates
+  ar: مرحباً بعودتك إلى OpenMates
+  hi: OpenMates में आपका स्वागत है
+  th: ยินดีต้อนรับกลับสู่ OpenMates
+  cs: Vítej zpět v OpenMates
+  sv: Välkommen tillbaka till OpenMates
+  he: ברוך שובך ל-OpenMates
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Welcome Back to OpenMates"
+  en: "A warm welcome with practical ideas for exploring your OpenMates workspace."
+  de: Ein herzliches Willkommen mit praktischen Ideen zur Erkundung deines OpenMates-Workspace.
+  zh: 温馨的欢迎辞，并提供探索 OpenMates 工作空间的实用建议。
+  es: Una cálida bienvenida con ideas prácticas para explorar tu espacio de trabajo en OpenMates.
+  fr: Un accueil chaleureux avec des idées pratiques pour explorer ton espace de travail OpenMates.
+  pt: Uma recepção calorosa com ideias práticas para explorares o teu espaço de trabalho OpenMates.
+  ru: Теплое приветствие и практические идеи для изучения твоего рабочего пространства OpenMates.
+  ja: OpenMatesワークスペースを活用するための実用的なアイデアを交えた、温かい歓迎のメッセージ。
+  ko: OpenMates 워크스페이스 탐색을 위한 실용적인 아이디어와 따뜻한 환영 인사입니다.
+  it: Un caloroso benvenuto con idee pratiche per esplorare il tuo spazio di lavoro OpenMates.
+  tr: OpenMates çalışma alanını keşfetmen için pratik fikirler içeren sıcak bir karşılama.
+  vi: Lời chào mừng nồng nhiệt cùng những ý tưởng thực tế để khám phá không gian làm việc OpenMates của bạn.
+  id: Sambutan hangat dengan ide-ide praktis untuk menjelajahi ruang kerja OpenMates kamu.
+  pl: Ciepłe powitanie z praktycznymi pomysłami na odkrywanie Twojego obszaru roboczego OpenMates.
+  nl: Een warm welkom met praktische ideeën om je OpenMates-werkruimte te verkennen.
+  ar: ترحيب حار مع أفكار عملية لاستكشاف مساحة عمل OpenMates الخاصة بك.
+  hi: आपके OpenMates वर्कस्पेस को एक्सप्लोर करने के व्यावहारिक सुझावों के साथ एक गर्मजोशी भरा स्वागत।
+  th: การต้อนรับที่อบอุ่นพร้อมไอเดียที่นำไปใช้ได้จริงสำหรับการสำรวจเวิร์กสเปซ OpenMates ของคุณ
+  cs: Vřelé přivítání s praktickými nápady, jak prozkoumat tvůj pracovní prostor OpenMates.
+  sv: Ett varmt välkomnande med praktiska idéer för att utforska din OpenMates-arbetsyta.
+  he: קבלת פנים חמה עם רעיונות מעשיים לחקירת מרחב העבודה שלך ב-OpenMates.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Welcome Back to OpenMates. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Say this as a warm, natural welcome message: Welcome back to OpenMates. Your workspace is ready whenever you are."
+  de: "Sag dies als herzliche, natürliche Willkommensnachricht: Willkommen zurück bei OpenMates. Dein Workspace ist bereit, wann immer du es bist."
+  zh: 请用温馨、自然的欢迎语说出：欢迎回到 OpenMates。你的工作空间已准备就绪，随时待命。
+  es: "Di esto como un mensaje de bienvenida cálido y natural: Bienvenido de nuevo a OpenMates. Tu espacio de trabajo está listo cuando tú lo estés."
+  fr: "Dis ceci comme un message de bienvenue chaleureux et naturel : Bon retour sur OpenMates. Ton espace de travail est prêt dès que tu l'es."
+  pt: "Diz isto como uma mensagem de boas-vindas calorosa e natural: Bem-vindo de volta ao OpenMates. O teu espaço de trabalho está pronto quando tu estiveres."
+  ru: "Скажи это как теплое, естественное приветствие: С возвращением в OpenMates. Твое рабочее пространство всегда готово к работе."
+  ja: 温かく自然な歓迎のメッセージとしてこう言って：OpenMatesへおかえりなさい。ワークスペースの準備はいつでもできています。
+  ko: "따뜻하고 자연스러운 환영 메시지로 다음을 말해줘: OpenMates에 다시 오신 것을 환영합니다. 워크스페이스는 언제든 준비되어 있습니다."
+  it: "Dì questo come un messaggio di benvenuto caloroso e naturale: Bentornato su OpenMates. Il tuo spazio di lavoro è pronto ogni volta che lo sei tu."
+  tr: "Bunu sıcak ve doğal bir karşılama mesajı olarak söyle: OpenMates'e tekrar hoş geldin. Çalışma alanın sen hazır olduğunda hazır."
+  vi: "Say this as a warm, natural welcome message: Chào mừng bạn đã quay trở lại với OpenMates. Không gian làm việc của bạn luôn sẵn sàng bất cứ khi nào bạn cần."
+  id: "Ucapkan ini sebagai pesan selamat datang yang hangat dan alami: Selamat datang kembali di OpenMates. Ruang kerjamu siap kapan pun kamu siap."
+  pl: "Powiedz to jako ciepłą, naturalną wiadomość powitalną: Witaj ponownie w OpenMates. Twój obszar roboczy jest gotowy, kiedy tylko Ty będziesz."
+  nl: "Zeg dit als een warm, natuurlijk welkomstbericht: Welkom terug bij OpenMates. Je werkruimte staat voor je klaar wanneer jij dat bent."
+  ar: "قل هذا كرسالة ترحيب حارة وطبيعية: مرحباً بعودتك إلى OpenMates. مساحة عملك جاهزة متى كنت مستعداً."
+  hi: "इसे एक गर्मजोशी भरे, स्वाभाविक स्वागत संदेश के रूप में कहें: OpenMates में आपका स्वागत है। आपका वर्कस्पेस आपके लिए तैयार है।"
+  th: "พูดข้อความนี้เป็นการต้อนรับที่อบอุ่นและเป็นธรรมชาติ: ยินดีต้อนรับกลับสู่ OpenMates เวิร์กสเปซของคุณพร้อมเสมอเมื่อคุณต้องการ"
+  cs: "Řekni toto jako vřelé, přirozené uvítání: Vítej zpět v OpenMates. Tvůj pracovní prostor je připraven, kdykoliv budeš chtít."
+  sv: "Säg detta som ett varmt, naturligt välkomstmeddelande: Välkommen tillbaka till OpenMates. Din arbetsyta är redo när du är det."
+  he: "אמור זאת כהודעת ברוכים הבאים חמה וטבעית: ברוך שובך ל-OpenMates. מרחב העבודה שלך מוכן מתי שרק תרצה."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Welcome Back to OpenMates. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Welcome back to OpenMates. Your workspace is ready whenever you are!
+
+    What would you like to explore today? You can ask a question, check your [calendar](/#settings/apps/calendar), manage your [tasks](/#settings/apps/tasks), or try out any of our available apps and skills.
+  de: |
+    Willkommen zurück bei OpenMates. Dein Workspace ist bereit, wann immer du es bist!
+    
+    Was möchtest du heute erkunden? Du kannst eine Frage stellen, deinen [Kalender](/#settings/apps/calendar) prüfen, deine [Aufgaben](/#settings/apps/tasks) verwalten oder unsere verfügbaren Apps und Skills ausprobieren.
+  zh: |
+    欢迎回到 OpenMates。你的工作空间已准备就绪，随时待命！
+    
+    你今天想探索什么？你可以提出问题、查看[日历](/#settings/apps/calendar)、管理[任务](/#settings/apps/tasks)，或者尝试我们提供的任何应用和技能。
+  es: |
+    ¡Bienvenido de nuevo a OpenMates! Tu espacio de trabajo está listo cuando tú lo estés.
+    
+    ¿Qué te gustaría explorar hoy? Puedes hacerme una pregunta, consultar tu [calendario](/#settings/apps/calendar), gestionar tus [tareas](/#settings/apps/tasks) o probar cualquiera de nuestras aplicaciones y habilidades disponibles.
+  fr: |
+    Bon retour sur OpenMates. Ton espace de travail est prêt dès que tu l'es !
+    
+    Qu'aimerais-tu explorer aujourd'hui ? Tu peux poser une question, consulter ton [calendrier](/#settings/apps/calendar), gérer tes [tâches](/#settings/apps/tasks) ou essayer l'une de nos applications et compétences disponibles.
+  pt: |
+    Bem-vindo de volta ao OpenMates. O teu espaço de trabalho está pronto quando tu estiveres!
+    
+    O que gostarias de explorar hoje? Podes fazer uma pergunta, consultar o teu [calendário](/#settings/apps/calendar), gerir as tuas [tarefas](/#settings/apps/tasks) ou experimentar qualquer uma das nossas apps e competências disponíveis.
+  ru: |
+    С возвращением в OpenMates. Твое рабочее пространство всегда готово к работе!
+    
+    Что ты хочешь изучить сегодня? Ты можешь задать вопрос, проверить свой [календарь](/#settings/apps/calendar), управлять своими [задачами](/#settings/apps/tasks) или попробовать любые доступные приложения и навыки.
+  ja: |
+    OpenMatesへおかえりなさい。ワークスペースの準備はいつでもできています！
+    
+    今日は何をしましょうか？質問をしたり、[カレンダー](/#settings/apps/calendar)をチェックしたり、[タスク](/#settings/apps/tasks)を管理したり、利用可能なアプリやスキルを試したりすることができます。
+  ko: |
+    OpenMates에 다시 오신 것을 환영합니다. 워크스페이스는 언제든 준비되어 있습니다!
+    
+    오늘은 무엇을 살펴보고 싶으신가요? 질문을 하거나, [캘린더](/#settings/apps/calendar)를 확인하거나, [작업](/#settings/apps/tasks)을 관리하거나, 사용 가능한 앱과 스킬을 사용해 볼 수 있습니다.
+  it: |
+    Bentornato su OpenMates. Il tuo spazio di lavoro è pronto ogni volta che lo sei tu!
+    
+    Cosa vorresti esplorare oggi? Puoi fare una domanda, controllare il tuo [calendario](/#settings/apps/calendar), gestire le tue [attività](/#settings/apps/tasks) o provare una delle nostre app e competenze disponibili.
+  tr: |
+    OpenMates'e tekrar hoş geldin. Çalışma alanın sen hazır olduğunda hazır!
+    
+    Bugün neyi keşfetmek istersin? Bir soru sorabilir, [takvimini](/#settings/apps/calendar) kontrol edebilir, [görevlerini](/#settings/apps/tasks) yönetebilir veya mevcut uygulama ve becerilerimizden herhangi birini deneyebilirsin.
+  vi: |
+    Chào mừng bạn đã quay trở lại với OpenMates. Không gian làm việc của bạn luôn sẵn sàng bất cứ khi nào bạn cần!
+    
+    Bạn muốn khám phá điều gì hôm nay? Bạn có thể đặt câu hỏi, kiểm tra [lịch](/#settings/apps/calendar), quản lý [nhiệm vụ](/#settings/apps/tasks) của mình hoặc dùng thử bất kỳ ứng dụng và kỹ năng nào có sẵn của chúng tôi.
+  id: |
+    Selamat datang kembali di OpenMates. Ruang kerjamu siap kapan pun kamu siap!
+    
+    Apa yang ingin kamu jelajahi hari ini? Kamu bisa mengajukan pertanyaan, memeriksa [kalender](/#settings/apps/calendar), mengelola [tugas](/#settings/apps/tasks), atau mencoba aplikasi dan keahlian kami yang tersedia.
+  pl: |
+    Witaj ponownie w OpenMates. Twój obszar roboczy jest gotowy, kiedy tylko Ty będziesz!
+    
+    Co chcesz dzisiaj odkryć? Możesz zadać pytanie, sprawdzić swój [kalendarz](/#settings/apps/calendar), zarządzać swoimi [zadaniami](/#settings/apps/tasks) lub wypróbować dowolną z naszych dostępnych aplikacji i umiejętności.
+  nl: |
+    Welkom terug bij OpenMates. Je werkruimte staat voor je klaar wanneer jij dat bent!
+    
+    Wat wil je vandaag verkennen? Je kunt een vraag stellen, je [agenda](/#settings/apps/calendar) bekijken, je [taken](/#settings/apps/tasks) beheren of een van onze beschikbare apps en skills uitproberen.
+  ar: |
+    مرحباً بعودتك إلى OpenMates. مساحة عملك جاهزة متى كنت مستعداً!
+    
+    ماذا تود أن تستكشف اليوم؟ يمكنك طرح سؤال، أو التحقق من [تقويمك](/#settings/apps/calendar)، أو إدارة [مهامك](/#settings/apps/tasks)، أو تجربة أي من تطبيقاتنا ومهاراتنا المتاحة.
+  hi: |
+    OpenMates में आपका स्वागत है। आपका वर्कस्पेस आपके लिए तैयार है!
+    
+    आज आप क्या एक्सप्लोर करना चाहेंगे? आप कोई सवाल पूछ सकते हैं, अपना [कैलेंडर](/#settings/apps/calendar) देख सकते हैं, अपने [कार्यों](/#settings/apps/tasks) को मैनेज कर सकते हैं, या हमारे उपलब्ध ऐप्स और स्किल्स को आज़मा सकते हैं।
+  th: |
+    ยินดีต้อนรับกลับสู่ OpenMates เวิร์กสเปซของคุณพร้อมเสมอเมื่อคุณต้องการ!
+    
+    วันนี้คุณอยากสำรวจอะไรดี? คุณสามารถถามคำถาม ตรวจสอบ[ปฏิทิน](/#settings/apps/calendar) จัดการ[งาน](/#settings/apps/tasks) หรือลองใช้แอปและทักษะต่างๆ ที่เรามีให้
+  cs: |
+    Vítej zpět v OpenMates. Tvůj pracovní prostor je připraven, kdykoliv budeš chtít!
+    
+    Co bys dnes chtěl prozkoumat? Můžeš se na něco zeptat, zkontrolovat svůj [kalendář](/#settings/apps/calendar), spravovat své [úkoly](/#settings/apps/tasks) nebo vyzkoušet kteroukoli z našich dostupných aplikací a dovedností.
+  sv: |
+    Välkommen tillbaka till OpenMates. Din arbetsyta är redo när du är det!
+    
+    Vad vill du utforska idag? Du kan ställa en fråga, kolla din [kalender](/#settings/apps/calendar), hantera dina [uppgifter](/#settings/apps/tasks) eller prova någon av våra tillgängliga appar och färdigheter.
+  he: |
+    ברוך שובך ל-OpenMates. מרחב העבודה שלך מוכן מתי שרק תרצה!
+    
+    מה תרצה לחקור היום? אפשר לשאול שאלה, לבדוק את [לוח השנה](/#settings/apps/calendar) שלך, לנהל את [המשימות](/#settings/apps/tasks) שלך, או לנסות כל אחת מהאפליקציות והמיומנויות הזמינות שלנו.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Check my upcoming calendar events"
+  de: Meine anstehenden Kalendertermine prüfen
+  zh: 查看我接下来的日历行程
+  es: Consultar mis próximos eventos del calendario
+  fr: Consulter les événements de mon calendrier
+  pt: Verificar os meus próximos eventos no calendário
+  ru: Посмотреть ближайшие события в календаре
+  ja: 今後のカレンダーの予定を確認する
+  ko: 예정된 캘린더 일정 확인하기
+  it: Controlla i miei prossimi eventi in calendario
+  tr: Yaklaşan takvim etkinliklerimi kontrol et
+  vi: Kiểm tra các sự kiện lịch sắp tới của tôi
+  id: Periksa acara kalender mendatang
+  pl: Sprawdź moje nadchodzące wydarzenia w kalendarzu
+  nl: Bekijk mijn komende agenda-afspraken
+  ar: التحقق من أحداث التقويم القادمة
+  hi: मेरे आने वाले कैलेंडर इवेंट देखें
+  th: ตรวจสอบกิจกรรมในปฏิทินที่กำลังจะมาถึง
+  cs: Zkontrolovat nadcházející události v kalendáři
+  sv: Kolla mina kommande kalenderhändelser
+  he: בדיקת אירועי לוח השנה הקרובים שלי
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "What should I focus on today"
+  de: "Worauf sollte ich mich heute konzentrieren?"
+  zh: 我今天应该关注什么？
+  es: En qué debería centrarme hoy
+  fr: "Sur quoi devrais-je me concentrer aujourd'hui ?"
+  pt: Em que me devo focar hoje
+  ru: "На чем мне сосредоточиться сегодня?"
+  ja: 今日、何に集中すべき？
+  ko: 오늘 무엇에 집중해야 할까
+  it: Su cosa dovrei concentrarmi oggi
+  tr: Bugün neye odaklanmalıyım
+  vi: Tôi nên tập trung vào điều gì hôm nay
+  id: Apa yang harus saya fokuskan hari ini
+  pl: Na czym powinienem się dzisiaj skupić
+  nl: Waar moet ik me vandaag op concentreren
+  ar: ما الذي يجب أن أركز عليه اليوم
+  hi: मुझे आज किस चीज़ पर ध्यान देना चाहिए
+  th: วันนี้ฉันควรโฟกัสเรื่องอะไรดี
+  cs: Na co se mám dnes soustředit
+  sv: Vad ska jag fokusera på idag
+  he: במה כדאי לי להתמקד היום
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for new productivity apps"
+  de: Nach neuen Produktivitäts-Apps suchen
+  zh: 搜索新的生产力应用
+  es: Buscar nuevas aplicaciones de productividad
+  fr: Rechercher de nouvelles applications de productivité
+  pt: Procurar novas apps de produtividade
+  ru: Найти новые приложения для продуктивности
+  ja: 新しい生産性向上アプリを探す
+  ko: 새로운 생산성 앱 검색하기
+  it: Cerca nuove app per la produttività
+  tr: Yeni verimlilik uygulamaları ara
+  vi: Tìm kiếm các ứng dụng năng suất mới
+  id: Cari aplikasi produktivitas baru
+  pl: Wyszukaj nowe aplikacje zwiększające produktywność
+  nl: Zoek naar nieuwe productiviteitsapps
+  ar: البحث عن تطبيقات إنتاجية جديدة
+  hi: नए प्रोडक्टिविटी ऐप्स खोजें
+  th: ค้นหาแอปเพิ่มประสิทธิภาพการทำงานใหม่ๆ
+  cs: Vyhledat nové aplikace pro produktivitu
+  sv: Sök efter nya produktivitetsappar
+  he: חיפוש אפליקציות פרודוקטיביות חדשות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Suggest some creative project ideas"
+  de: Schlage einige kreative Projektideen vor
+  zh: 推荐一些创意项目想法
+  es: Sugerir algunas ideas creativas para proyectos
+  fr: Suggérer des idées de projets créatifs
+  pt: Sugere algumas ideias de projetos criativos
+  ru: Предложи идеи для творческих проектов
+  ja: クリエイティブなプロジェクトのアイデアを提案して
+  ko: 창의적인 프로젝트 아이디어 제안해 줘
+  it: Suggerisci alcune idee per progetti creativi
+  tr: Bazı yaratıcı proje fikirleri öner
+  vi: Gợi ý một số ý tưởng dự án sáng tạo
+  id: Sarankan beberapa ide proyek kreatif
+  pl: Zasugeruj kilka pomysłów na kreatywne projekty
+  nl: Stel een paar creatieve projectideeën voor
+  ar: اقتراح بعض الأفكار لمشاريع إبداعية
+  hi: कुछ क्रिएटिव प्रोजेक्ट आइडिया सुझाएं
+  th: แนะนำไอเดียโปรเจกต์สร้างสรรค์
+  cs: Navrhni nějaké nápady na kreativní projekty
+  sv: Föreslå några kreativa projektidéer
+  he: הצעת רעיונות לפרויקטים יצירתיים
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Find today's weather forecast"
+  de: Wettervorhersage für heute finden
+  zh: 查询今日天气预报
+  es: Consultar el pronóstico del tiempo para hoy
+  fr: Trouver les prévisions météo du jour
+  pt: Ver a previsão do tempo para hoje
+  ru: Узнать прогноз погоды на сегодня
+  ja: 今日の天気予報を調べる
+  ko: 오늘 일기 예보 찾아줘
+  it: Trova le previsioni del tempo di oggi
+  tr: Bugünün hava durumunu bul
+  vi: Tìm dự báo thời tiết hôm nay
+  id: Cari ramalan cuaca hari ini
+  pl: Znajdź dzisiejszą prognozę pogody
+  nl: Zoek de weersverwachting voor vandaag
+  ar: العثور على توقعات الطقس لليوم
+  hi: आज के मौसम का पूर्वानुमान पता करें
+  th: ดูพยากรณ์อากาศวันนี้
+  cs: Najít předpověď počasí na dnešek
+  sv: Hitta dagens väderprognos
+  he: חיפוש תחזית מזג האוויר להיום
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "How can I improve my workflow"
+  de: "Wie kann ich meinen Workflow verbessern?"
+  zh: 我该如何改进我的工作流？
+  es: Cómo puedo mejorar mi flujo de trabajo
+  fr: "Comment puis-je améliorer mon flux de travail ?"
+  pt: Como posso melhorar o meu fluxo de trabalho
+  ru: "Как мне улучшить свой рабочий процесс?"
+  ja: ワークフローを改善するには？
+  ko: 워크플로우를 어떻게 개선할 수 있을까
+  it: Come posso migliorare il mio flusso di lavoro
+  tr: İş akışımı nasıl iyileştirebilirim
+  vi: Làm thế nào để tôi cải thiện quy trình làm việc của mình
+  id: Bagaimana cara meningkatkan alur kerja saya
+  pl: Jak mogę usprawnić swój przepływ pracy
+  nl: Hoe kan ik mijn workflow verbeteren
+  ar: كيف يمكنني تحسين سير عملي
+  hi: मैं अपने वर्कफ़्लो को कैसे बेहतर बना सकता हूँ
+  th: ฉันจะปรับปรุงเวิร์กโฟลว์ของฉันได้อย่างไร
+  cs: Jak můžu vylepšit svůj pracovní postup
+  sv: Hur kan jag förbättra mitt arbetsflöde
+  he: איך אוכל לשפר את זרימת העבודה שלי
+  verified_by_human: []
+

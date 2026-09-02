@@ -14,15 +14,22 @@ import asyncio
 import base64
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
-from backend.core.api.app.services.s3.config import get_bucket_name
-from backend.core.api.app.services.s3.service import S3UploadService
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_utils.media_encryption import decrypt_media_payload
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backend.core.api.app.services.s3.config import get_bucket_name  # noqa: E402
+from backend.core.api.app.services.s3.service import S3UploadService  # noqa: E402
+from backend.core.api.app.services.directus import DirectusService  # noqa: E402
+from backend.core.api.app.utils.encryption import EncryptionService  # noqa: E402
+from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
+from backend.shared.python_utils.media_encryption import (  # noqa: E402
+    decrypt_media_payload,
+)
 
 
 PUBLIC_BUCKET_KEY = "public_example_speech"
@@ -35,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--message-id", action="append", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--reviewed", action="store_true", help="Confirm every selected message is approved for public playback")
+    parser.add_argument("--print-manifest", action="store_true", help="Print the public-safe manifest for a downstream converter")
     return parser.parse_args()
 
 
@@ -42,7 +50,7 @@ async def _asset_key(record: dict[str, Any], *, user_id: str, directus: Directus
     if record.get("aes_key"):
         return base64.b64decode(str(record["aes_key"]), validate=True)
     wrapped = str(record.get("vault_wrapped_aes_key") or "")
-    profile = await directus.user.get_user_profile(user_id)
+    profile = await directus.get_user_fields_direct(user_id, ["vault_key_id"])
     vault_key_id = profile.get("vault_key_id") if profile else None
     if not wrapped or not vault_key_id:
         raise RuntimeError("Reviewed source asset key is unavailable")
@@ -136,7 +144,8 @@ async def publish(args: argparse.Namespace) -> dict[str, Any]:
 def main() -> int:
     args = parse_args()
     manifest = asyncio.run(publish(args))
-    print(json.dumps({"published_messages": len(manifest["messages"]), "manifest": str(args.output)}, sort_keys=True))
+    output = manifest if args.print_manifest else {"published_messages": len(manifest["messages"]), "manifest": str(args.output)}
+    print(json.dumps(output, sort_keys=True))
     return 0
 
 

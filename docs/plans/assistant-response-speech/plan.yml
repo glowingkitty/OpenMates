@@ -381,8 +381,8 @@ attempts:
     recorded_at: "2026-08-31T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-9
-  next_action: Approve the amendment, then implement CLI historical-message generation and one reviewed public example fixture flow without editing the parallel streaming controller work.
+  current_task_id: TASK-10
+  next_action: Deploy the featured public example and logged-out playback spec, then record Playwright, visual-smoke, and proof-video evidence.
   command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech specifications/features/public-example-chats
   expected_outcome: Both amended Specifications validate before red tests and implementation.
   blocker: null
@@ -1272,7 +1272,7 @@ tasks:
     independently_deployable: true
   - id: TASK-9
     title: Add CLI historical speech and reviewed example publication red tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-11, S-12]
@@ -1293,7 +1293,7 @@ tasks:
     independently_deployable: false
   - id: TASK-10
     title: Implement CLI speech and one public landing example
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers:
       scenarios: [S-11, S-12]

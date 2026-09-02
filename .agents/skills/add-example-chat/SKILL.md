@@ -40,9 +40,10 @@ Do not skip these gates for new or replaced example chats:
 1. **Create a real CLI chat first.** Use the OpenMates CLI against the dev API so the source transcript reflects real model, tool, app-skill, embed, and sharing behavior. Do not use mocked SDK calls, hand-authored transcripts, direct backend functions, fixture replay, or copied static output as the source of a public example chat.
 2. **Inspect the real chat before scaffolding.** Confirm the source chat has the intended messages, app-skill output, embeds, and any fullscreen-worthy embed state. If it is weak, create another real CLI chat rather than editing the transcript into shape.
 3. **Create the example chat from that real chat.** Share the selected CLI chat, then run `scripts/create-example-chat-from-share.mjs` on the resulting share URL with key fragment.
-4. **Deploy before final verification.** Use `sessions.py deploy`; do not report the example URL from undeployed local files.
-5. **Verify the deployed example page yourself.** Open the deployed `/example/{slug}` page and confirm messages render, embeds render, and every relevant embed fullscreen opens correctly. Use browser/Playwright automation where practical, and run the targeted example-chat specs after deploy.
-6. **Only then give the user the link.** The final response must include the deployed example-chat URL only after self-verification passes. If verification fails, fix it or state the blocker instead of giving an unverified link.
+4. **Publish speech only through the reviewed fixture path.** When the example includes assistant-response playback, run `openmates chats speak <chat-id> --all` from the paired owner CLI. Then run `scripts/publish_example_speech.py` inside the trusted API runtime with `--reviewed` and explicit `--message-id` values. Pass its manifest to the scaffold command with `--public-speech-manifest`. Never expose private generated-asset URLs, encrypted object paths, Vault-wrapped keys, owner IDs, or provider voice IDs in example source.
+5. **Deploy before final verification.** Use `sessions.py deploy`; do not report the example URL from undeployed local files.
+6. **Verify the deployed example page yourself.** Open the deployed `/example/{slug}` page and confirm messages render, embeds render, every relevant embed fullscreen opens correctly, and reviewed assistant speech starts from the immutable public S3 fixture while logged out. Use browser/Playwright automation where practical, and run the targeted example-chat specs after deploy.
+7. **Only then give the user the link.** The final response must include the deployed example-chat URL only after self-verification passes. If verification fails, fix it or state the blocker instead of giving an unverified link.
 
 When a specific CLI command is not obvious, use the closest real CLI chat path
 for the product surface being demonstrated, for example `openmates chat`,
@@ -67,6 +68,27 @@ node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
   --category "<mate-category>" \
   --keywords "keyword 1,keyword 2,keyword 3" \
   --api-key "$OPENMATES_API_KEY" \
+  --force
+```
+
+For a reviewed assistant-speech example, generate and publish all eligible
+assistant messages before scaffolding:
+
+```bash
+openmates chats speak "<SOURCE_CHAT_ID>" --all --json
+python3 scripts/publish_example_speech.py \
+  --chat-id "<SOURCE_CHAT_ID>" \
+  --message-id "<ASSISTANT_MESSAGE_ID>" \
+  --output "/tmp/reviewed-public-speech.json" \
+  --reviewed
+node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" \
+  --slug "<SLUG>" \
+  --title "<TITLE>" \
+  --summary "<SUMMARY>" \
+  --icon "<ICON>" \
+  --category "<CATEGORY>" \
+  --keywords "<KEYWORDS>" \
+  --public-speech-manifest "/tmp/reviewed-public-speech.json" \
   --force
 ```
 
