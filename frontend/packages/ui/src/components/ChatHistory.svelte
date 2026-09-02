@@ -2883,6 +2883,9 @@
             {/if}
 
             {#each virtualizedDisplayMessages as msg, msgIndex (msg.id)}
+                {@const speechContent = typeof msg.original_message?.content === 'string'
+                  ? msg.original_message.content
+                  : typeof msg.content === 'string' ? msg.content : null}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
@@ -2928,8 +2931,8 @@
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
-                        onSpeak={msg.role === 'assistant' && onSpeakMessage && typeof msg.content === 'string'
-                          ? () => onSpeakMessage(msg.id, msg.content as string)
+                        onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent
+                          ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
                     />
 

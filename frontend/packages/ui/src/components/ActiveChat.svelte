@@ -5171,7 +5171,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatId: string,
         encryptedSlugs?: string | null,
     ): Promise<void> {
-        if (isPublicChat(chatId)) {
+        if (isPublicChat(chatId) || isExampleChat(chatId)) {
             if (currentChat?.chat_id === chatId) quickTipSlugs = [];
             return;
         }
