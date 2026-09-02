@@ -19,7 +19,11 @@ import tempfile
 
 
 HOOK_PATH = Path(".opencode/plugins/openmates-hooks.js")
-RUNTIME_MIRRORS = (HOOK_PATH, Path("opencode.json"))
+RUNTIME_MIRRORS = (
+    HOOK_PATH,
+    Path("opencode.json"),
+    Path(".agents/skills/define-specification/SKILL.md"),
+)
 
 
 def _digest(data: bytes) -> str:
