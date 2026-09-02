@@ -29,6 +29,18 @@ def test_primary_agents_have_no_fixed_step_limit() -> None:
     assert limited == {}
 
 
+def test_primary_agents_use_openmates_tasks_instead_of_native_todos() -> None:
+    config = json.loads((PROJECT_ROOT / "opencode.json").read_text(encoding="utf-8"))
+
+    permission = config.get("permission", {})
+    assert permission.get("todowrite") == "deny"
+    assert permission.get("todoread") == "deny"
+    assert permission.get("task", "allow") == "allow"
+    assert permission.get("openmates_task") == "allow"
+    assert config["agent"]["plan"]["permission"]["todowrite"] == "deny"
+    assert config["agent"]["plan"]["permission"]["task"] == "allow"
+
+
 def test_launcher_accepts_explicit_shared_project_and_runtime_paths() -> None:
     launcher = (PROJECT_ROOT / "scripts/start-opencode-server.sh").read_text(encoding="utf-8")
 

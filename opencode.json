@@ -11,6 +11,10 @@
     "reserved": 64000
   },
   "permission": {
+    "todowrite": "deny",
+    "todoread": "deny",
+    "task": "allow",
+    "openmates_task": "allow",
     "firecrawl_firecrawl_agent": "ask",
     "firecrawl_firecrawl_agent_status": "ask",
     "firecrawl_firecrawl_check_crawl_status": "ask",
@@ -77,7 +81,8 @@
         "grep": "allow",
         "bash": "ask",
         "task": "allow",
-        "todowrite": "allow",
+        "todowrite": "deny",
+        "todoread": "deny",
         "question": "allow",
         "skill": "allow",
         "edit": {

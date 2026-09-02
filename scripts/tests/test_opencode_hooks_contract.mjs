@@ -528,7 +528,8 @@ test("Claude edit coordination stays warning-only while OpenCode uses edit lease
 
 test("loaded hook preserves chat identity for blocking edit leases", () => {
   assert.match(source, /env: sessionID \? \{ \.\.\.process\.env, OPENCODE_SESSION_ID: sessionID \}/);
-  assert.doesNotMatch(source, /createSpecAutoContinue|opencode-spec-continuation|createFileLeaseCoordinator|experimental\.chat\.system\.transform/);
+  assert.doesNotMatch(source, /createSpecAutoContinue|opencode-spec-continuation|createFileLeaseCoordinator/);
+  assert.match(source, /experimental\.chat\.system\.transform/);
   assert.match(source, /event: async \(\{ event \}\)/);
   assert.match(source, /stale-read/);
   assert.match(source, /edit-lease/);

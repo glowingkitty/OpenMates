@@ -75,7 +75,7 @@ import urllib.request
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 try:
     from scripts.opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
@@ -166,8 +166,15 @@ PRODUCT_RUNTIME_GENERATED_PATHS = frozenset(
 API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
 API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
 API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
-CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery"}
+CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery", "task_ready"}
 CONTINUATION_MAX_DELIVERY_ATTEMPTS = 2
+OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
+OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
+OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
+OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
+OPENMATES_TASK_OPEN_STATUSES = {"backlog", "todo", "in_progress", "blocked"}
+OPENMATES_TASK_WAIT_QUEUE_STATES = {"waiting", "waiting_for_user", "blocked"}
+OPENMATES_TASK_STOP_EXECUTION_STATES = {"failed", "aborted", "stopped", "waiting_for_user"}
 MEDIA_DELIVERY_MAX_ATTEMPTS = 2
 MEDIA_AUTOMATION_ENABLED = os.environ.get("OPENMATES_OPENCODE_RESPONSE_MEDIA_AUTOMATION", "").strip() == "1"
 PROTECTED_CONTROL_PLANE_EXACT_PATHS = frozenset(
@@ -10511,6 +10518,413 @@ def _continuation_repository_session_id(data: dict, session_reference: str) -> s
     return ""
 
 
+def _openmates_task_external_context_hash(opencode_session_id: str) -> str:
+    """Hash an external OpenCode identity before storing bridge metadata."""
+    return hashlib.sha256(
+        f"openmates-task-bridge-v1\0opencode\0{opencode_session_id}".encode("utf-8")
+    ).hexdigest()
+
+
+def _run_openmates_task_cli(arguments: list[str]) -> dict:
+    """Execute one trusted personal-profile Task CLI command and parse bounded JSON."""
+    if not arguments or arguments[0] != "tasks":
+        raise RuntimeError("Task bridge accepts only trusted openmates tasks commands")
+    environment = dict(os.environ)
+    environment.update({
+        "OPENMATES_PROFILE": OPENMATES_TASK_BRIDGE_PROFILE,
+        "OPENMATES_ACCOUNT_GUARD": "required",
+        "OPENMATES_API_URL": OPENMATES_TASK_BRIDGE_API_URL,
+        "OPENMATES_STATE_DIR": "",
+    })
+    try:
+        result = subprocess.run(
+            ["openmates", *arguments],
+            cwd=str(CONTROL_PLANE_ROOT),
+            env=environment,
+            text=True,
+            capture_output=True,
+            timeout=OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
+    if result.returncode != 0:
+        raise RuntimeError(f"OpenMates Task CLI failed with exit status {result.returncode}")
+    if len(result.stdout.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+        raise RuntimeError("OpenMates Task CLI returned an oversized JSON response")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("OpenMates Task CLI returned invalid JSON") from error
+    if not isinstance(payload, dict):
+        raise RuntimeError("OpenMates Task CLI returned a non-object JSON response")
+    return payload
+
+
+def _validated_openmates_task_records(payload: dict, opencode_session_id: str) -> list[dict]:
+    """Validate and scope trusted CLI records without retaining decrypted text."""
+    records = payload.get("tasks")
+    if not isinstance(records, list):
+        raise RuntimeError("OpenMates Task CLI JSON is missing tasks")
+    if len(records) > 500:
+        raise RuntimeError("OpenMates Task CLI returned too many Tasks")
+    validated: list[dict] = []
+    for record in records:
+        if not isinstance(record, dict):
+            raise RuntimeError("OpenMates Task CLI returned an invalid Task record")
+        task_id = record.get("task_id")
+        short_id = record.get("short_id")
+        status = record.get("status")
+        version = record.get("version")
+        if not isinstance(task_id, str) or not task_id or not isinstance(short_id, str) or not short_id:
+            raise RuntimeError("OpenMates Task CLI returned a Task without stable identity")
+        if not isinstance(status, str) or status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
+            raise RuntimeError(f"OpenMates Task CLI returned an invalid status for {short_id}")
+        if not isinstance(version, int) or version < 1:
+            raise RuntimeError(f"OpenMates Task CLI returned an invalid version for {short_id}")
+        if record.get("source") == "workflow_run" or task_id.startswith(("workflow-run:", "workflow-schedule:")):
+            continue
+        external_chat = record.get("external_chat")
+        if not isinstance(external_chat, dict):
+            raise RuntimeError(f"OpenMates Task CLI returned missing external context for {short_id}")
+        if external_chat.get("provider") != "opencode" or external_chat.get("id") != opencode_session_id:
+            continue
+        validated.append(dict(record))
+    return validated
+
+
+def _openmates_task_order(record: dict) -> tuple[int, str, str]:
+    position = record.get("position")
+    return (
+        int(position) if isinstance(position, (int, float)) else 0,
+        str(record.get("title") or ""),
+        str(record.get("task_id") or ""),
+    )
+
+
+def _openmates_task_is_waiting(record: dict) -> bool:
+    return (
+        str(record.get("queue_state") or "").lower() in OPENMATES_TASK_WAIT_QUEUE_STATES
+        or str(record.get("ai_execution_state") or "").lower() in OPENMATES_TASK_STOP_EXECUTION_STATES
+    )
+
+
+def _classify_openmates_task_snapshot(records: list[dict]) -> dict:
+    """Return one deterministic fail-closed scheduling decision."""
+    ordered = sorted(records, key=_openmates_task_order)
+    ai_tasks = [record for record in ordered if record.get("assignee_type") == "ai"]
+    active = [record for record in ai_tasks if record.get("status") == "in_progress"]
+    if len(active) > 1:
+        raise RuntimeError("OpenMates Task bridge found multiple active Tasks")
+    selected: dict | None
+    if active:
+        selected = active[0]
+        decision = "wait_blocked" if _openmates_task_is_waiting(selected) else "resume_active"
+    else:
+        blocked = [
+            record for record in ai_tasks
+            if record.get("status") == "blocked" or _openmates_task_is_waiting(record)
+        ]
+        runnable = [
+            record for record in ai_tasks
+            if record.get("status") in {"backlog", "todo"} and not _openmates_task_is_waiting(record)
+        ]
+        if blocked:
+            selected = blocked[0]
+            decision = "wait_blocked"
+        elif runnable:
+            selected = runnable[0]
+            decision = "activate_next"
+        else:
+            selected = None
+            decision = "no_work"
+    remaining = [
+        record for record in ordered
+        if record.get("status") in OPENMATES_TASK_OPEN_STATUSES and record is not selected
+    ]
+    return {"decision": decision, "active": selected, "remaining": remaining}
+
+
+def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str) -> dict:
+    """Build request-only plaintext context from trusted CLI JSON."""
+    classified = _classify_openmates_task_snapshot(
+        _validated_openmates_task_records(payload, opencode_session_id)
+    )
+    active = classified.get("active")
+    active_context = None
+    if isinstance(active, dict):
+        active_context = {
+            key: active.get(key)
+            for key in (
+                "task_id", "short_id", "title", "description", "latest_instruction",
+                "status", "assignee_type", "queue_state", "blocked_reason_code",
+                "blocked_reason", "ai_execution_state", "priority", "version",
+            )
+        }
+    remaining = [
+        {
+            "short_id": str(record.get("short_id") or ""),
+            "title": str(record.get("title") or ""),
+            "status": str(record.get("status") or ""),
+        }
+        for record in classified.get("remaining", [])
+    ]
+    return {"decision": classified["decision"], "active": active_context, "remaining": remaining}
+
+
+def _openmates_task_context(
+    session_reference: str,
+    *,
+    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
+) -> dict:
+    """Fetch one authoritative request-only Task snapshot for a top-level chat."""
+    data = _load_sessions()
+    repository_session_id = _continuation_repository_session_id(data, session_reference)
+    if not repository_session_id:
+        return {"decision": "unbound", "active": None, "remaining": []}
+    session = data["sessions"][repository_session_id]
+    opencode_session_id = str(session.get("opencode_session_id") or "")
+    if not opencode_session_id:
+        return {"decision": "unbound", "active": None, "remaining": []}
+    payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
+    return _openmates_task_context_from_payload(payload, opencode_session_id)
+
+
+def _openmates_task_tool(
+    session_reference: str,
+    input_payload: dict,
+    *,
+    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
+) -> dict:
+    """Execute one allowlisted typed Task operation scoped to the bound chat."""
+    if not isinstance(input_payload, dict):
+        raise RuntimeError("Task tool input must be a JSON object")
+    action = input_payload.get("action")
+    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done"}
+    if action not in allowed_actions:
+        raise RuntimeError(f"unsupported Task tool action: {action}")
+
+    data = _load_sessions()
+    repository_session_id = _continuation_repository_session_id(data, session_reference)
+    if not repository_session_id:
+        raise RuntimeError("Task tool requires a bound top-level OpenCode session")
+    opencode_session_id = str(
+        data["sessions"][repository_session_id].get("opencode_session_id") or ""
+    )
+    if not opencode_session_id:
+        raise RuntimeError("Task tool requires a bound top-level OpenCode session")
+    scope = ["--external-chat", f"opencode:{opencode_session_id}"]
+
+    def text_field(name: str, *, required: bool = False, maximum: int = 10000) -> str:
+        value = input_payload.get(name)
+        if value is None and not required:
+            return ""
+        if not isinstance(value, str) or (required and not value.strip()):
+            raise RuntimeError(f"Task tool requires a non-empty {name}")
+        value = value.strip() if name in {"task_id", "title", "reason_code"} else value
+        if len(value) > maximum:
+            raise RuntimeError(f"Task tool {name} exceeds {maximum} characters")
+        return value
+
+    if action == "context":
+        payload = cli_runner(["tasks", "list", *scope, "--json"])
+        return _openmates_task_context_from_payload(payload, opencode_session_id)
+
+    if action == "create":
+        command = ["tasks", "create", "--title", text_field("title", required=True, maximum=500)]
+        description = text_field("description")
+        if description:
+            command.extend(["--description", description])
+        command.extend(["--assign", "ai", *scope, "--json"])
+        return cli_runner(command)
+
+    task_id = text_field("task_id", required=True, maximum=200)
+    if action == "show":
+        return cli_runner(["tasks", "show", task_id, *scope, "--json"])
+    if action == "start":
+        return cli_runner(["tasks", "start", task_id, *scope, "--json"])
+    if action == "edit":
+        command = ["tasks", "edit", task_id]
+        title = text_field("title", maximum=500)
+        description = text_field("description")
+        status = input_payload.get("status")
+        if title:
+            command.extend(["--title", title])
+        if description:
+            command.extend(["--description", description])
+        if status is not None:
+            if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
+                raise RuntimeError("Task tool received an invalid status")
+            command.extend(["--status", str(status)])
+        if len(command) == 3:
+            raise RuntimeError("Task edit requires title, description, or status")
+        command.extend([*scope, "--json"])
+        return cli_runner(command)
+    if action == "block":
+        reason_code = text_field("reason_code", required=True, maximum=100)
+        allowed_reasons = {
+            "needs_user_input", "waiting_for_approval", "missing_credentials",
+            "ambiguous_requirement", "external_dependency", "environment_unavailable",
+            "verification_failed", "other",
+        }
+        if reason_code not in allowed_reasons:
+            raise RuntimeError("Task tool received an invalid blocked reason code")
+        command = ["tasks", "block", task_id, "--reason-code", reason_code]
+        reason_text = text_field("reason_text")
+        if reason_text:
+            command.extend(["--reason-text", reason_text])
+        command.extend([*scope, "--json"])
+        return cli_runner(command)
+    return cli_runner(["tasks", str(action), task_id, *scope, "--json"])
+
+
+def _stage_openmates_task_reconciliation(session_reference: str, message_id: str) -> dict:
+    """Persist one privacy-minimal completed-response boundary for later idle reconciliation."""
+    if not message_id:
+        raise RuntimeError("Task reconciliation requires a completed assistant message id")
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return {"staged": False, "reason": "unbound"}
+        bridge = data["sessions"][repository_session_id].setdefault("task_bridge", {})
+        if bridge.get("pending_message_id") == message_id or bridge.get("last_reconciled_message_id") == message_id:
+            return {"staged": False, "reason": "duplicate"}
+        bridge["pending_message_id"] = message_id
+        bridge["pending_status"] = "ready"
+        bridge["updated_at"] = _now_iso()
+        return {"staged": True, "message_id": message_id}
+
+    return _mutate_sessions(mutate)
+
+
+def _claim_openmates_task_reconciliation(session_reference: str) -> dict | None:
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        session = data["sessions"][repository_session_id]
+        bridge = session.setdefault("task_bridge", {})
+        message_id = bridge.get("pending_message_id")
+        if not message_id or bridge.get("pending_status") != "ready":
+            return None
+        bridge["pending_status"] = "reconciling"
+        bridge["updated_at"] = _now_iso()
+        return {
+            "repository_session_id": repository_session_id,
+            "opencode_session_id": str(session.get("opencode_session_id") or ""),
+            "message_id": str(message_id),
+            "generation": int(bridge.get("generation") or 0) + 1,
+        }
+
+    return _mutate_sessions(mutate)
+
+
+def _finish_openmates_task_reconciliation(
+    session_reference: str,
+    claim: dict,
+    *,
+    decision: str,
+    task: dict | None,
+) -> dict:
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return {"stored": False}
+        bridge = data["sessions"][repository_session_id].setdefault("task_bridge", {})
+        if bridge.get("pending_message_id") != claim["message_id"]:
+            return {"stored": False, "reason": "superseded"}
+        bridge.update({
+            "external_context_hash": _openmates_task_external_context_hash(claim["opencode_session_id"]),
+            "decision": decision,
+            "task_id": str(task.get("task_id") or "") if task else "",
+            "task_version": int(task.get("version") or 0) if task else 0,
+            "generation": claim["generation"],
+            "last_reconciled_message_id": claim["message_id"],
+            "pending_message_id": "",
+            "pending_status": "reconciled",
+            "updated_at": _now_iso(),
+        })
+        return {"stored": True}
+
+    return _mutate_sessions(mutate)
+
+
+def _reconcile_openmates_tasks(
+    session_reference: str,
+    *,
+    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
+) -> dict:
+    """Reconcile one staged response and record at most one idempotent continuation."""
+    claim = _claim_openmates_task_reconciliation(session_reference)
+    if claim is None:
+        return {"decision": "already_reconciled", "continuation": None}
+    opencode_session_id = claim["opencode_session_id"]
+    if not opencode_session_id:
+        _finish_openmates_task_reconciliation(session_reference, claim, decision="unbound", task=None)
+        return {"decision": "unbound", "continuation": None}
+    try:
+        payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
+        classified = _classify_openmates_task_snapshot(
+            _validated_openmates_task_records(payload, opencode_session_id)
+        )
+        decision = classified["decision"]
+        selected = classified.get("active")
+        if decision == "activate_next" and isinstance(selected, dict):
+            activated = cli_runner([
+                "tasks", "edit", str(selected["task_id"]), "--status", "in_progress", "--json",
+            ]).get("task")
+            if not isinstance(activated, dict) or activated.get("task_id") != selected.get("task_id"):
+                raise RuntimeError("OpenMates Task activation returned an invalid record")
+            selected = activated
+        continuation = None
+        if decision in {"resume_active", "activate_next"} and isinstance(selected, dict):
+            operation_key = ":".join([
+                _openmates_task_external_context_hash(opencode_session_id),
+                str(selected["task_id"]),
+                str(selected["version"]),
+                str(claim["generation"]),
+            ])
+            continuation = _record_session_continuation(
+                session_reference,
+                operation_type="task_ready",
+                operation_key=operation_key,
+                next_action=(
+                    "Continue the active OpenMates Task from the request-only Task context. "
+                    "Work on the smallest remaining step, then explicitly mark the Task done or block it with a reason."
+                ),
+            )
+        _finish_openmates_task_reconciliation(
+            session_reference,
+            claim,
+            decision=decision,
+            task=selected if isinstance(selected, dict) else None,
+        )
+        return {"decision": decision, "continuation": continuation}
+    except Exception:
+        _finish_openmates_task_reconciliation(session_reference, claim, decision="failed_closed", task=None)
+        raise
+
+
+def cmd_task_bridge(args: argparse.Namespace) -> None:
+    """Expose the privacy-minimal Task bridge to the verified OpenCode hook."""
+    try:
+        if args.task_bridge_action == "stage":
+            result = _stage_openmates_task_reconciliation(args.session, args.message_id)
+        elif args.task_bridge_action == "context":
+            result = _openmates_task_context(args.session)
+        elif args.task_bridge_action == "reconcile":
+            result = _reconcile_openmates_tasks(args.session)
+        elif args.task_bridge_action == "tool":
+            result = _openmates_task_tool(args.session, json.load(sys.stdin))
+        else:
+            raise RuntimeError(f"unknown task bridge action: {args.task_bridge_action}")
+    except (RuntimeError, json.JSONDecodeError) as error:
+        print(f"Task bridge error: {error}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"task_bridge": result}, sort_keys=True))
+
+
 def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: str = "") -> str:
     """Create an OpenCode message ID that preserves chronological storage order.
 
@@ -17473,6 +17887,20 @@ def main() -> None:
         if action != "release-task":
             p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
+    p_task_bridge = sub.add_parser("task-bridge", help="Bridge trusted OpenMates Task JSON into OpenCode")
+    p_task_bridge_sub = p_task_bridge.add_subparsers(dest="task_bridge_action", required=True)
+    p_task_bridge_stage = p_task_bridge_sub.add_parser(
+        "stage", help="Stage one completed response for idle reconciliation"
+    )
+    p_task_bridge_stage.add_argument("--session", required=True, help="Top-level OpenCode session ID")
+    p_task_bridge_stage.add_argument("--message-id", required=True, help="Completed assistant message ID")
+    for action in ("context", "reconcile"):
+        p_task_bridge_action = p_task_bridge_sub.add_parser(action)
+        p_task_bridge_action.add_argument("--session", required=True, help="Top-level OpenCode session ID")
+    p_task_bridge_tool = p_task_bridge_sub.add_parser("tool", help="Execute one typed Task operation")
+    p_task_bridge_tool.add_argument("--session", required=True, help="Top-level OpenCode session ID")
+    p_task_bridge_tool.add_argument("--json-stdin", action="store_true", required=True)
+
     p_continuation = sub.add_parser("continuation", help="Manage bounded deterministic chat continuations")
     p_continuation_sub = p_continuation.add_subparsers(dest="continuation_action", required=True)
     p_continuation_record = p_continuation_sub.add_parser("record", help="Record one ready allowlisted operation")
@@ -18241,6 +18669,7 @@ def main() -> None:
         "opencode-chat": cmd_opencode_chat,
         "chat": cmd_opencode_chat,
         "presence": cmd_presence,
+        "task-bridge": cmd_task_bridge,
         "continuation": cmd_continuation,
         "media": cmd_media,
         "docker": cmd_docker,

@@ -9,6 +9,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
+let openCodeTool = null;
+try {
+  ({ tool: openCodeTool } = await import("@opencode-ai/plugin"));
+} catch {
+  // Node-only contract tests do not install the OpenCode plugin package. The
+  // verified OpenCode runtime provides it when loading the live plugin.
+}
+
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const READ_TOOLS = new Set(["read", "Read"]);
 const SEARCH_TOOLS = new Set(["glob", "grep", "Glob", "Grep"]);
@@ -105,6 +113,7 @@ const SECRET_ENV_KEYS = [
 ];
 const HOOK_SUBPROCESS_TIMEOUT_MS = Number(process.env.OPENMATES_HOOK_SUBPROCESS_TIMEOUT_MS || 15_000);
 const PRE_TOOL_HOOK_TIMEOUT_MS = Number(process.env.OPENMATES_PRE_TOOL_HOOK_TIMEOUT_MS || 45_000);
+const TASK_CONTEXT_MARKER = "[OpenMates authoritative Task context]";
 
 function hashHookSource() {
   try {
@@ -2335,6 +2344,72 @@ function continuationSuppressedForTest(state) {
   );
 }
 
+function taskBridgeSuppressedForTest(state) {
+  return continuationSuppressedForTest(state) || state?.execution !== "idle";
+}
+
+function taskBridgeCompletionForTest(event, { topLevelSessionID = "" } = {}) {
+  const messageID = completedAssistantMessageID(event);
+  const sessionID = eventSessionID(event);
+  if (!messageID || !sessionID || !topLevelSessionID || sessionID !== topLevelSessionID) return null;
+  return { sessionID, messageID };
+}
+
+function taskContextSystemTextForTest(snapshot) {
+  if (!snapshot || snapshot.decision === "unbound") return "";
+  const active = snapshot.active;
+  const remaining = Array.isArray(snapshot.remaining) ? snapshot.remaining : [];
+  if (!active && remaining.length === 0) return "";
+  const lines = [
+    TASK_CONTEXT_MARKER,
+    "This request-only snapshot is authoritative. Use the openmates_task tool for Task mutations; native OpenCode todos are unavailable.",
+  ];
+  if (active) {
+    lines.push(
+      "Active Task:",
+      `- ID: ${active.task_id || ""}`,
+      `- Short ID: ${active.short_id || ""}`,
+      `- Title: ${active.title || ""}`,
+      `- Status: ${active.status || ""}`,
+      `- Version: ${active.version ?? ""}`,
+      `- Description: ${active.description || ""}`,
+      `- Latest instruction: ${active.latest_instruction || ""}`,
+    );
+    if (active.blocked_reason_code) lines.push(`- Blocked reason code: ${active.blocked_reason_code}`);
+    if (active.blocked_reason) lines.push(`- Blocked explanation: ${active.blocked_reason}`);
+  } else {
+    lines.push("Active Task: none");
+  }
+  lines.push("Ordered remaining Tasks (short id, title, status only):");
+  if (remaining.length === 0) lines.push("- none");
+  else {
+    for (const task of remaining) {
+      lines.push(`- ${task.short_id || ""} | ${task.title || ""} | ${task.status || ""}`);
+    }
+  }
+  lines.push(
+    "Before ending work, explicitly mark the active Task done or block it with an allowlisted reason. Do not infer Task state from prose.",
+  );
+  return lines.join("\n");
+}
+
+function taskContinuationPromptForTest(record) {
+  if (record?.operation_type !== "task_ready") return String(record?.next_action || "");
+  return String(record.next_action || "Continue the active OpenMates Task from request-only context.");
+}
+
+async function runTaskBridgeCommand(action, sessionID, { messageID = "", payload = null } = {}) {
+  const args = ["scripts/sessions.py", "task-bridge", action, "--session", sessionID];
+  if (action === "stage") args.push("--message-id", messageID);
+  if (action === "tool") args.push("--json-stdin");
+  const result = await runProcess("python3", args, {
+    cwd: CURRENT_CONTROL_PLANE_ROOT,
+    input: action === "tool" ? JSON.stringify(payload || {}) : "",
+  });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || `task-bridge ${action} failed`);
+  return JSON.parse(result.stdout || "{}").task_bridge || null;
+}
+
 function reconcilePresenceStatesForTest(
   states,
   authoritativeStatuses,
@@ -3029,7 +3104,14 @@ async function guardWorkerBashGate(command, sessionID) {
   ));
 }
 
-export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true, editLease = runEditLease } = {}) => {
+export const OpenMatesHooks = async ({
+  client,
+  directory,
+  routingData,
+  recordRouting = true,
+  editLease = runEditLease,
+  taskBridge = runTaskBridgeCommand,
+} = {}) => {
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
   const presenceStates = new Map();
@@ -3038,6 +3120,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   const sourceGenerations = new Map();
   const reviewedGenerations = new Map();
   const readyContinuationSessions = new Set();
+  const taskContextCache = new Map();
   // OpenCode emits session.idle while a synchronous prompt submission is
   // unwinding. Keep delivery single-flight per session even if an SDK or
   // transport regression makes prompt_async behave synchronously again.
@@ -3165,6 +3248,56 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
     if (result.status !== 0) throw new Error(result.stderr || result.stdout || `continuation ${action} failed`);
     return JSON.parse(result.stdout || "{}").continuation || null;
   };
+  const taskContextForSession = async (sessionID, { refresh = false } = {}) => {
+    if (!sessionID) return null;
+    if (!refresh && taskContextCache.has(sessionID)) return taskContextCache.get(sessionID);
+    try {
+      const snapshot = await taskBridge("context", sessionID);
+      taskContextCache.set(sessionID, snapshot);
+      return snapshot;
+    } catch (error) {
+      console.warn(`[OpenMates Task bridge diagnostic] context failed: ${error?.message || error}`);
+      const failed = { decision: "failed_closed", active: null, remaining: [] };
+      taskContextCache.set(sessionID, failed);
+      return failed;
+    }
+  };
+  const reconcileTasksAtIdle = async (sessionID) => {
+    const current = currentPresence(sessionID);
+    if (taskBridgeSuppressedForTest(current)) return null;
+    try {
+      const result = await taskBridge("reconcile", sessionID);
+      taskContextCache.delete(sessionID);
+      if (result?.continuation) readyContinuationSessions.add(sessionID);
+      return result;
+    } catch (error) {
+      console.warn(`[OpenMates Task bridge diagnostic] reconciliation failed closed: ${error?.message || error}`);
+      return null;
+    }
+  };
+  const openMatesTaskTool = openCodeTool ? openCodeTool({
+    description: "Read or mutate encrypted OpenMates Tasks associated with this top-level OpenCode chat.",
+    args: {
+      action: openCodeTool.schema.enum(["context", "show", "create", "start", "edit", "block", "unblock", "done"]),
+      task_id: openCodeTool.schema.string().optional(),
+      title: openCodeTool.schema.string().optional(),
+      description: openCodeTool.schema.string().optional(),
+      status: openCodeTool.schema.enum(["backlog", "todo", "in_progress", "blocked", "done"]).optional(),
+      reason_code: openCodeTool.schema.enum([
+        "needs_user_input", "waiting_for_approval", "missing_credentials", "ambiguous_requirement",
+        "external_dependency", "environment_unavailable", "verification_failed", "other",
+      ]).optional(),
+      reason_text: openCodeTool.schema.string().optional(),
+    },
+    async execute(args, context) {
+      const route = await resolveWorktreeRoute(client, context.sessionID, routingData || sessionsData());
+      const topLevelSessionID = route.topLevelOpenCodeSessionID || context.sessionID;
+      const result = await taskBridge("tool", topLevelSessionID, { payload: args });
+      taskContextCache.delete(topLevelSessionID);
+      taskContextCache.delete(context.sessionID);
+      return JSON.stringify(result);
+    },
+  }) : null;
   const mediaCommand = async (action, sessionID, artifact = null) => {
     if (!mediaQueueEnabled) return null;
     const args = ["scripts/sessions.py", "media", action, "--session", sessionID];
@@ -3290,7 +3423,7 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         path: { id: sessionID },
         body: {
           messageID: record.message_id,
-          parts: [{ type: "text", text: record.next_action }],
+          parts: [{ type: "text", text: taskContinuationPromptForTest(record) }],
         },
       });
       if (response?.error) throw new Error(String(response.error?.message || response.error));
@@ -3345,6 +3478,19 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
   reconcileAuthoritativePresence().catch(() => {});
 
   return {
+    ...(openMatesTaskTool ? { tool: { openmates_task: openMatesTaskTool } } : {}),
+    "experimental.chat.system.transform": async (input, output) => {
+      if (!input?.sessionID) return;
+      const snapshot = await taskContextForSession(input.sessionID);
+      const context = taskContextSystemTextForTest(snapshot);
+      if (context) output.system.push(context);
+    },
+    "experimental.session.compacting": async (input, output) => {
+      if (!input?.sessionID) return;
+      const snapshot = await taskContextForSession(input.sessionID, { refresh: true });
+      const context = taskContextSystemTextForTest(snapshot);
+      if (context) output.context.push(context);
+    },
     event: async ({ event }) => {
       // Streaming part updates are extremely frequent and session.status already
       // carries the busy/idle lifecycle needed by presence tracking.
@@ -3356,10 +3502,12 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         assistantTextParts.set(textPart.messageID, parts);
       }
       if (event.type === "message.updated" && event.properties?.info?.role === "user") {
-        scheduleWorktreeActivation(eventSessionID(event));
+        const userSessionID = eventSessionID(event);
+        taskContextCache.delete(userSessionID);
+        scheduleWorktreeActivation(userSessionID);
         try {
-          await continuationCommand("cancel", eventSessionID(event));
-          readyContinuationSessions.delete(eventSessionID(event));
+          await continuationCommand("cancel", userSessionID);
+          readyContinuationSessions.delete(userSessionID);
         } catch (error) {
           console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
         }
@@ -3367,12 +3515,25 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (event.type === "session.idle") {
         const idleSessionID = eventSessionID(event);
         scheduleWorktreeCheckpoint(idleSessionID, "idle");
+        await reconcileTasksAtIdle(idleSessionID);
         if (!(await deliverPendingMedia(idleSessionID))) await deliverReadyContinuation(idleSessionID);
       }
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
       const completedMessageID = completedAssistantMessageID(event);
       if (completedMessageID) {
         const completedSessionID = eventSessionID(event);
+        const completedRoute = await resolveWorktreeRoute(client, completedSessionID, routingData || sessionsData());
+        const taskCompletion = taskBridgeCompletionForTest(event, {
+          topLevelSessionID: completedRoute.topLevelOpenCodeSessionID || completedSessionID,
+        });
+        if (taskCompletion) {
+          try {
+            await taskBridge("stage", taskCompletion.sessionID, { messageID: taskCompletion.messageID });
+            taskContextCache.delete(taskCompletion.sessionID);
+          } catch (error) {
+            console.warn(`[OpenMates Task bridge diagnostic] stage failed closed: ${error?.message || error}`);
+          }
+        }
         const completedText = [...(assistantTextParts.get(completedMessageID)?.values() || [])].join("\n");
         assistantTextParts.delete(completedMessageID);
         const requiredMedia = claimedMediaBySession.get(completedSessionID) || pendingMediaBySession.get(completedSessionID);
@@ -3668,6 +3829,10 @@ OpenMatesHooks.test = Object.freeze({
   reviewerSpawnDecisionForTest,
   continuationSignalForTest,
   continuationSuppressedForTest,
+  taskBridgeCompletionForTest,
+  taskBridgeSuppressedForTest,
+  taskContextSystemTextForTest,
+  taskContinuationPromptForTest,
   controlPlaneToolDecisionForTest,
   directSessionsSpawnChatCommandForTest,
   createWorktreeActivationSchedulerForTest,
