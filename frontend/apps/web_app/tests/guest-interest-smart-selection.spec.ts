@@ -343,6 +343,8 @@ test.describe('Guest interest smart selection', () => {
 		);
 		expect(await visibleSuggestionIds(page)).not.toContain('chat.new_chat_suggestions.cover_letter');
 
+		await page.getByTestId('message-editor').fill('');
+		await expect(page.getByTestId('message-editor')).toHaveText('');
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });

@@ -18451,7 +18451,7 @@ assertions:
       surface: gui.web
     - &id2112
       path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
-      line: 362
+      line: 364
       name: retired intro hashes clear to the neutral welcome state and stay out of
         discovery
       surface: gui.web
@@ -18486,13 +18486,13 @@ assertions:
     supporting_tests:
     - &id2113
       path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
-      line: 377
+      line: 379
       name: fresh guest sees default suggestions when focusing composer before selecting
         interests
       surface: gui.web
     - &id2114
       path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
-      line: 398
+      line: 400
       name: mobile guest intro alternates copy and video
       surface: gui.web
     - &id2119
@@ -19050,7 +19050,7 @@ assertions:
       surface: gui.web
     - &id2178
       path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
-      line: 362
+      line: 364
       name: retired intro hashes clear to the neutral welcome state and stay out of
         discovery
       surface: gui.web
@@ -21503,7 +21503,7 @@ assertions:
       surface: gui.web
     - &id2418
       path: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
-      line: 362
+      line: 364
       name: retired intro hashes clear to the neutral welcome state and stay out of
         discovery
       surface: gui.web
