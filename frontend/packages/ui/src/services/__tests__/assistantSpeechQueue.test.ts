@@ -41,6 +41,8 @@ const segment = (
   durationMs,
   audioUrl: status === "ready" ? `blob:segment-${sequence}` : undefined,
   playbackClass: "replayable",
+  chapter: { kind: "part", number: sequence + 1 },
+  waveform: status === "ready" ? [30, 70] : [],
 });
 
 describe("AssistantSpeechQueue", () => {
@@ -87,6 +89,8 @@ describe("AssistantSpeechQueue", () => {
       durationMs: 0,
       audioUrl: "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
       playbackClass: "passive",
+      chapter: { kind: "passive", type: "confirmation" },
+      waveform: [30, 70],
     };
 
     queue.start("response-1", [acknowledgement]);
@@ -96,7 +100,7 @@ describe("AssistantSpeechQueue", () => {
     expect(queue.presentationMode).toBe("passive_clip");
     expect(queue.hasReplayableTracks).toBe(true);
     expect(queue.waveformRegions).toEqual([
-      { segmentId: "acknowledgement-1", start: 0, end: 1, status: "ready", active: true },
+      { segmentId: "acknowledgement-1", sequence: -1, start: 0, end: 1, status: "ready", active: true, chapter: { kind: "passive", type: "confirmation" }, waveform: [30, 70] },
     ]);
 
     audioByUrl.get(acknowledgement.audioUrl!)?.emit("ended");
@@ -106,8 +110,7 @@ describe("AssistantSpeechQueue", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.pinned-full-response-waveform
-  it("waits two seconds for later audio and reopens after an idle dismissal", async () => {
-    vi.useFakeTimers();
+  it("stays visible with loading state until later audio arrives", async () => {
     const queue = new AssistantSpeechQueue({ audioFactory });
     const acknowledgement: AssistantSpeechSegment = {
       id: "acknowledgement-1",
@@ -116,41 +119,29 @@ describe("AssistantSpeechQueue", () => {
       durationMs: 500,
       audioUrl: "blob:acknowledgement",
       playbackClass: "passive",
+      chapter: { kind: "passive", type: "confirmation" },
+      waveform: [30, 70],
     };
 
     queue.start("response-1", [acknowledgement]);
-    await vi.runAllTicks();
+    await Promise.resolve();
     audioByUrl.get("blob:acknowledgement")?.emit("ended");
     expect(queue.state.status).toBe("waiting_for_more");
 
-    await vi.advanceTimersByTimeAsync(1_999);
-    expect(queue.state.status).toBe("waiting_for_more");
-    await vi.advanceTimersByTimeAsync(1);
-    expect(queue.state.status).toBe("idle");
-
     queue.upsertSegment(segment(0, "ready"));
-    await vi.runAllTicks();
-    expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(audioByUrl.get("blob:segment-0")?.play).toHaveBeenCalledOnce());
     expect(queue.state.status).toBe("playing");
-    vi.useRealTimers();
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace
-  it("cancels idle dismissal when the next clip arrives during the grace period", async () => {
-    vi.useFakeTimers();
+  it("selects a generating chapter immediately and autoplays it when ready", async () => {
     const queue = new AssistantSpeechQueue({ audioFactory });
-    queue.start("response-1", [segment(0, "ready")]);
-    await vi.runAllTicks();
-    audioByUrl.get("blob:segment-0")?.emit("ended");
-
-    await vi.advanceTimersByTimeAsync(1_000);
+    queue.start("response-1", [segment(0, "ready"), segment(1, "generating")]);
+    await queue.selectSegment("segment-1");
+    expect(queue.state).toMatchObject({ activeSegmentId: "segment-1", status: "waiting_for_segment" });
     queue.upsertSegment(segment(1, "ready"));
-    await vi.runAllTicks();
-    await vi.advanceTimersByTimeAsync(2_000);
-
-    expect(audioByUrl.get("blob:segment-1")?.play).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(audioByUrl.get("blob:segment-1")?.play).toHaveBeenCalledOnce());
     expect(queue.state.status).toBe("playing");
-    vi.useRealTimers();
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.execution.first-segment-progressive,assistant-speech.playback.single-queue-segment-control
@@ -206,16 +197,13 @@ describe("AssistantSpeechQueue", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace
-  it("dismisses after the grace period when the known successor is still generating", async () => {
-    vi.useFakeTimers();
+  it("keeps the selected successor visible while it is still generating", async () => {
     const queue = new AssistantSpeechQueue({ audioFactory });
     queue.start("response-1", [segment(0, "ready"), segment(1, "generating")]);
     audioByUrl.get("blob:segment-0")?.emit("ended");
 
-    await vi.advanceTimersByTimeAsync(2_000);
-
-    expect(queue.state.status).toBe("idle");
-    vi.useRealTimers();
+    await queue.selectSegment("segment-1");
+    expect(queue.state).toMatchObject({ status: "waiting_for_segment", activeSegmentId: "segment-1" });
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control
@@ -297,8 +285,8 @@ describe("AssistantSpeechQueue", () => {
     queue.start("response-1", [segment(0, "ready", 2_000), segment(1, "ready", 6_000)]);
 
     expect(queue.waveformRegions).toEqual([
-      { segmentId: "segment-0", start: 0, end: 0.25, status: "ready", active: true },
-      { segmentId: "segment-1", start: 0.25, end: 1, status: "ready", active: false },
+      { segmentId: "segment-0", sequence: 0, start: 0, end: 0.25, status: "ready", active: true, chapter: { kind: "part", number: 1 }, waveform: [30, 70] },
+      { segmentId: "segment-1", sequence: 1, start: 0.25, end: 1, status: "ready", active: false, chapter: { kind: "part", number: 2 }, waveform: [30, 70] },
     ]);
   });
 
@@ -313,9 +301,9 @@ describe("AssistantSpeechQueue", () => {
 
     expect(queue.state.activeSegmentId).toBe("segment-0");
     expect(queue.waveformRegions).toEqual([
-      { segmentId: "segment-0", start: 0, end: 1 / 6, status: "ready", active: true },
-      { segmentId: "segment-1", start: 1 / 6, end: 4 / 6, status: "ready", active: false },
-      { segmentId: "segment-2", start: 4 / 6, end: 1, status: "ready", active: false },
+      { segmentId: "segment-0", sequence: 0, start: 0, end: 1 / 6, status: "ready", active: true, chapter: { kind: "part", number: 1 }, waveform: [30, 70] },
+      { segmentId: "segment-1", sequence: 1, start: 1 / 6, end: 4 / 6, status: "ready", active: false, chapter: { kind: "part", number: 2 }, waveform: [30, 70] },
+      { segmentId: "segment-2", sequence: 2, start: 4 / 6, end: 1, status: "ready", active: false, chapter: { kind: "part", number: 3 }, waveform: [30, 70] },
     ]);
   });
 

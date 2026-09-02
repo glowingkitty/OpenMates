@@ -5477,12 +5477,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
         const chatId = currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito) return;
+        const assistantMessage = currentMessages.find((message) => message.message_id === messageId);
         if (isPublicChat(chatId)) {
           const fixtures = currentChat?.public_speech?.[messageId] ?? [];
           await assistantSpeechController.playPublicExample(chatId, messageId, fixtures);
           return;
         }
-        await assistantSpeechController.request(chatId, messageId, content);
+        await assistantSpeechController.request(chatId, messageId, content, {
+          name: assistantMessage?.sender_name,
+          category: assistantMessage?.category,
+        });
       }
 
       let hasActiveExampleChatSurface = $derived(Boolean(

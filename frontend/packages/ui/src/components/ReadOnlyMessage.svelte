@@ -42,7 +42,9 @@
         piiMappings = undefined,
         piiRevealed = false,
         role = undefined,
-        chatId = ''
+        chatId = '',
+        speechActiveSegment = null,
+        speechPlaying = false
     }: {
         content: string | Record<string, unknown> | null;
         isStreaming?: boolean;
@@ -52,11 +54,29 @@
         piiRevealed?: boolean; // Whether PII original values are visible (false = placeholders shown, true = originals shown)
         role?: "user" | "assistant" | "system"; // Message role — passed to parse_message for single-embed large promotion
         chatId?: string;
+        speechActiveSegment?: number | null;
+        speechPlaying?: boolean;
     } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
+
+    $effect(() => {
+        const activeSegment = speechActiveSegment;
+        const playing = speechPlaying;
+        void tick().then(() => {
+            if (!editor?.view?.dom) return;
+            const blocks = Array.from(editor.view.dom.querySelectorAll(':scope > p, :scope > ul, :scope > ol, :scope > blockquote, :scope > pre, :scope > table'));
+            blocks.forEach((block, index) => {
+                if (!playing || activeSegment === null) {
+                    block.removeAttribute('data-assistant-speech-emphasis');
+                } else {
+                    block.setAttribute('data-assistant-speech-emphasis', index === activeSegment ? 'active' : 'muted');
+                }
+            });
+        });
+    });
     
     /**
      * Auto-selects all text content within the message.
@@ -1165,6 +1185,14 @@
     .editor-content {
         /* Prevent sudden height collapse by ensuring content always takes space */
         min-height: 1em;
+    }
+
+    .editor-content :global([data-assistant-speech-emphasis]) {
+        transition: opacity var(--duration-normal) var(--easing-default);
+    }
+
+    .editor-content :global([data-assistant-speech-emphasis='muted']) {
+        opacity: 0.38;
     }
     
     .read-only-message.is-streaming .editor-content {

@@ -1,14 +1,45 @@
 <!-- frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte -->
 <!--
-  Pinned player for one assistant response at a time.
-  Renders duration-proportional paragraph regions and browser playback controls.
-  The active-chat container places this over history below its action buttons.
-  Audio URLs and plaintext are intentionally absent from rendered state.
+  Responsive Figma-defined player for one assistant response at a time.
+  Renders local chapter metadata and waveform samples without exposing audio URLs.
+  The active-chat container places it over history below its action buttons.
+  An injected controller keeps the deployed component preview deterministic.
 -->
 <script lang="ts">
-  import { assistantSpeechController } from '../services/assistantSpeechController';
+  import { text } from '@repo/ui';
+  import Icon from './Icon.svelte';
+  import {
+    assistantSpeechController,
+    type AssistantSpeechPlaybackController,
+  } from '../services/assistantSpeechController';
+  import type { AssistantSpeechChapter, AssistantSpeechWaveformRegion } from '../services/assistantSpeechQueue';
 
-  let { onHeightChange = (_height: number) => {} }: { onHeightChange?: (height: number) => void } = $props();
+  interface Props {
+    controller?: AssistantSpeechPlaybackController;
+    onHeightChange?: (height: number) => void;
+  }
+
+  let {
+    controller = assistantSpeechController,
+    onHeightChange = (_height: number) => {},
+  }: Props = $props();
+
+  let player = $derived(controller.player);
+  const placeholderBars = [4, 4, 4, 4, 4, 4, 4, 4];
+  let isPlaying = $derived($player.status === 'playing');
+  let isPaused = $derived($player.status === 'paused');
+  let isLoading = $derived(
+    ['waiting_for_segment', 'waiting_for_more'].includes($player.status) ||
+    $player.presentationMode === 'passive_clip',
+  );
+  let isVisible = $derived(
+    $player.responseId !== null && !['idle', 'stopped'].includes($player.status),
+  );
+  let activeIndex = $derived($player.regions.findIndex((region) => region.active));
+  let activeRegion = $derived(activeIndex >= 0 ? $player.regions[activeIndex] : null);
+  let previousRegion = $derived(previousReplayableRegion($player.regions, activeIndex));
+  let nextRegion = $derived(nextReplayableRegion($player.regions, activeIndex));
+  let hasPlaceholder = $derived(Boolean(activeRegion && activeRegion.waveform.length === 0));
 
   function observeHeight(node: HTMLElement) {
     const reportHeight = () => onHeightChange(node.getBoundingClientRect().height);
@@ -23,30 +54,54 @@
     };
   }
 
-  const player = assistantSpeechController.player;
-  let isPlaying = $derived($player.status === 'playing');
-  let isVisible = $derived(
-    $player.responseId !== null &&
-    !['idle', 'stopped'].includes($player.status),
-  );
-  let statusLabel = $derived.by(() => {
-    if ($player.error) return $player.error;
-    if ($player.status === 'waiting_for_segment' || $player.status === 'waiting_for_more') return 'Preparing voice response';
-    if ($player.status === 'blocked_by_autoplay') return 'Tap play to continue';
-    if ($player.status === 'paused') return 'Voice response paused';
-    if ($player.status === 'failed') return 'Voice response unavailable';
-    return 'Playing voice response';
-  });
+  function chapterLabel(chapter: AssistantSpeechChapter): string {
+    if (chapter.kind === 'heading') return chapter.text;
+    if (chapter.kind === 'part') return $text('chat.assistant_speech.part', { values: { number: chapter.number } });
+    if (chapter.kind === 'semantic') return $text(`chat.assistant_speech.${chapter.type}`);
+    return $text(`chat.assistant_speech.${chapter.type}`);
+  }
+
+  function previousReplayableRegion(
+    regions: AssistantSpeechWaveformRegion[],
+    currentIndex: number,
+  ): AssistantSpeechWaveformRegion | null {
+    if (currentIndex <= 0) return null;
+    return regions[currentIndex - 1] ?? null;
+  }
+
+  function nextReplayableRegion(
+    regions: AssistantSpeechWaveformRegion[],
+    currentIndex: number,
+  ): AssistantSpeechWaveformRegion | null {
+    if (currentIndex < 0) return regions[0] ?? null;
+    return regions[currentIndex + 1] ?? null;
+  }
 </script>
 
 {#if isVisible}
-  <section use:observeHeight class="assistant-speech-player" data-testid="assistant-speech-player" aria-label="Voice response player">
-    <div class="assistant-speech-heading">
-      <span class="assistant-speech-pulse" class:playing={isPlaying} aria-hidden="true"></span>
-      <span data-testid="assistant-speech-status">{statusLabel}</span>
+  <section
+    use:observeHeight
+    class="assistant-speech-player"
+    data-testid="assistant-speech-player"
+    data-presentation={$player.presentationMode}
+    data-status={$player.status}
+    aria-label="Voice response player"
+  >
+    <div
+      class="assistant-speech-mate mate-profile {$player.mateCategory}"
+      data-testid="assistant-speech-mate"
+      role="img"
+      aria-label={$player.mateName}
+    >
+      <span class="assistant-speech-mate-badge" aria-hidden="true"><Icon name="ai" size="10px" noMargin={true} /></span>
     </div>
 
-    <div class="assistant-speech-waveform" data-testid="assistant-speech-waveform" aria-label="Response paragraphs">
+    <div
+      class="assistant-speech-waveform"
+      data-testid="assistant-speech-waveform"
+      data-placeholder={hasPlaceholder}
+      aria-label="Response waveform"
+    >
       {#each $player.regions as region (region.segmentId)}
         <button
           type="button"
@@ -55,30 +110,78 @@
           data-status={region.status}
           data-active={region.active}
           class:active={region.active}
-          class:ready={region.status === 'ready'}
-          class:failed={region.status === 'failed'}
+          class:pending={region.waveform.length === 0}
           style:flex-grow={Math.max(0.04, region.end - region.start)}
-          aria-label="Play paragraph"
+          aria-label={chapterLabel(region.chapter)}
           disabled={$player.presentationMode === 'passive_clip'}
-          onclick={() => $player.presentationMode === 'replayable_track_queue' && void assistantSpeechController.selectSegment(region.segmentId)}
-        ></button>
+          onclick={() => $player.presentationMode === 'replayable_track_queue' && void controller.selectSegment(region.segmentId)}
+        >
+          {#each region.waveform.length > 0 ? region.waveform : placeholderBars as height, index (`${region.segmentId}:${index}`)}
+            <span
+              class="assistant-speech-waveform-bar"
+              data-testid="assistant-speech-waveform-bar"
+              style:height={`${Math.max(4, height)}%`}
+            ></span>
+          {/each}
+        </button>
       {/each}
     </div>
 
-    {#if $player.hasReplayableTracks && $player.presentationMode === 'replayable_track_queue'}
-    <div class="assistant-speech-controls">
-      <button type="button" aria-label="Previous paragraph" onclick={() => void assistantSpeechController.previous()}>Previous</button>
-      {#if $player.status === 'blocked_by_autoplay'}
-        <button class="primary" type="button" data-testid="assistant-speech-continue" onclick={() => void assistantSpeechController.continueAfterUserGesture()}>Continue</button>
-      {:else if isPlaying}
-        <button class="primary" type="button" aria-label="Pause voice response" onclick={() => assistantSpeechController.pause()}>Pause</button>
-      {:else}
-        <button class="primary" type="button" aria-label="Play voice response" onclick={() => void assistantSpeechController.play()}>Play</button>
+    <div class="assistant-speech-primary-controls" class:paused={isPaused}>
+      <button
+        type="button"
+        class="assistant-speech-primary-control"
+        data-testid="assistant-speech-primary-control"
+        aria-label={isPlaying ? 'Pause voice response' : 'Play voice response'}
+        onclick={() => isPlaying ? controller.pause() : void controller.play()}
+      >
+        <Icon name={isPlaying ? 'pause' : 'play'} size="18px" noMargin={true} />
+      </button>
+      {#if isPaused}
+        <button
+          type="button"
+          class="assistant-speech-primary-control"
+          data-testid="assistant-speech-close"
+          aria-label={$text('common.close')}
+          onclick={() => void controller.close()}
+        >
+          <Icon name="close" size="18px" noMargin={true} />
+        </button>
       {/if}
-      <button type="button" aria-label="Next paragraph" onclick={() => void assistantSpeechController.next()}>Next</button>
-      <button type="button" aria-label="Stop voice response" onclick={() => void assistantSpeechController.stop()}>Stop</button>
     </div>
-    {/if}
+
+    <div class="assistant-speech-chapters">
+      {#if $player.presentationMode === 'replayable_track_queue' && previousRegion}
+        <button
+          type="button"
+          class="assistant-speech-adjacent previous"
+          data-testid="assistant-speech-previous-chapter"
+          aria-label={`Previous chapter: ${chapterLabel(previousRegion.chapter)}`}
+          onclick={() => void controller.previous()}
+        >
+          <span>{chapterLabel(previousRegion.chapter)}</span><Icon name="back" size="12px" noMargin={true} />
+        </button>
+      {/if}
+      <strong data-testid="assistant-speech-current-chapter">
+        {activeRegion ? chapterLabel(activeRegion.chapter) : $text('common.loading')}
+      </strong>
+      {#if $player.presentationMode === 'replayable_track_queue' && nextRegion}
+        <button
+          type="button"
+          class="assistant-speech-adjacent next"
+          data-testid="assistant-speech-next-chapter"
+          aria-label={`Next chapter: ${chapterLabel(nextRegion.chapter)}`}
+          onclick={() => void controller.next()}
+        >
+          <Icon name="back" size="12px" noMargin={true} /><span>{chapterLabel(nextRegion.chapter)}</span>
+        </button>
+      {/if}
+      {#if isLoading}
+        <span class="assistant-speech-loading" data-testid="assistant-speech-loading">
+          <Icon name="back" size="12px" noMargin={true} />{$text('common.loading')}
+        </span>
+      {/if}
+    </div>
   </section>
 {/if}
 
@@ -87,97 +190,170 @@
     position: absolute;
     z-index: var(--z-index-raised);
     inset: 0 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 46px 22px;
     width: 100%;
+    height: 82px;
     box-sizing: border-box;
-    margin: 0;
-    padding: 60px var(--spacing-8) var(--spacing-6);
-    border: 1px solid var(--color-grey-20);
-    border-radius: 0 0 var(--radius-12) var(--radius-12);
-    background: color-mix(in srgb, var(--color-grey-10) 92%, transparent);
-    box-shadow: 0 8px 28px color-mix(in srgb, var(--color-grey-100) 8%, transparent);
-    backdrop-filter: blur(16px);
+    padding: 8px 120px 6px;
+    overflow: hidden;
+    border-radius: var(--radius-8);
+    color: var(--color-grey-0);
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-sm);
   }
 
-  .assistant-speech-heading {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
-    color: var(--color-grey-70);
-    font-size: var(--font-size-small);
+  .assistant-speech-mate {
+    position: absolute;
+    z-index: 2;
+    top: 13px;
+    left: calc(50% - 185px);
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-xs);
   }
 
-  .assistant-speech-pulse {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-grey-40);
-  }
-
-  .assistant-speech-pulse.playing {
-    background: var(--color-accent);
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-accent) 15%, transparent);
+  .assistant-speech-mate-badge {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    display: grid;
+    place-items: center;
+    width: 15px;
+    height: 15px;
+    border-radius: var(--radius-full);
+    color: var(--color-primary);
+    background: var(--color-grey-0);
   }
 
   .assistant-speech-waveform {
     display: flex;
-    gap: 3px;
-    height: 30px;
-    margin: var(--spacing-5) 0;
-    align-items: stretch;
+    align-items: center;
+    justify-self: center;
+    width: min(100%, 330px);
+    height: 38px;
+    gap: 2px;
+    transition: width var(--duration-slow) var(--easing-default);
   }
 
   .assistant-speech-region {
-    min-width: 8px;
-    border: 0;
-    border-radius: var(--radius-4);
-    background: var(--color-grey-20);
+    all: unset;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    min-width: 24px;
+    gap: 2px;
     cursor: pointer;
+    opacity: 0.34;
+    transition: opacity var(--duration-normal) var(--easing-default);
   }
 
+  .assistant-speech-region.active { opacity: 1; }
   .assistant-speech-region:disabled { cursor: default; }
 
-  .assistant-speech-region.ready { background: var(--color-grey-40); }
-  .assistant-speech-region.active { background: var(--color-accent); }
-  .assistant-speech-region.failed { background: var(--color-error); }
+  .assistant-speech-waveform-bar {
+    display: block;
+    flex: 1 1 2px;
+    min-width: 1px;
+    max-width: 3px;
+    border-radius: var(--radius-full);
+    background: currentColor;
+    transition: height var(--duration-slow) var(--easing-default);
+  }
 
-  .assistant-speech-controls {
+  .assistant-speech-primary-controls {
+    position: absolute;
+    z-index: 3;
+    top: 12px;
+    left: 50%;
     display: flex;
-    gap: var(--spacing-3);
+    gap: var(--spacing-2);
+    transform: translateX(-50%);
+  }
+
+  .assistant-speech-primary-controls.paused { transform: translateX(-50%); }
+
+  .assistant-speech-primary-control {
+    all: unset;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    color: var(--color-primary);
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+    transition: transform var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-speech-primary-control:hover { transform: scale(1.06); }
+  .assistant-speech-primary-control:active { transform: scale(0.95); }
+  .assistant-speech-primary-control:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+
+  .assistant-speech-chapters {
+    grid-row: 2;
+    display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .assistant-speech-controls button {
-    min-height: 34px;
-    padding: 0 var(--spacing-4);
-    border: 1px solid var(--color-grey-20);
-    border-radius: 999px;
-    color: var(--color-grey-70);
-    background: transparent;
-    cursor: pointer;
-    font: inherit;
+    min-width: 0;
+    gap: var(--spacing-4);
     font-size: var(--font-size-xxs);
+    line-height: 1;
   }
 
-  .assistant-speech-controls button.primary {
-    color: white;
-    border-color: var(--color-accent);
-    background: var(--color-accent);
+  .assistant-speech-chapters strong {
+    max-width: 210px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  @media (max-width: 560px) {
+  .assistant-speech-adjacent {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    gap: 3px;
+    opacity: 0.54;
+    cursor: pointer;
+    transition: opacity var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-speech-adjacent:hover,
+  .assistant-speech-adjacent:focus-visible { opacity: 1; }
+  .assistant-speech-adjacent span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .assistant-speech-adjacent.next :global(.icon) { transform: rotate(180deg); }
+
+  .assistant-speech-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0.54;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 730px) {
     .assistant-speech-player {
-      width: 100%;
-      padding: 54px var(--spacing-4) var(--spacing-5);
+      grid-template-rows: 54px 24px;
+      height: 92px;
+      padding: 8px 72px 6px;
     }
 
-    .assistant-speech-controls {
-      gap: 4px;
-    }
+    .assistant-speech-mate { display: none; }
+    .assistant-speech-waveform { width: min(100%, 190px); height: 42px; }
+    .assistant-speech-primary-controls { top: 14px; }
+    .assistant-speech-chapters { gap: var(--spacing-2); }
+    .assistant-speech-adjacent span { display: none; }
+    .assistant-speech-chapters strong { max-width: 170px; }
+  }
 
-    .assistant-speech-controls button {
-      padding: 0 9px;
-      font-size: var(--font-size-xxs);
-    }
+  @media (prefers-reduced-motion: reduce) {
+    .assistant-speech-waveform,
+    .assistant-speech-waveform-bar,
+    .assistant-speech-primary-control,
+    .assistant-speech-region { transition: none; }
   }
 </style>

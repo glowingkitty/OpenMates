@@ -76,3 +76,32 @@ export function buildWaveformFromLevels(
 		...(durationSeconds && durationSeconds > 0 ? { duration_seconds: durationSeconds } : {}),
 	};
 }
+
+export async function buildWaveformFromAudioUrl(
+	audioUrl: string,
+	sampleCount: number = 48,
+): Promise<AudioWaveformData> {
+	const response = await fetch(audioUrl);
+	if (!response.ok) throw new Error(`Audio waveform source returned ${response.status}`);
+	const audioContext = new AudioContext();
+	try {
+		const buffer = await audioContext.decodeAudioData(await response.arrayBuffer());
+		const samples = Array.from({ length: sampleCount }, (_, sampleIndex) => {
+			const start = Math.floor((sampleIndex * buffer.length) / sampleCount);
+			const end = Math.max(start + 1, Math.floor(((sampleIndex + 1) * buffer.length) / sampleCount));
+			let sumOfSquares = 0;
+			let values = 0;
+			for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+				const data = buffer.getChannelData(channel);
+				for (let index = start; index < Math.min(end, data.length); index += 1) {
+					sumOfSquares += data[index] * data[index];
+					values += 1;
+				}
+			}
+			return Math.max(4, Math.round(Math.sqrt(sumOfSquares / Math.max(1, values)) * AUDIO_WAVEFORM_MAX_VALUE));
+		});
+		return { version: 1, kind: 'rms-envelope', samples, duration_seconds: buffer.duration };
+	} finally {
+		await audioContext.close();
+	}
+}

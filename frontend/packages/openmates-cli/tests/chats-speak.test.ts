@@ -29,8 +29,8 @@ describe("chats speak", () => {
   // contract-test: direct surface=cli assertions=assistant-speech.cli.owner-generated-existing-messages,assistant-speech.privacy.transient-plaintext-encrypted-audio
   it("projects assistant paragraphs without speaking raw URLs", () => {
     assert.deepEqual(projectAssistantSpeech(messages[1].content), [
-      { sequence: 0, kind: "prose_paragraph", speakableText: "First paragraph." },
-      { sequence: 1, kind: "prose_paragraph", speakableText: "Second source." },
+      { sequence: 0, kind: "prose_paragraph", speakableText: "First paragraph.", chapter: { kind: "part", number: 1 } },
+      { sequence: 1, kind: "prose_paragraph", speakableText: "Second source.", chapter: { kind: "part", number: 2 } },
     ]);
   });
 

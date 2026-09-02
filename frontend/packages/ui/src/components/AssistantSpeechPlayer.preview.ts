@@ -22,9 +22,9 @@ function createPreviewController() {
     mateName: "Sophia",
     mateCategory: "calendar",
     regions: [
-      { segmentId: "segment-0", start: 0, end: 0.28, status: "ready", active: false, label: "Short answer", waveform: readyWaveform },
-      { segmentId: "segment-1", start: 0.28, end: 0.72, status: "ready", active: true, label: "Key considerations", waveform: readyWaveform },
-      { segmentId: "segment-2", start: 0.72, end: 1, status: "generating", active: false, label: "Optimization", waveform: [] },
+      { segmentId: "segment-0", sequence: 0, start: 0, end: 0.28, status: "ready", active: false, chapter: { kind: "heading", text: "Short answer" }, waveform: readyWaveform },
+      { segmentId: "segment-1", sequence: 1, start: 0.28, end: 0.72, status: "ready", active: true, chapter: { kind: "heading", text: "Key considerations" }, waveform: readyWaveform },
+      { segmentId: "segment-2", sequence: 2, start: 0.72, end: 1, status: "generating", active: false, chapter: { kind: "heading", text: "Optimization" }, waveform: [] },
     ],
   });
 
@@ -63,7 +63,7 @@ export const variants = {
         presentationMode: "passive_clip",
         hasReplayableTracks: false,
         activeSegmentId: "confirmation",
-        regions: [{ segmentId: "confirmation", start: 0, end: 1, status: "ready", active: true, label: "Confirmation", waveform: readyWaveform }],
+        regions: [{ segmentId: "confirmation", sequence: -1, start: 0, end: 1, status: "ready", active: true, chapter: { kind: "passive", type: "confirmation" }, waveform: readyWaveform }],
       }));
       return controller;
     })(),

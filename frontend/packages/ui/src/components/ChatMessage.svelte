@@ -53,6 +53,7 @@
   import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
+  import { assistantSpeechController } from '../services/assistantSpeechController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -183,6 +184,12 @@
     isForgottenMessage?: boolean;
     onSpeak?: () => void;
   } = $props();
+
+  const assistantSpeechPlayer = assistantSpeechController.player;
+  let activeSpeechSegment = $derived.by(() => {
+    if ($assistantSpeechPlayer.messageId !== messageId || $assistantSpeechPlayer.status !== 'playing') return null;
+    return $assistantSpeechPlayer.regions.find((region) => region.active)?.sequence ?? null;
+  });
   
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
@@ -3352,6 +3359,8 @@
                 {piiMappings}
                 {piiRevealed}
                 {role}
+                speechActiveSegment={activeSpeechSegment}
+                speechPlaying={activeSpeechSegment !== null}
                 on:message-embed-click={handleEmbedClick}
             />
           {:else if hasExampleChatsPlaceholder}
@@ -3373,6 +3382,8 @@
                 {piiMappings}
                 {piiRevealed}
                 {role}
+                speechActiveSegment={activeSpeechSegment}
+                speechPlaying={activeSpeechSegment !== null}
                 on:message-embed-click={handleEmbedClick}
             />
           {/if}
@@ -3552,8 +3563,11 @@
             class="assistant-speech-action"
             data-testid="assistant-message-speak"
             onclick={onSpeak}
-            aria-label="Speak response"
-          >Speak</button>
+            aria-label={$text('chat.assistant_speech.speak_response')}
+          >
+            <Icon name="audio" size="16px" noMargin={true} />
+            <span data-testid="assistant-message-speak-label">{$text('chat.assistant_speech.speak_response')}</span>
+          </button>
         {/if}
         <button 
           class="report-bad-answer-btn" 
@@ -4278,17 +4292,42 @@
 
   .assistant-speech-action {
     all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    width: auto;
+    max-width: 20px;
+    min-height: 28px;
+    box-sizing: border-box;
+    overflow: hidden;
     color: var(--color-grey-60);
     cursor: pointer;
     font-size: var(--font-size-small);
-    padding: var(--spacing-1) var(--spacing-3);
+    padding: var(--spacing-1);
     border-radius: var(--radius-4);
+    white-space: nowrap;
+    transition: max-width var(--duration-normal) var(--easing-default), color var(--duration-fast) var(--easing-default);
   }
 
   .assistant-speech-action:hover,
   .assistant-speech-action:focus-visible {
+    max-width: 180px;
     color: var(--color-primary);
-    background: var(--color-grey-10);
+  }
+
+  .assistant-speech-action:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+  }
+
+  .assistant-speech-action span {
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-speech-action:hover span,
+  .assistant-speech-action:focus-visible span {
+    opacity: 1;
   }
 
   .generated-by-container {

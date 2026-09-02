@@ -10682,7 +10682,7 @@ assertions:
       surface: rest_api
     - &id1178
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 81
+      line: 83
       name: plays a prerecorded acknowledgement with a passive waveform and no track
         controls
       surface: gui.web
@@ -11051,23 +11051,23 @@ assertions:
       surface: rest_api
     - &id1213
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 64
+      line: 66
       name: starts the first ready segment without waiting for later segments
       surface: gui.web
     - &id1214
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 81
+      line: 83
       name: plays a prerecorded acknowledgement with a passive waveform and no track
         controls
       surface: gui.web
     - &id1215
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 157
+      line: 148
       name: waits for sequence zero when worker readiness arrives out of order
       surface: gui.web
     - &id1216
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 183
+      line: 174
       name: waits for the next ordered segment instead of skipping ahead
       surface: gui.web
     supporting_tests: []
@@ -11108,27 +11108,27 @@ assertions:
       surface: gui.web
     - &id1219
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 157
+      line: 148
       name: waits for sequence zero when worker readiness arrives out of order
       surface: gui.web
     - &id1220
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 183
+      line: 174
       name: waits for the next ordered segment instead of skipping ahead
       surface: gui.web
     - &id1221
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 222
+      line: 210
       name: stops the prior response when another response becomes active
       surface: gui.web
     - &id1222
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 241
+      line: 229
       name: moves previous and next controls across paragraph boundaries
       surface: gui.web
     - &id1223
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 323
+      line: 311
       name: selects and plays the exact paragraph chosen from the waveform
       surface: gui.web
     supporting_tests: []
@@ -11186,28 +11186,28 @@ assertions:
       surface: gui.web
     - &id1227
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 81
+      line: 83
       name: plays a prerecorded acknowledgement with a passive waveform and no track
         controls
       surface: gui.web
     - &id1228
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 109
-      name: waits two seconds for later audio and reopens after an idle dismissal
+      line: 113
+      name: stays visible with loading state until later audio arrives
       surface: gui.web
     - &id1229
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 294
+      line: 282
       name: builds duration-proportional waveform regions for the full response
       surface: gui.web
     - &id1230
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 306
+      line: 294
       name: keeps the active paragraph highlighted while later segments arrive
       surface: gui.web
     - &id1231
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 323
+      line: 311
       name: selects and plays the exact paragraph chosen from the waveform
       surface: gui.web
     supporting_tests: []
@@ -11247,18 +11247,18 @@ assertions:
       surface: gui.web
     - &id1234
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 109
-      name: waits two seconds for later audio and reopens after an idle dismissal
+      line: 113
+      name: stays visible with loading state until later audio arrives
       surface: gui.web
     - &id1235
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 139
-      name: cancels idle dismissal when the next clip arrives during the grace period
+      line: 137
+      name: selects a generating chapter immediately and autoplays it when ready
       surface: gui.web
     - &id1236
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 209
-      name: dismisses after the grace period when the known successor is still generating
+      line: 200
+      name: keeps the selected successor visible while it is still generating
       surface: gui.web
     supporting_tests: []
     tests:
@@ -11283,7 +11283,7 @@ assertions:
     direct_tests:
     - &id1237
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 258
+      line: 246
       name: feature-detects Media Session while retaining queue controls when absent
       surface: gui.web
     supporting_tests: []
@@ -11306,7 +11306,7 @@ assertions:
       surface: gui.web
     - &id1239
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 274
+      line: 262
       name: preserves ready audio after autoplay rejection and resumes it from one
         user gesture
       surface: gui.web
@@ -11914,7 +11914,7 @@ assertions:
       surface: rest_api
     - &id1315
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
-      line: 170
+      line: 161
       name: does not restart from a delayed segment after stop
       surface: gui.web
     supporting_tests:

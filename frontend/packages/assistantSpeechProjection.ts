@@ -8,17 +8,42 @@ export interface ProjectedAssistantSpeechSegment {
   sequence: number;
   kind: "code_summary" | "table_summary" | "embed_summary" | "prose_paragraph";
   speakableText: string;
+  chapter: { kind: "heading"; text: string } | { kind: "part"; number: number } | { kind: "semantic"; type: "code" | "table" | "structured" };
 }
 
 export function projectAssistantSpeech(content: string): ProjectedAssistantSpeechSegment[] {
+  let nearestHeading = "";
   return content
     .split(/\n\n+/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .flatMap(splitLongParagraph)
+    .flatMap((paragraph) => {
+      const heading = paragraph.split("\n").map((line) => line.match(/^#{1,6}\s+(.+?)\s*#*$/)?.[1]?.trim()).find(Boolean);
+      if (heading) nearestHeading = heading;
+      return splitLongParagraph(paragraph).map((chunk) => ({ chunk, heading: nearestHeading }));
+    })
     .slice(0, 20)
-    .map((paragraph, sequence) => ({ sequence, ...projectParagraph(paragraph) }))
+    .map(({ chunk, heading }, sequence) => {
+      const projected = projectParagraph(chunk);
+      return {
+        sequence,
+        ...projected,
+        chapter: chapterFor(projected.kind, heading, sequence),
+      };
+    })
     .filter((segment) => segment.speakableText.length > 0);
+}
+
+function chapterFor(
+  kind: ProjectedAssistantSpeechSegment["kind"],
+  heading: string,
+  sequence: number,
+): ProjectedAssistantSpeechSegment["chapter"] {
+  if (kind === "code_summary") return { kind: "semantic", type: "code" };
+  if (kind === "table_summary") return { kind: "semantic", type: "table" };
+  if (kind === "embed_summary") return { kind: "semantic", type: "structured" };
+  if (heading) return { kind: "heading", text: heading };
+  return { kind: "part", number: sequence + 1 };
 }
 
 function splitLongParagraph(paragraph: string): string[] {

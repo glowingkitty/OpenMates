@@ -7,6 +7,12 @@
 
 export type AssistantSpeechSegmentStatus = "generating" | "ready" | "failed";
 
+export type AssistantSpeechChapter =
+  | { kind: "heading"; text: string }
+  | { kind: "part"; number: number }
+  | { kind: "semantic"; type: "code" | "table" | "structured" }
+  | { kind: "passive"; type: "confirmation" | "using_apps" };
+
 export interface AssistantSpeechSegment {
   id: string;
   sequence: number;
@@ -14,6 +20,8 @@ export interface AssistantSpeechSegment {
   durationMs: number;
   audioUrl?: string;
   playbackClass: "passive" | "replayable";
+  chapter: AssistantSpeechChapter;
+  waveform: number[];
 }
 
 export type AssistantSpeechQueueStatus =
@@ -34,10 +42,13 @@ export interface AssistantSpeechQueueState {
 
 export interface AssistantSpeechWaveformRegion {
   segmentId: string;
+  sequence: number;
   start: number;
   end: number;
   status: AssistantSpeechSegmentStatus;
   active: boolean;
+  chapter: AssistantSpeechChapter;
+  waveform: number[];
 }
 
 interface SpeechAudio {
@@ -80,7 +91,7 @@ export class AssistantSpeechQueue {
   private currentAudio: SpeechAudio | null = null;
   private pendingSegmentId: string | null = null;
   private readonly completedSegmentIds = new Set<string>();
-  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoplayPending = true;
   private readonly onStateChange?: (state: AssistantSpeechQueueState) => void;
 
   state: AssistantSpeechQueueState = { ...DEFAULT_STATE };
@@ -116,10 +127,13 @@ export class AssistantSpeechQueue {
 
       return {
         segmentId: segment.id,
+        sequence: segment.sequence,
         start,
         end,
         status: segment.status,
         active: segment.id === this.state.activeSegmentId,
+        chapter: segment.chapter,
+        waveform: segment.waveform,
       };
     });
   }
@@ -139,7 +153,7 @@ export class AssistantSpeechQueue {
       AssistantSpeechQueue.activeQueue.stop();
     }
     this.stopCurrentAudio();
-    this.clearIdleTimer();
+    this.autoplayPending = true;
     this.segments.clear();
     this.audioBySegmentId.clear();
     this.completedSegmentIds.clear();
@@ -170,8 +184,6 @@ export class AssistantSpeechQueue {
         return;
       }
     }
-    this.clearIdleTimer();
-
     if (!this.state.activeSegmentId || this.completedSegmentIds.has(this.state.activeSegmentId)) {
       this.setState({ ...this.state, activeSegmentId: null, status: "waiting_for_segment" });
       this.activateFirstSegment();
@@ -188,7 +200,7 @@ export class AssistantSpeechQueue {
         this.pendingSegmentId = null;
         this.setState({ ...this.state, activeSegmentId: segment.id });
       }
-      void this.playActiveSegment();
+      if (this.autoplayPending) void this.playActiveSegment();
     }
   }
 
@@ -197,10 +209,11 @@ export class AssistantSpeechQueue {
   }
 
   pause(): void {
-    if (!this.currentAudio || this.state.status !== "playing") {
+    if (!["playing", "waiting_for_segment", "waiting_for_more"].includes(this.state.status)) {
       return;
     }
-    this.currentAudio.pause();
+    this.autoplayPending = false;
+    this.currentAudio?.pause();
     this.setState({ ...this.state, status: "paused" });
   }
 
@@ -208,6 +221,7 @@ export class AssistantSpeechQueue {
     if (!this.state.responseId || this.state.status === "stopped") {
       return;
     }
+    this.autoplayPending = true;
     if (!this.state.activeSegmentId) {
       this.activateFirstSegment();
       return;
@@ -216,7 +230,7 @@ export class AssistantSpeechQueue {
   }
 
   stop(): void {
-    this.clearIdleTimer();
+    this.autoplayPending = false;
     this.stopCurrentAudio();
     this.setState({ ...this.state, status: "stopped" });
     if (AssistantSpeechQueue.activeQueue === this) {
@@ -239,9 +253,10 @@ export class AssistantSpeechQueue {
     }
     this.stopCurrentAudio();
     this.pendingSegmentId = null;
+    this.autoplayPending = this.state.status !== "paused";
     this.setState({ ...this.state, activeSegmentId: segment.id, status: "waiting_for_segment" });
     if (segment.status === "ready") {
-      await this.playActiveSegment();
+      if (this.autoplayPending) await this.playActiveSegment();
     }
   }
 
@@ -350,12 +365,6 @@ export class AssistantSpeechQueue {
     if (!nextSegment || nextSegment.status !== "ready") {
       this.pendingSegmentId = nextSegment?.id ?? null;
       this.setState({ ...this.state, status: "waiting_for_more" });
-      this.idleTimer = setTimeout(() => {
-        this.idleTimer = null;
-        if (this.state.status === "waiting_for_more") {
-          this.setState({ ...this.state, status: "idle", activeSegmentId: null });
-        }
-      }, 2_000);
       return;
     }
     this.setState({
@@ -370,13 +379,6 @@ export class AssistantSpeechQueue {
     if (this.currentAudio) {
       this.currentAudio.pause();
       this.currentAudio = null;
-    }
-  }
-
-  private clearIdleTimer(): void {
-    if (this.idleTimer !== null) {
-      clearTimeout(this.idleTimer);
-      this.idleTimer = null;
     }
   }
 
