@@ -2397,6 +2397,20 @@ function taskContextSystemTextForTest(snapshot) {
   return lines.join("\n");
 }
 
+function implicitTaskMutationPayloadForTest(snapshot, { tool = "", command = "", sessionTitle = "" } = {}) {
+  if (!snapshot || snapshot.active || (Array.isArray(snapshot.remaining) && snapshot.remaining.length > 0)) return null;
+  // Repository source writes are required to use routed edit tools; mutating
+  // Bash is separately guarded and may legitimately write only temporary data.
+  if (!EDIT_TOOLS.has(tool)) return null;
+  const title = String(sessionTitle || "Complete requested OpenCode work").trim().slice(0, 500)
+    || "Complete requested OpenCode work";
+  return {
+    action: "create",
+    title,
+    description: "Automatically created before the first repository mutation in this OpenCode chat.",
+  };
+}
+
 function taskContinuationPromptForTest(record) {
   if (record?.operation_type !== "task_ready") return String(record?.next_action || "");
   return String(record.next_action || "Continue the active OpenMates Task from request-only context.");
@@ -3302,6 +3316,20 @@ export const OpenMatesHooks = async ({
       return JSON.stringify(result);
     },
   }) : null;
+  const ensureImplicitTaskBeforeMutation = async ({ sessionID, tool, command = "" }) => {
+    if (!EDIT_TOOLS.has(tool)) return null;
+    const snapshot = await taskContextForSession(sessionID, { refresh: true });
+    const session = await openCodeSession(client, sessionID);
+    const payload = implicitTaskMutationPayloadForTest(snapshot, {
+      tool,
+      command,
+      sessionTitle: session?.title || "",
+    });
+    if (!payload) return null;
+    const created = await taskBridge("tool", sessionID, { payload });
+    taskContextCache.delete(sessionID);
+    return created;
+  };
   const mediaCommand = async (action, sessionID, artifact = null) => {
     if (!mediaQueueEnabled) return null;
     const args = ["scripts/sessions.py", "media", action, "--session", sessionID];
@@ -3637,6 +3665,11 @@ export const OpenMatesHooks = async ({
       ) {
         recordedRoutes.add(route.topLevelOpenCodeSessionID);
       }
+      await ensureImplicitTaskBeforeMutation({
+        sessionID: routedOpenCodeSessionID,
+        tool,
+        command: BASH_TOOLS.has(tool) ? bashCommand(output?.args || input?.args) : "",
+      });
       if (route.decision !== "worktree_routed") {
         const currentArgs = output?.args || input?.args;
         const command = bashCommand(currentArgs);
@@ -3836,6 +3869,7 @@ OpenMatesHooks.test = Object.freeze({
   taskBridgeCompletionForTest,
   taskBridgeSuppressedForTest,
   taskContextSystemTextForTest,
+  implicitTaskMutationPayloadForTest,
   taskContinuationPromptForTest,
   controlPlaneToolDecisionForTest,
   directSessionsSpawnChatCommandForTest,

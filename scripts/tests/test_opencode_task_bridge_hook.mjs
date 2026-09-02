@@ -53,6 +53,32 @@ test("empty chats instruct the model to create tracking for implicit non-trivial
 });
 
 
+test("the first repository mutation requires an implicit Task when none exists", () => {
+  const { implicitTaskMutationPayloadForTest } = OpenMatesHooks.test;
+  const empty = { decision: "no_work", active: null, remaining: [] };
+
+  assert.deepEqual(
+    implicitTaskMutationPayloadForTest(empty, {
+      tool: "apply_patch",
+      sessionTitle: "Implement account settings",
+    }),
+    {
+      action: "create",
+      title: "Implement account settings",
+      description: "Automatically created before the first repository mutation in this OpenCode chat.",
+    },
+  );
+  assert.equal(
+    implicitTaskMutationPayloadForTest(empty, { tool: "read", sessionTitle: "Inspect settings" }),
+    null,
+  );
+  assert.equal(
+    implicitTaskMutationPayloadForTest(activeSnapshot, { tool: "apply_patch", sessionTitle: "Existing work" }),
+    null,
+  );
+});
+
+
 test("only completed successful top-level assistant messages stage reconciliation", () => {
   const { taskBridgeCompletionForTest } = OpenMatesHooks.test;
   const completed = {
