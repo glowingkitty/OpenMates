@@ -51,9 +51,16 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player).toBeVisible();
 			await expect(player).toHaveAttribute('data-presentation', 'replayable_track_queue');
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Key considerations');
+			await expect(player.getByTestId('assistant-speech-previous-chapter')).toContainText('Short answer');
+			await expect(player.getByTestId('assistant-speech-next-chapter')).toContainText('Optimization');
+			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-1');
 			await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Pause voice response');
+			await expect(player.getByTestId('assistant-speech-primary-icon')).toHaveAttribute('data-icon', 'pause');
 			await expect(player.getByTestId('assistant-speech-waveform-bar')).not.toHaveCount(0);
-			if (PROOF_DEVICE === 'web-laptop') await expect(player.getByTestId('assistant-speech-mate')).toBeVisible();
+			if (PROOF_DEVICE === 'web-laptop') {
+				await expect(player.getByTestId('assistant-speech-mate')).toBeVisible();
+				await expect.poll(() => player.getByTestId('assistant-speech-mate').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
+			}
 		});
 		await proof.checkpoint('playing');
 
@@ -62,11 +69,14 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
+			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-2');
 		});
 		await proof.checkpoint('pending');
 
-		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
+		await proof.action('wait-for-ready-audio', async () => {
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false', { timeout: 5_000 });
+		});
+		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
 			await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Pause voice response');
 		});
 		await proof.checkpoint('ready');
@@ -74,7 +84,9 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await proof.action('pause-playback', async () => player.getByTestId('assistant-speech-primary-control').click());
 		await proof.assert('assistant-speech.playback.single-queue-segment-control', async () => {
 			await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Play voice response');
+			await expect(player.getByTestId('assistant-speech-primary-icon')).toHaveAttribute('data-icon', 'play');
 			await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
+			await expect(player.getByTestId('assistant-speech-close-icon')).toBeVisible();
 		});
 		await proof.checkpoint('paused');
 		await proof.attach();

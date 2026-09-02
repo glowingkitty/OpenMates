@@ -4,10 +4,9 @@
   Renders local chapter metadata and waveform samples without exposing audio URLs.
   The active-chat container places it over history below its action buttons.
   An injected controller keeps the deployed component preview deterministic.
--->
+  -->
 <script lang="ts">
   import { text } from '@repo/ui';
-  import Icon from './Icon.svelte';
   import {
     assistantSpeechController,
     type AssistantSpeechPlaybackController,
@@ -25,7 +24,13 @@
   }: Props = $props();
 
   let player = $derived(controller.player);
-  const placeholderBars = [4, 4, 4, 4, 4, 4, 4, 4];
+  const WAVEFORM_BAR_COUNT = 96;
+  const placeholderBars = Array.from({ length: WAVEFORM_BAR_COUNT }, () => 8);
+  const mateImages = import.meta.glob('../../static/images/mates/*.jpeg', {
+    eager: true,
+    query: '?url',
+    import: 'default',
+  }) as Record<string, string>;
   let isPlaying = $derived($player.status === 'playing');
   let isPaused = $derived($player.status === 'paused');
   let isLoading = $derived(
@@ -40,6 +45,10 @@
   let previousRegion = $derived(previousReplayableRegion($player.regions, activeIndex));
   let nextRegion = $derived(nextReplayableRegion($player.regions, activeIndex));
   let hasPlaceholder = $derived(Boolean(activeRegion && activeRegion.waveform.length === 0));
+  let activeWaveform = $derived(waveformBars(activeRegion?.waveform ?? []));
+  let mateImageUrl = $derived(
+    Object.entries(mateImages).find(([path]) => path.endsWith(`/${$player.mateCategory}.jpeg`))?.[1] ?? '',
+  );
 
   function observeHeight(node: HTMLElement) {
     const reportHeight = () => onHeightChange(node.getBoundingClientRect().height);
@@ -61,20 +70,29 @@
     return $text(`chat.assistant_speech.${chapter.type}`);
   }
 
+  function waveformBars(samples: number[]): number[] {
+    if (samples.length === 0) return placeholderBars;
+    if (samples.length === WAVEFORM_BAR_COUNT) return samples;
+    return Array.from({ length: WAVEFORM_BAR_COUNT }, (_, index) => {
+      const sampleIndex = Math.round((index / (WAVEFORM_BAR_COUNT - 1)) * (samples.length - 1));
+      return samples[sampleIndex] ?? 8;
+    });
+  }
+
   function previousReplayableRegion(
     regions: AssistantSpeechWaveformRegion[],
     currentIndex: number,
   ): AssistantSpeechWaveformRegion | null {
     if (currentIndex <= 0) return null;
-    return regions[currentIndex - 1] ?? null;
+    return regions.slice(0, currentIndex).reverse().find((region) => region.sequence >= 0) ?? null;
   }
 
   function nextReplayableRegion(
     regions: AssistantSpeechWaveformRegion[],
     currentIndex: number,
   ): AssistantSpeechWaveformRegion | null {
-    if (currentIndex < 0) return regions[0] ?? null;
-    return regions[currentIndex + 1] ?? null;
+    if (currentIndex < 0) return regions.find((region) => region.sequence >= 0) ?? null;
+    return regions.slice(currentIndex + 1).find((region) => region.sequence >= 0) ?? null;
   }
 </script>
 
@@ -82,48 +100,37 @@
   <section
     use:observeHeight
     class="assistant-speech-player"
+    class:expanded={Boolean(previousRegion)}
     data-testid="assistant-speech-player"
     data-presentation={$player.presentationMode}
     data-status={$player.status}
     aria-label="Voice response player"
   >
     <div
-      class="assistant-speech-mate mate-profile {$player.mateCategory}"
+      class="assistant-speech-mate"
       data-testid="assistant-speech-mate"
       role="img"
       aria-label={$player.mateName}
+      style:background-image={mateImageUrl ? `url(${mateImageUrl})` : undefined}
     >
-      <span class="assistant-speech-mate-badge" aria-hidden="true"><Icon name="ai" size="10px" noMargin={true} /></span>
+      <span class="assistant-speech-mate-badge" aria-hidden="true"><span class="assistant-speech-icon ai"></span></span>
     </div>
 
     <div
       class="assistant-speech-waveform"
+      class:pending={hasPlaceholder}
       data-testid="assistant-speech-waveform"
       data-placeholder={hasPlaceholder}
+      data-segment-id={activeRegion?.segmentId ?? ''}
       aria-label="Response waveform"
     >
-      {#each $player.regions as region (region.segmentId)}
-        <button
-          type="button"
-          class="assistant-speech-region"
-          data-testid="assistant-speech-region"
-          data-status={region.status}
-          data-active={region.active}
-          class:active={region.active}
-          class:pending={region.waveform.length === 0}
-          style:flex-grow={Math.max(0.04, region.end - region.start)}
-          aria-label={chapterLabel(region.chapter)}
-          disabled={$player.presentationMode === 'passive_clip'}
-          onclick={() => $player.presentationMode === 'replayable_track_queue' && void controller.selectSegment(region.segmentId)}
-        >
-          {#each region.waveform.length > 0 ? region.waveform : placeholderBars as height, index (`${region.segmentId}:${index}`)}
-            <span
-              class="assistant-speech-waveform-bar"
-              data-testid="assistant-speech-waveform-bar"
-              style:height={`${Math.max(4, height)}%`}
-            ></span>
-          {/each}
-        </button>
+      {#each activeWaveform as height, index (index)}
+        <span
+          class="assistant-speech-waveform-bar"
+          data-testid="assistant-speech-waveform-bar"
+          style:height={`${Math.max(4, height)}%`}
+          style:transition-delay={`${index * 5}ms`}
+        ></span>
       {/each}
     </div>
 
@@ -135,7 +142,13 @@
         aria-label={isPlaying ? 'Pause voice response' : 'Play voice response'}
         onclick={() => isPlaying ? controller.pause() : void controller.play()}
       >
-        <Icon name={isPlaying ? 'pause' : 'play'} size="18px" noMargin={true} />
+        <span
+          class="assistant-speech-icon"
+          class:pause={isPlaying}
+          class:play={!isPlaying}
+          data-testid="assistant-speech-primary-icon"
+          data-icon={isPlaying ? 'pause' : 'play'}
+        ></span>
       </button>
       {#if isPaused}
         <button
@@ -145,7 +158,7 @@
           aria-label={$text('common.close')}
           onclick={() => void controller.close()}
         >
-          <Icon name="close" size="18px" noMargin={true} />
+          <span class="assistant-speech-icon close" data-testid="assistant-speech-close-icon"></span>
         </button>
       {/if}
     </div>
@@ -159,7 +172,7 @@
           aria-label={`Previous chapter: ${chapterLabel(previousRegion.chapter)}`}
           onclick={() => void controller.previous()}
         >
-          <span>{chapterLabel(previousRegion.chapter)}</span><Icon name="back" size="12px" noMargin={true} />
+          <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous"></span>
         </button>
       {/if}
       <strong data-testid="assistant-speech-current-chapter">
@@ -173,12 +186,12 @@
           aria-label={`Next chapter: ${chapterLabel(nextRegion.chapter)}`}
           onclick={() => void controller.next()}
         >
-          <Icon name="back" size="12px" noMargin={true} /><span>{chapterLabel(nextRegion.chapter)}</span>
+          <span class="assistant-speech-icon chevron next"></span><span>{chapterLabel(nextRegion.chapter)}</span>
         </button>
       {/if}
-      {#if isLoading}
+      {#if isLoading && !nextRegion}
         <span class="assistant-speech-loading" data-testid="assistant-speech-loading">
-          <Icon name="back" size="12px" noMargin={true} />{$text('common.loading')}
+          {$text('common.loading')}
         </span>
       {/if}
     </div>
@@ -196,7 +209,7 @@
     width: 100%;
     height: 82px;
     box-sizing: border-box;
-    padding: 8px 120px 6px;
+    padding: 8px 24px 6px;
     overflow: hidden;
     border-radius: var(--radius-8);
     color: var(--color-grey-0);
@@ -208,12 +221,18 @@
     position: absolute;
     z-index: 2;
     top: 13px;
-    left: calc(50% - 185px);
+    left: calc(50% - 148px);
     width: 34px;
     height: 34px;
     border-radius: var(--radius-full);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
     box-shadow: var(--shadow-xs);
+    transition: left var(--duration-slow) var(--easing-default);
   }
+
+  .assistant-speech-player.expanded .assistant-speech-mate { left: calc(50% - 190px); }
 
   .assistant-speech-mate-badge {
     position: absolute;
@@ -232,35 +251,23 @@
     display: flex;
     align-items: center;
     justify-self: center;
-    width: min(100%, 330px);
+    width: min(100%, 220px);
     height: 38px;
-    gap: 2px;
+    gap: 1px;
     transition: width var(--duration-slow) var(--easing-default);
   }
 
-  .assistant-speech-region {
-    all: unset;
-    display: flex;
-    align-items: center;
-    height: 100%;
-    min-width: 24px;
-    gap: 2px;
-    cursor: pointer;
-    opacity: 0.34;
-    transition: opacity var(--duration-normal) var(--easing-default);
-  }
-
-  .assistant-speech-region.active { opacity: 1; }
-  .assistant-speech-region:disabled { cursor: default; }
+  .assistant-speech-player.expanded .assistant-speech-waveform { width: min(100%, 300px); }
+  .assistant-speech-waveform.pending { opacity: 0.55; }
 
   .assistant-speech-waveform-bar {
     display: block;
-    flex: 1 1 2px;
+    flex: 1 1 1px;
     min-width: 1px;
-    max-width: 3px;
+    max-width: 2px;
     border-radius: var(--radius-full);
     background: currentColor;
-    transition: height var(--duration-slow) var(--easing-default);
+    transition: height var(--duration-normal) var(--easing-default), opacity var(--duration-fast) var(--easing-default);
   }
 
   .assistant-speech-primary-controls {
@@ -289,22 +296,45 @@
     transition: transform var(--duration-fast) var(--easing-default);
   }
 
+  .assistant-speech-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    background: currentColor;
+    -webkit-mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: contain;
+  }
+
+  .assistant-speech-icon.play { -webkit-mask-image: var(--icon-url-play); mask-image: var(--icon-url-play); }
+  .assistant-speech-icon.pause { -webkit-mask-image: var(--icon-url-pause); mask-image: var(--icon-url-pause); }
+  .assistant-speech-icon.close { -webkit-mask-image: var(--icon-url-close); mask-image: var(--icon-url-close); }
+  .assistant-speech-icon.ai { width: 9px; height: 9px; -webkit-mask-image: var(--icon-url-ai); mask-image: var(--icon-url-ai); }
+  .assistant-speech-icon.chevron { width: 11px; height: 11px; -webkit-mask-image: var(--icon-url-back); mask-image: var(--icon-url-back); }
+  .assistant-speech-icon.chevron.next { transform: rotate(180deg); }
+
   .assistant-speech-primary-control:hover { transform: scale(1.06); }
   .assistant-speech-primary-control:active { transform: scale(0.95); }
   .assistant-speech-primary-control:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
 
   .assistant-speech-chapters {
+    position: relative;
     grid-row: 2;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    justify-content: center;
     min-width: 0;
-    gap: var(--spacing-4);
+    column-gap: var(--spacing-4);
     font-size: var(--font-size-xxs);
     line-height: 1;
   }
 
   .assistant-speech-chapters strong {
+    grid-column: 2;
+    justify-self: center;
     max-width: 210px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -322,12 +352,15 @@
     transition: opacity var(--duration-fast) var(--easing-default);
   }
 
+  .assistant-speech-adjacent.previous { grid-column: 1; justify-self: end; }
+  .assistant-speech-adjacent.next { grid-column: 3; justify-self: start; }
+
   .assistant-speech-adjacent:hover,
   .assistant-speech-adjacent:focus-visible { opacity: 1; }
   .assistant-speech-adjacent span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .assistant-speech-adjacent.next :global(.icon) { transform: rotate(180deg); }
-
   .assistant-speech-loading {
+    grid-column: 3;
+    justify-self: start;
     display: inline-flex;
     align-items: center;
     gap: 3px;
@@ -339,13 +372,14 @@
     .assistant-speech-player {
       grid-template-rows: 54px 24px;
       height: 92px;
-      padding: 8px 72px 6px;
+      padding: 8px 16px 6px;
     }
 
     .assistant-speech-mate { display: none; }
-    .assistant-speech-waveform { width: min(100%, 190px); height: 42px; }
+    .assistant-speech-waveform,
+    .assistant-speech-player.expanded .assistant-speech-waveform { width: min(100%, 185px); height: 42px; }
     .assistant-speech-primary-controls { top: 14px; }
-    .assistant-speech-chapters { gap: var(--spacing-2); }
+    .assistant-speech-chapters { column-gap: var(--spacing-2); }
     .assistant-speech-adjacent span { display: none; }
     .assistant-speech-chapters strong { max-width: 170px; }
   }
@@ -354,6 +388,6 @@
     .assistant-speech-waveform,
     .assistant-speech-waveform-bar,
     .assistant-speech-primary-control,
-    .assistant-speech-region { transition: none; }
+    .assistant-speech-mate { transition: none; }
   }
 </style>
