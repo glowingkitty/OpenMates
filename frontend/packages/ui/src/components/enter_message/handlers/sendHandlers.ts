@@ -41,6 +41,7 @@ import {
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import {
+  isDraftOnlyChatMissingDurableKey,
   isUnsupportedTeamIncognitoContext,
   shouldDispatchDraftChatAsNewChat,
 } from "./sendClassification";
@@ -1466,10 +1467,11 @@ export async function handleSend(
         existingChatHasUsableKey = true;
       }
 
-      const isDraftOnlyChatMissingKey =
-        !existingChatHasUsableKey &&
-        draftState.currentChatId === chatIdToUse &&
-        (existingChatCheck.messages_v ?? 0) === 0;
+      const isDraftOnlyChatMissingKey = isDraftOnlyChatMissingDurableKey({
+        draftChatId: draftState.currentChatId,
+        chatIdToUse,
+        existingChat: existingChatCheck,
+      });
       if (isDraftOnlyChatMissingKey) {
         console.warn(
           `[handleSend] Draft chat ${chatIdToUse} exists without a usable key; treating it as new chat creation`,

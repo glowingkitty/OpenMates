@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import {
+  isDraftOnlyChatMissingDurableKey,
   isUnsupportedTeamIncognitoContext,
   shouldAwaitAITaskStart,
   shouldDispatchDraftChatAsNewChat,
@@ -37,6 +38,26 @@ function readableStore<T>(value: T) {
     },
   };
 }
+
+describe('isDraftOnlyChatMissingDurableKey', () => {
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,assistant-speech.preference.chat-scoped-default-off
+  it('treats an active voice draft with only an in-memory key as a new chat', () => {
+    expect(isDraftOnlyChatMissingDurableKey({
+      draftChatId: 'chat-1',
+      chatIdToUse: 'chat-1',
+      existingChat: { messages_v: 0, encrypted_chat_key: null },
+    })).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,assistant-speech.preference.chat-scoped-default-off
+  it('keeps a draft with a wrapped key on the existing-chat path', () => {
+    expect(isDraftOnlyChatMissingDurableKey({
+      draftChatId: 'chat-1',
+      chatIdToUse: 'chat-1',
+      existingChat: { messages_v: 0, encrypted_chat_key: 'wrapped-chat-key' },
+    })).toBe(false);
+  });
+});
 
 describe('shouldDispatchDraftChatAsNewChat', () => {
   // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chats.message.identity-idempotent
