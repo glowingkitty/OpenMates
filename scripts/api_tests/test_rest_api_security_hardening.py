@@ -59,37 +59,6 @@ def _ensure_cli_session(api_url: str, *, skip_build: bool) -> None:
     _run(["node", "scripts/openmates_cli_test_account.mjs", "login", "--api-url", api_url], timeout=180)
 
 
-def _home_state_session() -> dict[str, Any]:
-    session_path = Path.home() / ".openmates" / "session.json"
-    if not session_path.exists():
-        raise SmokeFailure("No logged-in CLI session found after test-account login.")
-    return json.loads(session_path.read_text(encoding="utf-8"))
-
-
-def _session_cookie_header() -> str:
-    cookies = _home_state_session().get("cookies") or {}
-    if not isinstance(cookies, dict) or not cookies:
-        raise SmokeFailure("Logged-in CLI session has no cookies.")
-    return "; ".join(f"{key}={value}" for key, value in cookies.items() if isinstance(value, str))
-
-
-def _settings_request(api_url: str, path: str, *, method: str = "GET") -> dict[str, Any]:
-    req = urllib_request.Request(
-        f"{api_url.rstrip('/')}/v1/settings/{path.lstrip('/')}",
-        method=method,
-        headers={"Accept": "application/json", "Cookie": _session_cookie_header()},
-    )
-    if method != "GET":
-        req.add_header("Content-Type", "application/json")
-        req.data = b"{}"
-    try:
-        with urllib_request.urlopen(req, timeout=30) as response:
-            return json.loads(response.read().decode("utf-8") or "{}")
-    except HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise SmokeFailure(f"Settings request {method} {path} failed with HTTP {exc.code}: {body}") from exc
-
-
 def _node_api_key_action(api_url: str, action: str, payload: dict[str, Any]) -> dict[str, Any]:
     script = f"""
       import {{ OpenMatesClient }} from '{SDK_ENTRY}';
@@ -101,6 +70,24 @@ def _node_api_key_action(api_url: str, action: str, payload: dict[str, Any]) -> 
       }} else if (process.env.OPENMATES_REST_SMOKE_ACTION === 'revoke') {{
         const result = await client.revokeApiKey(payload.id);
         console.log(JSON.stringify({{ revoked: true, result }}));
+      }} else if (process.env.OPENMATES_REST_SMOKE_ACTION === 'approve-device') {{
+        const result = await client.settingsGet('api-key-devices');
+        const approved = [];
+        for (const device of result.devices || []) {{
+          if (device.api_key_id !== payload.id || device.approved_at) continue;
+          await client.settingsPost(`api-key-devices/${{device.id}}/approve`, {{}});
+          approved.push(device.id);
+        }}
+        console.log(JSON.stringify({{ approved }}));
+      }} else if (process.env.OPENMATES_REST_SMOKE_ACTION === 'cleanup') {{
+        const result = await client.listApiKeys();
+        let revoked = 0;
+        for (const key of result.api_keys || []) {{
+          if (!key.name.startsWith('rest-scope-denials-') && !key.name.startsWith('rest-intended-surfaces-')) continue;
+          await client.revokeApiKey(key.id);
+          revoked += 1;
+        }}
+        console.log(JSON.stringify({{ revoked }}));
       }} else {{
         throw new Error('Unsupported action');
       }}
@@ -161,18 +148,8 @@ def _http_json(
 
 
 def _approve_rest_device(api_url: str, key_id: str) -> list[str]:
-    data = _settings_request(api_url, "api-key-devices")
-    approved: list[str] = []
-    for device in data.get("devices", []):
-        if not isinstance(device, dict):
-            continue
-        if device.get("api_key_id") != key_id or device.get("approved_at"):
-            continue
-        device_id = device.get("id")
-        if isinstance(device_id, str):
-            _settings_request(api_url, f"api-key-devices/{device_id}/approve", method="POST")
-            approved.append(device_id)
-    return approved
+    result = _node_api_key_action(api_url, "approve-device", {"id": key_id})
+    return [device_id for device_id in result.get("approved", []) if isinstance(device_id, str)]
 
 
 def _create_approved_key(api_url: str, *, name: str, full_access: bool, scopes: dict[str, Any]) -> tuple[str, str, list[str]]:
@@ -185,15 +162,8 @@ def _create_approved_key(api_url: str, *, name: str, full_access: bool, scopes: 
             break
         time.sleep(1)
     if not approved:
-        devices = _settings_request(api_url, "api-key-devices").get("devices", [])
-        matching_devices = sum(
-            1 for device in devices
-            if isinstance(device, dict) and device.get("api_key_id") == key_id
-        )
-        raise SmokeFailure(
-            "Temporary API-key device was not registered for approval "
-            f"(listed devices: {len(devices)}, matching key: {matching_devices})."
-        )
+        _revoke_api_key(api_url, key_id)
+        raise SmokeFailure("Temporary API-key device was not registered for approval.")
     return api_key, key_id, approved
 
 
@@ -229,7 +199,7 @@ def scenario_scope_denials(api_url: str) -> dict[str, Any]:
             task_content_result = "feature_disabled"
         else:
             _assert_status(task_content_status, 403, task_content_payload, "encrypted task content blocked")
-            _assert_detail_error(task_content_payload, "developer_api_access_not_classified", "encrypted task content blocked")
+            _assert_detail_error(task_content_payload, "missing_scope", "encrypted task content blocked")
             task_content_result = "blocked"
 
         import_status, import_payload = _http_json(
@@ -237,7 +207,7 @@ def scenario_scope_denials(api_url: str) -> dict[str, Any]:
             "/v1/account-imports/preview",
             method="POST",
             api_key=api_key,
-            body={"source": "smoke", "chat_count": 0, "source_fingerprints": []},
+            body={"source": "other", "chat_count": 0, "source_fingerprints": []},
         )
         _assert_status(import_status, 403, import_payload, "account import missing scope")
         _assert_detail_error(import_payload, "missing_scope", "account import missing scope")
@@ -296,7 +266,7 @@ def scenario_intended_surfaces(api_url: str) -> dict[str, Any]:
             "/v1/account-imports/preview",
             method="POST",
             api_key=api_key,
-            body={"source": "smoke", "chat_count": 0, "source_fingerprints": []},
+            body={"source": "other", "chat_count": 0, "source_fingerprints": []},
         )
         _assert_status(import_status, 200, import_payload, "account import scoped")
 
@@ -311,9 +281,13 @@ def main() -> int:
     parser.add_argument("--api-url", default=os.getenv("OPENMATES_API_URL", DEFAULT_API_URL))
     parser.add_argument("--scenario", choices=("scope-denials", "intended-surfaces", "all"), default="all")
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--cleanup-smoke-keys", action="store_true")
     args = parser.parse_args()
 
     _ensure_cli_session(args.api_url, skip_build=args.skip_build)
+    if args.cleanup_smoke_keys:
+        print(json.dumps(_node_api_key_action(args.api_url, "cleanup", {}), indent=2))
+        return 0
     scenarios = ["scope-denials", "intended-surfaces"] if args.scenario == "all" else [args.scenario]
     results: dict[str, Any] = {"apiUrl": args.api_url, "scenarios": {}}
     for scenario in scenarios:
