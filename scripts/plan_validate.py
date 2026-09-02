@@ -89,14 +89,25 @@ BROAD_AC_PATTERNS = (
 class PlanError(ValueError):
     """Raised when a plan.yml file fails validation."""
 
-    def __init__(self, errors: str | list[str]) -> None:
-        self.errors = [errors] if isinstance(errors, str) else errors
+    def __init__(self, errors: str | list[str], *, partial: Any = None) -> None:
+        raw_errors = [errors] if isinstance(errors, str) else errors
+        self.errors = list(dict.fromkeys(raw_errors))
+        self.partial = partial
         if len(self.errors) == 1:
             message = self.errors[0]
         else:
             details = "\n".join(f"  {index}. {error}" for index, error in enumerate(self.errors, start=1))
             message = f"{len(self.errors)} validation errors:\n{details}"
         super().__init__(message)
+
+
+def _capture(errors: list[str], function: Any, *args: Any, default: Any = None, **kwargs: Any) -> Any:
+    """Run one independent validation and retain every diagnostic it emits."""
+    try:
+        return function(*args, **kwargs)
+    except PlanError as exc:
+        errors.extend(exc.errors)
+        return exc.partial if exc.partial is not None else default
 
 def _schema_version(data: dict[str, Any]) -> int:
     value = data.get("schema_version", 1)
@@ -144,17 +155,24 @@ def _validate_scope(data: dict[str, Any]) -> None:
 
 def _validate_scenarios(data: dict[str, Any]) -> set[str]:
     scenario_ids: set[str] = set()
+    errors: list[str] = []
     for index, scenario in enumerate(_as_list(data.get("scenarios"), "scenarios"), start=1):
-        scenario = _as_mapping(scenario, f"scenarios[{index}]")
-        scenario_id = _require_string(scenario, f"scenarios[{index}].id")
+        scenario = _capture(errors, _as_mapping, scenario, f"scenarios[{index}]", default=None)
+        if scenario is None:
+            continue
+        scenario_id = _capture(errors, _require_string, scenario, f"scenarios[{index}].id", default=None)
+        if scenario_id is None:
+            continue
         if not SCENARIO_ID.match(scenario_id):
-            raise PlanError(f"scenario id {scenario_id!r} must match S-<number>")
+            errors.append(f"scenario id {scenario_id!r} must match S-<number>")
         if scenario_id in scenario_ids:
-            raise PlanError(f"duplicate scenario id {scenario_id}")
+            errors.append(f"duplicate scenario id {scenario_id}")
         scenario_ids.add(scenario_id)
-        _require_string(scenario, f"scenarios[{index}].title")
+        _capture(errors, _require_string, scenario, f"scenarios[{index}].title")
         for key in ("given", "when", "then"):
-            _as_list(scenario.get(key), f"scenarios[{index}].{key}")
+            _capture(errors, _as_list, scenario.get(key), f"scenarios[{index}].{key}")
+    if errors:
+        raise PlanError(errors, partial=scenario_ids)
     return scenario_ids
 
 
@@ -182,50 +200,66 @@ def _validate_acceptance_criteria(
 ) -> tuple[set[str], dict[str, dict[str, Any]]]:
     ac_ids: set[str] = set()
     ac_by_id: dict[str, dict[str, Any]] = {}
+    errors: list[str] = []
     for index, criterion in enumerate(_as_list(data.get("acceptance_criteria"), "acceptance_criteria"), start=1):
-        criterion = _as_mapping(criterion, f"acceptance_criteria[{index}]")
-        criterion_id = _require_string(criterion, f"acceptance_criteria[{index}].id")
+        criterion = _capture(errors, _as_mapping, criterion, f"acceptance_criteria[{index}]", default=None)
+        if criterion is None:
+            continue
+        criterion_id = _capture(errors, _require_string, criterion, f"acceptance_criteria[{index}].id", default=None)
+        if criterion_id is None:
+            continue
         if not AC_ID.match(criterion_id):
-            raise PlanError(f"acceptance criterion id {criterion_id!r} must match AC-<number>")
+            errors.append(f"acceptance criterion id {criterion_id!r} must match AC-<number>")
         if criterion_id in ac_ids:
-            raise PlanError(f"duplicate acceptance criterion id {criterion_id}")
+            errors.append(f"duplicate acceptance criterion id {criterion_id}")
         ac_ids.add(criterion_id)
-        scenario_id = _require_string(criterion, f"acceptance_criteria[{index}].scenario")
-        if scenario_id not in scenario_ids:
-            raise PlanError(f"{criterion_id} references unknown scenario {scenario_id}")
-        text = _require_string(criterion, f"acceptance_criteria[{index}].text")
+        scenario_id = _capture(errors, _require_string, criterion, f"acceptance_criteria[{index}].scenario", default=None)
+        if scenario_id is not None and scenario_id not in scenario_ids:
+            errors.append(f"{criterion_id} references unknown scenario {scenario_id}")
+        text = _capture(errors, _require_string, criterion, f"acceptance_criteria[{index}].text", default="")
 
         if "status" in criterion and criterion["status"] not in VALID_AC_STATUSES:
-            raise PlanError(f"{criterion_id}.status must be one of {', '.join(sorted(VALID_AC_STATUSES))}")
+            errors.append(f"{criterion_id}.status must be one of {', '.join(sorted(VALID_AC_STATUSES))}")
         if "coverage_status" in criterion and criterion["coverage_status"] not in VALID_COVERAGE_STATUSES:
-            raise PlanError(f"{criterion_id}.coverage_status must be one of {', '.join(sorted(VALID_COVERAGE_STATUSES))}")
+            errors.append(f"{criterion_id}.coverage_status must be one of {', '.join(sorted(VALID_COVERAGE_STATUSES))}")
         if "verification_scope" in criterion and criterion["verification_scope"] not in VALID_VERIFICATION_SCOPES:
-            raise PlanError(f"{criterion_id}.verification_scope must be one of {', '.join(sorted(VALID_VERIFICATION_SCOPES))}")
+            errors.append(f"{criterion_id}.verification_scope must be one of {', '.join(sorted(VALID_VERIFICATION_SCOPES))}")
 
-        verification_ids = _optional_string_list(criterion.get("verification_ids"), f"acceptance_criteria[{index}].verification_ids")
+        verification_ids = _capture(
+            errors,
+            _optional_string_list,
+            criterion.get("verification_ids"),
+            f"acceptance_criteria[{index}].verification_ids",
+            default=[],
+        )
         if schema_version >= 2:
             for field in ("required", "status", "coverage_status", "verification_scope"):
                 if field not in criterion:
-                    raise PlanError(f"{criterion_id} Schema V2 record requires {field}")
-            if not isinstance(criterion["required"], bool):
-                raise PlanError(f"{criterion_id}.required must be boolean")
-            if criterion["required"] and criterion.get("coverage_status") == "covered" and not verification_ids:
-                raise PlanError(f"{criterion_id} requires verification_ids when coverage_status is covered")
+                    errors.append(f"{criterion_id} Schema V2 record requires {field}")
+            if "required" in criterion and not isinstance(criterion["required"], bool):
+                errors.append(f"{criterion_id}.required must be boolean")
+            if criterion.get("required") is True and criterion.get("coverage_status") == "covered" and not verification_ids:
+                errors.append(f"{criterion_id} requires verification_ids when coverage_status is covered")
         if schema_version >= 3:
-            specification_assertions = _string_list(
+            specification_assertions = _capture(
+                errors,
+                _string_list,
                 criterion.get("specification_assertions"),
                 f"{criterion_id}.specification_assertions",
+                default=[],
             )
             for assertion_id in specification_assertions:
                 if not re.fullmatch(r"[a-z][a-z0-9]*(?:[.-][a-z0-9][a-z0-9-]*)+", assertion_id):
-                    raise PlanError(f"{criterion_id}.specification_assertions contains invalid assertion id {assertion_id!r}")
+                    errors.append(f"{criterion_id}.specification_assertions contains invalid assertion id {assertion_id!r}")
         if verification_ids and criterion.get("coverage_status") in {"uncovered", "ambiguous"}:
-            raise PlanError(f"{criterion_id} has verification_ids but coverage_status is {criterion.get('coverage_status')}")
+            errors.append(f"{criterion_id} has verification_ids but coverage_status is {criterion.get('coverage_status')}")
         if criterion.get("status") == "satisfied" and criterion.get("coverage_status") in {"uncovered", "ambiguous"}:
-            raise PlanError(f"{criterion_id} cannot be satisfied while coverage_status is {criterion.get('coverage_status')}")
+            errors.append(f"{criterion_id} cannot be satisfied while coverage_status is {criterion.get('coverage_status')}")
         if any(pattern.match(text) for pattern in BROAD_AC_PATTERNS) and criterion.get("coverage_status") != "ambiguous":
-            raise PlanError(f"{criterion_id} is vague and must use coverage_status: ambiguous until scoped checks are defined")
+            errors.append(f"{criterion_id} is vague and must use coverage_status: ambiguous until scoped checks are defined")
         ac_by_id[criterion_id] = criterion
+    if errors:
+        raise PlanError(errors, partial=(ac_ids, ac_by_id))
     return ac_ids, ac_by_id
 
 
@@ -244,57 +278,62 @@ def _validate_evidence(
 def _validate_tests(data: dict[str, Any], ac_ids: set[str], schema_version: int) -> tuple[set[str], set[str]]:
     covered: set[str] = set()
     test_ids: set[str] = set()
+    errors: list[str] = []
     for index, test in enumerate(_as_list(data.get("tests"), "tests"), start=1):
-        test = _as_mapping(test, f"tests[{index}]")
-        test_id = _require_string(test, f"tests[{index}].id")
+        test = _capture(errors, _as_mapping, test, f"tests[{index}]", default=None)
+        if test is None:
+            continue
+        test_id = _capture(errors, _require_string, test, f"tests[{index}].id", default=None)
+        if test_id is None:
+            continue
         if not TEST_ID.match(test_id):
-            raise PlanError(f"test id {test_id!r} must match T-<UPPERCASE-ID>")
+            errors.append(f"test id {test_id!r} must match T-<UPPERCASE-ID>")
         if test_id in test_ids:
-            raise PlanError(f"duplicate test id {test_id}")
+            errors.append(f"duplicate test id {test_id}")
         test_ids.add(test_id)
 
-        test_type = _require_string(test, f"tests[{index}].type")
-        if test_type not in VALID_TEST_TYPES:
-            raise PlanError(f"{test_id} has unsupported type {test_type!r}")
-        if test_type != "manual":
-            _require_string(test, f"tests[{index}].file")
-            _require_string(test, f"tests[{index}].command")
-        assertions = _as_list(test.get("assertions"), f"tests[{index}].assertions")
-        if not all(isinstance(item, str) and item.strip() for item in assertions):
-            raise PlanError(f"{test_id}.assertions must contain non-empty strings")
+        test_type = _capture(errors, _require_string, test, f"tests[{index}].type", default=None)
+        if test_type is not None and test_type not in VALID_TEST_TYPES:
+            errors.append(f"{test_id} has unsupported type {test_type!r}")
+        if test_type is not None and test_type != "manual":
+            _capture(errors, _require_string, test, f"tests[{index}].file")
+            _capture(errors, _require_string, test, f"tests[{index}].command")
+        assertions = _capture(errors, _as_list, test.get("assertions"), f"tests[{index}].assertions", default=[])
+        if assertions and not all(isinstance(item, str) and item.strip() for item in assertions):
+            errors.append(f"{test_id}.assertions must contain non-empty strings")
         if schema_version >= 3:
-            _string_list(test.get("specification_assertions"), f"{test_id}.specification_assertions")
+            _capture(errors, _string_list, test.get("specification_assertions"), f"{test_id}.specification_assertions")
 
-        covers = _as_list(test.get("covers"), f"tests[{index}].covers")
+        covers = _capture(errors, _as_list, test.get("covers"), f"tests[{index}].covers", default=[])
         for criterion_id in covers:
             if criterion_id not in ac_ids:
-                raise PlanError(f"{test_id} covers unknown acceptance criterion {criterion_id}")
+                errors.append(f"{test_id} covers unknown acceptance criterion {criterion_id}")
             covered.add(criterion_id)
 
-        red_phase = _as_mapping(test.get("red_phase"), f"tests[{index}].red_phase")
-        green_phase = _as_mapping(test.get("green_phase"), f"tests[{index}].green_phase")
-        if "required" not in red_phase or "expected" not in red_phase:
-            raise PlanError(f"{test_id}.red_phase must include required and expected")
-        if "required" not in green_phase or "expected" not in green_phase:
-            raise PlanError(f"{test_id}.green_phase must include required and expected")
-        _validate_evidence(
-            red_phase.get("evidence"),
-            record_id=test_id,
-            phase="red_phase",
-            schema_version=schema_version,
-        )
-        _validate_evidence(
-            green_phase.get("evidence"),
-            record_id=test_id,
-            phase="green_phase",
-            schema_version=schema_version,
-        )
+        red_phase = _capture(errors, _as_mapping, test.get("red_phase"), f"tests[{index}].red_phase", default=None)
+        green_phase = _capture(errors, _as_mapping, test.get("green_phase"), f"tests[{index}].green_phase", default=None)
+        if red_phase is not None:
+            if "required" not in red_phase or "expected" not in red_phase:
+                errors.append(f"{test_id}.red_phase must include required and expected")
+            _capture(
+                errors, _validate_evidence, red_phase.get("evidence"),
+                record_id=test_id, phase="red_phase", schema_version=schema_version,
+            )
+        if green_phase is not None:
+            if "required" not in green_phase or "expected" not in green_phase:
+                errors.append(f"{test_id}.green_phase must include required and expected")
+            _capture(
+                errors, _validate_evidence, green_phase.get("evidence"),
+                record_id=test_id, phase="green_phase", schema_version=schema_version,
+            )
         if test_type == "playwright":
-            target = _require_string(test, f"tests[{index}].target")
-            if target != "app.dev.openmates.org":
-                raise PlanError(f"{test_id} Playwright target must be app.dev.openmates.org")
-            if green_phase.get("expected") != "pass_after_deploy":
-                raise PlanError(f"{test_id} Playwright green_phase.expected must be pass_after_deploy")
+            target = _capture(errors, _require_string, test, f"tests[{index}].target", default=None)
+            if target is not None and target != "app.dev.openmates.org":
+                errors.append(f"{test_id} Playwright target must be app.dev.openmates.org")
+            if green_phase is not None and green_phase.get("expected") != "pass_after_deploy":
+                errors.append(f"{test_id} Playwright green_phase.expected must be pass_after_deploy")
+    if errors:
+        raise PlanError(errors, partial=(covered, test_ids))
     return covered, test_ids
 
 
@@ -328,36 +367,49 @@ def _validate_verifications(data: dict[str, Any], ac_ids: set[str], schema_versi
         return set(), set()
     seen: set[str] = set()
     covered: set[str] = set()
+    errors: list[str] = []
     for index, verification in enumerate(_as_list(verifications, "verifications"), start=1):
-        verification = _as_mapping(verification, f"verifications[{index}]")
-        verification_id = _require_string(verification, f"verifications[{index}].id")
+        verification = _capture(errors, _as_mapping, verification, f"verifications[{index}]", default=None)
+        if verification is None:
+            continue
+        verification_id = _capture(errors, _require_string, verification, f"verifications[{index}].id", default=None)
+        if verification_id is None:
+            continue
         if not VERIFICATION_ID.match(verification_id):
-            raise PlanError(f"verification id {verification_id!r} must match V-<UPPERCASE-ID>")
+            errors.append(f"verification id {verification_id!r} must match V-<UPPERCASE-ID>")
         if verification_id in seen:
-            raise PlanError(f"duplicate verification id {verification_id}")
+            errors.append(f"duplicate verification id {verification_id}")
         seen.add(verification_id)
-        kind = _require_string(verification, f"verifications[{index}].kind")
-        if kind not in VALID_VERIFICATION_KINDS:
-            raise PlanError(f"{verification_id}.kind must be one of {', '.join(sorted(VALID_VERIFICATION_KINDS))}")
+        kind = _capture(errors, _require_string, verification, f"verifications[{index}].kind", default=None)
+        if kind is not None and kind not in VALID_VERIFICATION_KINDS:
+            errors.append(f"{verification_id}.kind must be one of {', '.join(sorted(VALID_VERIFICATION_KINDS))}")
         phase = verification.get("phase", "final")
         if phase not in VALID_VERIFICATION_PHASES:
-            raise PlanError(f"{verification_id}.phase must be one of {', '.join(sorted(VALID_VERIFICATION_PHASES))}")
+            errors.append(f"{verification_id}.phase must be one of {', '.join(sorted(VALID_VERIFICATION_PHASES))}")
         status = verification.get("status", "pending")
         if status not in VALID_VERIFICATION_STATUSES:
-            raise PlanError(f"{verification_id}.status must be one of {', '.join(sorted(VALID_VERIFICATION_STATUSES))}")
-        for criterion_id in _optional_string_list(verification.get("covers"), f"verifications[{index}].covers"):
+            errors.append(f"{verification_id}.status must be one of {', '.join(sorted(VALID_VERIFICATION_STATUSES))}")
+        refs = _capture(
+            errors, _optional_string_list, verification.get("covers"),
+            f"verifications[{index}].covers", default=[],
+        )
+        for criterion_id in refs:
             if criterion_id not in ac_ids:
-                raise PlanError(f"{verification_id} covers unknown acceptance criterion {criterion_id}")
+                errors.append(f"{verification_id} covers unknown acceptance criterion {criterion_id}")
             covered.add(criterion_id)
         if verification.get("required_for_done") is True and phase in {"green", "final"} and status in {"failed", "pending"}:
             # Pending required checks are allowed while drafting/implementing; spec_verify enforces evidence before completion.
             pass
-        _validate_evidence(
+        _capture(
+            errors,
+            _validate_evidence,
             verification.get("evidence"),
             record_id=verification_id,
             phase=phase,
             schema_version=schema_version,
         )
+    if errors:
+        raise PlanError(errors, partial=(seen, covered))
     return seen, covered
 
 
@@ -565,73 +617,93 @@ def _validate_tasks(
                 if dependency not in seen:
                     errors.append(f"{task_id} depends on unknown task {dependency}")
     if errors:
-        raise PlanError(errors)
+        raise PlanError(errors, partial=seen)
     return seen
 
 
 def _validate_schema_v2(data: dict[str, Any], task_ids: set[str], path: Path) -> None:
-    implementation_state = _as_mapping(data.get("implementation_state"), "implementation_state")
-    _require_string(implementation_state, "implementation_state.subject_commit")
+    errors: list[str] = []
+    implementation_state = _capture(errors, _as_mapping, data.get("implementation_state"), "implementation_state", default=None)
+    if implementation_state is not None:
+        _capture(errors, _require_string, implementation_state, "implementation_state.subject_commit")
 
-    approvals = _as_mapping(data.get("approvals"), "approvals")
-    for approval_name in ("specification", "plan"):
-        approval = _as_mapping(approvals.get(approval_name), f"approvals.{approval_name}")
-        status = _require_string(approval, f"approvals.{approval_name}.status")
-        if status not in VALID_APPROVAL_STATUSES:
-            raise PlanError(f"approvals.{approval_name}.status must be one of {', '.join(sorted(VALID_APPROVAL_STATUSES))}")
-        if status == "approved":
-            _require_string(approval, f"approvals.{approval_name}.approved_at")
-        if status in {"not_required", "waived", "blocked"}:
-            _require_string(approval, f"approvals.{approval_name}.reason")
+    approvals = _capture(errors, _as_mapping, data.get("approvals"), "approvals", default=None)
+    if approvals is not None:
+        for approval_name in ("specification", "plan"):
+            approval = _capture(errors, _as_mapping, approvals.get(approval_name), f"approvals.{approval_name}", default=None)
+            if approval is None:
+                continue
+            status = _capture(errors, _require_string, approval, f"approvals.{approval_name}.status", default=None)
+            if status is not None and status not in VALID_APPROVAL_STATUSES:
+                errors.append(f"approvals.{approval_name}.status must be one of {', '.join(sorted(VALID_APPROVAL_STATUSES))}")
+            if status == "approved":
+                _capture(errors, _require_string, approval, f"approvals.{approval_name}.approved_at")
+            if status in {"not_required", "waived", "blocked"}:
+                _capture(errors, _require_string, approval, f"approvals.{approval_name}.reason")
 
-    for index, decision in enumerate(_as_list(data.get("decisions"), "decisions"), start=1):
-        decision = _as_mapping(decision, f"decisions[{index}]")
-        _require_string(decision, f"decisions[{index}].id")
-        status = _require_string(decision, f"decisions[{index}].status")
-        if status not in VALID_DECISION_STATUSES:
-            raise PlanError(f"decisions[{index}].status must be one of {', '.join(sorted(VALID_DECISION_STATUSES))}")
+    decisions = _capture(errors, _as_list, data.get("decisions"), "decisions", default=[])
+    for index, decision in enumerate(decisions, start=1):
+        decision = _capture(errors, _as_mapping, decision, f"decisions[{index}]", default=None)
+        if decision is None:
+            continue
+        _capture(errors, _require_string, decision, f"decisions[{index}].id")
+        status = _capture(errors, _require_string, decision, f"decisions[{index}].status", default=None)
+        if status is not None and status not in VALID_DECISION_STATUSES:
+            errors.append(f"decisions[{index}].status must be one of {', '.join(sorted(VALID_DECISION_STATUSES))}")
         for field in ("decision", "reason", "decided_at"):
-            _require_string(decision, f"decisions[{index}].{field}")
+            _capture(errors, _require_string, decision, f"decisions[{index}].{field}")
 
-    for index, attempt in enumerate(_as_list(data.get("attempts"), "attempts"), start=1):
-        attempt = _as_mapping(attempt, f"attempts[{index}]")
-        _require_string(attempt, f"attempts[{index}].id")
-        task_id = _require_string(attempt, f"attempts[{index}].task_id")
-        if task_id not in task_ids:
-            raise PlanError(f"attempts[{index}].task_id references unknown task {task_id}")
-        outcome = _require_string(attempt, f"attempts[{index}].outcome")
-        if outcome not in VALID_ATTEMPT_OUTCOMES:
-            raise PlanError(f"attempts[{index}].outcome must be one of {', '.join(sorted(VALID_ATTEMPT_OUTCOMES))}")
+    attempts = _capture(errors, _as_list, data.get("attempts"), "attempts", default=[])
+    for index, attempt in enumerate(attempts, start=1):
+        attempt = _capture(errors, _as_mapping, attempt, f"attempts[{index}]", default=None)
+        if attempt is None:
+            continue
+        _capture(errors, _require_string, attempt, f"attempts[{index}].id")
+        task_id = _capture(errors, _require_string, attempt, f"attempts[{index}].task_id", default=None)
+        if task_id is not None and task_id not in task_ids:
+            errors.append(f"attempts[{index}].task_id references unknown task {task_id}")
+        outcome = _capture(errors, _require_string, attempt, f"attempts[{index}].outcome", default=None)
+        if outcome is not None and outcome not in VALID_ATTEMPT_OUTCOMES:
+            errors.append(f"attempts[{index}].outcome must be one of {', '.join(sorted(VALID_ATTEMPT_OUTCOMES))}")
         for field in ("approach", "recorded_at"):
-            _require_string(attempt, f"attempts[{index}].{field}")
+            _capture(errors, _require_string, attempt, f"attempts[{index}].{field}")
 
-    handoff = _as_mapping(data.get("handoff"), "handoff")
-    current_task_id = _require_string(handoff, "handoff.current_task_id")
-    if current_task_id not in task_ids:
-        raise PlanError(f"handoff.current_task_id references unknown task {current_task_id}")
-    for field in ("next_action", "command", "expected_outcome", "last_verified_commit"):
-        _require_string(handoff, f"handoff.{field}")
-    blocker = handoff.get("blocker")
-    if blocker is not None and not isinstance(blocker, dict):
-        raise PlanError("handoff.blocker must be null or a mapping")
+    handoff = _capture(errors, _as_mapping, data.get("handoff"), "handoff", default=None)
+    if handoff is not None:
+        current_task_id = _capture(errors, _require_string, handoff, "handoff.current_task_id", default=None)
+        if current_task_id is not None and current_task_id not in task_ids:
+            errors.append(f"handoff.current_task_id references unknown task {current_task_id}")
+        for field in ("next_action", "command", "expected_outcome", "last_verified_commit"):
+            _capture(errors, _require_string, handoff, f"handoff.{field}")
+        blocker = handoff.get("blocker")
+        if blocker is not None and not isinstance(blocker, dict):
+            errors.append("handoff.blocker must be null or a mapping")
 
     if "implementation_notes" in data:
-        plan = _as_mapping(data["implementation_notes"], "implementation_notes")
+        plan = _capture(errors, _as_mapping, data["implementation_notes"], "implementation_notes", default=None)
+        if plan is None:
+            if errors:
+                raise PlanError(errors)
+            return
         for field in ("plan_path", "architecture"):
-            _require_string(plan, f"implementation_notes.{field}")
+            _capture(errors, _require_string, plan, f"implementation_notes.{field}")
         try:
             relative_plan_path = path.resolve().relative_to((REPO_ROOT / "docs" / "plans").resolve())
             expected_plan_path = f"docs/plans/{relative_plan_path.as_posix()}"
         except ValueError:
             expected_plan_path = f"docs/plans/{data['id']}/plan.yml"
-        if plan["plan_path"] != expected_plan_path:
-            raise PlanError(f"implementation_notes.plan_path must be {expected_plan_path}")
+        if isinstance(plan.get("plan_path"), str) and plan["plan_path"] != expected_plan_path:
+            errors.append(f"implementation_notes.plan_path must be {expected_plan_path}")
         for field in ("existing_patterns", "data_flow", "affected_files", "verification_strategy", "verification_order"):
-            _as_list(plan.get(field), f"implementation_notes.{field}")
-        for index, affected_file in enumerate(_as_list(plan.get("affected_files"), "implementation_notes.affected_files"), start=1):
-            affected_file = _as_mapping(affected_file, f"implementation_notes.affected_files[{index}]")
-            _require_string(affected_file, f"implementation_notes.affected_files[{index}].path")
-            _require_string(affected_file, f"implementation_notes.affected_files[{index}].reason")
+            _capture(errors, _as_list, plan.get(field), f"implementation_notes.{field}")
+        affected_files = _capture(errors, _as_list, plan.get("affected_files"), "implementation_notes.affected_files", default=[])
+        for index, affected_file in enumerate(affected_files, start=1):
+            affected_file = _capture(errors, _as_mapping, affected_file, f"implementation_notes.affected_files[{index}]", default=None)
+            if affected_file is not None:
+                _capture(errors, _require_string, affected_file, f"implementation_notes.affected_files[{index}].path")
+                _capture(errors, _require_string, affected_file, f"implementation_notes.affected_files[{index}].reason")
+    if errors:
+        raise PlanError(errors)
 
 
 def _validate_schema_v3(data: dict[str, Any]) -> None:
@@ -681,26 +753,38 @@ def _validate_schema_v3(data: dict[str, Any]) -> None:
 
 def validate_plan(path: Path) -> dict[str, Any]:
     data = _load_yaml(path)
-    _require_string(data, "id")
-    _require_string(data, "title")
-    status = _require_string(data, "status")
-    if status not in VALID_STATUSES:
-        raise PlanError(f"status must be one of {', '.join(sorted(VALID_STATUSES))}")
-    _require_string(data, "goal")
+    errors: list[str] = []
+    _capture(errors, _require_string, data, "id")
+    _capture(errors, _require_string, data, "title")
+    status = _capture(errors, _require_string, data, "status", default=None)
+    if status is not None and status not in VALID_STATUSES:
+        errors.append(f"status must be one of {', '.join(sorted(VALID_STATUSES))}")
+    _capture(errors, _require_string, data, "goal")
 
     strict = data.get("profile") == "strict" or "schema_version" in data
     if not strict:
-        _validate_assumptions(data, schema_version=1)
+        _capture(errors, _validate_assumptions, data, schema_version=1)
+        if errors:
+            raise PlanError(errors)
         return data
 
-    schema_version = _schema_version(data)
-    _validate_scope(data)
-    scenario_ids = _validate_scenarios(data)
-    ac_ids, ac_by_id = _validate_acceptance_criteria(data, scenario_ids, schema_version)
-    covered_ac_ids, test_ids = _validate_tests(data, ac_ids, schema_version)
-    _validate_assumptions(data, schema_version)
-    verification_ids, verification_covered_ac_ids = _validate_verifications(data, ac_ids, schema_version)
-    _validate_demonstration(
+    schema_version = _capture(errors, _schema_version, data, default=1)
+    _capture(errors, _validate_scope, data)
+    scenario_ids = _capture(errors, _validate_scenarios, data, default=set())
+    ac_ids, ac_by_id = _capture(
+        errors, _validate_acceptance_criteria, data, scenario_ids, schema_version,
+        default=(set(), {}),
+    )
+    covered_ac_ids, test_ids = _capture(
+        errors, _validate_tests, data, ac_ids, schema_version, default=(set(), set()),
+    )
+    _capture(errors, _validate_assumptions, data, schema_version)
+    verification_ids, verification_covered_ac_ids = _capture(
+        errors, _validate_verifications, data, ac_ids, schema_version, default=(set(), set()),
+    )
+    _capture(
+        errors,
+        _validate_demonstration,
         data,
         scenario_ids=scenario_ids,
         ac_ids=ac_ids,
@@ -709,20 +793,29 @@ def validate_plan(path: Path) -> dict[str, Any]:
     all_verification_refs = test_ids | verification_ids
     covered_ac_ids |= verification_covered_ac_ids
     for criterion_id, criterion in ac_by_id.items():
-        for verification_id in _optional_string_list(criterion.get("verification_ids"), f"{criterion_id}.verification_ids"):
+        refs = _capture(
+            errors, _optional_string_list, criterion.get("verification_ids"),
+            f"{criterion_id}.verification_ids", default=[],
+        )
+        for verification_id in refs:
             if all_verification_refs and verification_id not in all_verification_refs:
-                raise PlanError(f"{criterion_id} references unknown verification/test {verification_id}")
+                errors.append(f"{criterion_id} references unknown verification/test {verification_id}")
             covered_ac_ids.add(criterion_id)
         if criterion.get("coverage_status") in {"blocked", "waived"}:
             covered_ac_ids.add(criterion_id)
-    task_ids = _validate_tasks(data, scenario_ids, ac_ids, test_ids, verification_ids, schema_version)
+    task_ids = _capture(
+        errors, _validate_tasks, data, scenario_ids, ac_ids, test_ids, verification_ids,
+        schema_version, default=set(),
+    )
     missing_coverage = sorted(ac_ids - covered_ac_ids)
     if missing_coverage:
-        raise PlanError(f"acceptance criteria without test coverage: {', '.join(missing_coverage)}")
+        errors.append(f"acceptance criteria without test coverage: {', '.join(missing_coverage)}")
     if schema_version >= 2:
-        _validate_schema_v2(data, task_ids, path)
+        _capture(errors, _validate_schema_v2, data, task_ids, path)
     if schema_version >= 3:
-        _validate_schema_v3(data)
+        _capture(errors, _validate_schema_v3, data)
+    if errors:
+        raise PlanError(errors)
     return data
 
 

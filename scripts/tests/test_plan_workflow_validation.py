@@ -157,6 +157,38 @@ def test_implementation_notes_plan_path_matches_canonical_plan(tmp_path: Path) -
         validator.validate_plan(plan)
 
 
+def test_validator_reports_errors_across_independent_plan_sections(tmp_path: Path) -> None:
+    validator = load_plan_validator()
+    source = ROOT / "docs" / "plans" / "specification-plan-terminology-migration" / "plan.yml"
+    plan_data = yaml.safe_load(source.read_text(encoding="utf-8"))
+    plan_data["acceptance_criteria"][0]["verification_scope"] = "backend"
+    plan_data["tests"][0]["type"] = "node"
+    plan_data["verifications"][0]["kind"] = "live_check"
+    plan_data["verifications"][0]["phase"] = "post_deploy"
+    plan_data["tasks"][0]["phase"] = "implementation"
+    plan_data["tasks"][0].pop("follow_up_tasks")
+    plan_data["implementation_state"] = None
+    plan_data["decisions"][0]["decided_at"] = ""
+    plan_data["attempts"] = []
+    plan_data["implementation_notes"]["existing_patterns"] = []
+
+    with pytest.raises(validator.PlanError) as raised:
+        validator.validate_plan(write_plan(tmp_path, plan_data))
+
+    message = str(raised.value)
+    assert len(raised.value.errors) == 10
+    assert "AC-1.verification_scope" in message
+    assert "T-MIGRATION has unsupported type 'node'" in message
+    assert "V-AGENT-PARITY.kind" in message
+    assert "V-AGENT-PARITY.phase" in message
+    assert "TASK-1.phase" in message
+    assert "TASK-1 Schema V2 record requires follow_up_tasks" in message
+    assert "implementation_state must be a mapping" in message
+    assert "decisions[1].decided_at must be a non-empty string" in message
+    assert "attempts must be a non-empty list" in message
+    assert "implementation_notes.existing_patterns must be a non-empty list" in message
+
+
 def test_strict_plan_requires_full_implementation_ledger(tmp_path: Path) -> None:
     validator = load_plan_validator()
     plan = write_plan(
