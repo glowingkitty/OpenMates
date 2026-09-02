@@ -59,7 +59,7 @@ function splitLongParagraph(paragraph: string): string[] {
   return chunks;
 }
 
-function projectParagraph(markdown: string): Omit<ProjectedAssistantSpeechSegment, "sequence"> {
+function projectParagraph(markdown: string): Omit<ProjectedAssistantSpeechSegment, "sequence" | "chapter"> {
   const trimmed = markdown.trim();
   if (/^```[\s\S]*```$/.test(trimmed)) return { kind: "code_summary", speakableText: "A code example is available." };
   const lines = trimmed.split("\n").filter((line) => line.trim());
