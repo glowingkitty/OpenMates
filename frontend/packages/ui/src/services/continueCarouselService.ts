@@ -117,6 +117,7 @@ function getSavedItemTimeWindow(itemValue: Record<string, unknown>): { startMs: 
     parseTime(itemValue.starts_at) ??
     parseTime(itemValue.datetime) ??
     parseTime(itemValue.appointment_time) ??
+    parseTime(itemValue.date) ??
     parseTime(itemValue.available_from);
 
   const endMs =
@@ -265,7 +266,10 @@ export function getSavedEmbedContinueCandidates(
 
         const presentation = getSavedItemPresentation(appId, groupName, itemValue);
         const reminderMatch = remindersByEmbedId.get(embedId);
-        const priority = reminderMatch?.priority ?? getSavedItemPriority(itemValue, nowMs, presentation.itemLabel);
+        const { startMs, endMs } = getSavedItemTimeWindow(itemValue);
+        const priority = startMs || endMs
+          ? getSavedItemPriority(itemValue, nowMs, presentation.itemLabel)
+          : reminderMatch?.priority;
         if (!priority) continue;
 
         candidates.push({

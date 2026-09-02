@@ -270,6 +270,7 @@ export function buildSavedEmbedConfigFromDecodedContent({
         appointment_type: 'doctor_visit',
         where: [asString(decodedContent.name), asString(decodedContent.speciality)].filter(Boolean).join(' | '),
         date: getSlotDate(slot),
+        appointment_time: slot || '',
         notes: [asString(decodedContent.address), bookingUrl].filter(Boolean).join('\n'),
       },
     };

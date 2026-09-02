@@ -111,6 +111,16 @@ describe('continueCarouselService', () => {
               appointment_time: new Date(NOW_MS + 23 * 60 * 60 * 1000).toISOString(),
             },
           },
+          {
+            id: 'legacy-far-appointment-entry',
+            item_key: 'legacy-far-appointment',
+            settings_group: 'appointments',
+            item_value: {
+              embed_id: 'legacy-far-appointment-embed',
+              title: 'Legacy Friday appointment',
+              date: '2026-05-15',
+            },
+          },
         ],
       }],
     ]);
@@ -119,6 +129,7 @@ describe('continueCarouselService', () => {
       reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'future-embed', trigger_at: NOW_SECONDS + 15 * 60 }),
       reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'far-appointment-embed', trigger_at: NOW_SECONDS + 22 * 60 * 60 }),
       reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'near-appointment-embed', trigger_at: NOW_SECONDS + 2 * 60 * 60 }),
+      reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'legacy-far-appointment-embed', trigger_at: NOW_SECONDS + 22 * 60 * 60 }),
     ];
     const remindersByEmbedId = getReminderByTargetEmbedId(reminders, NOW_MS);
 
@@ -134,6 +145,7 @@ describe('continueCarouselService', () => {
       'near-appointment-embed',
     ]);
     expect(candidates.find((candidate) => candidate.embedId === 'far-appointment-embed')).toBeUndefined();
+    expect(candidates.find((candidate) => candidate.embedId === 'legacy-far-appointment-embed')).toBeUndefined();
     expect(candidates.find((candidate) => candidate.embedId === 'future-embed')?.priority.label).toBe('Event in 3h');
     expect(candidates.find((candidate) => candidate.embedId === 'near-appointment-embed')?.priority.label).toBe('Appointment in 23h');
   });
