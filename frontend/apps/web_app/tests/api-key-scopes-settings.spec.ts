@@ -115,5 +115,6 @@ test.describe('API-key scope selection settings', () => {
 			await expect(page.getByTestId('api-key-scope-task-read-toggle').locator('input')).not.toBeChecked();
 		});
 		await proof.checkpoint('independent-selection');
+		await proof.attach();
 	});
 });
