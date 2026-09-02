@@ -237,6 +237,11 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
         {"action": "create", "title": "Private new title", "description": "Private body"},
         cli_runner=cli,
     )
+    started = sessions._openmates_task_tool(
+        "ses_parent",
+        {"action": "start", "task_id": "TASK-9"},
+        cli_runner=cli,
+    )
     blocked = sessions._openmates_task_tool(
         "ses_parent",
         {
@@ -249,6 +254,7 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
     )
 
     assert created["task"]["short_id"] == "TASK-9"
+    assert started["task"]["short_id"] == "TASK-9"
     assert blocked["task"]["short_id"] == "TASK-9"
     assert calls == [
         [
@@ -257,6 +263,10 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
         ],
         [
             "tasks", "edit", "uuid-TASK-9", "--assign", "ai",
+            "--external-chat", "opencode:ses_parent", "--json",
+        ],
+        [
+            "tasks", "edit", "TASK-9", "--status", "in_progress",
             "--external-chat", "opencode:ses_parent", "--json",
         ],
         [

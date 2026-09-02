@@ -10753,7 +10753,10 @@ def _openmates_task_tool(
     if action == "show":
         return cli_runner(["tasks", "show", task_id, *scope, "--json"])
     if action == "start":
-        return cli_runner(["tasks", "start", task_id, *scope, "--json"])
+        # The generic status mutation is supported for AI-owned external-chat
+        # Tasks, while the specialized CLI `start` transition can reject that
+        # otherwise valid ownership/context combination.
+        return cli_runner(["tasks", "edit", task_id, "--status", "in_progress", *scope, "--json"])
     if action == "edit":
         command = ["tasks", "edit", task_id]
         title = text_field("title", maximum=500)
