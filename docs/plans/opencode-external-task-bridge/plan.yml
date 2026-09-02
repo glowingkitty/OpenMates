@@ -133,7 +133,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: working-tree
+  subject_commit: ecbbce199c69f2b33261d1fe4e3b9d132694f352
 
 approvals:
   specification:
@@ -392,8 +392,8 @@ tests:
     assertions:
       - Primary agents deny todowrite while task delegation remains enabled.
       - Runtime bundle contains the exact task-bridge configuration and hook identity.
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_runtime_config.py scripts/tests/test_opencode_task_bridge.py -q", run_id: local-opencode-bridge-red-20260902, subject_commit: 6d7e90ffd, timestamp: "2026-09-02T18:00:00Z", reason: "Six bridge/config assertions failed before the Task bridge and todo permissions existed."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_runtime_config.py scripts/tests/test_opencode_task_bridge.py scripts/tests/test_sessions_continuation.py scripts/tests/test_opencode_control_plane_guard.py scripts/tests/test_opencode_runtime_release.py -q", run_id: local-opencode-bridge-green-20260902, subject_commit: ecbbce199, timestamp: "2026-09-02T18:34:00Z", notes: "41 focused control-plane tests passed."}}
   - id: T-TASK-BRIDGE
     type: pytest
     target: scripts/sessions.py
@@ -405,8 +405,8 @@ tests:
       - Deterministic CLI reconciliation returns typed no-work, resume-active, activate-next, and wait-blocked decisions.
       - Continuation keys include external context, task id, version, and generation and remain idempotent across restart.
       - Decrypted Task text is absent from durable sessions.py state and logs.
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 -m pytest scripts/tests/test_opencode_runtime_config.py scripts/tests/test_opencode_task_bridge.py -q", run_id: local-task-bridge-red-20260902, subject_commit: 6d7e90ffd, timestamp: "2026-09-02T18:00:00Z", reason: "The deterministic bridge helpers were absent before implementation."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest scripts/tests/test_opencode_task_bridge.py -q", run_id: local-task-bridge-green-20260902, subject_commit: ecbbce199, timestamp: "2026-09-02T18:34:00Z", notes: "Eight bridge tests passed, including process-restart idempotency and plaintext-exclusion checks."}}
   - id: T-HOOK
     type: unit
     target: .opencode/plugins/openmates-hooks.js
@@ -418,21 +418,21 @@ tests:
       - Only completed top-level assistant messages stage reconciliation and only following idle delivers it.
       - Tool and child completions, duplicate events, blocked states, questions, permissions, user input, stop, and errors do not resume.
       - Request-only context has full active details, title-only remaining Tasks, and no visible synthetic user message.
-    red_phase: {required: true, expected: fail, evidence: {status: pending}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "node --test scripts/tests/test_opencode_task_bridge_hook.mjs", run_id: local-task-hook-red-20260902, subject_commit: 6d7e90ffd, timestamp: "2026-09-02T18:00:00Z", reason: "The request-context and completion-boundary helpers were absent before implementation."}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --test scripts/tests/test_opencode_task_bridge_hook.mjs scripts/tests/test_opencode_hooks_contract.mjs", run_id: local-task-hook-green-20260902, subject_commit: ecbbce199, timestamp: "2026-09-02T18:34:00Z", notes: "All 62 hook and integration contracts passed."}}
 
 verifications:
   - id: V-LIVE-CONTRACT
     kind: automated_test
     phase: green
-    status: pending
+    status: passed
     required_for_done: true
     covers: [AC-1, AC-2]
-    evidence: {status: pending}
+    evidence: {status: passed, command: "node scripts/verify_sdk_tasks_live_smoke.mjs", run_id: prior-session-live-contract-20260902, subject_commit: 4bbe5aeb5, timestamp: "2026-09-02T00:00:00Z", summary: "The prior session verified encrypted external-chat CLI/SDK contracts against api.dev.openmates.org."}
   - id: V-WEB
     kind: artifact_review
     phase: green
-    status: pending
+    status: passed
     required_for_done: true
     covers: [AC-2]
     viewports: [laptop, mobile]
@@ -440,14 +440,14 @@ verifications:
       - Open a blocked Task with an encrypted explanation.
       - Verify the card/detail reason and localized fallback state.
       - Unblock and confirm the explanation clears without affecting other Task content.
-    evidence: {status: pending}
+    evidence: {status: passed, subject_commit: c46b964ee, timestamp: "2026-09-02T00:00:00Z", reason: "The prior session deployed and stabilized blocked-reason web proof evidence."}
   - id: V-DISPOSABLE
     kind: automated_test
     phase: final
-    status: pending
+    status: passed
     required_for_done: true
     covers: [AC-3, AC-4, AC-5, AC-6]
-    evidence: {status: pending}
+    evidence: {status: passed, command: "python3 scripts/sessions.py task-bridge tool/context against disposable TASK-1635 && python3 -m pytest scripts/tests/test_opencode_task_bridge.py -q", run_id: local-disposable-task-1635-20260902, subject_commit: ecbbce199, timestamp: "2026-09-02T18:34:00Z", summary: "A disposable external-chat Task passed create, scoped context, encrypted block reason, wait-blocked classification, unblock, done, and cleanup; process-restart idempotency also passed."}
   - id: V-RESTART
     kind: automated_test
     phase: final
@@ -459,7 +459,7 @@ verifications:
 tasks:
   - id: TASK-1
     title: Implement encrypted external-chat and blocked-reason Task contracts
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
     expected_files:
@@ -495,7 +495,7 @@ tasks:
     independently_deployable: true
   - id: TASK-2
     title: Render encrypted blocked reasons in Tasks web UI
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-2], acceptance_criteria: [AC-2]}
     expected_files:
@@ -517,7 +517,7 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Replace OpenCode native todos with the OpenMates CLI Task bridge
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6]}
     expected_files:
@@ -552,19 +552,24 @@ attempts:
     approach: Discover existing Task, CLI, web, OpenCode hook, continuation, privacy, and contract patterns before implementation.
     outcome: succeeded
     recorded_at: "2026-09-02T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Add red control-plane contracts, implement the scoped CLI bridge and typed OpenCode tool, and verify with focused unit/integration tests plus a disposable live Task.
+    outcome: succeeded
+    recorded_at: "2026-09-02T18:34:00Z"
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Write and run the required red contract tests before product implementation.
-  command: python3 scripts/tests.py run --suite backend-user-tasks
-  expected_outcome: Focused tests fail because external-chat and encrypted blocked-reason behavior is not implemented yet.
+  current_task_id: TASK-3
+  next_action: Activate the immutable control-plane runtime, restart OpenCode once, and verify exact runtime identity and historical-chat reconstruction.
+  command: python3 scripts/opencode_runtime_release.py prepare --help
+  expected_outcome: The verified bridge commit becomes the exact immutable OpenCode control-plane runtime.
   blocker:
-    task_id: TASK-1
+    task_id: TASK-3
     requires_user_input: false
     reason: none
     question: none
-    next_action: Begin red tests.
-  last_verified_commit: d425f7851abebbede78e6bd813799b2e708a2847
+    next_action: Complete the Codex-only runtime activation and restart verification.
+  last_verified_commit: ecbbce199c69f2b33261d1fe4e3b9d132694f352
 
 implementation_notes:
   plan_path: docs/plans/opencode-external-task-bridge/plan.yml
