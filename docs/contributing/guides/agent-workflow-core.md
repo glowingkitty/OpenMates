@@ -124,9 +124,12 @@ commands that require local Vercel metadata.
 
 For web UI elements, components, and screens, use the deployed component preview
 endpoint as the default verification surface before broader flow specs:
-`https://app.dev.openmates.org/dev/preview/{component-path}`. Render one
-component or screen fixture in a semantically valid default state, adding a
-colocated `.preview.ts` fixture when props, stores, or state are needed. Create a
+`https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every
+preview inspection, test, screenshot, and recording must include `chrome=0` so
+only the component is visible, never the configuration UI. Use the colocated
+`.preview.ts` default fixture for the standard state. Encode every non-default
+input or configuration in URL query parameters such as `variant`, `props`,
+`theme`, `background`, and `width`; do not operate preview controls. Create a
 focused component Playwright spec before broader flow specs; it must drive
 meaningful hover, focus, click, expanded/collapsed, and on/off states with
 assertions before named proof checkpoints. Use separate phone and laptop proof

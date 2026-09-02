@@ -5917,7 +5917,7 @@ def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int 
 
 def check_vercel_ready_for_commit(git_sha: str) -> list[str]:
     """Use the canonical run_tests.py Vercel wait so the gate is tied to a commit."""
-    print(f"E2E deploy gate: checking Vercel deployment for {git_sha[:9]}...", flush=True)
+    print(f"E2E deploy preflight: checking Vercel deployment for {git_sha[:9]}...", flush=True)
     spec = importlib.util.spec_from_file_location("openmates_run_tests_gate", RUN_TESTS_SCRIPT)
     if spec is None or spec.loader is None:
         return [f"Could not load {RUN_TESTS_SCRIPT}"]
@@ -5931,7 +5931,7 @@ def check_vercel_ready_for_commit(git_sha: str) -> list[str]:
 def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
     """Preflight E2E dispatch so agents do not test a stale or unreachable dev app."""
     if not run_targets_playwright(options.forwarded_args):
-        print("E2E deploy gate: SKIPPED (run does not target Playwright)")
+        print("E2E deploy preflight: SKIPPED (run does not target Playwright)")
         return False
     expected_commit = options.expected_commit or current_git_sha()
     subject_commit = resolve_test_subject_commit(
@@ -5942,12 +5942,12 @@ def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
     if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
         if options.require_exact_commit:
             raise RuntimeError("Exact-commit verification cannot skip the E2E deploy gate")
-        print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
+        print("E2E deploy preflight: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
         return False
     failures = [*check_vercel_ready_for_commit(subject_commit), *check_dev_health_urls()]
     if failures:
         raise RuntimeError("E2E deploy gate failed: " + "; ".join(failures))
-    print(f"E2E deploy gate: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
+    print(f"E2E deploy preflight: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
     return True
 
 
@@ -6315,11 +6315,18 @@ def command_run(runner_args: list[str]) -> int:
             response_media_run_type=playwright_response_media_run_type(options),
         )
         if not recorded_commit:
+            if deployment_verified:
+                print("E2E verification gate: FAILED (no valid run artifact was recorded)", file=sys.stderr)
             return 2 if options.expected_commit else returncode
         if options.campaign_key:
             artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
             if artifacts:
                 add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
+        if deployment_verified:
+            if returncode == 0:
+                print(f"E2E verification gate: PASSED ({recorded_commit[:9]})")
+            else:
+                print(f"E2E verification gate: FAILED (runner exited {returncode})", file=sys.stderr)
         return returncode
     finally:
         if dispatch_store and dispatch_key and not dispatch_terminal:

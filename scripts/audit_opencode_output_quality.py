@@ -167,6 +167,26 @@ REQUIRED_TEST_VIDEO_METADATA_TERMS = (
     "filename or repository-relative artifact path",
     "https://app.dev.openmates.org/dev/preview/{component-path}",
 )
+COMPONENT_PREVIEW_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    "docs/contributing/guides/testing.md",
+    "docs/contributing/standards/frontend.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/frontend.md",
+    ".claude/skills/verify-component-preview/SKILL.md",
+    ".agents/skills/verify-component-preview/SKILL.md",
+    ".claude/skills/verify-ui-change/SKILL.md",
+    ".agents/skills/verify-ui-change/SKILL.md",
+    ".claude/skills/create-demo-video/SKILL.md",
+    ".agents/skills/create-demo-video/SKILL.md",
+)
+REQUIRED_COMPONENT_PREVIEW_TERMS = (
+    "chrome=0",
+    "query parameters",
+    "default fixture",
+)
 SPECIFICATION_APPROVAL_GUIDANCE_PATHS = (
     "AGENTS.md",
     "CLAUDE.md",
@@ -330,6 +350,14 @@ def _audit_proof_media_guidance(root: Path) -> list[AuditIssue]:
         for term in REQUIRED_TEST_VIDEO_METADATA_TERMS:
             if term not in normalized:
                 issues.append(AuditIssue(rel_path, f"test video metadata guidance missing: {term}"))
+    for rel_path in COMPONENT_PREVIEW_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        normalized = " ".join(path.read_text(encoding="utf-8", errors="replace").split())
+        for term in REQUIRED_COMPONENT_PREVIEW_TERMS:
+            if term not in normalized:
+                issues.append(AuditIssue(rel_path, f"component preview guidance missing: {term}"))
     return issues
 
 

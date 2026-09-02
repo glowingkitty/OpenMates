@@ -52,8 +52,12 @@ opt-in.
   short freeze segments; never publish checkpoint-frame-only screenshot montages
   or a manifest with `rendered_from: spec_timeline_checkpoint_frames`.
 - For web UI component proofs, use the focused component spec recording from
-  `https://app.dev.openmates.org/dev/preview/{component-path}`. Publish the
-  component video for every modified UI component, use separate phone/laptop
+  `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every
+  inspection and recording must include `chrome=0` and show only the component,
+  never the configuration UI. Use the `.preview.ts` default fixture for the
+  standard state and encode every non-default input or configuration in URL
+  query parameters such as `variant`, `props`, `theme`, `background`, and
+  `width`. Publish the component video for every modified UI component, use separate phone/laptop
   profiles only when responsive behavior differs, and derive still frames only
   from the completed video for failures, explicit requests, or ambiguous visual
   inspection.

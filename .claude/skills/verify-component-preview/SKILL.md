@@ -15,7 +15,8 @@ spec. If Figma is involved, run `figma-reference` first.
 2. Ensure each component has a colocated `ComponentName.preview.ts` fixture
    with one semantically valid default state and named variants where static
    state differs.
-3. Open the deployed component in bare capture mode. The canonical URL is:
+3. Open the deployed component in bare capture mode for every inspection, test,
+   screenshot, and recording. The canonical URL is:
    `https://app.dev.openmates.org/dev/preview/{component-path}?theme=light&background=%23dbeafe&width={width}&chrome=0`.
 4. Confirm the page shows only the component on the requested background. The
    preview toolbar, component catalogue, breadcrumb, props editor, variant bar,
@@ -36,9 +37,12 @@ spec. If Figma is involved, run `figma-reference` first.
 
 - Include `// playwright-account: not_required reason=isolated_component_preview`
   when the fixture performs no authenticated server action.
-- Navigate only to a URL-configured bare preview with `chrome=0`.
-- Use query parameters for `theme`, `background`, `width`, `variant`, and
-  `props` as needed; do not operate the old preview controls to configure state.
+- Navigate only to a URL-configured bare preview with `chrome=0`; never inspect
+  or record the configuration UI.
+- Use the `.preview.ts` default fixture when testing the standard state. Use
+  query parameters for `theme`, `background`, `width`, `variant`, and `props`
+  for every non-default input or configuration; do not operate the old preview
+  controls to configure state.
 - Assert the component and its behavior directly. Never use
   `preview-toolbar`, `preview-back-link`, `breadcrumb-name`,
   `preview-status-bar`, the props editor, or the component catalogue as proof

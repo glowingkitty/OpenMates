@@ -76,9 +76,12 @@ order by default:
    rendering, screenshots, and user interaction behavior.
    For new or modified UI elements, components, and screens, start with a
    focused component spec against
-   `https://app.dev.openmates.org/dev/preview/{component-path}` before broader
-   flow specs. The preview must render one semantically valid default state using
-   a `.preview.ts` fixture when needed, and the spec should drive meaningful
+   `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0` before
+   broader flow specs. Every preview inspection, test, screenshot, and recording
+   must include `chrome=0` and show only the component, never the configuration
+   UI. Use the `.preview.ts` default fixture for the standard state and encode
+   every non-default input or configuration in URL query parameters such as
+   `variant`, `props`, `theme`, `background`, and `width`. The spec should drive meaningful
    hover, focus, click, expanded/collapsed, and on/off states with assertions
    before named proof checkpoints.
 5. **UI visual smoke fifth:** for larger user-visible web/UI changes, inspect the

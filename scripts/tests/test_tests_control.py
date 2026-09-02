@@ -1676,7 +1676,7 @@ def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):
     assert tests_control.active_lease_for_session(lease_id=lease["lease_id"])["lease_id"] == lease["lease_id"]
 
 
-def test_e2e_deploy_gate_checks_playwright_targets(tmp_path, monkeypatch):
+def test_e2e_deploy_gate_reports_preflight_not_test_success(tmp_path, monkeypatch, capsys):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     options = tests_control.ControlRunOptions(forwarded_args=["--spec", "chat-flow.spec.ts"], gate_deploy=True)
 
@@ -1685,6 +1685,10 @@ def test_e2e_deploy_gate_checks_playwright_targets(tmp_path, monkeypatch):
     monkeypatch.setattr(tests_control, "check_dev_health_urls", lambda: [])
 
     tests_control.run_e2e_deploy_gate(options)
+
+    output = capsys.readouterr().out
+    assert "E2E deploy preflight: PASSED" in output
+    assert "E2E deploy gate: PASSED" not in output
 
 
 def test_e2e_deploy_gate_blocks_stale_vercel_commit(tmp_path, monkeypatch):

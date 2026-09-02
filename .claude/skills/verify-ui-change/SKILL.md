@@ -36,8 +36,12 @@ integration point only.
    ```
    For UI elements, components, and screens, identify or create the focused
    component spec first. It should target
-   `https://app.dev.openmates.org/dev/preview/{component-path}`, render one
-   semantically valid default state from `.preview.ts` data when needed, and
+   `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every
+   inspection, test, screenshot, and recording must include `chrome=0` and show
+   only the component, never the configuration UI. Use the `.preview.ts` default
+   fixture for the standard state and encode every non-default input or
+   configuration in URL query parameters such as `variant`, `props`, `theme`,
+   `background`, and `width`. Then
    assert meaningful hover, focus, click, expanded/collapsed, and on/off states
    before named proof checkpoints. Broader route or flow specs come after this
    focused component spec.

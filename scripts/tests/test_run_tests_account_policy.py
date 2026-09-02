@@ -917,6 +917,48 @@ def test_deployed_single_spec_can_run_from_session_worktree(monkeypatch, tmp_pat
     ]
 
 
+def test_deployed_single_spec_can_run_when_control_runtime_lacks_file(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    assert run_tests._validate_requested_playwright_spec("new-at-ref.spec.ts", "abc123") == ""
+    assert calls == [[
+        "git",
+        "cat-file",
+        "-e",
+        "abc123:frontend/apps/web_app/tests/new-at-ref.spec.ts",
+    ]]
+
+
+def test_deployed_single_spec_must_exist_at_requested_ref(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "newer-local.spec.ts").write_text("// newer than deployed ref\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+    monkeypatch.setattr(
+        run_tests.subprocess,
+        "run",
+        lambda command, **kwargs: type("Result", (), {"returncode": 1})(),
+    )
+
+    error = run_tests._validate_requested_playwright_spec("newer-local.spec.ts", "abc123")
+
+    assert "not found at deployed commit abc123" in error
+
+
 def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(monkeypatch):
     run_tests = load_run_tests_module()
     preflight_calls: list[list[int] | None] = []

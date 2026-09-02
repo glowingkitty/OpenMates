@@ -1758,7 +1758,7 @@ def _not_started_playwright_specs(specs: list[str], reason: str) -> list[dict]:
 
 
 def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | None = None) -> str:
-    """Return a dispatch-blocking error for missing or uncommitted specs."""
+    """Return a dispatch-blocking error for specs absent from the tested source."""
     if not spec_name.endswith(".spec.ts"):
         return f"Playwright specs must end with .spec.ts: {spec_name}"
 
@@ -1768,7 +1768,7 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
     except ValueError:
         return f"Spec path escapes Playwright spec directory: {spec_name}"
 
-    if not spec_path.is_file():
+    if not deployed_git_ref and not spec_path.is_file():
         try:
             display_path = str(spec_path.relative_to(PROJECT_ROOT))
         except ValueError:
@@ -1779,6 +1779,22 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
         rel_path = str(spec_path.relative_to(PROJECT_ROOT))
     except ValueError:
         return f"Spec file is outside the repository: {spec_path}"
+
+    # Exact/deployed-commit runs execute in GitHub Actions from this ref. The
+    # immutable control runtime may legitimately predate a newly deployed spec,
+    # so its working tree must not override the requested commit's tree.
+    if deployed_git_ref:
+        deployed = subprocess.run(
+            ["git", "cat-file", "-e", f"{deployed_git_ref}:{rel_path}"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if deployed.returncode == 0:
+            return ""
+        return f"Spec file not found at deployed commit {deployed_git_ref}: {rel_path}"
+
     tracked = subprocess.run(
         ["git", "ls-files", "--error-unmatch", rel_path],
         cwd=PROJECT_ROOT,
@@ -1787,17 +1803,6 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
         timeout=30,
     )
     if tracked.returncode != 0:
-        deployed = None
-        if deployed_git_ref:
-            deployed = subprocess.run(
-                ["git", "cat-file", "-e", f"{deployed_git_ref}:{rel_path}"],
-                cwd=PROJECT_ROOT,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-        if deployed is not None and deployed.returncode == 0:
-            return ""
         return (
             f"Spec file is untracked and cannot run in GitHub Actions until deployed: {rel_path}. "
             "Track it in the active session and deploy with scripts/sessions.py deploy first."

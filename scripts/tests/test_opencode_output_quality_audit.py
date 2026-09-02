@@ -203,6 +203,25 @@ def test_requires_path_and_component_preview_for_test_video_embeds(tmp_path: Pat
     )
 
 
+def test_requires_chromeless_url_configured_component_preview_guidance(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    skill = tmp_path / ".claude" / "skills" / "create-demo-video" / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("component proof", encoding="utf-8")
+    instruction = tmp_path / "AGENTS.md"
+    instruction.write_text(
+        "Use the component default fixture and query parameters for other states.",
+        encoding="utf-8",
+    )
+
+    issues = audit._audit_proof_media_guidance(tmp_path)
+
+    assert any(
+        issue.path == "AGENTS.md" and "component preview guidance missing: chrome=0" in issue.message
+        for issue in issues
+    )
+
+
 def test_requires_highlighted_pdf_before_specification_approval(tmp_path: Path) -> None:
     audit = load_audit_module()
     canonical = tmp_path / ".claude" / "skills" / "define-specification" / "SKILL.md"
