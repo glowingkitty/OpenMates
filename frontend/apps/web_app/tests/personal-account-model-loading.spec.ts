@@ -140,7 +140,9 @@ test('authenticated account loads its chat model selector without retry errors',
 
 	await restoredSelector.click();
 	const cleanupFrameStart = preferenceFrames.length;
-	await restoredComposer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-auto').click();
+	const restoredSelectorMenu = restoredComposer.getByTestId('composer-model-selector-menu');
+	await restoredSelectorMenu.getByTestId('composer-model-back').click();
+	await restoredSelectorMenu.getByTestId('composer-model-auto').click();
 	await expect.poll(() => preferenceFrames.slice(cleanupFrameStart).some((frame) => frame.type === 'chat_model_preference_updated'), { timeout: 30000 }).toBe(true);
 	await expect(restoredSelector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	await expect(restoredLabel).toHaveText('Auto select');
