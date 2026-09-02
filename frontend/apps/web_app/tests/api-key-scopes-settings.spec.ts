@@ -106,8 +106,10 @@ test.describe('API-key scope selection settings', () => {
 		await page.getByTestId('api-key-scope-task-create').scrollIntoViewIfNeeded();
 		await proof.checkpoint('limited-scopes');
 
-		await proof.action('select-task-create', () => page.getByTestId('api-key-scope-task-create').click());
-		await proof.action('select-account-export', () => page.getByTestId('api-key-scope-account-export').click());
+		await proof.action('select-independent-scopes', async () => {
+			await page.getByTestId('api-key-scope-task-create').click();
+			await page.getByTestId('api-key-scope-account-export').click();
+		});
 		await page.getByTestId('api-key-scope-account-export').scrollIntoViewIfNeeded();
 		await proof.assert('scope-toggle-independence', async () => {
 			await expect(page.getByTestId('api-key-scope-task-create-toggle').locator('input')).toBeChecked();
