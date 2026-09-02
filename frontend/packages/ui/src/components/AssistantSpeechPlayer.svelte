@@ -345,11 +345,14 @@
     top: 12px;
     left: 50%;
     display: flex;
+    justify-content: center;
+    width: 40px;
     gap: var(--spacing-2);
     transform: translateX(-50%);
+    transition: width var(--duration-normal) var(--easing-default);
   }
 
-  .assistant-speech-primary-controls.paused { transform: translateX(-50%); }
+  .assistant-speech-primary-controls.paused { width: 88px; }
 
   .assistant-speech-primary-control {
     all: unset;
