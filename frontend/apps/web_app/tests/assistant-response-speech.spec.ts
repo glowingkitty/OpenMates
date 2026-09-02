@@ -152,9 +152,8 @@ test.describe.serial('Assistant response speech', () => {
 			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
 			.last();
 		await expect(recordedAudio).toHaveAttribute('data-status', 'finished', { timeout: 120_000 });
-		await editor.click();
-		await page.keyboard.press('Control+A');
-		await page.keyboard.press('Backspace');
+		await editor.press('Control+A');
+		await editor.press('Backspace');
 		await expect(recordedAudio).toHaveCount(0);
 
 		await sendMessage(
