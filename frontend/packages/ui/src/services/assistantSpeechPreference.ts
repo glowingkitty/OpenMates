@@ -66,7 +66,7 @@ export async function setAssistantSpeechPreference(
   markAssistantSpeechPreferenceIntent(chatId, enabled);
   const chat = await chatDB.getChat(chatId);
   if (!chat) return;
-  if ((chat.messages_v ?? 0) === 0 && !chat.encrypted_chat_key) return;
+  if ((chat.messages_v ?? 0) === 0) return;
   const key = await chatKeyManager.getKey(chatId);
   if (!key) throw new Error(`Chat key unavailable for assistant speech preference: ${chatId}`);
   const encryptedPreference = await encryptWithChatKey(String(enabled), key);

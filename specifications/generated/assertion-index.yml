@@ -10569,7 +10569,7 @@ assertions:
     - &id1165
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
       line: 60
-      name: keeps voice intent local for a draft-only chat without a wrapped key
+      name: keeps voice intent local for a zero-message draft with a wrapped key
       surface: gui.web
     - &id1166
       path: frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts

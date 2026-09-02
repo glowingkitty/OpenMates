@@ -1,7 +1,7 @@
 // frontend/packages/ui/src/services/__tests__/assistantSpeechPreference.test.ts
 // Contract coverage for voice preference persistence around new-chat creation.
-// Draft-only chats keep local intent until a wrapped chat key exists, while
-// durable metadata writes carry that key so first-message processing can decrypt.
+// Draft-only chats keep local intent until their first message is durable, while
+// later metadata writes carry the wrapped key for encrypted server persistence.
 // Product implementation: frontend/packages/ui/src/services/assistantSpeechPreference.ts
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,11 +57,11 @@ describe("assistant speech preference", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off
-  it("keeps voice intent local for a draft-only chat without a wrapped key", async () => {
+  it("keeps voice intent local for a zero-message draft with a wrapped key", async () => {
     mocks.chatDB.getChat.mockResolvedValue({
       chat_id: "chat-1",
       messages_v: 0,
-      encrypted_chat_key: null,
+      encrypted_chat_key: "wrapped-chat-key",
       encrypted_auto_speak_response: null,
     });
 
