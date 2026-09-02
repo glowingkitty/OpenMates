@@ -289,7 +289,7 @@
     width: 15px;
     height: 15px;
     border-radius: var(--radius-full);
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     background: var(--color-grey-0);
   }
 
@@ -353,7 +353,7 @@
     width: 40px;
     height: 40px;
     border-radius: var(--radius-full);
-    color: var(--color-primary);
+    color: var(--color-primary-start);
     background: var(--color-grey-0);
     box-shadow: var(--shadow-xs);
     cursor: pointer;
