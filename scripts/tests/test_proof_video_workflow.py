@@ -2405,10 +2405,54 @@ def test_default_reviewer_reuses_canonical_project_instance(tmp_path: Path, monk
     assert "--dir" in observed["command"]
     assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
     assert observed["command"][observed["command"].index("--dir") + 1] == str(repo_root)
-    assert str(prompt.resolve()) in " ".join(observed["command"])
-    assert "review-prompt-round-0.json" in " ".join(observed["command"])
+    assert "test-results/proof-videos/run/review-prompt-round-0.json" in " ".join(observed["command"])
+    assert str(prompt.resolve()) not in " ".join(observed["command"])
     assert not (repo_root / "review-prompt-round-0.json").exists()
     assert not (repo_root / "frames").exists()
+
+
+def test_default_reviewer_uses_checkout_containing_runtime_proof(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    control_plane_root = tmp_path / "control-plane"
+    runtime_root = tmp_path / "runtime"
+    control_plane_root.mkdir()
+    run_dir = runtime_root / "test-results" / "proof-videos" / "run"
+    run_dir.mkdir(parents=True)
+    frame_path = run_dir / "frames" / "frame-0000.png"
+    frame_path.parent.mkdir()
+    frame_path.write_bytes(b"frame")
+    prompt = run_dir / "review-prompt-round-0.json"
+    prompt.write_text(
+        json.dumps({"review_request": {"frames": [{"path": "frames/frame-0000.png"}]}}),
+        encoding="utf-8",
+    )
+    observed: dict[str, object] = {}
+
+    class Process:
+        returncode = 0
+
+        def __init__(self, command: list[str], **kwargs: object) -> None:
+            observed["command"] = command
+            kwargs["stdout"].write('{"type":"text","part":{"text":"{}"}}\n')
+
+        def wait(self, timeout: float) -> int:
+            return self.returncode
+
+    monkeypatch.setattr(workflow.subprocess, "Popen", lambda command, **kwargs: Process(command, **kwargs))
+    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
+    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", control_plane_root)
+    monkeypatch.setattr(workflow, "REPO_ROOT", runtime_root)
+
+    workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
+
+    command = observed["command"]
+    assert isinstance(command, list)
+    assert command[command.index("--dir") + 1] == str(runtime_root)
+    attached_files = [command[index + 1] for index, value in enumerate(command) if value == "--file"]
+    assert attached_files == [str(prompt), str(frame_path)]
+    prompt_payload = json.loads(prompt.read_text(encoding="utf-8"))
+    assert prompt_payload["review_request"]["frames"][0]["read_path"] == (
+        "test-results/proof-videos/run/frames/frame-0000.png"
+    )
 
 
 def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

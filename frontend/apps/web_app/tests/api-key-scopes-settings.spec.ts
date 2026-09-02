@@ -86,15 +86,23 @@ test.describe('API-key scope selection settings', () => {
 		});
 		await openPreview(page);
 
+		const fullAccessRow = page.getByTestId('api-key-full-access');
 		const fullAccessInput = page.getByTestId('api-key-full-access-toggle').locator('input');
 		await proof.assert('full-access-default', async () => {
 			await expect(fullAccessInput).toBeChecked();
 			await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible();
 		});
 		await proof.checkpoint('full-access');
-		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+		await fullAccessRow.hover();
+		await fullAccessRow.evaluate(async (element) => {
+			const finiteAnimations = element.getAnimations({ subtree: true }).filter((animation) => {
+				const endTime = animation.effect?.getComputedTiming().endTime;
+				return typeof endTime === 'number' && Number.isFinite(endTime);
+			});
+			await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
+		});
 
-		await proof.action('disable-full-access', () => page.getByTestId('api-key-full-access').click());
+		await proof.action('disable-full-access', () => fullAccessRow.click());
 		const fixedScopeInputs = page.locator('[data-testid^="api-key-scope-"][data-testid$="-toggle"] input');
 		await proof.assert('categorized-scope-list', async () => {
 			await expect(fullAccessInput).not.toBeChecked();

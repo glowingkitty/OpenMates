@@ -107,7 +107,7 @@
             ]
         },
         {
-            id: 'developer', labelKey: 'settings.api_keys.title', icon: 'key', scopes: [
+            id: 'developer', labelKey: 'settings.api_keys', icon: 'key', scopes: [
                 { id: 'developer:api_keys:read', labelKey: 'settings.api_keys.scope_api_keys_read' },
                 { id: 'developer:api_keys:create', labelKey: 'settings.api_keys.scope_api_keys_create' },
                 { id: 'developer:api_keys:revoke', labelKey: 'settings.api_keys.scope_api_keys_revoke' },

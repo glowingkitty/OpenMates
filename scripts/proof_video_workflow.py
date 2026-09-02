@@ -1370,6 +1370,26 @@ def _default_reviewer_runner(
         prompt_path.relative_to(run_dir)
     except ValueError as exc:
         raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
+    reviewer_root = next(
+        (
+            root.resolve()
+            for root in (CONTROL_PLANE_ROOT, REPO_ROOT)
+            if run_dir.is_relative_to(root.resolve())
+        ),
+        None,
+    )
+    if reviewer_root is None:
+        raise WorkflowError("proof-video run directory must be inside the control-plane or active checkout")
+    reviewer_prompt_path = prompt_path.relative_to(reviewer_root)
+    prompt_payload = _load_json(prompt_path)
+    review_request = prompt_payload.get("review_request") if isinstance(prompt_payload.get("review_request"), dict) else {}
+    frames = review_request.get("frames") if isinstance(review_request.get("frames"), list) else []
+    attachment_paths = [prompt_path]
+    for frame in frames:
+        if isinstance(frame, dict) and frame.get("path"):
+            frame["read_path"] = str(reviewer_prompt_path.parent / str(frame["path"]))
+            attachment_paths.append((run_dir / str(frame["path"])).resolve())
+    prompt_path.write_text(json.dumps(prompt_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     command = [
         opencode_bin,
         "run",
@@ -1379,10 +1399,11 @@ def _default_reviewer_runner(
         "json",
         "--agent",
         "proof-video-reviewer",
+        *(argument for path in attachment_paths for argument in ("--file", str(path))),
         *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
-        str(CONTROL_PLANE_ROOT),
-        f"Read {prompt_path} in full and return only the required JSON review receipt.",
+        str(reviewer_root),
+        "Review the attached proof prompt and every attached frame, then return only the required JSON review receipt.",
     ]
     started_at = time.monotonic()
     print(
