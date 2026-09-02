@@ -223,7 +223,7 @@
           aria-label={`Previous chapter: ${chapterLabel(previousRegion.chapter)}`}
           onclick={() => void controller.previous()}
         >
-          <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous"></span>
+          <span class="assistant-speech-adjacent-label">{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous"></span>
         </button>
       {/if}
       <div class="assistant-speech-current-slot">
@@ -242,7 +242,7 @@
           aria-label={`Next chapter: ${chapterLabel(nextRegion.chapter)}`}
           onclick={() => void controller.next()}
         >
-          <span class="assistant-speech-icon chevron next"></span><span>{chapterLabel(nextRegion.chapter)}</span>
+          <span class="assistant-speech-icon chevron next"></span><span class="assistant-speech-adjacent-label">{chapterLabel(nextRegion.chapter)}</span>
         </button>
       {/if}
     </div>
@@ -464,7 +464,7 @@
 
   .assistant-speech-adjacent:hover,
   .assistant-speech-adjacent:focus-visible { opacity: 1; }
-  .assistant-speech-adjacent span { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .assistant-speech-adjacent-label { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .assistant-speech-loading {
     font-size: var(--font-size-xxs);
     line-height: 1;
@@ -484,7 +484,7 @@
     .assistant-speech-player.expanded .assistant-speech-waveform { width: min(100%, 185px); height: 42px; }
     .assistant-speech-primary-controls { top: 14px; }
     .assistant-speech-chapters { column-gap: var(--spacing-2); }
-    .assistant-speech-adjacent span { display: none; }
+    .assistant-speech-adjacent-label { display: none; }
     .assistant-speech-chapters strong { max-width: 170px; }
   }
 
