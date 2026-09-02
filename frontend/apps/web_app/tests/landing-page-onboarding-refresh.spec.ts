@@ -36,7 +36,7 @@ const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
 const DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT = 250;
 const DAILY_INSPIRATION_MAX_HEIGHT = 420;
 const DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO = 0.35;
-const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
+const LANDING_INTRO_HEADLINE_TEXT = 'Your AI team\nfor getting things done';
 const LANDING_INTRO_REQUESTS = [
 	'Find doctor appointments',
 	'Find events',

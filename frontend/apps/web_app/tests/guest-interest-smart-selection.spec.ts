@@ -26,7 +26,7 @@ const LANDING_INTRO_REQUESTS = [
 	'Build a web app',
 	'Explain the news'
 ];
-const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
+const LANDING_INTRO_HEADLINE_TEXT = 'Your AI team\nfor getting things done';
 const LANDING_INTRO_HIGHLIGHTED_APPS = ['health', 'events', 'code', 'news'];
 const LANDING_INTRO_REQUEST_APP_IDS = new Map(
 	LANDING_INTRO_REQUESTS.map((request, index) => [request, LANDING_INTRO_HIGHLIGHTED_APPS[index]])
@@ -159,6 +159,7 @@ async function landingIntroState(page: any): Promise<{
 }
 
 test.describe('Guest interest smart selection', () => {
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,landing-onboarding.intro-active-apps-only,daily-inspiration.guest-isolated
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -169,8 +170,8 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-carousel-progress')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('Simply ask your', { timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('AI team mates', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('Your AI team', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('for getting things done', { timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-previous')).toHaveCount(0);
 		for (const appId of LANDING_INTRO_HIGHLIGHTED_APPS) {
 			await expect(page.locator(`[data-testid="landing-intro-app-icon"][data-app-id="${appId}"]`).first()).toBeVisible({ timeout: 15000 });
@@ -350,6 +351,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(await page.evaluate((key: string) => localStorage.getItem(key), GUEST_TOPIC_PREFERENCES_STORAGE_KEY)).toBeNull();
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('fresh guest sees default suggestions when focusing composer before selecting interests', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -370,6 +372,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(suggestionIds.every((id) => id.startsWith('chat.new_chat_suggestions.'))).toBe(true);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('mobile guest intro alternates copy and video', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -378,7 +381,7 @@ test.describe('Guest interest smart selection', () => {
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('landing-intro-headline')).toContainText('your AI team mates', { timeout: 15000 });
+		await expect(page.getByTestId('landing-intro-headline')).toContainText('Your AI team', { timeout: 15000 });
 		const mobileIntroMetrics = await page.getByTestId('daily-inspiration-banner').evaluate((banner: HTMLElement) => ({
 			height: banner.getBoundingClientRect().height,
 			containerHeight: document.querySelector<HTMLElement>('[data-testid="active-chat-container"]')?.getBoundingClientRect().height ?? 0

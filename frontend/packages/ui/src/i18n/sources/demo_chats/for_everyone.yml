@@ -2480,7 +2480,7 @@ teaser_line3:
 
 landing_intro_headline_line1:
   context: First line of the expanded logged-out landing intro headline
-  en: Simply ask your
+  en: Your AI team
   de: Frag einfach
   zh: Simply ask
   es: Simply ask
@@ -2504,7 +2504,7 @@ landing_intro_headline_line1:
   verified_by_human: []
 landing_intro_headline_line2:
   context: Second line of the expanded logged-out landing intro headline
-  en: AI team mates
+  en: for getting things done
   de: deine KI Team-Mates
   zh: your AI team mates
   es: your AI team mates
