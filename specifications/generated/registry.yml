@@ -278,6 +278,13 @@ specifications:
     - sdks.npm
     - sdks.pip
     - gui.web
+  feature.continue-carousel:
+    version: 1
+    status: draft
+    path: features/continue-carousel
+    fingerprint: d21998fd97820ba16ed29b4feb2e9792db7762fd79d7c630a04c60731fb9061b
+    required_applies_to:
+    - gui.web
   feature.daily-inspiration:
     version: 1
     status: approved
@@ -3168,6 +3175,20 @@ assertions:
     - cli
     - sdks.npm
     - sdks.pip
+    - gui.web
+  continue-carousel.saved-item.start-time-gated:
+    specification: feature.continue-carousel@1
+    specification_id: feature.continue-carousel
+    type: behavior
+    fingerprint: 1d0fe20c2ab2b67b3060016162d2f4712f5b1b6e9305ecafcdb885e8295c81bf
+    required_applies_to:
+    - gui.web
+  continue-carousel.chat.reminder-gated:
+    specification: feature.continue-carousel@1
+    specification_id: feature.continue-carousel
+    type: behavior
+    fingerprint: 4627ae98b38336cc0f39e9c17d76053789a204fa3ae5eb869c79c43ba447bf52
+    required_applies_to:
     - gui.web
   daily-inspiration.authenticated-continuity:
     specification: feature.daily-inspiration@1
