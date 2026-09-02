@@ -28,6 +28,12 @@ CREATE INDEX IF NOT EXISTS user_tasks_owner_chat_idx
     ON user_tasks (hashed_user_id, hashed_primary_chat_id, position, created_at)
     WHERE hashed_primary_chat_id IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS user_tasks_owner_external_chat_idx
+    ON user_tasks (hashed_user_id, external_chat_provider, external_chat_lookup_hash, position, created_at)
+    WHERE hashed_team_id IS NULL
+      AND external_chat_provider IS NOT NULL
+      AND external_chat_lookup_hash IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS user_tasks_project_hashes_gin_idx
     ON user_tasks USING GIN ((linked_project_hashes::jsonb) jsonb_path_ops);
 

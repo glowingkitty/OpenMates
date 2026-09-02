@@ -34,6 +34,18 @@ export const TASK_STATUSES: UserTaskStatus[] = ["backlog", "todo", "in_progress"
 const DEFAULT_STANDALONE_PREFIX = "TASK";
 const PRIORITY_LEVELS = ["none", "low", "medium", "high", "urgent"] as const;
 const LABEL_INDEX_INFO = "openmates-task-label-index-v1";
+const EXTERNAL_CHAT_INDEX_INFO = "openmates-task-external-chat-index-v1";
+const EXTERNAL_CHAT_PROVIDER = "opencode";
+const BLOCKED_REASON_CODES = [
+  "needs_user_input",
+  "waiting_for_approval",
+  "missing_credentials",
+  "ambiguous_requirement",
+  "external_dependency",
+  "environment_unavailable",
+  "verification_failed",
+  "other",
+] as const;
 
 export type TaskPriorityLevel = typeof PRIORITY_LEVELS[number];
 
@@ -43,6 +55,8 @@ export interface TaskLookupScope {
   projectId?: string;
   planId?: string;
   labelHashes?: string[];
+  externalChatProvider?: "opencode";
+  externalChatLookupHash?: string;
   priority?: number;
   teamId?: string | null;
   personal?: boolean;
@@ -76,6 +90,7 @@ export interface DecryptedUserTask {
   assigneeType: UserTaskAssigneeType;
   assigneeHash: string | null;
   primaryChatId: string | null;
+  externalChat: ExternalChatContext | null;
   linkedProjectIds: string[];
   planId: string | null;
   dueAt: number | null;
@@ -84,6 +99,7 @@ export interface DecryptedUserTask {
   position: number;
   queueState: string;
   blockedReasonCode: string | null;
+  blockedReason: string;
   aiExecutionState: string | null;
   readOnly?: boolean;
   version: number;
@@ -112,6 +128,7 @@ export interface TaskCreateOptions {
   status?: UserTaskStatus;
   assign?: string;
   chatId?: string | null;
+  externalChat?: ExternalChatContext;
   projectIds?: string[];
   planId?: string | null;
   dueAt?: number | null;
@@ -131,10 +148,44 @@ export interface TaskUpdateOptions {
   status?: UserTaskStatus;
   assign?: string;
   chatId?: string | null;
+  externalChat?: ExternalChatContext;
   projectIds?: string[];
   planId?: string | null;
   priority?: TaskPriorityLevel | number | null;
   slug?: string;
+}
+
+export interface ExternalChatRef {
+  provider: "opencode";
+  id: string;
+}
+
+export interface ExternalChatContext extends ExternalChatRef {
+  title?: string;
+}
+
+export type BlockedReasonCode = typeof BLOCKED_REASON_CODES[number];
+
+export function parseExternalChatRef(value: string): ExternalChatRef {
+  const separator = value.indexOf(":");
+  const provider = value.slice(0, separator).trim().toLowerCase();
+  const id = value.slice(separator + 1).trim();
+  if (separator <= 0 || !id) throw new Error("--external-chat requires provider:id.");
+  if (provider !== EXTERNAL_CHAT_PROVIDER) throw new Error(`Unsupported external chat provider '${provider}'. Only opencode is allowed.`);
+  return { provider: EXTERNAL_CHAT_PROVIDER, id };
+}
+
+export function externalChatLookupHash(masterKey: Uint8Array, context: ExternalChatRef): string {
+  const indexKey = Buffer.from(hkdfSync("sha256", Buffer.from(masterKey), Buffer.alloc(0), EXTERNAL_CHAT_INDEX_INFO, 32));
+  return createHmac("sha256", indexKey).update(`${context.provider}\u0000${context.id}`).digest("hex");
+}
+
+export function normalizeBlockedReasonCode(value: string): BlockedReasonCode {
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!(BLOCKED_REASON_CODES as readonly string[]).includes(normalized)) {
+    throw new Error(`Unknown blocked reason code '${value}'. Expected one of: ${BLOCKED_REASON_CODES.join(", ")}`);
+  }
+  return normalized as BlockedReasonCode;
 }
 
 export function normalizeTaskStatus(value: string | undefined): UserTaskStatus | undefined {
@@ -202,6 +253,7 @@ export function taskPriorityLevel(priority: number | null | undefined): TaskPrio
 }
 
 export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: TaskCreateOptions): Promise<UserTaskCreateInput> {
+  if (input.chatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   const taskKey = randomBytes(32);
   const encryptedTaskKey = await encryptBytesWithAesGcm(taskKey, masterKey);
   const timestamp = nowSeconds();
@@ -231,6 +283,12 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     assignee_type: assignee.assigneeType,
     assignee_hash: assignee.assigneeHash,
     primary_chat_id: input.chatId ?? null,
+    ...(input.externalChat ? {
+      external_chat_provider: input.externalChat.provider,
+      external_chat_lookup_hash: externalChatLookupHash(masterKey, input.externalChat),
+      encrypted_external_chat_id: await encryptWithAesGcmCombined(input.externalChat.id, taskKey),
+      encrypted_external_chat_title: await encryptWithAesGcmCombined(input.externalChat.title ?? "", taskKey),
+    } : {}),
     linked_project_ids: linkedProjectIds,
     plan_id: input.planId ?? null,
     due_at: input.dueAt ?? null,
@@ -244,6 +302,7 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
 }
 
 export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKey: Uint8Array, input: TaskUpdateOptions): Promise<UserTaskUpdateInput> {
+  if (input.chatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   const taskKey = await taskKeyFromRecord(task.encrypted, masterKey);
   const patch: UserTaskUpdateInput = { version: task.version, updated_at: nowSeconds() };
   if (input.title !== undefined) patch.encrypted_title = await encryptWithAesGcmCombined(input.title, taskKey);
@@ -263,7 +322,20 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
     patch.assignee_type = assignee.assigneeType;
     patch.assignee_hash = assignee.assigneeHash;
   }
-  if (input.chatId !== undefined) patch.primary_chat_id = input.chatId;
+  if (input.chatId !== undefined) {
+    patch.primary_chat_id = input.chatId;
+    patch.external_chat_provider = null;
+    patch.external_chat_lookup_hash = null;
+    patch.encrypted_external_chat_id = null;
+    patch.encrypted_external_chat_title = null;
+  }
+  if (input.externalChat) {
+    patch.primary_chat_id = null;
+    patch.external_chat_provider = input.externalChat.provider;
+    patch.external_chat_lookup_hash = externalChatLookupHash(masterKey, input.externalChat);
+    patch.encrypted_external_chat_id = await encryptWithAesGcmCombined(input.externalChat.id, taskKey);
+    patch.encrypted_external_chat_title = await encryptWithAesGcmCombined(input.externalChat.title ?? "", taskKey);
+  }
   if (input.projectIds !== undefined) {
     patch.linked_project_ids = input.projectIds;
     patch.encrypted_linked_project_ids = await encryptWithAesGcmCombined(JSON.stringify(input.projectIds), taskKey);
@@ -289,6 +361,13 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
   const taskKey = await taskKeyFromRecord(record, masterKey);
   const labels = parseStringArray(await decryptOptional(record.encrypted_labels || record.encrypted_tags, taskKey));
   const linkedProjectIds = parseStringArray(await decryptOptional(record.encrypted_linked_project_ids, taskKey));
+  const externalChat = record.external_chat_provider && record.encrypted_external_chat_id
+    ? {
+      provider: record.external_chat_provider,
+      id: await decryptOptional(record.encrypted_external_chat_id, taskKey),
+      title: await decryptOptional(record.encrypted_external_chat_title, taskKey),
+    } as ExternalChatContext
+    : null;
   return {
     taskId: record.task_id,
     shortId: record.short_id || deriveShortId(record),
@@ -302,6 +381,7 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
     assigneeType: record.assignee_type,
     assigneeHash: record.assignee_hash ?? null,
     primaryChatId: record.primary_chat_id ?? null,
+    externalChat,
     linkedProjectIds: linkedProjectIds.length > 0 ? linkedProjectIds : (record.linked_project_ids ?? []),
     planId: record.plan_id ?? null,
     dueAt: record.due_at ?? null,
@@ -310,6 +390,7 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
     position: record.position ?? 0,
     queueState: record.queue_state ?? "none",
     blockedReasonCode: record.blocked_reason_code ?? null,
+    blockedReason: await decryptOptional(record.encrypted_blocked_reason, taskKey),
     aiExecutionState: record.ai_execution_state ?? null,
     version: record.version,
     encrypted: record,
@@ -338,6 +419,7 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
     assigneeType: "user",
     assigneeHash: null,
     primaryChatId: null,
+    externalChat: null,
     linkedProjectIds: [],
     planId: null,
     dueAt: record.due_at ?? null,
@@ -346,10 +428,27 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
     position: record.position ?? 0,
     queueState: String(record.run_status ?? "workflow"),
     blockedReasonCode: blockedReason,
+    blockedReason: record.blocked_message ?? "",
     aiExecutionState: null,
     readOnly: true,
     version: typeof record.version === "number" ? record.version : 1,
     encrypted: record,
+  };
+}
+
+export async function buildBlockUserTaskInput(
+  task: DecryptedUserTask,
+  masterKey: Uint8Array,
+  input: { reasonCode: string; reasonText?: string },
+): Promise<{ version: number; blocked_reason_code: BlockedReasonCode; encrypted_blocked_reason?: string }> {
+  const reasonCode = normalizeBlockedReasonCode(input.reasonCode);
+  const encryptedBlockedReason = input.reasonText === undefined
+    ? undefined
+    : await encryptWithAesGcmCombined(input.reasonText, await taskKeyFromRecord(task.encrypted, masterKey));
+  return {
+    version: task.version,
+    blocked_reason_code: reasonCode,
+    ...(encryptedBlockedReason ? { encrypted_blocked_reason: encryptedBlockedReason } : {}),
   };
 }
 
@@ -417,9 +516,11 @@ export function renderTaskDetail(task: DecryptedUserTask): string {
   if (task.description) lines.push(`Description: ${task.description}`);
   if (task.labels.length > 0) lines.push(`Labels: ${task.labels.join(", ")}`);
   if (task.primaryChatId) lines.push(`Chat: ${task.primaryChatId}`);
+  if (task.externalChat) lines.push(`External chat: ${task.externalChat.provider}:${task.externalChat.id}${task.externalChat.title ? ` (${task.externalChat.title})` : ""}`);
   if (task.linkedProjectIds.length > 0) lines.push(`Projects: ${task.linkedProjectIds.join(", ")}`);
   if (task.planId) lines.push(`Plan: ${task.planId}`);
   if (task.blockedReasonCode) lines.push(`Blocked reason: ${task.blockedReasonCode}`);
+  if (task.blockedReason) lines.push(`Blocked explanation: ${task.blockedReason}`);
   if (task.aiExecutionState) lines.push(`AI state: ${task.aiExecutionState}`);
   return lines.join("\n");
 }

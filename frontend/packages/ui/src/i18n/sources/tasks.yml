@@ -1,0 +1,53 @@
+blocked_heading:
+  context: Heading above the explanation shown when a Task is blocked
+  en: Blocked reason
+  de: Grund der Blockierung
+  verified_by_human: []
+
+blocked_reason.needs_user_input:
+  context: Safe fallback shown when a blocked Task needs information from the user
+  en: More information is needed from you before this Task can continue.
+  de: Weitere Informationen von dir werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann.
+  verified_by_human: []
+
+blocked_reason.waiting_for_approval:
+  context: Safe fallback shown when a blocked Task is waiting for approval
+  en: This Task is waiting for approval.
+  de: Diese Aufgabe wartet auf eine Freigabe.
+  verified_by_human: []
+
+blocked_reason.missing_credentials:
+  context: Safe fallback shown when a blocked Task needs credentials
+  en: Credentials are required before this Task can continue.
+  de: Zugangsdaten werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann.
+  verified_by_human: []
+
+blocked_reason.ambiguous_requirement:
+  context: Safe fallback shown when a blocked Task has an ambiguous requirement
+  en: A requirement needs clarification before this Task can continue.
+  de: Eine Anforderung muss geklaert werden, bevor diese Aufgabe fortgesetzt werden kann.
+  verified_by_human: []
+
+blocked_reason.external_dependency:
+  context: Safe fallback shown when a blocked Task is waiting on an external dependency
+  en: This Task is waiting for an external dependency.
+  de: Diese Aufgabe wartet auf eine externe Abhaengigkeit.
+  verified_by_human: []
+
+blocked_reason.environment_unavailable:
+  context: Safe fallback shown when a blocked Task cannot access its environment
+  en: The required environment is currently unavailable.
+  de: Die erforderliche Umgebung ist derzeit nicht verfuegbar.
+  verified_by_human: []
+
+blocked_reason.verification_failed:
+  context: Safe fallback shown when a Task is blocked by failed verification
+  en: Verification failed and must be resolved before this Task can continue.
+  de: Die Ueberpruefung ist fehlgeschlagen und muss vor der Fortsetzung behoben werden.
+  verified_by_human: []
+
+blocked_reason.other:
+  context: Safe generic fallback shown when no more specific blocked Task reason is available
+  en: This Task needs attention before it can continue.
+  de: Diese Aufgabe benoetigt Aufmerksamkeit, bevor sie fortgesetzt werden kann.
+  verified_by_human: []

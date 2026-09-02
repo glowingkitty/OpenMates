@@ -20,6 +20,7 @@
   } from '../../services/userTaskService';
   import { listUserPlans } from '../../services/userPlanService';
   import { userProfile } from '../../stores/userProfile';
+  import { text } from '../../i18n/translations';
 
   interface TaskDetailRelatedData {
     projects: Array<{ id: string; title: string; description: string }>;
@@ -43,6 +44,16 @@
   let creatorName = $derived($userProfile.username.trim() || 'You');
 
   const priorityLabels = ['No priority', 'Low', 'Medium', 'High', 'Urgent'];
+  const blockedReasonKeys: Record<string, string> = {
+    needs_user_input: 'tasks.blocked_reason.needs_user_input',
+    waiting_for_approval: 'tasks.blocked_reason.waiting_for_approval',
+    missing_credentials: 'tasks.blocked_reason.missing_credentials',
+    ambiguous_requirement: 'tasks.blocked_reason.ambiguous_requirement',
+    external_dependency: 'tasks.blocked_reason.external_dependency',
+    environment_unavailable: 'tasks.blocked_reason.environment_unavailable',
+    verification_failed: 'tasks.blocked_reason.verification_failed',
+    other: 'tasks.blocked_reason.other',
+  };
 
   onMount(() => {
     if (related) {
@@ -96,6 +107,10 @@
     return task.assigneeType === 'ai' ? 'OpenMates' : creatorName;
   }
 
+  function blockedReasonFallback(): string {
+    return $text(blockedReasonKeys[task.blockedReasonCode ?? ''] ?? 'tasks.blocked_reason.other');
+  }
+
   function formatDate(timestamp: number): string {
     return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(timestamp * 1000));
   }
@@ -128,6 +143,13 @@
     <SettingsSectionHeading title="Description" icon="document" />
     <p class:empty={!task.description}>{task.description || 'No description added.'}</p>
   </section>
+
+  {#if task.status === 'blocked'}
+    <section class="detail-section wide blocked" data-testid="task-detail-blocked-reason">
+      <SettingsSectionHeading title={$text('tasks.blocked_heading')} icon="warning" />
+      <p>{task.blockedReason || blockedReasonFallback()}</p>
+    </section>
+  {/if}
 
   <div class="detail-grid">
     <section class="detail-section" data-testid="task-detail-assignee">
@@ -184,7 +206,12 @@
 
     <section class="detail-section" data-testid="task-detail-chat">
       <SettingsSectionHeading title="Connected chat" icon="chat" />
-      {#if resolvedRelated.chat}
+      {#if task.externalChat}
+        <div class="linked-card compact external" data-testid="task-detail-external-chat">
+          <strong>{task.externalChat.title || task.externalChat.id}</strong>
+          <span>OpenCode</span>
+        </div>
+      {:else if resolvedRelated.chat}
         <a class="linked-card compact" href={`/#chat-id=${encodeURIComponent(resolvedRelated.chat.id)}`}><strong>{resolvedRelated.chat.title}</strong></a>
       {:else}<p class="empty">No connected chat.</p>{/if}
     </section>
@@ -209,11 +236,13 @@
   .detail-section > p { padding: 0 8px; line-height: 1.55; white-space: pre-wrap; }
   .detail-section .empty { color: var(--color-font-secondary); }
   .identity { color: var(--color-primary); font-weight: 700; }
+  .blocked > p { padding: 16px 18px; overflow-wrap: anywhere; border-radius: 16px; background: color-mix(in srgb, var(--color-error) 12%, transparent); border: 1px solid color-mix(in srgb, var(--color-error) 35%, transparent); }
   .dependency-list { display: grid; gap: 12px; }
   .workspace-cards { display: flex; justify-content: center; padding: 0 8px; }
   .linked-card, .dependency-list a { display: flex; flex-direction: column; gap: 7px; min-height: 88px; padding: 20px; border-radius: 22px; box-sizing: border-box; text-decoration: none; }
   .linked-card { justify-content: center; background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end))); color: var(--color-grey-0); text-align: center; box-shadow: 0 7px 14px color-mix(in srgb, var(--color-grey-100) 14%, transparent); }
   .linked-card.compact { min-height: 72px; }
+  .linked-card.external span { font-size: var(--font-size-xs); opacity: 0.8; }
   .dependency-list { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 14px; }
   .dependency-list a { background: var(--color-grey-10); border: 1px solid var(--color-grey-25); color: var(--color-font-primary); }
   .dependency-list span { color: var(--color-font-secondary); font-size: var(--font-size-xs); }

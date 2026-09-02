@@ -844,6 +844,10 @@ export interface UserTaskRecord {
   assignee_type: UserTaskAssigneeType;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
+  external_chat_provider?: "opencode" | null;
+  external_chat_lookup_hash?: string | null;
+  encrypted_external_chat_id?: string | null;
+  encrypted_external_chat_title?: string | null;
   linked_project_ids?: string[] | null;
   parent_task_id?: string | null;
   plan_id?: string | null;
@@ -861,6 +865,7 @@ export interface UserTaskRecord {
   started_at?: number | null;
   completed_at?: number | null;
   blocked_reason_code?: string | null;
+  encrypted_blocked_reason?: string | null;
   ai_execution_state?: string | null;
   history?: WorkspaceHistoryResult | null;
 }
@@ -898,7 +903,12 @@ export type UserTaskStartAIInput = UserTaskUpdateInput & {
   plaintext_chat_title?: string;
 };
 
-export type UserTaskActionInput = { version: number; blocked_reason_code?: string | null; team_id?: string | null };
+export type UserTaskActionInput = {
+  version: number;
+  blocked_reason_code?: string | null;
+  encrypted_blocked_reason?: string | null;
+  team_id?: string | null;
+};
 export type UserTaskReorderInput = {
   moves: Array<{
     task_id: string;
@@ -9415,13 +9425,15 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
     for (const labelHash of filters.labelHashes ?? []) params.append("label_hash", labelHash);
+    if (filters.externalChatProvider) params.set("external_chat_provider", filters.externalChatProvider);
+    if (filters.externalChatLookupHash) params.set("external_chat_lookup_hash", filters.externalChatLookupHash);
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
     const limit = filters.limit;
     if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));

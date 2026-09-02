@@ -42,6 +42,17 @@ router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[D
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["ai", "user"]
 KeyWrapperType = Literal["master", "chat", "project", "plan"]
+ExternalChatProvider = Literal["opencode"]
+BlockedReasonCode = Literal[
+    "needs_user_input",
+    "waiting_for_approval",
+    "missing_credentials",
+    "ambiguous_requirement",
+    "external_dependency",
+    "environment_unavailable",
+    "verification_failed",
+    "other",
+]
 
 
 class UserTaskKeyWrapperRequest(BaseModel):
@@ -71,6 +82,10 @@ class UserTaskCreateRequest(BaseModel):
     assignee_type: AssigneeType = "user"
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
+    external_chat_provider: ExternalChatProvider | None = None
+    external_chat_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
+    encrypted_external_chat_id: str | None = None
+    encrypted_external_chat_title: str | None = None
     linked_project_ids: list[str] = Field(default_factory=list)
     parent_task_id: str | None = None
     plan_id: str | None = None
@@ -79,6 +94,8 @@ class UserTaskCreateRequest(BaseModel):
     due_at: int | None = None
     priority: int = Field(default=0, ge=0, le=4)
     position: int = 0
+    blocked_reason_code: BlockedReasonCode | None = None
+    encrypted_blocked_reason: str | None = None
     version: int
     created_at: int
     updated_at: int
@@ -106,6 +123,10 @@ class UserTaskUpdateRequest(BaseModel):
     assignee_type: AssigneeType | None = None
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
+    external_chat_provider: ExternalChatProvider | None = None
+    external_chat_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
+    encrypted_external_chat_id: str | None = None
+    encrypted_external_chat_title: str | None = None
     linked_project_ids: list[str] | None = None
     parent_task_id: str | None = None
     plan_id: str | None = None
@@ -114,7 +135,8 @@ class UserTaskUpdateRequest(BaseModel):
     due_at: int | None = None
     priority: int | None = Field(default=None, ge=0, le=4)
     position: int | None = None
-    blocked_reason_code: str | None = None
+    blocked_reason_code: BlockedReasonCode | None = None
+    encrypted_blocked_reason: str | None = None
     ai_execution_state: str | None = None
     updated_at: int | None = None
     version: int
@@ -145,7 +167,8 @@ class UserTaskStartAIRequest(BaseModel):
 
 class UserTaskActionRequest(BaseModel):
     version: int
-    blocked_reason_code: str | None = None
+    blocked_reason_code: BlockedReasonCode | None = None
+    encrypted_blocked_reason: str | None = None
     team_id: str | None = None
 
 
@@ -383,6 +406,8 @@ async def list_user_tasks(
     status: TaskStatus | None = None,
     project_id: str | None = None,
     chat_id: str | None = None,
+    external_chat_provider: ExternalChatProvider | None = None,
+    external_chat_lookup_hash: str | None = Query(default=None, pattern="^[0-9a-f]{64}$"),
     assignee_hash: str | None = None,
     label_hash: list[str] | None = Query(default=None),
     label_hashes: list[str] | None = Query(default=None),
@@ -396,25 +421,30 @@ async def list_user_tasks(
     current_user = await _current_user(request, response)
     label_hash_values = [*_query_list_values(label_hash), *_query_list_values(label_hashes)]
     priority_value = _unwrap_query_default(priority)
+    external_chat_lookup_hash = _unwrap_query_default(external_chat_lookup_hash)
     try:
         if team_id:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        if (external_chat_provider is None) != (external_chat_lookup_hash is None):
+            raise ValueError("Task external chat filters require both provider and lookup hash")
+        tasks = await service.list_tasks(
+            current_user.id,
+            status=status,
+            project_id=project_id,
+            chat_id=chat_id,
+            external_chat_provider=external_chat_provider,
+            external_chat_lookup_hash=external_chat_lookup_hash,
+            assignee_hash=assignee_hash,
+            label_hashes=label_hash_values,
+            priority=priority_value,
+            due_before=due_before,
+            team_id=team_id,
+            limit=limit,
+        )
     except Exception as exc:
         _handle_task_error(exc)
-    tasks = await service.list_tasks(
-        current_user.id,
-        status=status,
-        project_id=project_id,
-        chat_id=chat_id,
-        assignee_hash=assignee_hash,
-        label_hashes=label_hash_values,
-        priority=priority_value,
-        due_before=due_before,
-        team_id=team_id,
-        limit=limit,
-    )
     projections = []
-    if not any((chat_id, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
+    if not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
@@ -864,6 +894,7 @@ async def block_user_task(
             current_user.id,
             version=body.version,
             blocked_reason_code=body.blocked_reason_code,
+            encrypted_blocked_reason=body.encrypted_blocked_reason,
             team_id=body.team_id,
         )
         history = await _record_task_history(

@@ -9,13 +9,20 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { createHmac, hkdfSync } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
 import {
+  buildBlockUserTaskInput,
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
   decryptUserTask,
+  externalChatLookupHash,
   findTask,
+  normalizeBlockedReasonCode,
+  parseExternalChatRef,
   taskEditLookupScope,
   taskLookupScopes,
   type DecryptedUserTask,
@@ -157,6 +164,131 @@ describe("OpenMatesClient user tasks", () => {
       teamId: "team-1",
       personal: false,
     }), { teamId: "team-1", personal: false });
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("encrypts and filters an allowlisted external chat locally", async () => {
+    const masterKey = Buffer.alloc(32, 7);
+    const context = parseExternalChatRef("opencode:ses_external_123");
+    const lookupHash = externalChatLookupHash(masterKey, context);
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: "Implement task bridge",
+      externalChat: { ...context, title: "OpenCode task bridge" },
+    });
+
+    assert.deepEqual(context, { provider: "opencode", id: "ses_external_123" });
+    assert.match(lookupHash, /^[0-9a-f]{64}$/);
+    assert.equal(input.primary_chat_id, null);
+    assert.equal("key_wrappers" in input, false, "personal external tasks retain the master-wrapped encrypted_task_key only");
+    assert.equal(input.external_chat_provider, "opencode");
+    assert.equal(input.external_chat_lookup_hash, lookupHash);
+    assert.ok(input.encrypted_external_chat_id);
+    assert.ok(input.encrypted_external_chat_title);
+    assert.doesNotMatch(JSON.stringify(input), /ses_external_123|OpenCode task bridge/);
+
+    const decrypted = await decryptUserTask(input, masterKey);
+    assert.deepEqual(decrypted.externalChat, {
+      provider: "opencode",
+      id: "ses_external_123",
+      title: "OpenCode task bridge",
+    });
+    assert.throws(() => parseExternalChatRef("unknown:session"), /Unsupported external chat provider/);
+    await assert.rejects(
+      buildCreateUserTaskInput(masterKey, {
+        title: "Invalid mixed context",
+        chatId: "chat-1",
+        externalChat: context,
+      }),
+      /both native chat and external chat context/,
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=tasks.external-chat.encrypted-context
+  it("derives the external-chat lookup hash with the shared HKDF info literal", () => {
+    const masterKey = Buffer.from([...Array(32).keys()]);
+    const context = { provider: "opencode" as const, id: "ses_known_derivation" };
+    const indexKey = hkdfSync(
+      "sha256",
+      masterKey,
+      Buffer.alloc(0),
+      "openmates-task-external-chat-index-v1",
+      32,
+    );
+    const expected = createHmac("sha256", indexKey)
+      .update(`${context.provider}\u0000${context.id}`)
+      .digest("hex");
+
+    assert.equal(externalChatLookupHash(masterKey, context), expected);
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("clears external context when assigning a native chat", async () => {
+    const masterKey = Buffer.alloc(32, 7);
+    const encrypted = await buildCreateUserTaskInput(masterKey, {
+      title: "Move task context",
+      externalChat: { provider: "opencode", id: "ses_external_123" },
+    });
+    const task = await decryptUserTask(encrypted, masterKey);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { chatId: "chat-native-1" });
+
+    assert.deepEqual(patch, {
+      version: task.version,
+      updated_at: patch.updated_at,
+      primary_chat_id: "chat-native-1",
+      external_chat_provider: null,
+      external_chat_lookup_hash: null,
+      encrypted_external_chat_id: null,
+      encrypted_external_chat_title: null,
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("sends only the external provider and blind lookup hash when filtering", async () => {
+    const masterKey = Buffer.alloc(32, 5);
+    const context = parseExternalChatRef("opencode:ses_private_456");
+    const lookupHash = externalChatLookupHash(masterKey, context);
+    await withServer(
+      () => ({ tasks: [] }),
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        await client.listUserTasks({
+          externalChatProvider: context.provider,
+          externalChatLookupHash: lookupHash,
+        });
+
+        assert.equal(
+          seen[0]?.url,
+          `/v1/user-tasks?external_chat_provider=opencode&external_chat_lookup_hash=${lookupHash}`,
+        );
+        assert.doesNotMatch(seen[0]?.url ?? "", /ses_private_456/);
+      },
+    );
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.lifecycle.visible,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
+  it("encrypts blocked explanation while preserving a safe reason code", async () => {
+    const masterKey = Buffer.alloc(32, 9);
+    const encrypted = await buildCreateUserTaskInput(masterKey, { title: "Publish changes" });
+    const task = await decryptUserTask(encrypted, masterKey);
+    const action = await buildBlockUserTaskInput(task, masterKey, {
+      reasonCode: "missing_credentials",
+      reasonText: "A repository write token is required.",
+    });
+
+    assert.equal(normalizeBlockedReasonCode("missing_credentials"), "missing_credentials");
+    assert.throws(() => normalizeBlockedReasonCode("secret token missing"), /Unknown blocked reason code/);
+    assert.equal(action.version, task.version);
+    assert.equal(action.blocked_reason_code, "missing_credentials");
+    assert.ok(action.encrypted_blocked_reason);
+    assert.doesNotMatch(JSON.stringify(action), /repository write token/);
+
+    const blocked = await decryptUserTask({
+      ...encrypted,
+      status: "blocked",
+      blocked_reason_code: "missing_credentials",
+      encrypted_blocked_reason: action.encrypted_blocked_reason,
+    }, masterKey);
+    assert.equal(blocked.blockedReason, "A repository write token is required.");
   });
 
   // contract-test: direct surface=cli assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity

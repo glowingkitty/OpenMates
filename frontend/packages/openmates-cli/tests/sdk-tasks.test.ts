@@ -218,7 +218,7 @@ describe("OpenMates SDK user tasks", () => {
         assert.equal(edited.priorityLevel, "urgent");
 
         assert.equal((await client.tasks.startAI("TASK-1", teamFilters)).status, "in_progress");
-        assert.equal((await client.tasks.block("TASK-1", "needs_input", teamFilters)).status, "blocked");
+        assert.equal((await client.tasks.block("TASK-1", "needs_user_input", teamFilters)).status, "blocked");
         assert.equal((await client.tasks.unblock("TASK-1", teamFilters)).status, "todo");
         assert.equal((await client.tasks.skip("TASK-1", teamFilters)).queueState, "skipped");
         assert.equal((await client.tasks.done("TASK-1", teamFilters)).status, "done");
@@ -237,5 +237,70 @@ describe("OpenMates SDK user tasks", () => {
     assert.ok(seen.some((request) => request.url?.endsWith("/complete") && (request.body as Record<string, unknown>).team_id === "team-1"));
     assert.ok(seen.some((request) => request.url === "/v1/user-tasks/reorder" && (request.body as Record<string, unknown>).team_id === "team-1"));
     assert.ok(seen.some((request) => request.method === "DELETE" && request.url?.includes("team_id=team-1")));
+  });
+
+  // contract-test: direct surface=sdks.npm assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
+  it("encrypts external chat and block text without plaintext HTTP payloads", async () => {
+    const masterKey = Buffer.alloc(32, 10);
+    const material = await createApiKeyCryptoMaterial("sdk external task parity", masterKey.toString("base64"));
+    let storedTask: Record<string, any> | null = null;
+
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.method === "POST" && request.url === "/v1/user-tasks") {
+          assert.equal((body as Record<string, unknown>).external_chat_provider, "opencode");
+          assert.equal(typeof (body as Record<string, unknown>).external_chat_lookup_hash, "string");
+          storedTask = { ...(body as Record<string, any>), short_id: "TASK-EXT" };
+          return { task: storedTask };
+        }
+        if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+          return { tasks: storedTask ? [storedTask] : [] };
+        }
+        if (request.method === "POST" && request.url?.endsWith("/block")) {
+          assert.equal((body as Record<string, unknown>).blocked_reason_code, "missing_credentials");
+          assert.equal(typeof (body as Record<string, unknown>).encrypted_blocked_reason, "string");
+          storedTask = { ...storedTask, ...(body as Record<string, any>), status: "blocked" };
+          return { task: storedTask };
+        }
+        if (request.method === "PATCH" && request.url?.startsWith("/v1/user-tasks/")) {
+          assert.deepEqual(body, {
+            version: storedTask?.version,
+            updated_at: (body as Record<string, unknown>).updated_at,
+            primary_chat_id: "11111111-1111-4111-8111-111111111111",
+            external_chat_provider: null,
+            external_chat_lookup_hash: null,
+            encrypted_external_chat_id: null,
+            encrypted_external_chat_title: null,
+          });
+          storedTask = { ...storedTask, ...(body as Record<string, any>) };
+          return { task: storedTask };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
+        const created = await client.tasks.create({
+          title: "Implement task bridge",
+          externalChat: { provider: "opencode", id: "ses_external_123", title: "OpenCode task bridge" },
+        });
+        assert.deepEqual(created.externalChat, { provider: "opencode", id: "ses_external_123", title: "OpenCode task bridge" });
+        assert.equal((await client.tasks.list({ externalChat: { provider: "opencode", id: "ses_external_123" } }))[0]?.taskId, created.taskId);
+        const blocked = await client.tasks.block("TASK-EXT", "Missing Credentials", { reasonText: "A repository write token is required." });
+        assert.equal(blocked.blockedReason, "A repository write token is required.");
+        const native = await client.tasks.edit("TASK-EXT", { chatId: "11111111-1111-4111-8111-111111111111" });
+        assert.equal(native.primaryChatId, "11111111-1111-4111-8111-111111111111");
+        assert.equal(native.externalChat, null);
+
+        const payloads = seen.filter((entry) => entry.body !== undefined).map((entry) => JSON.stringify(entry.body));
+        assert.ok(payloads.every((payload) => !/ses_external_123|OpenCode task bridge|repository write token/.test(payload)));
+        const externalList = seen.find((entry) => entry.method === "GET" && entry.url?.includes("external_chat_provider=opencode"));
+        assert.ok(externalList?.url?.includes("external_chat_lookup_hash="));
+        assert.doesNotMatch(externalList?.url ?? "", /ses_external_123/);
+      },
+      `Bearer ${material.apiKey}`,
+    );
   });
 });

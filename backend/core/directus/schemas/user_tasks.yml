@@ -48,6 +48,16 @@ user_tasks:
       nullable: true
       note: "[Indexed] SHA256(primary_chat_id) for privacy-preserving filtering."
 
+    external_chat_provider:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Allowlisted external chat provider. It is mutually exclusive with primary_chat_id."
+
+    external_chat_lookup_hash:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Owner-scoped, domain-separated blind index for external chat filtering."
+
     linked_project_hashes:
       type: json
       nullable: true
@@ -189,6 +199,21 @@ user_tasks:
       type: text
       nullable: true
       note: "[Client-encrypted durable storage] Latest task instruction encrypted before storage."
+
+    encrypted_external_chat_id:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] External chat identifier. Plaintext external ids must never be stored server-side."
+
+    encrypted_external_chat_title:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] External chat display title. Plaintext titles must never be stored server-side."
+
+    encrypted_blocked_reason:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] User-facing blocker explanation. blocked_reason_code remains safe metadata."
 
 user_task_key_wrappers:
   type: collection

@@ -15,6 +15,7 @@ from backend.core.api.app.services.user_task_queue_service import UserTaskQueueS
 
 def _configure_admission(methods, tasks, claimed):
     methods.list_open_tasks_for_admission.return_value = tasks
+    methods.admission_blockers.return_value = []
     methods.acquire_admission_lock.return_value = "scope-lock"
     methods.claim_ai_task.return_value = claimed
 
@@ -46,23 +47,25 @@ async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
     methods.claim_ai_task.assert_awaited_once_with(next_task, 500)
 
 
-# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.blocking.encrypted-reason
 @pytest.mark.asyncio
-async def test_block_pauses_queue_with_safe_reason() -> None:
+async def test_block_pauses_queue_with_safe_code_and_encrypted_reason() -> None:
     methods = AsyncMock()
     methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 4}
     methods.update_task_if_version.return_value = {
         "task_id": "task-1",
         "status": "blocked",
         "queue_state": "waiting_for_user",
-        "blocked_reason_code": "needs_input",
+        "blocked_reason_code": "missing_credentials",
+        "encrypted_blocked_reason": "cipher-blocked-reason",
     }
 
     result = await UserTaskQueueService(methods).block_task(
         "task-1",
         "user-1",
         version=4,
-        blocked_reason_code="needs_input",
+        blocked_reason_code="missing_credentials",
+        encrypted_blocked_reason="cipher-blocked-reason",
         now=700,
     )
 
@@ -74,7 +77,8 @@ async def test_block_pauses_queue_with_safe_reason() -> None:
         "version": 4,
         "status": "blocked",
         "queue_state": "waiting_for_user",
-        "blocked_reason_code": "needs_input",
+        "blocked_reason_code": "missing_credentials",
+        "encrypted_blocked_reason": "cipher-blocked-reason",
         "ai_execution_state": "waiting_for_user",
         "updated_at": 700,
     }

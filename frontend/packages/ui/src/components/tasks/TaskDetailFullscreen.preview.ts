@@ -16,9 +16,10 @@ const task = {
   description: 'Creating a 3D model for the ball pit. Requirements:\n- fits 2-3 people',
   tags: ['software', 'marketing'],
   latestInstruction: '',
-  status: 'todo',
+  status: 'blocked',
   assigneeType: 'ai',
-  primaryChatId: 'preview-chat',
+  primaryChatId: null,
+  externalChat: { provider: 'opencode', id: 'ses_preview_task_bridge', title: 'OpenCode task bridge' },
   linkedProjectIds: ['preview-project'],
   planId: 'preview-plan',
   dueAt,
@@ -27,14 +28,20 @@ const task = {
   version: 1,
   createdAt,
   updatedAt: createdAt,
-  blockedReasonCode: 'waiting_for_dependency',
+  blockedReasonCode: 'missing_credentials',
+  blockedReason: 'A repository write token is required before this task can continue. The credential must be created with repository write access and stored in the approved local secret manager before the verification run can resume.',
   aiExecutionState: null,
   encrypted: {
     task_id: 'preview-task-detail',
     encrypted_title: 'preview-ciphertext',
-    status: 'todo',
+    status: 'blocked',
     assignee_type: 'ai',
-    primary_chat_id: 'preview-chat',
+    primary_chat_id: null,
+    external_chat_provider: 'opencode',
+    external_chat_lookup_hash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    encrypted_external_chat_id: 'preview-ciphertext',
+    encrypted_external_chat_title: 'preview-ciphertext',
+    encrypted_blocked_reason: 'preview-ciphertext',
     plan_id: 'preview-plan',
     due_at: dueAt,
     priority: 4,
@@ -48,7 +55,7 @@ const task = {
 const related = {
   projects: [{ id: 'preview-project', title: 'Research project', description: 'Privacy and user interests focused AI research.' }],
   plan: { id: 'preview-plan', title: 'Research launch plan', description: 'Coordinate research, design, and launch.' },
-  chat: { id: 'preview-chat', title: '3D model planning' },
+  chat: null,
   dependencies: [{
     edgeId: 'preview-edge',
     targetRef: 'task:preview-blocker',
@@ -61,3 +68,13 @@ const related = {
 };
 
 export default { task, related, onClose: () => {} };
+
+export const variants = {
+  codeFallback: {
+    task: {
+      ...task,
+      blockedReason: '',
+      encrypted: { ...task.encrypted, encrypted_blocked_reason: null },
+    },
+  },
+};

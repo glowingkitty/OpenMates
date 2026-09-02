@@ -4,13 +4,31 @@ User-facing tasks are distinct from Celery task polling. These tests focus on
 the Directus/service contract so they run without a live CMS or FastAPI app.
 """
 
+import sys
+import types
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from fastapi import HTTPException
 
-from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods, derive_task_short_id, hash_id
-from backend.core.api.app.services.user_task_service import UserTaskConflictError, UserTaskService
+
+class _FakeLimiter:
+    def limit(self, _rate: str):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+limiter_stub = types.ModuleType("backend.core.api.app.services.limiter")
+limiter_stub.limiter = _FakeLimiter()
+sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
+
+from backend.core.api.app.routes import user_tasks  # noqa: E402
+from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods, derive_task_short_id, hash_id  # noqa: E402
+from backend.core.api.app.services.user_task_service import UserTaskConflictError, UserTaskService  # noqa: E402
 
 
 def task_payload(**overrides):
@@ -111,6 +129,232 @@ async def test_create_task_persists_label_hashes_and_priority_metadata() -> None
     assert record["label_hashes"] == [LABEL_HASH_A, LABEL_HASH_B]
     assert record["priority"] == 4
     assert "labels" not in record
+
+
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context
+@pytest.mark.asyncio
+async def test_create_external_chat_task_persists_only_encrypted_context_and_blind_index() -> None:
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(return_value=(True, {"id": "row-1", **task_payload(primary_chat_id=None)}))
+    external_lookup_hash = "c" * 64
+
+    methods = UserTaskMethods(with_lock_cache(directus))
+    await methods.create_task("user-1", task_payload(
+        primary_chat_id=None,
+        external_chat_provider="opencode",
+        external_chat_lookup_hash=external_lookup_hash,
+        encrypted_external_chat_id="cipher-session-id",
+        encrypted_external_chat_title="cipher-session-title",
+    ))
+
+    _collection, record = directus.create_item.await_args.args
+    assert record["primary_chat_id"] is None
+    assert record["hashed_primary_chat_id"] is None
+    assert record["external_chat_provider"] == "opencode"
+    assert record["external_chat_lookup_hash"] == external_lookup_hash
+    assert record["encrypted_external_chat_id"] == "cipher-session-id"
+    assert record["encrypted_external_chat_title"] == "cipher-session-title"
+    assert "external_chat_id" not in record
+    assert "external_chat_title" not in record
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context
+@pytest.mark.asyncio
+async def test_create_task_rejects_native_and_external_chat_context_together() -> None:
+    methods = UserTaskMethods(with_lock_cache(SimpleNamespace()))
+
+    with pytest.raises(ValueError, match="native or external chat"):
+        await methods.create_task("user-1", task_payload(
+            external_chat_provider="opencode",
+            external_chat_lookup_hash="c" * 64,
+            encrypted_external_chat_id="cipher-session-id",
+        ))
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context
+@pytest.mark.asyncio
+async def test_list_tasks_filters_external_chat_provider_and_blind_index() -> None:
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[])
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    await methods.list_tasks(
+        "user-1",
+        external_chat_provider="opencode",
+        external_chat_lookup_hash="c" * 64,
+    )
+
+    filter_terms = directus.get_items.await_args.kwargs["params"]["filter"]["_and"]
+    assert {"external_chat_provider": {"_eq": "opencode"}} in filter_terms
+    assert {"external_chat_lookup_hash": {"_eq": "c" * 64}} in filter_terms
+
+
+# contract-test: supporting surface=rest_api assertions=tasks.external-chat.encrypted-context
+def test_user_task_external_chat_index_is_owner_scoped() -> None:
+    migration = Path(__file__).parents[1] / "core/directus/setup/migrate_user_task_indexes.sql"
+    sql = migration.read_text(encoding="utf-8")
+
+    assert "CREATE INDEX IF NOT EXISTS user_tasks_owner_external_chat_idx" in sql
+    assert "ON user_tasks (hashed_user_id, external_chat_provider, external_chat_lookup_hash, position, created_at)" in sql
+    assert "WHERE hashed_team_id IS NULL" in sql
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context
+@pytest.mark.asyncio
+async def test_update_task_rejects_incomplete_or_native_external_chat_context() -> None:
+    existing = {
+        "id": "task-row",
+        **task_payload(primary_chat_id=None),
+        "external_chat_provider": "opencode",
+        "external_chat_lookup_hash": "c" * 64,
+        "encrypted_external_chat_id": "cipher-session-id",
+    }
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[existing])
+    directus.update_item_if_version = AsyncMock()
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    with pytest.raises(ValueError, match="native or external chat"):
+        await methods.update_task("task-1", "user-1", {"version": 1, "primary_chat_id": "chat-1"})
+
+    with pytest.raises(ValueError, match="requires an encrypted external id"):
+        await methods.update_task("task-1", "user-1", {"version": 1, "encrypted_external_chat_id": None})
+
+    directus.update_item_if_version.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.blocking.encrypted-reason
+@pytest.mark.asyncio
+async def test_directus_task_updates_preserve_legacy_and_runtime_blocked_reason_codes() -> None:
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(return_value=[{"id": "task-row", "task_id": "task-1", "version": 1}])
+    directus.update_item_if_version = AsyncMock(return_value={"id": "task-row", "task_id": "task-1", "version": 2})
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    updated = await methods.update_task("task-1", "user-1", {"version": 1, "blocked_reason_code": "ai_dispatch_failed"})
+
+    assert updated is not None
+    assert directus.update_item_if_version.await_args.args[2]["blocked_reason_code"] == "ai_dispatch_failed"
+
+
+# contract-test: direct surface=rest_api assertions=tasks.blocking.encrypted-reason
+def test_task_request_models_reject_unapproved_blocked_reason_codes() -> None:
+    with pytest.raises(ValueError, match="needs_user_input"):
+        user_tasks.UserTaskUpdateRequest(version=1, blocked_reason_code="needs_input")
+
+    assert user_tasks.UserTaskActionRequest(version=1, blocked_reason_code="missing_credentials").blocked_reason_code == "missing_credentials"
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context
+@pytest.mark.asyncio
+async def test_list_route_returns_bad_request_for_partial_external_chat_filter(monkeypatch) -> None:
+    async def current_user(_request, _response):
+        return SimpleNamespace(id="user-1")
+
+    monkeypatch.setattr(user_tasks, "_current_user", current_user)
+    service = SimpleNamespace(list_tasks=AsyncMock())
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await user_tasks.list_user_tasks(
+            request,
+            SimpleNamespace(),
+            external_chat_provider="opencode",
+            service=service,
+            workflow_projection_service=SimpleNamespace(),
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Task external chat filters require both provider and lookup hash"
+    service.list_tasks.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_external_chat_task_allows_master_wrapper_but_rejects_chat_wrapper() -> None:
+    external_task = task_payload(
+        primary_chat_id=None,
+        linked_project_ids=[],
+        encrypted_linked_project_ids=None,
+        external_chat_provider="opencode",
+        external_chat_lookup_hash="c" * 64,
+        encrypted_external_chat_id="cipher-session-id",
+    )
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(side_effect=lambda _collection, record, **_kwargs: (True, {"id": "row", **record}))
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    created = await methods.create_task(
+        "user-1",
+        {**external_task, "key_wrappers": [{"key_type": "master", "encrypted_task_key": "cipher-master", "created_at": 100}]},
+    )
+
+    assert created is not None
+
+    invalid_directus = SimpleNamespace()
+    invalid_directus.create_item = AsyncMock()
+    invalid_methods = UserTaskMethods(with_lock_cache(invalid_directus))
+    rejected = await invalid_methods.create_task(
+        "user-1",
+        {
+            **external_task,
+            "key_wrappers": [
+                {"key_type": "master", "encrypted_task_key": "cipher-master", "created_at": 100},
+                {"key_type": "chat", "hashed_chat_id": hash_id("chat-1"), "encrypted_task_key": "cipher-chat", "created_at": 100},
+            ],
+        },
+    )
+
+    assert rejected is None
+    invalid_directus.create_item.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.key-wrappers.context-scoped
+@pytest.mark.asyncio
+async def test_update_task_can_switch_external_context_to_native_when_all_external_fields_are_cleared() -> None:
+    existing = {
+        "id": "task-row",
+        **task_payload(primary_chat_id=None),
+        "external_chat_provider": "opencode",
+        "external_chat_lookup_hash": "c" * 64,
+        "encrypted_external_chat_id": "cipher-session-id",
+        "encrypted_external_chat_title": "cipher-session-title",
+        "linked_project_hashes": [hash_id("project-1")],
+    }
+    wrappers = [{"id": "old-master", "key_type": "master", "encrypted_task_key": "cipher-master", "created_at": 100}]
+    replacement_wrappers = [
+        {"key_type": "master", "encrypted_task_key": "cipher-master-v2", "created_at": 200},
+        {"key_type": "chat", "hashed_chat_id": hash_id("chat-1"), "encrypted_task_key": "cipher-chat", "created_at": 200},
+        {"key_type": "project", "hashed_project_id": hash_id("project-1"), "encrypted_task_key": "cipher-project", "created_at": 200},
+    ]
+    directus = SimpleNamespace()
+    directus.get_items = AsyncMock(side_effect=[[existing], wrappers])
+    directus.create_item = AsyncMock(side_effect=lambda _collection, record, **_kwargs: (True, {"id": "new-wrapper", **record}))
+    directus.delete_item = AsyncMock(return_value=True)
+    directus.update_item_if_version = AsyncMock(return_value={"id": "task-row", "task_id": "task-1", "version": 2})
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    updated = await methods.update_task(
+        "task-1",
+        "user-1",
+        {
+            "version": 1,
+            "primary_chat_id": "chat-1",
+            "external_chat_provider": None,
+            "external_chat_lookup_hash": None,
+            "encrypted_external_chat_id": None,
+            "encrypted_external_chat_title": None,
+            "key_wrappers": replacement_wrappers,
+        },
+    )
+
+    assert updated is not None
+    persisted = directus.update_item_if_version.await_args.args[2]
+    assert persisted["hashed_primary_chat_id"] == hash_id("chat-1")
+    assert persisted["external_chat_provider"] is None
+    assert persisted["external_chat_lookup_hash"] is None
+    assert persisted["encrypted_external_chat_id"] is None
+    assert persisted["encrypted_external_chat_title"] is None
 
 
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity

@@ -304,25 +304,25 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | --- | --- | --- | --- | --- |
 | `om.tasks.addToProject()` | `om.tasks.add_to_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
 | `om.tasks.ask()` | `om.tasks.ask()` | `instruction, create, creates, update, updates, exact_delete, exact_deletes` | `instruction, create, creates, update, updates, exact_delete, exact_deletes` | `object` |
-| `om.tasks.block()` | `om.tasks.block()` | `id, reason, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, reason, input` | `object` |
-| `om.tasks.complete()` | `om.tasks.complete()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.block()` | `om.tasks.block()` | `id, reason, input` | `id, reason, reason_text, input` | `object` |
+| `om.tasks.complete()` | `om.tasks.complete()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
 | `om.tasks.create()` | `om.tasks.create()` | `input` | `input` | `object` |
-| `om.tasks.delete()` | `om.tasks.delete()` | `id, confirmed, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
-| `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | `id, confirmed, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
-| `om.tasks.done()` | `om.tasks.done()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.edit()` | `om.tasks.edit()` | `id, input, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
-| `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
-| `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, priority, team_id` | `list` |
-| `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.delete()` | `om.tasks.delete()` | `id, confirmed, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
+| `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | `id, confirmed, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
+| `om.tasks.done()` | `om.tasks.done()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.edit()` | `om.tasks.edit()` | `id, input, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
+| `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
+| `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, external_chat, priority, team_id` | `list` |
+| `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.removeFromProject()` | `om.tasks.remove_from_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
-| `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.restore()` | `om.tasks.restore()` | `id, entry_id, state, input` | `id, entry_id, state, input` | `object` |
-| `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.skip()` | `om.tasks.skip()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.start()` | `om.tasks.start()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.startAI()` | `om.tasks.start_ai()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.unblock()` | `om.tasks.unblock()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.update()` | `om.tasks.update()` | `id, input, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
+| `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.skip()` | `om.tasks.skip()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.start()` | `om.tasks.start()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.startAI()` | `om.tasks.start_ai()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.unblock()` | `om.tasks.unblock()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.update()` | `om.tasks.update()` | `id, input, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
 
 ## `teams`
 

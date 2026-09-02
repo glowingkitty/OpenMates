@@ -19,6 +19,7 @@ from backend.shared.python_utils.encrypted_slug_metadata import (
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
+EXTERNAL_CHAT_PROVIDERS = {"opencode"}
 
 
 class TaskLockBusyError(RuntimeError):
@@ -27,12 +28,12 @@ class TaskLockBusyError(RuntimeError):
 
 USER_TASK_FIELDS = (
     "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_hash,"
-    "primary_chat_id,hashed_primary_chat_id,linked_project_hashes,label_hashes,parent_task_id,"
+    "primary_chat_id,hashed_primary_chat_id,external_chat_provider,external_chat_lookup_hash,linked_project_hashes,label_hashes,parent_task_id,"
     "plan_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
     "completed_at,blocked_reason_code,queue_state,ai_execution_state,encrypted_title,"
     "encrypted_slug,slug_lookup_hash,encrypted_task_key,encrypted_description,encrypted_labels,encrypted_tags,encrypted_linked_project_ids,"
-    "encrypted_activity_summary,encrypted_latest_instruction"
+    "encrypted_activity_summary,encrypted_latest_instruction,encrypted_external_chat_id,encrypted_external_chat_title,encrypted_blocked_reason"
 )
 
 USER_TASK_METADATA_FIELDS = "task_id,status,updated_at,version"
@@ -96,6 +97,24 @@ def _coerce_priority(value: Any) -> int:
     if priority < 0 or priority > 4:
         raise ValueError("Task priority must be an integer from 0 to 4")
     return priority
+
+
+def _validate_external_chat_context(record: dict[str, Any]) -> None:
+    provider = record.get("external_chat_provider")
+    lookup_hash = record.get("external_chat_lookup_hash")
+    encrypted_id = record.get("encrypted_external_chat_id")
+    encrypted_title = record.get("encrypted_external_chat_title")
+    has_external_field = any(value is not None for value in (provider, lookup_hash, encrypted_id, encrypted_title))
+    if not has_external_field:
+        return
+    if provider not in EXTERNAL_CHAT_PROVIDERS:
+        raise ValueError("Task external chat provider is not allowed")
+    if not is_sha256_hex(lookup_hash):
+        raise ValueError("Task external chat lookup hash must be a lowercase SHA-256 hex string")
+    if not isinstance(encrypted_id, str) or not encrypted_id:
+        raise ValueError("Task external chat requires an encrypted external id")
+    if record.get("primary_chat_id") is not None:
+        raise ValueError("Task must use either a native or external chat context, not both")
 
 
 def _slug_lookup_filter(user_id: str, slug_lookup_hash: str, exclude_row_id: str | None = None) -> dict[str, Any]:
@@ -163,6 +182,7 @@ def _validate_wrapper_set(
     primary_chat_hash: str | None,
     project_hashes: set[str],
     plan_hash: str | None = None,
+    has_external_chat_context: bool = False,
 ) -> bool:
     if not wrappers:
         logger.error("Rejected empty user task key wrapper set")
@@ -178,6 +198,9 @@ def _validate_wrapper_set(
         if key_type == "master":
             master_count += 1
         elif key_type == "chat":
+            if has_external_chat_context:
+                logger.error("Rejected user task chat wrapper for external chat context")
+                return False
             hashed_chat_id = wrapper.get("hashed_chat_id")
             if hashed_chat_id != primary_chat_hash:
                 logger.error("Rejected user task chat wrapper that does not match primary chat metadata")
@@ -223,6 +246,8 @@ class UserTaskMethods:
         project_id: str | None = None,
         assignee_hash: str | None = None,
         label_hashes: list[str] | None = None,
+        external_chat_provider: str | None = None,
+        external_chat_lookup_hash: str | None = None,
         priority: int | None = None,
         due_before: int | None = None,
         team_id: str | None = None,
@@ -234,6 +259,13 @@ class UserTaskMethods:
         else:
             filter_terms = [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]
         valid_label_hashes = _coerce_blind_hashes(label_hashes or [])
+        if (external_chat_provider is None) != (external_chat_lookup_hash is None):
+            raise ValueError("Task external chat filters require both provider and lookup hash")
+        if external_chat_provider is not None:
+            if external_chat_provider not in EXTERNAL_CHAT_PROVIDERS:
+                raise ValueError("Task external chat provider is not allowed")
+            if not is_sha256_hex(external_chat_lookup_hash):
+                raise ValueError("Task external chat lookup hash must be a lowercase SHA-256 hex string")
         params: dict[str, Any] = {
             "fields": USER_TASK_FIELDS,
             "sort": "position,created_at",
@@ -245,6 +277,9 @@ class UserTaskMethods:
             filter_terms.append({"hashed_primary_chat_id": {"_eq": hash_id(chat_id)}})
         if assignee_hash:
             filter_terms.append({"assignee_hash": {"_eq": assignee_hash}})
+        if external_chat_provider:
+            filter_terms.append({"external_chat_provider": {"_eq": external_chat_provider}})
+            filter_terms.append({"external_chat_lookup_hash": {"_eq": external_chat_lookup_hash}})
         if priority is not None:
             filter_terms.append({"priority": {"_eq": _coerce_priority(priority)}})
         for label_hash in valid_label_hashes:
@@ -491,11 +526,13 @@ class UserTaskMethods:
             "created_at": now,
             "updated_at": payload.get("updated_at", now),
         }
+        _validate_external_chat_context(record)
         if key_wrappers and not _validate_wrapper_set(
             key_wrappers,
             primary_chat_hash=record.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(record.get("linked_project_hashes")),
             plan_hash=hash_id(record["plan_id"]) if record.get("plan_id") else None,
+            has_external_chat_context=record.get("external_chat_provider") is not None,
         ):
             return None
         await self._ensure_slug_lookup_available(record.get("slug_lookup_hash"), user_id)
@@ -592,6 +629,7 @@ class UserTaskMethods:
             primary_chat_hash=task.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(task.get("linked_project_hashes")),
             plan_hash=hash_id(task["plan_id"]) if task.get("plan_id") else None,
+            has_external_chat_context=task.get("external_chat_provider") is not None,
         ):
             return None
         existing_wrappers = await self.list_task_key_wrappers(user_id, task_id)
@@ -782,6 +820,18 @@ class UserTaskMethods:
             next_project_hashes = {hash_id(project_id) for project_id in linked_project_ids if project_id}
         next_plan_hash = hash_id(update["plan_id"]) if update.get("plan_id") else (hash_id(existing["plan_id"]) if existing.get("plan_id") else None)
 
+        effective_context = {
+            field: update[field] if field in update else existing.get(field)
+            for field in (
+                "primary_chat_id",
+                "external_chat_provider",
+                "external_chat_lookup_hash",
+                "encrypted_external_chat_id",
+                "encrypted_external_chat_title",
+            )
+        }
+        _validate_external_chat_context(effective_context)
+
         relinks_context = next_chat_hash != existing_chat_hash or next_project_hashes != existing_project_hashes
         if relinks_context and not key_wrappers:
             logger.error("Rejected user task relink without replacement key wrappers")
@@ -807,6 +857,7 @@ class UserTaskMethods:
             primary_chat_hash=next_chat_hash,
             project_hashes=next_project_hashes,
             plan_hash=next_plan_hash,
+            has_external_chat_context=effective_context.get("external_chat_provider") is not None,
         ):
             return None
         if key_wrappers is not None:

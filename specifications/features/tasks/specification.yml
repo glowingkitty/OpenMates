@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.tasks
-version: 2
+version: 3
 status: draft
 title: Tasks
 summary: >
@@ -18,7 +18,9 @@ scope:
   includes:
     - Create, list, show, update, reorder, assign, block, unblock, skip, complete, delete, start-AI, ask, history, and restore behavior.
     - Backlog, todo, in-progress, blocked, and done lifecycle with explicit queue and AI execution state.
-    - Human and AI assignment, priority, due dates, labels, Project/Plan/chat links, activity, and optimistic versions.
+    - Human and AI assignment, priority, due dates, labels, Project/Plan/native-chat/external-chat links, activity, and optimistic versions.
+    - Typed external-chat contexts whose private identifiers and display titles remain client-encrypted while provider and keyed lookup metadata remain server-visible.
+    - Safe blocked reason codes plus client-encrypted user-facing blocker explanations.
     - Flat Tasks with optional dependency links and Plan phase grouping; no recursive child Task ownership.
     - Verification work created from a Check or failed Check as normal Tasks while the linked Check remains the source of proof status.
     - Workflow run projections as read-only task-shaped items without creating Task records.
@@ -51,6 +53,10 @@ models:
     due_at: {type: timestamp_or_null, nullable: true}
     primary_chat_id: {type: chat_id_or_null, nullable: true}
     hashed_primary_chat_id: {type: hashed_id_or_null, nullable: true}
+    external_chat_provider: {type: enum_or_null, values: [opencode], nullable: true, constraints: {allowlisted: true}}
+    external_chat_lookup_hash: {type: blind_index_or_null, nullable: true, constraints: {computed_client_side: true, raw_external_id_recoverable: false}}
+    encrypted_external_chat_id: {type: client_ciphertext_or_null, nullable: true, constraints: {plaintext_external_id_backend_storage: forbidden}}
+    encrypted_external_chat_title: {type: client_ciphertext_or_null, nullable: true}
     plan_id: {type: stable_id_or_null, nullable: true}
     plan_phase_id: {type: stable_id_or_null, nullable: true, constraints: {presentation_group_only: true}}
     source_check_id: {type: stable_id_or_null, nullable: true}
@@ -74,7 +80,8 @@ models:
   TaskLifecycleState:
     queue_state: {type: enum_or_null, values: [none, waiting, active, skipped, waiting_for_user]}
     ai_execution_state: {type: enum_or_string_or_null, constraints: {safe_routing_metadata: true}}
-    blocked_reason_code: {type: enum_or_string_or_null, constraints: {plaintext_private_content: forbidden}}
+    blocked_reason_code: {type: enum_or_null, values: [needs_user_input, waiting_for_approval, missing_credentials, ambiguous_requirement, external_dependency, environment_unavailable, verification_failed, other], constraints: {plaintext_private_content: forbidden}}
+    encrypted_blocked_reason: {type: client_ciphertext_or_null, nullable: true, constraints: {plaintext_blocked_reason_backend_storage: forbidden}}
     started_at: {type: timestamp_or_null, nullable: true}
     completed_at: {type: timestamp_or_null, nullable: true}
 
@@ -82,6 +89,14 @@ models:
     capacity_scope: {type: enum, values: [personal, team], required: true}
     execution_lane: {type: derived_identifier, required: true, constraints: {precedence: [plan_id, primary_chat_id, standalone_task_id]}}
     waiting_state: {type: enum, values: [waiting_for_previous_task, waiting_for_plan_dependency, waiting_for_capacity], required: true}
+
+  TaskExternalChatContext:
+    provider: {type: enum, values: [opencode], required: true}
+    lookup_hash: {type: blind_index, required: true, constraints: {domain_separated: true, owner_scoped: true}}
+    encrypted_external_id: {type: client_ciphertext, required: true}
+    encrypted_display_title: {type: client_ciphertext_or_null, nullable: true}
+    native_chat_exclusivity: {type: invariant, required: true, constraints: {primary_chat_id_and_external_context_mutually_exclusive: true}}
+    task_key_source: {type: enum, values: [owner_master_wrapper], required: true, constraints: {synthetic_chat_key: forbidden}}
 
   TaskKeyWrapper:
     key_type: {type: enum, values: [master, chat, project, plan, team], required: true}
@@ -113,6 +128,14 @@ assertions:
     type: behavior
     must: Task creation, update, reorder, assignment, blocking, skipping, completion, deletion, AI start, restoration, and queue transitions preserve explicit status, timestamps, conflict versions, and visible blockers; assistant prose never changes Task state by itself.
     depends_on: [models.TaskRecord, models.TaskLifecycleState, examples.task_lifecycle]
+  - id: tasks.blocking.encrypted-reason
+    type: privacy
+    must: Blocking a Task stores one allowlisted server-visible blocked_reason_code and an optional client-encrypted user-facing blocked explanation; REST, CLI, SDK, and web decrypt and display the explanation only in authorized client memory, with a localized code fallback when no explanation exists.
+    depends_on: [models.TaskLifecycleState, examples.task_blocked_reason]
+  - id: tasks.external-chat.encrypted-context
+    type: security
+    must: A Task may belong to either one native OpenMates primary Chat or one allowlisted external Chat context; external provider is safe metadata, external id and title remain client-encrypted, equality filtering uses a domain-separated owner-scoped blind index, and synthetic native Chat ids or keys are forbidden.
+    depends_on: [models.TaskRecord, models.TaskExternalChatContext, examples.task_external_chat_context]
   - id: tasks.structure.flat-dependencies
     type: invariant
     must: Tasks are flat independently addressable records; ordering and acyclic blocked-by links express execution relationships, while recursive subtasks and Plan-owned duplicate task status are forbidden.
@@ -155,7 +178,7 @@ assertions:
     depends_on: [models.TaskDependency, examples.task_dependencies]
   - id: tasks.surface.semantic-parity
     type: parity
-    must: REST, CLI, SDK, and web preserve encrypted content, flat dependencies, assignment, lifecycle, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
+    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, flat dependencies, assignment, lifecycle, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
     depends_on: [models, examples, applies_to]
 
 applies_to:
@@ -167,6 +190,8 @@ applies_to:
     parity: semantic
     requirements:
       - List, show, create, edit, assign, reorder, depend, block, skip, start, complete, and inspect Task blockers.
+      - Create and filter external-chat Tasks through provider:id input while encrypting the external id locally and sending only safe provider plus blind-index metadata.
+      - Preserve --reason as the legacy blocked-reason-code alias while supporting explicit --reason-code and encrypted --reason-text input.
   sdks:
     required: true
     parity: semantic
@@ -181,10 +206,10 @@ applies_to:
         required: true
         requirements:
           - id: tasks.gui.card
-            elements: [title, status, assignee, priority, due_state, plan_or_check_context, blocked_indicator]
+            elements: [title, status, assignee, priority, due_state, plan_or_check_or_external_chat_context, blocked_indicator]
             interactions: [open_detail, move_status, reorder_when_allowed]
           - id: tasks.gui.detail
-            elements: [header, description, status, assignee, dependencies, project_links, plan_link, source_check_link, activity]
+            elements: [header, description, status, assignee, dependencies, project_links, plan_link, source_check_link, external_chat_source, blocked_reason, activity]
             interactions: [edit, assign, block, unblock, skip, complete, open_plan, open_check]
             states: [backlog, todo, in_progress, blocked, done, waiting_for_capacity, waiting_for_dependency, error]
             accessibility: [keyboard_board_alternative, semantic_status, dependency_labels, non_color_priority]
@@ -199,4 +224,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_execution_capacity, task_execution_order, task_surface_parity]
+  required_groups: [task_private_content, task_lifecycle, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_execution_capacity, task_execution_order, task_surface_parity]

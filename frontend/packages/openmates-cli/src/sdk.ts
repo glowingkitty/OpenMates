@@ -61,15 +61,18 @@ import {
   type ShareDuration,
 } from "./shareEncryption.js";
 import {
+  buildBlockUserTaskInput,
   buildCreateUserTaskInput,
   buildUpdateUserTaskInput,
   decryptUserTask,
   decryptUserTasks,
+  externalChatLookupHash,
   findTask,
   labelHashes,
   normalizeLabels,
   normalizeTaskPriority,
   type DecryptedUserTask,
+  type ExternalChatContext,
   type TaskCreateOptions,
   type TaskPriorityLevel,
   type TaskUpdateOptions,
@@ -461,7 +464,8 @@ const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
 const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
 const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; teamId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
+export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; externalChat?: ExternalChatContext; projectId?: string; planId?: string; teamId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
+export type TaskBlockOptions = TaskListFilters & { reasonText?: string };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
 export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
@@ -3736,8 +3740,11 @@ export class OpenMatesTasks {
     return this.done(id, filters);
   }
 
-  async block(id: string, reason: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
-    return this.actionById(id, "block", { blocked_reason_code: reason }, filters);
+  async block(id: string, reason: string, options: TaskBlockOptions = {}): Promise<TaskRecord> {
+    const { reasonText, ...filters } = options;
+    const task = await this.resolve(id, filters);
+    const action = await buildBlockUserTaskInput(task, await this.client.masterKey(), { reasonCode: reason, reasonText });
+    return this.actionById(id, "block", action, filters);
   }
 
   async unblock(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
@@ -3772,13 +3779,17 @@ export class OpenMatesTasks {
 
   private async listRaw(filters: TaskListFilters = {}): Promise<UserTaskRecord[]> {
     const canonicalFilters = await canonicalizeTaskFilters(this.client, filters);
-    const masterKey = filters.labels || filters.tags ? await this.client.masterKey() : undefined;
+    const masterKey = filters.labels || filters.tags || filters.externalChat ? await this.client.masterKey() : undefined;
     const response = await this.client.get<{ tasks?: UserTaskRecord[] }>(withQuery("/v1/user-tasks", {
       status: canonicalFilters.status,
       chat_id: canonicalFilters.chatId,
       project_id: canonicalFilters.projectId,
       plan_id: canonicalFilters.planId,
       label_hash: masterKey ? labelHashes(masterKey, normalizeLabels(filters.labels ?? filters.tags ?? [])) : undefined,
+      external_chat_provider: canonicalFilters.externalChat?.provider,
+      external_chat_lookup_hash: masterKey && canonicalFilters.externalChat
+        ? externalChatLookupHash(masterKey, canonicalFilters.externalChat)
+        : undefined,
       priority: normalizeTaskPriority(canonicalFilters.priority),
       team_id: canonicalFilters.teamId,
     }));

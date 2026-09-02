@@ -1,0 +1,632 @@
+schema_version: 3
+id: opencode-external-task-bridge
+title: OpenCode External-Chat Task Bridge
+status: approved
+
+specification_refs:
+  - id: feature.tasks
+    version: 3
+    role: primary
+    fingerprint: c60b2d08056aa10a61abbf6f7d04591f252579fa19eb432a1ecf4f666f2286b7
+
+specification_impact:
+  classification: semantic_change
+  specification_update_required: true
+  affected_assertions:
+    - tasks.content.client-encrypted
+    - tasks.lifecycle.visible
+    - tasks.blocking.encrypted-reason
+    - tasks.external-chat.encrypted-context
+    - tasks.key-wrappers.context-scoped
+    - tasks.surface.semantic-parity
+  reason: >
+    The approved design adds typed external-chat Task context, encrypted external
+    identifiers and display titles, allowlisted blocked reason codes, encrypted
+    user-facing blocker explanations, and an OpenCode runtime bridge whose only
+    task authority is the OpenMates CLI.
+
+documentation_impact:
+  generated_reference:
+    status: update_required
+    reason: The feature.tasks@3 registry, assertion index, coverage, and generated reference must include the new models and assertions.
+    documents:
+      - specifications/generated/registry.yml
+      - specifications/generated/assertion-index.yml
+      - specifications/generated/coverage.yml
+  user_docs:
+    status: update_required
+    reason: CLI and Tasks documentation must explain external-chat filtering and encrypted blocker explanations.
+    documents:
+      - docs/user-guide/cli/tasks.md
+      - docs/architecture/apps/tasks.md
+  semantic_layer:
+    status: update_required
+    reason: Task metadata, privacy, lifecycle, and cross-surface contracts change.
+    documents:
+      - specifications/features/tasks/specification.yml
+      - specifications/features/tasks/examples.yml
+
+goal: >
+  Make OpenMates Tasks the sole runtime task system for OpenCode chats. Tasks
+  can be privately associated with an allowlisted external chat such as an
+  OpenCode session, blocked Tasks retain a safe machine code plus an encrypted
+  user-facing explanation rendered in the web UI, and a deterministic OpenCode
+  completion hook resumes only when authoritative CLI Task state remains open.
+
+scope:
+  in:
+    - Add an additive typed external-chat context to Tasks without using or depending on OpenMates Plans.
+    - Allow only the opencode provider in the first release.
+    - Store external provider as safe metadata, external id/title as client ciphertext, and equality lookup as a domain-separated owner-scoped blind index.
+    - Enforce mutual exclusivity between primary_chat_id and external-chat context.
+    - Keep external-context Task keys under the owner master wrapper; never create a synthetic native Chat or Chat key.
+    - Add fixed blocked reason codes plus an optional encrypted blocked explanation.
+    - Preserve openmates tasks block --reason <code> as a compatibility alias while adding --reason-code and --reason-text.
+    - Render decrypted blocked explanations in Task cards/detail UI with a localized code fallback.
+    - Add REST, CLI, npm SDK, pip SDK, export/import, and web semantic parity.
+    - Disable OpenCode todowrite/todoread while preserving the separate task subagent launcher.
+    - Expose a typed OpenCode task tool whose implementation shells out only to the trusted openmates CLI JSON contract.
+    - Inject one request-only Task snapshot into every top-level OpenCode model turn: full active Task details and ordered remaining Task titles.
+    - Reconcile once after a top-level assistant response completes and the chat transitions from busy to idle.
+    - Resume through the existing durable continuation queue only when deterministic CLI state reports open runnable Tasks.
+    - Stop for blocked, waiting-user, failed, aborted, explicitly stopped, permission-pending, or question-pending state.
+  out:
+    - OpenMates Plans, Plan UI, Plan-backed Task grouping, or Plan execution.
+    - Creating a native OpenMates Chat for an OpenCode session.
+    - Exposing external-chat Tasks through developer API keys in the first release.
+    - Supporting external-chat providers other than opencode.
+    - Apple UI for external source or blocked explanation in this first slice.
+    - Inferring Task completion or blocking from assistant prose.
+    - Resuming on individual tool completion or session.idle without a completed assistant response and fresh Task reconciliation.
+
+context_discovery:
+  github_issues:
+    - No matching issue was found in glowingkitty/OpenMates for OpenCode external-chat Tasks or encrypted blocked explanations.
+    - Existing Tasks direction remains documented in historical issue references inside docs/plans/tasks-v1/plan.yml.
+  docs:
+    - docs/plans/tasks-v1/plan.yml
+    - docs/plans/opencode-recovery/plan.yml
+    - docs/plans/task-queue-auto-continuation/plan.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+  contracts:
+    - specifications/features/tasks/specification.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/surfaces/cli/specification.yml
+    - specifications/surfaces/sdk/specification.yml
+  code_patterns:
+    - user_tasks already separates server-visible routing metadata from encrypted title, description, labels, activity, and instructions.
+    - Task label filtering already uses client-derived keyed blind indexes, providing the pattern for an external-context lookup hash.
+    - Task blocking already stores blocked_reason_code and sets queue_state plus ai_execution_state to waiting_for_user.
+    - The web task service already decrypts Task content and owns block/unblock requests but does not render a detailed blocked explanation.
+    - OpenCode permissions distinguish todowrite from the task subagent launcher.
+    - openmates-hooks.js already detects completed assistant messages, tracks busy/idle presence, and delivers idempotent durable continuations.
+    - sessions.py already persists atomic continuation records with bounded retry and chronological synthetic message ids.
+  tests:
+    - backend/tests/test_user_tasks_api.py
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_runtime_config.py
+
+clarification:
+  rounds:
+    - question: Should OpenCode chats be represented through unfinished OpenMates Plans or through Tasks directly?
+      answer: Use Tasks directly; the Plan web UI is unfinished and out of scope.
+    - question: How should an OpenCode chat associate its Tasks without creating a native OpenMates Chat?
+      answer: Add a typed encrypted external-chat reference such as opencode:session-id with a private lookup hash.
+    - question: When should OpenCode automatically create Tasks?
+      answer: For non-trivial multi-step work, explicit task requests, and discovered follow-up work; not for informational or trivial one-step turns.
+    - question: When should automatic continuation run?
+      answer: Once after a top-level assistant response completes and the chat switches from busy to idle, never after individual tool calls.
+    - question: What must a blocked Task retain?
+      answer: One allowlisted machine-readable reason code plus an optional encrypted explanation shown in the web UI.
+  vision_summary: >
+    OpenCode uses OpenMates Tasks directly and has no native parallel todo list.
+    Every model turn receives authoritative external-chat Task context. At response
+    completion a deterministic CLI check either resumes the active Task, advances
+    after explicit completion, or stops on an explicitly blocked Task whose
+    encrypted reason is visible to the user.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: working-tree
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-02T12:45:19Z"
+    reason: User explicitly approved the exact feature.tasks@3 PDF fingerprint c60b2d08056aa10a61abbf6f7d04591f252579fa19eb432a1ecf4f666f2286b7.
+  plan:
+    status: approved
+    approved_at: "2026-09-02T12:45:19Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: External-chat association is an additive typed Task context, not a label convention and not a primary_chat_id overload.
+    reason: The model needs validated routing and privacy without synthetic native Chat identities or accidental label detachment.
+    decided_at: "2026-09-02T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: primary_chat_id and external-chat context are mutually exclusive.
+    reason: A Task has one primary chat execution context and one key-wrapper source.
+    decided_at: "2026-09-02T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Blocked explanations are client-encrypted while blocked_reason_code is an allowlisted safe enum.
+    reason: Automation needs stable routing metadata while user explanations may contain private project or credential context.
+    decided_at: "2026-09-02T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: OpenCode checks Tasks only at completed top-level response boundaries and delivers continuation only after idle.
+    reason: Tool-level hooks would over-query, race active work, and produce duplicate continuations.
+    decided_at: "2026-09-02T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: OpenCode native todowrite is denied, while the task subagent launcher remains available.
+    reason: OpenMates Tasks must be the only runtime queue without breaking delegated research/review agents.
+    decided_at: "2026-09-02T00:00:00Z"
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - Apple must preserve unknown additive external-chat and encrypted blocker fields when native Task mutation is implemented later.
+    - Apple Task UI is not launch-gated by this OpenCode-first and web Task-detail slice.
+  verification:
+    - Run shared schema/API compatibility tests; no Xcode build is required unless Apple Task clients already decode strict record shapes.
+  intentional_native_differences:
+    - External OpenCode source and blocked explanation rendering launch on web before Apple.
+
+contracts:
+  api:
+    access_model: first-party-client-only
+    auth: Trusted session/device authentication; OpenCode uses the opencode-personal CLI profile.
+    rate_limits: Existing Task read/write limits plus one bounded context read per top-level turn completion.
+    credit_budget: No OpenMates credits; external-chat Task orchestration does not invoke product inference.
+    encryption_boundary: External chat id/title and blocked explanation are encrypted client-side; backend sees provider, blind index, safe reason code, status, version, and routing state only.
+  cli:
+    create_filter_input: provider:id is parsed locally; plaintext external id is never sent as query or durable metadata.
+    blocked_reason_compatibility: --reason remains a code alias; --reason-code and --reason-text are canonical.
+    json: Machine output includes decrypted authorized external context and blocked explanation plus safe metadata/version fields.
+  opencode:
+    source_of_truth: Trusted openmates CLI JSON commands only.
+    trigger: Completed top-level assistant response followed by busy-to-idle transition.
+    prohibited: Native todowrite/todoread, Plan-backed grouping, tool-completion continuation, prose-inferred Task state.
+
+privacy_security:
+  - Derive external_chat_lookup_hash with a domain-separated HMAC key scoped to owner or Team context.
+  - Never persist raw OpenCode session ids, external titles, or blocked explanations in Directus plaintext fields or server logs.
+  - Validate external_chat_provider against the allowlist and reject native-plus-external context atomically.
+  - Use owner master wrappers for personal external-context Tasks and preserve Team authorization rules before any future Team external bridge.
+  - Inject decrypted Task context only into the active first-party model request; sessions.py stores ids, hashes, versions, and generations, not decrypted Task text.
+  - Fail closed on CLI authentication, decryption, ambiguity, version conflict, multiple active Tasks, or API failure; never fall back to native OpenCode todos.
+
+scenarios:
+  - id: S-1
+    title: OpenCode Task is privately bound to its external chat
+    given:
+      - A trusted OpenCode session creates a Task for non-trivial work.
+    when:
+      - The CLI sends the encrypted Task mutation.
+    then:
+      - external_chat_provider is opencode.
+      - The server stores only the provider, blind lookup hash, and encrypted external id/title.
+      - primary_chat_id is null and the Task uses the owner master wrapper.
+      - Listing with the same local provider:id returns and decrypts the Task.
+  - id: S-2
+    title: Blocked Task shows a private explanation
+    given:
+      - An active Task cannot continue without a repository credential.
+    when:
+      - The client blocks it with code missing_credentials and a private explanation.
+    then:
+      - Status is blocked and queue state is waiting_for_user.
+      - The backend stores the allowlisted code and encrypted explanation only.
+      - CLI, SDK, and web decrypt and display the explanation.
+      - A Task without explanation displays a localized code fallback.
+  - id: S-3
+    title: Every OpenCode turn receives one authoritative Task snapshot
+    given:
+      - The OpenCode chat has one in_progress Task and ordered remaining Tasks.
+    when:
+      - A top-level model turn is prepared, retried, or compacted.
+    then:
+      - The request receives complete active Task details.
+      - Remaining Tasks include short id, title, and status only.
+      - The context is request-only and does not appear as a visible fake user message.
+  - id: S-4
+    title: Completed response resumes remaining work once
+    given:
+      - A top-level assistant response completes with open runnable external-chat Tasks.
+    when:
+      - Presence transitions from busy to idle.
+    then:
+      - A deterministic CLI reconciliation records one idempotent task_ready continuation.
+      - The next turn must continue the active Task, explicitly complete and advance it, or explicitly block it with a reason.
+      - Tool completions and duplicate completion events do not schedule turns.
+  - id: S-5
+    title: Blocked or user-controlled work remains idle
+    given:
+      - Work is blocked, waiting for a question/permission, explicitly stopped, failed, or aborted.
+    when:
+      - Completion and idle events occur.
+    then:
+      - No continuation is delivered.
+      - A new user message cancels any ready continuation.
+      - Restart reconstructs future decisions from Task state and durable ids rather than plugin memory.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    specification_assertions: [tasks.content.client-encrypted, tasks.external-chat.encrypted-context, tasks.key-wrappers.context-scoped, tasks.surface.semantic-parity]
+    text: REST, CLI, npm SDK, pip SDK, export/import, and web preserve an allowlisted external-chat provider, encrypted external id/title, domain-separated lookup hash, context exclusivity, and owner-scoped key wrapping.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-SPEC, T-BACKEND, T-CLI, T-SDK, T-WEB-SERVICE, V-LIVE-CONTRACT]
+  - id: AC-2
+    scenario: S-2
+    specification_assertions: [tasks.lifecycle.visible, tasks.blocking.encrypted-reason, tasks.surface.semantic-parity]
+    text: Blocking accepts one allowlisted safe code and optional encrypted reason; CLI/SDK/web decrypt and display it, code-only records use a localized fallback, and legacy --reason code callers continue to work.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SPEC, T-BACKEND, T-CLI, T-SDK, T-WEB-SERVICE, T-WEB-COMPONENT, V-LIVE-CONTRACT, V-WEB]
+  - id: AC-3
+    scenario: S-3
+    specification_assertions: [tasks.external-chat.encrypted-context, tasks.surface.semantic-parity]
+    text: Every top-level OpenCode model request and compaction receives request-only authoritative context with complete active Task details and title-only ordered remaining Tasks, without a visible synthetic user message.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-OPENCODE-CONFIG, T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE]
+  - id: AC-4
+    scenario: S-4
+    specification_assertions: [tasks.lifecycle.visible, tasks.external-chat.encrypted-context]
+    text: Exactly one deterministic reconciliation runs after a completed top-level response becomes idle and schedules at most one idempotent continuation while runnable Tasks remain.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE]
+  - id: AC-5
+    scenario: S-5
+    specification_assertions: [tasks.lifecycle.visible]
+    text: Blocked, waiting-user, permission/question-pending, failed, aborted, explicitly stopped, and all-done states do not auto-resume; user input cancels ready continuation and restart uses durable Task state.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE, V-RESTART]
+  - id: AC-6
+    scenario: S-4
+    specification_assertions: [tasks.surface.semantic-parity]
+    text: Native OpenCode todowrite/todoread are unavailable to primary agents while the distinct task subagent launcher and its existing routing protections remain available.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-OPENCODE-CONFIG, T-HOOK]
+
+tests:
+  - id: T-SPEC
+    type: lint
+    specification_assertions: [tasks.blocking.encrypted-reason, tasks.external-chat.encrypted-context]
+    file: specifications/features/tasks/specification.yml
+    command: python3 scripts/specifications.py validate specifications/features/tasks
+    covers: [AC-1, AC-2]
+    assertions:
+      - feature.tasks@3 validates with encrypted external context and blocked reason examples.
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_applicable}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-BACKEND
+    type: pytest
+    specification_assertions: [tasks.content.client-encrypted, tasks.blocking.encrypted-reason, tasks.external-chat.encrypted-context]
+    file: backend/tests/test_user_tasks_api.py
+    command: python3 scripts/tests.py run --suite backend-user-tasks
+    covers: [AC-1, AC-2]
+    assertions:
+      - External provider allowlist, context exclusivity, hash filtering, and encrypted field persistence.
+      - Block reason code allowlist, encrypted reason pass-through, version conflicts, and no plaintext leakage.
+    red_phase: {required: true, expected: fail_against_current_deploy, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-CLI
+    type: unit
+    specification_assertions: [tasks.blocking.encrypted-reason, tasks.external-chat.encrypted-context, tasks.surface.semantic-parity]
+    file: frontend/packages/openmates-cli/tests/tasks.test.ts
+    command: npm --prefix frontend/packages/openmates-cli run test:unit:tasks
+    covers: [AC-1, AC-2]
+    assertions:
+      - provider:id input is encrypted and indexed locally and native/external conflict fails before mutation.
+      - --reason compatibility, --reason-code validation, encrypted --reason-text, and JSON output parity.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SDK
+    type: unit
+    specification_assertions: [tasks.blocking.encrypted-reason, tasks.external-chat.encrypted-context, tasks.surface.semantic-parity]
+    file: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    command: python3 scripts/tests.py run --suite sdk-tasks
+    covers: [AC-1, AC-2]
+    assertions:
+      - npm and pip SDKs preserve encrypted external context and blocker explanation with semantic parity.
+      - Public SDK inputs contain cleartext user models and never expose encrypted storage details.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB-SERVICE
+    type: unit
+    specification_assertions: [tasks.blocking.encrypted-reason, tasks.external-chat.encrypted-context]
+    file: frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    command: python3 scripts/tests.py run --suite vitest --spec userTaskService
+    covers: [AC-1, AC-2]
+    assertions:
+      - Web encrypts external id/title and blocked explanation before transport and decrypts authorized responses.
+      - Code-only blocked records produce localized fallback data without fabricating private text.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB-COMPONENT
+    type: playwright
+    target: app.dev.openmates.org
+    specification_assertions: [tasks.blocking.encrypted-reason, tasks.surface.semantic-parity]
+    file: frontend/apps/web_app/tests/task-blocked-reason.spec.ts
+    command: python3 scripts/tests.py run --spec task-blocked-reason.spec.ts --gate-deploy --expected-commit <sha>
+    covers: [AC-2]
+    assertions:
+      - Task card/detail shows decrypted blocker explanation and localized code fallback.
+      - Long explanations remain readable on laptop and phone without clipping controls.
+    red_phase: {required: true, expected: fail_against_current_deploy, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-OPENCODE-CONFIG
+    type: pytest
+    target: opencode.json
+    specification_assertions: [tasks.external-chat.encrypted-context]
+    file: scripts/tests/test_opencode_runtime_config.py
+    command: python3 -m pytest scripts/tests/test_opencode_runtime_config.py
+    covers: [AC-3, AC-6]
+    assertions:
+      - Primary agents deny todowrite while task delegation remains enabled.
+      - Runtime bundle contains the exact task-bridge configuration and hook identity.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-TASK-BRIDGE
+    type: pytest
+    target: scripts/sessions.py
+    specification_assertions: [tasks.lifecycle.visible, tasks.external-chat.encrypted-context]
+    file: scripts/tests/test_opencode_task_bridge.py
+    command: python3 -m pytest scripts/tests/test_opencode_task_bridge.py
+    covers: [AC-3, AC-4, AC-5]
+    assertions:
+      - Deterministic CLI reconciliation returns typed no-work, resume-active, activate-next, and wait-blocked decisions.
+      - Continuation keys include external context, task id, version, and generation and remain idempotent across restart.
+      - Decrypted Task text is absent from durable sessions.py state and logs.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-HOOK
+    type: unit
+    target: .opencode/plugins/openmates-hooks.js
+    specification_assertions: [tasks.lifecycle.visible, tasks.external-chat.encrypted-context]
+    file: scripts/tests/test_opencode_task_bridge_hook.mjs
+    command: node --test scripts/tests/test_opencode_task_bridge_hook.mjs scripts/tests/test_opencode_hooks_contract.mjs
+    covers: [AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - Only completed top-level assistant messages stage reconciliation and only following idle delivers it.
+      - Tool and child completions, duplicate events, blocked states, questions, permissions, user input, stop, and errors do not resume.
+      - Request-only context has full active details, title-only remaining Tasks, and no visible synthetic user message.
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+verifications:
+  - id: V-LIVE-CONTRACT
+    kind: automated_test
+    phase: green
+    status: pending
+    required_for_done: true
+    covers: [AC-1, AC-2]
+    evidence: {status: pending}
+  - id: V-WEB
+    kind: artifact_review
+    phase: green
+    status: pending
+    required_for_done: true
+    covers: [AC-2]
+    viewports: [laptop, mobile]
+    narration_outline:
+      - Open a blocked Task with an encrypted explanation.
+      - Verify the card/detail reason and localized fallback state.
+      - Unblock and confirm the explanation clears without affecting other Task content.
+    evidence: {status: pending}
+  - id: V-DISPOSABLE
+    kind: automated_test
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-3, AC-4, AC-5, AC-6]
+    evidence: {status: pending}
+  - id: V-RESTART
+    kind: automated_test
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-5]
+    evidence: {status: pending}
+
+tasks:
+  - id: TASK-1
+    title: Implement encrypted external-chat and blocked-reason Task contracts
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files:
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/services/directus/user_task_methods.py
+      - backend/tests/test_user_tasks_api.py
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/tasksCli.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_tasks.py
+    verification_ids: [T-SPEC, T-BACKEND, T-CLI, T-SDK, V-LIVE-CONTRACT]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    ownership:
+      files:
+        - backend/core/directus/schemas/user_tasks.yml
+        - backend/core/api/app/routes/user_tasks.py
+        - backend/core/api/app/services/directus/user_task_methods.py
+        - backend/tests/test_user_tasks_api.py
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/tasksCli.ts
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/tests/tasks.test.ts
+        - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+        - packages/openmates-python/openmates/sdk.py
+        - packages/openmates-python/tests/test_tasks.py
+      shared_files: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Render encrypted blocked reasons in Tasks web UI
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-2], acceptance_criteria: [AC-2]}
+    expected_files:
+      - frontend/packages/ui/src/services/userTaskService.ts
+      - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+      - frontend/packages/ui/src/components/tasks/
+      - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
+    verification_ids: [T-WEB-SERVICE, T-WEB-COMPONENT, V-WEB]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    ownership:
+      files:
+        - frontend/packages/ui/src/services/userTaskService.ts
+        - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+        - frontend/packages/ui/src/components/tasks/
+        - frontend/apps/web_app/tests/task-blocked-reason.spec.ts
+      shared_files: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Replace OpenCode native todos with the OpenMates CLI Task bridge
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6]}
+    expected_files:
+      - opencode.json
+      - .opencode/plugins/openmates-hooks.js
+      - scripts/sessions.py
+      - scripts/tests/test_opencode_runtime_config.py
+      - scripts/tests/test_opencode_task_bridge.py
+      - scripts/tests/test_opencode_task_bridge_hook.mjs
+      - scripts/start-opencode-server.sh
+      - scripts/patches/
+    verification_ids: [T-OPENCODE-CONFIG, T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE, V-RESTART]
+    dependencies: [TASK-1, TASK-2]
+    blockers: [Codex control-plane workflow required]
+    follow_up_tasks: []
+    ownership:
+      files:
+        - opencode.json
+        - .opencode/plugins/openmates-hooks.js
+        - scripts/sessions.py
+        - scripts/tests/test_opencode_runtime_config.py
+        - scripts/tests/test_opencode_task_bridge.py
+        - scripts/tests/test_opencode_task_bridge_hook.mjs
+        - scripts/start-opencode-server.sh
+        - scripts/patches/
+      shared_files: []
+    independently_deployable: false
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Discover existing Task, CLI, web, OpenCode hook, continuation, privacy, and contract patterns before implementation.
+    outcome: succeeded
+    recorded_at: "2026-09-02T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Write and run the required red contract tests before product implementation.
+  command: python3 scripts/tests.py run --suite backend-user-tasks
+  expected_outcome: Focused tests fail because external-chat and encrypted blocked-reason behavior is not implemented yet.
+  blocker:
+    task_id: TASK-1
+    requires_user_input: false
+    reason: none
+    question: none
+    next_action: Begin red tests.
+  last_verified_commit: d425f7851abebbede78e6bd813799b2e708a2847
+
+implementation_notes:
+  plan_path: docs/plans/opencode-external-task-bridge/plan.yml
+  status: approved
+  existing_patterns:
+    - Task client-encrypted fields and owner-scoped master wrappers in user_tasks.yml and tasksCli.ts.
+    - Domain-separated Task label blind indexes for private equality filtering.
+    - Explicit Task block/unblock lifecycle with optimistic versions and waiting_for_user state.
+    - OpenCode completed-assistant detection, presence transitions, and durable continuation queue.
+  architecture: >
+    Ship and verify the encrypted Task data contract first, then the web blocked
+    reason surface, and only then activate the protected OpenCode bridge through
+    a dedicated Codex control-plane release. OpenCode never owns a second task
+    store; sessions.py persists only binding and continuation metadata while all
+    Task reads and mutations execute through the trusted CLI profile.
+  first_slice: Add red backend, CLI, SDK, and web-service tests for external context and encrypted blocked explanations before changing schema or product code.
+  boundaries:
+    - No OpenMates Plan dependency or native Chat creation.
+    - No developer API-key access for the OpenCode bridge.
+    - No native OpenCode todo storage or prose-inferred Task transitions.
+    - No decrypted Task content in backend or durable sessions.py state.
+  affected_files:
+    - {path: backend/core/directus/schemas/user_tasks.yml, reason: Add encrypted external-chat and blocked-reason storage fields plus safe metadata indexes.}
+    - {path: backend/core/api/app/routes/user_tasks.py, reason: Validate and transport external context and blocked reason contracts.}
+    - {path: frontend/packages/openmates-cli/src/tasksCli.ts, reason: Derive blind index and encrypt/decrypt new Task fields locally.}
+    - {path: frontend/packages/openmates-cli/src/cli.ts, reason: Add external-chat filters and blocked reason CLI flags/output.}
+    - {path: packages/openmates-python/openmates/sdk.py, reason: Preserve pip SDK parity.}
+    - {path: frontend/packages/ui/src/services/userTaskService.ts, reason: Encrypt/decrypt fields for web Task records.}
+    - {path: frontend/packages/ui/src/components/tasks/, reason: Render blocked explanation and fallback.}
+    - {path: opencode.json, reason: Deny native todowrite while preserving task delegation.}
+    - {path: .opencode/plugins/openmates-hooks.js, reason: Inject Task context and reconcile completed responses.}
+    - {path: scripts/sessions.py, reason: Deterministic CLI task bridge and durable continuation metadata.}
+  migrations:
+    - Add nullable external_chat_provider, external_chat_lookup_hash, encrypted_external_chat_id, encrypted_external_chat_title, and encrypted_blocked_reason fields; existing rows remain valid.
+  observability:
+    - Log only provider, decision enum, task id/version/generation, and sanitized failure class; never external ids, Task text, or blocked explanations.
+  assumptions_checked:
+    - External context uses owner master wrapping and not a synthetic Chat key.
+    - Existing Task lifecycle supports blocked/waiting_for_user and optimistic versions.
+    - Existing OpenCode continuation queue supplies idempotent bounded delivery.
+  acceptance_mapping:
+    AC-1: [T-SPEC, T-BACKEND, T-CLI, T-SDK, T-WEB-SERVICE, V-LIVE-CONTRACT]
+    AC-2: [T-SPEC, T-BACKEND, T-CLI, T-SDK, T-WEB-SERVICE, T-WEB-COMPONENT, V-LIVE-CONTRACT, V-WEB]
+    AC-3: [T-OPENCODE-CONFIG, T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE]
+    AC-4: [T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE]
+    AC-5: [T-TASK-BRIDGE, T-HOOK, V-DISPOSABLE, V-RESTART]
+    AC-6: [T-OPENCODE-CONFIG, T-HOOK]
+  verification_strategy:
+    - Approve the permanent Specification and focused Plan before implementation.
+    - Run required backend, CLI, SDK, and web-service tests red before schema/product changes.
+    - Verify real REST, CLI, npm SDK, and pip SDK behavior against api.dev.openmates.org before web.
+    - Deploy web, run focused component Playwright and visual review, then hand off protected control-plane work to Codex.
+    - Codex activates one immutable runtime release only after disposable-session and restart reconstruction tests pass.
+  verification_order: [Specification and Plan approval, product red tests, API/schema implementation, REST and CLI live proof, SDK parity, web implementation and proof, Codex control-plane red tests, task bridge implementation, disposable sessions, atomic restart]
+  data_flow:
+    - The client parses opencode:session-id locally, encrypts id/title with the Task key, and computes an owner-scoped blind lookup hash.
+    - The backend validates provider, exclusivity, version, reason code, ownership, and ciphertext presence without decrypting content.
+    - Web/CLI/SDK clients decrypt authorized external and blocked fields locally.
+    - OpenCode prepares each turn by invoking a deterministic sessions.py bridge that calls openmates tasks context --external-chat ... --json.
+    - The hook stages reconciliation on completed top-level assistant message and delivers one durable continuation after idle when open runnable Tasks remain.
+  codex_handoff:
+    - Begin only after TASK-1 and TASK-2 are deployed and V-LIVE-CONTRACT plus V-WEB pass.
+    - Use a dedicated control-plane recovery branch; ordinary OpenCode deploys must remain blocked for protected files.
+    - Preserve the task subagent launcher while denying todowrite/todoread.
+    - Build an immutable runtime bundle, test disposable sessions, restart once, and verify exact runtime identity before historical chat use.

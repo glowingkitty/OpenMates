@@ -8,6 +8,8 @@
  */
 export {};
 
+import type { Page, TestInfo } from '@playwright/test';
+
 const { expect, test } = require('./helpers/cookie-audit');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -75,7 +77,7 @@ async function openTaskDetailPreview(page: any): Promise<void> {
 
 test.describe('Task detail fullscreen component', () => {
 	// contract-test: direct surface=gui.web assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
-	test('renders complete read-only task context and closes from the keyboard', async ({ page }, testInfo) => {
+	test('renders complete read-only task context and closes from the keyboard', async ({ page }: { page: Page }, testInfo: TestInfo) => {
 		const proof = createVideoProofRuntime(TASK_DETAIL_PROOF, {
 			device: PROOF_DEVICE,
 			attach: testInfo.attach.bind(testInfo),
@@ -86,7 +88,7 @@ test.describe('Task detail fullscreen component', () => {
 		const detail = page.getByTestId('task-detail-content');
 		await expect(page.getByTestId('embed-header-title')).toContainText('Design 3D model');
 		await expect(detail.getByTestId('task-detail-description')).toContainText('fits 2-3 people');
-		await expect(page.getByTestId('task-detail-status')).toContainText('To do');
+		await expect(page.getByTestId('task-detail-status')).toContainText('Blocked');
 		await expect(page.getByTestId('task-detail-priority')).toContainText('Urgent');
 		await expect(detail.getByTestId('task-detail-assignee')).toContainText('OpenMates');
 		await expect(detail.getByTestId('task-detail-due')).toContainText('Oct 22, 2026');
@@ -94,7 +96,9 @@ test.describe('Task detail fullscreen component', () => {
 		await expect(detail.getByTestId('task-detail-plan')).toContainText('Research launch plan');
 		await expect(detail.getByTestId('task-detail-dependencies')).toContainText('Prepare research brief');
 		await expect(detail.getByTestId('task-detail-tags')).toContainText('#software');
-		await expect(detail.getByTestId('task-detail-chat')).toContainText('3D model planning');
+		await expect(detail.getByTestId('task-detail-blocked-reason')).toContainText('A repository write token is required');
+		await expect(detail.getByTestId('task-detail-external-chat')).toContainText('OpenCode task bridge');
+		await expect(detail.getByTestId('task-detail-chat')).toContainText('OpenCode');
 		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute('href', '/projects/preview-project');
 		await expect(detail.getByTestId('task-detail-plan-card')).toHaveAttribute('href', '/plans/preview-plan');
 		await proof.assert('canonical-headings', async () => {
@@ -130,7 +134,7 @@ test.describe('Task detail fullscreen component', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=tasks.detail.embed-responsive
-	test('keeps every detail section reachable on a phone viewport', async ({ page }) => {
+	test('keeps every detail section reachable on a phone viewport', async ({ page }: { page: Page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		await openTaskDetailPreview(page);
 

@@ -156,13 +156,16 @@ import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./sel
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
+  buildBlockUserTaskInput,
   buildUpdateUserTaskInput,
   decryptUserTask,
   decryptUserTasks,
   decryptUserTasksForCli,
+  externalChatLookupHash,
   findTask,
   labelHashes as buildLabelHashes,
   normalizeLabels,
+  parseExternalChatRef,
   normalizeTaskPriority,
   normalizeTaskStatus,
   parseDueAt,
@@ -175,6 +178,7 @@ import {
   workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
   type TaskCreateOptions,
+  type TaskLookupScope,
   type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
@@ -938,6 +942,7 @@ async function handleTasks(
       status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
       assign: taskAssignFlag(flags),
       chatId: typeof flags.chat === "string" ? flags.chat : null,
+      externalChat: externalChatFromFlags(flags),
       projectIds: splitCsvFlag(flags.project ?? flags.projects),
       planId: typeof flags.plan === "string" ? flags.plan : null,
       dueAt: parseDueAt(flags.due),
@@ -962,6 +967,7 @@ async function handleTasks(
       status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
       assign: taskAssignFlag(flags),
       chatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
+      externalChat: externalChatFromFlags(flags),
       projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
@@ -1010,10 +1016,16 @@ async function handleTasks(
 
   if (["block", "unblock", "skip", "done"].includes(subcommand)) {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
-    const payload: UserTaskActionInput = { version: task.version };
+    let payload: UserTaskActionInput = { version: task.version };
     if (subcommand === "block") {
-      if (typeof flags.reason !== "string") throw new Error("Blocking a task requires --reason <code>.");
-      payload.blocked_reason_code = flags.reason;
+      const reasonCode = typeof flags["reason-code"] === "string"
+        ? flags["reason-code"]
+        : typeof flags.reason === "string" ? flags.reason : undefined;
+      if (!reasonCode) throw new Error("Blocking a task requires --reason-code <code> (or legacy --reason <code>).");
+      payload = await buildBlockUserTaskInput(task, masterKey, {
+        reasonCode,
+        reasonText: typeof flags["reason-text"] === "string" ? flags["reason-text"] : undefined,
+      });
     }
     const updated = subcommand === "block"
       ? await client.blockUserTask(task.taskId, payload)
@@ -1043,15 +1055,29 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+  const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
     chatId: typeof flags.chat === "string" ? flags.chat : undefined,
     projectId: typeof flags.project === "string" ? flags.project : undefined,
     planId: typeof flags.plan === "string" ? flags.plan : undefined,
     labelHashes: buildLabelHashes(masterKey, labelFlags(flags)),
+    ...(externalChat ? {
+      externalChatProvider: externalChat.provider,
+      externalChatLookupHash: externalChatLookupHash(masterKey, externalChat),
+    } : {}),
     priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
     ...teamContextFromFlags(flags),
+  };
+}
+
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "opencode"; id: string; title?: string } | undefined {
+  if (typeof flags["external-chat"] !== "string") return undefined;
+  const ref = parseExternalChatRef(flags["external-chat"]);
+  return {
+    ...ref,
+    ...(typeof flags["external-chat-title"] === "string" ? { title: flags["external-chat-title"] } : {}),
   };
 }
 
@@ -1059,7 +1085,7 @@ async function resolveTaskScope(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   flags: Record<string, string | boolean>,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
 ): Promise<typeof scope> {
   let chatId = scope.chatId;
   if (chatId) {
@@ -1105,10 +1131,10 @@ async function resolveTaskUpdateOptions(
 async function loadTasks(
   client: OpenMatesClient,
   masterKey: Uint8Array,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
   limit?: number,
 ): Promise<DecryptedUserTask[]> {
-  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, externalChatProvider: scope.externalChatProvider, externalChatLookupHash: scope.externalChatLookupHash, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
   const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
@@ -1117,7 +1143,7 @@ async function resolveTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
 ): Promise<DecryptedUserTask> {
   const candidates: DecryptedUserTask[] = [];
   for (const lookupScope of taskLookupScopes(scope)) {
@@ -1133,7 +1159,7 @@ async function requiredResolvedTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string | undefined,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
   action: string,
 ): Promise<DecryptedUserTask> {
   if (!id) throw new Error(`Missing task ID. Usage: openmates tasks ${action} <task-id>`);
@@ -3979,6 +4005,11 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     assignee_type: task.assigneeType,
     assignee_hash: task.assigneeHash,
     primary_chat_id: task.primaryChatId,
+    external_chat: task.externalChat ? {
+      provider: task.externalChat.provider,
+      id: task.externalChat.id,
+      title: task.externalChat.title ?? "",
+    } : null,
     linked_project_ids: task.linkedProjectIds,
     plan_id: task.planId,
     due_at: task.dueAt,
@@ -3987,6 +4018,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     position: task.position,
     queue_state: task.queueState,
     blocked_reason_code: task.blockedReasonCode,
+    blocked_reason: task.blockedReason || null,
     ai_execution_state: task.aiExecutionState,
     version: task.version,
   };
@@ -13560,19 +13592,19 @@ Examples:
 
 function printTasksHelp(): void {
   console.log(`Tasks commands:
-  openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
-  openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks list [--status <status>] [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
   openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
-  openmates tasks block <task-id|short-id> --reason <code> [--json]
+  openmates tasks block <task-id|short-id> --reason-code <code> [--reason-text <private-text>] [--json]
   openmates tasks unblock <task-id|short-id> [--json]
   openmates tasks skip <task-id|short-id> [--json]
   openmates tasks done <task-id|short-id> [--json]
@@ -13594,7 +13626,7 @@ Priority levels:
 Notes:
   Task IDs accept full task_id or human short IDs such as OM-6.
   Labels organize tasks privately. --tag, --tags, --add-tag, and --remove-tag are accepted aliases.
-  Normal output decrypts task title, description, and labels locally; use --json for machine-readable plaintext fields.`);
+   --reason remains a compatibility alias for --reason-code. External context, titles, and blocker explanations are encrypted locally; use --json for authorized plaintext fields.`);
 }
 
 function printPlansHelp(): void {

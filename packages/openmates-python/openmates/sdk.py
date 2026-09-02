@@ -70,6 +70,18 @@ API_KEY_RANDOM_LENGTH = 32
 API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
+EXTERNAL_CHAT_INDEX_INFO = b"openmates-task-external-chat-index-v1"
+EXTERNAL_CHAT_PROVIDER = "opencode"
+BLOCKED_REASON_CODES = (
+    "needs_user_input",
+    "waiting_for_approval",
+    "missing_credentials",
+    "ambiguous_requirement",
+    "external_dependency",
+    "environment_unavailable",
+    "verification_failed",
+    "other",
+)
 SLUG_LOOKUP_HASH_INFO = b"openmates-object-slug-index-v1"
 MAX_OBJECT_SLUG_LENGTH = 80
 DESIGN_ICON_PATH_PATTERN = re.compile(r"^/v1/apps/design/icons/iconify/([a-z0-9][a-z0-9._-]*)/([a-z0-9][a-z0-9._-]*)\.svg$", re.IGNORECASE)
@@ -1508,6 +1520,13 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
     task_key = os.urandom(32)
     now = int(time.time())
     assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
+    external_chat = _normalize_external_chat_context(
+        payload.get("external_chat", payload.get("externalChat")),
+        title=payload.get("external_chat_title", payload.get("externalChatTitle")),
+    )
+    primary_chat_id = payload.get("chat_id") or payload.get("primary_chat_id") or None
+    if primary_chat_id and external_chat:
+        raise OpenMatesConfigError("A task cannot use both native chat and external chat context")
     project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
     labels = _normalize_task_labels(payload.get("labels") if "labels" in payload else payload.get("tags"))
     status = str(payload.get("status") or "todo")
@@ -1531,7 +1550,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "status": status,
         "assignee_type": assignee_type,
         "assignee_hash": assignee_hash,
-        "primary_chat_id": payload.get("chat_id") or payload.get("primary_chat_id") or None,
+        "primary_chat_id": primary_chat_id,
         "linked_project_ids": project_ids,
         "plan_id": payload.get("plan_id") or payload.get("plan") or None,
         "due_at": payload.get("due_at"),
@@ -1540,6 +1559,13 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
     }
+    if external_chat:
+        task.update({
+            "external_chat_provider": external_chat["provider"],
+            "external_chat_lookup_hash": _external_chat_lookup_hash(master_key, external_chat),
+            "encrypted_external_chat_id": _encrypt_aes_gcm_text(external_chat["id"], task_key),
+            "encrypted_external_chat_title": _encrypt_aes_gcm_text(external_chat["title"], task_key),
+        })
     if assignee_type == "ai":
         task["plaintext_title"] = title
         task["plaintext_description"] = str(payload.get("description") or "")
@@ -1549,6 +1575,8 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
 def _canonicalize_task_payload(client: OpenMates, payload: dict[str, Any], *, team_id: str | None = None) -> dict[str, Any]:
     result = dict(payload)
     chat_value = result.get("chat_id") if "chat_id" in result else result.get("primary_chat_id")
+    if chat_value and result.get("external_chat", result.get("externalChat")) is not None:
+        raise OpenMatesConfigError("A task cannot use both native chat and external chat context")
     if isinstance(chat_value, str) and chat_value:
         resolved_chat_id = _resolve_chat_id(client, chat_value)
         if "chat_id" in result:
@@ -1588,8 +1616,31 @@ def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: d
         assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
         patch["assignee_type"] = assignee_type
         patch["assignee_hash"] = assignee_hash
-    if "chat_id" in payload or "primary_chat_id" in payload:
-        patch["primary_chat_id"] = payload.get("chat_id") if "chat_id" in payload else payload.get("primary_chat_id")
+    external_chat_supplied = "external_chat" in payload or "externalChat" in payload
+    external_chat = _normalize_external_chat_context(
+        payload.get("external_chat", payload.get("externalChat")),
+        title=payload.get("external_chat_title", payload.get("externalChatTitle")),
+    ) if external_chat_supplied else None
+    native_chat_supplied = "chat_id" in payload or "primary_chat_id" in payload
+    native_chat_id = payload.get("chat_id") if "chat_id" in payload else payload.get("primary_chat_id")
+    if native_chat_id and external_chat:
+        raise OpenMatesConfigError("A task cannot use both native chat and external chat context")
+    if native_chat_supplied:
+        patch.update({
+            "primary_chat_id": native_chat_id,
+            "external_chat_provider": None,
+            "external_chat_lookup_hash": None,
+            "encrypted_external_chat_id": None,
+            "encrypted_external_chat_title": None,
+        })
+    if external_chat:
+        patch.update({
+            "primary_chat_id": None,
+            "external_chat_provider": external_chat["provider"],
+            "external_chat_lookup_hash": _external_chat_lookup_hash(master_key, external_chat),
+            "encrypted_external_chat_id": _encrypt_aes_gcm_text(external_chat["id"], task_key),
+            "encrypted_external_chat_title": _encrypt_aes_gcm_text(external_chat["title"], task_key),
+        })
     if "project_ids" in payload or "linked_project_ids" in payload:
         project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
         patch["linked_project_ids"] = project_ids
@@ -1628,6 +1679,11 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "assignee_type": record.get("assignee_type"),
         "assignee_hash": record.get("assignee_hash"),
         "primary_chat_id": record.get("primary_chat_id"),
+        "external_chat": {
+            "provider": record["external_chat_provider"],
+            "id": _decrypt_aes_gcm_text(record["encrypted_external_chat_id"], task_key) or "",
+            "title": _decrypt_aes_gcm_text(str(record.get("encrypted_external_chat_title") or ""), task_key) or "",
+        } if record.get("external_chat_provider") and isinstance(record.get("encrypted_external_chat_id"), str) else None,
         "linked_project_ids": linked_project_ids or _string_list(record.get("linked_project_ids") or []),
         "plan_id": record.get("plan_id"),
         "due_at": record.get("due_at"),
@@ -1636,6 +1692,7 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "position": int(record.get("position") or 0),
         "queue_state": record.get("queue_state") or "none",
         "blocked_reason_code": record.get("blocked_reason_code"),
+        "blocked_reason": _decrypt_aes_gcm_text(str(record.get("encrypted_blocked_reason") or ""), task_key) or "",
         "ai_execution_state": record.get("ai_execution_state"),
         "version": int(record.get("version") or 1),
         "encrypted": record,
@@ -2352,6 +2409,49 @@ def _task_label_hashes(master_key: bytes, labels: list[str]) -> list[str]:
         info=TASK_LABEL_INDEX_INFO,
     ).derive(master_key)
     return [hmac.new(index_key, label.encode("utf-8"), hashlib.sha256).hexdigest() for label in _normalize_task_labels(labels)]
+
+
+def _normalize_external_chat_context(value: Any, *, title: Any = None) -> dict[str, str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        provider, separator, chat_id = value.partition(":")
+        provider = provider.strip().lower()
+        chat_id = chat_id.strip()
+        if not separator or not provider or not chat_id:
+            raise OpenMatesConfigError("external_chat must use provider:id")
+        context_title = title
+    elif isinstance(value, dict):
+        provider = str(value.get("provider") or "").strip().lower()
+        chat_id = str(value.get("id") or "").strip()
+        context_title = value.get("title") if title is None else title
+        if not provider or not chat_id:
+            raise OpenMatesConfigError("external_chat requires provider and id")
+    else:
+        raise OpenMatesConfigError("external_chat must be provider:id or a mapping")
+    if provider != EXTERNAL_CHAT_PROVIDER:
+        raise OpenMatesConfigError("Only opencode is supported as an external chat provider")
+    return {"provider": EXTERNAL_CHAT_PROVIDER, "id": chat_id, "title": str(context_title or "")}
+
+
+def _external_chat_lookup_hash(master_key: bytes, context: dict[str, str]) -> str:
+    index_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b"",
+        info=EXTERNAL_CHAT_INDEX_INFO,
+    ).derive(master_key)
+    value = f"{context['provider']}\x00{context['id']}".encode("utf-8")
+    return hmac.new(index_key, value, hashlib.sha256).hexdigest()
+
+
+def _normalize_blocked_reason_code(value: str) -> str:
+    normalized = re.sub(r"[\s-]+", "_", value.strip().lower())
+    if normalized not in BLOCKED_REASON_CODES:
+        raise OpenMatesConfigError(
+            f"Unknown blocked reason code '{value}'. Expected one of: {', '.join(BLOCKED_REASON_CODES)}"
+        )
+    return normalized
 
 
 def _normalize_task_priority(value: Any) -> int | None:
@@ -4074,12 +4174,13 @@ class OpenMatesTasks:
         plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
+        external_chat: str | dict[str, Any] | None = None,
         priority: str | int | None = None,
         team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         return [
             _public_task(task)
-            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority, team_id=team_id)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, external_chat=external_chat, priority=priority, team_id=team_id)
         ]
 
     def _list_raw(
@@ -4091,11 +4192,14 @@ class OpenMatesTasks:
         plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
+        external_chat: str | dict[str, Any] | None = None,
         priority: str | int | None = None,
         team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         label_values = labels if labels is not None else tags
-        label_hashes = _task_label_hashes(self._client._get_master_key(), _normalize_task_labels(label_values)) if label_values else None
+        external_chat_context = _normalize_external_chat_context(external_chat) if external_chat is not None else None
+        master_key = self._client._get_master_key() if label_values or external_chat_context else None
+        label_hashes = _task_label_hashes(master_key, _normalize_task_labels(label_values)) if label_values and master_key else None
         resolved_chat_id = _resolve_chat_id(self._client, chat_id) if isinstance(chat_id, str) and chat_id else chat_id
         resolved_project_id = (
             _resolve_project_id(self._client, project_id, personal=not bool(team_id), team_id=team_id)
@@ -4111,6 +4215,8 @@ class OpenMatesTasks:
                 project_id=resolved_project_id,
                 plan_id=resolved_plan_id,
                 label_hash=label_hashes,
+                external_chat_provider=external_chat_context["provider"] if external_chat_context else None,
+                external_chat_lookup_hash=_external_chat_lookup_hash(master_key, external_chat_context) if external_chat_context and master_key else None,
                 priority=_normalize_task_priority(priority),
                 team_id=team_id,
             )
@@ -4293,8 +4399,16 @@ class OpenMatesTasks:
     def done(self, task_id: str, **filters: Any) -> dict[str, Any]:
         return self._action_by_id(task_id, "complete", {}, filters)
 
-    def block(self, task_id: str, reason: str, **filters: Any) -> dict[str, Any]:
-        return self._action_by_id(task_id, "block", {"blocked_reason_code": reason}, filters)
+    def block(self, task_id: str, reason: str, *, reason_text: str | None = None, **filters: Any) -> dict[str, Any]:
+        return self._action_by_id(
+            task_id,
+            "block",
+            {
+                "blocked_reason_code": _normalize_blocked_reason_code(reason),
+                "_reason_text": reason_text,
+            },
+            filters,
+        )
 
     def unblock(self, task_id: str, **filters: Any) -> dict[str, Any]:
         return self._action_by_id(task_id, "unblock", {}, filters)
@@ -4329,10 +4443,17 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         for attempt in range(2):
             try:
+                request_patch = dict(patch)
+                reason_text = request_patch.pop("_reason_text", None)
+                if reason_text is not None:
+                    request_patch["encrypted_blocked_reason"] = _encrypt_aes_gcm_text(
+                        reason_text,
+                        _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, self._client._get_master_key()),
+                    )
                 updated = self._action_raw(
                     str(task["task_id"]),
                     action,
-                    {"version": task["version"], "team_id": filters.get("team_id"), **patch},
+                    {"version": task["version"], "team_id": filters.get("team_id"), **request_patch},
                 )
                 return _public_task(_decrypt_task_record(updated, self._client._get_master_key()))
             except OpenMatesApiError as exc:

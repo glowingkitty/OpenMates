@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.tasks@2
+specification: feature.tasks@3
 
 task_private_content:
   - id: encrypted-task
@@ -13,6 +13,22 @@ task_lifecycle:
   - id: prose-does-not-complete
     input: {assistant_message: The task is done, task_status: in_progress}
     expect: {task_status_after_message: in_progress}
+
+task_blocked_reason:
+  - id: encrypted-user-input-blocker
+    input: {task: task-1, reason_code: missing_credentials, reason_text: A repository write token is required.}
+    expect: {status_after: blocked, queue_state: waiting_for_user, durable_plaintext_reason: false, authorized_web_reason: A repository write token is required.}
+  - id: code-fallback
+    input: {task: task-2, reason_code: waiting_for_approval, reason_text: null}
+    expect: {status_after: blocked, web_reason_source: localized_reason_code}
+
+task_external_chat_context:
+  - id: opencode-chat-task
+    input: {provider: opencode, external_chat_id: ses_example, external_chat_title: Task bridge implementation}
+    expect: {primary_chat_id: null, external_chat_provider: opencode, external_chat_lookup_hash_present: true, durable_plaintext_external_id: false, durable_plaintext_external_title: false, key_source: owner_master_wrapper}
+  - id: native-and-external-rejected
+    input: {primary_chat_id: chat-1, external_chat_provider: opencode, external_chat_id: ses_example}
+    expect_error: {code: TASK_CONTEXT_CONFLICT, mutation: false}
 
 task_dependencies:
   - id: flat-blocked-by
