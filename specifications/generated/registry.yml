@@ -225,7 +225,7 @@ specifications:
     version: 1
     status: draft
     path: features/auth
-    fingerprint: 7c28784cab1aa913a75eb954ddd94484f12c6f5e6599af0214b53de4abcfd772
+    fingerprint: 6415aeaeeba3a1c8a991888e7395258c395879cb1cf01adbc7298f1bc14a94d4
     required_applies_to:
     - rest_api
     - cli
@@ -2699,7 +2699,17 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: behavior
-    fingerprint: 85214a5e874645e2ddf2d5ae010358d6b6d8b89a3c6a9a201c85c9d537a6219c
+    fingerprint: 34f363d8f3727304f04711d63c203fc9b137e8488b973511af8398d3fa9c6784
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
+  auth.session.isolation:
+    specification: feature.auth@1
+    specification_id: feature.auth
+    type: security
+    fingerprint: c80acfd6929de673665f72b8412ac3d7b21049912a3594a30cf4e952572856ce
     required_applies_to:
     - rest_api
     - cli
@@ -2709,7 +2719,7 @@ assertions:
     specification: feature.auth@1
     specification_id: feature.auth
     type: security
-    fingerprint: f4cac35b2e51116f86835a181a801e3208a302f437e85d2f4ad04e78f2464423
+    fingerprint: aad3df7680455d88b307bc7bfcc39a686fc6b22d2b6c2780dea865d615a371f1
     required_applies_to:
     - rest_api
     - cli

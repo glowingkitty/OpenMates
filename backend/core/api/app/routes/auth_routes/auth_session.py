@@ -9,10 +9,17 @@ from backend.core.api.app.services.cache import CacheService
 # Import new fingerprinting and risk assessment functions
 # generate_device_fingerprint, DeviceFingerprint, should_require_2fa are already imported correctly
 from backend.core.api.app.utils.device_fingerprint import (
-    generate_device_fingerprint_hash, _extract_client_ip, truncate_ip, derive_device_name
+    generate_device_fingerprint_hash, generate_legacy_device_fingerprint_hash,
+    _extract_client_ip, truncate_ip, derive_device_name
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
-from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user, preserve_rotated_session_metadata
+from backend.core.api.app.routes.auth_routes.auth_common import (
+    get_session_security_country,
+    preserve_rotated_session_metadata,
+    session_country_changed,
+    set_session_security_country,
+    verify_authenticated_user,
+)
 from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token, normalize_directus_cookie
 from backend.core.api.app.schemas.user import UserResponse
@@ -147,24 +154,30 @@ async def get_session(
 
         # Step 3: Check if this device hash is already known for the user
         known_device_hashes = await directus_service.get_user_device_hashes(user_id)
-        is_new_device_hash = device_hash not in known_device_hashes
+        # Accept the old location-coupled hash during migration. A successful
+        # session writes the stable replacement below, so this compatibility
+        # path naturally disappears per device without forcing a logout.
+        legacy_device_hash = generate_legacy_device_fingerprint_hash(
+            os_name, country_code, user_id
+        )
+        is_new_device_hash = (
+            device_hash not in known_device_hashes
+            and legacy_device_hash not in known_device_hashes
+        )
         logger.info(f"Session: Device hash {device_hash[:8]}... is new: {is_new_device_hash} for user {user_id[:6]}...")
 
-        # Step 3b: Check for sudden country change within the same session
+        # Step 3b: Check for sudden country change within this logical session.
         # This detects suspicious location changes (e.g., VPN switch, session hijacking)
         # even when the device hash is already known from a previous session.
-        # The last_session_country is stored in the user cache on every successful session validation.
-        is_country_change = False
-        previous_country = user_data.get("last_session_country")
-        if previous_country and country_code and previous_country != country_code:
-            # Country has changed since the last session validation
-            # Only flag if both countries are real (not "Local" or "Unknown")
-            if previous_country not in ("Local", "Unknown", None) and country_code not in ("Local", "Unknown", None):
-                is_country_change = True
-                logger.warning(
-                    f"[SECURITY] Country change detected for user {user_id[:6]}...: "
-                    f"{previous_country} -> {country_code}. Triggering re-authentication."
-                )
+        previous_country = await get_session_security_country(
+            cache_service, user_id, refresh_token
+        )
+        is_country_change = session_country_changed(previous_country, country_code)
+        if is_country_change:
+            logger.warning(
+                f"[SECURITY] Country change detected for session owned by user {user_id[:6]}...: "
+                f"{previous_country} -> {country_code}. Triggering session-local re-authentication."
+            )
 
         # Step 4: Perform re-auth check if it's a new device OR a suspicious country change
         # Three scenarios require re-authentication:
@@ -280,15 +293,21 @@ async def get_session(
             # Log the error but don't let it interrupt the user's session validation.
             logger.error(f"Failed during device record update process for user {user_id}: {e}", exc_info=True)
 
-        # Step 5b: Update last_session_country in cache for country change detection on next session check.
-        # This is stored AFTER re-auth checks pass, so the country is only updated when the session is fully validated.
-        # This ensures that if a user switches country and re-authenticates, the new country is stored.
-        if country_code and country_code not in ("Local", "Unknown", None):
-            try:
-                await cache_service.update_user(user_id, {"last_session_country": country_code})
-                logger.debug(f"Updated last_session_country to {country_code} for user {user_id[:6]}...")
-            except Exception as e:
-                logger.error(f"Failed to update last_session_country for user {user_id}: {e}", exc_info=True)
+        # Step 5b: Persist the baseline only for this refresh-token chain after
+        # all risk checks pass. Sibling sessions retain their own baselines.
+        try:
+            await set_session_security_country(
+                cache_service,
+                user_id,
+                refresh_token,
+                country_code,
+                stay_logged_in=bool(user_data.get("stay_logged_in", False)),
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to update session security country for user {user_id}: {e}",
+                exc_info=True,
+            )
 
         # Step 6: Update last online timestamp
         try:

@@ -236,7 +236,9 @@ async def register_session_meta(
         # Legacy format — upgrade to dict
         meta = {"created_at": int(meta), "stay_logged_in": False}
 
-    # Store encrypted blob, clear plaintext
+    # Store encrypted display blob and clear only plaintext display fields.
+    # Server-only fields such as security_country_code deliberately remain on
+    # this logical session and are never returned by the listing schema.
     meta["encrypted_meta"] = body.encrypted_meta
     meta.pop("device_name", None)
     meta.pop("ip_truncated", None)

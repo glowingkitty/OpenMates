@@ -17,6 +17,81 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 EXTENDED_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+DEFAULT_SESSION_TOKEN_LIST_TTL_SECONDS = 7 * 24 * 60 * 60
+SESSION_SECURITY_COUNTRY_FIELD = "security_country_code"
+
+
+def _normalized_security_country(country_code: Optional[str]) -> Optional[str]:
+    if not isinstance(country_code, str):
+        return None
+    normalized = country_code.strip().upper()
+    if not normalized or normalized in {"LOCAL", "UNKNOWN"}:
+        return None
+    return normalized
+
+
+def session_country_changed(previous_country: Optional[str], current_country: Optional[str]) -> bool:
+    """Return whether one logical session moved between two real countries."""
+    previous = _normalized_security_country(previous_country)
+    current = _normalized_security_country(current_country)
+    return bool(previous and current and previous != current)
+
+
+async def get_session_security_country(
+    cache_service: CacheService,
+    user_id: str,
+    refresh_token: Optional[str],
+) -> Optional[str]:
+    """Read the server-only country baseline for one refresh-token chain."""
+    if not refresh_token:
+        return None
+    tokens = await cache_service.get(f"user_tokens:{user_id}") or {}
+    if not isinstance(tokens, dict):
+        return None
+    metadata = tokens.get(hashlib.sha256(refresh_token.encode()).hexdigest())
+    if not isinstance(metadata, dict):
+        return None
+    # country_code is a same-session migration source for metadata created
+    # before the dedicated server-only security field existed.
+    return _normalized_security_country(
+        metadata.get(SESSION_SECURITY_COUNTRY_FIELD) or metadata.get("country_code")
+    )
+
+
+async def set_session_security_country(
+    cache_service: CacheService,
+    user_id: str,
+    refresh_token: Optional[str],
+    country_code: Optional[str],
+    *,
+    stay_logged_in: bool = False,
+) -> bool:
+    """Update only the identified logical session's security baseline."""
+    country = _normalized_security_country(country_code)
+    if not refresh_token or not country:
+        return False
+    key = f"user_tokens:{user_id}"
+    tokens = await cache_service.get(key) or {}
+    if not isinstance(tokens, dict):
+        tokens = {}
+    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+    existing = tokens.get(token_hash)
+    if isinstance(existing, dict):
+        metadata = dict(existing)
+    else:
+        metadata = {
+            "created_at": int(time.time()),
+            "stay_logged_in": stay_logged_in,
+        }
+    metadata[SESSION_SECURITY_COUNTRY_FIELD] = country
+    tokens[token_hash] = metadata
+    extended = any(
+        isinstance(item, dict) and item.get("stay_logged_in")
+        for item in tokens.values()
+    )
+    ttl = EXTENDED_SESSION_TTL_SECONDS * 7 if extended else DEFAULT_SESSION_TOKEN_LIST_TTL_SECONDS
+    await cache_service.set(key, tokens, ttl=ttl)
+    return True
 
 
 async def preserve_rotated_session_metadata(

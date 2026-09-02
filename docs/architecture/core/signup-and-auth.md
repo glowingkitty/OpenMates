@@ -9,9 +9,13 @@ coverage:
   reviewed_context:
   - backend/core/api/app/routes/auth_routes/auth_login.py
   - backend/core/api/app/routes/auth_routes/auth_common.py
+  - backend/core/api/app/routes/auth_routes/auth_session.py
+  - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+  - backend/core/api/app/routes/auth_routes/auth_passkey.py
   - backend/core/api/app/schemas/auth.py
 key_files:
 - backend/core/api/app/routes/auth_routes/auth_login.py
+- backend/core/api/app/routes/auth_routes/auth_session.py
 - backend/core/api/app/routes/auth_routes/auth_passkey.py
 - backend/core/api/app/routes/auth_routes/auth_2fa_setup.py
 - frontend/packages/ui/src/services/cryptoService.ts
@@ -106,6 +110,7 @@ claims:
 - Login requests are keyed by `hashed_email` and `lookup_hash`, not plaintext email or password.
 - Supported login methods all converge on the same session response shape and client-origin verification boundary.
 - Authenticated session checks must fall back from cache to Directus before failing, so cache misses do not log users out by themselves.
+- Location risk is scoped to one refresh-token session, so concurrent web, CLI, and native sessions cannot challenge one another merely because they are in different countries.
 
 > Zero-knowledge password verification: the server verifies you know your password without ever learning it, via a pre-computed lookup hash. Emails are looked up by a SHA-256 hash, and master encryption keys are derived on the device and wrapped before transmission. Authentication is proven by successful client-side decryption.
 >
@@ -211,6 +216,25 @@ The 30-day TTL addresses Safari iOS strict cookie policies that cause logout on 
 Implementation: preference captured during email lookup, stored in Redis, cookie `max_age` set to 2,592,000s or 86,400s accordingly. See [cryptoKeyStorage.ts](../../frontend/packages/ui/src/services/cryptoKeyStorage.ts) for storage logic.
 
 **Validation layers:** page-load check, access-time validation, periodic validation timer. Memory keys need no cleanup handlers (cleared automatically when page closes).
+
+### Multi-device session isolation
+
+Account identity, device identity, logical session identity, refresh-token
+generation, and WebSocket connection identity are distinct:
+
+1. Login creates a token metadata entry with a server-only country baseline.
+2. `POST /auth/session` compares the request country only with that token
+   chain's baseline. A different country on a sibling session is irrelevant.
+3. A genuine country change challenges only the affected session. Successful
+   OTP or passkey verification advances only its baseline.
+4. Refresh-token rotation copies the full metadata entry atomically, retaining
+   the logical session's baseline and encrypted Active Sessions metadata.
+5. Targeted logout/revocation removes one token chain. Logout-all and account
+   deletion are the intentional account-wide operations.
+
+Stable device hashes exclude country. During migration, the server recognizes
+the former location-coupled hash and records the stable replacement after a
+successful validation, avoiding a forced re-login for existing devices.
 
 ## Edge Cases
 

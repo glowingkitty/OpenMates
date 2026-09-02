@@ -146,10 +146,37 @@ session_lifecycle:
     expect: {openmates_cookie_name: auth_refresh_token, http_only: true, secure: true, same_site: lax}
   - id: cache-miss-rotates-preserves-extended-ttl
     input: {cache_user_missing: true, directus_refresh_succeeds: true, old_token_stay_logged_in: true}
-    expect: {session_valid: true, browser_cookie_rotated: true, stay_logged_in: true, cache_ttl_seconds: 2592000}
+    expect: {session_valid: true, browser_cookie_rotated: true, logical_session_preserved: true, session_security_state_preserved: true, stay_logged_in: true, cache_ttl_seconds: 2592000}
   - id: ws-token-not-refresh-token
     input: {session_finalized: true}
     expect: {ws_token_returned: true, raw_refresh_token_in_json: false}
+
+session_isolation:
+  - id: simultaneous-countries-remain-independent
+    input:
+      sessions:
+        browser: {country_baseline: DE, current_country: DE, authenticated: true}
+        cli: {country_baseline: FI, current_country: FI, authenticated: true}
+    expect:
+      browser: {authenticated: true, re_auth_required: null, country_baseline: DE}
+      cli: {authenticated: true, re_auth_required: null, country_baseline: FI}
+  - id: location-change-challenges-only-affected-session
+    input:
+      sessions:
+        browser: {country_baseline: DE, current_country: DE, authenticated: true}
+        cli: {country_baseline: FI, current_country: US, authenticated: true}
+    expect:
+      browser: {authenticated: true, re_auth_required: null, country_baseline: DE}
+      cli: {authenticated: false, re_auth_required: passkey, re_auth_reason: location_change, country_baseline: FI}
+  - id: targeted-session-revocation
+    input: {action: revoke_session, target: cli, sibling: browser}
+    expect: {cli_authenticated: false, browser_authenticated: true, account_wide_logout: false}
+  - id: explicit-logout-all
+    input: {action: logout_all_other_sessions, current: browser, sibling: cli}
+    expect: {browser_authenticated: true, cli_authenticated: false, account_wide_action_explicit: true}
+  - id: legacy-session-initializes-own-baseline
+    input: {logical_session: legacy, country_baseline: null, current_country: FI, sibling_country: DE}
+    expect: {re_auth_reason: null, country_baseline_after_success: FI, sibling_country_unchanged: DE}
 
 session_risk:
   - id: session-id-required
@@ -162,8 +189,14 @@ session_risk:
     input: {device_hash_known: false, tfa_enabled: false, passkeys_configured: true}
     expect: {success: false, re_auth_required: passkey, re_auth_reason: new_device}
   - id: country-change-requires-reauth
-    input: {previous_country: DE, current_country: US, tfa_enabled: true}
-    expect: {success: false, re_auth_required: 2fa, re_auth_reason: location_change}
+    input: {logical_session: browser, session_country_baseline: DE, current_country: US, tfa_enabled: true}
+    expect: {success: false, re_auth_required: 2fa, re_auth_reason: location_change, affected_session: browser, sibling_sessions_affected: false}
+  - id: refresh-rotation-preserves-country-baseline
+    input: {logical_session: cli, refresh_token_rotated: true, country_baseline_before: FI, current_country: FI}
+    expect: {logical_session_preserved: true, country_baseline_after: FI, re_auth_required: null}
+  - id: location-does-not-define-device-identity
+    input: {same_device_credential: true, previous_country: FI, current_country: US}
+    expect: {same_device_identity: true, location_risk_evaluated_separately: true}
 
 client_access:
   - id: allowed-web-origin

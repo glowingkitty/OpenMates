@@ -161,6 +161,25 @@ models:
       nullable: true
       values: [2fa, passkey]
 
+  SessionSecurityState:
+    logical_session:
+      type: opaque_server_identity
+      required: true
+      constraints: {one_refresh_token_chain: true, distinct_from_account_device_and_connection: true}
+    device_identity:
+      type: privacy_preserving_stable_identity
+      required: true
+      constraints: {location_independent: true, shared_across_sessions_only_when_the_client_proves_the_same_device: true}
+    country_baseline:
+      type: country_code
+      nullable: true
+      constraints: {server_only: true, scoped_to_logical_session: true, preserved_across_refresh_rotation: true, precise_location_forbidden: true}
+    pending_re_authentication:
+      type: enum
+      nullable: true
+      values: [new_device, location_change]
+      constraints: {scoped_to_logical_session: true, sibling_sessions_affected: forbidden}
+
 assertions:
   - id: auth.signup.current-flow
     type: behavior
@@ -196,12 +215,16 @@ assertions:
     depends_on: [models.PairLoginGrant, models.AuthSession, examples.pair_login]
   - id: auth.session.lifecycle
     type: behavior
-    must: Session finalization normalizes Directus refresh cookies into OpenMates auth cookies, uses 24-hour default and 30-day stay-logged-in TTLs for cookies and cache, returns a short-lived ws_token instead of the raw refresh token in JSON, refreshes expiring tokens, and falls back from cache miss to Directus token refresh without downgrading stay-logged-in sessions.
-    depends_on: [models.AuthSession, examples.session_lifecycle]
+    must: Session finalization normalizes Directus refresh cookies into OpenMates auth cookies, uses 24-hour default and 30-day stay-logged-in TTLs for cookies and cache, returns a short-lived ws_token instead of the raw refresh token in JSON, refreshes expiring tokens, preserves the same logical session and its security state across refresh-token rotation, and falls back from cache miss to Directus token refresh without downgrading stay-logged-in sessions.
+    depends_on: [models.AuthSession, models.SessionSecurityState, examples.session_lifecycle]
+  - id: auth.session.isolation
+    type: security
+    must: Each authenticated refresh-token chain is an independently governed logical session; expiry, logout, revocation, location updates, and pending re-authentication affect only that session, while sibling sessions remain authenticated and retain their own security state. Account-wide invalidation occurs only for an explicit log-out-all action, account deletion, or a separately specified severe account-compromise response.
+    depends_on: [models.SessionSecurityState, examples.session_isolation]
   - id: auth.session.risk-reauth
     type: security
-    must: Session validation requires a client session_id, updates known-device state only after successful checks, and asks for 2FA or passkey re-authentication on new device hashes or real country changes instead of silently accepting the session.
-    depends_on: [models.AuthSession, examples.session_risk]
+    must: Session validation requires a client session_id, keeps stable device identity independent from volatile location signals, updates known-device and country-baseline state only after successful checks, and asks for 2FA or passkey re-authentication on a genuinely new device or a real country change within the same logical session instead of silently accepting it; the challenge temporarily restricts only the affected session and never logs out or challenges sibling sessions.
+    depends_on: [models.AuthSession, models.SessionSecurityState, examples.session_risk, examples.session_isolation]
   - id: auth.surface.first-party-boundary
     type: security
     must: >
@@ -235,4 +258,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [signup_flows, signup_client_surfaces, signup_access_gates, crypto_boundaries, lookup_enumeration, login_methods, passkey_flows, pair_login, session_lifecycle, session_risk, client_access]
+  required_groups: [signup_flows, signup_client_surfaces, signup_access_gates, crypto_boundaries, lookup_enumeration, login_methods, passkey_flows, pair_login, session_lifecycle, session_isolation, session_risk, client_access]

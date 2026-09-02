@@ -1606,10 +1606,6 @@ async def finalize_login_session(
                     cached_user_data["last_online_timestamp"] = current_time
                     # Store stay_logged_in preference for session endpoint to use
                     cached_user_data["stay_logged_in"] = login_data.stay_logged_in
-                    # Store country code for session-level location change detection
-                    # This enables the session endpoint to detect suspicious country changes mid-session
-                    if country_code and country_code not in ("Local", "Unknown", None):
-                        cached_user_data["last_session_country"] = country_code
                     # Set token_expiry so the /session endpoint knows when to refresh the access token.
                     # Without this, token_expiry defaults to 0 → expires_soon is always True → every
                     # /session call rotates the refresh token, causing race-condition logouts.
@@ -1640,9 +1636,6 @@ async def finalize_login_session(
                         user_profile["last_online_timestamp"] = current_time
                         # Set token_expiry so /session knows when the access token needs refreshing.
                         user_profile["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
-                        # Store country code for session-level location change detection
-                        if country_code and country_code not in ("Local", "Unknown", None):
-                            user_profile["last_session_country"] = country_code
                         # Ensure user_id is in the profile for set_user to work
                         if "user_id" not in user_profile and "id" in user_profile:
                             user_profile["user_id"] = user_profile["id"]
@@ -1672,6 +1665,9 @@ async def finalize_login_session(
                 "device_name": derive_device_name(user_agent),
                 "ip_truncated": truncate_ip(client_ip),
                 "country_code": country_code or "Unknown",
+                # Server-only risk baseline. Client metadata registration keeps
+                # this field while removing the plaintext display location.
+                "security_country_code": country_code or "Unknown",
                 "city": device_location_str.split(",")[0].strip() if device_location_str else None,
                 "encrypted_meta": None,
                 "encrypted_meta_iv": None,
