@@ -494,8 +494,12 @@ async def test_event_request_creates_and_dispatches_missing_historical_segments(
     assert len(rows["assistant_speech_segments"]) == 1
     assert rows["assistant_speech_segments"][0]["source_hash"] == _speech_source_identity(text)
     assert rows["assistant_speech_segments"][0]["voice_profile_key"] == "george"
-    assert len(dispatched) == 1
-    assert dispatched[0][1]["arguments"]["speakable_text"] == text
+    assert [task[0] for task in dispatched] == [
+        "apps.audio.tasks.assistant_speech_billing",
+        "apps.audio.tasks.assistant_speech_segment",
+    ]
+    assert "speakable_text" not in dispatched[0][1]["arguments"]
+    assert dispatched[1][1]["arguments"]["speakable_text"] == text
     assert sent[0]["payload"]["segments"][0]["status"] == "queued"
     assert text not in repr(sent)
 
