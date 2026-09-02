@@ -68,6 +68,14 @@ function parseTime(value: unknown): number | null {
   return Number.isNaN(parsed) ? null : parsed;
 }
 
+function parseDateOnlyEnd(value: unknown): number | null {
+  const raw = asString(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+
+  const parsed = new Date(`${raw}T23:59:59.999`).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 function formatRelativeLabel(prefix: string, timestamp: number, nowMs: number): string {
   const diffMs = timestamp - nowMs;
   const absMinutes = Math.max(1, Math.round(Math.abs(diffMs) / 60_000));
@@ -117,7 +125,7 @@ function getSavedItemTimeWindow(itemValue: Record<string, unknown>): { startMs: 
     parseTime(itemValue.starts_at) ??
     parseTime(itemValue.datetime) ??
     parseTime(itemValue.appointment_time) ??
-    parseTime(itemValue.date) ??
+    parseDateOnlyEnd(itemValue.date) ??
     parseTime(itemValue.available_from);
 
   const endMs =

@@ -118,7 +118,7 @@ describe('continueCarouselService', () => {
             item_value: {
               embed_id: 'legacy-far-appointment-embed',
               title: 'Legacy Friday appointment',
-              date: '2026-05-15',
+              date: '2026-05-14',
             },
           },
         ],
