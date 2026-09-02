@@ -43,12 +43,13 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			attach: testInfo.attach.bind(testInfo)
 		});
 		const width = PROOF_DEVICE === 'web-phone' ? '381' : '1155';
-		await proof.action('open-player-preview', async () => {
-			await page.goto(`/dev/preview/AssistantSpeechPlayer?theme=light&chrome=0&width=${width}`, { waitUntil: 'networkidle' });
-			await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
-		});
+		await page.goto(`/dev/preview/AssistantSpeechPlayer?theme=light&chrome=0&width=${width}`, { waitUntil: 'networkidle' });
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
 
 		const player = page.getByTestId('assistant-speech-player');
+		await proof.action('focus-playback-control', async () => {
+			await player.getByRole('button', { name: 'Pause voice response' }).focus();
+		});
 		await proof.assert('assistant-speech.playback.pinned-full-response-waveform', async () => {
 			await expect(player).toBeVisible();
 			await expect(player).toHaveAttribute('data-presentation', 'replayable_track_queue');
