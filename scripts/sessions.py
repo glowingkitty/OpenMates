@@ -10525,6 +10525,18 @@ def _openmates_task_external_context_hash(opencode_session_id: str) -> str:
     ).hexdigest()
 
 
+def _openmates_task_opencode_session_id(data: dict, session_reference: str) -> str:
+    """Resolve a bound chat, or accept a validated new top-level chat identity."""
+    repository_session_id = _continuation_repository_session_id(data, session_reference)
+    if repository_session_id:
+        opencode_session_id = str(
+            data["sessions"][repository_session_id].get("opencode_session_id") or ""
+        )
+        if OPENCODE_SESSION_ID_RE.fullmatch(opencode_session_id):
+            return opencode_session_id
+    return session_reference if OPENCODE_SESSION_ID_RE.fullmatch(session_reference) else ""
+
+
 def _run_openmates_task_cli(arguments: list[str]) -> dict:
     """Execute one trusted personal-profile Task CLI command and parse bounded JSON."""
     if not arguments or arguments[0] != "tasks":
@@ -10679,11 +10691,7 @@ def _openmates_task_context(
 ) -> dict:
     """Fetch one authoritative request-only Task snapshot for a top-level chat."""
     data = _load_sessions()
-    repository_session_id = _continuation_repository_session_id(data, session_reference)
-    if not repository_session_id:
-        return {"decision": "unbound", "active": None, "remaining": []}
-    session = data["sessions"][repository_session_id]
-    opencode_session_id = str(session.get("opencode_session_id") or "")
+    opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
     if not opencode_session_id:
         return {"decision": "unbound", "active": None, "remaining": []}
     payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
@@ -10696,7 +10704,7 @@ def _openmates_task_tool(
     *,
     cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
 ) -> dict:
-    """Execute one allowlisted typed Task operation scoped to the bound chat."""
+    """Execute one allowlisted typed Task operation scoped to a validated chat."""
     if not isinstance(input_payload, dict):
         raise RuntimeError("Task tool input must be a JSON object")
     action = input_payload.get("action")
@@ -10705,14 +10713,9 @@ def _openmates_task_tool(
         raise RuntimeError(f"unsupported Task tool action: {action}")
 
     data = _load_sessions()
-    repository_session_id = _continuation_repository_session_id(data, session_reference)
-    if not repository_session_id:
-        raise RuntimeError("Task tool requires a bound top-level OpenCode session")
-    opencode_session_id = str(
-        data["sessions"][repository_session_id].get("opencode_session_id") or ""
-    )
+    opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
     if not opencode_session_id:
-        raise RuntimeError("Task tool requires a bound top-level OpenCode session")
+        raise RuntimeError("Task tool requires a valid top-level OpenCode session")
     scope = ["--external-chat", f"opencode:{opencode_session_id}"]
 
     def text_field(name: str, *, required: bool = False, maximum: int = 10000) -> str:

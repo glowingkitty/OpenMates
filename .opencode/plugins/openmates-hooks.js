@@ -2359,7 +2359,6 @@ function taskContextSystemTextForTest(snapshot) {
   if (!snapshot || snapshot.decision === "unbound") return "";
   const active = snapshot.active;
   const remaining = Array.isArray(snapshot.remaining) ? snapshot.remaining : [];
-  if (!active && remaining.length === 0) return "";
   const lines = [
     TASK_CONTEXT_MARKER,
     "This request-only snapshot is authoritative. Use the openmates_task tool for Task mutations; native OpenCode todos are unavailable.",
@@ -2378,7 +2377,12 @@ function taskContextSystemTextForTest(snapshot) {
     if (active.blocked_reason_code) lines.push(`- Blocked reason code: ${active.blocked_reason_code}`);
     if (active.blocked_reason) lines.push(`- Blocked explanation: ${active.blocked_reason}`);
   } else {
-    lines.push("Active Task: none");
+    lines.push(
+      "Active Task: none",
+      "For non-trivial multi-step implementation, debugging, or investigation work, create an AI-assigned record with openmates_task action=create before the first product mutation, even when the user did not explicitly mention Tasks or todos.",
+      "After creating it, carry out the work and explicitly mark it done or block it with an allowlisted reason before ending the response.",
+      "For simple informational requests or trivial single-action work, do not create a record.",
+    );
   }
   lines.push("Ordered remaining Tasks (short id, title, status only):");
   if (remaining.length === 0) lines.push("- none");

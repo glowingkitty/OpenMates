@@ -272,7 +272,7 @@ def test_typed_tool_rejects_unknown_actions_and_unbound_sessions(monkeypatch) ->
 
     for reference, payload, message in (
         ("ses_parent", {"action": "delete", "task_id": "TASK-1"}, "unsupported"),
-        ("ses_missing", {"action": "context"}, "bound"),
+        ("not-a-session", {"action": "context"}, "session"),
         ("ses_parent", {"action": "block", "task_id": "TASK-1", "reason_code": "invented"}, "reason"),
     ):
         try:
@@ -281,6 +281,33 @@ def test_typed_tool_rejects_unknown_actions_and_unbound_sessions(monkeypatch) ->
             assert message in str(error).lower()
         else:
             raise AssertionError(f"{payload} must fail closed")
+
+
+def test_new_top_level_chat_can_read_and_create_before_worktree_binding(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
+    calls: list[list[str]] = []
+
+    def cli(args: list[str]) -> dict:
+        calls.append(args)
+        if args[:2] == ["tasks", "list"]:
+            return {"tasks": []}
+        if args[:2] == ["tasks", "create"]:
+            return {"task": task("TASK-NEW", assignee_type="user")}
+        if args[:2] == ["tasks", "edit"]:
+            return {"task": task("TASK-NEW", assignee_type="ai", version=2)}
+        raise AssertionError(args)
+
+    context = sessions._openmates_task_context("ses_newchat", cli_runner=cli)
+    created = sessions._openmates_task_tool(
+        "ses_newchat",
+        {"action": "create", "title": "Implicit multi-step work"},
+        cli_runner=cli,
+    )
+
+    assert context == {"decision": "no_work", "active": None, "remaining": []}
+    assert created["task"]["assignee_type"] == "ai"
+    assert all("opencode:ses_newchat" in command for command in calls)
 
 
 def test_staged_reconciliation_survives_process_restart(tmp_path, monkeypatch) -> None:

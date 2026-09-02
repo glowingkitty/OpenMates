@@ -42,6 +42,17 @@ test("request context contains full active details and title-only remaining Task
 });
 
 
+test("empty chats instruct the model to create tracking for implicit non-trivial work", () => {
+  const { taskContextSystemTextForTest } = OpenMatesHooks.test;
+  const text = taskContextSystemTextForTest({ decision: "no_work", active: null, remaining: [] });
+
+  assert.match(text, /non-trivial multi-step/i);
+  assert.match(text, /create.*openmates_task/i);
+  assert.match(text, /before the first product mutation/i);
+  assert.match(text, /simple informational.*do not create/i);
+});
+
+
 test("only completed successful top-level assistant messages stage reconciliation", () => {
   const { taskBridgeCompletionForTest } = OpenMatesHooks.test;
   const completed = {
