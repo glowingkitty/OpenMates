@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Live REST API security hardening smoke checks.
 
 Purpose: verify the deployed dev API enforces the strict REST surface taxonomy
@@ -165,7 +166,7 @@ def _approve_rest_device(api_url: str, key_id: str) -> list[str]:
     for device in data.get("devices", []):
         if not isinstance(device, dict):
             continue
-        if device.get("api_key_id") != key_id or device.get("approved_at") or device.get("access_type") != "rest_api":
+        if device.get("api_key_id") != key_id or device.get("approved_at"):
             continue
         device_id = device.get("id")
         if isinstance(device_id, str):
@@ -177,7 +178,22 @@ def _approve_rest_device(api_url: str, key_id: str) -> list[str]:
 def _create_approved_key(api_url: str, *, name: str, full_access: bool, scopes: dict[str, Any]) -> tuple[str, str, list[str]]:
     api_key, key_id = _create_api_key(api_url, name=name, full_access=full_access, scopes=scopes)
     _http_json(api_url, "/v1/user-tasks/metadata", api_key=api_key)
-    approved = _approve_rest_device(api_url, key_id)
+    approved: list[str] = []
+    for _ in range(5):
+        approved = _approve_rest_device(api_url, key_id)
+        if approved:
+            break
+        time.sleep(1)
+    if not approved:
+        devices = _settings_request(api_url, "api-key-devices").get("devices", [])
+        matching_devices = sum(
+            1 for device in devices
+            if isinstance(device, dict) and device.get("api_key_id") == key_id
+        )
+        raise SmokeFailure(
+            "Temporary API-key device was not registered for approval "
+            f"(listed devices: {len(devices)}, matching key: {matching_devices})."
+        )
     return api_key, key_id, approved
 
 

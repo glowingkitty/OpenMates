@@ -740,6 +740,8 @@ implementation_notes:
       reason: Settings flow UI and create-payload assertions.
     - path: frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
       reason: Focused bare-preview interaction and proof contract for per-scope toggles.
+    - path: scripts/api_tests/test_rest_api_security_hardening.py
+      reason: Live dev-server scope and approved-device authorization verification.
   verification_strategy:
     - Validate this Plan with python3 scripts/plan_validate.py docs/plans/api-key-scopes-v1/plan.yml.
     - After approval, run python3 scripts/sessions.py lint --session ede3.

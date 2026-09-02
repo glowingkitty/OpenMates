@@ -1431,6 +1431,15 @@ async def get_api_key_devices(
                 # Pass user_id for decryption
                 devices = await directus_service.get_api_key_devices(api_key_id, user_id=current_user.id)
                 all_devices.extend(devices)
+
+        # Pending rows are queried by their privacy-preserving owner hash because
+        # Directus relation filtering may omit an unapproved row from per-key reads.
+        pending_devices = await directus_service.get_pending_api_key_devices(current_user.id)
+        existing_device_ids = {device.get('id') for device in all_devices}
+        all_devices.extend(
+            device for device in pending_devices
+            if device.get('id') not in existing_device_ids
+        )
         
         # Convert to response format (exclude encrypted fields from REST API)
         device_responses = [
