@@ -12,10 +12,6 @@
     type AssistantSpeechPlaybackController,
   } from '../services/assistantSpeechController';
   import type { AssistantSpeechChapter, AssistantSpeechWaveformRegion } from '../services/assistantSpeechQueue';
-  import playIconUrl from '../../static/icons/play.svg?url';
-  import pauseIconUrl from '../../static/icons/pause.svg?url';
-  import closeIconUrl from '../../static/icons/close.svg?url';
-  import backIconUrl from '../../static/icons/back.svg?url';
   import aiIconUrl from '../../static/icons/ai.svg?url';
   import softwareDevelopmentMateUrl from '../../static/images/mates/software_development.jpeg?url';
   import businessDevelopmentMateUrl from '../../static/images/mates/business_development.jpeg?url';
@@ -152,7 +148,7 @@
       data-mate-category={$player.mateCategory}
       style:background-image={`url(${mateImageUrl})`}
     >
-      <span class="assistant-speech-mate-badge" aria-hidden="true"><span class="assistant-speech-icon ai" style={`--speech-icon-url: url(${aiIconUrl})`}></span></span>
+      <span class="assistant-speech-mate-badge" aria-hidden="true"><img src={aiIconUrl} alt="" /></span>
     </div>
 
     <div
@@ -198,7 +194,6 @@
           class:play={!isPlaying}
           data-testid="assistant-speech-primary-icon"
           data-icon={isPlaying ? 'pause' : 'play'}
-          style={`--speech-icon-url: url(${isPlaying ? pauseIconUrl : playIconUrl})`}
         ></span>
       </button>
       {#if isPaused}
@@ -209,7 +204,7 @@
           aria-label={$text('common.close')}
           onclick={() => void controller.close()}
         >
-          <span class="assistant-speech-icon close" data-testid="assistant-speech-close-icon" style={`--speech-icon-url: url(${closeIconUrl})`}></span>
+          <span class="assistant-speech-icon close" data-testid="assistant-speech-close-icon"></span>
         </button>
       {/if}
     </div>
@@ -223,7 +218,7 @@
           aria-label={`Previous chapter: ${chapterLabel(previousRegion.chapter)}`}
           onclick={() => void controller.previous()}
         >
-          <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous" style={`--speech-icon-url: url(${backIconUrl})`}></span>
+          <span>{chapterLabel(previousRegion.chapter)}</span><span class="assistant-speech-icon chevron previous"></span>
         </button>
       {/if}
       <strong data-testid="assistant-speech-current-chapter">
@@ -237,7 +232,7 @@
           aria-label={`Next chapter: ${chapterLabel(nextRegion.chapter)}`}
           onclick={() => void controller.next()}
         >
-          <span class="assistant-speech-icon chevron next" style={`--speech-icon-url: url(${backIconUrl})`}></span><span>{chapterLabel(nextRegion.chapter)}</span>
+          <span class="assistant-speech-icon chevron next"></span><span>{chapterLabel(nextRegion.chapter)}</span>
         </button>
       {/if}
       {#if isLoading && !nextRegion}
@@ -297,6 +292,8 @@
     color: var(--color-primary);
     background: var(--color-grey-0);
   }
+
+  .assistant-speech-mate-badge img { width: 9px; height: 9px; }
 
   .assistant-speech-waveform {
     display: grid;
@@ -364,22 +361,51 @@
   }
 
   .assistant-speech-icon {
+    position: relative;
     display: block;
     width: 18px;
     height: 18px;
-    background: currentColor;
-    -webkit-mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    -webkit-mask-size: contain;
-    mask-position: center;
-    mask-repeat: no-repeat;
-    mask-size: contain;
-    -webkit-mask-image: var(--speech-icon-url);
-    mask-image: var(--speech-icon-url);
   }
 
-  .assistant-speech-icon.ai { width: 9px; height: 9px; }
-  .assistant-speech-icon.chevron { width: 11px; height: 11px; }
+  .assistant-speech-icon.pause::before,
+  .assistant-speech-icon.pause::after,
+  .assistant-speech-icon.close::before,
+  .assistant-speech-icon.close::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    width: 5px;
+    height: 14px;
+    border-radius: var(--radius-full);
+    background: currentColor;
+  }
+
+  .assistant-speech-icon.pause::before { left: 2px; }
+  .assistant-speech-icon.pause::after { right: 2px; }
+  .assistant-speech-icon.play::before {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    width: 0;
+    height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 12px solid currentColor;
+  }
+
+  .assistant-speech-icon.close::before,
+  .assistant-speech-icon.close::after { left: 7px; width: 4px; transform: rotate(45deg); }
+  .assistant-speech-icon.close::after { transform: rotate(-45deg); }
+  .assistant-speech-icon.chevron { width: 9px; height: 9px; }
+  .assistant-speech-icon.chevron::before {
+    content: '';
+    position: absolute;
+    inset: 1px;
+    border-bottom: 2px solid currentColor;
+    border-left: 2px solid currentColor;
+    transform: rotate(45deg);
+  }
   .assistant-speech-icon.chevron.next { transform: rotate(180deg); }
 
   .assistant-speech-primary-control:hover { transform: scale(1.06); }

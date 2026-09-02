@@ -6,11 +6,12 @@
  */
 
 import { writable } from "svelte/store";
+import type { AssistantSpeechPlayerState } from "../services/assistantSpeechController";
 
 const readyWaveform = [32, 58, 82, 44, 72, 96, 54, 76, 38, 68, 88, 48];
 
 function createPreviewController() {
-  const player = writable({
+  const player = writable<AssistantSpeechPlayerState>({
     responseId: "preview-response",
     chatId: "preview-chat",
     messageId: "preview-message",
@@ -20,7 +21,7 @@ function createPreviewController() {
     presentationMode: "replayable_track_queue",
     hasReplayableTracks: true,
     mateName: "Sophia",
-    mateCategory: "calendar",
+    mateCategory: "software_development",
     regions: [
       { segmentId: "segment-0", sequence: 0, start: 0, end: 0.28, status: "ready", active: false, chapter: { kind: "heading", text: "Short answer" }, waveform: readyWaveform },
       { segmentId: "segment-1", sequence: 1, start: 0.28, end: 0.72, status: "ready", active: true, chapter: { kind: "heading", text: "Key considerations" }, waveform: readyWaveform },
@@ -28,7 +29,7 @@ function createPreviewController() {
     ],
   });
 
-  function updateStatus(status: string) {
+  function updateStatus(status: AssistantSpeechPlayerState["status"]) {
     player.update((state) => ({ ...state, status }));
   }
 
