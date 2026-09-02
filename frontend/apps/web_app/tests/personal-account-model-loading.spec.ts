@@ -89,6 +89,8 @@ test('authenticated account loads its chat model selector without retry errors',
 	await expect(selector).toBeVisible({ timeout: 30000 });
 	await expect(selector).toHaveAttribute('data-loading', 'false', { timeout: 30000 });
 	await expect(composer.getByTestId('composer-model-selector-label')).not.toHaveText('Loading...');
+	const notificationsBeforeSelection = await page.evaluate(() => (window as any).__issue4NPP9Notifications as string[]);
+	expect(notificationsBeforeSelection).not.toContain("Could not load this chat's model setting. Auto is being used.");
 
 	await selector.click();
 	const selectorMenu = composer.getByTestId('composer-model-selector-menu');
