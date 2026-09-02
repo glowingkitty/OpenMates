@@ -5,8 +5,8 @@ status: implementing
 
 specification_refs:
   - id: feature.landing-onboarding
-    version: 2
-    fingerprint: 1f9254af8ad6b1f575041d1ffded8c695e697c98f30bf5db9ca435398d448662
+    version: 3
+    fingerprint: 2fabfce4b17e391345e0c264efd61821a9da44c9cdea71ade627e12563194862
   - id: feature.public-example-chats
     version: 4
     fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
@@ -30,14 +30,15 @@ documentation_impact:
   semantic_layer: {status: update_required, reason: Landing and public-example Specifications changed.}
 
 goal: >
-  Use “Your AI team for getting things done” consistently across primary English
-  marketing surfaces, preserve the existing logged-out onboarding slides and real
-  example-chat discovery, and safely retire the For everyone and For developers
-  public intro chats across web, backend compatibility, SEO, and Apple catalogs.
+  Keep “Your AI team for getting things done” on visible headline surfaces, use
+  the approved agentic-operating-system description in English SEO metadata,
+  preserve the existing logged-out onboarding slides and real example-chat
+  discovery, and safely retire the For everyone and For developers public intro
+  chats across web, backend compatibility, SEO, and Apple catalogs.
 
 scope:
   in:
-    - Website SEO, Open Graph, social-preview, GitHub README, npm README, and pip README slogan updates.
+    - Website SEO, Open Graph, and Twitter description updates while visible headline and README copy remain unchanged.
     - Neutral guest-onboarding translations and runtime data independent of public intro-chat content.
     - Removal of both intro chats from web and Apple catalogs, discovery, special rendering, SEO content, and sitemap.
     - Compatibility handling for old path and fragment links.
@@ -100,10 +101,12 @@ scenarios:
     when: [The backend normalizes last_opened.]
     then: [Neither retired demo ID is persisted or returned as the recovery target.]
   - id: S-4
-    title: Primary marketing surfaces share one slogan
+    title: Headlines and SEO descriptions use distinct approved copy
     given: [An English visitor or developer reads a primary OpenMates product surface.]
-    when: [Landing metadata, social previews, repository, npm README, or pip README render.]
-    then: [The product slogan is “Your AI team for getting things done”.]
+    when: [Landing metadata or visible headline surfaces render.]
+    then:
+      - Visible headlines use “Your AI team for getting things done”.
+      - SEO description fields use the approved agentic-operating-system description.
 
 acceptance_criteria:
   - id: AC-1
@@ -136,7 +139,7 @@ acceptance_criteria:
   - id: AC-4
     scenario: S-4
     specification_assertions: [landing-onboarding.primary-slogan-consistent]
-    text: All approved code-owned English positioning surfaces use the new slogan while package descriptions remain specific.
+    text: Visible headline copy remains unchanged while approved English SEO description fields use the longer agentic-operating-system description.
     required: true
     status: pending
     coverage_status: covered
@@ -159,6 +162,7 @@ contracts:
   ui:
     - Guest onboarding is a first-class neutral welcome surface, not a public chat.
     - Public discovery contains real example-* chats and no retired demo-for-* entries.
+    - Visible landing and social-preview image headlines remain unchanged; only metadata descriptions use the longer positioning copy.
 
 tests:
   - id: T-POSITIONING
@@ -167,7 +171,7 @@ tests:
     file: README.md
     command: npm --prefix frontend/packages/ui run build:translations
     covers: [AC-4]
-    assertions: [Canonical translations build and approved English positioning sources contain the new slogan.]
+    assertions: [Canonical translations build, visible headline sources retain the short slogan, and English metadata descriptions contain the approved longer copy.]
     red_phase: {required: false, expected: not_captured, evidence: {status: waived, reason: Mechanical copy alignment.}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-BACKEND
@@ -205,6 +209,7 @@ approvals:
 decisions:
   - {id: D-1, status: active, decision: Preserve current guest onboarding and real examples while retiring both public intro chats., reason: The current web welcome flow is already independent of the legacy chat records., decided_at: "2026-09-02"}
   - {id: D-2, status: active, decision: Skip Apple builds and tests in this slice., reason: User prioritized web delivery speed and requested source-only Apple cleanup., decided_at: "2026-09-02"}
+  - {id: D-3, status: active, decision: Keep visible landing copy unchanged and use the agentic-operating-system description only in English SEO metadata., reason: User approved a metadata-only communication hierarchy., decided_at: "2026-09-02"}
 
 attempts:
   - {id: ATTEMPT-1, task_id: TASK-1, approach: Validate the approved compact implementation ledger before source edits., outcome: planned, recorded_at: "2026-09-02", notes: Schema V2 evidence records normalized before implementation.}

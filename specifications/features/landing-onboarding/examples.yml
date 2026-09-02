@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.landing-onboarding@2
+specification: feature.landing-onboarding@3
 
 real_shell:
   - id: logged-out-welcome-uses-real-chat-shell
@@ -143,11 +143,14 @@ legacy_intro_retirement:
     expect: {last_opened_not_in: [demo-for-everyone, demo-for-developers], neutral_new_chat_state: true}
 
 primary_slogan:
-  - id: english-positioning-is-consistent
+  - id: english-positioning-separates-headline-and-seo-description
     given: {locale: en}
     expect:
-      slogan: Your AI team for getting things done
-      surfaces: [landing_headline, seo_metadata, open_graph, social_preview, github_readme, npm_readme, pip_readme]
+      headline: Your AI team for getting things done
+      seo_description: An agentic operating system for everyday tasks, learning, and work, built around your interests and privacy.
+      unchanged_headline_surfaces: [landing_headline, page_title, social_preview_image, github_readme, npm_readme, pip_readme]
+      description_surfaces: [html_description, seo_metadata, open_graph_description, twitter_description]
+      visible_landing_copy_added: false
       package_registry_descriptions_remain_specific: true
 
 apple_parity:

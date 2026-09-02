@@ -294,10 +294,10 @@ specifications:
     - rest_api
     - gui.web
   feature.landing-onboarding:
-    version: 2
+    version: 3
     status: draft
     path: features/landing-onboarding
-    fingerprint: 1f9254af8ad6b1f575041d1ffded8c695e697c98f30bf5db9ca435398d448662
+    fingerprint: 2fabfce4b17e391345e0c264efd61821a9da44c9cdea71ade627e12563194862
     required_applies_to:
     - gui.web
     - gui.apple
@@ -3257,7 +3257,7 @@ assertions:
     - rest_api
     - gui.web
   landing-onboarding.uses-real-chat-shell:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 4fa3937496ad025473bd94fe23222d6dc45bed63a24cbaae412a09fb9662f67d
@@ -3265,7 +3265,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.guest-sequence:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: e8abbd972487ecc8a3f27199181f11e4857d69a7a75fa116b2031bfcc21de296
@@ -3273,7 +3273,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.intro-active-apps-only:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: invariant
     fingerprint: 71094aebac8ad350e1979f8ca3949205cdfef63f4a40918449886af74434ea3f
@@ -3281,7 +3281,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.coordinated-story-progress:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 7d1cc1618622afee9d7f101b28e0b916f2a070448ead22501d6507fef4520bf5
@@ -3289,7 +3289,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.manual-navigation:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 5101206cd8c42d9b9dccbb184be4ff733205f542b216b57552e34e8fc5cc329f
@@ -3297,7 +3297,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.actionable-demo-faithful:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: f1bf3e074a516016c2560aef6b86d8b11d36685db4fc98b0f2e998527978ba12
@@ -3305,7 +3305,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.privacy-mates-platform-stories:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: ef34d2a016aca3abda1d76393821820c4e797cb8e3216ab8332b73661f2980a1
@@ -3313,7 +3313,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.signup-cta:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 097cc2e003abfad4b137aed426b0e1077aa55c4a0392245a3eb9721de9dfe263
@@ -3321,7 +3321,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.legacy-intros-retired:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: f84152ee0a9bbcf9469117cf8c166a5f1749f8833b3cee2784647e7ebb8bbca3
@@ -3329,15 +3329,15 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.primary-slogan-consistent:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: invariant
-    fingerprint: 1d1b95e43e378be78a2c732e172ea2bf8f324a631cf39b8002cf2c8e2b2f8f60
+    fingerprint: a1b4253adf1fe5b16df6daea090721dad9d37241716c1e86373fb4a83dedee43
     required_applies_to:
     - gui.web
     - gui.apple
   landing-onboarding.apple-web-parity:
-    specification: feature.landing-onboarding@2
+    specification: feature.landing-onboarding@3
     specification_id: feature.landing-onboarding
     type: parity
     fingerprint: eb22ebcf74cb831c0045c8ce71257957b5920aff04b0891d43f4b1e590d90e28
