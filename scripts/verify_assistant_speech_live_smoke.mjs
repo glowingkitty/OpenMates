@@ -110,7 +110,18 @@ function createChat(cliPath, apiUrl, runId) {
   if (chat.assistant !== EXPECTED_ASSISTANT) {
     throw new Error(`Unexpected assistant response: ${JSON.stringify(chat.assistant)}`);
   }
-  return chat;
+  const messagesOutput = run(
+    [cliPath, "chats", "messages", chat.chatId, "--json"],
+    env,
+    "CLI assistant message lookup",
+    120_000,
+  );
+  const messages = parseJsonOutput(messagesOutput, "CLI assistant message lookup").messages;
+  const assistantMessage = Array.isArray(messages)
+    ? messages.findLast((message) => message?.role === "assistant" && typeof message.id === "string")
+    : null;
+  if (!assistantMessage) throw new Error("CLI assistant message lookup returned no assistant message identity.");
+  return { ...chat, messageId: assistantMessage.id };
 }
 
 function deleteChat(cliPath, apiUrl, chatId) {
@@ -261,10 +272,13 @@ async function main() {
     send(ws, "assistant_speech", requestPayload);
     const accepted = await waitFor(
       ws,
-      (message) => message.type === "assistant_speech_status" && message.payload?.status === "accepted",
+      (message) => message.type === "assistant_speech_status",
       20_000,
       "assistant speech accepted status",
     );
+    if (accepted.payload?.status !== "accepted") {
+      throw new Error(`Assistant speech request was rejected: ${JSON.stringify(accepted.payload)}`);
+    }
     const acceptedSegments = Array.isArray(accepted.payload?.segments) ? accepted.payload.segments : [];
     if (acceptedSegments.length !== 1 || acceptedSegments[0].status !== "queued") {
       throw new Error(`Assistant speech request was not queued: ${JSON.stringify(accepted.payload)}`);
