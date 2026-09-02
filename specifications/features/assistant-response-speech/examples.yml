@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@3
+specification: feature.assistant-response-speech@4
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -93,11 +93,10 @@ processing:
 playback:
   - id: passive-prelude-waveform
     given: {playing_clip: acknowledgement, next_clip_ready: false}
-    expect: {bar_visible: true, presentation_mode: passive_clip, waveform_visible: true, previous_next_controls_visible: false, replay_action_visible: false}
-  - id: two-second-idle-grace-and-reopen
-    given: {current_clip_ended: true, next_clip_ready: false}
-    action: wait_for_next_audio
-    expect: {bar_visible_for_ms: 2000, closes_after_grace: true, next_audio_within_grace_cancels_close: true, audio_after_close_reopens_bar: true}
+    expect: {bar_visible: true, presentation_mode: passive_clip, chapter_label: Confirmation, waveform_visible: true, previous_next_controls_visible: false, replay_action_visible: false, loading_visible_while_more_audio_may_arrive: true}
+  - id: app-use-passive-chapter
+    given: {playing_clip: app_use_announcement, selected_apps: [Weather], next_response_chapter_ready: false}
+    expect: {chapter_label: Using apps, replayable_chapter: false, previous_next_target: false, loading_visible: true}
   - id: start-after-first-paragraph
     given: {segment_0: ready, segment_1: generating, segment_2: queued}
     action: auto_play
@@ -122,10 +121,33 @@ playback:
       overlays_chat_history_layer: true
       chat_action_buttons_overlay_bar: true
       composer_moved: false
+      desktop_mate_avatar_visible: true
+      central_play_pause_over_waveform: true
+      adjacent_chapter_labels_below_waveform: true
+      current_transcript_segment_emphasis: normal
+      other_transcript_segments_emphasis: muted
   - id: streaming-waveform-expands
     given: {manifest_final: false, known_segments: [segment-0, segment-1], segment_2_not_yet_emitted: true}
     action: receive_segment_2
     expect: {existing_waveform_regions_preserved: true, waveform_expands_with_segment_2: true, current_segment_highlight_preserved: true, combined_audio_file_created: false}
+  - id: chapter-label-heading-and-fallbacks
+    given: {segments: [{sequence: 0, nearest_heading: Key considerations, kind: prose_paragraph}, {sequence: 1, nearest_heading: null, kind: prose_paragraph}, {sequence: 2, nearest_heading: null, kind: embed_summary, semantic_type: map}]}
+    expect: {chapter_labels: [Key considerations, Part 2, Map], localized: true, additional_inference_called: false, durable_backend_label_stored: false}
+  - id: select-generating-chapter
+    given: {current_chapter: segment-0, selected_chapter: segment-1, segment_1_status: generating, playback_intent: playing}
+    action: select_segment_1
+    expect: {current_chapter: segment-1, loading_visible: true, flat_placeholder_waveform_visible: true, real_waveform_transition_on_ready: smooth, autoplay_when_ready: true}
+  - id: select-generating-chapter-then-pause
+    given: {selected_chapter: segment-1, segment_1_status: generating, playback_intent: playing}
+    action: pause_before_segment_1_ready
+    expect: {play_and_close_visible: true, autoplay_when_ready: false, selected_chapter_preserved: true, transcript_segments_equal_emphasis: true}
+  - id: close-while-generation-continues
+    given: {player_status: paused, segment_1_status: generating, speech_request_dispatched: true}
+    action: close_player
+    expect: {bar_visible: false, local_playback_stopped: true, generation_cancelled: false, ready_asset_persists: true, later_speak_reuses_asset: true}
+  - id: responsive-figma-layout
+    given: {figma_node: '5903:75417', states: [playing, paused, loading], viewports: [mobile, desktop]}
+    expect: {speech_accent_rounded_bar: true, desktop_mate_avatar_visible: true, mobile_prioritizes_waveform_and_current_chapter: true, chat_actions_accessible: true, transcript_obscured: false}
   - id: complete-encrypted-segment-before-playback
     given: {model: eleven_v3, paragraph_text_complete: true, provider_audio_partial: true, encrypted_asset_ready: false}
     action: receive_provider_audio_chunks
@@ -143,6 +165,10 @@ playback:
     expect: {message_a_queue: stopped, message_b_queue: playing, message_a_files_deleted: false}
 
 on_demand:
+  - id: speak-action-discovery
+    given: {assistant_response_visible: true, input_modes: [pointer, keyboard, touch]}
+    action: discover_speak_action
+    expect: {default_audio_icon_only: true, hover_label: Speak response, focus_label: Speak response, touch_accessible_name: Speak response, width_transition: smooth}
   - id: speak-historical-response
     given: {auto_speak_was_enabled: false, existing_ready_segments: 0, assistant_message_decrypted_on_owner_client: true}
     action: select_speak

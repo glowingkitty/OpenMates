@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 3
+version: 4
 status: draft
 title: Assistant Response Speech
 summary: >
@@ -20,12 +20,12 @@ scope:
     - Immutable speakable prose paragraphs, app-use announcements, and structured summaries generated independently from the visual response stream.
     - One ElevenLabs generation request and one encrypted private S3 audio object per immutable paragraph or structured summary segment.
     - Ordered automatic playback that starts when each complete encrypted audio segment is ready and continues as later paragraph files become ready without delaying thinking, app previews, embeds, or text.
-    - A full-width bar pinned over the top of the active-chat history, below the chat action buttons, that shows passive acknowledgement and app-use playback before exposing controls for replayable response tracks.
-    - A two-second idle grace period that keeps the bar visible while awaiting another clip, closes it when none arrives, and reopens it when later audio starts.
-    - A Speak action on every assistant response that generates only missing paragraph audio and reuses durable existing files.
+    - A responsive full-width playback bar pinned over the top of the active-chat history, below the chat action buttons, that follows the approved Figma chapter, waveform, mate-avatar, loading, and control hierarchy on desktop and mobile.
+    - A persistent localized Loading state while another response clip may still arrive, including immediate pending-chapter selection with a flat placeholder waveform that transitions to the ready audio waveform.
+    - A compact Speak action on every assistant response that reveals its localized label on hover or keyboard focus, generates only missing paragraph audio, and reuses durable existing files.
     - An authenticated `openmates chats speak` command that generates or reuses private encrypted speech for existing assistant messages through the same owner-scoped first-party pipeline.
     - A reviewed example-publication step that copies approved generated segments into immutable public S3 fixtures for unauthenticated playback without enabling anonymous generation.
-    - In-app paragraph controls and best-effort operating-system media controls for play, pause, previous paragraph, and next paragraph.
+    - In-app paragraph controls for play, pause, close, previous paragraph, and next paragraph, plus best-effort operating-system media controls.
     - One successful-generation-only billing entry per assistant message, priced at one credit per 14 exact characters submitted to ElevenLabs with a one-credit minimum.
     - Eleven v3 Conversational for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
@@ -159,6 +159,10 @@ models:
       required: true
       values: [passive_prelude, replayable_response_track]
       constraints: {app_use_announcement_is_passive: true, response_paragraphs_and_summaries_are_replayable: true}
+    chapter_label:
+      type: transient_localized_label
+      required: true
+      constraints: {nearest_preceding_heading_preferred: true, plain_paragraph_fallback: localized_part_number, structured_summary_fallback: localized_semantic_type, deterministic: true, durable_backend_storage: forbidden}
     source_hash:
       type: sha256
       required: true
@@ -281,7 +285,11 @@ models:
     controls:
       type: array
       required: true
-      constraints: {values: [play, pause, previous_segment, next_segment, stop]}
+      constraints: {values: [play, pause, previous_segment, next_segment, close]}
+    pending_selection:
+      type: stable_id
+      nullable: true
+      constraints: {selected_before_ready: true, autoplay_when_ready_unless_paused_or_closed: true}
 
   ResponseSpeechBar:
     placement:
@@ -293,14 +301,10 @@ models:
       required: true
       values: [passive_clip, replayable_track_queue]
       constraints: {acknowledgement_and_app_use_are_passive: true, track_navigation_only_for_replayable_response_tracks: true}
-    idle_grace_ms:
-      type: integer
-      required: true
-      constraints: {value: 2000, cancelled_when_audio_arrives: true, reopens_for_late_audio: true}
     waveform:
       type: composite_waveform
       required: true
-      constraints: {includes_all_known_segments: true, complete_manifest_shows_full_response: true, duration_proportional_segments: true, reuses_recording_waveform_visual_language: true}
+      constraints: {includes_all_known_segments: true, complete_manifest_shows_full_response: true, duration_proportional_segments: true, reuses_recording_waveform_visual_language: true, pending_selection_uses_flat_placeholder: true, ready_samples_transition_smoothly: true}
     active_segment:
       type: highlighted_waveform_region
       nullable: true
@@ -308,11 +312,29 @@ models:
     interactions:
       type: array
       required: true
-      constraints: {values: [play_pause, stop, previous_segment, next_segment, select_segment_region]}
+      constraints: {values: [play_pause, close, previous_segment, next_segment, select_segment_region], pause_reveals_play_and_close: true}
     visibility:
       type: playback_surface_state
       required: true
-      constraints: {visible_while_waiting_playing_paused_blocked_or_error: true, dismissible_when_stopped_or_completed: true}
+      constraints: {visible_while_waiting_playing_paused_blocked_or_error: true, loading_while_more_audio_may_arrive: true, dismissible_when_paused_or_completed: true, close_does_not_cancel_generation: true}
+    responsive_layout:
+      type: layout_invariant
+      required: true
+      constraints: {figma_node: '5903:75417', rounded_speech_accent_surface: true, desktop_mate_avatar_visible: true, mobile_prioritizes_waveform_and_current_chapter: true, central_play_pause_control_over_waveform: true, adjacent_chapter_labels_below_waveform: true, chat_actions_remain_accessible: true}
+    transcript_emphasis:
+      type: playback_visual_state
+      required: true
+      constraints: {playing_segment_normal_emphasis: true, other_segments_temporarily_muted: true, paused_or_closed_restores_equal_emphasis: true}
+
+  ResponseSpeakAction:
+    default_presentation:
+      type: compact_icon_action
+      required: true
+      constraints: {audio_icon_visible: true, label_visually_hidden: true}
+    discoverability:
+      type: interaction_state
+      required: true
+      constraints: {localized_speak_response_label_visible_on_hover: true, localized_speak_response_label_visible_on_keyboard_focus: true, touch_accessible_name_required: true, smooth_width_transition: true}
 
 assertions:
   - id: assistant-speech.preference.chat-scoped-default-off
@@ -367,25 +389,37 @@ assertions:
     depends_on: [models.SpeechManifest.ordered_segment_ids, models.PlaybackQueue, examples.playback]
   - id: assistant-speech.playback.single-queue-segment-control
     type: behavior
-    must: Only one assistant-response speech queue plays at a time; in-app controls always support play, pause, stop, previous segment, and next segment, where a segment is one prose paragraph or structured summary, and starting another response queue stops the previous queue without deleting generated files.
+    must: Only one assistant-response speech queue plays at a time; replayable playback supports pause plus previous and next chapter navigation, pausing reveals separate Play and Close controls, Close stops local playback and hides the bar without cancelling requested generation, and starting another response queue stops the previous local playback without deleting generated files or cancelling its requested generation.
     depends_on: [models.PlaybackQueue, examples.playback]
+  - id: assistant-speech.playback.deterministic-chapter-labels
+    type: behavior
+    must: >
+      Every replayable paragraph or structured summary exposes one localized
+      chapter label derived without another inference pass: use the nearest
+      preceding Markdown heading when present, otherwise localized Part N for
+      plain paragraphs, and otherwise a localized semantic type label for
+      structured summaries. Passive Confirmation and Using apps announcements
+      are labeled but never appear as replayable previous or next chapters.
+    depends_on: [models.SpeechSegment.chapter_label, examples.playback]
   - id: assistant-speech.playback.pinned-full-response-waveform
     type: behavior
     must: >
-      The active chat displays one full-width speech bar pinned over the top of
-      its chat-history layer and below the share, report-issue, chat-settings, and
-      reminder buttons. Acknowledgement and app-use clips show a passive waveform
-      without replay or track-navigation controls. Replayable response paragraphs
-      and structured summaries concatenate duration-proportional waveform regions,
-      expand as streaming discovers later tracks, show the complete response after
-      the manifest is final, highlight the current track, distinguish tracks still
-      generating, and support direct selection or skipping without merging audio
-      files, moving the composer, or making transcript content unreachable.
+      The active chat displays one responsive full-width speech-accent bar pinned
+      over the top of its chat-history layer and below the share, report-issue,
+      chat-settings, and reminder buttons, following Figma node 5903:75417.
+      Desktop shows the mate avatar, central play/pause control over the waveform,
+      and adjacent chapter labels below it; mobile prioritizes the waveform,
+      central control, and current chapter while retaining accessible navigation.
+      Acknowledgement and app-use clips show labeled passive waveforms without
+      replay navigation. Replayable response tracks expand smoothly as later
+      tracks arrive, highlight the current chapter, mute non-current transcript
+      segments only while playing, and restore equal transcript emphasis when
+      paused or closed, without moving the composer or obstructing content.
     depends_on: [models.ResponseSpeechBar, models.SpeechSegment.waveform, models.PlaybackQueue, examples.playback]
   - id: assistant-speech.playback.two-second-idle-grace
     type: behavior
-    must: After any clip ends with no currently available successor, the top speech bar remains visible for exactly two seconds while waiting; later audio arriving during that grace starts and cancels dismissal, expiry closes the bar, and audio arriving after expiry reopens it, while replayable response-track controls appear only when replayable tracks exist.
-    depends_on: [models.ResponseSpeechBar.idle_grace_ms, models.ResponseSpeechBar.presentation_mode, examples.playback]
+    must: While the system is deciding what comes next or a known next chapter is generating, the bar remains visible with localized Loading text. Selecting a generating chapter immediately makes it current and displays a flat placeholder waveform; ready waveform samples transition smoothly into place and playback starts automatically when ready unless the user paused or closed the player meanwhile.
+    depends_on: [models.PlaybackQueue.pending_selection, models.ResponseSpeechBar.waveform, models.ResponseSpeechBar.visibility, examples.playback]
   - id: assistant-speech.playback.os-controls-best-effort
     type: parity
     must: Web clients register supported Media Session play, pause, previous-track, and next-track actions to the active segment queue and retain complete in-app controls when the browser or operating system lacks them; Apple clients expose equivalent native background and lock-screen controls where the platform permits.
@@ -396,8 +430,8 @@ assertions:
     depends_on: [models.PlaybackQueue.state, examples.failures]
   - id: assistant-speech.on-demand.generate-missing-only
     type: behavior
-    must: Every assistant response exposes a Speak action; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
-    depends_on: [models.SpeechManifest, models.SpeechSegment.source_hash, examples.on_demand]
+    must: Every assistant response exposes a compact audio-icon Speak action whose localized Speak response label expands smoothly on pointer hover and keyboard focus and remains available as an accessible name on touch; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
+    depends_on: [models.ResponseSpeakAction, models.SpeechManifest, models.SpeechSegment.source_hash, examples.on_demand]
   - id: assistant-speech.cli.owner-generated-existing-messages
     type: behavior
     must: The authenticated OpenMates CLI can select one assistant message or all eligible assistant messages in an owner-accessible existing chat, locally decrypt and deterministically project their content, request only missing or invalidated private encrypted segments through the first-party surface, wait for terminal status, and report generated, reused, failed, and charged segments without exposing plaintext, keys, provider voice IDs, or private object paths.

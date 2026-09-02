@@ -5,9 +5,9 @@ status: approved
 
 specification_refs:
   - id: feature.assistant-response-speech
-    version: 3
+    version: 4
     role: primary
-    fingerprint: 08fb7543630c3c33fd16afc6f9c0c8d5641d367529829c1d00c9fb198cbcc450
+    fingerprint: 5d378bbd022f49abc5f6a58de41812eed1d19ff20f2cb88ef256df1e07b2747c
   - id: feature.public-example-chats
     version: 3
     role: inherited
@@ -29,6 +29,7 @@ specification_impact:
     - assistant-speech.execution.app-skill-progressive
     - assistant-speech.execution.first-segment-progressive
     - assistant-speech.playback.single-queue-segment-control
+    - assistant-speech.playback.deterministic-chapter-labels
     - assistant-speech.playback.pinned-full-response-waveform
     - assistant-speech.playback.two-second-idle-grace
     - assistant-speech.playback.os-controls-best-effort
@@ -91,14 +92,14 @@ scope:
     - Speech generation and playback run in parallel with and never block assistant text streaming or persistence.
     - User-message rendering, rainbow state, optional thinking, app-skill Processing previews, embeds, and text publish before related speech work and never wait for app-skill or audio completion.
     - Prerecorded acknowledgement and generated app-use clips use a passive top waveform; replay and track controls appear only for durable response paragraphs and summaries.
-    - The top waveform waits two seconds for another clip, closes after an idle gap, and reopens when later audio starts.
+    - The responsive Figma-defined top player stays visible with localized Loading state while more response audio can arrive.
     - Progressive playback begins after the first segment is ready and automatically follows manifest order.
-    - A Speak action on every assistant response generates only missing or invalidated segments and reuses matching durable files.
+    - A compact Speak action on every assistant response expands its localized label on hover/focus, generates only missing or invalidated segments, and reuses matching durable files.
     - "`openmates chats speak` generates or reuses private encrypted segments for one or all existing assistant messages in an owner-accessible chat."
     - The example-chat conversion workflow can explicitly publish reviewed segment copies to immutable public S3 fixture keys.
     - One existing landing-linked example chat receives reviewed public speech fixtures that play for logged-out visitors without generation or credits.
-    - One active response queue with play, pause, stop, previous segment, and next segment controls.
-    - A waveform bar pinned inside the top of the active-chat container, showing the full response as duration-proportional paragraph regions and highlighting the current paragraph.
+    - One active response queue with play, pause, close, previous chapter, and next chapter controls; Close dismisses local playback without cancelling requested generation.
+    - A responsive waveform bar matching Figma node 5903:75417, with deterministic chapter labels, desktop mate identity, mobile-prioritized controls, transcript emphasis, and a flat-to-real waveform transition for a selected pending chapter.
     - Best-effort web Media Session controls plus complete in-app fallback controls and visible autoplay recovery.
     - Safe visible retry, credit, provider, storage, and cancellation behavior without browser-speech or provider fallback.
     - Message/chat deletion and source/voice-version invalidation clean up only affected speech assets.
@@ -309,8 +310,8 @@ implementation_state:
 approvals:
   specification:
     status: approved
-    approved_at: "2026-09-01T23:38:00Z"
-    reason: User explicitly approved feature.assistant-response-speech@2 and feature.public-example-chats@3 from their exact-fingerprint review PDFs.
+    approved_at: "2026-09-02T15:18:00Z"
+    reason: User explicitly approved feature.assistant-response-speech@4 and feature.public-example-chats@3 from their exact-fingerprint review PDFs.
   plan:
     status: not_required
     approved_at: ""
@@ -441,16 +442,17 @@ scenarios:
   - id: S-6
     title: User controls paragraph playback
     given:
-      - A response queue has three ready segments.
+      - A response queue has one ready chapter and later ready or generating chapters.
     when:
-      - Alice pauses, resumes, skips forward, or skips backward in app or through supported OS controls.
+      - Alice pauses, resumes, closes, skips forward, or skips backward in app or through supported OS controls.
     then:
-      - A full-width bar overlays the active-chat history below its action buttons and shows the complete duration-proportional response waveform.
-      - Passive acknowledgement and app-use clips have no track controls; replayable response tracks highlight the current paragraph and expose navigation.
-      - The bar waits two seconds for later audio, closes after an idle gap, and reopens when later audio starts without moving the composer.
-      - Controls operate at paragraph or summary boundaries.
+      - The responsive Figma-defined bar overlays the active-chat history below its action buttons and keeps the composer and transcript reachable.
+      - Passive Confirmation and Using apps clips are labeled but cannot be revisited through replay navigation.
+      - Replayable chapters use a nearest heading or localized Part N/semantic fallback label and highlight the current transcript segment only while playing.
+      - Selecting a generating chapter immediately shows it with Loading and a flat waveform, transitions to real samples, and autoplays when ready unless paused or closed.
+      - Pausing reveals Play and Close; Close hides local playback while requested generation continues and persists.
       - Unsupported Media Session controls do not remove in-app controls.
-      - Starting another response queue stops the previous queue without deleting files.
+      - Starting another response queue stops the previous local playback without deleting files or cancelling requested generation.
   - id: S-7
     title: Speech failure never affects text
     given:
@@ -570,26 +572,26 @@ acceptance_criteria:
     status: pending
     coverage_status: covered
     verification_scope: playwright
-    verification_ids: [T-PLAYWRIGHT-SPEECH, V-REST-DEV]
+    verification_ids: [T-PLAYWRIGHT-SPEECH-COMPONENT, T-PLAYWRIGHT-SPEECH, V-REST-DEV]
     specification_assertions: [assistant-speech.on-demand.generate-missing-only, assistant-speech.billing.segment-success-once]
   - id: AC-8
     scenario: S-6
-    text: One active queue supports in-app segment play, pause, stop, previous, and next controls plus best-effort OS controls without removing fallbacks.
+    text: One active queue supports Figma-defined play, pause, close, previous, and next chapter controls plus best-effort OS controls; Close dismisses playback without cancelling requested generation.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: related_frontend
-    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH]
-    specification_assertions: [assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.os-controls-best-effort]
+    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH-COMPONENT, T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.os-controls-best-effort]
   - id: AC-14
     scenario: S-6
-    text: A full-width bar overlays the active-chat history below the share, report, settings, and reminder buttons; acknowledgement and app-use clips show a passive waveform, replayable response tracks expose controls, a two-second idle grace closes and later audio reopens the bar, and the composer never moves.
+    text: A responsive bar matching Figma node 5903:75417 overlays active-chat history below chat actions; it labels passive clips, persists with Loading while more audio may arrive, transitions a selected pending chapter from flat to real waveform, emphasizes the playing transcript chapter, and never moves the composer.
     required: true
     status: pending
     coverage_status: covered
     verification_scope: playwright
-    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH, V-UI-VISUAL-SMOKE]
-    specification_assertions: [assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace]
+    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH-COMPONENT, T-PLAYWRIGHT-SPEECH, V-FIGMA-ARTIFACT-REVIEW, V-UI-VISUAL-SMOKE]
+    specification_assertions: [assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace]
   - id: AC-9
     scenario: S-7
     text: Credit, safety, provider, and storage failures are visible and resumable, preserve successful files, disable chat auto-speak, and never affect text completion.
@@ -849,13 +851,29 @@ tests:
     covers: [AC-1, AC-2, AC-7, AC-8, AC-10, AC-14]
     assertions:
       - Chat-scoped control toggles and voice recording visibly enables it.
-      - A real response produces progressive paragraph playback with Speak, pause, previous, next, replay, and autoplay recovery states.
+      - A real response produces progressive chapter playback with Speak, pause, close, previous, next, replay, pending-waveform transition, and autoplay recovery states.
       - The assistant message and app preview Processing state render before the app skill completes, and text continues without waiting for audio.
-      - The full-width active-chat top bar overlays history below the chat action buttons, uses passive mode for acknowledgement/app-use clips, exposes controls only for replayable response tracks, observes the two-second idle grace, and does not move the composer on phone or laptop.
+      - The responsive active-chat top bar overlays history below the chat action buttons, uses labeled passive mode for acknowledgement/app-use clips, persists with Loading while response audio is pending, and does not move the composer on phone or laptop.
       - Reload and another owner client reuse synchronized preference and encrypted ready files without another provider charge.
       - The daily flow replays a recorded realistic AI and weather app-skill exchange and committed binary audio through the normal encrypted asset path with no paid external calls.
       - The muted Speak responses control fades to the speaking icon with Speech turned on, fades back through Turn off speaking with Speech turned off, and recording completion performs the same on transition.
-    specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.execution.app-skill-progressive, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
+    specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.execution.app-skill-progressive, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
+    red_phase: {required: true, expected: fail, evidence: {}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+  - id: T-PLAYWRIGHT-SPEECH-COMPONENT
+    type: playwright
+    file: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    command: python3 scripts/tests.py run --spec assistant-speech-player.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    preview_path: /dev/preview/AssistantSpeechPlayer
+    covers: [AC-7, AC-8, AC-14]
+    assertions:
+      - The default component preview matches the approved Figma hierarchy in phone and laptop layouts with no transcript or action obstruction.
+      - Playing, paused, passive Confirmation, Using apps, Loading, selected-pending, ready-waveform, and autoplay-blocked variants expose the approved labels and controls.
+      - Hover and keyboard focus smoothly reveal Speak response while touch retains an accessible name.
+      - Selecting a generating chapter immediately shows its flat placeholder waveform, then transitions to ready samples and autoplays unless paused or closed.
+      - Close hides local playback without dispatching cancellation, while disabling Auto speak remains the cancellation action.
+    specification_assertions: [assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
     red_phase: {required: true, expected: fail, evidence: {}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
   - id: T-CLI-SPEECH
@@ -916,6 +934,13 @@ verifications:
     covers: [AC-1, AC-2, AC-7, AC-8, AC-10, AC-14]
     status: pending
     evidence: {}
+  - id: V-FIGMA-ARTIFACT-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-8, AC-14]
+    status: pending
+    evidence: {reference: test-results/figma/assistant-speech-playback/assistant-speech-playback-reference.png, figma_node: '5903:75417'}
   - id: V-PROOF-VIDEO
     kind: artifact_review
     phase: final
@@ -990,6 +1015,7 @@ implementation_notes:
     - assistant-speech.execution.app-skill-progressive
     - assistant-speech.execution.first-segment-progressive
     - assistant-speech.playback.single-queue-segment-control
+    - assistant-speech.playback.deterministic-chapter-labels
     - assistant-speech.playback.pinned-full-response-waveform
     - assistant-speech.playback.two-second-idle-grace
     - assistant-speech.playback.os-controls-best-effort
