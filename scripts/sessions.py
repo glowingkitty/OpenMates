@@ -10735,8 +10735,16 @@ def _openmates_task_tool(
         description = text_field("description")
         if description:
             command.extend(["--description", description])
-        command.extend(["--assign", "ai", *scope, "--json"])
-        return cli_runner(command)
+        # The Task API currently accepts external-context AI assignment as an
+        # update but rejects it on create. Keep both allowlisted operations
+        # explicit and return only the final AI-owned record.
+        command.extend(["--assign", "user", *scope, "--json"])
+        created = cli_runner(command).get("task")
+        if not isinstance(created, dict) or not created.get("task_id"):
+            raise RuntimeError("Task create returned an invalid record")
+        return cli_runner([
+            "tasks", "edit", str(created["task_id"]), "--assign", "ai", *scope, "--json",
+        ])
 
     task_id = text_field("task_id", required=True, maximum=200)
     if action == "show":

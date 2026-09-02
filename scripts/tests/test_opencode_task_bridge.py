@@ -253,7 +253,11 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
     assert calls == [
         [
             "tasks", "create", "--title", "Private new title", "--description", "Private body",
-            "--assign", "ai", "--external-chat", "opencode:ses_parent", "--json",
+            "--assign", "user", "--external-chat", "opencode:ses_parent", "--json",
+        ],
+        [
+            "tasks", "edit", "uuid-TASK-9", "--assign", "ai",
+            "--external-chat", "opencode:ses_parent", "--json",
         ],
         [
             "tasks", "block", "TASK-9", "--reason-code", "external_dependency",
