@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from scripts.sync_opencode_runtime_hook import HOOK_PATH, RUNTIME_MIRRORS, sync_hook
+from scripts.sync_opencode_runtime_hook import (
+    DEPRECATED_RUNTIME_PATHS,
+    HOOK_PATH,
+    RUNTIME_MIRRORS,
+    sync_hook,
+)
 
 
 def test_sync_hook_atomically_updates_shared_runtime_mirror(tmp_path: Path) -> None:
@@ -18,8 +23,11 @@ def test_sync_hook_atomically_updates_shared_runtime_mirror(tmp_path: Path) -> N
     (runtime / "opencode.json").write_text('{"agent":{}}\n', encoding="utf-8")
     (project / "opencode.json").write_text('{"agent":{"build":{"steps":8}}}\n', encoding="utf-8")
     specification_skill = Path(".agents/skills/define-specification/SKILL.md")
+    legacy_contract_skill = Path(".agents/skills/define-contract/SKILL.md")
     (runtime / specification_skill).parent.mkdir(parents=True)
     (runtime / specification_skill).write_text("# Current Specification workflow\n", encoding="utf-8")
+    (project / legacy_contract_skill).parent.mkdir(parents=True)
+    (project / legacy_contract_skill).write_text("# Legacy contract workflow\n", encoding="utf-8")
 
     first = sync_hook(runtime, project)
     second = sync_hook(runtime, project)
@@ -29,7 +37,9 @@ def test_sync_hook_atomically_updates_shared_runtime_mirror(tmp_path: Path) -> N
     assert target.read_bytes() == source.read_bytes()
     assert (project / "opencode.json").read_bytes() == (runtime / "opencode.json").read_bytes()
     assert (project / specification_skill).read_bytes() == (runtime / specification_skill).read_bytes()
+    assert not (project / legacy_contract_skill).exists()
     assert specification_skill in RUNTIME_MIRRORS
+    assert legacy_contract_skill in DEPRECATED_RUNTIME_PATHS
 
 
 def test_sync_hook_rejects_invalid_or_same_checkout(tmp_path: Path) -> None:

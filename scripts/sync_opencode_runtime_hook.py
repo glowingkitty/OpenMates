@@ -24,6 +24,7 @@ RUNTIME_MIRRORS = (
     Path("opencode.json"),
     Path(".agents/skills/define-specification/SKILL.md"),
 )
+DEPRECATED_RUNTIME_PATHS = (Path(".agents/skills/define-contract/SKILL.md"),)
 
 
 def _digest(data: bytes) -> str:
@@ -64,6 +65,23 @@ def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
                 "path": str(relative),
                 "previous_hash": _digest(previous_data) if previous_data else "",
                 "source_hash": _digest(source_data),
+                "target": str(target),
+            }
+        )
+    for relative in DEPRECATED_RUNTIME_PATHS:
+        target = project_root / relative
+        if target.is_dir():
+            raise IsADirectoryError(f"deprecated runtime file is unexpectedly a directory: {target}")
+        previous_data = target.read_bytes() if target.is_file() else b""
+        changed = target.is_file() or target.is_symlink()
+        if changed:
+            target.unlink()
+        files.append(
+            {
+                "changed": changed,
+                "path": str(relative),
+                "previous_hash": _digest(previous_data) if previous_data else "",
+                "source_hash": "",
                 "target": str(target),
             }
         )
