@@ -61,7 +61,7 @@ The create reminder UI is broken — [expanded description based on user input].
 
 ### Spec Readiness
 - Spec size: inline | full | none
-- Full spec path: docs/specs/<slug>/spec.yml (if needed)
+- Full Plan path: docs/plans/<slug>/plan.yml (if needed)
 ```
 
 ### Step 3: Ask for Confirmation
@@ -74,9 +74,9 @@ Use `AskUserQuestion`:
 
 For GitHub-default tasks, call `github_issue_write` with a concise title, structured body, labels, and assignees only when the user requested them.
 
-If the task needs a full spec, include a `Spec Readiness` section in the issue
-body and tell the user to run `specify` before implementation. Do not implement
-full-spec work directly from a bare issue.
+If the task needs a full Plan, include a `Plan Readiness` section in the issue
+body and tell the user to run `create-plan` before implementation. Do not
+implement full-Plan work directly from a bare issue.
 
 For Linear-only tasks, use `python3 scripts/linear.py create --team OPE --title "..." --description "..."` and add state/priority/labels when needed. Do not use Linear MCP tools.
 

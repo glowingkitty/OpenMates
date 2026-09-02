@@ -44,12 +44,12 @@ python3 scripts/sessions.py worktree ensure --session <SESSION_ID>
    visible blocked-deploy item; resolve the conflict and rerun deploy.
 
 3. **Run spec conformance when applicable:**
-   - Run `python3 scripts/contracts.py check-changed <changed paths> --session <SESSION_ID>` for contract-governed work. Contract edits require an exact-hash approval receipt; changed behavioral tests cannot remain unmapped.
-   - Run `python3 scripts/contracts.py check-generated`; stale registries, assertion indexes, coverage, or evidence fingerprints block deploy.
-   - If this work has a full spec under `docs/specs/<slug>/spec.yml`, run `python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml` before the final deploy.
+    - Run `python3 scripts/specifications.py check-changed <changed paths> --session <SESSION_ID>` for Specification-governed work. Specification edits require an exact-hash approval receipt; changed behavioral tests cannot remain unmapped.
+    - Run `python3 scripts/specifications.py check-generated`; stale registries, assertion indexes, coverage, or evidence fingerprints block deploy.
+    - If this work has a full Plan under `docs/plans/<slug>/plan.yml`, run `python3 scripts/plan_verify.py docs/plans/<slug>/plan.yml` before the final deploy.
    - A scoped verification deploy may precede final conformance when live Playwright evidence is required. After that run, complete exact captions, frame-only demonstration review, and OpenCode response-media embedding before final completion; do not run proof-video-specific PII/sensitive-data detection or replacement.
-   - If this work used an inline spec, include the scenarios, acceptance criteria, and test evidence in the deploy message.
-   - If no spec exists for source changes, confirm the change is trivial/mechanical or include an explicit skip reason.
+    - If this work used an inline Plan, include the scenarios, acceptance criteria, and test evidence in the deploy message.
+    - If no Plan exists for source changes, confirm the change is trivial/mechanical or include an explicit skip reason.
 
 4. **Deploy** (lint + commit + push):
    ```bash

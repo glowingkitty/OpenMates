@@ -150,7 +150,7 @@ After the brief, classify the required spec size using
 | Inline Plan | Small behavior change | keep scenarios and ACs in the brief |
 | Full Plan | Complex/risky/multi-session work | run `create-plan` |
 
-Full specs are required for auth, encryption, billing, privacy, teams, sharing,
+Full Plans are required for auth, encryption, billing, privacy, teams, sharing,
 permissions, sync, AI pipeline, provider integrations, migrations, new API
 routes, app skills, embed types, background jobs, cron jobs, and Directus schema
 changes.

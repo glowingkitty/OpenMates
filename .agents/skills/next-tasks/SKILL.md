@@ -97,8 +97,8 @@ After clarification, **start working on the task in this session**:
 1. Run `python3 scripts/sessions.py start --mode <bug|feature|docs> --task "OPE-XXX: <title>" --task-id OPE-XXX`
 2. Decide spec size using `docs/contributing/guides/spec-driven-development.md`.
 3. For bugs, run `reproduce-first` before fix code when user-visible behavior is wrong.
-4. For full-spec feature/risk work, run `specify`, then `plan-from-spec`, then `tasks-from-spec` before implementation.
-5. For inline-spec work, write scenarios and acceptance criteria in the session before code.
+4. For full-Plan feature/risk work, run `define-specification`, then `create-plan`, then `tasks-from-plan` before implementation.
+5. For inline-Plan work, write scenarios and acceptance criteria in the session before code.
 6. Follow the standard tracker workflow (read issue, mark In Progress, implement, deploy).
 7. Incorporate the user's answers from Step 5 into your approach.
 
@@ -115,4 +115,4 @@ Do NOT spawn separate sessions. Do NOT ask to spawn sessions. Work on the task r
 - **Never pick user-owned tasks** (Figma design, video recording, etc.)
 - **Never skip staleness check** — stale statuses cause confusion
 - **Work in this session** — no spawning, no delegating. You are the one doing the work.
-- **Full-spec gates apply** — teams, billing, auth, privacy, encryption, sync, sharing, permissions, provider integrations, migrations, new APIs, app skills, embed types, background jobs, cron jobs, and Directus schema changes need `specify` before code.
+- **Full-Plan gates apply** — teams, billing, auth, privacy, encryption, sync, sharing, permissions, provider integrations, migrations, new APIs, app skills, embed types, background jobs, cron jobs, and Directus schema changes need `create-plan` before code.

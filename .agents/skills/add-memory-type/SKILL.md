@@ -299,7 +299,7 @@ Before finishing, verify:
 
 ## When to Escalate to a Full Spec
 
-Use `specify` before implementation if the memory type changes persistence,
+Use `create-plan` before implementation if the memory type changes persistence,
 permissions, encryption, sharing, Directus schema, sync behavior, AI permission
 dialogs, new API routes, or app skill behavior. Pure metadata/i18n additions can
 usually follow this skill without a full spec.
