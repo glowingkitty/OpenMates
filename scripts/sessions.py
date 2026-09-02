@@ -10562,15 +10562,18 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
         raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
     if result.returncode != 0:
         failure_message = ""
-        if len(result.stdout.encode("utf-8")) <= OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+        for candidate in (result.stdout, result.stderr):
+            if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+                continue
             try:
-                failure_payload = json.loads(result.stdout)
+                failure_payload = json.loads(candidate)
             except json.JSONDecodeError:
                 failure_payload = None
             if isinstance(failure_payload, dict):
                 failure = failure_payload.get("error")
                 if isinstance(failure, dict) and isinstance(failure.get("message"), str):
                     failure_message = re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
+                    break
         if "Passkey verification required" in failure_message:
             raise RuntimeError(
                 f"OpenMates Task authentication required: {failure_message} "

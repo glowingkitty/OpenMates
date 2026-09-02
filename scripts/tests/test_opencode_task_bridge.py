@@ -81,13 +81,13 @@ def test_task_cli_auth_failure_preserves_actionable_reason(monkeypatch) -> None:
         return subprocess.CompletedProcess(
             args=["openmates", "tasks", "list"],
             returncode=1,
-            stdout=json.dumps({
+            stdout="",
+            stderr=json.dumps({
                 "error": {
                     "code": "command_failed",
                     "message": "Session validation failed (HTTP 200): Passkey verification required (location_change). Please run `openmates login`.",
                 }
             }),
-            stderr="Decrypting data...\n",
         )
 
     monkeypatch.setattr(sessions.subprocess, "run", run)
