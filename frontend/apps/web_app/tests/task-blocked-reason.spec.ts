@@ -69,6 +69,7 @@ test.describe('Task blocked reason component', () => {
       await expectNoOverflow(page, 'task-detail-blocked-reason');
     });
     await proof.checkpoint('encrypted-explanation');
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
     await proof.action('show-code-fallback', async () => openPreview(page, 'codeFallback'));
     const fallbackReason = page.getByTestId('task-detail-blocked-reason');
