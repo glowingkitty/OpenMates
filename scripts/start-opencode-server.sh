@@ -63,6 +63,7 @@ echo "Starting verified OpenCode release: $(readlink -f "$RELEASE")"
 echo "Runtime checkout: $RUNTIME_CHECKOUT ($(git -C "$RUNTIME_CHECKOUT" rev-parse --short HEAD))"
 
 exec env -u OPENCODE_SERVER_PASSWORD -u OPENCODE_SERVER_USERNAME \
+    OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 \
     OPENMATES_CONTROL_PLANE_RUNTIME="$RUNTIME_CHECKOUT" \
     "$(readlink -f "$RELEASE")/opencode" web --hostname "$HOSTNAME" --port "$PORT" \
     2>&1 | tee -a "$LOG_FILE"

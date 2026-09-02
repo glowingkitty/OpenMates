@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Contracts for the OpenCode runtime configuration shipped by OpenMates.
 
 Primary agents must not lose their tools because they crossed an arbitrary
@@ -33,3 +34,9 @@ def test_launcher_accepts_explicit_shared_project_and_runtime_paths() -> None:
 
     assert 'SOURCE_CHECKOUT="${OPENCODE_PROJECT_ROOT:-' in launcher
     assert 'RUNTIME_CHECKOUT="${OPENCODE_RUNTIME_CHECKOUT:-' in launcher
+
+
+def test_launcher_uses_agent_skills_without_claude_skill_compatibility() -> None:
+    launcher = (PROJECT_ROOT / "scripts/start-opencode-server.sh").read_text(encoding="utf-8")
+
+    assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in launcher
