@@ -157,6 +157,12 @@ DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
 PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
 PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
 PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
+PRODUCT_RUNTIME_GENERATED_PATHS = frozenset(
+    {
+        "docs/architecture/compliance/browser-storage.yml",
+        "docs/architecture/compliance/cookies.yml",
+    }
+)
 API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
 API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
 API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
@@ -9903,6 +9909,18 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
 
 
+def _product_runtime_diagnostics(checkout: Path = PRODUCT_RUNTIME_CHECKOUT) -> dict[str, Any]:
+    """Classify managed-runtime dirtiness without mutating the checkout."""
+    if not (checkout / ".git").exists():
+        return {"exists": False, "dirty_files": [], "generated_only": False}
+    dirty_files = sorted(_get_dirty_files(checkout_root=checkout))
+    return {
+        "exists": True,
+        "dirty_files": dirty_files,
+        "generated_only": bool(dirty_files) and set(dirty_files) <= PRODUCT_RUNTIME_GENERATED_PATHS,
+    }
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     """Diagnose deploy blockers without mutating git state."""
     data = _load_sessions()
@@ -9978,6 +9996,30 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     else:
         print("Dirty files: none")
         print()
+
+    runtime_diagnostics = _product_runtime_diagnostics()
+    runtime_dirty = runtime_diagnostics["dirty_files"]
+    print("Product runtime:")
+    print(f"  Path: {PRODUCT_RUNTIME_CHECKOUT}")
+    if not runtime_diagnostics["exists"]:
+        print("  State: not initialized")
+    elif not runtime_dirty:
+        print("  State: clean")
+    else:
+        print(f"  State: dirty ({len(runtime_dirty)} file(s))")
+        for path in runtime_dirty:
+            print(f"    - {path}")
+        if runtime_diagnostics["generated_only"]:
+            rendered_paths = " ".join(runtime_dirty)
+            print("  Classification: generated nightly storage-audit output")
+            print("  Recovery scope: these files are reproducible from retained test artifacts")
+            print(
+                "  Reviewed recovery: git -C "
+                f"{PRODUCT_RUNTIME_CHECKOUT} restore --source=HEAD -- {rendered_paths}"
+            )
+        else:
+            print("  Classification: unrecognized; preserve and review before recovery")
+    print()
 
     print("Suggested next commands:")
     if session_id and session_id in sessions:

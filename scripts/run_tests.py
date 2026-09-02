@@ -112,6 +112,7 @@ def _resolve_control_plane_root(checkout_root: Path) -> Path:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
+STORAGE_AUDIT_CANDIDATE_DIR = RESULTS_DIR / "storage-audit-candidate"
 TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
 DAILY_ARTIFACT_RETENTION_DAYS = 7
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -8784,10 +8785,11 @@ class TestOrchestrator:
                 if result.reason else preflight_reason
             )
 
-        # Aggregate storage-audit snapshots from this run into cookies.yml.
+        # Aggregate storage-audit snapshots into review candidates outside the
+        # tracked checkout. Runtime/test worktrees must remain immutable.
         # Skipped for single-spec runs (--spec) since coverage is intentionally
-        # narrow and would prune entries from other flows. The merger never
-        # clobbers human-maintained fields (purpose / consent_exempt / etc).
+        # narrow and would not produce a representative inventory. The merger
+        # preserves unobserved entries and human-maintained fields.
         if not self.spec:
             self._merge_cookie_audits()
 
@@ -9106,13 +9108,19 @@ class TestOrchestrator:
 
     @staticmethod
     def _merge_cookie_audits() -> None:
-        """Run scripts/merge_storage_audits.py to update cookies.yml."""
+        """Generate reviewable storage inventories without dirtying source."""
         merger = PROJECT_ROOT / "scripts" / "merge_storage_audits.py"
         if not merger.is_file():
             return
         try:
             proc = subprocess.run(
-                [sys.executable, str(merger)],
+                [
+                    sys.executable,
+                    str(merger),
+                    "--output-dir",
+                    str(STORAGE_AUDIT_CANDIDATE_DIR),
+                    "--retain-unobserved",
+                ],
                 cwd=str(PROJECT_ROOT),
                 capture_output=True,
                 text=True,

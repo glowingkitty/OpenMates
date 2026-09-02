@@ -29,6 +29,8 @@ How it works:
      - IndexedDB databases are keyed by name.
   4. Track first_observed / last_observed dates and up to 5 example specs.
   5. Rewrite both files with the merged result, preserving the file headers.
+     Nightly orchestration supplies --output-dir and --retain-unobserved so it
+     produces review candidates without dirtying its managed runtime checkout.
   6. Print a stderr summary of additions / removals.
 
 Run from repo root after a Playwright full-suite run:
@@ -36,6 +38,7 @@ Run from repo root after a Playwright full-suite run:
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from datetime import date
@@ -189,7 +192,7 @@ def _collect_snapshots() -> list[dict]:
     return out
 
 
-def merge() -> tuple[dict[str, Any], dict[str, Any]]:
+def merge(*, retain_unobserved: bool = False) -> tuple[dict[str, Any], dict[str, Any]]:
     snapshots = _collect_snapshots()
     existing_cookies = _load_existing(COOKIES_YAML, ("cookies",))
     existing_storage = _load_existing(
@@ -246,6 +249,16 @@ def merge() -> tuple[dict[str, Any], dict[str, Any]]:
             _preserve_human_fields(idb_idx.get(db), entry, HUMAN_FIELDS_NON_COOKIE)
             idbs[db] = entry
 
+    if retain_unobserved:
+        for key, entry in cookie_idx.items():
+            cookies.setdefault(key, dict(entry))
+        for key, entry in ls_idx.items():
+            locals_.setdefault(key, dict(entry))
+        for key, entry in ss_idx.items():
+            sessions_.setdefault(key, dict(entry))
+        for key, entry in idb_idx.items():
+            idbs.setdefault(key, dict(entry))
+
     cookies_yaml = {
         "cookies": sorted(cookies.values(), key=lambda c: (c["name"], c["domain"])),
     }
@@ -288,23 +301,44 @@ def merge() -> tuple[dict[str, Any], dict[str, Any]]:
     return cookies_yaml, storage_yaml
 
 
-def write(cookies_data: dict[str, Any], storage_data: dict[str, Any]) -> None:
-    COOKIES_YAML.parent.mkdir(parents=True, exist_ok=True)
+def write(
+    cookies_data: dict[str, Any],
+    storage_data: dict[str, Any],
+    *,
+    output_dir: Path | None = None,
+) -> None:
+    cookies_yaml = (output_dir / COOKIES_YAML.name) if output_dir else COOKIES_YAML
+    browser_storage_yaml = (
+        (output_dir / BROWSER_STORAGE_YAML.name) if output_dir else BROWSER_STORAGE_YAML
+    )
+    cookies_yaml.parent.mkdir(parents=True, exist_ok=True)
     body = yaml.safe_dump(cookies_data, sort_keys=False, allow_unicode=True, width=100)
-    COOKIES_YAML.write_text(COOKIES_HEADER + body)
-    print(f"merge_storage_audits: wrote {COOKIES_YAML.relative_to(ROOT)}", file=sys.stderr)
+    cookies_yaml.write_text(COOKIES_HEADER + body)
+    print(f"merge_storage_audits: wrote {cookies_yaml}", file=sys.stderr)
 
     body = yaml.safe_dump(storage_data, sort_keys=False, allow_unicode=True, width=100)
-    BROWSER_STORAGE_YAML.write_text(BROWSER_STORAGE_HEADER + body)
-    print(f"merge_storage_audits: wrote {BROWSER_STORAGE_YAML.relative_to(ROOT)}", file=sys.stderr)
+    browser_storage_yaml.write_text(BROWSER_STORAGE_HEADER + body)
+    print(f"merge_storage_audits: wrote {browser_storage_yaml}", file=sys.stderr)
 
 
 def main() -> int:
-    cookies_data, storage_data = merge()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Write review candidates outside tracked compliance source files.",
+    )
+    parser.add_argument(
+        "--retain-unobserved",
+        action="store_true",
+        help="Keep prior inventory entries that were not observed in this run.",
+    )
+    args = parser.parse_args()
+    cookies_data, storage_data = merge(retain_unobserved=args.retain_unobserved)
     if not cookies_data["cookies"] and not any(storage_data.values()):
         print("merge_storage_audits: no observations found — leaving files untouched", file=sys.stderr)
         return 0
-    write(cookies_data, storage_data)
+    write(cookies_data, storage_data, output_dir=args.output_dir)
     return 0
 
 
