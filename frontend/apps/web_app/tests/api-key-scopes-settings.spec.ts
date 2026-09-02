@@ -15,6 +15,8 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PREVIEW_URL = '/dev/preview/settings/developers/SettingsApiKeys?chrome=0';
+const PROOF_KEY_NAME = 'OpenMates integration';
+const PROOF_TYPING_DELAY_MS = 50;
 
 const API_KEY_SCOPES_PROOF = defineVideoProof({
 	id: 'api-key-scopes-settings',
@@ -93,6 +95,9 @@ test.describe('API-key scope selection settings', () => {
 			await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible();
 		});
 		await proof.checkpoint('full-access');
+		const nameInput = page.getByTestId('api-key-name-input').locator('input');
+		await nameInput.pressSequentially(PROOF_KEY_NAME, { delay: PROOF_TYPING_DELAY_MS });
+		await expect(nameInput).toHaveValue(PROOF_KEY_NAME);
 		await fullAccessRow.hover();
 		await fullAccessRow.evaluate(async (element) => {
 			const finiteAnimations = element.getAnimations({ subtree: true }).filter((animation) => {
