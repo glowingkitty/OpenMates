@@ -2126,7 +2126,7 @@ def record_apple_proof_source_attestation(run_dir: Path, manifest: dict[str, Any
 def proof_video_run_directory(*, session_id: str, spec_name: str, run_id: str) -> Path:
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(spec_name).stem).strip("-") or "proof-video"
     run_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", str(run_id)).strip("-") or utc_now().replace(":", "")
-    return RESULTS_DIR / "proof-videos" / (session_id or "auto") / f"{slug}-{run_slug}"
+    return CONTROL_PLANE_RESULTS_DIR / "proof-videos" / (session_id or "auto") / f"{slug}-{run_slug}"
 
 
 def proof_video_target_environment(value: str) -> str:

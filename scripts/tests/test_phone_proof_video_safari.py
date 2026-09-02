@@ -41,6 +41,7 @@ def load_tests_control(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     module = load_module(TESTS_CONTROL_PATH, "openmates_phone_proof_tests_control")
     results_dir = tmp_path / "test-results"
     monkeypatch.setattr(module, "RESULTS_DIR", results_dir)
+    monkeypatch.setattr(module, "CONTROL_PLANE_RESULTS_DIR", results_dir)
     monkeypatch.setattr(module, "PROOF_SOURCE_DIR", results_dir / "proof-video-sources")
     monkeypatch.setattr(module, "STATE_FILE", results_dir / "tests-state.json")
     monkeypatch.setattr(module, "HISTORY_FILE", results_dir / "tests-history.jsonl")
@@ -107,6 +108,16 @@ def test_playwright_workflow_uses_encoded_phone_content_viewport() -> None:
     assert "PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile || (inputs.spec == 'proof-video-architecture.spec.ts' && 'web-laptop') || '' }}" in workflow
     assert "inputs.proof_video_profile == 'web-phone' && '390'" in workflow
     assert "inputs.proof_video_profile == 'web-phone' && '630'" in workflow
+
+
+def test_proof_video_run_directory_uses_control_plane_results(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_tests_control(tmp_path, monkeypatch)
+
+    assert module.proof_video_run_directory(
+        session_id="abcd",
+        spec_name="example.spec.ts",
+        run_id="run-123",
+    ) == tmp_path / "test-results" / "proof-videos" / "abcd" / "example.spec-run-123"
 
 
 def test_initial_welcome_proof_claim_matches_expanded_intro_state() -> None:
