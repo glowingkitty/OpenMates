@@ -388,7 +388,11 @@ export function createChatModelSelectionService(
       try {
         remoteRecord = await adapters.remote.read(userId, chatId);
       } catch (error) {
-        if (!localRecord) throw error;
+        if (!localRecord) {
+          console.warn("[ChatModelSelection] Remote restore unavailable; using Auto:", error);
+          selections.set(key, AUTO_SELECTION);
+          return AUTO_SELECTION;
+        }
       }
 
       const record =
