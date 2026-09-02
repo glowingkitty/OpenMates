@@ -13,6 +13,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const PROOF_STATE_SETTLE_MS = 100;
 
 const PLAYER_PROOF = defineVideoProof({
 	id: 'assistant-speech-player-component',
@@ -47,9 +48,6 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
 
 		const player = page.getByTestId('assistant-speech-player');
-		await proof.action('focus-playback-control', async () => {
-			await player.getByRole('button', { name: 'Pause voice response' }).focus();
-		});
 		await proof.assert('assistant-speech.playback.pinned-full-response-waveform', async () => {
 			await expect(player).toBeVisible();
 			await expect(player).toHaveAttribute('data-presentation', 'replayable_track_queue');
@@ -69,6 +67,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			}
 		});
 		await proof.checkpoint('playing');
+		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
 		await proof.action('select-pending-chapter', async () => player.getByTestId('assistant-speech-next-chapter').click());
 		await proof.assert('assistant-speech.playback.deterministic-chapter-labels', async () => {
