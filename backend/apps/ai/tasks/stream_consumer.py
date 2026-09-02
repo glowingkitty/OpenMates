@@ -210,6 +210,29 @@ async def _invalidate_automatic_assistant_speech_segment(
     await invalidate_speech_segment(directus_service, str(segment["segment_id"]))
 
 
+async def _seal_automatic_assistant_speech_manifest(
+    *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object]
+) -> None:
+    """Seal final membership after detached segment persistence has completed."""
+    if directus_service is None:
+        return
+    from backend.apps.audio.assistant_speech.persistence import manifest_id_for, seal_speech_manifest
+
+    manifest_id = manifest_id_for(
+        chat_id=str(metadata["chat_id"]),
+        assistant_message_id=str(metadata["assistant_message_id"]),
+        source_version=int(metadata["source_version"]),
+        voice_key=str(voice_profile["key"]),
+        voice_version=int(voice_profile["version"]),
+    )
+    if await seal_speech_manifest(directus_service, manifest_id):
+        celery_config.app.send_task(
+            "apps.audio.tasks.assistant_speech_billing",
+            kwargs={"arguments": {"manifest_id": manifest_id}},
+            queue="app_music",
+        )
+
+
 async def _finalize_legacy_cutover_before_final_marker(
     *,
     request_data: AskSkillRequest,
@@ -5170,6 +5193,11 @@ async def _consume_main_processing_stream(
                     },
                     log_prefix,
                     "assistant speech status",
+                ),
+                finalize_speech=lambda metadata: _seal_automatic_assistant_speech_manifest(
+                    metadata=metadata,
+                    directus_service=directus_service,
+                    voice_profile=voice_profile,
                 ),
                 sequence_offset=1 if app_use_announcement else 0,
             )

@@ -117,3 +117,28 @@ models:
         source: "ElevenLabs API pricing lists v3 TTS at roughly $0.10/minute."
     features:
       max_input_characters: 2000
+
+  - id: "eleven_v3_conversational"
+    name: "Eleven v3 Conversational"
+    description: "Lower-latency Eleven v3 variant used only for progressive assistant-response speech."
+    country_origin: "US"
+    for_app_skill: "assistant_response_speech.segment"
+    input_types:
+      - text
+    output_types:
+      - audio
+    default_server: "elevenlabs"
+    servers:
+      - id: "elevenlabs"
+        name: "ElevenLabs"
+        model_id: "eleven_v3_conversational"
+        region: "US"
+    pricing:
+      per_second: 2
+    costs:
+      output_per_second:
+        price: 0.000833
+        currency: USD
+        source: "ElevenLabs API pricing lists Eleven v3 Conversational at $0.05 per 1,000 characters; this duration value is approximate metadata only."
+    features:
+      max_input_characters: 2000

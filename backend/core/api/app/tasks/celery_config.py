@@ -156,6 +156,7 @@ TASK_CONFIG = [
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
     {'name': 'app_music',   'module': 'backend.apps.audio.tasks'},  # Audio generate/speak tasks share music worker resources
     {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.segment_task'},
+    {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.billing_task'},
     {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.delete_task'},
     {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks

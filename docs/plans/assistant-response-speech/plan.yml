@@ -5,9 +5,9 @@ status: approved
 
 specification_refs:
   - id: feature.assistant-response-speech
-    version: 2
+    version: 3
     role: primary
-    fingerprint: 980ea7aba71c92ab3b719e5d0044fdd8331d36a9ab3820bdaf70f3684ee7c9aa
+    fingerprint: 08fb7543630c3c33fd16afc6f9c0c8d5641d367529829c1d00c9fb198cbcc450
   - id: feature.public-example-chats
     version: 3
     role: inherited
@@ -76,8 +76,8 @@ goal: >
   Let authenticated users enable speech for one chat and hear each immutable
   assistant paragraph or structured summary as its own encrypted, independently
   skippable ElevenLabs audio file, while text streaming remains authoritative
-  and unaffected, replay is free, generation is billed exactly once per
-  successful segment, paired CLI owners can generate historical-message audio,
+  and unaffected, replay is free, generation is billed through one character-based
+  aggregate per assistant message, paired CLI owners can generate historical-message audio,
   and reviewed public examples can replay separately published fixtures.
 
 scope:
@@ -87,7 +87,7 @@ scope:
     - Deterministic selection of a free prerecorded acknowledgement from mate voice, response language, and request category.
     - Fixed versioned ElevenLabs voice profiles for built-in mates with deterministic multilingual fallback.
     - Immutable speech segments for prose paragraphs, localized app-use announcements, and structured embed, code, or table summaries.
-    - One ElevenLabs request, encrypted private chatfiles S3 object, idempotency identity, and usage row per generated segment.
+    - One ElevenLabs request and encrypted private chatfiles S3 object per generated segment, with one idempotent character-based usage row per assistant message.
     - Speech generation and playback run in parallel with and never block assistant text streaming or persistence.
     - User-message rendering, rainbow state, optional thinking, app-skill Processing previews, embeds, and text publish before related speech work and never wait for app-skill or audio completion.
     - Prerecorded acknowledgement and generated app-use clips use a passive top waveform; replay and track controls appear only for durable response paragraphs and summaries.
@@ -181,14 +181,14 @@ clarification:
     Assistant response speech is an optional chat-scoped companion to the
     authoritative text stream. It uses deterministic semantic projection, one
     durable encrypted file per paragraph or summary, curated mate voices,
-    progressive queue playback, and segment-level success-only billing without
+     progressive queue playback, and message-level character billing without
     adding a general cleanup model or exposing encrypted chat history.
   approved_by_user: true
 
 voice_selection:
   status: approved
   provider: elevenlabs
-  provider_model_id: eleven_v3
+  provider_model_id: eleven_v3_conversational
   acknowledgement_text_status: approved
   rollout_languages:
     - {order: 1, locale: en-US, status: approved}
@@ -703,7 +703,7 @@ contracts:
       auth: authenticated owner session or approved first-party device auth
       owner_scope: chat and assistant message must belong to the authenticated user
       rate_limits: per-user and per-chat segment dispatch limits plus bounded segment count and text length
-      credit_budget_limits: preflight before each ElevenLabs dispatch; successful duration charge only
+      credit_budget_limits: character-based preflight before each ElevenLabs dispatch; one successful message aggregate only
       encryption_boundary: accepts only current transient speakable segment plaintext derived from client-encrypted chat content; no unrelated chat plaintext; returns status and encrypted generated-asset metadata
     - route: "Existing authenticated first-party chat WebSocket: stream speech segment status"
       access_model: first-party client surface only
@@ -1030,7 +1030,7 @@ implementation_notes:
     - Preprocessing chooses a deterministic prerecorded acknowledgement from request category, language, and mate voice metadata.
     - Main processing emits normal cumulative text plus separate immutable semantic speech-segment events without awaiting speech work.
     - The speech worker validates owner/message scope, safety, idempotency, credit headroom, and voice profile before one ElevenLabs request.
-    - The worker encrypts one segment file, indexes it, charges successful duration once, and publishes a safe ready/error event.
+    - The worker encrypts one segment file, indexes its exact submitted-character count, and publishes a safe ready/error event; final settlement charges one message aggregate.
     - The client starts segment zero when ready, advances in manifest order, and exposes in-app plus supported OS controls.
     - The client concatenates encrypted duration-aligned paragraph waveform summaries into one pinned active-chat visualization while retaining separate audio files.
     - Speak on historical content submits only deterministic missing segment plaintext from the authorized decrypted client.

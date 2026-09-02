@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@2
+specification: feature.assistant-response-speech@3
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -178,8 +178,12 @@ public_examples:
 
 billing:
   - id: two-successful-paragraphs
-    given: {chat_id: chat-1, assistant_message_id: message-2, generated_segments: 2}
-    expect: {usage_rows: 2, each_row_has_chat_message_segment_provider_model_duration: true, idempotent_charge_per_segment: true}
+    given: {chat_id: chat-1, assistant_message_id: message-2, successful_segment_character_counts: [120, 280], rendered_duration_seconds: 66.5}
+    expect: {usage_rows: 1, aggregate_billable_characters: 400, credits_charged: 29, minimum_credits: 1, pricing_formula: max_1_ceil_characters_divided_by_14, model: eleven_v3_conversational, duration_affects_price: false, row_has_chat_message_provider_model: true}
+  - id: successful-retry-updates-existing-message-entry
+    given: {assistant_message_id: message-2, first_successful_segment_characters: 120, second_segment_initial_status: provider_error, existing_usage_rows: 1}
+    action: retry_second_segment_with_280_characters
+    expect: {usage_rows: 1, aggregate_billable_characters: 400, credits_charged: 29, first_segment_contribution_count: 1, second_segment_contribution_count: 1}
   - id: prerecorded-and-replay-free
     given: {prerecorded_acknowledgement_plays: 1, ready_segment_replays: 3}
     expect: {provider_generation_calls: 0, additional_credits: 0}

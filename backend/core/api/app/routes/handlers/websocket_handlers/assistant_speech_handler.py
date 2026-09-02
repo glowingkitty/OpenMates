@@ -124,8 +124,14 @@ async def handle_assistant_speech_websocket(
             dispatch=dispatch,
         )
     elif action == "retry":
-        result = await retry(user_id=user_id, chat_id=payload.get("chat_id"), assistant_message_id=payload.get("assistant_message_id"), segment_ids=payload.get("segment_ids") or [])
-        result = {"status": "accepted", "segments": [_safe_result(result)]} if result else _error("retry_unavailable")
+        result = await handle_assistant_speech_request(
+            user_id=user_id,
+            payload=payload,
+            authorize=authorize,
+            rate_limit=rate_limit,
+            budget_preflight=budget_preflight,
+            dispatch=dispatch,
+        )
     elif action in {"delete", "cancel"}:
         authorization = await authorize(
             user_id=user_id,
@@ -154,9 +160,7 @@ async def handle_assistant_speech_event(
 ) -> None:
     """Bind the first-party WebSocket action to Directus, billing, and Celery."""
     from backend.apps.audio.pricing import (
-        ASSISTANT_RESPONSE_SPEECH_MODEL,
-        calculate_speech_credits,
-        estimate_speech_duration_seconds,
+        calculate_assistant_response_speech_credits,
     )
     from backend.apps.audio.tasks.common import ensure_audio_credit_headroom
     from backend.core.api.app.tasks.celery_config import app
@@ -251,10 +255,7 @@ async def handle_assistant_speech_event(
         try:
             await ensure_audio_credit_headroom(
                 user_id=user_id,
-                estimated_credits=calculate_speech_credits(
-                    model=ASSISTANT_RESPONSE_SPEECH_MODEL,
-                    duration_seconds=estimate_speech_duration_seconds(text),
-                ),
+                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text)),
                 operation_name="assistant response speech",
                 log_prefix="[assistant-speech]",
             )
@@ -263,7 +264,7 @@ async def handle_assistant_speech_event(
             return False
 
     async def dispatch(**kwargs: object) -> list[dict[str, object]]:
-        from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments
+        from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments, seal_speech_manifest
 
         segments = kwargs["segments"]
         if not isinstance(segments, list):
@@ -324,6 +325,12 @@ async def handle_assistant_speech_event(
                 segments=historical_segments,
             )
             dispatch_ids = set(manifest["dispatch_segment_ids"])
+            await seal_speech_manifest(directus_service, str(manifest["manifest_id"]))
+            app.send_task(
+                "apps.audio.tasks.assistant_speech_billing",
+                kwargs={"arguments": {"manifest_id": str(manifest["manifest_id"])}},
+                queue="app_music",
+            )
             normalized.extend(segment for segment in historical_segments if segment["segment_id"] in dispatch_ids)
             for segment in historical_segments:
                 if segment["segment_id"] in dispatch_ids:
@@ -363,7 +370,8 @@ async def handle_assistant_speech_event(
                 "filter[user_id][_eq]": user_id,
                 "filter[chat_id][_eq]": kwargs["chat_id"],
                 "filter[assistant_message_id][_eq]": kwargs["assistant_message_id"],
-                "filter[status][_eq]": "settlement_pending",
+                "filter[status][_eq]": "error",
+                "filter[retryable][_eq]": True,
                 "filter[segment_id][_in]": ",".join(str(segment_id) for segment_id in segment_ids),
                 "limit": MAX_SEGMENTS_PER_REQUEST,
             },

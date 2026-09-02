@@ -259,7 +259,7 @@ async def test_websocket_handler_wires_real_request_retry_and_delete_dependencie
 
     for action, payload in (
         ("request", {"chat_id": "chat-1", "assistant_message_id": "message-1", "segments": [{"source_version": 1, "sequence": 0, "kind": "prose_paragraph", "source_hash": "source-hash", "speakable_text": "private"}]}),
-        ("retry", {"chat_id": "chat-1", "assistant_message_id": "message-1", "segment_ids": ["segment-0"]}),
+        ("retry", {"chat_id": "chat-1", "assistant_message_id": "message-1", "segments": [{"source_version": 1, "sequence": 0, "kind": "prose_paragraph", "source_hash": "source-hash", "speakable_text": "private"}]}),
         ("delete", {"chat_id": "chat-1", "assistant_message_id": "message-1"}),
         ("cancel", {"chat_id": "chat-1", "assistant_message_id": "message-1"}),
     ):
@@ -277,7 +277,7 @@ async def test_websocket_handler_wires_real_request_retry_and_delete_dependencie
             delete=delete,
         )
 
-    assert [action for action, _ in actions] == ["dispatch", "retry", "delete", "delete"]
+    assert [action for action, _ in actions] == ["dispatch", "dispatch", "delete", "delete"]
     assert all("private" not in repr(message) for message in sent)
 
 

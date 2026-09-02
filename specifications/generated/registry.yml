@@ -212,10 +212,10 @@ specifications:
     - rest_api
     - gui.apple
   feature.assistant-response-speech:
-    version: 2
+    version: 3
     status: draft
     path: features/assistant-response-speech
-    fingerprint: 980ea7aba71c92ab3b719e5d0044fdd8331d36a9ab3820bdaf70f3684ee7c9aa
+    fingerprint: 08fb7543630c3c33fd16afc6f9c0c8d5641d367529829c1d00c9fb198cbcc450
     required_applies_to:
     - rest_api
     - cli
@@ -2346,7 +2346,7 @@ assertions:
     - rest_api
     - gui.apple
   assistant-speech.preference.chat-scoped-default-off:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 148542f594f9abc4c5fdc93f176d5ff8e8875176f47bb3a5e62eb7affbc69177
@@ -2356,7 +2356,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.preference.voice-recording-visible-activation:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 6f19e3f1b5a3915027e63bdaa4516a9f0e8398b9825c913a59d5be850526703a
@@ -2366,37 +2366,37 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.acknowledgement.deterministic-free:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 2861c6633d834e4ead0c91af608ebac8afc172ca9fbe4ce683c963f414b8f3fc
+    fingerprint: 1fd3a1a480af362432a0d6109e501a13dfd38e9d1b4a251e00b73d3a770ea620
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.voice.fixed-versioned-mate-profile:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: security
-    fingerprint: 16563787288146205047e010984c888d3a64abdaeb99f4c062b59196ba9f9f92
+    fingerprint: 85a533efe1ac6680ab8b9be58107b6b36ef122521988355849673c8faf36d372
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.one-file-per-segment:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 944b22c62b11af5dd6bb352e8952b1d4f7669b08fe240edeccbf09afb98a3f35
+    fingerprint: 9ebde884142594d42b30bfccc753b17781522811270a5622ef4256ad739cc132
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.segmentation.immutable-source:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 49e1d4c07c13ba9ff15ea51ab0382b1e638c1815c1b10e675fad551f2b61e7e1
@@ -2406,7 +2406,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.deterministic-semantic:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: dd71ca709413c96339aeb1d2c31d56915086f1dfd09c9dcb063bf8536f9ebd60
@@ -2416,7 +2416,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.projection.no-cleanup-inference:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: aa329031468d7d007a10ab1d8f2a35a7026df8635a54c339fcb5c02941399294
@@ -2426,7 +2426,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.text-stream-independent:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 57c2347ed7be45d9f9eddb40c2dd31d04962e8a30a58034594422f2291352e20
@@ -2436,7 +2436,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.app-skill-progressive:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: invariant
     fingerprint: 20928f112ebe227be696437319477a76c1f6b5b9b0fc4fa1fe9178c9517071bc
@@ -2446,7 +2446,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.execution.first-segment-progressive:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 89d5a8e3751e481e4634efbd29012986eb1bd0e0321748f207609649f5117977
@@ -2456,7 +2456,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.single-queue-segment-control:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 607fad7dcf5610b98e24f9d618455de09cab9155bda3edae9a39afda01c86369
@@ -2466,7 +2466,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.pinned-full-response-waveform:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 56c4db141198849289ed9feddff0016df45f83cfc097b874957c1c2838776d55
@@ -2476,7 +2476,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.two-second-idle-grace:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
     fingerprint: 51952cfce053cbc324c351ba86083d92aac1a103b5693b47189491d50855edac
@@ -2486,7 +2486,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.os-controls-best-effort:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: parity
     fingerprint: b659d897897ca9b5c069ffcc37692dba359bfd89ea7b0e43802393d9d6d922d4
@@ -2496,7 +2496,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.playback.autoplay-recovery-visible:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: failure
     fingerprint: 98c5c46b99c086fbcab13b00230b4426ce03137414faa1fb98aa87cdcb8904b5
@@ -2506,27 +2506,27 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.on-demand.generate-missing-only:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: 95254580910937ac3d270c5b4c436124695c82163b9e22e864e0035aa76394ec
+    fingerprint: b9230128827002827eba10aebca925a60223d2da6089b7b2ae5be33490dc9a90
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.cli.owner-generated-existing-messages:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: behavior
-    fingerprint: 89f6704efd062b12f8337e2610941fd18a33af10746e657b785216ac75a3c067
+    fingerprint: 0c02e7e73426c4721e5c13bcfb475d7f0c7ad8fb4bf97179505d6b4c2211b46e
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.public-example.reviewed-fixture-playback:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: privacy
     fingerprint: 0517fe4418778250ca4c81cc6df9302c300b1f98c95e6046b9d696d1ce51b44f
@@ -2536,7 +2536,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.access.first-party-owner-scoped:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: security
     fingerprint: 0baa0b4475181ee31deeebc1d81ef668b190e1da6e06de84988bfa4012f27035
@@ -2546,7 +2546,7 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.safety.provider-after-approval:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: security
     fingerprint: 9d47e64d777ad6f5b45349c8dd18505a9858145bd43118826718477d7a0dcc37
@@ -2556,27 +2556,27 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.privacy.transient-plaintext-encrypted-audio:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: da52ed07145bb6e81a49763ebec1ca8ae13415f337943be0a565986197a6038b
+    fingerprint: 13a55d3cf3c7c1553e183292d1165f86e75283d3532f49885466f67ea5ddce35
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.billing.segment-success-once:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: invariant
-    fingerprint: 15e1b9f4bec20bcc9548b00eaaef0606096d84a7228a2bd7fbc0b99c8c88cde5
+    fingerprint: 39e424a4db7a5fda0779bb634ce54e9dc4add5952b6a8de30f149f262208da78
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.failure.nonblocking-visible-resumable:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: failure
     fingerprint: bedd31ef9b42cd9e99be6cb418b896e711f018e1c96cbdeee8ff1083f2088a7e
@@ -2586,20 +2586,20 @@ assertions:
     - gui.web
     - gui.apple
   assistant-speech.lifecycle.disable-delete-invalidate:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: privacy
-    fingerprint: d294bc573e3a5cc081be50d52c58cccb822e812a3d90077af703e44141bc40b6
+    fingerprint: a57352f17f08aaecf92d23d5d18225af26f62770be3e57e28651573533b1da45
     required_applies_to:
     - rest_api
     - cli
     - gui.web
     - gui.apple
   assistant-speech.surface.semantic-parity:
-    specification: feature.assistant-response-speech@2
+    specification: feature.assistant-response-speech@3
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 5b7784cbdb00fa41ce5f574225ac8bd932f9b710f6021d6f9bf9966d28d22d4e
+    fingerprint: 34a1469af8ab2e839aef5abdca8afb10758dc6771040cfcca9cc9a80ee1bb786
     required_applies_to:
     - rest_api
     - cli

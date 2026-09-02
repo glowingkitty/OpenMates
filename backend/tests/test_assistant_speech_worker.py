@@ -10,6 +10,11 @@ from pathlib import Path
 import pytest
 
 from backend.apps.audio.assistant_speech.worker import generate_speech_segment
+from backend.apps.audio.pricing import (
+    ASSISTANT_RESPONSE_SPEECH_MODEL,
+    DEFAULT_SPEECH_MODEL,
+    calculate_assistant_response_speech_credits,
+)
 from backend.apps.audio.assistant_speech.persistence import (
     claim_speech_segment_execution,
     cancel_queued_speech_assets,
@@ -18,6 +23,7 @@ from backend.apps.audio.assistant_speech.persistence import (
     delete_speech_assets,
     finalize_speech_segment_execution,
     invalidate_speech_segment,
+    prepare_manifest_billing,
     safe_segment_status,
     update_segment_status,
 )
@@ -65,7 +71,7 @@ def test_live_mock_marker_context_is_server_validated_and_required_by_the_speech
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.segmentation.one-file-per-segment,assistant-speech.privacy.transient-plaintext-encrypted-audio,assistant-speech.billing.segment-success-once
 @pytest.mark.asyncio
-async def test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_segment() -> None:
+async def test_generates_one_encrypted_asset_and_records_exact_submitted_characters_without_segment_billing() -> None:
     calls: list[tuple[str, object]] = []
 
     async def safety_check(*, text: str) -> dict[str, object]:
@@ -82,10 +88,8 @@ async def test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_se
         assert segment_id == "segment-0"
         return {"generated_asset_id": segment_id}
 
-    async def charge_usage(*, idempotency_key: str, duration_seconds: float) -> dict[str, str]:
-        calls.append(("charge", idempotency_key))
-        assert duration_seconds == 1.2
-        return {"usage_id": "usage-0"}
+    async def record_submission(*, submitted_characters: int) -> None:
+        calls.append(("submission", submitted_characters))
 
     result = await generate_speech_segment(
         segment={
@@ -99,24 +103,34 @@ async def test_generates_one_encrypted_asset_and_one_idempotent_usage_row_per_se
         safety_check=safety_check,
         provider_generate=provider_generate,
         store_encrypted=store_encrypted,
-        charge_usage=charge_usage,
+        record_submission=record_submission,
     )
 
     assert calls == [
         ("safety", "First paragraph."),
         ("provider", "First paragraph."),
+        ("submission", len("First paragraph.")),
         ("store", b"segment-mp3"),
-        ("charge", "assistant-speech:chat-1:message-1:segment-0:source-hash:mate-a-v1"),
     ]
     assert result == {
         "segment_id": "segment-0",
         "status": "ready",
         "generated_asset_id": "segment-0",
         "duration_seconds": 1.2,
-        "billing_usage_id": "usage-0",
     }
     assert "speakable_text" not in result
     assert "audio_bytes" not in result
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
+def test_assistant_response_speech_uses_one_message_level_character_rounding_step() -> None:
+    assert calculate_assistant_response_speech_credits(submitted_characters=1) == 1
+    assert calculate_assistant_response_speech_credits(submitted_characters=14) == 1
+    assert calculate_assistant_response_speech_credits(submitted_characters=15) == 2
+    assert calculate_assistant_response_speech_credits(submitted_characters=1_000) == 72
+    assert calculate_assistant_response_speech_credits(submitted_characters=8 + 8) == 2
+    assert ASSISTANT_RESPONSE_SPEECH_MODEL == "eleven_v3_conversational"
+    assert DEFAULT_SPEECH_MODEL == "eleven_v3"
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.safety.provider-after-approval,assistant-speech.failure.nonblocking-visible-resumable
@@ -139,7 +153,7 @@ async def test_safety_rejection_does_not_call_provider_storage_or_billing() -> N
         safety_check=safety_check,
         provider_generate=must_not_run,
         store_encrypted=must_not_run,
-        charge_usage=must_not_run,
+        record_submission=must_not_run,
     )
 
     assert called is False
@@ -153,31 +167,28 @@ async def test_safety_rejection_does_not_call_provider_storage_or_billing() -> N
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once,assistant-speech.failure.nonblocking-visible-resumable
 @pytest.mark.asyncio
-async def test_billing_settlement_failure_is_an_error_and_never_reports_a_ready_segment() -> None:
+async def test_provider_failure_records_no_billable_characters() -> None:
     async def safety_check(**_kwargs) -> dict[str, object]:
         return {"approved": True}
 
     async def provider_generate(**_kwargs) -> dict[str, object]:
-        return {"audio_bytes": b"segment-mp3", "duration_seconds": 1.2}
+        raise RuntimeError("provider unavailable")
 
     async def store_encrypted(**_kwargs) -> dict[str, str]:
         return {"generated_asset_id": "segment-2"}
 
-    async def charge_usage(**_kwargs) -> dict[str, str]:
-        raise RuntimeError("billing unavailable")
+    async def record_submission(**_kwargs) -> None:
+        raise AssertionError("failed provider output must not be billable")
 
-    result = await generate_speech_segment(
-        segment={"segment_id": "segment-2", "speakable_text": "Bill me."},
-        voice_profile={"profile_id": "mate-a-v1"},
-        safety_check=safety_check,
-        provider_generate=provider_generate,
-        store_encrypted=store_encrypted,
-        charge_usage=charge_usage,
-    )
-
-    assert result["status"] == "settlement_pending"
-    assert "encrypted_audio" not in result
-    assert result["pending_generated_asset_id"] == "segment-2"
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        await generate_speech_segment(
+            segment={"segment_id": "segment-2", "speakable_text": "Bill me."},
+            voice_profile={"profile_id": "mate-a-v1"},
+            safety_check=safety_check,
+            provider_generate=provider_generate,
+            store_encrypted=store_encrypted,
+            record_submission=record_submission,
+        )
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once,assistant-speech.access.first-party-owner-scoped,assistant-speech.privacy.transient-plaintext-encrypted-audio
@@ -239,9 +250,6 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     async def fake_safety(**_kwargs):
         return type("Decision", (), {"approved": True, "user_facing_message": ""})()
 
-    async def fake_charge(**_kwargs):
-        return None
-
     class Provider:
         def __init__(self, **_kwargs):
             pass
@@ -252,7 +260,7 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3"
+        model = "eleven_v3_conversational"
         provider = "provider"
 
         def elevenlabs_request(self):
@@ -261,7 +269,6 @@ async def test_real_segment_task_reuses_ready_redelivery_and_links_the_decryptab
     monkeypatch.setattr(segment_task, "initialize_task_storage", lambda _task: __import__("asyncio").sleep(0, result=object()))
     monkeypatch.setattr(segment_task, "require_storage_available", lambda _storage: __import__("asyncio").sleep(0))
     monkeypatch.setattr(segment_task, "store_generated_audio_asset", fake_store)
-    monkeypatch.setattr(segment_task, "charge_audio_generation_credits", fake_charge)
     monkeypatch.setattr(segment_task, "ElevenLabsClient", Provider)
     monkeypatch.setattr(segment_task, "resolve_assistant_voice_profile", lambda *_args, **_kwargs: Profile())
     monkeypatch.setattr("backend.apps.audio.skills.speak_skill.classify_audio_speech_safety", fake_safety)
@@ -446,6 +453,7 @@ def test_status_serialization_excludes_plaintext_provider_and_internal_storage_f
             "status": "ready",
             "generated_asset_id": "segment-0",
             "duration_seconds": 1.2,
+            "billable_character_count": 16,
             "sequence": 0,
             "speakable_text": "never send this",
             "provider_request_id": "provider-only",
@@ -484,15 +492,20 @@ def test_additive_schema_and_tasks_keep_one_upload_backed_object_per_segment_wit
 
 
 # contract-test: supporting surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.lifecycle.disable-delete-invalidate
-def test_celery_segment_and_deletion_tasks_are_registered_on_the_audio_worker_queue() -> None:
+def test_celery_segment_billing_and_deletion_tasks_are_registered_on_the_audio_worker_queue() -> None:
     backend_root = Path(__file__).resolve().parents[1]
     segment_task = (backend_root / "apps/audio/assistant_speech/segment_task.py").read_text(encoding="utf-8")
     delete_task = (backend_root / "apps/audio/assistant_speech/delete_task.py").read_text(encoding="utf-8")
+    billing_task = (backend_root / "apps/audio/assistant_speech/billing_task.py").read_text(encoding="utf-8")
+    celery_config = (backend_root / "core/api/app/tasks/celery_config.py").read_text(encoding="utf-8")
 
     assert 'name="apps.audio.tasks.assistant_speech_segment"' in segment_task
     assert 'name="apps.audio.tasks.assistant_speech_delete"' in delete_task
+    assert 'name="apps.audio.tasks.assistant_speech_billing"' in billing_task
     assert 'queue="app_music"' in segment_task
     assert 'queue="app_music"' in delete_task
+    assert 'queue="app_music"' in billing_task
+    assert "backend.apps.audio.assistant_speech.billing_task" in celery_config
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent
@@ -565,7 +578,7 @@ async def test_segment_status_persists_only_asset_reference_and_never_key_materi
             "status": "ready",
             "generated_asset_id": "segment-1",
             "duration_seconds": 1.2,
-            "billing_usage_id": "billing-1",
+            "billable_character_count": 16,
             "aes_key": "raw-key",
             "aes_nonce": "raw-nonce",
             "vault_wrapped_aes_key": "wrapped-key",
@@ -577,10 +590,53 @@ async def test_segment_status_persists_only_asset_reference_and_never_key_materi
         "status": "ready",
         "generated_asset_id": "segment-1",
         "duration_seconds": 1.2,
-        "billing_usage_id": "billing-1",
+        "billable_character_count": 16,
         "lease_id": None,
         "lease_expires_at": None,
     }
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
+@pytest.mark.asyncio
+async def test_manifest_billing_sums_ready_segments_once_without_per_segment_rounding() -> None:
+    class Directus:
+        async def get_items(self, collection, *, params, no_cache):
+            if collection == "assistant_speech_manifests":
+                return [{
+                    "id": "manifest-row", "manifest_id": "manifest-1", "user_id": "user-1",
+                    "chat_id": "chat-1", "assistant_message_id": "message-1", "sealed": True,
+                    "billing_status": "pending", "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+                    "ordered_segment_ids": ["segment-1", "segment-2"],
+                }]
+            return [
+                {"segment_id": "segment-1", "status": "ready", "billable_character_count": 8, "duration_seconds": 1.0},
+                {"segment_id": "segment-2", "status": "ready", "billable_character_count": 8, "duration_seconds": 2.0},
+            ]
+
+    billing = await prepare_manifest_billing(Directus(), "manifest-1")
+
+    assert billing is not None
+    assert billing["submitted_characters"] == 16
+    assert billing["duration_seconds"] == 3.0
+    assert calculate_assistant_response_speech_credits(submitted_characters=int(billing["submitted_characters"])) == 2
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.billing.segment-success-once
+@pytest.mark.asyncio
+async def test_manifest_billing_rejects_ready_segments_without_character_metadata() -> None:
+    class Directus:
+        async def get_items(self, collection, *, params, no_cache):
+            if collection == "assistant_speech_manifests":
+                return [{
+                    "id": "manifest-row", "manifest_id": "manifest-1", "user_id": "user-1",
+                    "chat_id": "chat-1", "assistant_message_id": "message-1", "sealed": True,
+                    "billing_status": "pending", "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+                    "ordered_segment_ids": ["segment-1"],
+                }]
+            return [{"segment_id": "segment-1", "status": "ready", "duration_seconds": 1.0}]
+
+    with pytest.raises(RuntimeError, match="billable character metadata"):
+        await prepare_manifest_billing(Directus(), "manifest-1")
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.lifecycle.disable-delete-invalidate
@@ -734,9 +790,6 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     async def fake_safety(**_kwargs):
         return type("Decision", (), {"approved": True, "user_facing_message": ""})()
 
-    async def fake_charge(**_kwargs):
-        return None
-
     class Provider:
         def __init__(self, **_kwargs):
             pass
@@ -747,7 +800,7 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     class Profile:
         key = "voice"
         version = 1
-        model = "eleven_v3"
+        model = "eleven_v3_conversational"
         provider = "provider"
 
         def elevenlabs_request(self):
@@ -756,7 +809,6 @@ async def test_final_ready_requires_claim_lease_and_version_and_compensates_when
     monkeypatch.setattr(segment_task, "initialize_task_storage", lambda _task: __import__("asyncio").sleep(0, result=object()))
     monkeypatch.setattr(segment_task, "require_storage_available", lambda _storage: __import__("asyncio").sleep(0))
     monkeypatch.setattr(segment_task, "store_generated_audio_asset", fake_store)
-    monkeypatch.setattr(segment_task, "charge_audio_generation_credits", fake_charge)
     monkeypatch.setattr(segment_task, "ElevenLabsClient", Provider)
     monkeypatch.setattr(segment_task, "resolve_assistant_voice_profile", lambda *_args, **_kwargs: Profile())
     monkeypatch.setattr("backend.apps.audio.skills.speak_skill.classify_audio_speech_safety", fake_safety)

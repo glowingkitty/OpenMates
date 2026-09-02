@@ -877,6 +877,7 @@ async def charge_credits_route(
             "status": "success",
             "charge_id": charge_result.get("charge_id", payload.idempotency_key),
             "charged_credits": charge_result.get("charged_credits", payload.credits),
+            "usage_id": charge_result.get("usage_id"),
             "idempotent": bool(charge_result.get("idempotent")),
         }
     except HTTPException as e:

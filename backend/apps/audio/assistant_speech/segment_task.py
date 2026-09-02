@@ -23,9 +23,8 @@ from backend.apps.audio.assistant_speech.persistence import (
 )
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
 from backend.apps.audio.assistant_speech.worker import generate_speech_segment
-from backend.apps.audio.pricing import calculate_speech_credits, estimate_speech_duration_seconds
+from backend.apps.audio.pricing import calculate_assistant_response_speech_credits, estimate_speech_duration_seconds
 from backend.apps.audio.tasks.common import (
-    charge_audio_generation_credits,
     ensure_audio_credit_headroom,
     store_generated_audio_asset,
 )
@@ -68,6 +67,8 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
         raise ValueError("Missing assistant speech task context")
     log_prefix = f"[assistant-speech segment:{segment_id[:8]}]"
     generated_asset_id = ""
+    submitted_character_count = 0
+    live_mock_audio = None
     try:
         await task.initialize_core_services()
         existing = await get_speech_segment(task._directus_service, segment_id)
@@ -157,64 +158,28 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             generated_asset_id = segment_id
             return {"generated_asset_id": generated_asset_id}
 
-        async def charge_usage(*, idempotency_key: str, duration_seconds: float) -> dict[str, str]:
+        async def record_submission(*, submitted_characters: int) -> None:
+            nonlocal submitted_character_count
             await ensure_active()
-            if live_mock_audio is not None:
-                return {"usage_id": f"live-mock:{idempotency_key}"}
-            credits = calculate_speech_credits(model=profile.model, duration_seconds=duration_seconds)
-            await charge_audio_generation_credits(
-                user_id=user_id,
-                app_id="assistant_response_speech",
-                skill_id="segment",
-                task_id=idempotency_key,
-                request_id="success",
-                credits=credits,
-                model_ref=f"elevenlabs/{profile.model}",
-                duration_seconds=duration_seconds,
-                chat_id=str(arguments.get("chat_id") or ""),
-                message_id=str(arguments.get("assistant_message_id") or ""),
-                external_request=False,
-                api_key_hash=None,
-                device_hash=None,
-                api_key_name=None,
-                log_prefix=log_prefix,
-                raise_on_failure=True,
-            )
-            return {"usage_id": f"audio:{idempotency_key}:success"}
+            submitted_character_count = submitted_characters
 
-        if existing.get("status") == "settlement_pending":
-            pending_generated_asset_id = existing.get("pending_generated_asset_id")
-            pending_duration = existing.get("pending_duration_seconds")
-            if not isinstance(pending_generated_asset_id, str) or not isinstance(pending_duration, (int, float)):
-                raise RuntimeError("Assistant speech settlement data is unavailable")
-            await charge_usage(
-                idempotency_key=f"assistant-speech:{arguments.get('chat_id')}:{arguments.get('assistant_message_id')}:{segment_id}:{arguments.get('source_hash')}:{profile.key}-v{profile.version}",
-                duration_seconds=float(pending_duration),
+        if live_mock_audio is None:
+            await ensure_audio_credit_headroom(
+                user_id=user_id,
+                estimated_credits=calculate_assistant_response_speech_credits(submitted_characters=len(text)),
+                operation_name="assistant response speech",
+                log_prefix=log_prefix,
             )
-            await ensure_active()
-            result = {"segment_id": segment_id, "status": "ready", "generated_asset_id": pending_generated_asset_id, "duration_seconds": float(pending_duration)}
-        else:
-            if live_mock_audio is None:
-                await ensure_audio_credit_headroom(
-                    user_id=user_id,
-                    estimated_credits=calculate_speech_credits(model=profile.model, duration_seconds=estimate_speech_duration_seconds(text)),
-                    operation_name="assistant response speech",
-                    log_prefix=log_prefix,
-                )
-            result = await generate_speech_segment(
-                segment={
-                    "segment_id": segment_id,
-                    "chat_id": str(arguments.get("chat_id") or ""),
-                    "assistant_message_id": str(arguments.get("assistant_message_id") or ""),
-                    "source_hash": str(arguments.get("source_hash") or ""),
-                    "speakable_text": text,
-                },
-                voice_profile={"profile_id": f"{profile.key}-v{profile.version}", "provider": profile.provider},
-                safety_check=safety_check,
-                provider_generate=provider_generate,
-                store_encrypted=store_encrypted,
-                charge_usage=charge_usage,
-            )
+        result = await generate_speech_segment(
+            segment={"segment_id": segment_id, "speakable_text": text},
+            voice_profile={"profile_id": f"{profile.key}-v{profile.version}", "provider": profile.provider},
+            safety_check=safety_check,
+            provider_generate=provider_generate,
+            store_encrypted=store_encrypted,
+            record_submission=record_submission,
+        )
+        if result.get("status") == "ready":
+            result["billable_character_count"] = submitted_character_count
         await ensure_active()
     except SpeechExecutionInProgress:
         if generated_asset_id:
@@ -244,6 +209,13 @@ async def _async_generate_assistant_speech_segment(task: BaseServiceTask, argume
             except Exception:
                 logger.exception("%s Failed to compensate unfinalized assistant speech asset", log_prefix)
         return {"segment_id": segment_id, "status": "cancelled"}
+    manifest_id = str(existing.get("manifest_id") or "")
+    if manifest_id and live_mock_audio is None:
+        app.send_task(
+            "apps.audio.tasks.assistant_speech_billing",
+            kwargs={"arguments": {"manifest_id": manifest_id}},
+            queue="app_music",
+        )
     status = safe_segment_status({**result, "kind": str(arguments.get("kind") or "prose_paragraph")})
     await task._cache_service.publish_event(
         f"chat_stream::{arguments.get('chat_id')}",

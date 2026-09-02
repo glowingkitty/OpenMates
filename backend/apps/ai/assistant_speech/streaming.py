@@ -19,6 +19,7 @@ from backend.shared.python_utils.generated_assets.service import _token_secret
 DispatchSpeech = Callable[[dict[str, object]], Awaitable[None]]
 InvalidateSpeech = Callable[[dict[str, object]], Awaitable[None]]
 ReportSpeechStatus = Callable[[dict[str, object]], Awaitable[None]]
+FinalizeSpeech = Callable[[dict[str, object]], Awaitable[None]]
 SAFE_DISPATCH_ERROR = "Speech is temporarily unavailable."
 MAX_AUTOMATIC_PARAGRAPH_LENGTH = 2_000
 logger = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class ImmutableSpeechBoundaryTracker:
         dispatch_speech: DispatchSpeech,
         invalidate_speech: InvalidateSpeech | None = None,
         report_status: ReportSpeechStatus | None = None,
+        finalize_speech: FinalizeSpeech | None = None,
         enabled: bool = True,
         sequence_offset: int = 0,
     ) -> None:
@@ -41,9 +43,12 @@ class ImmutableSpeechBoundaryTracker:
         self._dispatch_speech = dispatch_speech
         self._invalidate_speech = invalidate_speech
         self._report_status = report_status
+        self._finalize_speech = finalize_speech
         self._enabled = enabled
         self._sequence_offset = sequence_offset
         self._dispatched: dict[int, dict[str, object]] = {}
+        self._pending_tasks: list[asyncio.Task[None]] = []
+        self._last_scheduled_task: asyncio.Task[None] | None = None
 
     def has_new_boundary(self, content: str) -> bool:
         """Return whether observing this snapshot will dispatch immutable speech."""
@@ -96,6 +101,9 @@ class ImmutableSpeechBoundaryTracker:
                 previous = self._dispatched.pop(sequence)
                 if self._invalidate_speech is not None:
                     self._schedule(self._invalidate_speech(previous), sequence)
+            if self._finalize_speech is not None:
+                task = asyncio.create_task(self._finalize_after_dispatch())
+                task.add_done_callback(lambda completed: _consume_detached_exception(completed, -1, self._report_status))
 
     def dispatch_projected_segment(self, *, sequence: int, kind: str, speakable_text: str) -> None:
         """Schedule one deterministic non-prose segment without blocking text."""
@@ -135,8 +143,27 @@ class ImmutableSpeechBoundaryTracker:
         }
 
     def _schedule(self, coroutine: Awaitable[None], sequence: int) -> None:
-        task = asyncio.create_task(coroutine)
+        previous = self._last_scheduled_task
+
+        async def run_in_order() -> None:
+            if previous is not None:
+                try:
+                    await previous
+                except Exception:
+                    pass
+            await coroutine
+
+        task = asyncio.create_task(run_in_order())
+        self._last_scheduled_task = task
+        self._pending_tasks.append(task)
         task.add_done_callback(lambda completed: _consume_detached_exception(completed, sequence, self._report_status))
+
+    async def _finalize_after_dispatch(self) -> None:
+        await asyncio.gather(*tuple(self._pending_tasks), return_exceptions=True)
+        await self._finalize_speech({
+            **self._metadata,
+            "segment_ids": [segment["segment_id"] for segment in self._dispatched.values()],
+        })
 
 
 def _consume_detached_exception(

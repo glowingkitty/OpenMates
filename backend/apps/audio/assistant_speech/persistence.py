@@ -12,19 +12,20 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from backend.apps.audio.pricing import ASSISTANT_RESPONSE_SPEECH_MODEL
+
 MANIFEST_COLLECTION = "assistant_speech_manifests"
 SEGMENT_COLLECTION = "assistant_speech_segments"
 LEASE_TTL_SECONDS = 210
+MANIFEST_UPDATE_RETRIES = 5
 SAFE_STATUS_FIELDS = ("segment_id", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
-PERSISTED_STATUS_FIELDS = SAFE_STATUS_FIELDS + (
-    "pending_generated_asset_id",
-    "pending_duration_seconds",
-    "billing_usage_id",
-)
+PERSISTED_STATUS_FIELDS = SAFE_STATUS_FIELDS + ("billable_character_count",)
 
 
-def _manifest_id(*, chat_id: str, assistant_message_id: str, source_version: int, voice_key: str, voice_version: int) -> str:
-    identity = f"{chat_id}:{assistant_message_id}:{source_version}:{voice_key}:{voice_version}"
+def manifest_id_for(*, chat_id: str, assistant_message_id: str, source_version: int, voice_key: str, voice_version: int) -> str:
+    # Billing is message-scoped; source and voice revisions replace segment
+    # membership inside this manifest instead of creating another usage row.
+    identity = f"{chat_id}:{assistant_message_id}"
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
@@ -49,7 +50,7 @@ async def create_manifest_and_segments(
     """Create idempotent owner-scoped metadata without storing segment plaintext."""
     voice_key = str(voice_profile["key"])
     voice_version = int(voice_profile["version"])
-    manifest_id = _manifest_id(
+    manifest_id = manifest_id_for(
         chat_id=chat_id,
         assistant_message_id=assistant_message_id,
         source_version=source_version,
@@ -67,6 +68,10 @@ async def create_manifest_and_segments(
         "voice_profile_version": voice_version,
         "ordered_segment_ids": ordered_segment_ids,
         "status": "queued",
+        "model": ASSISTANT_RESPONSE_SPEECH_MODEL,
+        "sealed": False,
+        "billing_status": "pending",
+        "execution_version": 0,
     }
     existing_manifest = await _items(
         directus,
@@ -76,20 +81,51 @@ async def create_manifest_and_segments(
     if not existing_manifest:
         created, _ = await directus.create_item(MANIFEST_COLLECTION, manifest)
         if not created:
-            raise RuntimeError("Unable to persist assistant speech manifest")
-    else:
-        existing = existing_manifest[0]
-        ordered_segment_ids = list(existing.get("ordered_segment_ids") or [])
+            existing_manifest = await _items(
+                directus, MANIFEST_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": 1},
+            )
+            if not existing_manifest:
+                raise RuntimeError("Unable to persist assistant speech manifest")
+
+    for _attempt in range(MANIFEST_UPDATE_RETRIES):
+        current_rows = await _items(directus, MANIFEST_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": 1})
+        if not current_rows:
+            raise RuntimeError("Assistant speech manifest disappeared during update")
+        current = current_rows[0]
+        current_ids = list(current.get("ordered_segment_ids") or [])
+        requested_ids = {str(segment["segment_id"]) for segment in segments}
+        if current.get("sealed") and requested_ids - set(current_ids):
+            return {**current, "dispatch_segment_ids": []}
+        merged_ids = list(current_ids)
         for segment in segments:
             segment_id = str(segment["segment_id"])
             replaced_segment_id = str(segment.get("replaces_segment_id") or "")
-            if replaced_segment_id in ordered_segment_ids:
-                ordered_segment_ids[ordered_segment_ids.index(replaced_segment_id)] = segment_id
-            elif segment_id not in ordered_segment_ids:
-                ordered_segment_ids.append(segment_id)
-        if ordered_segment_ids != existing.get("ordered_segment_ids"):
-            row_id = existing.get("id") or existing.get("manifest_id")
-            await directus.update_item(MANIFEST_COLLECTION, str(row_id), {"ordered_segment_ids": ordered_segment_ids})
+            if replaced_segment_id in merged_ids:
+                merged_ids[merged_ids.index(replaced_segment_id)] = segment_id
+            elif segment_id not in merged_ids:
+                merged_ids.append(segment_id)
+        if merged_ids == current_ids:
+            break
+        row_id = current.get("id") or current.get("manifest_id")
+        if current.get("execution_version") is None or current.get("sealed") is None:
+            return {**current, "dispatch_segment_ids": []}
+        expected_version = int(current["execution_version"])
+        update_if_version = getattr(directus, "update_item_if_version", None)
+        if not callable(update_if_version):
+            await directus.update_item(MANIFEST_COLLECTION, str(row_id), {"ordered_segment_ids": merged_ids})
+            break
+        updated = await update_if_version(
+            MANIFEST_COLLECTION,
+            str(row_id),
+            {"ordered_segment_ids": merged_ids, "execution_version": expected_version + 1},
+            expected_version,
+            version_field="execution_version",
+            extra_filters={"sealed": False},
+        )
+        if updated:
+            break
+    else:
+        raise RuntimeError("Assistant speech manifest membership update conflicted repeatedly")
 
     dispatch_segment_ids: list[str] = []
     for segment in segments:
@@ -122,9 +158,85 @@ async def create_manifest_and_segments(
         }
         created, _ = await directus.create_item(SEGMENT_COLLECTION, record)
         if not created:
-            raise RuntimeError("Unable to persist assistant speech segment")
+            concurrent = await _items(
+                directus, SEGMENT_COLLECTION, {"filter[segment_id][_eq]": segment_id, "limit": 1},
+            )
+            if not concurrent:
+                raise RuntimeError("Unable to persist assistant speech segment")
+            continue
         dispatch_segment_ids.append(segment_id)
     return {**manifest, "dispatch_segment_ids": dispatch_segment_ids}
+
+
+async def seal_speech_manifest(directus: Any, manifest_id: str) -> bool:
+    """Seal final segment membership before one aggregate billing attempt."""
+    for _attempt in range(MANIFEST_UPDATE_RETRIES):
+        rows = await _items(directus, MANIFEST_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": 1})
+        if not rows:
+            return False
+        manifest = rows[0]
+        if manifest.get("sealed"):
+            return True
+        row_id = manifest.get("id") or manifest.get("manifest_id")
+        update_if_version = getattr(directus, "update_item_if_version", None)
+        if not callable(update_if_version):
+            await directus.update_item(MANIFEST_COLLECTION, str(row_id), {"sealed": True})
+            return True
+        if manifest.get("execution_version") is None or manifest.get("sealed") is None:
+            await directus.update_item(
+                MANIFEST_COLLECTION,
+                str(row_id),
+                {"execution_version": 0, "sealed": True},
+            )
+            return True
+        expected_version = int(manifest["execution_version"])
+        sealed = await update_if_version(
+            MANIFEST_COLLECTION,
+            str(row_id),
+            {"sealed": True, "execution_version": expected_version + 1},
+            expected_version,
+            version_field="execution_version",
+            extra_filters={"sealed": False},
+        )
+        if sealed:
+            return True
+    raise RuntimeError("Assistant speech manifest sealing conflicted repeatedly")
+
+
+async def prepare_manifest_billing(directus: Any, manifest_id: str) -> dict[str, object] | None:
+    """Return plaintext-free aggregate metadata only when final work is terminal."""
+    manifests = await _items(directus, MANIFEST_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": 1})
+    if not manifests:
+        return None
+    manifest = manifests[0]
+    if not manifest.get("sealed") or manifest.get("billing_status") in {"committed", "not_billable"}:
+        return None
+    segments = await _items(directus, SEGMENT_COLLECTION, {"filter[manifest_id][_eq]": manifest_id, "limit": -1})
+    expected_ids = {str(value) for value in (manifest.get("ordered_segment_ids") or [])}
+    current = {str(segment.get("segment_id")): segment for segment in segments if str(segment.get("segment_id")) in expected_ids}
+    if expected_ids - current.keys():
+        return None
+    if any(str(segment.get("status") or "") in {"queued", "generating"} for segment in current.values()):
+        return None
+    if any(segment.get("status") == "error" and segment.get("retryable") for segment in current.values()):
+        return None
+    ready = [segment for segment in current.values() if segment.get("status") == "ready"]
+    if any(not isinstance(segment.get("billable_character_count"), int) or int(segment["billable_character_count"]) <= 0 for segment in ready):
+        raise RuntimeError("Ready assistant speech segment is missing billable character metadata")
+    return {
+        "manifest_row_id": str(manifest.get("id") or manifest_id),
+        "user_id": str(manifest["user_id"]),
+        "chat_id": str(manifest["chat_id"]),
+        "assistant_message_id": str(manifest["assistant_message_id"]),
+        "model": str(manifest.get("model") or ""),
+        "submitted_characters": sum(int(segment.get("billable_character_count") or 0) for segment in ready),
+        "duration_seconds": sum(float(segment.get("duration_seconds") or 0) for segment in ready),
+    }
+
+
+async def complete_manifest_billing(directus: Any, manifest_row_id: str, *, usage_id: str | None) -> None:
+    status = "committed" if usage_id else "not_billable"
+    await directus.update_item(MANIFEST_COLLECTION, manifest_row_id, {"billing_status": status, "billing_usage_id": usage_id})
 
 
 async def update_segment_status(directus: Any, segment_id: str, result: Mapping[str, object]) -> None:

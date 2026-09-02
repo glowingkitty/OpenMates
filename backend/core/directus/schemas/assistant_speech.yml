@@ -14,7 +14,11 @@ assistant_speech_manifests:
     voice_profile_version: {type: integer}
     ordered_segment_ids: {type: json}
     status: {type: string}
-    execution_version: {type: integer}
+    execution_version: {type: integer, required: true, default: 0}
+    model: {type: string}
+    sealed: {type: boolean, required: true, default: false}
+    billing_status: {type: string, required: true, default: pending}
+    billing_usage_id: {type: string, nullable: true}
 
 assistant_speech_segments:
   type: collection
@@ -35,6 +39,7 @@ assistant_speech_segments:
     execution_version: {type: integer}
     generated_asset_id: {type: string, nullable: true}
     duration_seconds: {type: decimal, nullable: true}
+    billable_character_count: {type: integer, nullable: true}
     pending_generated_asset_id: {type: string, nullable: true}
     pending_duration_seconds: {type: decimal, nullable: true}
     billing_usage_id: {type: string, nullable: true}

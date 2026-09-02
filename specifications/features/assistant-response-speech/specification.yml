@@ -1,14 +1,14 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 2
+version: 3
 status: draft
 title: Assistant Response Speech
 summary: >
   Let authenticated users hear a nonblocking prerecorded acknowledgement,
   app-use announcement, and ordered independently generated response paragraphs
   while thinking and text streaming remain authoritative, uninterrupted,
-  private, replayable where applicable, and charged exactly once per generated
-  segment, while authenticated CLI owners can generate existing-message speech
+  private, replayable where applicable, and represented by one character-priced
+  billing entry per assistant message, while authenticated CLI owners can generate existing-message speech
   and reviewed public examples can replay separately published immutable audio.
 
 scope:
@@ -26,7 +26,8 @@ scope:
     - An authenticated `openmates chats speak` command that generates or reuses private encrypted speech for existing assistant messages through the same owner-scoped first-party pipeline.
     - A reviewed example-publication step that copies approved generated segments into immutable public S3 fixtures for unauthenticated playback without enabling anonymous generation.
     - In-app paragraph controls and best-effort operating-system media controls for play, pause, previous paragraph, and next paragraph.
-    - Successful-generation-only credit charging tied to the originating chat, assistant message, and paragraph segment.
+    - One successful-generation-only billing entry per assistant message, priced at one credit per 14 exact characters submitted to ElevenLabs with a one-credit minimum.
+    - Eleven v3 Conversational for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
     - Web and Apple semantic parity after the approved first-party server contract is complete.
   excludes:
@@ -89,7 +90,7 @@ models:
     model:
       type: server_configured_model
       required: true
-      constraints: {silent_substitution: forbidden}
+      constraints: {assistant_response_speech: eleven_v3_conversational, audio_speak_default_unchanged: eleven_v3, silent_substitution: forbidden}
 
   AcknowledgementClip:
     clip_id:
@@ -135,6 +136,10 @@ models:
       required: true
       items: stable_id
       constraints: {unique: true, preserves_speech_order: true, combined_audio_file: forbidden}
+    billing_usage_id:
+      type: stable_id
+      nullable: true
+      constraints: {one_per_assistant_message: true, chat_and_message_attributed: true}
 
   SpeechSegment:
     segment_id:
@@ -182,14 +187,39 @@ models:
       type: string
       nullable: true
       constraints: {server_only: true, continuity_input_for_later_segments: true}
-    billing_usage_id:
-      type: stable_id
+    billable_character_count:
+      type: integer
       nullable: true
-      constraints: {required_when_charged: true, chat_and_message_attributed: true}
+      constraints: {required_after_provider_success: true, minimum: 1, exact_submitted_text: true, contributes_once_to_message_aggregate: true}
     error:
       type: string
       nullable: true
       constraints: {safe_user_visible: true, secrets: forbidden, raw_provider_diagnostics: forbidden}
+
+  SpeechBillingAggregate:
+    billing_usage_id:
+      type: stable_id
+      required: true
+      constraints: {one_per_assistant_message: true, idempotent: true}
+    assistant_message_id:
+      type: message_id
+      required: true
+    billable_character_count:
+      type: integer
+      required: true
+      constraints: {sum_of_successful_unbilled_segments: true, segment_contribution_exactly_once: true}
+    credits_charged:
+      type: integer
+      required: true
+      constraints: {minimum: 1, round_once_per_message: true, formula: max_1_ceil_billable_characters_divided_by_14}
+    user_price_usd_per_1000_characters:
+      type: number
+      required: true
+      constraints: {approximate_value: 0.07, provider_reference_price_usd: 0.05, credit_catalog_currency: EUR}
+    duration_seconds:
+      type: number
+      nullable: true
+      constraints: {usage_metadata_only: true, affects_price: false}
 
   SpeechGenerationRequest:
     access_model:
@@ -299,7 +329,7 @@ assertions:
     depends_on: [models.AcknowledgementClip, models.MateVoiceProfile, examples.acknowledgements]
   - id: assistant-speech.voice.fixed-versioned-mate-profile
     type: security
-    must: Each mate resolves to one product-curated, versioned voice profile with a deterministic language-compatible fallback; clients cannot submit or discover raw provider voice IDs, request voice cloning, or silently substitute an unapproved provider or model.
+    must: Each mate resolves to one product-curated, versioned voice profile with a deterministic language-compatible fallback; assistant-message speech uses Eleven v3 Conversational for expressive low-latency output while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model; clients cannot submit or discover raw provider voice IDs, request voice cloning, or silently substitute an unapproved provider or model.
     depends_on: [models.MateVoiceProfile, examples.voice_profiles]
   - id: assistant-speech.segmentation.one-file-per-segment
     type: invariant
@@ -390,15 +420,15 @@ assertions:
     depends_on: [models.SpeechSegment, models.MateVoiceProfile.provider_voice_id, examples.privacy]
   - id: assistant-speech.billing.segment-success-once
     type: invariant
-    must: Each runtime-generated segment performs a credit preflight before provider dispatch and creates at most one idempotent successful charge tied to chat ID, assistant message ID, segment ID, provider, model, and actual duration; failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits.
-    depends_on: [models.SpeechSegment.billing_usage_id, models.AcknowledgementClip.audio_asset, examples.billing]
+    must: Each runtime-generated segment performs a character-based credit preflight before provider dispatch, and every successful segment contributes its exact submitted character count at most once to one idempotent billing entry for the assistant message. The entry is tied to chat ID, assistant message ID, provider, and model; charges at least one credit using max(1, ceil(total billable characters / 14)) with one message-level rounding step; and records rendered duration only as non-price metadata. Failed, cancelled-before-dispatch, prerecorded, cached, and replayed audio costs zero additional credits, while a later successful retry updates the same message entry instead of creating another row.
+    depends_on: [models.SpeechManifest.billing_usage_id, models.SpeechSegment.billable_character_count, models.SpeechBillingAggregate, models.AcknowledgementClip.audio_asset, examples.billing]
   - id: assistant-speech.failure.nonblocking-visible-resumable
     type: failure
     must: Insufficient credits, safety rejection, provider failure, storage failure, or generation failure stops playback at the affected segment, preserves earlier ready files, disables Auto speak response for that chat, and shows one safe visible status with retry and chat-usage actions; retry resumes from the first failed or missing segment without duplicating successful work or charges.
     depends_on: [models.SpeechSegment.status, models.SpeechSegment.error, models.PlaybackQueue.state, examples.failures]
   - id: assistant-speech.lifecycle.disable-delete-invalidate
     type: privacy
-    must: Disabling Auto speak immediately stops playback and cancels undispatched queued segments, while an already provider-accepted segment may finish, persist, and charge once; deleting an assistant message or chat deletes its generated speech manifests and audio files, and changed message or voice versions invalidate only affected files.
+    must: Disabling Auto speak immediately stops playback and cancels undispatched queued segments, while an already provider-accepted segment may finish, persist, and contribute once to its message billing aggregate; deleting an assistant message or chat deletes its generated speech manifests and audio files, and changed message or voice versions invalidate only affected files.
     depends_on: [models.ChatSpeechPreference, models.SpeechManifest, models.SpeechSegment, examples.lifecycle]
   - id: assistant-speech.surface.semantic-parity
     type: parity

@@ -14,9 +14,11 @@ SOUND_EFFECT_CREDITS_PER_SECOND = 20
 LOW_COST_SPEECH_MODEL = "eleven_flash_v2_5"
 MULTILINGUAL_SPEECH_MODEL = "eleven_multilingual_v2"
 ELEVEN_V3_SPEECH_MODEL = "eleven_v3"
+ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL = "eleven_v3_conversational"
 PREMIUM_SPEECH_MODEL = ELEVEN_V3_SPEECH_MODEL
 DEFAULT_SPEECH_MODEL = PREMIUM_SPEECH_MODEL
-ASSISTANT_RESPONSE_SPEECH_MODEL = ELEVEN_V3_SPEECH_MODEL
+ASSISTANT_RESPONSE_SPEECH_MODEL = ELEVEN_V3_CONVERSATIONAL_SPEECH_MODEL
+ASSISTANT_RESPONSE_SPEECH_CHARACTERS_PER_CREDIT = 14
 SECONDS_PER_MINUTE = 60
 ELEVENLABS_APPROX_CHARS_PER_MINUTE = 1000
 SPEECH_MODEL_CREDITS_PER_SECOND = {
@@ -46,3 +48,10 @@ def estimate_speech_duration_seconds(text: str) -> float:
 def calculate_speech_credits(*, model: str, duration_seconds: float) -> int:
     credits_per_second = SPEECH_MODEL_CREDITS_PER_SECOND[model]
     return _duration_credits(duration_seconds=duration_seconds, credits_per_second=credits_per_second)
+
+
+def calculate_assistant_response_speech_credits(*, submitted_characters: int) -> int:
+    """Price one complete assistant message with one character-rounding step."""
+    if submitted_characters <= 0:
+        return 0
+    return max(1, math.ceil(submitted_characters / ASSISTANT_RESPONSE_SPEECH_CHARACTERS_PER_CREDIT))
