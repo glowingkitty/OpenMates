@@ -84,14 +84,15 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false', { timeout: 5_000 });
 		});
 		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
-			await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Pause voice response');
+			await expect(player.getByRole('button', { name: 'Pause voice response' })).toBeVisible();
 		});
 		await proof.checkpoint('ready');
 
-		await proof.action('pause-playback', async () => player.getByTestId('assistant-speech-primary-control').click());
+		await proof.action('pause-playback', async () => player.getByRole('button', { name: 'Pause voice response' }).click());
 		await proof.assert('assistant-speech.playback.single-queue-segment-control', async () => {
-			await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Play voice response');
-			await expect(player.getByTestId('assistant-speech-primary-icon')).toHaveAttribute('data-icon', 'play');
+			const playControl = player.getByRole('button', { name: 'Play voice response' });
+			await expect(playControl).toBeVisible();
+			await expect(playControl.getByTestId('assistant-speech-primary-icon')).toHaveAttribute('data-icon', 'play');
 			await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-close-icon')).toBeVisible();
 		});
