@@ -4261,6 +4261,7 @@ export class OpenMatesClient {
 
     await this.hydrateEmailEncryptionKey(session);
 
+    this.session = session;
     saveSession(session);
   }
 

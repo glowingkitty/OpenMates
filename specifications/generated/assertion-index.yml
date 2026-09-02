@@ -6760,7 +6760,7 @@ assertions:
       surface: cli
     - &id768
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1192
+      line: 1255
       name: covers all production memory types needed by CLI memory commands
       surface: sdks.npm
     supporting_tests: []
@@ -6883,7 +6883,7 @@ assertions:
       surface: cli
     - &id776
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1192
+      line: 1255
       name: covers all production memory types needed by CLI memory commands
       surface: sdks.npm
     supporting_tests: []
@@ -28365,94 +28365,94 @@ assertions:
     specification: surface.sdk@1
     fingerprint: 668b71ac41e948eae198e5727ce290759b4c548b75efea3c2d77552a802ff0ee
     direct_tests:
-    - &id3269
+    - &id3270
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 54
       name: provides explicit Personal and Team encrypted CRUD without live file methods
       surface: sdks.npm
-    - &id3270
+    - &id3271
       path: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
       line: 135
       name: links and unlinks embeds, chats, and workflows as OpenMates-only Project
         items
       surface: sdks.npm
-    - &id3271
+    - &id3272
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 96
       name: manages workflows through the shared API contract
       surface: sdks.npm
-    - &id3273
+    - &id3274
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 381
       name: manages workflow template sharing transport through the shared API contract
       surface: sdks.npm
-    - &id3274
+    - &id3275
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 427
       name: manages durable workflow input sessions
       surface: sdks.npm
-    - &id3275
+    - &id3276
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 921
       name: lazily unwraps API-key session material and decrypts listed chat metadata
       surface: sdks.npm
-    - &id3276
+    - &id3277
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 965
       name: searches decrypted chat metadata locally without a server plaintext search
         endpoint
       surface: sdks.npm
-    - &id3277
+    - &id3278
       path: frontend/packages/openmates-cli/tests/sdk.test.ts
       line: 1013
       name: resolves encrypted saved chat slugs locally before loading a chat
       surface: sdks.npm
-    - &id3278
+    - &id3279
       path: frontend/packages/openmates-cli/tests/workflows-real-sdk-dev.test.ts
       line: 20
       name: creates a blank draft and runs it only after it becomes ready
       surface: sdks.npm
-    - &id3281
+    - &id3282
       path: packages/openmates-python/tests/test_projects.py
       line: 23
       name: test_pip_sdk_project_links_are_openmates_only
       surface: sdks.pip
-    - &id3282
+    - &id3283
       path: packages/openmates-python/tests/test_projects.py
       line: 128
       name: test_pip_sdk_projects_explicit_personal_and_team_crud
       surface: sdks.pip
-    - &id3283
+    - &id3284
       path: packages/openmates-python/tests/test_sdk.py
       line: 961
       name: test_workflow_workspace_methods_match_npm_sdk_contract
       surface: sdks.pip
-    - &id3284
+    - &id3285
       path: packages/openmates-python/tests/test_sdk.py
       line: 1546
       name: test_lazily_unwraps_api_key_session_and_decrypts_chat_metadata
       surface: sdks.pip
-    - &id3285
+    - &id3286
       path: packages/openmates-python/tests/test_sdk.py
       line: 1598
       name: test_searches_decrypted_chat_metadata_locally
       surface: sdks.pip
-    - &id3286
+    - &id3287
       path: packages/openmates-python/tests/test_work_control.py
       line: 9
       name: test_pip_work_control_facades_exclude_plan_approval
       surface: sdks.pip
-    - &id3287
+    - &id3288
       path: packages/openmates-python/tests/test_workflows.py
       line: 59
       name: test_pip_sdk_workflow_methods_use_shared_workflows_api
       surface: sdks.pip
-    - &id3289
+    - &id3290
       path: packages/openmates-python/tests/test_workflows.py
       line: 265
       name: test_pip_sdk_workflow_template_sharing_transport_uses_shared_api
       surface: sdks.pip
-    - &id3292
+    - &id3293
       path: packages/openmates-python/tests/test_workflows_real_dev.py
       line: 24
       name: test_pip_sdk_real_dev_workflow_execution
@@ -28460,271 +28460,276 @@ assertions:
     supporting_tests:
     - &id3222
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 113
+      line: 115
       name: keeps authentication capability discovery out of payment routes
       surface: sdks.npm
     - &id3223
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 125
-      name: manages application preview lifecycle through authenticated embed preview
-        endpoints
+      line: 127
+      name: keeps a completed pair-login session active for immediate verification
       surface: sdks.npm
     - &id3224
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 187
-      name: uses the persisted session API URL when no override is set
+      line: 188
+      name: manages application preview lifecycle through authenticated embed preview
+        endpoints
       surface: sdks.npm
     - &id3225
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 193
-      name: routes deterministic Project CRUD, children, source removal, and remote
-        requests through one explicit context
+      line: 250
+      name: uses the persisted session API URL when no override is set
       surface: sdks.npm
     - &id3226
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 260
-      name: keeps explicit API URL overrides higher priority than the persisted session
+      line: 256
+      name: routes deterministic Project CRUD, children, source removal, and remote
+        requests through one explicit context
       surface: sdks.npm
     - &id3227
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 266
-      name: uses installed self-host server API when no override or session exists
+      line: 323
+      name: keeps explicit API URL overrides higher priority than the persisted session
       surface: sdks.npm
     - &id3228
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 282
-      name: persists rotated auth cookies and ws tokens after whoami
+      line: 329
+      name: uses installed self-host server API when no override or session exists
       surface: sdks.npm
     - &id3229
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 316
-      name: purges local private data when session refresh is explicitly invalid
+      line: 345
+      name: persists rotated auth cookies and ws tokens after whoami
       surface: sdks.npm
     - &id3230
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 352
-      name: uses destructive local purge for manual logout
+      line: 379
+      name: purges local private data when session refresh is explicitly invalid
       surface: sdks.npm
     - &id3231
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 386
-      name: uses destructive local purge after account deletion
+      line: 415
+      name: uses destructive local purge for manual logout
       surface: sdks.npm
     - &id3232
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 420
-      name: returns the current rotated cookie jar for upload authentication
+      line: 449
+      name: uses destructive local purge after account deletion
       surface: sdks.npm
     - &id3233
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 449
-      name: includes session_id when refreshing the WebSocket token
+      line: 483
+      name: returns the current rotated cookie jar for upload authentication
       surface: sdks.npm
     - &id3234
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 480
-      name: creates API keys through the audited typed path while generic settings
-        POST stays blocked
+      line: 512
+      name: includes session_id when refreshing the WebSocket token
       surface: sdks.npm
     - &id3235
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 526
-      name: lists API keys with decrypted display fields and pending device counts
+      line: 543
+      name: creates API keys through the audited typed path while generic settings
+        POST stays blocked
       surface: sdks.npm
     - &id3236
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 563
-      name: sends stable CLI API-key device headers for app-skill execution
+      line: 589
+      name: lists API keys with decrypted display fields and pending device counts
       surface: sdks.npm
     - &id3237
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 594
-      name: rejects app-skill responses that carry skill-level errors
+      line: 626
+      name: sends stable CLI API-key device headers for app-skill execution
       surface: sdks.npm
     - &id3238
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 622
-      name: uses action-code and TOTP endpoints for destructive CLI step-up
+      line: 657
+      name: rejects app-skill responses that carry skill-level errors
       surface: sdks.npm
     - &id3239
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 658
-      name: keeps polling app-skill tasks after transient task status failures
+      line: 685
+      name: uses action-code and TOTP endpoints for destructive CLI step-up
       surface: sdks.npm
     - &id3240
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 703
-      name: persists pending AI responses during CLI sync
+      line: 721
+      name: keeps polling app-skill tasks after transient task status failures
       surface: sdks.npm
     - &id3241
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 793
-      name: refreshes exact chat messages before showing a selected chat
+      line: 766
+      name: persists pending AI responses during CLI sync
       surface: sdks.npm
     - &id3242
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 879
-      name: persists passive task update jobs advertised during CLI reconnect sync
+      line: 856
+      name: refreshes exact chat messages before showing a selected chat
       surface: sdks.npm
     - &id3243
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1031
-      name: skips passive task update jobs that do not include source chat context
+      line: 942
+      name: persists passive task update jobs advertised during CLI reconnect sync
       surface: sdks.npm
     - &id3244
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1114
-      name: skips passive task update jobs already leased by another device
+      line: 1094
+      name: skips passive task update jobs that do not include source chat context
       surface: sdks.npm
     - &id3245
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1229
-      name: uses the same deterministic parent embed key across version updates
+      line: 1177
+      name: skips passive task update jobs already leased by another device
       surface: sdks.npm
     - &id3246
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1304
-      name: rejects token or plaintext identity fields in the chat-visible directory
+      line: 1292
+      name: uses the same deterministic parent embed key across version updates
       surface: sdks.npm
     - &id3247
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1321
-      name: builds token-broker requests without putting refresh tokens in chat payloads
+      line: 1367
+      name: rejects token or plaintext identity fields in the chat-visible directory
       surface: sdks.npm
     - &id3248
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1354
-      name: posts connected-account cancel requests without token refs
+      line: 1384
+      name: builds token-broker requests without putting refresh tokens in chat payloads
       surface: sdks.npm
     - &id3249
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1389
-      name: posts connected-account undo requests with only the opaque turn token
-        ref
+      line: 1417
+      name: posts connected-account cancel requests without token refs
       surface: sdks.npm
     - &id3250
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1445
-      name: builds the request artifact without approving memory content
+      line: 1452
+      name: posts connected-account undo requests with only the opaque turn token
+        ref
       surface: sdks.npm
     - &id3251
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1471
-      name: builds an included response artifact only for explicit approval
+      line: 1508
+      name: builds the request artifact without approving memory content
       surface: sdks.npm
     - &id3252
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1497
-      name: builds encrypted task event system messages without plaintext leakage
+      line: 1534
+      name: builds an included response artifact only for explicit approval
       surface: sdks.npm
     - &id3253
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1525
-      name: builds task update job persist payloads with only encrypted task content
+      line: 1560
+      name: builds encrypted task event system messages without plaintext leakage
       surface: sdks.npm
     - &id3254
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1602
-      name: keeps task update jobs only when the current response emitted a matching
-        event
+      line: 1588
+      name: builds task update job persist payloads with only encrypted task content
       surface: sdks.npm
     - &id3255
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1659
-      name: detects explicit Tasks app-skill messages
+      line: 1665
+      name: keeps task update jobs only when the current response emitted a matching
+        event
       surface: sdks.npm
     - &id3256
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1682
-      name: stops before inference when saved-chat preflight requires a client update
+      line: 1722
+      name: detects explicit Tasks app-skill messages
       surface: sdks.npm
     - &id3257
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1742
-      name: waits for preflight ack and keeps durable transaction content encrypted
+      line: 1745
+      name: stops before inference when saved-chat preflight requires a client update
       surface: sdks.npm
     - &id3258
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 1977
-      name: persists streamed embeds when the recovery claim is already terminal
+      line: 1805
+      name: waits for preflight ack and keeps durable transaction content encrypted
       surface: sdks.npm
     - &id3259
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2120
-      name: lazily registers epoch-1 recovery material for an old saved chat
+      line: 2040
+      name: persists streamed embeds when the recovery claim is already terminal
       surface: sdks.npm
     - &id3260
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2298
-      name: returns after confirmation for saved team messages that do not mention
-        OpenMates
+      line: 2183
+      name: lazily registers epoch-1 recovery material for an old saved chat
       surface: sdks.npm
     - &id3261
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2403
-      name: can include known Learning Mode context without changing incognito state
+      line: 2361
+      name: returns after confirmation for saved team messages that do not mention
+        OpenMates
       surface: sdks.npm
     - &id3262
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2483
-      name: sends current message history with incognito messages
+      line: 2466
+      name: can include known Learning Mode context without changing incognito state
       surface: sdks.npm
     - &id3263
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2561
-      name: prepends provided benchmark history before the current incognito message
+      line: 2546
+      name: sends current message history with incognito messages
       surface: sdks.npm
     - &id3264
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2632
-      name: encrypts child first-message metadata with the parent chat key
+      line: 2624
+      name: prepends provided benchmark history before the current incognito message
       surface: sdks.npm
     - &id3265
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2674
-      name: builds approval and cancellation payloads only from explicit decisions
+      line: 2695
+      name: encrypts child first-message metadata with the parent chat key
       surface: sdks.npm
     - &id3266
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2708
-      name: forces a message refresh when cached metadata has no local messages
+      line: 2737
+      name: builds approval and cancellation payloads only from explicit decisions
       surface: sdks.npm
     - &id3267
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2719
-      name: caps the cached messages version to the local message count
+      line: 2771
+      name: forces a message refresh when cached metadata has no local messages
       surface: sdks.npm
     - &id3268
       path: frontend/packages/openmates-cli/tests/client.test.ts
-      line: 2730
+      line: 2782
+      name: caps the cached messages version to the local message count
+      surface: sdks.npm
+    - &id3269
+      path: frontend/packages/openmates-cli/tests/client.test.ts
+      line: 2793
       name: keeps the cached messages version when it matches the local message count
       surface: sdks.npm
-    - &id3272
+    - &id3273
       path: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
       line: 285
       name: exposes workflow app-skill child embeds and server-side search results
       surface: sdks.npm
-    - &id3279
+    - &id3280
       path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
       line: 83
       name: uses global and namespace-specific history endpoints
       surface: sdks.npm
-    - &id3280
+    - &id3281
       path: frontend/packages/openmates-cli/tests/workspace-history.test.ts
       line: 137
       name: uses namespace-specific ask endpoints
       surface: sdks.npm
-    - &id3288
+    - &id3289
       path: packages/openmates-python/tests/test_workflows.py
       line: 258
       name: test_pip_sdk_workflows_require_api_key
       surface: sdks.pip
-    - &id3290
+    - &id3291
       path: packages/openmates-python/tests/test_workflows.py
       line: 324
       name: test_pip_sdk_workflow_delete_requires_confirmation
       surface: sdks.pip
-    - &id3291
+    - &id3292
       path: packages/openmates-python/tests/test_workflows.py
       line: 331
       name: test_pip_sdk_workflow_template_import_rejects_malformed_response
@@ -28801,18 +28806,19 @@ assertions:
     - *id3290
     - *id3291
     - *id3292
+    - *id3293
     surfaces:
       sdks.npm:
         direct_tests:
-        - *id3269
         - *id3270
         - *id3271
-        - *id3273
+        - *id3272
         - *id3274
         - *id3275
         - *id3276
         - *id3277
         - *id3278
+        - *id3279
         supporting_tests:
         - *id3222
         - *id3223
@@ -28861,22 +28867,23 @@ assertions:
         - *id3266
         - *id3267
         - *id3268
-        - *id3272
-        - *id3279
+        - *id3269
+        - *id3273
         - *id3280
+        - *id3281
       sdks.pip:
         direct_tests:
-        - *id3281
         - *id3282
         - *id3283
         - *id3284
         - *id3285
         - *id3286
         - *id3287
-        - *id3289
-        - *id3292
-        supporting_tests:
         - *id3288
         - *id3290
+        - *id3293
+        supporting_tests:
+        - *id3289
         - *id3291
+        - *id3292
     current_direct_proof: false

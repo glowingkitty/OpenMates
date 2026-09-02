@@ -10,7 +10,7 @@
 
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, webcrypto } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
@@ -78,11 +78,13 @@ const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   createApiKeyCryptoMaterial,
+  derivePairKey,
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   sealChatCompletionRecoveryPayload,
 } = await import("../src/crypto.ts");
 const {
+  clearSession,
   loadSession: loadStoredSession,
   loadSyncCache,
   saveSyncCache,
@@ -119,6 +121,67 @@ describe("OpenMatesClient session API URL", () => {
     assert.ok(methodStart >= 0, "getAuthMethodsStatus should remain available");
     assert.match(methodSource, /\/v1\/auth\/methods/);
     assert.doesNotMatch(methodSource, /\/v1\/payments\//);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("keeps a completed pair-login session active for immediate verification", async () => {
+    const token = "PAIR12";
+    const pin = "PIN123";
+    const bundle = {
+      master_key_exported: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      hashed_email: "test-hashed-email",
+      lookup_hash: "test-lookup-hash",
+      user_email_salt: "test-email-salt",
+    };
+    const pairKey = await derivePairKey(pin, token);
+    const iv = new Uint8Array(12);
+    const plaintext = new TextEncoder().encode(JSON.stringify(bundle));
+    const encryptedBundle = await webcrypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      pairKey,
+      plaintext,
+    );
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/auth/pair/initiate") {
+        response.end(JSON.stringify({ token }));
+      } else if (request.url === `/v1/auth/pair/complete/${token}`) {
+        response.end(JSON.stringify({
+          success: true,
+          encrypted_bundle: Buffer.from(encryptedBundle).toString("base64"),
+          iv: Buffer.from(iv).toString("base64"),
+        }));
+      } else if (request.url === "/v1/auth/login") {
+        response.end(JSON.stringify({ success: true, ws_token: "test-ws-token" }));
+      } else if (request.url === "/v1/auth/session") {
+        response.end(JSON.stringify({ success: true, user: { id: "personal-account-id" } }));
+      } else {
+        response.end(JSON.stringify({ success: false }));
+      }
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    rmSync(sessionPath, { force: true });
+
+    try {
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const interactiveClient = client as unknown as {
+        waitForPairAuthorization: () => Promise<{ authorizerDeviceName: string }>;
+        prompt: () => Promise<string>;
+        renderPairQrCode: () => void;
+      };
+      interactiveClient.waitForPairAuthorization = async () => ({ authorizerDeviceName: "Test Browser" });
+      interactiveClient.prompt = async () => pin;
+      interactiveClient.renderPairQrCode = () => undefined;
+
+      await client.loginWithPairAuth();
+      const user = await client.whoAmI();
+      assert.equal(user.id, "personal-account-id");
+    } finally {
+      clearSession();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
