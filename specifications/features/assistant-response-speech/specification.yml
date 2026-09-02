@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 1
+version: 2
 status: draft
 title: Assistant Response Speech
 summary: >
@@ -8,7 +8,8 @@ summary: >
   app-use announcement, and ordered independently generated response paragraphs
   while thinking and text streaming remain authoritative, uninterrupted,
   private, replayable where applicable, and charged exactly once per generated
-  segment.
+  segment, while authenticated CLI owners can generate existing-message speech
+  and reviewed public examples can replay separately published immutable audio.
 
 scope:
   includes:
@@ -22,6 +23,8 @@ scope:
     - A full-width bar pinned over the top of the active-chat history, below the chat action buttons, that shows passive acknowledgement and app-use playback before exposing controls for replayable response tracks.
     - A two-second idle grace period that keeps the bar visible while awaiting another clip, closes it when none arrives, and reopens it when later audio starts.
     - A Speak action on every assistant response that generates only missing paragraph audio and reuses durable existing files.
+    - An authenticated `openmates chats speak` command that generates or reuses private encrypted speech for existing assistant messages through the same owner-scoped first-party pipeline.
+    - A reviewed example-publication step that copies approved generated segments into immutable public S3 fixtures for unauthenticated playback without enabling anonymous generation.
     - In-app paragraph controls and best-effort operating-system media controls for play, pause, previous paragraph, and next paragraph.
     - Successful-generation-only credit charging tied to the originating chat, assistant message, and paragraph segment.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
@@ -33,7 +36,7 @@ scope:
     - A general-purpose LLM rewrite, compression, or cleanup pass before text-to-speech generation.
     - Browser speech synthesis or another provider as a silent fallback.
     - Relaying partial provider audio bytes to clients before a complete encrypted segment asset is ready.
-    - Public, anonymous, developer-API, CLI, or SDK access to assistant-response speech generation in version 1.
+    - Anonymous or developer-API generation, public npm or pip SDK generation, and direct public access to private encrypted chat speech assets.
     - Changing the explicit user-invoked audio.speak app-skill contract.
 
 models:
@@ -207,6 +210,33 @@ models:
       items: SpeechSegment
       constraints: {min_items: 1, rate_limited: true, budget_preflight_per_segment: true}
 
+  PublicExampleSpeechAsset:
+    example_chat_id:
+      type: chat_id
+      required: true
+      constraints: {prefix: example-, static_public_fixture: true}
+    assistant_message_id:
+      type: message_id
+      required: true
+    segment_id:
+      type: stable_id
+      required: true
+    public_object:
+      type: immutable_public_s3_asset
+      required: true
+      constraints: {reviewed_publication_required: true, anonymous_read: true, anonymous_write: false, source_private_object_reference_exposed: false}
+    source_hash:
+      type: sha256
+      required: true
+    duration_seconds:
+      type: number
+      required: true
+      constraints: {minimum: 0}
+    waveform:
+      type: public_waveform_summary
+      required: true
+      constraints: {contains_audio_bytes: false, contains_encryption_material: false}
+
   PlaybackQueue:
     manifest_id:
       type: stable_id
@@ -338,9 +368,17 @@ assertions:
     type: behavior
     must: Every assistant response exposes a Speak action; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
     depends_on: [models.SpeechManifest, models.SpeechSegment.source_hash, examples.on_demand]
+  - id: assistant-speech.cli.owner-generated-existing-messages
+    type: behavior
+    must: The authenticated OpenMates CLI can select one assistant message or all eligible assistant messages in an owner-accessible existing chat, locally decrypt and deterministically project their content, request only missing or invalidated private encrypted segments through the first-party surface, wait for terminal status, and report generated, reused, failed, and charged segments without exposing plaintext, keys, provider voice IDs, or private object paths.
+    depends_on: [models.SpeechGenerationRequest, models.SpeechManifest, models.SpeechSegment, examples.cli]
+  - id: assistant-speech.public-example.reviewed-fixture-playback
+    type: privacy
+    must: A reviewed example-chat conversion can publish approved generated segment bytes as immutable public S3 fixture objects and attach only public playback metadata to a static example; unauthenticated visitors can play those fixtures, but cannot invoke generation, access the source private encrypted object, or discover chat keys, storage credentials, private bucket paths, provider identifiers, or owner-only metadata.
+    depends_on: [models.PublicExampleSpeechAsset, examples.public_examples]
   - id: assistant-speech.access.first-party-owner-scoped
     type: security
-    must: Assistant-response speech generation is a rate-limited, authenticated first-party client surface only; each request is owner-authorized to its chat and assistant message, cannot target another user's content, and is not exposed through public, anonymous, developer API-key, CLI, or SDK contracts in version 1.
+    must: Assistant-response speech generation is a rate-limited, authenticated first-party client surface available to web, Apple, and the paired OpenMates CLI; each request is owner-authorized to its chat and assistant message, cannot target another user's content, and is not exposed through public, anonymous, developer API-key, or public SDK contracts. Public examples expose only separately reviewed immutable playback fixtures.
     depends_on: [models.SpeechGenerationRequest, examples.privacy, applies_to]
   - id: assistant-speech.safety.provider-after-approval
     type: security
@@ -372,11 +410,11 @@ applies_to:
     required: true
     role: Authenticated first-party API or WebSocket operations own segment generation, status, encrypted generated-asset delivery, retry, deletion, rate limiting, and budget enforcement; no public or developer API surface is created.
   cli:
-    required: false
-    role: Version 1 does not add assistant-response audio playback or generation commands to the terminal client.
+    required: true
+    role: The paired authenticated CLI exposes `openmates chats speak` for owner-authorized existing messages and uses the same private encrypted segment generation, reuse, billing, and status contracts as first-party web.
   sdks:
     required: false
-    role: Version 1 does not expose assistant-response speech generation through public npm or pip SDK facades.
+    role: Assistant-response speech generation is not exposed through public npm or pip SDK facades.
     implementations:
       npm: {required: false}
       pip: {required: false}
@@ -394,4 +432,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [preferences, acknowledgements, voice_profiles, segmentation, projection, processing, playback, on_demand, billing, failures, privacy, lifecycle]
+  required_groups: [preferences, acknowledgements, voice_profiles, segmentation, projection, processing, playback, on_demand, cli, public_examples, billing, failures, privacy, lifecycle]

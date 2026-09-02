@@ -139,6 +139,7 @@ function exampleChatToChat(example: ExampleChatRecord, rootOrder = 0): Chat {
       example.follow_up_suggestions.map(translate),
     ),
     active_focus_id: isExampleSubChatRecord(example) ? null : example.metadata.active_focus_id ?? null,
+    public_speech: isExampleSubChatRecord(example) ? undefined : example.public_speech,
     demo_chat_category: "for_everyone",
     messages_v: example.messages.length,
     title_v: 1,

@@ -479,6 +479,14 @@ export interface Chat {
   category?: string | null; // Cleartext category for demo chats
   demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
   active_focus_id?: string | null; // Cleartext active focus mode for public demo/example chats only
+  public_speech?: Record<string, Array<{
+    segment_id: string;
+    sequence: number;
+    public_url: string;
+    sha256: string;
+    duration_seconds: number;
+    waveform?: number[];
+  }>>; // Reviewed immutable public S3 fixtures for example assistant messages only
 
   // Local UI metadata derived from image-search embeds. Stored only in IndexedDB so
   // resume/recent chat cards can render decorative thumbnails without re-parsing messages.

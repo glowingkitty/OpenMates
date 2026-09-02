@@ -53,11 +53,22 @@ CORS_ENABLED_BUCKETS = [
     'openmates-test-recordings',
     'dev-openmates-test-recordings',
     'openmates-opencode-response-media',
-    'dev-openmates-opencode-response-media'
+    'dev-openmates-opencode-response-media',
+    'openmates-public-examples',
+    'dev-openmates-public-examples',
 ]
 
 # S3 bucket configurations
 BUCKETS = {
+    'public_example_speech': {
+        'name': 'openmates-public-examples',
+        'dev_name': 'dev-openmates-public-examples',
+        'allowed_types': ['audio/mpeg'],
+        'max_size': 20 * 1024 * 1024,
+        'access': 'public-read',
+        'lifecycle_policy': None,
+        'cache_control': 'public, max-age=31536000, immutable',
+    },
     # Legacy public profile images are deletion-only. Existing encrypted URLs
     # still need an account-deletion route, but startup must not recreate or
     # reconcile this retired bucket.

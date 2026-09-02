@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.public-example-chats
-version: 2
-status: approved
+version: 3
+status: draft
 title: Public Example Chats
 summary: >
   OpenMates public example chats are static, unauthenticated-safe transcripts
@@ -15,6 +15,7 @@ scope:
     - Logged-out intro, all-examples, search, hash navigation, settings-card, and authenticated sidebar discovery of public examples.
     - Public transcript, embed-preview, compressed-history, share-link, SSR page, JSON-LD, and sitemap behavior for example chats.
     - Public-safety sanitization for checked-in example fixtures and rendered public HTML.
+    - Optional reviewed assistant-speech fixtures stored as immutable public S3 objects and playable without authentication.
   excludes:
     - Private authenticated chats, user-owned shares, and editable share-policy generation.
     - Live app-skill execution semantics beyond verifying committed example output renders safely.
@@ -117,6 +118,20 @@ models:
       required: true
       constraints: {contains_lastmod: true, production_required: true}
 
+  PublicExampleSpeechFixture:
+    assistant_message_id:
+      type: message_id
+      required: true
+    segments:
+      type: array
+      required: true
+      items: public_speech_segment
+      constraints: {ordered: true, immutable_public_s3_objects: true, generated_from_reviewed_real_chat: true}
+    playback:
+      type: public_read_only_playback
+      required: true
+      constraints: {authentication_required: false, generation_available: false, credits_charged: false}
+
   PublicSafetyMarkers:
     forbidden_public_markers:
       type: string_array
@@ -159,6 +174,10 @@ assertions:
     type: behavior
     must: The public example listing links to every public example route, each route renders crawlable SSR transcript HTML with unique metadata and QAPage JSON-LD, and production sitemap output includes example routes with lastmod values.
     depends_on: [models.PublicExampleSeoPage, models.PublicSafetyMarkers, examples.seo_public_pages]
+  - id: public-example-chats.speech.reviewed-public-playback
+    type: privacy
+    must: An example may include ordered assistant-speech fixtures only after a real owner-authenticated chat generated private encrypted segments and the conversion workflow explicitly published reviewed copies under immutable public S3 keys; logged-out visitors can play the copies without authentication or credits, while generation, private source references, encryption material, credentials, and owner metadata remain unavailable.
+    depends_on: [models.PublicExampleSpeechFixture, models.PublicSafetyMarkers, examples.public_speech]
   - id: public-example-chats.surface.semantic-parity
     type: parity
     must: First-party web discovery, static route navigation, public transcript rendering, compressed-history gates, and crawlable SEO output preserve the same public-safe example semantics across logged-out and authenticated web states.
@@ -187,4 +206,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [catalog_discovery, static_navigation, navigation_state, renderable_transcripts, compressed_history, seo_public_pages]
+  required_groups: [catalog_discovery, static_navigation, navigation_state, renderable_transcripts, compressed_history, seo_public_pages, public_speech]

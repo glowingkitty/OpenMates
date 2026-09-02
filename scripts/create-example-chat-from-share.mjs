@@ -144,6 +144,7 @@ function usage() {
 Options:
   --from-json <path>       Use already extracted chat JSON instead of a share URL
   --usage-json <path>      Use usage rows JSON from /v1/settings/usage/chat-entries
+  --public-speech-manifest <path>  Attach explicitly reviewed immutable public speech fixtures
   --api-key <key>          Fetch source usage rows with this API key (or OPENMATES_API_KEY)
   --api-base <url>         API base for --from-json usage fetches
   --slug <slug>            SEO slug, lowercase hyphenated (required)
@@ -166,6 +167,7 @@ function parseArgs(argv) {
     shareUrl: null,
     fromJson: null,
     usageJson: null,
+    publicSpeechManifest: null,
     apiKey: process.env.OPENMATES_API_KEY || null,
     apiBase: null,
     slug: null,
@@ -193,6 +195,9 @@ function parseArgs(argv) {
         break;
       case '--usage-json':
         args.usageJson = argv[++i];
+        break;
+      case '--public-speech-manifest':
+        args.publicSpeechManifest = argv[++i];
         break;
       case '--api-key':
         args.apiKey = argv[++i];
@@ -1087,6 +1092,9 @@ export function formatTs(chat, metadata) {
   const compressionCheckpointsLine = compressionCheckpoints.length > 0
     ? `\n  compression_checkpoints: ${JSON.stringify(compressionCheckpoints, null, 4)},`
     : '';
+  const publicSpeechLine = chat.public_speech && Object.keys(chat.public_speech).length > 0
+    ? `\n  public_speech: ${JSON.stringify(chat.public_speech, null, 4)},`
+    : '';
   const appFocusLine = metadata.appFocusModeExamples.length > 0
     ? `\n    app_focus_mode_examples: ${tsArray(metadata.appFocusModeExamples)},`
     : '';
@@ -1122,13 +1130,55 @@ export const ${varName}: ExampleChat = {
   follow_up_suggestions: ${tsArray(metadata.followUps.map((_, i) => `example_chats.${metadata.snake}.follow_up_${i + 1}`))},
   ${compressionCheckpointsLine ? compressionCheckpointsLine.trimStart() : ''}
   messages: ${JSON.stringify(messages, null, 4)},
-  embeds: ${JSON.stringify(embeds, null, 4)},${usageEntriesLine}${subChatsLine}
+  embeds: ${JSON.stringify(embeds, null, 4)},${usageEntriesLine}${subChatsLine}${publicSpeechLine}
   metadata: {
     featured: ${metadata.featured},
     order: ${metadata.order},${appSkillLine}${appFocusLine}${appMemoryLine}${contentEmbedLine}${activeFocusLine}
   },
 };
 `;
+}
+
+const PUBLIC_EXAMPLE_S3_HOSTS = new Set([
+  'openmates-public-examples.nbg1.your-objectstorage.com',
+  'dev-openmates-public-examples.nbg1.your-objectstorage.com',
+]);
+
+export function attachReviewedPublicSpeech(chat, manifest) {
+  if (!manifest || manifest.reviewed !== true) {
+    throw new Error('Public assistant speech must be explicitly reviewed before publication.');
+  }
+  if (manifest.source_chat_id !== chat.chat_id || !Array.isArray(manifest.messages)) {
+    throw new Error('Public speech manifest does not match the extracted source chat.');
+  }
+  const messageIds = new Set((chat.messages || []).filter((message) => message.role === 'assistant').map((message) => message.message_id || message.id));
+  const publicSpeech = {};
+  for (const message of manifest.messages) {
+    if (!messageIds.has(message.assistant_message_id) || !Array.isArray(message.segments) || message.segments.length === 0) {
+      throw new Error('Public speech manifest references an ineligible assistant message.');
+    }
+    publicSpeech[message.assistant_message_id] = message.segments.map((segment, sequence) => {
+      const url = new URL(segment.public_url);
+      const digest = String(segment.sha256 || '');
+      const pathMatch = url.pathname.match(/^\/assistant-speech\/sha256-([a-f0-9]{64})\.mp3$/);
+      if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash
+        || !PUBLIC_EXAMPLE_S3_HOSTS.has(url.hostname) || !pathMatch || pathMatch[1] !== digest) {
+        throw new Error('Public speech fixtures must use immutable public example S3 URLs.');
+      }
+      if (!Number.isFinite(segment.duration_seconds) || segment.duration_seconds <= 0) {
+        throw new Error('Public speech fixture duration must be positive.');
+      }
+      return {
+        segment_id: String(segment.segment_id),
+        sequence,
+        public_url: url.toString(),
+        sha256: digest,
+        duration_seconds: Number(segment.duration_seconds),
+        ...(Array.isArray(segment.waveform) ? { waveform: segment.waveform.map(Number) } : {}),
+      };
+    });
+  }
+  return { ...chat, public_speech: publicSpeech };
 }
 
 function yamlScalar(value) {
@@ -1229,7 +1279,13 @@ async function main() {
     removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args))),
   );
   const usagePayload = await loadUsagePayload(args, loadedChat);
-  const chat = annotateChatWithUsage(loadedChat, usagePayload);
+  let chat = annotateChatWithUsage(loadedChat, usagePayload);
+  if (args.publicSpeechManifest) {
+    chat = attachReviewedPublicSpeech(
+      chat,
+      JSON.parse(readFileSync(path.resolve(args.publicSpeechManifest), 'utf8')),
+    );
+  }
   validateExtractedChat(chat);
 
   const slug = args.slug;

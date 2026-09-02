@@ -98,6 +98,12 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
+import {
+  projectAssistantSpeech,
+  selectAssistantMessagesForSpeech,
+  summarizeAssistantSpeech,
+  type SpeechMessageResult,
+} from "./assistantSpeech.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -2322,6 +2328,7 @@ export interface BenchmarkHistoryMessage {
 /** Decrypted message for display */
 export interface DecryptedMessage {
   id: string;
+  clientMessageId?: string;
   chatId: string;
   role: string;
   content: string;
@@ -2330,6 +2337,12 @@ export interface DecryptedMessage {
   modelName: string | null;
   createdAt: number;
   embedIds: string[];
+}
+
+interface AssistantSpeechStatus {
+  segment_id?: string;
+  status?: string;
+  error?: string;
 }
 
 export interface ChatMessageSummary extends DecryptedMessage {
@@ -5395,6 +5408,7 @@ export class OpenMatesClient {
 
       messages.push({
         id: String(m.id ?? m.message_id ?? ""),
+        clientMessageId: clientMsgId,
         chatId: String(m.chat_id ?? chatItem.id),
         role: String(m.role ?? "unknown"),
         content: content ?? "",
@@ -5537,6 +5551,107 @@ export class OpenMatesClient {
     }
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
     return { chat: chatItem, messages };
+  }
+
+  async generateExistingAssistantSpeech(
+    query: string,
+    selection: { messageId?: string; all?: boolean },
+    options: TeamContextOptions = {},
+  ) {
+    const { chat, messages } = await this.getChatMessages(query, options);
+    const selected = selectAssistantMessagesForSpeech(messages, selection);
+    if (selected.length === 0) throw new Error("This chat has no eligible assistant messages.");
+    const teamId = this.resolveTeamContext(options);
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    const results: SpeechMessageResult[] = [];
+    ws.send("set_active_chat", { chat_id: chat.id, ...(teamId ? { team_id: teamId } : {}) });
+    try {
+      for (const message of selected) {
+        const projected = projectAssistantSpeech(message.content);
+        const segments = projected.map((segment) => ({
+          source_version: 1,
+          sequence: segment.sequence,
+          kind: segment.kind,
+          source_hash: createHash("sha256").update(segment.speakableText).digest("hex"),
+          speakable_text: segment.speakableText,
+        }));
+        const messageId = message.clientMessageId || message.id;
+        const result = await this.requestAssistantSpeechMessage(ws, chat.id, messageId, segments);
+        results.push({ messageId, ...result });
+      }
+    } finally {
+      ws.close();
+    }
+    return summarizeAssistantSpeech(chat.id, results);
+  }
+
+  private async requestAssistantSpeechMessage(
+    ws: OpenMatesWsClient,
+    chatId: string,
+    messageId: string,
+    segments: Array<Record<string, unknown>>,
+  ): Promise<Omit<SpeechMessageResult, "messageId">> {
+    const timeoutMs = 10 * 60 * 1000;
+    return await new Promise((resolve, reject) => {
+      const expected = new Set<string>();
+      const queued = new Set<string>();
+      const terminal = new Map<string, AssistantSpeechStatus>();
+      let accepted = false;
+      const finishIfComplete = () => {
+        if (!accepted || expected.size === 0 || terminal.size !== expected.size) return;
+        cleanup();
+        const statuses = [...terminal.values()];
+        resolve({
+          generated: statuses.filter((status) => status.status === "ready" && queued.has(String(status.segment_id))).length,
+          reused: statuses.filter((status) => status.status === "ready" && !queued.has(String(status.segment_id))).length,
+          failed: statuses.filter((status) => status.status === "error").length,
+          charged: statuses.filter((status) => status.status === "ready" && queued.has(String(status.segment_id))).length,
+        });
+      };
+      const consume = (status: AssistantSpeechStatus) => {
+        const segmentId = String(status.segment_id ?? "");
+        if (!segmentId || (expected.size > 0 && !expected.has(segmentId))) return;
+        if (status.status === "queued" || status.status === "generating") queued.add(segmentId);
+        if (status.status === "ready" || status.status === "error") terminal.set(segmentId, status);
+      };
+      const unsubscribe = ws.onMessageType<Record<string, unknown>>("assistant_speech_status", (payload) => {
+        if (payload.status === "error" && !Array.isArray(payload.segments)) {
+          cleanup();
+          reject(new Error(String(payload.error ?? "Assistant speech request failed.")));
+          return;
+        }
+        if (Array.isArray(payload.segments)) {
+          accepted = true;
+          for (const value of payload.segments) {
+            const status = value as AssistantSpeechStatus;
+            if (status.segment_id) expected.add(status.segment_id);
+            consume(status);
+          }
+          if (expected.size === 0) {
+            cleanup();
+            reject(new Error("No canonical speech segments are available for this historical message."));
+            return;
+          }
+        } else if (String(payload.message_id ?? "") === messageId || expected.has(String(payload.segment_id ?? ""))) {
+          consume(payload as AssistantSpeechStatus);
+        }
+        finishIfComplete();
+      });
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("Timed out waiting for assistant speech generation."));
+      }, timeoutMs);
+      const cleanup = () => {
+        clearTimeout(timer);
+        unsubscribe();
+      };
+      ws.send("assistant_speech", {
+        action: "request",
+        chat_id: chatId,
+        assistant_message_id: messageId,
+        segments,
+      });
+    });
   }
 
   async getChatMessagesWindow(query: string, options: ChatMessageWindowOptions = {}): Promise<ChatMessageWindowResult> {

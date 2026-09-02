@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@1
+specification: feature.assistant-response-speech@2
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -151,6 +151,30 @@ on_demand:
     given: {matching_ready_segments: 4, source_hashes_current: true, voice_profile_version_current: true}
     action: select_speak
     expect: {provider_requests: 0, additional_credits: 0, playback_starts_from_segment_0: true}
+
+cli:
+  - id: speak-one-existing-message
+    given: {paired_cli_owner: true, existing_chat: chat-1, assistant_message: message-2, ready_segments: 0}
+    action: openmates_chats_speak_message_2
+    expect: {owner_authorized: true, deterministic_local_projection: true, private_encrypted_assets_created: true, terminal_status_reported: true}
+  - id: speak-all-reuses-ready-segments
+    given: {paired_cli_owner: true, eligible_assistant_messages: 3, matching_ready_segments: 5}
+    action: openmates_chats_speak_all
+    expect: {matching_segments_reused: 5, missing_segments_generated: true, duplicate_charges: 0, private_object_paths_printed: false}
+  - id: unauthenticated-cli-rejected
+    given: {paired_cli_owner: false, chat_id: chat-1}
+    action: openmates_chats_speak
+    expect: {generation_called: false, safe_auth_error: true}
+
+public_examples:
+  - id: publish-reviewed-example-audio
+    given: {source_private_segments_ready: true, example_chat_reviewed: true, selected_assistant_message_ids: [message-2]}
+    action: create_example_chat_with_public_speech
+    expect: {public_s3_fixture_objects_created: true, immutable_keys: true, source_private_objects_unchanged: true, public_metadata_contains_no_keys_or_private_paths: true}
+  - id: logged-out-example-playback
+    given: {authenticated: false, example_chat_has_public_speech_fixtures: true}
+    action: select_speak_on_example_assistant_message
+    expect: {audio_plays: true, generation_endpoint_called: false, login_required: false, provider_requests: 0, credits_charged: 0}
 
 billing:
   - id: two-successful-paragraphs

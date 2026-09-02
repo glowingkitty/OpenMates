@@ -5,12 +5,16 @@ status: approved
 
 specification_refs:
   - id: feature.assistant-response-speech
-    version: 1
+    version: 2
     role: primary
-    fingerprint: ad551c1e3907f70fdd8ed5574d0d043cb5d9bed94d347fe2c86bca41d9c2775a
+    fingerprint: 980ea7aba71c92ab3b719e5d0044fdd8331d36a9ab3820bdaf70f3684ee7c9aa
+  - id: feature.public-example-chats
+    version: 3
+    role: inherited
+    fingerprint: 1a3d7fc1d28a403f55957326038ad8db1f2a34470e1c02ac3c19f23ad225de69
 
 specification_impact:
-  classification: new_specification
+  classification: semantic_change
   specification_update_required: true
   affected_assertions:
     - assistant-speech.preference.chat-scoped-default-off
@@ -30,6 +34,8 @@ specification_impact:
     - assistant-speech.playback.os-controls-best-effort
     - assistant-speech.playback.autoplay-recovery-visible
     - assistant-speech.on-demand.generate-missing-only
+    - assistant-speech.cli.owner-generated-existing-messages
+    - assistant-speech.public-example.reviewed-fixture-playback
     - assistant-speech.access.first-party-owner-scoped
     - assistant-speech.safety.provider-after-approval
     - assistant-speech.privacy.transient-plaintext-encrypted-audio
@@ -70,8 +76,9 @@ goal: >
   Let authenticated users enable speech for one chat and hear each immutable
   assistant paragraph or structured summary as its own encrypted, independently
   skippable ElevenLabs audio file, while text streaming remains authoritative
-  and unaffected, replay is free, and generation is billed exactly once per
-  successful segment.
+  and unaffected, replay is free, generation is billed exactly once per
+  successful segment, paired CLI owners can generate historical-message audio,
+  and reviewed public examples can replay separately published fixtures.
 
 scope:
   in:
@@ -87,6 +94,9 @@ scope:
     - The top waveform waits two seconds for another clip, closes after an idle gap, and reopens when later audio starts.
     - Progressive playback begins after the first segment is ready and automatically follows manifest order.
     - A Speak action on every assistant response generates only missing or invalidated segments and reuses matching durable files.
+    - "`openmates chats speak` generates or reuses private encrypted segments for one or all existing assistant messages in an owner-accessible chat."
+    - The example-chat conversion workflow can explicitly publish reviewed segment copies to immutable public S3 fixture keys.
+    - One existing landing-linked example chat receives reviewed public speech fixtures that play for logged-out visitors without generation or credits.
     - One active response queue with play, pause, stop, previous segment, and next segment controls.
     - A waveform bar pinned inside the top of the active-chat container, showing the full response as duration-proportional paragraph regions and highlighting the current paragraph.
     - Best-effort web Media Session controls plus complete in-app fallback controls and visible autoplay recovery.
@@ -95,7 +105,7 @@ scope:
     - Web implementation and proof before user confirmation, then Apple native parity including background and lock-screen controls where supported.
   out:
     - A combined message-level audio file.
-    - Public, anonymous, developer API-key, CLI, or public npm/pip SDK access in V1.
+    - Anonymous or developer API-key generation, public npm/pip SDK generation, and public access to source private encrypted speech objects.
     - User-selectable voices, raw ElevenLabs voice IDs, voice cloning, or impersonation.
     - Reading raw JSON, raw URLs, protocol fences, code syntax, or full table markup aloud.
     - A general-purpose Groq, Gemini, or other LLM rewrite/cleanup pass before TTS.
@@ -298,9 +308,9 @@ implementation_state:
 
 approvals:
   specification:
-    status: pending
-    approved_at: ""
-    reason: User clarified material processing, passive-waveform, idle-grace, and active-chat layering semantics; the amended exact fingerprint requires approval before implementation resumes.
+    status: approved
+    approved_at: "2026-09-01T23:38:00Z"
+    reason: User explicitly approved feature.assistant-response-speech@2 and feature.public-example-chats@3 from their exact-fingerprint review PDFs.
   plan:
     status: not_required
     approved_at: ""
@@ -323,9 +333,9 @@ decisions:
     reason: This minimizes latency, provider disclosure, cost, and factual drift.
     decided_at: "2026-08-31T00:00:00Z"
   - id: D-4
-    status: active
-    decision: Limit V1 generation access to authenticated first-party clients and expose no CLI or public SDK surface.
-    reason: The endpoint accepts plaintext derived from client-encrypted chat content and must remain owner-scoped.
+    status: superseded
+    decision: Limit generation access to authenticated first-party clients and expose no public SDK surface.
+    reason: Superseded by D-9 after the paired CLI was approved as a first-party owner client.
     decided_at: "2026-08-31T00:00:00Z"
   - id: D-5
     status: active
@@ -347,6 +357,16 @@ decisions:
     decision: Complete and encrypt each Eleven v3 paragraph segment before client playback instead of relaying partial provider audio.
     reason: Eleven v3 supports HTTP streaming, but user-visible chunk relay would require a new encrypted streaming transport and would bypass the complete durable asset, waveform, duration, replay, and exactly-once settlement boundary; the standard TTS WebSocket endpoint also does not support eleven_v3.
     decided_at: "2026-09-01T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Allow paired `openmates chats speak` generation for owner-accessible existing chats while keeping anonymous and developer API-key generation forbidden.
+    reason: The CLI already participates in first-party encrypted chat access and can locally project decrypted messages without weakening owner authorization.
+    decided_at: "2026-09-01T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Publish public example audio only as reviewed immutable fixture copies, separate from source private encrypted speech objects.
+    reason: Logged-out playback requires public bytes, but generation, source objects, keys, owner metadata, and private paths must remain inaccessible.
+    decided_at: "2026-09-01T00:00:00Z"
 
 attempts:
   - id: ATTEMPT-1
@@ -361,10 +381,10 @@ attempts:
     recorded_at: "2026-08-31T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-5
-  next_action: Implement the web queue, encrypted chat preference, composer and message controls, pinned waveform, and deployed Playwright proof.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: The assistant speech queue Specification passes before deployed web integration.
+  current_task_id: TASK-9
+  next_action: Approve the amendment, then implement CLI historical-message generation and one reviewed public example fixture flow without editing the parallel streaming controller work.
+  command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech specifications/features/public-example-chats
+  expected_outcome: Both amended Specifications validate before red tests and implementation.
   blocker: null
   last_verified_commit: 0b14d8145239f0b04452f53d5567f8b011109424
 
@@ -468,6 +488,25 @@ scenarios:
     then:
       - Apple preserves preference, queue, segment, billing, privacy, and failure semantics.
       - Native background controls are provided where supported.
+  - id: S-11
+    title: CLI generates speech for existing assistant messages
+    given:
+      - Alice's paired CLI can decrypt an existing owner-accessible chat.
+    when:
+      - Alice runs `openmates chats speak <chat> --message <message>` or `--all`.
+    then:
+      - The CLI projects eligible assistant content locally and requests only missing or invalidated private segments.
+      - It reports generated, reused, failed, and charged segments without printing plaintext, keys, provider IDs, or private object paths.
+  - id: S-12
+    title: Logged-out visitor plays reviewed example speech
+    given:
+      - A landing-linked example was converted from a real CLI chat whose private speech segments are ready.
+      - A reviewer explicitly approved publication of selected message audio.
+    when:
+      - The conversion workflow publishes immutable public S3 fixture copies and a logged-out visitor selects Speak.
+    then:
+      - Ordered paragraph audio plays without login, generation, provider calls, or credits.
+      - The fixture exposes no source private object reference, encryption material, owner metadata, or storage credential.
 
 acceptance_criteria:
   - id: AC-1
@@ -596,6 +635,24 @@ acceptance_criteria:
     verification_scope: apple
     verification_ids: [V-APPLE-PARITY, V-USER-CONFIRMATION]
     specification_assertions: [assistant-speech.surface.semantic-parity, assistant-speech.playback.os-controls-best-effort]
+  - id: AC-15
+    scenario: S-11
+    text: A paired authenticated CLI owner can generate or reuse private encrypted speech for one or all existing assistant messages and receives a safe terminal summary.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-SPEECH, V-CLI-DEV]
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.access.first-party-owner-scoped]
+  - id: AC-16
+    scenario: S-12
+    text: One landing-linked public example exposes reviewed immutable public S3 speech fixtures that logged-out visitors can play without generation, credits, or private metadata exposure.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-EXAMPLE-SPEECH-PUBLISH, T-PLAYWRIGHT-EXAMPLE-SPEECH]
+    specification_assertions: [assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
 
 assumptions:
   - id: A-1
@@ -666,7 +723,8 @@ contracts:
     - Assistant message Speak, Pause, Resume, Stop, Previous paragraph, Next paragraph, Retry, and chat usage actions.
     - Pinned active-chat speech bar with full-response waveform, active paragraph highlight, generating paragraph state, progress, and direct paragraph selection.
   privacy_security:
-    - No public, anonymous, developer API-key, CLI, or SDK generation surface in V1.
+    - Generation is available only to authenticated first-party web, Apple, and paired CLI owner clients; anonymous, developer API-key, and public SDK generation remain forbidden.
+    - Public examples contain only explicitly reviewed immutable fixture copies and never source private object references or encryption material.
     - Deterministic projection and a minimal non-rewriting semantic safety decision run before ElevenLabs.
     - Segment plaintext, provider IDs, credentials, encryption keys, safety reasoning, raw embeds, and unrelated chat content are excluded from durable logs and provider payloads.
     - Existing privacy disclosures must accurately identify ElevenLabs processing and generated-audio retention/deletion behavior.
@@ -800,6 +858,41 @@ tests:
     specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.execution.app-skill-progressive, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
     red_phase: {required: true, expected: fail, evidence: {}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+  - id: T-CLI-SPEECH
+    type: unit
+    file: frontend/packages/openmates-cli/tests/chats-speak.test.ts
+    command: pnpm --filter openmates test -- chats-speak.test.ts
+    covers: [AC-15]
+    assertions:
+      - Message and all-message selection use owner-session chat decryption and deterministic projection.
+      - Missing segments are generated, matching ready segments are reused, and safe JSON/text summaries omit plaintext and private metadata.
+      - Missing session, wrong role, wrong owner, and terminal segment failures are visible and nonzero.
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.access.first-party-owner-scoped]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-EXAMPLE-SPEECH-PUBLISH
+    type: unit
+    file: scripts/tests/create_example_chat_from_share.test.mjs
+    command: node --test scripts/tests/create_example_chat_from_share.test.mjs
+    covers: [AC-16]
+    assertions:
+      - Public speech publication requires explicit reviewed input and immutable public object metadata.
+      - Generated example data contains ordered public segments but no private paths, encryption material, owner metadata, or provider identifiers.
+    specification_assertions: [assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PLAYWRIGHT-EXAMPLE-SPEECH
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chat-speech.spec.ts
+    command: python3 scripts/tests.py run --spec example-chat-speech.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-16]
+    assertions:
+      - A landing-linked example renders Speak for a selected assistant message to logged-out visitors.
+      - Public paragraph audio plays with synchronized controls and no auth or generation request.
+    specification_assertions: [assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
 
 verifications:
   - id: V-REST-DEV
@@ -809,11 +902,11 @@ verifications:
     covers: [AC-4, AC-7, AC-11]
     status: passed
     evidence: {command: "OPENMATES_LIVE_ASSISTANT_SPEECH_SMOKE=1 node scripts/verify_assistant_speech_live_smoke.mjs --api-url https://api.dev.openmates.org", run_id: assistant-speech-live-20260831T225606Z, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:56:36Z", artifact: docs/plans/assistant-response-speech/artifacts/2026-08-31/assistant-speech-live-20260831T225606Z.json, summary: "Authenticated owner request queued one segment, received a safe ready status, acknowledged deletion, deleted the chat, and exposed neither plaintext nor encrypted-audio internals."}
-  - id: V-CLI-SDK-NOT-EXPOSED
+  - id: V-CLI-DEV
     kind: deterministic_check
     phase: final
     required_for_done: true
-    covers: [AC-11]
+    covers: [AC-11, AC-15]
     status: pending
     evidence: {}
   - id: V-UI-VISUAL-SMOKE
@@ -999,7 +1092,8 @@ implementation_notes:
   verification_order:
     - Contract and spec validation plus exact approval.
     - Backend unit/contract red tests.
-    - Real authenticated first-party API/WebSocket dev-server proof; CLI and public SDK phases are explicitly not exposed in V1.
+    - Real authenticated first-party API/WebSocket and paired CLI dev-server proof; public SDK generation remains unexposed.
+    - Reviewed example publication to immutable public S3 fixtures, followed by logged-out playback verification.
     - Backend green tests for projection, streaming independence, worker, billing, privacy, and lifecycle.
     - Frontend queue Vitest.
     - Scoped dev deploy and deployed Playwright.
@@ -1084,7 +1178,7 @@ tasks:
       - backend/apps/audio
       - backend/core/api/app/routes
       - backend/shared/python_utils
-    verification_ids: [T-PY-SPEECH-WORKER, T-PY-SPEECH-API, V-REST-DEV, V-CLI-SDK-NOT-EXPOSED]
+    verification_ids: [T-PY-SPEECH-WORKER, T-PY-SPEECH-API, V-REST-DEV]
     dependencies: [TASK-3]
     blockers: []
     follow_up_tasks: [TASK-5]
@@ -1166,7 +1260,7 @@ tasks:
       - docs/user-guide/assistant-response-speech.md
       - shared/docs/privacy_policy.yml
       - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
-    verification_ids: [T-CONTRACT-SPEECH, V-CLI-SDK-NOT-EXPOSED, V-PROOF-VIDEO, V-APPLE-PARITY]
+    verification_ids: [T-CONTRACT-SPEECH, V-CLI-DEV, V-PROOF-VIDEO, V-APPLE-PARITY]
     dependencies: [TASK-7]
     blockers: []
     follow_up_tasks: []
@@ -1175,4 +1269,47 @@ tasks:
       shared_files: [docs/plans/assistant-response-speech/plan.yml]
     specification_assertions: [assistant-speech.privacy.transient-plaintext-encrypted-audio, assistant-speech.billing.segment-success-once, assistant-speech.surface.semantic-parity]
     surfaces: [documentation, contract, gui.web, gui.apple]
+    independently_deployable: true
+  - id: TASK-9
+    title: Add CLI historical speech and reviewed example publication red tests
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12]
+      acceptance_criteria: [AC-15, AC-16]
+    expected_files:
+      - frontend/packages/openmates-cli/tests/chats-speak.test.ts
+      - scripts/tests/create_example_chat_from_share.test.mjs
+      - frontend/apps/web_app/tests/example-chat-speech.spec.ts
+    verification_ids: [T-CLI-SPEECH, T-EXAMPLE-SPEECH-PUBLISH, T-PLAYWRIGHT-EXAMPLE-SPEECH]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    ownership:
+      files: [frontend/packages/openmates-cli/tests/chats-speak.test.ts, scripts/tests/create_example_chat_from_share.test.mjs, frontend/apps/web_app/tests/example-chat-speech.spec.ts]
+      shared_files: []
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    surfaces: [cli, tooling, gui.web]
+    independently_deployable: false
+  - id: TASK-10
+    title: Implement CLI speech and one public landing example
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12]
+      acceptance_criteria: [AC-15, AC-16]
+    expected_files:
+      - frontend/packages/openmates-cli/src
+      - scripts/create-example-chat-from-share.mjs
+      - .claude/skills/add-example-chat/SKILL.md
+      - frontend/packages/ui/src/demo_chats
+    verification_ids: [T-CLI-SPEECH, V-CLI-DEV, T-EXAMPLE-SPEECH-PUBLISH, T-PLAYWRIGHT-EXAMPLE-SPEECH, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [frontend/packages/openmates-cli/src, scripts/create-example-chat-from-share.mjs, .claude/skills/add-example-chat/SKILL.md, frontend/packages/ui/src/demo_chats]
+      shared_files: [frontend/packages/ui/src/components/ChatMessage.svelte]
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    surfaces: [first_party_websocket, cli, tooling, gui.web]
     independently_deployable: true

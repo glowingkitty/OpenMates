@@ -4500,6 +4500,21 @@ async function handleChats(
   const apiKey = resolveApiKey(flags) ?? undefined;
   const teamContext = teamContextFromFlags(flags);
 
+  if (subcommand === "speak") {
+    if (apiKey) throw new Error("Chat speech through --api-key is not supported; use an authenticated CLI session.");
+    if (!client.hasSession()) throw new Error("Run `openmates login` before generating assistant speech.");
+    const chatId = requiredStringFlag(rest[0], "<chat-id>");
+    const messageId = typeof flags.message === "string" ? flags.message : undefined;
+    const result = await client.generateExistingAssistantSpeech(chatId, { messageId, all: flags.all === true }, teamContext);
+    if (flags.json === true) printJson(result);
+    else {
+      process.stdout.write(`Assistant speech saved for ${result.messages} message(s).\n`);
+      process.stdout.write(`Generated ${result.generated_segments}, reused ${result.reused_segments}, failed ${result.failed_segments}.\n`);
+    }
+    if (result.failed_segments > 0) process.exitCode = 1;
+    return;
+  }
+
   if (rest[0] === "add-to-project") {
     if (apiKey) throw new Error("Chat add-to-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
     const projectId = requiredStringFlag(rest[1], "<project-id>");
@@ -13391,6 +13406,7 @@ function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json] [--all]
+  openmates chats speak <chat-id> (--message <message-id> | --all) [--json]
   openmates chats messages <chat-id> [--json]
   openmates chats files <chat-id> [--json]
   openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
@@ -13418,7 +13434,11 @@ Options for 'list':
 Options for 'show':
   --all         Load full chat history. By default, show loads latest 30 messages.
   --raw         Show raw decrypted message content without rendering embeds
-                or cleaning embed references. Useful for debugging.
+                 or cleaning embed references. Useful for debugging.
+
+Options for 'speak':
+  --message <id>  Generate or reuse private encrypted paragraph audio for one assistant message.
+  --all           Generate or reuse audio for every eligible assistant message in the chat.
 
 Options for 'files':
   Lists uploaded and generated files connected to a saved or public example chat.

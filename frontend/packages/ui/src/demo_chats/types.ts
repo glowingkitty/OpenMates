@@ -130,6 +130,14 @@ export interface ExampleChat {
   usage_entries?: ChatUsageEntry[];
   sub_chats?: ExampleSubChat[];
   compression_checkpoints?: ChatCompressionCheckpoint[];
+  public_speech?: Record<string, Array<{
+    segment_id: string;
+    sequence: number;
+    public_url: string;
+    sha256: string;
+    duration_seconds: number;
+    waveform?: number[];
+  }>>;
   metadata: {
     featured: boolean; // Show in default 10 on homepage
     order: number; // Display order

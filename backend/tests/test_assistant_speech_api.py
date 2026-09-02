@@ -399,6 +399,102 @@ async def test_event_request_returns_persisted_ready_segment_without_redelivery(
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.failure.nonblocking-visible-resumable,assistant-speech.privacy.transient-plaintext-encrypted-audio
 @pytest.mark.asyncio
+async def test_event_request_creates_and_dispatches_missing_historical_segments(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("celery", reason="real event binder imports the Celery app")
+    from backend.apps.audio.tasks import common as audio_task_common
+    from backend.core.api.app.tasks import celery_config
+
+    text = "Generate this historical paragraph."
+    sent: list[dict[str, object]] = []
+    dispatched: list[tuple[str, dict[str, object], str]] = []
+    rows: dict[str, list[dict[str, object]]] = {
+        "assistant_speech_manifests": [],
+        "assistant_speech_segments": [],
+    }
+
+    class Manager:
+        async def send_personal_message(self, message, _user_id, _device_hash):
+            sent.append(message)
+
+    class RedisClient:
+        async def incrby(self, _key, amount):
+            return amount
+
+        async def expire(self, *_args):
+            return True
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+        async def get_user_vault_key_id(self, _user_id):
+            return "vault-key-1"
+
+    class Chat:
+        async def check_chat_ownership(self, _chat_id, _user_id):
+            return True
+
+    class Directus:
+        chat = Chat()
+
+        async def get_items(self, collection, *, params, no_cache):
+            del no_cache
+            if collection == "messages":
+                return [{"role": "assistant"}]
+            candidates = rows.get(collection, [])
+            for key, value in params.items():
+                if not key.startswith("filter[") or not key.endswith("][_eq]"):
+                    continue
+                field = key.removeprefix("filter[").removesuffix("][_eq]")
+                candidates = [row for row in candidates if row.get(field) == value]
+            return candidates[: int(params.get("limit", len(candidates)))]
+
+        async def create_item(self, collection, record):
+            rows[collection].append(dict(record))
+            return record, None
+
+    async def credit_headroom(**_kwargs):
+        return None
+
+    monkeypatch.setattr(audio_task_common, "ensure_audio_credit_headroom", credit_headroom)
+    monkeypatch.setattr(celery_config.app, "send_task", lambda name, *, kwargs, queue: dispatched.append((name, kwargs, queue)), raising=False)
+
+    await handle_assistant_speech_event(
+        manager=Manager(),
+        directus_service=Directus(),
+        cache_service=Cache(),
+        user_id="owner-1",
+        device_fingerprint_hash="device-1",
+        payload={
+            "action": "request",
+            "chat_id": "chat-1",
+            "assistant_message_id": "message-1",
+            "segments": [{
+                "source_version": 1,
+                "sequence": 0,
+                "kind": "prose_paragraph",
+                "source_hash": "client-placeholder",
+                "speakable_text": text,
+            }],
+        },
+    )
+
+    assert len(rows["assistant_speech_manifests"]) == 1
+    assert len(rows["assistant_speech_segments"]) == 1
+    assert rows["assistant_speech_segments"][0]["source_hash"] == _speech_source_identity(text)
+    assert rows["assistant_speech_segments"][0]["voice_profile_key"] == "george"
+    assert len(dispatched) == 1
+    assert dispatched[0][1]["arguments"]["speakable_text"] == text
+    assert sent[0]["payload"]["segments"][0]["status"] == "queued"
+    assert text not in repr(sent)
+
+
+# contract-test: direct surface=rest_api assertions=assistant-speech.on-demand.generate-missing-only,assistant-speech.failure.nonblocking-visible-resumable,assistant-speech.privacy.transient-plaintext-encrypted-audio
+@pytest.mark.asyncio
 async def test_event_request_requeues_retryable_error_when_plaintext_is_resupplied(monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("celery", reason="real event binder imports the Celery app")
     from backend.apps.audio.tasks import common as audio_task_common

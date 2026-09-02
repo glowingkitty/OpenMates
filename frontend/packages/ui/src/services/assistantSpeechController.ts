@@ -17,6 +17,7 @@ import {
   type AssistantSpeechWaveformRegion,
 } from "./assistantSpeechQueue";
 import { webSocketService } from "./websocketService";
+import { projectAssistantSpeech as projectSharedAssistantSpeech } from "../../../assistantSpeechProjection";
 
 interface ProjectedSpeechSegment {
   sequence: number;
@@ -58,6 +59,13 @@ export interface AssistantSpeechPlayerState extends AssistantSpeechQueueState {
   hasReplayableTracks: boolean;
 }
 
+export interface PublicAssistantSpeechSegment {
+  segment_id: string;
+  sequence: number;
+  public_url: string;
+  duration_seconds: number;
+}
+
 const INITIAL_PLAYER_STATE: AssistantSpeechPlayerState = {
   responseId: null,
   chatId: null,
@@ -94,6 +102,7 @@ class AssistantSpeechController {
     promise: Promise<{ url: string; s3Key: string | null }>;
   }>();
   private audioResolutionGeneration = 0;
+  private publicPlayback = false;
 
   constructor() {
     webSocketService.on<SpeechStatusPayload>("assistant_speech_status", (payload) => {
@@ -113,6 +122,7 @@ class AssistantSpeechController {
     this.chatId = chatId;
     this.messageId = messageId;
     this.error = null;
+    this.publicPlayback = false;
     this.publish();
     await webSocketService.sendMessage("assistant_speech", {
       action: "request",
@@ -129,12 +139,34 @@ class AssistantSpeechController {
   selectSegment(segmentId: string): Promise<void> { return this.queue.selectSegment(segmentId); }
   continueAfterUserGesture(): Promise<void> { return this.queue.continueAfterUserGesture(); }
 
+  async playPublicExample(chatId: string, messageId: string, fixtures: PublicAssistantSpeechSegment[]): Promise<void> {
+    if (fixtures.length === 0) return;
+    await this.stop();
+    this.pending = null;
+    this.stoppedMessageIds.delete(messageId);
+    this.chatId = chatId;
+    this.messageId = messageId;
+    this.error = null;
+    this.publicPlayback = true;
+    this.queue.start(messageId, fixtures.map((fixture) => ({
+      id: fixture.segment_id,
+      sequence: fixture.sequence,
+      status: "ready",
+      durationMs: Math.max(0, fixture.duration_seconds * 1000),
+      audioUrl: fixture.public_url,
+      playbackClass: "replayable",
+    })));
+    this.publish();
+  }
+
   async stop(): Promise<void> {
     if (this.messageId) this.rememberStoppedMessage(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
     this.releaseGeneratedAudio();
-    if (this.chatId && this.messageId) {
+    const shouldCancel = !this.publicPlayback;
+    this.publicPlayback = false;
+    if (shouldCancel && this.chatId && this.messageId) {
       await webSocketService.sendMessage("assistant_speech", {
         action: "cancel",
         chat_id: this.chatId,
@@ -335,59 +367,13 @@ class AssistantSpeechController {
 }
 
 function projectAssistantSpeech(markdown: string): ProjectedSpeechSegment[] {
-  return markdown
-    .split(/\n\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .flatMap(splitLongParagraph)
-    .slice(0, 20)
-    .map((paragraph, sequence) => {
-      const projected = projectParagraph(paragraph);
-      return {
-        sequence,
-        kind: projected.kind,
-        speakable_text: projected.text,
+  return projectSharedAssistantSpeech(markdown).map((segment) => ({
+        sequence: segment.sequence,
+        kind: segment.kind,
+        speakable_text: segment.speakableText,
         source_version: 1,
         source_hash: "server-verified",
-      };
-    })
-    .filter((segment) => segment.speakable_text.length > 0);
-}
-
-function splitLongParagraph(paragraph: string): string[] {
-  const chunks: string[] = [];
-  let remainder = paragraph;
-  while (remainder.length > 2000) {
-    let boundary = remainder.lastIndexOf(" ", 2000);
-    if (boundary <= 0) boundary = 2000;
-    chunks.push(remainder.slice(0, boundary).trim());
-    remainder = remainder.slice(boundary).trimStart();
-  }
-  if (remainder) chunks.push(remainder);
-  return chunks;
-}
-
-function projectParagraph(markdown: string): { kind: string; text: string } {
-  const trimmed = markdown.trim();
-  if (/^```[\s\S]*```$/.test(trimmed)) return { kind: "code_summary", text: "A code example is available." };
-  const lines = trimmed.split("\n").filter((line) => line.trim());
-  if (lines.length >= 2 && lines.every((line) => /^\s*\|.*\|\s*$/.test(line))) {
-    return { kind: "table_summary", text: "A table is available." };
-  }
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    return { kind: "embed_summary", text: "Structured data is available." };
-  }
-  const text = trimmed
-    .replace(/```[\s\S]*?```/g, " A code example is available. ")
-    .replace(/^\s*\|.*\|\s*$/gm, " A table is available. ")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/`[^`]*`/g, "")
-    .replace(/(?:https?|ftp):\/\/[^\s)\]>]+|[a-z][a-z0-9+.-]*:\/\/[^\s)\]>]+/gi, "")
-    .replace(/(?:^|\s)[#>*_~]+|[_~]{1,3}/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/\s+([,.;:!?])/g, "$1")
-    .replace(/^[\s,;:-]+|[\s,;:-]+$/g, "");
-  return { kind: "prose_paragraph", text };
+      }));
 }
 
 async function resolveGeneratedAudio(assetId: string): Promise<{ url: string; s3Key: string | null }> {

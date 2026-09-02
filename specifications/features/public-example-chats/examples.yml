@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.public-example-chats@2
+specification: feature.public-example-chats@3
 
 catalog_discovery:
   - id: guest-intro-example-cards
@@ -57,3 +57,11 @@ seo_public_pages:
   - id: production-sitemap-lastmod
     input: {route: /sitemap.xml, environment: production}
     expected: {example_routes_present_when_sitemap_exposes_examples: true, each_example_route_has_lastmod: true}
+
+public_speech:
+  - id: logged-out-reviewed-speech-fixture
+    input: {authenticated: false, chat_id: example-landing-featured, action: play_assistant_message_speech}
+    expected: {public_audio_plays: true, generation_request_absent: true, login_prompt_absent: true, private_storage_markers_absent: true, credits_charged: 0}
+  - id: conversion-requires-explicit-publication
+    input: {source: real_cli_chat, private_speech_segments_ready: true, publication_reviewed: false}
+    expected: {public_fixture_created: false, private_segment_reference_written: false}

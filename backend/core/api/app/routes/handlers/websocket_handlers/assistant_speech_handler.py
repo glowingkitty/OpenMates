@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import inspect
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
@@ -18,6 +19,7 @@ MAX_SPEAKABLE_TEXT_LENGTH = 2_000
 SAFE_RESULT_FIELDS = ("segment_id", "sequence", "status", "generated_asset_id", "duration_seconds", "error", "retryable", "kind")
 ASSISTANT_SPEECH_REDELIVERABLE_STATUSES = {"ready"}
 ASSISTANT_SPEECH_INELIGIBLE_STATUSES = {"cancelled", "deleted", "invalidated"}
+HISTORICAL_SPEECH_VOICE_PROFILE = {"key": "george", "version": 1}
 
 
 async def handle_assistant_speech_request(
@@ -261,14 +263,14 @@ async def handle_assistant_speech_event(
             return False
 
     async def dispatch(**kwargs: object) -> list[dict[str, object]]:
+        from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments
+
         segments = kwargs["segments"]
         if not isinstance(segments, list):
             return []
         safe_results: list[dict[str, object]] = []
-        # Speak can only use a manifest emitted while the server observed the
-        # response. The transient text proves the persisted source hash; it never
-        # creates a new canonical segment or selects a client-controlled voice.
-        normalized = []
+        normalized: list[dict[str, object]] = []
+        historical_by_version: dict[int, list[dict[str, object]]] = {}
         for segment in segments:
             if not isinstance(segment, Mapping):
                 continue
@@ -280,6 +282,20 @@ async def handle_assistant_speech_event(
                 assistant_message_id=kwargs["assistant_message_id"],
             )
             if row is None:
+                source_version = int(segment["source_version"])
+                sequence = int(segment["sequence"])
+                historical_by_version.setdefault(source_version, []).append({
+                    "segment_id": hashlib.sha256(
+                        f"{kwargs['chat_id']}:{kwargs['assistant_message_id']}:{source_version}:{sequence}:{source_hash}".encode(),
+                    ).hexdigest(),
+                    "source_version": source_version,
+                    "sequence": sequence,
+                    "kind": str(segment["kind"]),
+                    "source_hash": source_hash,
+                    "speakable_text": text,
+                    "voice_profile_key": HISTORICAL_SPEECH_VOICE_PROFILE["key"],
+                    "voice_profile_version": HISTORICAL_SPEECH_VOICE_PROFILE["version"],
+                })
                 continue
             status = str(row.get("status") or "")
             if status in ASSISTANT_SPEECH_REDELIVERABLE_STATUSES or (status == "error" and not row.get("retryable")):
@@ -297,6 +313,28 @@ async def handle_assistant_speech_event(
                 "voice_profile_key": str(row["voice_profile_key"]),
                 "voice_profile_version": int(row["voice_profile_version"]),
             })
+        for source_version, historical_segments in historical_by_version.items():
+            manifest = await create_manifest_and_segments(
+                directus_service,
+                user_id=user_id,
+                chat_id=str(kwargs["chat_id"]),
+                assistant_message_id=str(kwargs["assistant_message_id"]),
+                source_version=source_version,
+                voice_profile=HISTORICAL_SPEECH_VOICE_PROFILE,
+                segments=historical_segments,
+            )
+            dispatch_ids = set(manifest["dispatch_segment_ids"])
+            normalized.extend(segment for segment in historical_segments if segment["segment_id"] in dispatch_ids)
+            for segment in historical_segments:
+                if segment["segment_id"] in dispatch_ids:
+                    continue
+                row = await find_canonical_segment(
+                    segment,
+                    chat_id=kwargs["chat_id"],
+                    assistant_message_id=kwargs["assistant_message_id"],
+                )
+                if row:
+                    safe_results.append(_safe_result(row))
         user_vault_key_id = await get_user_vault_key_id() if normalized else None
         for segment in normalized:
             if not user_vault_key_id:

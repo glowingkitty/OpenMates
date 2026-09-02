@@ -492,6 +492,19 @@ export class OpenMatesWsClient {
     });
   }
 
+  onMessageType<T = unknown>(expectedType: string, handler: (payload: T) => void): () => void {
+    const onMessage = (rawData: RawData) => {
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<T>;
+        if (parsed.type === expectedType) handler(parsed.payload);
+      } catch {
+        // Ignore malformed or unrelated frames.
+      }
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
+  }
+
   onLocalConnectorRequest(handler: (payload: LocalConnectorRequestFrame) => void | Promise<void>): () => void {
     const onMessage = (rawData: RawData) => {
       try {
