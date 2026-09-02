@@ -2928,8 +2928,8 @@
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
-                        onSpeak={msg.role === 'assistant' && currentChatId && typeof msg.content === 'string'
-                          ? () => onSpeakMessage?.(msg.id, msg.content as string)
+                        onSpeak={msg.role === 'assistant' && onSpeakMessage && typeof msg.content === 'string'
+                          ? () => onSpeakMessage(msg.id, msg.content as string)
                           : undefined}
                     />
 
