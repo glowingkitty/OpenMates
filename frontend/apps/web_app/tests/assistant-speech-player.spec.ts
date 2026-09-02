@@ -29,7 +29,7 @@ const PLAYER_PROOF = defineVideoProof({
 	assertions: [
 		{ id: 'assistant-speech.playback.pinned-full-response-waveform', checkpoint: 'playing', visual: 'The rounded speech-accent player follows the Figma hierarchy without clipping.', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'assistant-speech.playback.two-second-idle-grace', checkpoint: 'pending', visual: 'The selected pending chapter is current with Loading and a flat waveform.', devices: ['web-laptop', 'web-phone'] },
-		{ id: 'assistant-speech.playback.two-second-idle-grace', checkpoint: 'ready', visual: 'Ready waveform samples replace the flat placeholder and the chapter plays.', devices: ['web-laptop', 'web-phone'] },
+		{ id: 'assistant-speech.playback.deterministic-chapter-labels', checkpoint: 'ready', visual: 'The selected named chapter retains focus as ready waveform samples replace the flat placeholder and playback starts.', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'assistant-speech.playback.single-queue-segment-control', checkpoint: 'paused', visual: 'Paused playback exposes distinct Play and Close controls.', devices: ['web-laptop', 'web-phone'] }
 	],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
@@ -58,7 +58,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await proof.checkpoint('playing');
 
 		await proof.action('select-pending-chapter', async () => player.getByTestId('assistant-speech-next-chapter').click());
-		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
+		await proof.assert('assistant-speech.playback.deterministic-chapter-labels', async () => {
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
