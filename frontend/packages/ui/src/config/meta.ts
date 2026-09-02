@@ -28,7 +28,7 @@ interface PageMetaTags {
 export let defaultMeta: MetaTagConfig = {
   title: "OpenMates",
   description:
-    "An agentic operating system for everyday tasks, learning, and work, built around your interests and privacy.",
+    "Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first.",
   image: "/images/og-image.jpg",
   imageWidth: 1200,
   imageHeight: 630,

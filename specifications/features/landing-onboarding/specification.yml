@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.landing-onboarding
-version: 3
+version: 4
 status: draft
 title: Landing Onboarding
 summary: >
@@ -18,7 +18,7 @@ scope:
     - Active-app icon rail constraints, coordinated story progress, manual navigation, and reduced-motion behavior.
     - Dependency on the Daily Inspiration guest-onboarding source and card IDs.
     - Retirement of the legacy For everyone and For developers intro chats, routes, discovery entries, and client-visible IDs.
-    - A consistent English headline and SEO-description hierarchy without changing visible landing copy.
+    - A consistent English headline and descriptive-copy hierarchy without changing visible landing copy.
     - Web and Apple GUI semantic parity with contract-linked e2e proof for landing assertions.
   excludes:
     - Authenticated Daily Inspiration recovery, persistence, public defaults, and opened-state semantics.
@@ -195,7 +195,7 @@ assertions:
     depends_on: [models.RetiredIntroCompatibility, examples.legacy_intro_retirement]
   - id: landing-onboarding.primary-slogan-consistent
     type: invariant
-    must: The visible English landing headline, page title, social-preview image headline, repository introduction, and npm and pip package README introductions remain Your AI team for getting things done. English HTML, SEO, Open Graph, and Twitter description fields use An agentic operating system for everyday tasks, learning, and work, built around your interests and privacy. This metadata-only distinction must not add visible landing copy or replace package-specific registry descriptions.
+    must: The visible English landing headline, page title, and social-preview image headline remain Your AI team for getting things done. English HTML, SEO, Open Graph, and Twitter description fields plus the repository, npm package, and pip package README introductions use Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first. This distinction must not add visible landing copy or replace package-specific registry descriptions.
     depends_on: [models.IntroOverlay.headline, examples.primary_slogan]
   - id: landing-onboarding.apple-web-parity
     type: parity

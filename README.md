@@ -1,6 +1,6 @@
 # OpenMates
 
-**Your AI team for getting things done**
+**Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first.**
 
 OpenMates is an open-source, provider-independent AI assistant platform with built-in apps, rich results inside chat, client-side encrypted storage, automatic model selection, a terminal CLI, JavaScript and Python SDKs, and self-hosting support.
 

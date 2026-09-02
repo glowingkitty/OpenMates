@@ -2,7 +2,7 @@
 
 <img src="https://openmates.org/favicon.png" alt="OpenMates" width="72">
 
-**Your AI team for getting things done**
+**Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first.**
 
 Terminal CLI for OpenMates. Use it to chat from your shell, run app skills,
 inspect encrypted account data, export chats, browse docs, and install or manage

@@ -5,8 +5,8 @@ status: implementing
 
 specification_refs:
   - id: feature.landing-onboarding
-    version: 3
-    fingerprint: 2fabfce4b17e391345e0c264efd61821a9da44c9cdea71ade627e12563194862
+    version: 4
+    fingerprint: f49f2a4afa02c61b8d47b5542b6c86cde758505d625b9d97cd3f88d9fab570bc
   - id: feature.public-example-chats
     version: 4
     fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
@@ -38,7 +38,7 @@ goal: >
 
 scope:
   in:
-    - Website SEO, Open Graph, and Twitter description updates while visible headline and README copy remain unchanged.
+    - Website SEO, Open Graph, Twitter, GitHub README, npm README, and pip README description updates while visible web headlines remain unchanged.
     - Neutral guest-onboarding translations and runtime data independent of public intro-chat content.
     - Removal of both intro chats from web and Apple catalogs, discovery, special rendering, SEO content, and sitemap.
     - Compatibility handling for old path and fragment links.
@@ -139,7 +139,7 @@ acceptance_criteria:
   - id: AC-4
     scenario: S-4
     specification_assertions: [landing-onboarding.primary-slogan-consistent]
-    text: Visible headline copy remains unchanged while approved English SEO description fields use the longer agentic-operating-system description.
+    text: Visible web headline copy remains unchanged while approved English metadata and README descriptions use the exact agentic-operating-system wording.
     required: true
     status: pending
     coverage_status: covered
@@ -162,7 +162,7 @@ contracts:
   ui:
     - Guest onboarding is a first-class neutral welcome surface, not a public chat.
     - Public discovery contains real example-* chats and no retired demo-for-* entries.
-    - Visible landing and social-preview image headlines remain unchanged; only metadata descriptions use the longer positioning copy.
+    - Visible landing and social-preview image headlines remain unchanged; metadata and README descriptions use the longer positioning copy.
 
 tests:
   - id: T-POSITIONING
@@ -171,7 +171,7 @@ tests:
     file: README.md
     command: npm --prefix frontend/packages/ui run build:translations
     covers: [AC-4]
-    assertions: [Canonical translations build, visible headline sources retain the short slogan, and English metadata descriptions contain the approved longer copy.]
+    assertions: [Canonical translations build, visible web headline sources retain the short slogan, and English metadata plus README descriptions contain the approved exact copy.]
     red_phase: {required: false, expected: not_captured, evidence: {status: waived, reason: Mechanical copy alignment.}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-BACKEND
