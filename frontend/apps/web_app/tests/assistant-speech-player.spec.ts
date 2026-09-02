@@ -112,6 +112,11 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await player.getByTestId('assistant-speech-previous-chapter').click();
 		await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Key considerations');
 		await expect(waveform).toHaveAttribute('data-window', 'segment-0,segment-1,segment-2');
+		await player.getByTestId('assistant-speech-next-chapter').click();
+		await player.getByTestId('assistant-speech-next-chapter').click();
+		await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Implementation');
+		await expect(player.getByTestId('assistant-speech-next-chapter')).toHaveCount(0);
+		await expect(waveform).toHaveAttribute('data-window', 'segment-2,segment-3');
 		await expect.poll(() => player.evaluate((element) => getComputedStyle(element).color)).toBe('rgb(255, 255, 255)');
 	});
 });
