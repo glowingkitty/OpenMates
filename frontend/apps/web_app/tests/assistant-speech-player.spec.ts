@@ -70,7 +70,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
 		await proof.action('select-pending-chapter', async () => player.getByTestId('assistant-speech-next-chapter').click());
-		await proof.assert('assistant-speech.playback.deterministic-chapter-labels', async () => {
+		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
@@ -84,7 +84,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await proof.action('wait-for-ready-audio', async () => {
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false', { timeout: 5_000 });
 		});
-		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
+		await proof.assert('assistant-speech.playback.deterministic-chapter-labels', async () => {
 			await expect(player.getByRole('button', { name: 'Pause voice response' })).toBeVisible();
 		});
 		await proof.checkpoint('ready');
