@@ -16,7 +16,7 @@ import {
   type ActiveReminderForContinue,
 } from '../continueCarouselService';
 
-const NOW_MS = Date.UTC(2026, 4, 13, 12, 0, 0);
+const NOW_MS = Date.UTC(2026, 4, 13, 9, 0, 0);
 const NOW_SECONDS = Math.floor(NOW_MS / 1000);
 
 function reminder(overrides: Partial<ActiveReminderForContinue>): ActiveReminderForContinue {
@@ -123,6 +123,19 @@ describe('continueCarouselService', () => {
           },
         ],
       }],
+      ['home', {
+        saved_listings: [
+          {
+            id: 'undated-listing-entry',
+            item_key: 'undated-listing',
+            settings_group: 'saved_listings',
+            item_value: {
+              embed_id: 'undated-listing-embed',
+              title: 'Saved listing',
+            },
+          },
+        ],
+      }],
     ]);
 
     const reminders = [
@@ -130,6 +143,7 @@ describe('continueCarouselService', () => {
       reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'far-appointment-embed', trigger_at: NOW_SECONDS + 22 * 60 * 60 }),
       reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'near-appointment-embed', trigger_at: NOW_SECONDS + 2 * 60 * 60 }),
       reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'legacy-far-appointment-embed', trigger_at: NOW_SECONDS + 22 * 60 * 60 }),
+      reminder({ target_type: 'embed', target_chat_id: null, target_embed_id: 'undated-listing-embed', trigger_at: NOW_SECONDS + 60 * 60 }),
     ];
     const remindersByEmbedId = getReminderByTargetEmbedId(reminders, NOW_MS);
 
@@ -140,12 +154,14 @@ describe('continueCarouselService', () => {
     );
 
     expect(candidates.map((candidate) => candidate.embedId)).toEqual([
+      'undated-listing-embed',
       'ongoing-embed',
       'future-embed',
       'near-appointment-embed',
     ]);
     expect(candidates.find((candidate) => candidate.embedId === 'far-appointment-embed')).toBeUndefined();
     expect(candidates.find((candidate) => candidate.embedId === 'legacy-far-appointment-embed')).toBeUndefined();
+    expect(candidates.find((candidate) => candidate.embedId === 'undated-listing-embed')?.priority.reason).toBe('reminder_soon');
     expect(candidates.find((candidate) => candidate.embedId === 'future-embed')?.priority.label).toBe('Event in 3h');
     expect(candidates.find((candidate) => candidate.embedId === 'near-appointment-embed')?.priority.label).toBe('Appointment in 23h');
   });
