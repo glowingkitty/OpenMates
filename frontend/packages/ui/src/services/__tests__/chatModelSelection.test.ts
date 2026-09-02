@@ -110,6 +110,16 @@ describe("chat model selection", () => {
     expect(deviceBAdapters.calls.readRemote).toHaveBeenCalledWith(BOB, CHAT_ID);
   });
 
+  // contract-test: supporting surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
+  it("uses Auto when an empty local selection cannot be checked remotely", async () => {
+    const adapters = createAdapters();
+    const selections = createChatModelSelectionService(adapters);
+    adapters.calls.readRemote.mockRejectedValueOnce(new Error("remote read unavailable"));
+
+    await expect(selections.restore({ userId: ALICE, chatId: CHAT_ID })).resolves.toBe("auto");
+    expect(selections.selectionForSend({ userId: ALICE, chatId: CHAT_ID })).toBe("auto");
+  });
+
   // contract-test: direct surface=gui.web assertions=ai-model-routing.chat-selection.encrypted-user-chat-scope
   it("retries a fresh-device selection against the current remote version", async () => {
     const deviceAAdapters = createAdapters();
