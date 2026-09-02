@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.public-example-chats
-version: 3
+version: 4
 status: draft
 title: Public Example Chats
 summary: >
@@ -12,7 +12,7 @@ summary: >
 scope:
   includes:
     - Static public example-chat fixtures shipped with the first-party web app.
-    - Logged-out intro, all-examples, search, hash navigation, settings-card, and authenticated sidebar discovery of public examples.
+    - Logged-out onboarding, all-examples, search, hash navigation, settings-card, and authenticated sidebar discovery of public examples.
     - Public transcript, embed-preview, compressed-history, share-link, SSR page, JSON-LD, and sitemap behavior for example chats.
     - Public-safety sanitization for checked-in example fixtures and rendered public HTML.
     - Optional reviewed assistant-speech fixtures stored as immutable public S3 objects and playable without authentication.
@@ -56,7 +56,7 @@ models:
     discovery_surfaces:
       type: array
       required: true
-      constraints: {includes: [guest_intro, guest_all_examples, global_search, authenticated_sidebar, settings_example_card]}
+      constraints: {includes: [guest_onboarding, guest_all_examples, global_search, authenticated_sidebar, settings_example_card]}
 
   PublicExampleChrome:
     route_hash:
@@ -152,7 +152,7 @@ models:
 assertions:
   - id: public-example-chats.catalog.discoverable
     type: behavior
-    must: Logged-out intro, expanded all-examples, global search, authenticated sidebar, and settings example-card entry points expose deduplicated static public examples without removed fixtures.
+    must: Logged-out onboarding, expanded all-examples, global search, authenticated sidebar, and settings example-card entry points expose deduplicated static public examples without removed fixtures or retired public intro chats.
     depends_on: [models.PublicExampleCatalog, examples.catalog_discovery]
   - id: public-example-chats.navigation.static-public-link
     type: behavior

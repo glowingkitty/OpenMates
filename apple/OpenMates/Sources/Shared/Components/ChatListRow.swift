@@ -26,10 +26,6 @@ struct ChatListRow: View {
 
     private var publicIconDescriptor: PublicIconDescriptor? {
         switch chat.id {
-        case "demo-for-everyone":
-            return .init(icon: "ai", gradient: CategoryMapping.gradient(for: "openmates_official"), usesAssetIcon: true)
-        case "demo-for-developers":
-            return .init(icon: "code", gradient: CategoryMapping.gradient(for: "openmates_official"))
         case "demo-who-develops-openmates":
             return .init(icon: "user", gradient: CategoryMapping.gradient(for: "openmates_official"))
         case "announcements-introducing-openmates-v09":

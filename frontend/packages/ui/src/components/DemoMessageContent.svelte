@@ -6,9 +6,6 @@
   [[skills_group]], [[focus_modes_group]], [[settings_memories_group]],
   and their developer-specific variants ([[dev_app_store_group]], etc.).
   
-  Also handles [[for_developers_embed]] to render an inline embed preview
-  of the for-developers intro chat at the end of the for-everyone chat.
-  
   This component:
   1. Splits content at placeholder markers
   2. Renders each markdown section using ReadOnlyMessage
@@ -23,7 +20,6 @@
   import FocusModesGroup from './embeds/FocusModesGroup.svelte';
   import SettingsMemoriesGroup from './embeds/SettingsMemoriesGroup.svelte';
   import AiModelsGroup from './embeds/AiModelsGroup.svelte';
-  import IntroChatEmbed from './embeds/IntroChatEmbed.svelte';
   
   /**
    * Props interface for DemoMessageContent
@@ -41,7 +37,7 @@
   
   let {
     content,
-    chatId = 'demo-for-everyone',
+    chatId = '',
     isStreaming = false,
     selectable = false
   }: Props = $props();
@@ -74,8 +70,6 @@
   const DEV_SETTINGS_MEMORIES_PLACEHOLDER = '[[dev_settings_memories_group]]';
   // AI models group: horizontal scrollable list of available AI Ask models
   const AI_MODELS_PLACEHOLDER = '[[ai_models_group]]';
-  // Embed for linking to the for-developers intro chat from for-everyone
-  const FOR_DEVELOPERS_EMBED_PLACEHOLDER = '[[for_developers_embed]]';
   
   // All supported placeholder tokens and their part types
   const PLACEHOLDERS = [
@@ -90,7 +84,6 @@
     DEV_FOCUS_MODES_PLACEHOLDER,
     DEV_SETTINGS_MEMORIES_PLACEHOLDER,
     AI_MODELS_PLACEHOLDER,
-    FOR_DEVELOPERS_EMBED_PLACEHOLDER,
   ] as const;
   
   /** Map placeholder strings to their part type identifiers */
@@ -106,10 +99,9 @@
     [DEV_FOCUS_MODES_PLACEHOLDER]: 'dev_focus_modes_group',
     [DEV_SETTINGS_MEMORIES_PLACEHOLDER]: 'dev_settings_memories_group',
     [AI_MODELS_PLACEHOLDER]: 'ai_models_group',
-    [FOR_DEVELOPERS_EMBED_PLACEHOLDER]: 'for_developers_embed',
   };
   
-  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'dev_settings_memories_group' | 'ai_models_group' | 'for_developers_embed';
+  type PartType = 'markdown' | 'example_chats_group' | 'dev_example_chats_group' | 'app_store_group' | 'skills_group' | 'focus_modes_group' | 'settings_memories_group' | 'dev_app_store_group' | 'dev_skills_group' | 'dev_focus_modes_group' | 'dev_settings_memories_group' | 'ai_models_group';
   
   /**
    * Split content at all placeholder tokens into typed parts.
@@ -190,9 +182,6 @@
       {:else if part.type === 'ai_models_group'}
         <!-- AI Ask models horizontal scrollable list -->
         <AiModelsGroup />
-      {:else if part.type === 'for_developers_embed'}
-        <!-- Embedded preview of the for-developers intro chat -->
-        <IntroChatEmbed introChatId="demo-for-developers" />
       {/if}
     {/each}
   </div>

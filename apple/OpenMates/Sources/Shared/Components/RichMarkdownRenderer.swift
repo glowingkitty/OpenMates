@@ -353,8 +353,7 @@ enum MarkdownParser {
         "[[dev_focus_modes_group]]": .developerFocusModes,
         "[[settings_memories_group]]": .memories,
         "[[dev_settings_memories_group]]": .developerMemories,
-        "[[ai_models_group]]": .aiModels,
-        "[[for_developers_embed]]": .forDevelopers
+        "[[ai_models_group]]": .aiModels
     ]
 
     static func parse(_ text: String) -> [MarkdownBlock] {
@@ -2525,7 +2524,6 @@ enum DemoGroupKind {
     case memories
     case developerMemories
     case aiModels
-    case forDevelopers
 }
 
 private struct DemoRichGroupItem: Identifiable {
@@ -2602,10 +2600,6 @@ private struct DemoRichGroupView: View {
                 .init(id: "auto", title: AppStrings.autoSelectModel, subtitle: AppStrings.autoSelectDescription, appId: "ai", icon: "ai"),
                 .init(id: "simple", title: AppStrings.simpleRequests, subtitle: AppStrings.availableModels, appId: "ai", icon: "ai"),
                 .init(id: "complex", title: AppStrings.complexRequests, subtitle: AppStrings.availableProviders, appId: "ai", icon: "ai")
-            ]
-        case .forDevelopers:
-            return [
-                .init(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle, subtitle: AppStrings.demoForDevelopersDescription, appId: "code", icon: "code")
             ]
         }
     }

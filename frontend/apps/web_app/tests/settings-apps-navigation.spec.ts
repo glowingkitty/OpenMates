@@ -131,13 +131,13 @@ test('combined chat settings deep link hydrates chat context after reload', asyn
 	page: any;
 }) => {
 	await page.goto(
-		getE2EDebugUrl('/#chat-id=demo-for-everyone&settings=chats/demo-for-everyone/tasks'),
+		getE2EDebugUrl('/#chat-id=example-artemis&settings=chats/example-artemis/tasks'),
 		{ waitUntil: 'domcontentloaded' }
 	);
 
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/demo-for-everyone', {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/example-artemis', {
 		timeout: SETTINGS_TIMEOUT
 	});
 

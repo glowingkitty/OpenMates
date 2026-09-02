@@ -70,7 +70,7 @@ export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatI
  * 2. Legal chats (LEGAL_CHATS array - in-memory)
  * 3. Example chats (exampleChatStore - static hardcoded data)
  *
- * @param chatId - The chat ID to search for (e.g., 'demo-for-everyone', 'legal-privacy', 'example-*')
+ * @param chatId - The chat ID to search for (e.g., 'demo-who-develops-openmates', 'legal-privacy', 'example-*')
  * @param demoChats - Array of static demo chats (from DEMO_CHATS)
  * @param legalChats - Array of legal chats (from LEGAL_CHATS) - optional, will import if not provided
  * @returns Array of messages for the chat, or empty array if not found
@@ -112,7 +112,7 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChat
 
 /**
  * Check if a chat is a demo chat (starts with 'demo-' prefix)
- * Includes static demos (demo-for-everyone, demo-for-developers, etc.)
+ * Includes static intro, legal, newsletter, and example chats.
  */
 export function isDemoChat(chatId: string): boolean {
 	return chatId.startsWith('demo-');

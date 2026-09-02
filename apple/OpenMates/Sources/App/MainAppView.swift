@@ -300,9 +300,7 @@ struct MainAppView: View {
     }
 
     private let publicChatOrder: [String: Int] = [
-        "demo-for-everyone": 0,
-        "demo-for-developers": 1,
-        "demo-who-develops-openmates": 2,
+        "demo-who-develops-openmates": 0,
         "example-gigantic-airplanes": 10,
         "example-artemis-ii-mission": 11,
         "example-beautiful-single-page-html": 12,
@@ -983,7 +981,7 @@ struct MainAppView: View {
         selectedChatId = nil
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
-        loadDemoChats(selectDefault: false)
+        loadDemoChats()
         Task { @MainActor in
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore) { !isAuthenticated }
         }
@@ -1026,7 +1024,7 @@ struct MainAppView: View {
             await loadAccountTopicPreferences()
         } else {
             // Unauthenticated: populate the sidebar, but keep the welcome/new-chat surface active.
-            loadDemoChats(selectDefault: false)
+            loadDemoChats()
             seedWelcomeRecentOverflowUITestStateIfNeeded()
             seedShellPerformanceUITestStateIfNeeded()
             openNewChatScreen()
@@ -2028,19 +2026,11 @@ struct MainAppView: View {
 
     /// Populates the sidebar with all public chats while the main surface stays on new chat by default.
     /// Mirrors: INTRO_CHATS + LEGAL_CHATS + announcements + example chats from demo_chats/index.ts
-    private func loadDemoChats(selectDefault: Bool = true) {
+    private func loadDemoChats() {
         let now = ISO8601DateFormatter().string(from: Date())
         // All strings via AppStrings → LocalizationManager → i18n JSON (never hardcoded English)
         let demoChats: [Chat] = [
             // INTRO_CHATS
-            Chat(id: "demo-for-everyone", title: AppStrings.demoForEveryoneTitle,
-                 lastMessageAt: now, createdAt: now, updatedAt: now,
-                 isArchived: false, isPinned: false,
-                 appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
-            Chat(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle,
-                 lastMessageAt: now, createdAt: now, updatedAt: now,
-                 isArchived: false, isPinned: false,
-                 appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
             Chat(id: "demo-who-develops-openmates", title: AppStrings.demoWhoDevTitle,
                  lastMessageAt: now, createdAt: now, updatedAt: now,
                  isArchived: false, isPinned: false,
@@ -2090,9 +2080,6 @@ struct MainAppView: View {
                  appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
         ]
         chatStore.upsertChats(demoChats)
-        if selectDefault {
-            selectedChatId = "demo-for-everyone"
-        }
     }
 
     private func seedWelcomeRecentOverflowUITestStateIfNeeded() {
@@ -2297,12 +2284,6 @@ struct MainAppView: View {
     private func demoBannerState(for chatId: String) -> ChatBannerState? {
         switch chatId {
         // INTRO_CHATS
-        case "demo-for-everyone":
-            return .loaded(title: AppStrings.demoForEveryoneTitle, appId: "openmates_official",
-                           summary: AppStrings.demoForEveryoneDescription)
-        case "demo-for-developers":
-            return .loaded(title: AppStrings.demoForDevelopersTitle, appId: "openmates_official",
-                           summary: AppStrings.demoForDevelopersDescription)
         case "demo-who-develops-openmates":
             return .loaded(title: AppStrings.demoWhoDevTitle, appId: "openmates_official",
                            summary: AppStrings.demoWhoDevDescription)
@@ -2361,7 +2342,7 @@ struct MainAppView: View {
         selectedChatId = nil
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
-        loadDemoChats(selectDefault: false)
+        loadDemoChats()
 
         if isChatNavigationUITestEnabled {
             seedChatNavigationUITestState()
@@ -4846,9 +4827,7 @@ enum WelcomeScreenState {
 
     private static func category(for chat: Chat) -> String {
         switch chat.id {
-        case "demo-for-everyone",
-             "demo-for-developers",
-             "demo-who-develops-openmates",
+        case "demo-who-develops-openmates",
              "announcements-introducing-openmates-v09":
             return "openmates_official"
         case "example-beautiful-single-page-html":
@@ -4868,10 +4847,6 @@ enum WelcomeScreenState {
 
     private static func cardIconName(for chat: Chat) -> String {
         switch chat.id {
-        case "demo-for-everyone":
-            return "hand"
-        case "demo-for-developers":
-            return "code"
         case "demo-who-develops-openmates",
              "announcements-introducing-openmates-v09":
             return "shield-check"
@@ -4893,10 +4868,6 @@ enum WelcomeScreenState {
 
     private static func summary(for chatId: String) -> String? {
         switch chatId {
-        case "demo-for-everyone":
-            return AppStrings.demoForEveryoneDescription
-        case "demo-for-developers":
-            return AppStrings.demoForDevelopersDescription
         case "demo-who-develops-openmates":
             return AppStrings.demoWhoDevDescription
         case "announcements-introducing-openmates-v09":
@@ -5033,7 +5004,7 @@ struct NewChatWelcomeView: View {
         GuestLandingStory(
             id: "openmates-intro",
             kind: .intro,
-            phrase: "Simply ask your AI team mates.",
+            phrase: "Your AI team for getting things done",
             title: "OpenMates for Everyone",
             assistantResponse: "Ask naturally and OpenMates routes the work to specialized mates and apps inside one chat workspace.",
             icon: "sparkles",
@@ -5153,13 +5124,11 @@ struct NewChatWelcomeView: View {
             return publicChats.map { WelcomeScreenState.cardData(for: $0) }
         }
 
-        let ids = publicChats.map(\.id)
-        let rankedRest = InterestTagRanking.rankIds(
-            ids.filter { $0 != "demo-for-everyone" },
+        let rankedIds = InterestTagRanking.rankIds(
+            publicChats.map(\.id),
             selected: effectiveInterestTagIds,
             keyPath: \.exampleChats
         )
-        let rankedIds = ["demo-for-everyone"] + rankedRest
         let chatById = Dictionary(uniqueKeysWithValues: publicChats.map { ($0.id, $0) })
         return rankedIds.compactMap { chatById[$0] }.map { WelcomeScreenState.cardData(for: $0) }
     }
@@ -6471,7 +6440,7 @@ private struct GuestLandingStoryCard: View {
                 .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 2))
                 .accessibilityIdentifier("guest-intro-ai-icon")
 
-            Text("Simply ask your\nAI team mates")
+            Text("Your AI team for getting things done")
                 .font(.custom("Lexend Deca", size: isCompact ? 34 : 44).weight(.semibold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)

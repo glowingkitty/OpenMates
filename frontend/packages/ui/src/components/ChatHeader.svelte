@@ -58,7 +58,7 @@
 
   let {
     title = '',
-    currentChatId = null,
+    currentChatId: _currentChatId = null,
     category = null,
     icon = null,
     summary = null,
@@ -212,18 +212,9 @@
   function getImageBubbleTestId(index: number) {
     return index === 0 ? 'chat-header-image-bubble-left' : 'chat-header-image-bubble-right';
   }
-  // Reactive so they re-derive when the locale changes (e.g. after ?lang= is applied).
-  const introTeaserCopyLines = $derived([
-    $text('demo_chats.for_everyone.teaser_line1'),
-    $text('demo_chats.for_everyone.teaser_line2'),
-    $text('demo_chats.for_everyone.teaser_line3'),
-  ]);
-  const isIntroTeaserChat = $derived(currentChatId === 'demo-for-everyone');
   const displayTitle = $derived(
     title || (isSharedChat ? $text('chat.header.shared_chat') : writable ? $text('common.untitled_chat') : '')
   );
-  const teaserCopyLines = $derived(isIntroTeaserChat ? introTeaserCopyLines : [displayTitle]);
-
   // ─── In-place video player ────────────────────────────────────────────────
   //
   // Clicking the play button mounts a <video> element inside the media frame
@@ -259,14 +250,6 @@
     const maxHeight = Math.max(0, chatHeaderHeight - TEASER_VERTICAL_EDGE_GAP * 2);
     const maxWidthByHeaderHeight = Math.floor(maxHeight * 16 / 9);
     return `min(${TEASER_MAX_WIDTH}px, 52%, ${maxWidthByHeaderHeight}px)`;
-  });
-
-  let compactTeaserTitleSize = $derived.by(() => {
-    if (!chatHeaderWidth || !chatHeaderHeight) return '28px';
-    const sizeByWidth = chatHeaderWidth * 0.032;
-    const sizeByHeight = chatHeaderHeight * 0.105;
-    const titleSize = Math.max(22, Math.min(34, sizeByWidth, sizeByHeight));
-    return `${Math.round(titleSize)}px`;
   });
 
   let isMediumHeader = $derived(chatHeaderWidth > 0 && chatHeaderWidth <= MEDIUM_HEADER_WIDTH);
@@ -783,10 +766,7 @@
   {#if isLoaded && !isIncognito}
     {#if useTeaser}
       <!-- Large decorative icons at left and right edges for teaser layout -->
-      {#if isIntroTeaserChat}
-        <div class="deco-icon deco-icon-left ai-deco-icon"></div>
-        <div class="deco-icon deco-icon-right ai-deco-icon"></div>
-      {:else if IconComponent}
+      {#if IconComponent}
         <div class="deco-icon deco-icon-left">
           <IconComponent size={126} color="white" />
         </div>
@@ -802,41 +782,29 @@
       <div
         class="teaser-split-layout"
         class:is-video-active={isVideoActive}
-        style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s; --compact-teaser-title-size: ${compactTeaserTitleSize};`}
+        style={`--compact-teaser-cycle-duration: ${COMPACT_TEASER_CYCLE_SECONDS}s;`}
       >
 
         <!-- Left column: fixed intro teaser copy -->
         <div class="teaser-split-left">
-          {#if isIntroTeaserChat}
-            <div class="ai-header-icon" data-testid="chat-header-icon"></div>
-            <div class="teaser-copy" aria-label={teaserCopyLines.join(' ')}>
-              {#each teaserCopyLines as line, index}
-                <span
-                  class="loaded-title teaser-title teaser-copy-line"
-                  data-testid={index === 0 ? 'chat-header-title' : undefined}
-                >{line}</span>
-              {/each}
-            </div>
-          {:else}
-            <div class="teaser-copy">
-              <WorkspaceDetailHeader
-                title={displayTitle}
-                description={summary ?? ''}
-                category={category ?? 'general'}
-                icon={icon ?? 'ai'}
-                {writable}
-                {onSaveTitle}
-                {onSaveDescription}
-                embedded
-                alignment="start"
-                {titleTestId}
-                descriptionTestId="chat-header-summary"
-                showDescription={showSummary || writable}
-                descriptionClampLines={3}
-                iconTestId="chat-header-icon"
-              />
-            </div>
-          {/if}
+          <div class="teaser-copy">
+            <WorkspaceDetailHeader
+              title={displayTitle}
+              description={summary ?? ''}
+              category={category ?? 'general'}
+              icon={icon ?? 'ai'}
+              {writable}
+              {onSaveTitle}
+              {onSaveDescription}
+              embedded
+              alignment="start"
+              {titleTestId}
+              descriptionTestId="chat-header-summary"
+              showDescription={showSummary || writable}
+              descriptionClampLines={3}
+              iconTestId="chat-header-icon"
+            />
+          </div>
 
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
@@ -961,9 +929,6 @@
             {/key}
           </button>
         {/each}
-      {:else if isIntroTeaserChat}
-        <div class="deco-icon deco-icon-left ai-deco-icon"></div>
-        <div class="deco-icon deco-icon-right ai-deco-icon"></div>
       {:else if IconComponent}
         <div class="deco-icon deco-icon-left">
           <IconComponent size={126} color="white" />
@@ -1474,47 +1439,6 @@
     }
   }
 
-  /* ─── AI icon for the for-everyone intro chat ──────────────────────── */
-
-  .ai-header-icon {
-    width: 38px;
-    height: 38px;
-    flex-shrink: 0;
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    background-color: rgba(255, 255, 255, 0.9);
-  }
-
-  .ai-deco-icon {
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    background-color: rgba(255, 255, 255, 0.15);
-    --deco-target-opacity: 1;
-    --float-rx: 10px;
-    --float-ry: 12px;
-    animation:
-      decoEnter 0.6s ease-out 0.1s both,
-      decoFloat 16s linear 0.7s infinite;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .ai-deco-icon {
-      animation: decoEnter 0.6s ease-out 0.1s both !important;
-    }
-  }
-
   /* ─── Image result bubbles (replace decorative icons when image search exists) ─── */
 
   .image-bubble {
@@ -1928,11 +1852,6 @@
     max-width: 360px;
   }
 
-  .is-mobile-header .ai-header-icon {
-    width: 32px;
-    height: 32px;
-  }
-
   .is-mobile-header .loaded-title {
     font-size: var(--font-size-lg);
   }
@@ -2018,17 +1937,6 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-  }
-
-  .teaser-copy-line {
-    display: block;
-  }
-
-  /* Left-align and uncap text lines in the split layout */
-  .teaser-title {
-    text-align: left !important;
-    -webkit-line-clamp: 1 !important;
-    line-clamp: 1 !important;
   }
 
   .teaser-split-right {
@@ -2129,18 +2037,8 @@
     max-width: min(76vw, 460px);
   }
 
-  .is-compact-teaser-header .teaser-title {
-    font-size: var(--compact-teaser-title-size, 28px);
-    line-height: 1.18;
-  }
-
   .is-compact-teaser-header .teaser-video-box {
     width: min(78vw, 560px);
-  }
-
-  .is-compact-teaser-header .ai-header-icon {
-    width: 54px;
-    height: 54px;
   }
 
   .is-compact-teaser-header .teaser-video-box.hovering {

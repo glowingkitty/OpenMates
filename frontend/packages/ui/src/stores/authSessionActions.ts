@@ -64,6 +64,11 @@ import {
 // Import auth types
 import type { SessionCheckResult } from "./authTypes";
 
+const RETIRED_INTRO_CHAT_HASHES = new Set([
+  "#chat-id=demo-for-everyone",
+  "#chat-id=demo-for-developers",
+]);
+
 /**
  * Checks the current authentication status by calling the session endpoint.
  * Updates auth state, user profile, and handles device verification requirements.
@@ -239,7 +244,7 @@ export async function checkAuth(
         // CRITICAL: Clear active chat IMMEDIATELY (synchronously) BEFORE auth state changes
         // This ensures any component reading activeChatStore will see the welcome screen, not the old chat
         //
-        // EXCEPTION: If a shared chat redirect is in progress, do NOT override with demo-for-everyone.
+        // EXCEPTION: If a shared chat redirect is in progress, do not clear it.
         // Shared chats use URL-embedded encryption keys (not the master key), so they work perfectly
         // fine without a master key. The sessionStorage flag 'openmates_skip_orphan_detection' is set
         // by the share chat page to indicate a shared chat session is active.
@@ -263,8 +268,7 @@ export async function checkAuth(
                 sessionStorage.getItem("pendingDeepLink") ?? "",
               )));
 
-        // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen
-        // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+        // OG image mode (?og=1): preserve the welcome screen in /dev/og-image iframes.
         const isOgImageMode =
           typeof window !== "undefined" &&
           new URLSearchParams(window.location.search).get("og") === "1";
@@ -272,15 +276,15 @@ export async function checkAuth(
         if (typeof window !== "undefined") {
           if (isSharedChatSession) {
             console.debug(
-              "[AuthSessionActions] Skipping demo-for-everyone override — shared chat session detected (key in URL fragment, not master key)",
+              "[AuthSessionActions] Preserving shared chat session (key in URL fragment, not master key)",
             );
           } else if (isPairLoginPending) {
             console.debug(
-              "[AuthSessionActions] Skipping demo-for-everyone override — pair login deep link pending, user will authenticate fresh",
+              "[AuthSessionActions] Preserving pair login deep link; user will authenticate fresh",
             );
           } else if (isOgImageMode) {
             console.debug(
-              "[AuthSessionActions] Skipping demo-for-everyone override — og=1 mode (welcome screen should stay visible)",
+              "[AuthSessionActions] Preserving welcome screen in og=1 mode",
             );
           } else {
             activeChatStore.clearActiveChat();
@@ -818,7 +822,7 @@ export async function checkAuth(
 
         // CRITICAL: Set isLoggingOut flag to true BEFORE dispatching logout event
         // This ensures ActiveChat component knows we're explicitly logging out and should clear shared chats
-        // and load demo-for-everyone, even if the chat is a shared chat
+        // and return to the neutral welcome state, even if the chat is shared
         isLoggingOut.set(true);
         console.debug(
           "[AuthSessionActions] Set isLoggingOut to true for session expiration logout",
@@ -1317,12 +1321,12 @@ export function setAuthenticatedState(): void {
     "Reset phased sync state for new login (preserving user navigation choices) - syncing indicator will show",
   );
 
-  // OPE-215: Clear the demo-for-everyone hash that was set during non-auth state or forced logout.
+  // Clear retired intro hashes left by an older non-auth session or forced logout.
   // Without this, the sync completion handler in +page.svelte reads the stale hash and
   // auto-navigates to the demo chat instead of the user's last-opened chat.
   if (
     typeof window !== "undefined" &&
-    window.location.hash === "#chat-id=demo-for-everyone"
+    RETIRED_INTRO_CHAT_HASHES.has(window.location.hash)
   ) {
     // Use replaceState to avoid triggering hashchange events
     history.replaceState(
@@ -1332,7 +1336,7 @@ export function setAuthenticatedState(): void {
     );
     activeChatStore.clearActiveChat();
     console.debug(
-      "[setAuthenticatedState] Cleared demo-for-everyone hash on login",
+      "[setAuthenticatedState] Cleared retired intro chat hash on login",
     );
   }
 

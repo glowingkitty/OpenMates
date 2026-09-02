@@ -213,9 +213,9 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 			localStorage.setItem('theme', 'light');
 		});
 
-		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#chat-id=demo-who-develops-openmates'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', 'demo-for-everyone', {
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', 'demo-who-develops-openmates', {
 			timeout: 15000
 		});
 
@@ -225,13 +225,13 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		}
 		await expect(sidebar).toBeVisible({ timeout: 10000 });
 
-		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-for-everyone"]');
+		const activeRow = page.locator('[data-testid="chat-item-wrapper"][data-chat-id="demo-who-develops-openmates"]');
 		await expect(activeRow).toBeVisible({ timeout: 10000 });
 		await expect(activeRow).toHaveClass(/active/);
 		await expect(activeRow).toHaveCSS('background-color', await resolveCssTokenColor(page, '--color-grey-0'));
 
 		const nonActiveChatId = await page.getByTestId('chat-item-wrapper').evaluateAll(
-			(elements: HTMLElement[]) => elements.find((element) => element.dataset.chatId !== 'demo-for-everyone')?.dataset.chatId ?? ''
+			(elements: HTMLElement[]) => elements.find((element) => element.dataset.chatId !== 'demo-who-develops-openmates')?.dataset.chatId ?? ''
 		);
 		expect(nonActiveChatId).not.toBe('');
 		const hoveredRow = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${nonActiveChatId}"]`);

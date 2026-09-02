@@ -258,11 +258,6 @@ struct ChatView: View {
         return [.fromPreprocessing(step)]
     }
 
-    private var introTeaserVideoURL: URL? {
-        Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4", subdirectory: "Videos")
-            ?? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
-    }
-
     var body: some View {
         lifecycleChatView
     }
@@ -831,13 +826,9 @@ struct ChatView: View {
                                     state: banner,
                                     createdAt: effectiveBannerCreatedAt,
                                     isExampleChat: chatId.hasPrefix("example-"),
-                                    isIntroChat: chatId == "demo-for-everyone",
-                                    teaserVideoURL: chatId == "demo-for-everyone"
-                                        ? introTeaserVideoURL
-                                        : nil,
-                                    fullVideoURL: chatId == "demo-for-everyone"
-                                        ? URL(string: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4")
-                                        : nil,
+                                    isIntroChat: false,
+                                    teaserVideoURL: nil,
+                                    fullVideoURL: nil,
                                     iconName: publicChatIconName(for: chatId) ?? viewModel.chat?.icon,
                                     isSettingsOpen: isSettingsOpen,
                                     viewportHeight: chatViewportHeight,
@@ -3009,7 +3000,7 @@ struct ChatView: View {
 
     private func publicChatIconName(for chatId: String) -> String? {
         switch chatId {
-        case "demo-for-developers", "example-beautiful-single-page-html":
+        case "example-beautiful-single-page-html":
             return "code"
         case "demo-who-develops-openmates":
             return "user"
@@ -3454,8 +3445,6 @@ struct MessageBubble: View {
     // MARK: - Assistant avatar with AI badge
 
     private static let openMatesOfficialChatIds: Set<String> = [
-        "demo-for-everyone",
-        "demo-for-developers",
         "demo-who-develops-openmates",
         "announcements-introducing-openmates-v09",
         "legal-privacy",

@@ -4,7 +4,7 @@
  * Manages URL-based chat navigation with privacy-first approach.
  *
  * Public chats (intro, example, announcement, tips, legal) get semantic paths
- * (e.g. /intro/for-everyone, /announcements/introducing-openmates-v09) so that
+ * (e.g. /intro/who-develops-openmates, /announcements/introducing-openmates-v09) so that
  * shared links show proper OG previews — those paths have SSR SEO pages.
  *
  * Private chats still use the hash fragment (#chat-id=xxx) which is never sent
@@ -49,8 +49,7 @@ export function isOnSemanticChatPath(): boolean {
  */
 export function getSemanticUrlForChat(chatId: string): string | null {
 	if (chatId.startsWith('demo-')) {
-		// demo-for-everyone is the default welcome state — no semantic URL
-		if (chatId === 'demo-for-everyone') return null;
+		if (chatId === 'demo-for-everyone' || chatId === 'demo-for-developers') return null;
 		return `/intro/${chatId.slice('demo-'.length)}`;
 	}
 	if (chatId.startsWith('example-')) {
@@ -134,5 +133,3 @@ export function getChatIdFromUrl(): string | null {
 		return null;
 	}
 }
-
-

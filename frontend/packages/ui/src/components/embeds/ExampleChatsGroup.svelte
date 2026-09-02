@@ -38,7 +38,7 @@
   }
 
   let {
-    excludeChatId = 'demo-for-everyone',
+    excludeChatId = '',
     onlyCategories,
   }: Props = $props();
 

@@ -18,7 +18,7 @@ demo_chats:
       type: string
       length: 20
       default: "for_everyone"
-      note: "Target audience / content category: 'for_everyone' (shown in For Everyone intro chat), 'for_developers' (shown in For Developers intro chat), 'news' (announcements and release notes), 'learn' (AI, privacy, encryption explainers), 'features' (OpenMates functionality walkthroughs), 'example_chats' (complex multi-turn capability showcases). Set by admin during approval."
+      note: "Target audience / content category: 'for_everyone' (general audience), 'for_developers' (technical audience), 'news' (announcements and release notes), 'learn' (AI, privacy, encryption explainers), 'features' (OpenMates functionality walkthroughs), 'example_chats' (complex multi-turn capability showcases). Set by admin during approval."
     title:
       type: textfield
       note: "Title of the chat (cleartext)"

@@ -10,14 +10,12 @@
 //   4. Crawlers don't execute JavaScript — they see and index the full HTML content.
 //
 // SLUGS → CHAT_ID mapping:
-//   for-everyone          → demo-for-everyone
-//   for-developers        → demo-for-developers
 //   who-develops-openmates → demo-who-develops-openmates
 //
 // SEE ALSO: +page.ts (prerender config), +page.svelte (HTML + redirect)
 // Architecture reference: docs/architecture/web-app
 
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getSiteOrigin } from '$lib/backendUrl';
 
@@ -40,61 +38,6 @@ interface IntroChatContent {
  * When i18n content changes, update both the locale JSON and this map.
  */
 const INTRO_CHAT_CONTENT: Record<string, IntroChatContent> = {
-	'for-everyone': {
-		chatId: 'demo-for-everyone',
-		title: 'OpenMates | For everyone',
-		description: 'AI chatbots made accessible with apps, privacy, and no subscription required',
-		message: `# ✨ Digital team mates for everyone
-
-With OpenMates you have a team of specialized AI chatbots that can not only inspire you & teach new knowledge but also fulfill various tasks using apps. Making the power of AI truly accessible for everyone.
-
-## A team of specialized AI chatbots
-
-Different AI chatbots have different strengths and weaknesses. OpenMates combines the best of all worlds by giving you a team of specialized AI chatbots (called "mates"), each with their own set of skills, focus modes, and memories.
-
-## Apps: the superpower of OpenMates
-
-What makes OpenMates different from other AI apps is that your mates can use apps - tools that give them superpowers like browsing the web, reading scientific papers, generating images, analyzing videos, tracking your fitness or nutrition, and much more!
-
-## Privacy & encryption
-
-OpenMates is built with privacy in mind. Your chats, titles, app settings, and memories are **encrypted in your browser before being sent to our servers** — and are stored only as ciphertext. When you need an AI response, our servers briefly decrypt your content in memory, use it, and discard the plaintext without ever writing it to disk. Before your prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. This is not end-to-end encryption (our servers can decrypt your content transiently to serve you), but it is a much stronger guarantee than encryption-at-rest alone — and when you delete your account, destroying your encryption key cryptographically shreds every encrypted field we still hold.
-
-## Pay-per-use - no subscription required
-
-Unlike other AI apps, OpenMates does not require a subscription. You only pay for what you use. Start for free and only add credits when you need them.`,
-		followUpSuggestions: [
-			'How much does it cost?',
-			'What apps are available?',
-			'Tell me more about privacy'
-		]
-	},
-	'for-developers': {
-		chatId: 'demo-for-developers',
-		title: 'OpenMates | For developers',
-		description:
-			'AI-powered development tools with REST API, CLI, privacy, and no MCP setup needed',
-		message: `# 👨‍💻 Digital team mates for developers
-
-OpenMates is also an awesome tool for developers. For everything from quick questions, planning large projects, generating code based on the most up-to-date documentation, and much more.
-
-## REST API & CLI
-
-OpenMates provides a REST API and CLI for developers who want to integrate OpenMates into their own projects or automate tasks. No MCP setup required.
-
-## Privacy & open source
-
-Your code and conversations are encrypted in your browser before being sent to our servers, and stored only as ciphertext. Our servers decrypt content transiently in memory when you need it (for AI responses, invoices, reminders) and never persist plaintext to disk, logs, or traces. Before prompts reach any third-party AI model, real names, emails, and addresses are replaced with placeholders on your device. OpenMates is open source — you can inspect the exact encryption code, contribute, or self-host your own instance.
-
-## No subscription required
-
-Pay only for what you use. Start for free with no credit card required.`,
-		followUpSuggestions: [
-			'How does the REST API work?',
-			'Is my code kept private?',
-			'How can I self-host OpenMates?'
-		]
-	},
 	'who-develops-openmates': {
 		chatId: 'demo-who-develops-openmates',
 		title: 'Who develops OpenMates?',
@@ -127,6 +70,9 @@ Every feature in OpenMates is designed with care. If something bothers you, ther
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const { slug } = params;
+	if (slug === 'for-everyone' || slug === 'for-developers') {
+		redirect(301, '/');
+	}
 
 	const content = INTRO_CHAT_CONTENT[slug];
 	if (!content) {

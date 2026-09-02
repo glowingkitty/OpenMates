@@ -103,6 +103,6 @@ Use the open-source `@api.video/player-sdk` or plain HLS.js for the fullscreen p
 
 ## First Use Case
 
-Product demo video in the `for-everyone` intro chat header (`ChatHeader.svelte`).
+Product demo video in the logged-out guest onboarding (`DailyInspirationBanner.svelte`).
 See `frontend/packages/ui/src/demo_chats/data/for_everyone.ts` and
 `frontend/packages/ui/src/components/ChatHeader.svelte`.

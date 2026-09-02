@@ -1,6 +1,6 @@
 # OpenMates
 
-**Digital team mates for everyday tasks, learning, research, and creation.**
+**Your AI team for getting things done**
 
 OpenMates is an open-source, provider-independent AI assistant platform with built-in apps, rich results inside chat, client-side encrypted storage, automatic model selection, a terminal CLI, JavaScript and Python SDKs, and self-hosting support.
 
@@ -28,7 +28,7 @@ Public example chats open without an account. Each is a complete, interactive co
 - [Find flights from Berlin to Bangkok](https://openmates.org/example/flights-berlin-to-bangkok): inspect live-style travel connections, prices, carriers, and timings inside chat.
 - [Research right-to-repair laws in the EU and US](https://openmates.org/example/right-to-repair-laws-eu-us): compare legislation with source-linked research.
 
-New to the project? Read [OpenMates for everyone](https://openmates.org/intro/for-everyone), [OpenMates for developers](https://openmates.org/intro/for-developers), or [who develops OpenMates](https://openmates.org/intro/who-develops-openmates).
+New to the project? Read [who develops OpenMates](https://openmates.org/intro/who-develops-openmates) or explore the real workflows above.
 
 ## What makes OpenMates different
 

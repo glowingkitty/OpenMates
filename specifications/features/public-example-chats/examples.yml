@@ -1,10 +1,10 @@
 schema_version: 1
-specification: feature.public-example-chats@3
+specification: feature.public-example-chats@4
 
 catalog_discovery:
   - id: guest-intro-example-cards
-    input: {surface: guest_intro, route: "/#chat-id=demo-for-everyone", user_state: logged_out}
-    expected: {example_cards_visible: true, titles_non_empty: true}
+    input: {surface: guest_onboarding, route: /, user_state: logged_out}
+    expected: {example_cards_visible: true, titles_non_empty: true, retired_intro_chats_absent: true}
   - id: guest-all-examples-search
     input: {surface: guest_all_examples, selected_query: screenshot}
     expected: {full_catalog_visible: true, result_id_visible: example-screenshot-to-html-pricing, legacy_custom_cards_absent: true}
@@ -22,7 +22,7 @@ static_navigation:
 
 navigation_state:
   - id: logged-out-selected-example
-    input: {surface: guest_sidebar, route: "/#chat-id=demo-for-everyone", theme: light}
+    input: {surface: guest_sidebar, route: "/#chat-id=example-ai-workshops-meetups-berlin", theme: light}
     expected: {selected_row_background: color-grey-0, non_selected_hover_background: color-grey-10, active_chat_layer_above_sidebar: true, active_chat_outer_shadow_visible: true}
 
 renderable_transcripts:

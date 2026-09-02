@@ -181,8 +181,7 @@ async function typeQuestionAndSend(
 	logCheckpoint('Clicked send button.');
 	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
 
-	// Wait for URL to update to the new chat ID. When sending from demo-for-everyone,
-	// the app creates a new chat and navigates to it. We must wait for this navigation
+	// Wait for URL to update to the new chat ID after sending. We must wait for this navigation
 	// so that: (a) the frontend's WebSocket subscribes to the new chat stream before
 	// the AI response arrives, and (b) initialCount in waitForResponseAndVerifyModel
 	// is captured on the correct (empty) chat rather than a stale one.

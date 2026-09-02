@@ -26,7 +26,7 @@ test('global notifications stack behind the front card, show activity, and promo
 	await page.addInitScript((key: string) => {
 		sessionStorage.setItem(key, JSON.stringify({ runId: 'notification-stack', token: 'local-e2e' }));
 	}, E2E_LOG_FORWARDING_SESSION_KEY);
-	await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
+	await page.goto(getE2EDebugUrl('/#chat-id=demo-who-develops-openmates'), { waitUntil: 'domcontentloaded' });
 	await page.waitForFunction((key: string) => Boolean(sessionStorage.getItem(key)), E2E_LOG_FORWARDING_SESSION_KEY, {
 		timeout: 10000
 	});

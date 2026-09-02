@@ -15,6 +15,8 @@ import { updateEntryPrefillStore } from "../stores/updateEntryPrefillStore";
 import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsFilterStore";
 import { buildSettingsHash, getSettingsPathFromHash, normalizeSettingsPath } from "../utils/settingsHashUtils";
 
+const RETIRED_INTRO_CHAT_IDS = new Set(["demo-for-everyone", "demo-for-developers"]);
+
 export type DeepLinkType =
   | "chat"
   | "settings"
@@ -213,6 +215,13 @@ export async function processDeepLink(
 
   switch (parsed.type) {
     case "chat":
+      if (RETIRED_INTRO_CHAT_IDS.has(parsed.data.chatId)) {
+        if (typeof window !== "undefined") {
+          replaceState(window.location.pathname + window.location.search, {});
+        }
+        await handlers.onNoHash?.();
+        return { type: "chat", processed: true };
+      }
       if (handlers.onChat) {
         await handlers.onChat(
           parsed.data.chatId,

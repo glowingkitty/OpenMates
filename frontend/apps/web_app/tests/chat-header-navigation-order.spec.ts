@@ -13,11 +13,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { fillMessageEditor, focusMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 
-const INTRO_CHAT_TITLES = new Set([
-	'OpenMates | For everyone',
-	'OpenMates | For developers',
-	'Who develops OpenMates?'
-]);
+const INTRO_CHAT_TITLES = new Set(['Who develops OpenMates?']);
 
 const SECURITY_REMINDER_TITLE = 'Security Reminder';
 

@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.landing-onboarding@1
+specification: feature.landing-onboarding@2
 
 real_shell:
   - id: logged-out-welcome-uses-real-chat-shell
@@ -9,6 +9,8 @@ real_shell:
       host_surface: new_chat_welcome
       separate_marketing_page: false
       welcome_content_mounted_under_intro: true
+      active_public_chat: null
+      chat_hash: null
   - id: intro-overlay-covers-active-chat-card
     given: {current_story_id: openmates-intro, intro_phase: expanded}
     expect:
@@ -125,6 +127,28 @@ signup_cta:
       dispatched_event: openSignupInterface
       starts_chat: false
       signup_hash_written: false
+
+legacy_intro_retirement:
+  - id: retired-intro-paths-return-to-welcome
+    given: {route: /intro/for-everyone}
+    expect: {redirect_destination: /, sitemap_entry: false}
+  - id: retired-intro-fragments-return-to-welcome
+    given: {route: "/#chat-id=demo-for-developers", authenticated: false}
+    expect: {hash_cleared: true, host_surface: new_chat_welcome, missing_chat_error: false}
+  - id: retired-intros-absent-from-discovery
+    given: {surface: guest_or_authenticated_public_chat_discovery}
+    expect: {absent_chat_ids: [demo-for-everyone, demo-for-developers], real_example_chats_visible: true}
+  - id: auth-recovery-uses-neutral-chat-state
+    given: {login_recovery_completed: true, previous_last_opened: /signup/verify}
+    expect: {last_opened_not_in: [demo-for-everyone, demo-for-developers], neutral_new_chat_state: true}
+
+primary_slogan:
+  - id: english-positioning-is-consistent
+    given: {locale: en}
+    expect:
+      slogan: Your AI team for getting things done
+      surfaces: [landing_headline, seo_metadata, open_graph, social_preview, github_readme, npm_readme, pip_readme]
+      package_registry_descriptions_remain_specific: true
 
 apple_parity:
   - id: apple-preserves-web-story-contract

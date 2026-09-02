@@ -7,7 +7,7 @@
  *
  * URL management (privacy-first):
  *   - All in-session chat navigation → hash fragment (#chat-id=xxx)
- *     Using replaceState to a different SvelteKit route (e.g. /intro/for-developers)
+ *     Using replaceState to a different SvelteKit route (e.g. /intro/who-develops-openmates)
  *     can trigger SvelteKit's client router on prerendered (seo) pages, causing
  *     unexpected navigation or UI freeze. Hash-based navigation is safe for all
  *     in-session switching. Prerendered semantic paths serve SEO crawlers only.
@@ -23,7 +23,7 @@ import { getHashParam, updateHashParams } from "../utils/settingsHashUtils";
 
 /**
  * Store to track when deep link processing is happening
- * This prevents auto-loading of demo-for-everyone during deep link processing
+ * This prevents welcome-state resets during deep link processing
  */
 export const deepLinkProcessing = writable(false);
 
@@ -45,7 +45,7 @@ function updateUrlHash(chatId: string | null) {
 
   if (chatId) {
     // Always use hash fragment for in-session navigation (public and private chats alike).
-    // Using replaceState to a semantic path like /intro/for-developers risks triggering
+    // Using replaceState to a semantic path like /intro/who-develops-openmates risks triggering
     // SvelteKit's client router because those paths exist as real prerendered (seo) routes.
     // If SvelteKit navigates to the SEO page, its onMount fires window.location.replace
     // which can interrupt loadChat mid-flight and leave the UI unresponsive.
@@ -59,7 +59,7 @@ function updateUrlHash(chatId: string | null) {
       embed_id: null,
     });
     if (isOnSemanticChatPath()) {
-      // Currently on a semantic path (e.g. user arrived via direct link /intro/for-developers).
+      // Currently on a semantic path (e.g. user arrived via /intro/who-develops-openmates).
       // Move back to root with the hash so it doesn't get appended to the semantic path.
       replaceState(`/${expectedHash}`, {});
       return;

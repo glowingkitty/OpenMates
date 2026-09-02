@@ -125,7 +125,7 @@ final class ChatSyncParityTests: XCTestCase {
         let privateVisible = makeChat(id: "private-visible", title: "Private but searchable")
         let hidden = makeChat(id: "hidden-chat", title: "Hidden", isHidden: true)
         let archived = makeChat(id: "archived-chat", title: "Archived", isArchived: true)
-        let publicChat = makeChat(id: "demo-for-everyone", title: "Public demo")
+        let publicChat = makeChat(id: "example-gigantic-airplanes", title: "Public example")
 
         XCTAssertTrue(SpotlightIndexer.isEligibleForSpotlight(privateVisible))
         XCTAssertFalse(SpotlightIndexer.isEligibleForSpotlight(hidden))

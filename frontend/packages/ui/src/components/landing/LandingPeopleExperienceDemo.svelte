@@ -89,7 +89,7 @@
     {#key activeStage}
     <LandingSubslideMotion {playing} durationMs={activeStageDurationMs} stage={activeStage}>
       {#if activeStage === 'providers-copy'}
-        <p class="story-copy" data-testid="landing-providers-copy">{$text('demo_chats.for_everyone.landing_people_models')}</p>
+        <p class="story-copy" data-testid="landing-providers-copy">{$text('guest_onboarding.landing_people_models')}</p>
       {:else if activeStage === 'providers' || reducedMotion}
         <div class="provider-grid">
           {#each providers as provider, index}
@@ -100,7 +100,7 @@
           {/each}
         </div>
       {:else if activeStage === 'access-copy'}
-        <p class="story-copy" data-testid="landing-access-copy">{$text('demo_chats.for_everyone.landing_people_access')}</p>
+        <p class="story-copy" data-testid="landing-access-copy">{$text('guest_onboarding.landing_people_access')}</p>
       {:else}
         <div class="access-flow">
           {#key activeAccess.id}

@@ -8,8 +8,8 @@
 -->
 <script lang="ts">
 	let {
-		headline = 'Digital team mates',
-		subtitle = 'For everyone.',
+		headline = 'Your AI team for getting things done',
+		subtitle = '',
 		features = [
 			'AI for everyday tasks & learning',
 			'Privacy focus',

@@ -880,7 +880,7 @@
   );
   
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
-  let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
+  let currentChatId = $derived(original_message?.chat_id || '');
   let hasInlineSubChatBatch = $derived.by(() => {
     return [original_message?.content, content, fullContent].some(containsSubChatBatch);
   });

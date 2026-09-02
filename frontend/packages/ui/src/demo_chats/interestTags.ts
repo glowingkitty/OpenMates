@@ -292,9 +292,7 @@ export const INTEREST_TAGS: InterestTag[] = DEFINITIONS.map((definition, index) 
     labelKey: `chat.interests.${tag.id}`,
     defaultOrder: (index + 1) * 10,
     dailyInspirations: [...dailyInspirations, ...GUEST_PRODUCT_INSPIRATIONS],
-    introChats: developerIntro
-      ? ["demo-for-developers", "demo-who-develops-openmates", "demo-for-everyone"]
-      : ["demo-for-everyone"],
+    introChats: developerIntro ? ["demo-who-develops-openmates"] : [],
   };
 });
 

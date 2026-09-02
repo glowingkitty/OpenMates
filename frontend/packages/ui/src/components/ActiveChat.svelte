@@ -1145,15 +1145,14 @@
             // CRITICAL: Don't clear shared chats - they're valid for non-auth users
             // CRITICAL: Skip this entirely during initial deep link processing - the user is loading
             // a draft or specific chat from the URL, not logging out. This effect was incorrectly
-            // firing when currentChat changed from null to the draft chat, causing demo-for-everyone
+            // firing when currentChat changed from null to a draft and overwriting it
             // to overwrite the draft immediately after it loaded.
             if (get(deepLinkProcessing)) {
                 console.debug('[ActiveChat] Skipping auth state effect - deep link processing in progress');
                 return;
             }
 
-            // OG image mode (?og=1): skip demo-for-everyone auto-load so the welcome screen
-            // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+            // OG image mode (?og=1): preserve welcome in /dev/og-image iframes.
             if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
                 console.debug('[ActiveChat] Skipping auth state effect - og=1 mode (welcome screen should stay visible)');
                 return;
@@ -1169,7 +1168,7 @@
                 const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
                 
                 // CRITICAL: Also check if this is a sessionStorage draft chat (non-auth user's unsaved work)
-                // Draft chats are valid for non-authenticated users and should NOT be overwritten with demo-for-everyone
+                // Draft chats are valid for non-authenticated users and must not be overwritten.
                 const isSessionStorageDraft = loadSessionStorageDraft(currentChat.chat_id) !== null;
                 const isAnonymousChat = currentChat.is_anonymous || isAnonymousChatId(currentChat.chat_id);
 
@@ -1187,7 +1186,7 @@
                 
                 if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
-                    // EXCEPTION: If we're explicitly logging out, always switch to demo-for-everyone
+                    // EXCEPTION: Explicit logout always returns to neutral welcome.
                     console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
                     return; // Keep the shared chat loaded
                 }
@@ -1228,17 +1227,15 @@
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
                 }
-                // CRITICAL: Fully clear the previously loaded demo chat (e.g. 'demo-for-everyone')
+                // CRITICAL: Fully clear any previously loaded public chat
                 // on login transition.
                 //
                 // Why this matters (OPE-354):
-                // The non-authenticated view of the app keeps `currentChat` set to the
-                // `demo-for-everyone` welcome chat so the demo content renders before login.
+                // The non-authenticated view can keep `currentChat` set to a public chat.
                 // After authentication succeeds we need a clean welcome screen so the first
                 // message the user sends creates a genuinely fresh chat.
                 //
-                // If we only reset the header (old behavior), `currentChat.chat_id` stays as
-                // `demo-for-everyone`. That ID is then passed into MessageInput → handleSend
+                // If we only reset the header, the public ID remains and is passed into MessageInput → handleSend
                 // → sendHandlers.ts, which detects it via `isPublicChat(chatIdToUse)` and
                 // triggers the "Demo Duplication Flow": every demo message ("Digital team
                 // mates for everyone …") gets copied into the user's brand-new chat. The
@@ -8634,7 +8631,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // RACE CONDITION GUARD: During the async gap in loadChat() (between setting currentChat
         // and setting currentMessages), currentMessages may still hold messages from the PREVIOUS
         // chat. If we process a chatUpdated event now, we'd append/merge the new chat's messages
-        // into the old chat's message array — causing cross-chat message leaks (e.g. demo-for-everyone
+        // into the old chat's message array, causing cross-chat message leaks (including public chats
         // messages appearing inside a real chat). Detect this by checking if currentMessages[0]
         // belongs to a different chat than currentChat.
         if (currentMessages.length > 0 && detail.newMessage) {

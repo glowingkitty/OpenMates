@@ -294,10 +294,10 @@ specifications:
     - rest_api
     - gui.web
   feature.landing-onboarding:
-    version: 1
+    version: 2
     status: draft
     path: features/landing-onboarding
-    fingerprint: bc330af95e8921b3d363ee847439a07fb55123d014884635f1f8056edbd39f41
+    fingerprint: 1f9254af8ad6b1f575041d1ffded8c695e697c98f30bf5db9ca435398d448662
     required_applies_to:
     - gui.web
     - gui.apple
@@ -369,10 +369,10 @@ specifications:
     - sdks.pip
     - gui.web
   feature.public-example-chats:
-    version: 3
+    version: 4
     status: draft
     path: features/public-example-chats
-    fingerprint: 1a3d7fc1d28a403f55957326038ad8db1f2a34470e1c02ac3c19f23ad225de69
+    fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
     required_applies_to:
     - gui.web
   feature.settings-ui:
@@ -3257,15 +3257,15 @@ assertions:
     - rest_api
     - gui.web
   landing-onboarding.uses-real-chat-shell:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
-    fingerprint: 06bafc8fcbb78ccee5b56457b2270b04324d481c446b8cd72342eac7c62cebde
+    fingerprint: 4fa3937496ad025473bd94fe23222d6dc45bed63a24cbaae412a09fb9662f67d
     required_applies_to:
     - gui.web
     - gui.apple
   landing-onboarding.guest-sequence:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: e8abbd972487ecc8a3f27199181f11e4857d69a7a75fa116b2031bfcc21de296
@@ -3273,7 +3273,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.intro-active-apps-only:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: invariant
     fingerprint: 71094aebac8ad350e1979f8ca3949205cdfef63f4a40918449886af74434ea3f
@@ -3281,7 +3281,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.coordinated-story-progress:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 7d1cc1618622afee9d7f101b28e0b916f2a070448ead22501d6507fef4520bf5
@@ -3289,7 +3289,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.manual-navigation:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 5101206cd8c42d9b9dccbb184be4ff733205f542b216b57552e34e8fc5cc329f
@@ -3297,7 +3297,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.actionable-demo-faithful:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: f1bf3e074a516016c2560aef6b86d8b11d36685db4fc98b0f2e998527978ba12
@@ -3305,7 +3305,7 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.privacy-mates-platform-stories:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: ef34d2a016aca3abda1d76393821820c4e797cb8e3216ab8332b73661f2980a1
@@ -3313,18 +3313,34 @@ assertions:
     - gui.web
     - gui.apple
   landing-onboarding.signup-cta:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: behavior
     fingerprint: 097cc2e003abfad4b137aed426b0e1077aa55c4a0392245a3eb9721de9dfe263
     required_applies_to:
     - gui.web
     - gui.apple
+  landing-onboarding.legacy-intros-retired:
+    specification: feature.landing-onboarding@2
+    specification_id: feature.landing-onboarding
+    type: behavior
+    fingerprint: f84152ee0a9bbcf9469117cf8c166a5f1749f8833b3cee2784647e7ebb8bbca3
+    required_applies_to:
+    - gui.web
+    - gui.apple
+  landing-onboarding.primary-slogan-consistent:
+    specification: feature.landing-onboarding@2
+    specification_id: feature.landing-onboarding
+    type: invariant
+    fingerprint: 1d1b95e43e378be78a2c732e172ea2bf8f324a631cf39b8002cf2c8e2b2f8f60
+    required_applies_to:
+    - gui.web
+    - gui.apple
   landing-onboarding.apple-web-parity:
-    specification: feature.landing-onboarding@1
+    specification: feature.landing-onboarding@2
     specification_id: feature.landing-onboarding
     type: parity
-    fingerprint: 324b456c29c9dc018661e5f009708f474dd48d4a09d9e641ffdfa0f9f58a89d7
+    fingerprint: eb22ebcf74cb831c0045c8ce71257957b5920aff04b0891d43f4b1e590d90e28
     required_applies_to:
     - gui.web
     - gui.apple
@@ -3929,59 +3945,59 @@ assertions:
     - sdks.pip
     - gui.web
   public-example-chats.catalog.discoverable:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: behavior
-    fingerprint: 7b2015f09a3e838061b27b087d44a1f06a66d671c576f80305a3ba50425214bf
+    fingerprint: 440d09cf641e2bcbfae26bfa91421050e30a4a52aeee404578470b62731d4dc7
     required_applies_to:
     - gui.web
   public-example-chats.navigation.static-public-link:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: behavior
     fingerprint: 43539ab76eea7a2a9792278e0ab8ddb9ee270163269a2bf478d0d3a8aece5c30
     required_applies_to:
     - gui.web
   public-example-chats.navigation.selected-state-visible:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: behavior
-    fingerprint: ba6e396cc58b6c1e2bc44a1362695b38290d5d65b14b506df7e69bf7c118eb27
+    fingerprint: 09580fa5410729a9ed2fb399367dafbb334b67edbd610e202fa2b13b60c647cb
     required_applies_to:
     - gui.web
   public-example-chats.transcript.safe-rendering:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: privacy
     fingerprint: fd6ff0edd6f3344f9944b04aa9fea05ab0d121dbcd75259248be62a9008f401c
     required_applies_to:
     - gui.web
   public-example-chats.history.explicit-forgotten-reveal:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: behavior
     fingerprint: 04a2c5bc778b4a4e3c7bb6ddc03a88594ecbf7ff5beea0cb812a53bb68afdb56
     required_applies_to:
     - gui.web
   public-example-chats.seo.crawlable:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: behavior
     fingerprint: f5de83222aad152362d972efc216165c22bf8f15ffc4fb1567ff01c04d71995e
     required_applies_to:
     - gui.web
   public-example-chats.speech.reviewed-public-playback:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: privacy
     fingerprint: eb08ec84f1f00bf3178b030a0478319d78c72c36071ed7ca63dd1f36bf8ab1f5
     required_applies_to:
     - gui.web
   public-example-chats.surface.semantic-parity:
-    specification: feature.public-example-chats@3
+    specification: feature.public-example-chats@4
     specification_id: feature.public-example-chats
     type: parity
-    fingerprint: 4a213877321ac96b8c211dff3cc4e52d984bb3ae2a8c5d033d970565e3949d14
+    fingerprint: ae35cf0b663890b935fa48d96ed86900b24309d13e5d586b0120aff5cb4bce79
     required_applies_to:
     - gui.web
   settings-ui.shell.lifecycle-and-routing:

@@ -1,0 +1,233 @@
+schema_version: 2
+id: retire-legacy-intro-chats
+title: Retire Legacy Intro Chats And Align Product Positioning
+status: implementing
+
+specification_refs:
+  - id: feature.landing-onboarding
+    version: 2
+    fingerprint: 1f9254af8ad6b1f575041d1ffded8c695e697c98f30bf5db9ca435398d448662
+  - id: feature.public-example-chats
+    version: 4
+    fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
+
+specification_impact:
+  classification: behavior_change
+  specification_update_required: true
+  affected_assertions:
+    - landing-onboarding.uses-real-chat-shell
+    - landing-onboarding.legacy-intros-retired
+    - landing-onboarding.primary-slogan-consistent
+    - public-example-chats.catalog.discoverable
+  reason: The approved Specifications replace public intro chats with neutral guest onboarding plus real example chats.
+
+documentation_impact:
+  generated_reference: {status: update_required, reason: Approved Specification bundles changed., documents: []}
+  user_docs:
+    status: update_required
+    reason: Demo-chat documentation and README links must stop advertising retired intro chats.
+    documents: [README.md, docs/user-guide/demo-chats.md]
+  semantic_layer: {status: update_required, reason: Landing and public-example Specifications changed.}
+
+goal: >
+  Use “Your AI team for getting things done” consistently across primary English
+  marketing surfaces, preserve the existing logged-out onboarding slides and real
+  example-chat discovery, and safely retire the For everyone and For developers
+  public intro chats across web, backend compatibility, SEO, and Apple catalogs.
+
+scope:
+  in:
+    - Website SEO, Open Graph, social-preview, GitHub README, npm README, and pip README slogan updates.
+    - Neutral guest-onboarding translations and runtime data independent of public intro-chat content.
+    - Removal of both intro chats from web and Apple catalogs, discovery, special rendering, SEO content, and sitemap.
+    - Compatibility handling for old path and fragment links.
+    - Neutral auth-recovery last_opened behavior instead of demo-for-everyone.
+    - Focused web and backend verification plus deployed web proof.
+  out:
+    - Manual social-media, Luma, Meetup, Eventbrite, Discord, and YouTube account edits.
+    - New docs.openmates.org information architecture, user-guide landing page, or blog.
+    - Apple builds, Apple tests, or Apple proof in this speed-focused slice.
+    - Removing the unrelated Directus demo_chats collection or Vault bootstrap key.
+    - Rewriting historical release notes, completed plans, or archived evidence.
+
+clarification:
+  rounds:
+    - question: Should the existing onboarding slides remain while both legacy public intro chats are removed?
+      answer: Yes. Keep the normal unauthenticated app shell, slides, and real example-chat exploration.
+    - question: Should Apple verification run in this slice?
+      answer: No. Update or remove Apple references without spending time on Apple builds or tests.
+  vision_summary: >
+    Logged-out users continue to see the real web app welcome surface and product-story slides,
+    followed by real example chats. Legacy intro-chat content, discovery, and routes are retired;
+    docs and blog architecture remain future decisions.
+  approved_by_user: true
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Shared/Components/ChatListRow.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  parity_expectations:
+    - Apple no longer catalogs or recommends either retired intro chat.
+    - Apple keeps its existing logged-out onboarding slides and real example-chat discovery.
+  verification:
+    - waived_by_user: Apple builds and tests explicitly skipped to prioritize web delivery speed.
+  intentional_native_differences: [No new native feature is introduced.]
+
+scenarios:
+  - id: S-1
+    title: Fresh guest sees onboarding and real examples
+    given: [A logged-out visitor opens /.]
+    when: [The welcome surface renders and onboarding advances.]
+    then:
+      - No public chat is active and no chat hash is written.
+      - The existing full-height and compact product-story slides remain.
+      - Real example-* chats remain available for exploration.
+  - id: S-2
+    title: Retired links recover safely
+    given: [A visitor opens an old /intro path or demo-for-* hash link.]
+    when: [The route or client deep-link compatibility handler resolves it.]
+    then:
+      - The visitor reaches the neutral root welcome state.
+      - The retired hash is cleared and no missing-chat error appears.
+  - id: S-3
+    title: Authentication recovery uses neutral state
+    given: [An account finishes an OTP or backup-code recovery path from an early-signup route.]
+    when: [The backend normalizes last_opened.]
+    then: [Neither retired demo ID is persisted or returned as the recovery target.]
+  - id: S-4
+    title: Primary marketing surfaces share one slogan
+    given: [An English visitor or developer reads a primary OpenMates product surface.]
+    when: [Landing metadata, social previews, repository, npm README, or pip README render.]
+    then: [The product slogan is “Your AI team for getting things done”.]
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    specification_assertions: [landing-onboarding.uses-real-chat-shell, public-example-chats.catalog.discoverable]
+    text: Fresh logged-out web onboarding is unchanged structurally and exposes real examples without either retired intro chat.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB]
+  - id: AC-2
+    scenario: S-2
+    specification_assertions: [landing-onboarding.legacy-intros-retired]
+    text: Old intro paths and fragment IDs reach the neutral welcome state without errors and are absent from sitemap and discovery.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB]
+  - id: AC-3
+    scenario: S-3
+    specification_assertions: [landing-onboarding.legacy-intros-retired]
+    text: Auth recovery no longer writes either retired public-chat ID.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND]
+  - id: AC-4
+    scenario: S-4
+    specification_assertions: [landing-onboarding.primary-slogan-consistent]
+    text: All approved code-owned English positioning surfaces use the new slogan while package descriptions remain specific.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [T-POSITIONING]
+
+contracts:
+  api:
+    changed_endpoints:
+      - route: Existing /auth/login completion paths
+        access_model: first-party client surface only
+        auth: Existing login and recovery authentication requirements are unchanged.
+        rate_limits: Existing auth limits are unchanged.
+        credits: none
+        encryption_boundary: Existing client-wrapped account material is unchanged; only non-sensitive last_opened routing metadata changes.
+        contract_change: No request or response schema change; early-signup recovery selects neutral new-chat state.
+  data:
+    - Existing demo-for-everyone last_opened values remain tolerated as legacy input and resolve to neutral new-chat state.
+    - No destructive bulk migration or Directus schema change is required.
+  ui:
+    - Guest onboarding is a first-class neutral welcome surface, not a public chat.
+    - Public discovery contains real example-* chats and no retired demo-for-* entries.
+
+tests:
+  - id: T-POSITIONING
+    type: lint
+    specification_assertions: [landing-onboarding.primary-slogan-consistent]
+    file: README.md
+    command: npm --prefix frontend/packages/ui run build:translations
+    covers: [AC-4]
+    assertions: [Canonical translations build and approved English positioning sources contain the new slogan.]
+    red_phase: {required: false, expected: not_captured, evidence: {status: waived, reason: Mechanical copy alignment.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-BACKEND
+    type: pytest
+    specification_assertions: [landing-onboarding.legacy-intros-retired]
+    file: backend/tests/test_retired_intro_chat_recovery.py
+    command: python3 -m pytest backend/tests/test_retired_intro_chat_recovery.py
+    covers: [AC-3]
+    assertions: [OTP and backup-code recovery use neutral new-chat state instead of either retired ID.]
+    red_phase: {required: false, expected: not_captured, evidence: {status: waived, reason: Implementation started before this consolidated Plan was created.}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-WEB
+    type: playwright
+    specification_assertions: [landing-onboarding.uses-real-chat-shell, landing-onboarding.legacy-intros-retired, public-example-chats.catalog.discoverable]
+    file: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2]
+    assertions: [Fresh guest onboarding remains hash-free with real examples, retired hashes recover to welcome, and retired intro chats are absent.]
+    red_phase: {required: false, expected: not_captured, evidence: {status: waived, reason: Implementation started before this consolidated Plan was created.}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+
+implementation_state: {subject_commit: working-tree}
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-02"
+    reason: User approved both exact Specification approval artifacts.
+  plan:
+    status: approved
+    approved_at: "2026-09-02"
+    reason: User explicitly instructed implementation of the previously reviewed removal plan.
+
+decisions:
+  - {id: D-1, status: active, decision: Preserve current guest onboarding and real examples while retiring both public intro chats., reason: The current web welcome flow is already independent of the legacy chat records., decided_at: "2026-09-02"}
+  - {id: D-2, status: active, decision: Skip Apple builds and tests in this slice., reason: User prioritized web delivery speed and requested source-only Apple cleanup., decided_at: "2026-09-02"}
+
+attempts:
+  - {id: ATTEMPT-1, task_id: TASK-1, approach: Validate the approved compact implementation ledger before source edits., outcome: planned, recorded_at: "2026-09-02", notes: Schema V2 evidence records normalized before implementation.}
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Update marketing sources and remove legacy intro-chat runtime dependencies.
+  command: npm --prefix frontend/packages/ui run build:translations
+  expected_outcome: Canonical locale outputs reflect the neutral onboarding namespace and new slogan.
+  blocker: null
+  last_verified_commit: working-tree
+
+tasks:
+  - id: TASK-1
+    title: Retire legacy intro chats and align product positioning
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]}
+    expected_files: [frontend/packages/ui/src/demo_chats/, frontend/apps/web_app/src/routes/, backend/core/api/app/routes/auth_routes/auth_login.py, apple/OpenMates/Sources/, README.md]
+    verification: [T-POSITIONING, T-BACKEND, T-WEB]
+    verification_ids: [T-POSITIONING, T-BACKEND, T-WEB]
+    dependencies: []
+    ownership: {files: [docs/plans/retire-legacy-intro-chats/plan.yml], shared_files: [frontend/packages/ui/src/demo_chats/, frontend/apps/web_app/src/routes/, backend/core/api/app/routes/auth_routes/auth_login.py, apple/OpenMates/Sources/]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

@@ -2,6 +2,8 @@
 
 <img src="https://openmates.org/favicon.png" alt="OpenMates" width="72">
 
+**Your AI team for getting things done**
+
 Python SDK for OpenMates: run app skills, create encrypted chats, inspect usage,
 and automate everyday OpenMates tasks from Python.
 

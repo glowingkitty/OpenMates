@@ -887,8 +887,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	await assertAssistantFeedbackReportIssueFlow(page, logChatCheckpoint, takeStepScreenshot);
 
 	// CRITICAL: Verify exactly 2 messages in the DOM (1 user + 1 assistant).
-	// This catches the "for-everyone" demo message bleed-through bug where the
-	// demo intro message leaks into the real chat after demo→real conversion.
+	// This catches public-chat message bleed-through into a newly created chat.
 	const userMessages = page.getByTestId('message-user');
 	const assistantMessages = page.getByTestId('message-assistant');
 	const userCount = await userMessages.count();
@@ -1183,7 +1182,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	logChatCheckpoint('Clicked Logout.');
 
 	// After logout: the app stays on the same SPA page but shows the "Login / Sign up" button
-	// URL hash changes to demo-for-everyone
+	// The logged-out shell clears the chat hash.
 	await page.waitForTimeout(3000);
 	await expect(async () => {
 		expect(await isSignupInterfaceVisible(page, 1000)).toBe(true);

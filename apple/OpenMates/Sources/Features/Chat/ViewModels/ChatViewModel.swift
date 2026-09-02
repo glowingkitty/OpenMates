@@ -2582,28 +2582,6 @@ enum PublicChatContent {
         let createdAt = "2026-04-20T12:00:00Z"
 
         switch id {
-        case "demo-for-everyone":
-            return publicChat(
-                id: id,
-                title: AppStrings.demoForEveryoneTitle,
-                appId: "ai",
-                createdAt: createdAt,
-                messages: [
-                    assistant(id: "for-everyone-1", chatId: id, contentKey: "demo_chats.for_everyone.message", createdAt: createdAt, appId: "ai")
-                ],
-                followUpKeys: demoFollowUpKeys("for_everyone")
-            )
-        case "demo-for-developers":
-            return publicChat(
-                id: id,
-                title: AppStrings.demoForDevelopersTitle,
-                appId: "code",
-                createdAt: createdAt,
-                messages: [
-                    assistant(id: "for-developers-1", chatId: id, contentKey: "demo_chats.for_developers.message", createdAt: createdAt, appId: "code")
-                ],
-                followUpKeys: demoFollowUpKeys("for_developers")
-            )
         case "demo-who-develops-openmates":
             return publicChat(
                 id: id,
@@ -3314,8 +3292,7 @@ enum PublicChatContent {
             "[[dev_focus_modes_group]]",
             "[[settings_memories_group]]",
             "[[dev_settings_memories_group]]",
-            "[[ai_models_group]]",
-            "[[for_developers_embed]]"
+            "[[ai_models_group]]"
         ]
         var cleaned = content
         let embedPlaceholderPattern = #"\[\[embed(?:ref)?:[^\]]+\]\]"#

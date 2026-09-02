@@ -7,8 +7,8 @@ width: 1080
 height: 1920
 
 brand:
-  headline: "Your AI team mates"
-  subtitle: "Always ready."
+  headline: "Your AI team for getting things done"
+  subtitle: ""
   headline_size: "2.5rem"
   features:
     - "Ask anything"
