@@ -92,6 +92,7 @@ test.describe('API-key scope selection settings', () => {
 			await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible();
 		});
 		await proof.checkpoint('full-access');
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
 		await proof.action('disable-full-access', () => page.getByTestId('api-key-full-access').click());
 		const fixedScopeInputs = page.locator('[data-testid^="api-key-scope-"][data-testid$="-toggle"] input');
