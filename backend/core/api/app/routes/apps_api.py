@@ -3126,6 +3126,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             Requires API key authentication.
                             The skill will be executed, billed, and a usage entry will be created automatically.
                             """
+                            _require_api_key_app_skill_scope(user_info, captured_app_id, captured_skill.id)
                             try:
                                 # Convert Pydantic model to dict
                                 request_dict = request_body.model_dump() if hasattr(request_body, 'model_dump') else dict(request_body)

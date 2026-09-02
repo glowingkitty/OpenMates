@@ -14,12 +14,14 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import _enforce_a
 
 
 WORKFLOWS_PATH = Path(__file__).resolve().parents[2] / "backend/core/api/app/routes/workflows.py"
+APPROVED_API_KEY_DEVICE_HASH = "approved-device"
 
 
 def _request(method: str, path: str, headers: dict[str, str] | None = None) -> SimpleNamespace:
     return SimpleNamespace(method=method, url=SimpleNamespace(path=path), headers=headers or {})
 
 
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_workflow_routes_have_explicit_slowapi_limits() -> None:
     lines = WORKFLOWS_PATH.read_text(encoding="utf-8").splitlines()
     missing_limits: list[str] = []
@@ -34,11 +36,12 @@ def test_workflow_routes_have_explicit_slowapi_limits() -> None:
     assert missing_limits == []
 
 
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_limited_workflow_api_keys_need_read_write_and_execute_scopes() -> None:
     api_key_info = {
         "api_key_metadata": {
             "full_access": False,
-            "scopes": {"workflows": ["workflow:read", "workflow:write"]},
+            "scopes": {"workflows": ["workflow:read", "workflow:create", "workflow:write"]},
         }
     }
 
@@ -52,6 +55,7 @@ def test_limited_workflow_api_keys_need_read_write_and_execute_scopes() -> None:
     assert exc.value.detail == {"error": "missing_scope", "missing_scope": "workflow:execute"}
 
 
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_user_task_and_plan_content_routes_reject_developer_api_keys() -> None:
     api_key_info = {"api_key_metadata": {"full_access": True}}
 
@@ -60,16 +64,44 @@ def test_user_task_and_plan_content_routes_reject_developer_api_keys() -> None:
     assert exc.value.status_code == 403
     assert exc.value.detail == {"error": "developer_api_access_not_classified"}
 
+    with pytest.raises(HTTPException) as forged_sdk_exc:
+        _enforce_api_key_route_policy(_request("GET", "/v1/user-tasks/task-1", {"x-openmates-sdk": "npm"}), api_key_info)
+    assert forged_sdk_exc.value.status_code == 403
+    assert forged_sdk_exc.value.detail == {"error": "developer_api_access_not_classified"}
+
+    approved_device_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+        "api_key_metadata": {"full_access": True},
+    }
+    _enforce_api_key_route_policy(
+        _request("GET", "/v1/user-tasks/task-1", {"x-openmates-sdk": "npm"}),
+        approved_device_info,
+    )
+
+    approved_scoped_device_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+        "api_key_metadata": {"full_access": True, "scopes": {"tasks": ["task:read"]}},
+    }
+    _enforce_api_key_route_policy(
+        _request("GET", "/v1/user-tasks/task-1", {"x-openmates-sdk": "npm"}),
+        approved_scoped_device_info,
+    )
+
     _enforce_api_key_route_policy(_request("GET", "/v1/user-tasks/task-1/metadata"), api_key_info)
     _enforce_api_key_route_policy(_request("GET", "/v1/user-plans/plan-1/metadata"), api_key_info)
 
 
-def test_first_party_sdk_can_use_encrypted_task_and_plan_routes_with_scopes() -> None:
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
+def test_approved_api_key_device_can_use_encrypted_task_and_plan_routes_with_scopes() -> None:
     headers = {"x-openmates-sdk": "npm"}
     api_key_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
         "api_key_metadata": {
             "full_access": False,
-            "scopes": {"tasks": ["task:read", "task:write"], "plans": ["plan:read", "plan:write"]},
+            "scopes": {
+                "tasks": ["task:read", "task:create", "task:write"],
+                "plans": ["plan:read", "plan:create", "plan:write"],
+            },
         }
     }
 
@@ -78,19 +110,24 @@ def test_first_party_sdk_can_use_encrypted_task_and_plan_routes_with_scopes() ->
     _enforce_api_key_route_policy(_request("GET", "/v1/user-plans", headers), api_key_info)
     _enforce_api_key_route_policy(_request("PATCH", "/v1/user-plans/plan-1", headers), api_key_info)
 
-    limited_info = {"api_key_metadata": {"full_access": False, "scopes": {"plans": ["plan:read"]}}}
+    limited_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+        "api_key_metadata": {"full_access": False, "scopes": {"plans": ["plan:read"]}},
+    }
     with pytest.raises(HTTPException) as exc:
         _enforce_api_key_route_policy(_request("POST", "/v1/user-plans", headers), limited_info)
     assert exc.value.status_code == 403
-    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "plan:write"}
+    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "plan:create"}
 
 
-def test_first_party_sdk_project_crud_requires_project_scopes() -> None:
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
+def test_approved_api_key_device_project_crud_requires_project_scopes() -> None:
     headers = {"x-openmates-sdk": "npm"}
     api_key_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
         "api_key_metadata": {
             "full_access": False,
-            "scopes": {"projects": ["project:read", "project:write"]},
+            "scopes": {"projects": ["project:read", "project:create", "project:write"]},
         }
     }
 
@@ -100,16 +137,101 @@ def test_first_party_sdk_project_crud_requires_project_scopes() -> None:
     with pytest.raises(HTTPException) as exc:
         _enforce_api_key_route_policy(
             _request("POST", "/v1/projects", headers),
-            {"api_key_metadata": {"full_access": False, "scopes": {"projects": ["project:read"]}}},
+            {
+                "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+                "api_key_metadata": {"full_access": False, "scopes": {"projects": ["project:read"]}},
+            },
         )
     assert exc.value.status_code == 403
-    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "project:write"}
+    assert exc.value.detail == {"error": "missing_scope", "missing_scope": "project:create"}
+
+
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
+def test_create_only_product_scopes_do_not_grant_read_or_modify_access() -> None:
+    headers = {"x-openmates-sdk": "npm"}
+    api_key_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+        "api_key_metadata": {
+            "full_access": False,
+            "scopes": {
+                "tasks": ["task:create"],
+                "plans": ["plan:create"],
+                "projects": ["project:create"],
+                "workflows": ["workflow:create"],
+            },
+        }
+    }
+
+    _enforce_api_key_route_policy(_request("POST", "/v1/user-tasks", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("POST", "/v1/user-plans", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("POST", "/v1/projects", headers), api_key_info)
+    _enforce_api_key_route_policy(_request("POST", "/v1/workflows", headers), api_key_info)
+
+    with pytest.raises(HTTPException) as task_read_exc:
+        _enforce_api_key_route_policy(_request("GET", "/v1/user-tasks", headers), api_key_info)
+    assert task_read_exc.value.detail == {"error": "missing_scope", "missing_scope": "task:read"}
+
+    with pytest.raises(HTTPException) as plan_write_exc:
+        _enforce_api_key_route_policy(_request("PATCH", "/v1/user-plans/plan-1", headers), api_key_info)
+    assert plan_write_exc.value.detail == {"error": "missing_scope", "missing_scope": "plan:write"}
+
+    with pytest.raises(HTTPException) as project_write_exc:
+        _enforce_api_key_route_policy(_request("PATCH", "/v1/projects/project-1", headers), api_key_info)
+    assert project_write_exc.value.detail == {"error": "missing_scope", "missing_scope": "project:write"}
+
+    with pytest.raises(HTTPException) as workflow_execute_exc:
+        _enforce_api_key_route_policy(_request("POST", "/v1/workflows/workflow-1/run", headers), api_key_info)
+    assert workflow_execute_exc.value.detail == {"error": "missing_scope", "missing_scope": "workflow:execute"}
+
+    with pytest.raises(HTTPException) as unapproved_exc:
+        _enforce_api_key_route_policy(
+            _request("POST", "/v1/projects", headers),
+            {"api_key_metadata": api_key_info["api_key_metadata"]},
+        )
+    assert unapproved_exc.value.detail == {"error": "developer_api_access_not_classified"}
+
+
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
+def test_full_access_approved_device_bypasses_supported_product_scope_checks() -> None:
+    api_key_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+        "api_key_metadata": {"full_access": True, "scopes": {}},
+    }
+
+    for method, path in (
+        ("GET", "/v1/user-tasks/task-1"),
+        ("POST", "/v1/user-tasks"),
+        ("PATCH", "/v1/user-plans/plan-1"),
+        ("GET", "/v1/projects/project-1"),
+        ("POST", "/v1/workflows/workflow-1/run"),
+    ):
+        _enforce_api_key_route_policy(_request(method, path), api_key_info)
+
+
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
+def test_unmapped_api_key_routes_fail_closed_except_app_routes() -> None:
+    api_key_info = {
+        "device_hash": APPROVED_API_KEY_DEVICE_HASH,
+        "api_key_metadata": {"full_access": False, "scopes": {}},
+    }
 
     with pytest.raises(HTTPException) as exc:
-        _enforce_api_key_route_policy(_request("GET", "/v1/projects", {"x-openmates-sdk": "other"}), api_key_info)
+        _enforce_api_key_route_policy(_request("GET", "/v1/users/user-1/profile-image"), api_key_info)
+    assert exc.value.status_code == 403
     assert exc.value.detail == {"error": "developer_api_access_not_classified"}
 
+    _enforce_api_key_route_policy(_request("POST", "/v1/apps/web/skills/search"), api_key_info)
 
+    with pytest.raises(HTTPException) as full_access_exc:
+        _enforce_api_key_route_policy(
+            _request("GET", "/v1/users/user-1/profile-image"),
+            {**api_key_info, "api_key_metadata": {"full_access": True}},
+        )
+    assert full_access_exc.value.status_code == 403
+    assert full_access_exc.value.detail == {"error": "developer_api_access_not_classified"}
+
+
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_project_remote_source_routes_remain_session_only() -> None:
     projects_source = (Path(__file__).resolve().parents[2] / "backend/core/api/app/routes/projects.py").read_text(encoding="utf-8")
     assert "async def list_projects(" in projects_source

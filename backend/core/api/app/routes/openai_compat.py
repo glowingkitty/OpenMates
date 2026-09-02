@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
 from backend.core.api.app.routes.apps_api import (
+    _require_api_key_app_skill_scope,
     charge_credits_via_internal_api,
     check_provider_api_key_available,
     get_directus_service,
@@ -388,6 +389,7 @@ async def _dispatch_ai_ask_chat_completion(
     request_body: Dict[str, Any],
     user_info: Dict[str, Any],
 ) -> Any:
+    _require_api_key_app_skill_scope(user_info, "ai", "ask")
     request_payload = dict(request_body)
     request_payload["apps_enabled"] = False
     request_payload["allowed_apps"] = []

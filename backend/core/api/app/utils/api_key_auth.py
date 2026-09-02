@@ -24,6 +24,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+API_KEY_REST_ACCESS_TYPE = "rest_api"
+API_KEY_SDK_ACCESS_TYPES = {"cli", "npm", "pip"}
+API_KEY_ACCESS_TYPES = API_KEY_SDK_ACCESS_TYPES | {API_KEY_REST_ACCESS_TYPE}
+
 class ApiKeyNotFoundError(Exception):
     """Raised when API key is not found or invalid"""
     pass
@@ -50,6 +54,10 @@ class ApiKeyAuthService:
     async def hash_api_key(self, api_key: str) -> str:
         """Hash an API key using SHA-256"""
         return hashlib.sha256(api_key.encode()).hexdigest()
+
+    def _access_type_for_request(self, request: Request) -> str:
+        access_type = request.headers.get("X-OpenMates-SDK", API_KEY_REST_ACCESS_TYPE).strip().lower()
+        return access_type if access_type in API_KEY_ACCESS_TYPES else API_KEY_REST_ACCESS_TYPE
 
     async def authenticate_api_key(
         self,
@@ -203,9 +211,7 @@ class ApiKeyAuthService:
                 request.client.host if request.client else None
             )
             
-            access_type = request.headers.get("X-OpenMates-SDK", "rest_api").strip().lower() or "rest_api"
-            if access_type not in {"rest_api", "cli", "npm", "pip"}:
-                access_type = "rest_api"
+            access_type = self._access_type_for_request(request)
             machine_identifier = request.headers.get("X-OpenMates-Device-Identity")
 
             # REST clients are IP-scoped. SDK clients can provide a stable local

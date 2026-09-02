@@ -22,6 +22,7 @@ def _request(method: str, path: str) -> SimpleNamespace:
     return SimpleNamespace(method=method, url=SimpleNamespace(path=path))
 
 
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_account_import_routes_have_explicit_slowapi_limits() -> None:
     lines = ACCOUNT_IMPORTS_PATH.read_text(encoding="utf-8").splitlines()
     missing_limits: list[str] = []
@@ -36,14 +37,17 @@ def test_account_import_routes_have_explicit_slowapi_limits() -> None:
     assert missing_limits == []
 
 
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_account_import_api_key_access_requires_import_scope() -> None:
     missing_scope_key = {
+        "device_hash": "approved-device",
         "api_key_metadata": {
             "full_access": False,
             "scopes": {"account": []},
         }
     }
     scoped_key = {
+        "device_hash": "approved-device",
         "api_key_metadata": {
             "full_access": False,
             "scopes": {"account": ["account:import"]},
@@ -59,6 +63,23 @@ def test_account_import_api_key_access_requires_import_scope() -> None:
     _enforce_api_key_route_policy(_request("POST", "/v1/account-imports/import-1/scan"), scoped_key)
 
 
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device
+def test_account_import_api_key_access_requires_approved_device() -> None:
+    scoped_key = {
+        "api_key_metadata": {
+            "full_access": False,
+            "scopes": {"account": ["account:import"]},
+        }
+    }
+
+    with pytest.raises(HTTPException) as exc:
+        _enforce_api_key_route_policy(_request("POST", "/v1/account-imports/import-1/scan"), scoped_key)
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == {"error": "developer_api_access_not_classified"}
+
+
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_account_import_plaintext_and_completion_payloads_are_size_limited() -> None:
     with pytest.raises(ValidationError):
         account_imports.ScanImportRequest(
@@ -76,6 +97,7 @@ def test_account_import_plaintext_and_completion_payloads_are_size_limited() -> 
         )
 
 
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 def test_plaintext_scan_route_does_not_write_client_chats_to_request_state() -> None:
     source = ACCOUNT_IMPORTS_PATH.read_text(encoding="utf-8")
 

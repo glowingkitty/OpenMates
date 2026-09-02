@@ -1,8 +1,8 @@
 """Account Export API security and retention contract tests.
 
-Purpose: keep the `/v1/account-exports` route first-party and scoped.
+Purpose: keep the `/v1/account-exports` route approved-device and scoped.
 Architecture: docs/specs/account-export-v1/spec.yml and regional cold storage.
-Security: API-key callers need the first-party SDK marker and account scope.
+Security: limited API-key callers need an approved device and explicit account scope.
 Privacy: export routes expose encrypted user data and must be rate limited.
 """
 
@@ -27,7 +27,7 @@ def _request(method: str, path: str, headers: dict[str, str] | None = None) -> S
 
 
 # contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device,storage.privacy.ciphertext-boundary
-def test_account_export_api_key_access_requires_first_party_sdk_and_export_scope() -> None:
+def test_account_export_api_key_access_requires_approved_device_and_export_scope() -> None:
     scoped_key = {
         "device_hash": "approved-sdk-device",
         "api_key_metadata": {
@@ -48,39 +48,25 @@ def test_account_export_api_key_access_requires_first_party_sdk_and_export_scope
     }
 
     with pytest.raises(HTTPException) as generic_exc:
-        _enforce_api_key_route_policy(_request("GET", "/v1/account-exports/export-1", {}), scoped_key)
+        _enforce_api_key_route_policy(
+            _request("GET", "/v1/account-exports/export-1", {}),
+            {**scoped_key, "device_hash": None},
+        )
 
     assert generic_exc.value.status_code == 403
     assert generic_exc.value.detail == {"error": "developer_api_access_not_classified"}
 
     with pytest.raises(HTTPException) as scope_exc:
         _enforce_api_key_route_policy(
-            _request("POST", "/v1/account-exports", {"x-openmates-sdk": "npm"}),
+            _request("POST", "/v1/account-exports"),
             missing_scope_key,
         )
 
     assert scope_exc.value.status_code == 403
     assert scope_exc.value.detail == {"error": "missing_scope", "missing_scope": "account:export"}
 
-    with pytest.raises(HTTPException) as spoofed_sdk_exc:
-        _enforce_api_key_route_policy(
-            _request("GET", "/v1/account-exports/export-1", {"x-openmates-sdk": "npm"}),
-            {**scoped_key, "device_hash": None},
-        )
-
-    assert spoofed_sdk_exc.value.status_code == 403
-    assert spoofed_sdk_exc.value.detail == {"error": "developer_api_access_not_classified"}
-
-    with pytest.raises(HTTPException) as full_access_exc:
-        _enforce_api_key_route_policy(
-            _request("POST", "/v1/account-exports", {"x-openmates-sdk": "npm"}),
-            full_access_without_export_scope,
-        )
-
-    assert full_access_exc.value.status_code == 403
-    assert full_access_exc.value.detail == {"error": "missing_scope", "missing_scope": "account:export"}
-
-    _enforce_api_key_route_policy(_request("GET", "/v1/account-exports/export-1", {"x-openmates-sdk": "pip"}), scoped_key)
+    _enforce_api_key_route_policy(_request("POST", "/v1/account-exports"), full_access_without_export_scope)
+    _enforce_api_key_route_policy(_request("GET", "/v1/account-exports/export-1"), scoped_key)
     _enforce_api_key_route_policy(_request("GET", "/v1/account-exports/export-1", {"x-openmates-sdk": "cli"}), scoped_key)
 
 

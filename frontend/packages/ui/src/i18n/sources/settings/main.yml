@@ -12271,8 +12271,233 @@ api_keys.full_access:
   he: גישה מלאה
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
+api_keys.limited_access:
+  context: API key limited access label
+  en: Limited access
+  de: Eingeschränkter Zugriff
+  zh: 有限访问权限
+  es: Acceso limitado
+  fr: Accès limité
+  pt: Acesso limitado
+  ru: Ограниченный доступ
+  ja: 制限付きアクセス
+  ko: 제한된 액세스
+  it: Accesso limitato
+  tr: Sınırlı erişim
+  vi: Quyền truy cập hạn chế
+  id: Akses terbatas
+  pl: Ograniczony dostęp
+  nl: Beperkte toegang
+  ar: وصول محدود
+  hi: सीमित पहुंच
+  th: สิทธิ์เข้าถึงแบบจำกัด
+  cs: Omezený přístup
+  sv: Begränsad åtkomst
+  he: גישה מוגבלת
+  verified_by_human: []
+
+api_keys.category_chats:
+  context: API key limited-access category label for chats
+  en: Chats
+  de: Chats
+  zh: 聊天
+  es: Chats
+  fr: Chats
+  pt: Chats
+  ru: Чаты
+  ja: チャット
+  ko: 채팅
+  it: Chat
+  tr: Sohbetler
+  vi: Cuộc trò chuyện
+  id: Obrolan
+  pl: Czaty
+  nl: Chats
+  ar: الدردشات
+  hi: चैट
+  th: แชท
+  cs: Chaty
+  sv: Chattar
+  he: צ'אטים
+  verified_by_human: []
+
+api_keys.category_tasks:
+  context: API key limited-access category label for tasks
+  en: Tasks
+  de: Aufgaben
+  zh: 任务
+  es: Tareas
+  fr: Tâches
+  pt: Tarefas
+  ru: Задачи
+  ja: タスク
+  ko: 작업
+  it: Attività
+  tr: Görevler
+  vi: Nhiệm vụ
+  id: Tugas
+  pl: Zadania
+  nl: Taken
+  ar: المهام
+  hi: कार्य
+  th: งาน
+  cs: Úkoly
+  sv: Uppgifter
+  he: משימות
+  verified_by_human: []
+
+api_keys.category_projects:
+  context: API key limited-access category label for projects
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: परियोजनाएं
+  th: โปรเจกต์
+  cs: Projekty
+  sv: Projekt
+  he: פרויקטים
+  verified_by_human: []
+
+api_keys.category_plans:
+  context: API key limited-access category label for plans
+  en: Plans
+  de: Pläne
+  zh: 计划
+  es: Planes
+  fr: Plans
+  pt: Planos
+  ru: Планы
+  ja: プラン
+  ko: 계획
+  it: Piani
+  tr: Planlar
+  vi: Kế hoạch
+  id: Rencana
+  pl: Plany
+  nl: Plannen
+  ar: الخطط
+  hi: योजनाएं
+  th: แผน
+  cs: Plány
+  sv: Planer
+  he: תוכניות
+  verified_by_human: []
+
+api_keys.category_workflows:
+  context: API key limited-access category label for workflows
+  en: Workflows
+  de: Workflows
+  zh: 工作流
+  es: Flujos de trabajo
+  fr: Workflows
+  pt: Fluxos de trabalho
+  ru: Рабочие процессы
+  ja: ワークフロー
+  ko: 워크플로
+  it: Flussi di lavoro
+  tr: İş akışları
+  vi: Quy trình làm việc
+  id: Alur kerja
+  pl: Przepływy pracy
+  nl: Workflows
+  ar: سير العمل
+  hi: वर्कफ़्लो
+  th: เวิร์กโฟลว์
+  cs: Pracovní postupy
+  sv: Arbetsflöden
+  he: תהליכי עבודה
+  verified_by_human: []
+
+api_keys.category_memories:
+  context: API key limited-access category label for memories
+  en: Memories
+  de: Erinnerungen
+  zh: 记忆
+  es: Memorias
+  fr: Mémoires
+  pt: Memórias
+  ru: Воспоминания
+  ja: メモリ
+  ko: 기억
+  it: Memorie
+  tr: Anılar
+  vi: Ký ức
+  id: Memori
+  pl: Wspomnienia
+  nl: Herinneringen
+  ar: الذكريات
+  hi: यादें
+  th: ความทรงจำ
+  cs: Vzpomínky
+  sv: Minnen
+  he: זיכרונות
+  verified_by_human: []
+
+api_keys.category_account_export:
+  context: API key limited-access category label for account export permission
+  en: Account export
+  de: Kontoexport
+  zh: 账户导出
+  es: Exportación de cuenta
+  fr: Export du compte
+  pt: Exportação da conta
+  ru: Экспорт аккаунта
+  ja: アカウントエクスポート
+  ko: 계정 내보내기
+  it: Esportazione account
+  tr: Hesap dışa aktarma
+  vi: Xuất tài khoản
+  id: Ekspor akun
+  pl: Eksport konta
+  nl: Accountexport
+  ar: تصدير الحساب
+  hi: खाता निर्यात
+  th: ส่งออกบัญชี
+  cs: Export účtu
+  sv: Kontoexport
+  he: ייצוא חשבון
+  verified_by_human: []
+
+api_keys.category_app_skills:
+  context: API key limited-access category label for app skills
+  en: App skills
+  de: App-Skills
+  zh: 应用技能
+  es: Habilidades de apps
+  fr: Compétences d'apps
+  pt: Habilidades de apps
+  ru: Навыки приложений
+  ja: アプリスキル
+  ko: 앱 스킬
+  it: Skill delle app
+  tr: Uygulama becerileri
+  vi: Kỹ năng ứng dụng
+  id: Skill aplikasi
+  pl: Umiejętności aplikacji
+  nl: App-skills
+  ar: مهارات التطبيقات
+  hi: ऐप स्किल
+  th: ทักษะแอป
+  cs: Dovednosti aplikací
+  sv: Appfärdigheter
+  he: מיומנויות אפליקציה
+  verified_by_human: []
+
 api_keys.full_access_description:
-  context: Description for API key full access toggle
+  context: Description for API key full access mode
   en: Allow all supported API-key actions.
   de: Alle unterstützten API-Schlüssel-Aktionen erlauben.
   zh: 允许所有受支持的 API 密钥操作。
@@ -12344,31 +12569,6 @@ api_keys.full_access_warning:
   cs: Plný přístup může číst šifrovaná metadata účtu, vytvářet chaty, spouštět dovednosti aplikací a utrácet kredity účtu.
   sv: Full åtkomst kan läsa krypterad kontometadata, skapa chattar, köra appfärdigheter och spendera kontokrediter.
   he: גישה מלאה יכולה לקרוא מטא-נתוני חשבון מוצפנים, ליצור צ'אטים, להפעיל מיומנויות אפליקציה ולהוציא קרדיטים מהחשבון.
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
-
-api_keys.restricted_access:
-  context: API key restricted access label
-  en: Restricted access
-  de: Eingeschränkter Zugriff
-  zh: 受限访问权限
-  es: Acceso restringido
-  fr: Accès restreint
-  pt: Acesso restrito
-  ru: Ограниченный доступ
-  ja: 制限付きアクセス
-  ko: 제한된 액세스
-  it: Accesso limitato
-  tr: Kısıtlı erişim
-  vi: Quyền truy cập hạn chế
-  id: Akses terbatas
-  pl: Ograniczony dostęp
-  nl: Beperkte toegang
-  ar: وصول مقيّد
-  hi: सीमित पहुंच
-  th: สิทธิ์เข้าถึงแบบจำกัด
-  cs: Omezený přístup
-  sv: Begränsad åtkomst
-  he: גישה מוגבלת
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 api_keys.scope_chat_create_incognito:
@@ -12546,6 +12746,156 @@ api_keys.scope_memory_read:
   he: קרא זיכרונות נבחרים
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
+api_keys.scope_chat_export:
+  context: API key permission label
+  en: Export chats
+  de: Chats exportieren
+  verified_by_human: [en, de]
+
+api_keys.scope_task_read:
+  context: API key permission label
+  en: Read tasks
+  de: Aufgaben lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_task_read_metadata:
+  context: API key permission label
+  en: Read task metadata
+  de: Aufgabenmetadaten lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_task_create:
+  context: API key permission label
+  en: Create tasks
+  de: Aufgaben erstellen
+  verified_by_human: [en, de]
+
+api_keys.scope_task_write:
+  context: API key permission label
+  en: Edit and delete tasks
+  de: Aufgaben bearbeiten und löschen
+  verified_by_human: [en, de]
+
+api_keys.scope_project_read:
+  context: API key permission label
+  en: Read projects
+  de: Projekte lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_project_create:
+  context: API key permission label
+  en: Create projects
+  de: Projekte erstellen
+  verified_by_human: [en, de]
+
+api_keys.scope_project_write:
+  context: API key permission label
+  en: Edit and delete projects
+  de: Projekte bearbeiten und löschen
+  verified_by_human: [en, de]
+
+api_keys.scope_plan_read:
+  context: API key permission label
+  en: Read plans
+  de: Pläne lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_plan_read_metadata:
+  context: API key permission label
+  en: Read plan metadata
+  de: Planmetadaten lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_plan_create:
+  context: API key permission label
+  en: Create plans
+  de: Pläne erstellen
+  verified_by_human: [en, de]
+
+api_keys.scope_plan_write:
+  context: API key permission label
+  en: Edit and delete plans
+  de: Pläne bearbeiten und löschen
+  verified_by_human: [en, de]
+
+api_keys.scope_workflow_read:
+  context: API key permission label
+  en: Read workflows
+  de: Workflows lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_workflow_create:
+  context: API key permission label
+  en: Create workflows
+  de: Workflows erstellen
+  verified_by_human: [en, de]
+
+api_keys.scope_workflow_write:
+  context: API key permission label
+  en: Edit and delete workflows
+  de: Workflows bearbeiten und löschen
+  verified_by_human: [en, de]
+
+api_keys.scope_workflow_execute:
+  context: API key permission label
+  en: Run workflows
+  de: Workflows ausführen
+  verified_by_human: [en, de]
+
+api_keys.scope_memory_write:
+  context: API key permission label
+  en: Create and edit memories
+  de: Erinnerungen erstellen und bearbeiten
+  verified_by_human: [en, de]
+
+api_keys.scope_account_export:
+  context: API key permission label
+  en: Export account data
+  de: Kontodaten exportieren
+  verified_by_human: [en, de]
+
+api_keys.scope_account_import:
+  context: API key permission label
+  en: Import account data
+  de: Kontodaten importieren
+  verified_by_human: [en, de]
+
+api_keys.scope_api_keys_read:
+  context: API key permission label
+  en: Read API keys
+  de: API-Schlüssel lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_api_keys_create:
+  context: API key permission label
+  en: Create API keys
+  de: API-Schlüssel erstellen
+  verified_by_human: [en, de]
+
+api_keys.scope_api_keys_revoke:
+  context: API key permission label
+  en: Revoke API keys
+  de: API-Schlüssel widerrufen
+  verified_by_human: [en, de]
+
+api_keys.scope_devices_read:
+  context: API key permission label
+  en: Read API-key devices
+  de: API-Schlüssel-Geräte lesen
+  verified_by_human: [en, de]
+
+api_keys.scope_devices_approve:
+  context: API key permission label
+  en: Approve API-key devices
+  de: API-Schlüssel-Geräte genehmigen
+  verified_by_human: [en, de]
+
+api_keys.scope_devices_revoke:
+  context: API key permission label
+  en: Revoke API-key devices
+  de: API-Schlüssel-Geräte widerrufen
+  verified_by_human: [en, de]
+
 api_keys.apps_access:
   context: Label for API key app skill access dropdown
   en: App skill access
@@ -12594,56 +12944,6 @@ api_keys.apps_all:
   cs: Všechny dovednosti aplikací
   sv: Alla appfärdigheter
   he: כל מיומנויות האפליקציה
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
-
-api_keys.apps_selected:
-  context: API key app skill access option
-  en: Selected app skills
-  de: Ausgewählte App-Skills
-  zh: 选定应用技能
-  es: Habilidades de apps seleccionadas
-  fr: Compétences d'apps sélectionnées
-  pt: Habilidades de apps selecionadas
-  ru: Выбранные навыки приложений
-  ja: 選択したアプリスキル
-  ko: 선택한 앱 스킬
-  it: Skill delle app selezionate
-  tr: Seçili uygulama becerileri
-  vi: Kỹ năng ứng dụng đã chọn
-  id: Skill aplikasi yang dipilih
-  pl: Wybrane umiejętności aplikacji
-  nl: Geselecteerde app-skills
-  ar: مهارات التطبيقات المحددة
-  hi: चुनी गई ऐप स्किल
-  th: ทักษะแอปที่เลือก
-  cs: Vybrané dovednosti aplikací
-  sv: Valda appfärdigheter
-  he: מיומנויות אפליקציה נבחרות
-  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
-
-api_keys.allowed_skills_placeholder:
-  context: Placeholder for comma-separated API key skill allowlist
-  en: web:search, images:generate
-  de: web:search, images:generate
-  zh: web:search, images:generate
-  es: web:search, images:generate
-  fr: web:search, images:generate
-  pt: web:search, images:generate
-  ru: web:search, images:generate
-  ja: web:search, images:generate
-  ko: web:search, images:generate
-  it: web:search, images:generate
-  tr: web:search, images:generate
-  vi: web:search, images:generate
-  id: web:search, images:generate
-  pl: web:search, images:generate
-  nl: web:search, images:generate
-  ar: web:search, images:generate
-  hi: web:search, images:generate
-  th: web:search, images:generate
-  cs: web:search, images:generate
-  sv: web:search, images:generate
-  he: web:search, images:generate
   verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 api_keys.limits_section:

@@ -23,14 +23,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-API_KEY_BLOCKED_PRODUCT_PREFIXES = ("/v1/user-tasks", "/v1/user-plans")
 API_KEY_ALLOWED_METADATA_SUFFIX = "/metadata"
-API_KEY_FIRST_PARTY_SDK_PRODUCT_PREFIXES = {
+API_KEY_APP_ROUTE_PREFIX = "/v1/apps/"
+API_KEY_SCOPED_PRODUCT_PREFIXES = {
     "/v1/user-tasks": ("tasks", "task"),
     "/v1/user-plans": ("plans", "plan"),
     "/v1/projects": ("projects", "project"),
 }
-FIRST_PARTY_SDK_NAMES = {"cli", "npm", "pip"}
 ACCOUNT_EXPORT_API_KEY_SCOPE_GROUP = "account"
 ACCOUNT_EXPORT_API_KEY_SCOPE = "account:export"
 WORKFLOW_EXECUTION_PATH_PARTS = ("/run", "/steps/", "/runs/", "/input")
@@ -67,30 +66,27 @@ async def _set_session_auth_state(
 
 
 def _workflow_scope_for_request(method: str, path: str) -> str:
-    if method.upper() == "GET":
+    method_upper = method.upper()
+    if method_upper == "GET":
         return "workflow:read"
+    if method_upper == "POST" and path.rstrip("/") == "/v1/workflows":
+        return "workflow:create"
     if any(part in path for part in WORKFLOW_EXECUTION_PATH_PARTS):
         return "workflow:execute"
     return "workflow:write"
 
 
-def _sdk_product_scope_for_request(method: str) -> str:
-    return "read" if method.upper() == "GET" else "write"
+def _sdk_product_scope_for_request(method: str, path: str, prefix: str) -> str:
+    method_upper = method.upper()
+    if method_upper == "GET":
+        return "read"
+    if method_upper == "POST" and path.rstrip("/") == prefix:
+        return "create"
+    return "write"
 
 
-def _is_first_party_sdk_request(request: Request) -> bool:
-    return request.headers.get("x-openmates-sdk", "").strip().lower() in FIRST_PARTY_SDK_NAMES
-
-
-def _is_authenticated_first_party_sdk_request(request: Request, api_key_info: dict[str, Any]) -> bool:
-    return bool(api_key_info.get("device_hash")) and _is_first_party_sdk_request(request)
-
-
-def _api_key_has_explicit_scope(api_key_info: dict[str, Any], group: str, required_scope: str) -> bool:
-    metadata = api_key_info.get("api_key_metadata") or {}
-    scopes = metadata.get("scopes") if isinstance(metadata, dict) else {}
-    group_scopes = scopes.get(group) if isinstance(scopes, dict) else []
-    return required_scope in (group_scopes or [])
+def _has_approved_api_key_device(api_key_info: dict[str, Any]) -> bool:
+    return bool(api_key_info.get("device_hash"))
 
 
 def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[str, Any]) -> None:
@@ -98,15 +94,15 @@ def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[st
         return
 
     path = request.url.path
-    for prefix, scope_config in API_KEY_FIRST_PARTY_SDK_PRODUCT_PREFIXES.items():
+    for prefix, scope_config in API_KEY_SCOPED_PRODUCT_PREFIXES.items():
         if not (path == prefix or path.startswith(f"{prefix}/")):
             continue
         if not path.endswith(API_KEY_ALLOWED_METADATA_SUFFIX):
-            if _is_first_party_sdk_request(request):
+            if _has_approved_api_key_device(api_key_info):
                 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
 
                 group, scope_prefix = scope_config
-                required_scope = f"{scope_prefix}:{_sdk_product_scope_for_request(request.method)}"
+                required_scope = f"{scope_prefix}:{_sdk_product_scope_for_request(request.method, path, prefix)}"
                 try:
                     ApiKeyAuthorizationService().require_scope(
                         api_key_info.get("api_key_metadata") or {},
@@ -123,7 +119,7 @@ def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[st
                 status_code=403,
                 detail={"error": "developer_api_access_not_classified"},
             )
-        break
+        return
 
     if path == "/v1/workflows" or path.startswith("/v1/workflows/"):
         from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
@@ -140,8 +136,14 @@ def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[st
                 status_code=403,
                 detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
             ) from exc
+        return
 
     if path == "/v1/account-imports" or path.startswith("/v1/account-imports/"):
+        if not _has_approved_api_key_device(api_key_info):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "developer_api_access_not_classified"},
+            )
         from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
 
         try:
@@ -155,22 +157,35 @@ def _enforce_api_key_route_policy(request: Request | None, api_key_info: dict[st
                 status_code=403,
                 detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
             ) from exc
+        return
 
     if path == "/v1/account-exports" or path.startswith("/v1/account-exports/"):
-        if not _is_authenticated_first_party_sdk_request(request, api_key_info):
+        if not _has_approved_api_key_device(api_key_info):
             raise HTTPException(
                 status_code=403,
                 detail={"error": "developer_api_access_not_classified"},
             )
-        if not _api_key_has_explicit_scope(
-            api_key_info,
-            ACCOUNT_EXPORT_API_KEY_SCOPE_GROUP,
-            ACCOUNT_EXPORT_API_KEY_SCOPE,
-        ):
+        from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService, ApiKeyScopeError
+
+        try:
+            ApiKeyAuthorizationService().require_scope(
+                api_key_info.get("api_key_metadata") or {},
+                ACCOUNT_EXPORT_API_KEY_SCOPE_GROUP,
+                ACCOUNT_EXPORT_API_KEY_SCOPE,
+            )
+        except ApiKeyScopeError as exc:
             raise HTTPException(
                 status_code=403,
-                detail={"error": "missing_scope", "missing_scope": ACCOUNT_EXPORT_API_KEY_SCOPE},
-            )
+                detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+            ) from exc
+        return
+
+    if path.startswith(API_KEY_APP_ROUTE_PREFIX):
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={"error": "developer_api_access_not_classified"},
+    )
 
 # All functions now accept Request and fetch services from backend.core.api.app.state
 # (Keep existing service getters)

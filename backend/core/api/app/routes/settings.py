@@ -1223,9 +1223,10 @@ async def create_api_key(
             raise HTTPException(status_code=400, detail="Salt is required")
 
         try:
-            normalized_metadata = ApiKeyAuthorizationService().normalize_metadata({
+            authorization_service = ApiKeyAuthorizationService()
+            normalized_metadata = authorization_service.normalize_metadata({
                 "full_access": request_data.full_access,
-                "scopes": request_data.scopes,
+                "scopes": authorization_service.validate_scope_payload(request_data.scopes),
                 "credit_limit": request_data.credit_limit,
             })
         except ValueError as metadata_error:
