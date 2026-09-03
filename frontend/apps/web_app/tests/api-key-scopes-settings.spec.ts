@@ -16,7 +16,7 @@ const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || 
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PREVIEW_URL = '/dev/preview/settings/developers/SettingsApiKeys?chrome=0';
 const PROOF_KEY_NAME = 'OpenMates integration';
-const PROOF_TYPING_DELAY_MS = 50;
+const PROOF_TYPING_DELAY_MS = 100;
 
 const API_KEY_SCOPES_PROOF = defineVideoProof({
 	id: 'api-key-scopes-settings',
