@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import tempfile
 
 
@@ -32,6 +33,29 @@ def validate_release(release: Path, *, control_plane_commit: str = "") -> dict[s
         raise RuntimeError("release binary checksum does not match manifest")
     if control_plane_commit and manifest.get("control_plane_commit") != control_plane_commit:
         raise RuntimeError("runtime control-plane commit does not match release manifest")
+    with tempfile.TemporaryDirectory(prefix="opencode-release-storage-") as data_home:
+        environment = os.environ.copy()
+        environment["XDG_DATA_HOME"] = data_home
+        try:
+            result = subprocess.run(
+                [str(binary), "db", "path"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env=environment,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RuntimeError(f"release binary database-path probe failed: {exc}") from exc
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout).strip()[:300]
+            raise RuntimeError(f"release binary database-path probe failed: {detail or result.returncode}")
+        database_path = Path(result.stdout.strip()).resolve()
+        expected_database_path = (Path(data_home) / "opencode" / "opencode.db").resolve()
+        if database_path != expected_database_path:
+            raise RuntimeError(
+                "release binary must use the production opencode.db storage path; "
+                f"reported {database_path.name or '<empty>'}"
+            )
     return {str(key): str(value) for key, value in manifest.items()}
 
 

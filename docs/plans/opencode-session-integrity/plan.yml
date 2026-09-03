@@ -68,6 +68,15 @@ scenarios:
     then:
       - The busy-chat set is captured once and only selected chats are resumed.
       - Disposable bootstrap and provider-error probes pass before historical recovery.
+  - id: S-5
+    title: A release cannot silently select a different database
+    given:
+      - A compiled OpenCode binary contains a non-production installation channel.
+    when:
+      - The immutable release validator probes its database path in an isolated data directory.
+    then:
+      - The release is rejected unless it reports the production opencode.db path.
+      - No live database is opened or migrated by the compatibility probe.
 
 acceptance_criteria:
   - id: AC-1
@@ -102,6 +111,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-RUNTIME-ACTIVATION]
+  - id: AC-5
+    scenario: S-5
+    text: Runtime packaging rejects binaries that resolve any channel-specific database instead of opencode.db.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-STORAGE-COMPAT]
 
 tests:
   - id: T-BOOTSTRAP
@@ -133,6 +150,16 @@ tests:
       - Other retryable failures stop after five retries.
       - Terminal API failure sets the assistant finish state to error.
     covers: [AC-3]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+  - id: T-STORAGE-COMPAT
+    type: pytest
+    file: scripts/tests/test_opencode_runtime_release.py
+    command: python3 -m pytest scripts/tests/test_opencode_runtime_release.py
+    assertions:
+      - A production-storage binary is accepted in an isolated XDG data directory.
+      - A binary reporting opencode-.db is rejected before the current release pointer changes.
+    covers: [AC-5]
     red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
     green_phase: {required: true, expected: pass, evidence: {status: passed}}
 
@@ -183,10 +210,10 @@ tasks:
     title: Build and activate one tested runtime release
     status: in_progress
     phase: running_checks
-    covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
-    expected_files: [docs/plans/opencode-session-integrity/plan.yml]
-    ownership: {files: [docs/plans/opencode-session-integrity/plan.yml], shared_files: []}
-    verification_ids: [V-RUNTIME-ACTIVATION]
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5]}
+    expected_files: [docs/plans/opencode-session-integrity/plan.yml, scripts/opencode_runtime_release.py, scripts/tests/test_opencode_runtime_release.py]
+    ownership: {files: [docs/plans/opencode-session-integrity/plan.yml, scripts/opencode_runtime_release.py, scripts/tests/test_opencode_runtime_release.py], shared_files: []}
+    verification_ids: [T-STORAGE-COMPAT, V-RUNTIME-ACTIVATION]
     dependencies: [TASK-3]
     blockers: []
     follow_up_tasks: []
@@ -225,6 +252,11 @@ decisions:
     decision: Bound retries in the pinned OpenCode runtime and persist terminal assistant error state.
     reason: A universal retryable 404 classification and unbounded schedule produced seven retries and an empty-looking assistant turn after cancellation.
     decided_at: "2026-09-03T15:50:00Z"
+  - id: D-4
+    status: active
+    decision: Treat production database-path compatibility as an executable release invariant.
+    reason: A preview-channel build was healthy but opened opencode-.db, making all historical chats appear missing until rollback.
+    decided_at: "2026-09-03T16:25:00Z"
 
 attempts:
   - id: ATT-1
@@ -247,6 +279,16 @@ attempts:
     outcome: succeeded
     approach: Download and checksum an isolated Bun 1.3.14 toolchain, build the patched source, and validate a non-live immutable release manifest.
     recorded_at: "2026-09-03T16:16:00Z"
+  - id: ATT-5
+    task_id: TASK-4
+    outcome: rejected
+    approach: Activate the checksum-valid preview-channel build; immediately roll back when the live API exposed zero historical sessions.
+    recorded_at: "2026-09-03T16:21:00Z"
+  - id: ATT-6
+    task_id: TASK-4
+    outcome: succeeded
+    approach: Add an isolated database-path release gate and rebuild with production channel metadata; verify focused suites, typecheck, and immutable packaging.
+    recorded_at: "2026-09-03T16:27:00Z"
 
 demonstration:
   eligibility:
@@ -261,7 +303,7 @@ handoff:
   status: in_progress
   last_verified: "2026-09-03T16:17:00Z"
   last_verified_commit: 68a63f563a58307d20281be6cd9c79a8a3b267cc
-  next_action: Capture the exact active-chat set, activate release ac5bb6346867-68a63f563a58 in one controlled restart, and run disposable bootstrap and provider-failure probes before selected recovery.
+  next_action: Capture the exact active-chat set, activate the production-storage release in one controlled restart, and run disposable bootstrap and provider-failure probes before selected recovery.
   command: python3 scripts/sessions.py opencode-restart capture
   expected_outcome: Restart input is an immutable busy-chat manifest and no historical chat is mass-resumed.
   blocker: null
