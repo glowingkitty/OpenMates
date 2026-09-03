@@ -24433,6 +24433,54 @@ assertions:
         - *id2756
         - *id2758
     current_direct_proof: false
+  tasks.activity.single-final-section:
+    specification: feature.tasks@3
+    fingerprint: b2eaa1d68be9221b4d3b15f9ed68cc2b7c37a964cc33a9008351ae4f1eb701c0
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.activity.composer-message-parity:
+    specification: feature.tasks@3
+    fingerprint: 23f44c0f1baa43435f7c4f5ffca50e306d785c126cc657d2a464a093d0a148eb
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.activity.client-encrypted:
+    specification: feature.tasks@3
+    fingerprint: 20f95a8ec2a570c4519f55c5d87e87b7a36ddbc5d6b2ee080f386b836683123c
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.activity.context-attribution:
+    specification: feature.tasks@3
+    fingerprint: 9155ae38a7193e630efc01ad588eefbcc675f7f3b6a01b99f34fa921057590fa
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.activity.deletion-tombstone:
+    specification: feature.tasks@3
+    fingerprint: bdfbe90b8f227076e11efc0e55c3119b0364f0fd06f991c987e58c7604959857
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  tasks.activity.task-scoped-authorization:
+    specification: feature.tasks@3
+    fingerprint: 108e27d1a0a9e4f2fa103e438dcaa6885da5a355ed4286b7662f520b8a84d1f9
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   tasks.execution.capacity-scoped:
     specification: feature.tasks@3
     fingerprint: 05668f99f873b85a322247d41a33c19fdb0c59746fd65675ce68b5d614cacb25
@@ -25013,7 +25061,7 @@ assertions:
     current_direct_proof: false
   tasks.surface.semantic-parity:
     specification: feature.tasks@3
-    fingerprint: 1973265e3f20fbb7e039f7ed6239e9bdb7eaa8cb4f44531d1d3d2c8cdde6b5ea
+    fingerprint: 3ecbc7b29342e76827f7c7ba8c84601fadc625230cad106095ada8743c9cfe56
     direct_tests:
     - &id2852
       path: backend/tests/test_user_tasks_api.py

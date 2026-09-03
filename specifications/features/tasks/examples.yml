@@ -69,6 +69,75 @@ task_detail_presentation:
     input: {viewport: phone, selected_task: task-1}
     expect: {fullscreen_overlay: true, close_restores_board: true}
 
+task_activity_layout:
+  - id: one-final-activity-section
+    given: {task_detail: fullscreen, sections: [description, metadata, dependencies, links, activity]}
+    expect: {final_section: activity, updates_section_visible: false, comments_section_visible: false, composer_position: top}
+  - id: comments-and-updates-share-stream
+    given: {entries: [lifecycle_update, comment, tombstone]}
+    expect: {rendered_sections: [activity], stable_chronological_order: true, restore_history_rendered_by_default: false}
+
+task_activity_composer:
+  - id: multiline-comment
+    given: {text: "First line\nSecond line", task_key_available: true}
+    action: send_activity_comment
+    expect: {line_breaks_preserved: true, composer_cleared_after_send: true}
+  - id: voice-reuses-message-processing
+    given: {mic_permission: granted, task_key_available: true}
+    action: record_voice_activity_comment
+    expect: {message_transcription_path_used: true, send_deferred_until_ready: true, durable_plaintext_transcript: false}
+  - id: file-reuses-message-embed
+    given: {file: private_pdf, task_key_available: true}
+    action: attach_file_and_send_activity_comment
+    expect: {message_embed_path_used: true, send_deferred_until_upload_ready: true, failed_upload_visible: true}
+
+task_activity_encryption:
+  - id: encrypted-comment-entry
+    input: {comment: Waiting for approval, task_key: available, entry_key: generated_client_side}
+    expect: {entry_key_wrapped_by_task_key: true, durable_plaintext_comment: false, raw_entry_key_backend_storage: false}
+  - id: uploaded-embed-key-through-task-key
+    input: {embed: private_upload, task_key: available}
+    expect: {task_key_can_decrypt_embed_key: true, raw_embed_key_backend_storage: false, durable_plaintext_file: false}
+
+task_activity_attribution:
+  - id: personal-mate-is-openmates
+    given: {context: personal, actor_kind: openmates, actual_mate_name: Kai}
+    expect: {display_name: OpenMates, actual_mate_name_visible: false}
+  - id: team-web-and-apple-user
+    given: {context: team, surfaces: [gui_web, gui_apple], user: Sam, profile_image: present}
+    expect: {display_name: Sam, profile_image_visible: true, via_suffix_visible: false}
+  - id: team-cli-user
+    given: {context: team, surface: cli, user: Sam, profile_image: present}
+    expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates CLI}
+  - id: team-sdk-user
+    given: {context: team, surfaces: [sdk_npm, sdk_pip], user: Sam, profile_image: present}
+    expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates SDK}
+
+task_activity_tombstones:
+  - id: openmates-deleted-by-sam
+    given: {comment_author: openmates, deleting_user: Sam}
+    expect: {tombstone: Comment by OpenMates deleted by Sam, original_content_visible: false}
+  - id: sam-deletes-own-comment
+    given: {comment_author: Sam, deleting_user: Sam}
+    expect: {tombstone: Comment by Sam deleted by Sam, original_content_visible: false}
+  - id: taylor-deletes-sams-comment
+    given: {comment_author: Sam, deleting_user: Taylor, deleting_user_role: admin}
+    expect: {tombstone: Comment by Sam deleted by Taylor, original_embeds_visible: false, original_attachments_visible: false}
+
+task_activity_authorization:
+  - id: team-viewer-cannot-comment
+    given: {context: team, role: viewer, task_readable: true}
+    action: send_activity_comment
+    expect_error: {code: TASK_ACTIVITY_PERMISSION_DENIED, mutation: false, visible_failure: true}
+  - id: author-can-delete-own-comment
+    given: {context: team, actor: Sam, comment_author: Sam, role: member}
+    action: delete_activity_comment
+    expect: {tombstone_written: true}
+  - id: unauthorized-delete-fails-before-mutation
+    given: {context: team, actor: Lee, role: viewer, comment_author: Sam}
+    action: delete_activity_comment
+    expect_error: {code: TASK_ACTIVITY_PERMISSION_DENIED, mutation: false}
+
 task_execution_capacity:
   - id: capacity-wait
     input: {scope: personal, capacity_available: false, task: task-1}
@@ -83,3 +152,6 @@ task_surface_parity:
   - id: same-dependency-blocker
     input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-2}
     expect: {same_status: blocked, same_dependency: task-1, visible_failure: true}
+  - id: same-activity-contract
+    input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-1, comment: Waiting on staging}
+    expect: {same_encryption_boundary: true, same_tombstone_semantics: true, durable_plaintext_comment: false}

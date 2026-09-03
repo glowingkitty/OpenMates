@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.tasks
 version: 3
-status: draft
+status: approved
 title: Tasks
 summary: >
   Tasks are encrypted, independently trackable units of human or agent work.
@@ -18,7 +18,10 @@ scope:
   includes:
     - Create, list, show, update, reorder, assign, block, unblock, skip, complete, delete, start-AI, ask, history, and restore behavior.
     - Backlog, todo, in-progress, blocked, and done lifecycle with explicit queue and AI execution state.
-    - Human and AI assignment, priority, due dates, labels, Project/Plan/native-chat/external-chat links, activity, and optimistic versions.
+    - Human and AI assignment, priority, due dates, labels, Project/Plan/native-chat/external-chat links, and optimistic versions.
+    - One user-facing Activity section at the end of Task detail, combining lifecycle updates, comments, and deletion tombstones in a stable chronological stream.
+    - A top-of-Activity composer that reuses normal message processing for multiline text, voice, files/uploads, and message embeds.
+    - Client-encrypted Activity comment text and uploaded embed keys decryptable through the Task key boundary, with context-aware personal, Team, CLI, SDK, and OpenMates attribution.
     - Typed external-chat contexts whose private identifiers and display titles remain client-encrypted while provider and keyed lookup metadata remain server-visible.
     - Safe blocked reason codes plus client-encrypted user-facing blocker explanations.
     - Flat Tasks with optional dependency links and Plan phase grouping; no recursive child Task ownership.
@@ -30,10 +33,12 @@ scope:
     - Check definitions, Check Runs, evaluator results, human confirmation decisions, or proof artifact history.
     - Recursive subtasks or a second status model embedded in Plan steps.
     - Workflow node execution records represented as independent Tasks.
-    - Server-side plaintext search over private Task content.
+    - Server-side plaintext search over private Task or Activity content.
+    - A separate user-facing Updates section, a separate Comments section, public unauthenticated Task Activity APIs, or standalone Activity discussion threads.
+    - Exact Activity styling, OS-owned picker chrome, notifications, or cryptographic erasure of deleted content already synchronized to authorized clients.
 
 relationships:
-  related_specifications: [feature.plans, feature.checks, feature.projects]
+  related_specifications: [feature.plans, feature.checks, feature.projects, feature.message-input, feature.chats, feature.teams, surface.cli, surface.sdk]
 
 actors:
   - id: task_owner
@@ -119,6 +124,45 @@ models:
     responsive_surface: {type: embed_style_detail_surface, required: true}
     workspace_continuity: {type: preserved_workspace_state, required: true}
 
+  TaskActivityEntry:
+    entry_id: {type: stable_id, required: true, constraints: {idempotent_create: true}}
+    task_id: {type: stable_id, required: true}
+    kind: {type: enum, values: [comment, lifecycle_update, tombstone], required: true}
+    actor_kind: {type: enum, values: [user, openmates, system], required: true}
+    source_surface: {type: enum, values: [web, apple, cli, sdk_npm, sdk_pip, system], required: true}
+    created_at: {type: timestamp, required: true}
+    deleted_at: {type: timestamp_or_null, nullable: true}
+    ordering: {type: chronological_stable_order, required: true}
+
+  TaskActivityComposer:
+    placement: {type: layout_position, required: true, constraints: {top_of_final_activity_section: true}}
+    supported_inputs: {type: array, required: true, constraints: {values: [multiline_text, voice, files, uploads, message_embeds], reuses_message_processing_logic: true}}
+    send_gating: {type: invariant, required: true, constraints: {defer_while_uploading_or_transcribing: true, empty_comment_forbidden: true, failed_embed_visible: true}}
+
+  TaskActivityEncryption:
+    encrypted_entry_key: {type: client_ciphertext, required: true, constraints: {wrapped_by_task_key: true, raw_entry_key_backend_storage: forbidden}}
+    encrypted_comment_text: {type: client_ciphertext_or_null, nullable: true, constraints: {encrypted_with_entry_key: true, durable_plaintext_comment: forbidden}}
+    encrypted_embed_key_material: {type: client_ciphertext_or_null, nullable: true, constraints: {task_key_can_decrypt_uploaded_embed_keys: true, raw_embed_key_backend_storage: forbidden}}
+    server_visible_metadata: {type: safe_metadata, required: true, constraints: {plaintext_private_content: forbidden}}
+
+  TaskActivityAttribution:
+    personal_openmates: {type: display_identity, required: true, constraints: {label: OpenMates, actual_mate_name_visible: forbidden}}
+    team_app_user: {type: display_identity, required: true, constraints: {surfaces: [web, apple], shows_user_name: true, shows_profile_image: true, via_suffix: forbidden}}
+    team_cli_user: {type: display_identity, required: true, constraints: {shows_user_name: true, shows_profile_image: true, via_suffix: "via OpenMates CLI"}}
+    team_sdk_user: {type: display_identity, required: true, constraints: {shows_user_name: true, shows_profile_image: true, via_suffix: "via OpenMates SDK"}}
+    mate_authored: {type: display_identity, required: true, constraints: {label: OpenMates, actual_mate_name_visible: forbidden}}
+
+  TaskActivityTombstone:
+    hidden_content: {type: invariant, required: true, constraints: {comment_text: hidden, embed_previews: hidden, attachments: hidden}}
+    author_label: {type: display_identity, required: true, constraints: {original_author: true, mate_author_becomes_openmates: true}}
+    deleter_label: {type: display_identity, required: true, constraints: {deleting_user: true}}
+    rendered_text: {type: localized_template, required: true, constraints: {template: "Comment by {author} deleted by {deleter}"}}
+
+  TaskActivityAuthorization:
+    read_scope: {type: authorization, required: true, constraints: {same_as_task_read_access: true}}
+    write_scope: {type: authorization, required: true, constraints: {same_as_task_mutation_access: true, team_viewer_writes_forbidden: true}}
+    delete_scope: {type: authorization, required: true, constraints: {author_or_task_mutation_role_required: true, visible_failure_on_forbidden: true}}
+
 assertions:
   - id: tasks.content.client-encrypted
     type: privacy
@@ -164,6 +208,30 @@ assertions:
     type: behavior
     must: Selecting a Task opens embed-style detail beside the workspace when space allows and as a fullscreen overlay on compact viewports; closing restores board position, filters, and column state.
     depends_on: [models.TaskDetailPresentation, examples.task_detail_presentation]
+  - id: tasks.activity.single-final-section
+    type: behavior
+    must: Task detail renders one Activity section as its final section, never separate user-facing Updates and Comments sections; a composer appears at the top and comments, OpenMates entries, lifecycle updates, and tombstones follow in one stable chronological stream.
+    depends_on: [models.TaskActivityEntry, models.TaskActivityComposer.placement, examples.task_activity_layout]
+  - id: tasks.activity.composer-message-parity
+    type: behavior
+    must: The Activity composer supports multiline text, voice, files/uploads, and normal message embeds by reusing message-processing upload, transcription, embed registration, pending/error, and send-gating behavior rather than creating a weaker Task-only attachment path.
+    depends_on: [models.TaskActivityComposer, examples.task_activity_composer]
+  - id: tasks.activity.client-encrypted
+    type: privacy
+    must: Activity comment text is durably stored only as client ciphertext through per-entry key material wrapped by the Task key; uploaded embed keys are decryptable through that Task key boundary, and durable backend stores, logs, history, and indexes contain no plaintext comments, voice transcripts, file content, raw Task keys, raw entry keys, or raw embed keys.
+    depends_on: [models.TaskActivityEncryption, models.TaskKeyWrapper, examples.task_activity_encryption]
+  - id: tasks.activity.context-attribution
+    type: behavior
+    must: Personal OpenMates and mate-authored entries show the generic OpenMates identity; Team web and Apple comments show user name plus profile image without via text, Team CLI comments add via OpenMates CLI, and Team npm or pip SDK comments add via OpenMates SDK.
+    depends_on: [models.TaskActivityAttribution, examples.task_activity_attribution]
+  - id: tasks.activity.deletion-tombstone
+    type: behavior
+    must: Deleting a comment hides its text, embed previews, and attachments from normal Activity rendering but preserves a tombstone naming the original author and deleting user; mate-authored comments use OpenMates instead of the mate's actual name.
+    depends_on: [models.TaskActivityTombstone, examples.task_activity_tombstones]
+  - id: tasks.activity.task-scoped-authorization
+    type: security
+    must: Activity reads follow Task read access, creates follow Task mutation access, Team viewers cannot comment, and deletion requires the comment author or a Task-mutation-authorized role; forbidden attempts fail visibly before mutation.
+    depends_on: [models.TaskActivityAuthorization, examples.task_activity_authorization]
   - id: tasks.execution.capacity-scoped
     type: behavior
     must: AI Tasks use independent owner-scoped personal or Team capacity pools; capacity-full Tasks wait visibly and are reconsidered automatically, while Workflow projections do not consume Task capacity.
@@ -178,13 +246,14 @@ assertions:
     depends_on: [models.TaskDependency, examples.task_dependencies]
   - id: tasks.surface.semantic-parity
     type: parity
-    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, flat dependencies, assignment, lifecycle, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
+    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, flat dependencies, assignment, lifecycle, Activity comments and tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
     depends_on: [models, examples, applies_to]
 
 applies_to:
   rest_api:
     required: true
-    role: First-party authenticated routes own Task persistence, lifecycle, dependency validation, assignment, queue admission, encrypted links, history, and wrapper authorization.
+    role: First-party authenticated routes own Task persistence, lifecycle, dependency validation, assignment, queue admission, encrypted links, Activity transport, history, and wrapper authorization. Activity routes accept and return client ciphertext without server-side decryption, use normal Task read/mutation authorization, consume no credits, and use standard Task read/mutation rate limits.
+    access_model: first-party client surface only
   cli:
     required: true
     parity: semantic
@@ -192,12 +261,13 @@ applies_to:
       - List, show, create, edit, assign, reorder, depend, block, skip, start, complete, and inspect Task blockers.
       - Create and filter external-chat Tasks through provider:id input while encrypting the external id locally and sending only safe provider plus blind-index metadata.
       - Preserve --reason as the legacy blocked-reason-code alias while supporting explicit --reason-code and encrypted --reason-text input.
+      - List, add, and delete Activity comments after local Task-key unlock; Team-created comments use via OpenMates CLI attribution.
   sdks:
     required: true
     parity: semantic
     implementations:
-      npm: {required: true}
-      pip: {required: true}
+      npm: {required: true, requirements: [list_activity, add_activity_comment, delete_activity_comment, via_openmates_sdk_attribution]}
+      pip: {required: true, requirements: [list_activity, add_activity_comment, delete_activity_comment, via_openmates_sdk_attribution]}
   gui:
     required: true
     parity: semantic
@@ -209,19 +279,19 @@ applies_to:
             elements: [title, status, assignee, priority, due_state, plan_or_check_or_external_chat_context, blocked_indicator]
             interactions: [open_detail, move_status, reorder_when_allowed]
           - id: tasks.gui.detail
-            elements: [header, description, status, assignee, dependencies, project_links, plan_link, source_check_link, external_chat_source, blocked_reason, activity]
-            interactions: [edit, assign, block, unblock, skip, complete, open_plan, open_check]
+            elements: [header, description, status, assignee, dependencies, project_links, plan_link, source_check_link, external_chat_source, blocked_reason, activity, activity_composer, activity_attribution, activity_tombstones]
+            interactions: [edit, assign, block, unblock, skip, complete, open_plan, open_check, add_activity_comment, attach_activity_file, record_activity_voice, open_activity_embed, delete_authorized_activity_comment]
             states: [backlog, todo, in_progress, blocked, done, waiting_for_capacity, waiting_for_dependency, error]
             accessibility: [keyboard_board_alternative, semantic_status, dependency_labels, non_color_priority]
             responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
             design_references: optional
-      apple: {required: false}
+      apple: {required: false, role: Native Task Activity must preserve web attribution, encryption, composer capabilities, and tombstone outcomes when implemented.}
     exceptions:
       - id: apple-task-board-deferred
         implementation: apple
         reason: Rich board and dependency authoring starts on web.
-        equivalent_outcome: Apple must preserve Task lifecycle, assignment, dependency blockers, and links when implemented.
+        equivalent_outcome: Apple must preserve Task lifecycle, assignment, dependency blockers, links, and Activity semantics when implemented; Team app comments show user name plus profile image without via text.
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_execution_capacity, task_execution_order, task_surface_parity]
+  required_groups: [task_private_content, task_lifecycle, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_activity_layout, task_activity_composer, task_activity_encryption, task_activity_attribution, task_activity_tombstones, task_activity_authorization, task_execution_capacity, task_execution_order, task_surface_parity]

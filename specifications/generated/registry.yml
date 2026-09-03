@@ -396,9 +396,9 @@ specifications:
     - gui.web
   feature.tasks:
     version: 3
-    status: draft
+    status: approved
     path: features/tasks
-    fingerprint: c60b2d08056aa10a61abbf6f7d04591f252579fa19eb432a1ecf4f666f2286b7
+    fingerprint: 0cdcc592769386b514545d3e10314a26e59358d007ec2866aa12811aa5757a4b
     required_applies_to:
     - rest_api
     - cli
@@ -4357,6 +4357,72 @@ assertions:
     - sdks.npm
     - sdks.pip
     - gui.web
+  tasks.activity.single-final-section:
+    specification: feature.tasks@3
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: b2eaa1d68be9221b4d3b15f9ed68cc2b7c37a964cc33a9008351ae4f1eb701c0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.composer-message-parity:
+    specification: feature.tasks@3
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: 23f44c0f1baa43435f7c4f5ffca50e306d785c126cc657d2a464a093d0a148eb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.client-encrypted:
+    specification: feature.tasks@3
+    specification_id: feature.tasks
+    type: privacy
+    fingerprint: 20f95a8ec2a570c4519f55c5d87e87b7a36ddbc5d6b2ee080f386b836683123c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.context-attribution:
+    specification: feature.tasks@3
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: 9155ae38a7193e630efc01ad588eefbcc675f7f3b6a01b99f34fa921057590fa
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.deletion-tombstone:
+    specification: feature.tasks@3
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: bdfbe90b8f227076e11efc0e55c3119b0364f0fd06f991c987e58c7604959857
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.task-scoped-authorization:
+    specification: feature.tasks@3
+    specification_id: feature.tasks
+    type: security
+    fingerprint: 108e27d1a0a9e4f2fa103e438dcaa6885da5a355ed4286b7662f520b8a84d1f9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   tasks.execution.capacity-scoped:
     specification: feature.tasks@3
     specification_id: feature.tasks
@@ -4394,7 +4460,7 @@ assertions:
     specification: feature.tasks@3
     specification_id: feature.tasks
     type: parity
-    fingerprint: 1973265e3f20fbb7e039f7ed6239e9bdb7eaa8cb4f44531d1d3d2c8cdde6b5ea
+    fingerprint: 3ecbc7b29342e76827f7c7ba8c84601fadc625230cad106095ada8743c9cfe56
     required_applies_to:
     - rest_api
     - cli
