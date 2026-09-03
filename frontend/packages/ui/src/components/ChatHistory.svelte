@@ -2896,6 +2896,7 @@
                       data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
                       data-message-id={msg.id}
+					  data-status={msg.status}
                       data-streaming={msg.status === 'streaming' ? 'true' : 'false'}
                       aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
                       style={`

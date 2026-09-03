@@ -214,8 +214,13 @@ async function waitForUserMessageAcceptedByServer(
 						return false;
 					}
 
-					const lastUserText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
-					return !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
+					const lastUser = userMessages.last();
+					const [lastUserText, lastUserStatus] = await Promise.all([
+						lastUser.textContent({ timeout: 1000 }).catch(() => ''),
+						lastUser.getAttribute('data-status').catch(() => null)
+					]);
+					return !['sending', 'waiting_for_internet', 'waiting_for_upload', 'failed'].includes(lastUserStatus ?? '')
+						&& !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
 				},
 				{ timeout: SEND_ACCEPTED_TIMEOUT_MS }
 			)
@@ -229,7 +234,8 @@ async function waitForUserMessageAcceptedByServer(
 			return {
 				url: window.location.href,
 				inputChatId: input?.getAttribute('data-current-chat-id') ?? null,
-				lastUserText: lastUser?.innerText ?? null
+				lastUserText: lastUser?.innerText ?? null,
+				lastUserStatus: lastUser?.getAttribute('data-status') ?? null
 			};
 		});
 		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify({ diagnostics, lastSendDebug })}`);
