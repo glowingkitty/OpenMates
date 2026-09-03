@@ -15,6 +15,25 @@ Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.
 
+For current web and programming research, prefer the OpenMates app skills through
+the CLI before using generic external research tools. Use `web/search` for web
+search, `web/read` when a specific webpage URL is available, `videos/search` for
+video discovery, `videos/get_transcript` for a specific YouTube transcript, and
+`code/get_docs` for current library, framework, API, or SDK documentation:
+
+```bash
+openmates apps web search "query" --json
+openmates apps web read https://example.com --json
+openmates apps videos search "topic" --json
+openmates apps videos get_transcript --url https://www.youtube.com/watch?v=VIDEO_ID --json
+openmates apps code get_docs --library React --question "How do I use useState?" --json
+```
+
+Use `openmates apps skill-info <app> <skill> --json` when the required input
+schema or options are unclear. Preserve the returned app-skill results as the
+primary research evidence; use Brave, WebFetch, or Context7 directly only when
+the relevant OpenMates skill is unavailable or cannot satisfy the request.
+
 OpenCode Web chats intentionally remain at the root project URL. For mutating
 work, run `python3 scripts/sessions.py start --mode <mode> --task "..."` before
 edits, Bash-heavy investigation, or Task children. Hooks route local reads,
