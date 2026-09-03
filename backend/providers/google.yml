@@ -171,6 +171,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-09-02"
+    capability_level: "high"
     # Keep this opt-in until real-world user reports validate quality, cost, and latency.
     allow_auto_select: false
     tier: "premium"

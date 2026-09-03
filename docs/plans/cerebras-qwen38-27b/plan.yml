@@ -1,0 +1,60 @@
+# Executable plan for adding and evaluating Cerebras Qwen 3.8 27B.
+# The existing ai-model-routing Specification defines model catalog and alias
+# behavior; this plan adds provider metadata and records live benchmark evidence.
+# The benchmark uses the real OpenMates CLI product path and does not change
+# @fast until the comparison supports that decision.
+
+id: cerebras-qwen38-27b
+title: Cerebras Qwen 3.8 27B Support and Fast Alias Evaluation
+status: implementing
+
+goal: >
+  Add qwen-3.8-27b through Cerebras as a low-capability chat model, validate
+  real-life latency through the OpenMates CLI, and compare it with the current
+  @fast model before deciding whether to change the alias.
+
+scope:
+  in:
+    - Alibaba provider metadata for Cerebras qwen-3.8-27b.
+    - Chat model mention/catalog metadata and focused metadata tests.
+    - Real OpenMates CLI benchmark comparison with the current @fast target.
+    - Online benchmark and pricing comparison using dated source URLs.
+    - A recommendation about replacing @fast, without changing the alias unless justified.
+  out:
+    - New provider client or API route; Cerebras routing already exists.
+    - Automatic model selection; the model remains explicitly low capability and opt-in.
+    - Apple parity; this is backend catalog and CLI benchmark work with no native counterpart.
+
+checks:
+  - command: python3 -m pytest backend/tests/test_ai_ask_model_metadata.py backend/tests/test_ai_model_routing.py
+    required: true
+  - command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    required: true
+  - command: openmates benchmark model alibaba/qwen-3.8-27b alibaba/qwen3-235b-a22b-2507 --compare --suite quick --confirm-spend-credits --json
+    required: true
+    kind: live
+  - command: python3 scripts/plan_verify.py docs/plans/cerebras-qwen38-27b/plan.yml --phase complete --json
+    required: true
+
+tasks:
+  - id: metadata
+    title: Add Qwen 3.8 provider metadata and catalog coverage
+    status: in_progress
+  - id: benchmark
+    title: Run real product-path speed comparison
+    status: todo
+  - id: decision
+    title: Record pricing, online benchmarks, and alias recommendation
+    status: todo
+
+evidence:
+  online_sources:
+    - url: https://inference-docs.cerebras.ai/models/qwen-3.8-27b
+      observed: "2026-09-03"
+      claims: "Exact model ID, 1500 tokens/sec, pricing, limits, features"
+    - url: https://inference-docs.cerebras.ai/models/overview
+      observed: "2026-09-03"
+      claims: "Public model catalog and speed"
+    - url: https://openrouter.ai/qwen/qwen3.8-27b
+      observed: "2026-09-03"
+      claims: "Independent provider throughput, latency, pricing, and benchmark context"

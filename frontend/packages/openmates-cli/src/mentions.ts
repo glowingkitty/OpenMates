@@ -183,6 +183,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
   { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
   { id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b" },
+  { id: "qwen-3.8-27b", name: "Qwen 3.8 27B" },
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
   { id: "kimi-k3", name: "Kimi K3" },

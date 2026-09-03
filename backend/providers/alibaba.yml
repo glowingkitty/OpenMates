@@ -19,6 +19,45 @@ optional_keys:
     description: "Optional OpenRouter fallback key for Qwen model hosting."
 
 models:
+  - id: "qwen-3.8-27b"
+    name: "Qwen 3.8 27B"
+    description: "Qwen 3.8 27B dense multimodal model served through Cerebras for fast everyday chat, coding, research, and tool use."
+    country_origin: "CN"
+    for_app_skill: "ai.ask"
+    release_date: "2026-08-14"
+    capability_level: "low"
+    allow_auto_select: false
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "cerebras"
+    servers:
+      - id: "cerebras"
+        name: "Cerebras"
+        model_id: "qwen-3.8-27b"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 335
+        output:
+          per_credit_unit: 220
+    costs:
+      input_per_million_token:
+        price: 0.99
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 1.49
+        currency: USD
+        max_context: 131000
+    features:
+      max_output_tokens: 40000
+      tool_use: true
+      streaming: true
+
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen 3 256b"
     description: "Qwen3 235B A22B with ultra-fast inference. Served via Cerebras API (primary) with OpenRouter as fallback. Strong general and reasoning performance."

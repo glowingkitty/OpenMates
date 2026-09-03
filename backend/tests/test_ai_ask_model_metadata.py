@@ -45,7 +45,7 @@ def _ai_ask_models() -> list[dict[str, Any]]:
 def test_every_ai_ask_model_has_explicit_capability_and_release_date() -> None:
     models = _ai_ask_models()
 
-    assert len(models) == 35
+    assert len(models) == 37
     for model in models:
         assert model.get("capability_level") in CAPABILITY_LEVELS, model["id"]
         assert date.fromisoformat(model["release_date"]), model["id"]
@@ -57,3 +57,6 @@ def test_named_model_capabilities_match_the_approved_scale() -> None:
 
     for model_id, capability in EXPECTED_CAPABILITIES.items():
         assert models_by_id[model_id]["capability_level"] == capability
+
+    assert models_by_id["qwen-3.8-27b"]["capability_level"] == "low"
+    assert models_by_id["qwen-3.8-27b"]["allow_auto_select"] is False
