@@ -4,12 +4,13 @@
 # from /v1/tasks, which remains Celery/background skill task polling.
 #
 # Spec: docs/specs/tasks-v1/spec.yml
+# test-file: backend/tests/test_user_task_activity_api.py
 
 import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
@@ -203,6 +204,19 @@ class UserTaskRestoreRequest(BaseModel):
     state: Literal["before", "after"] = "after"
 
 
+class UserTaskActivityCreateRequest(BaseModel):
+    """Ciphertext-only Activity input for first-party clients."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: str = Field(min_length=1)
+    encrypted_entry_key: str = Field(min_length=1)
+    encrypted_message: str = Field(min_length=1)
+    encrypted_embed_key_material: str | None = None
+    embed_refs: list[str] = Field(default_factory=list)
+    created_at: int
+
+
 class WorkDependencyRequest(BaseModel):
     target_ref: str = Field(pattern=r"^(plan|task):[^:]+$")
 
@@ -319,9 +333,62 @@ def _handle_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=404, detail="Task not found") from exc
     if isinstance(exc, WorkControlPermissionError):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if isinstance(exc, PermissionError):
+        raise HTTPException(status_code=403, detail="TASK_ACTIVITY_PERMISSION_DENIED") from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
+
+
+def _request_header(request: Request, name: str) -> str:
+    headers = request.headers
+    value = headers.get(name)
+    if value is not None:
+        return str(value).strip().lower()
+    lowered = name.lower()
+    for key, candidate in headers.items():
+        if str(key).lower() == lowered:
+            return str(candidate).strip().lower()
+    return ""
+
+
+def derive_task_activity_source_surface(request: Request) -> str:
+    """Derive durable attribution from authenticated first-party client headers."""
+
+    sdk_surface = _request_header(request, "X-OpenMates-SDK")
+    client_surface = _request_header(request, "X-OpenMates-Client")
+    raw_surface = sdk_surface or client_surface
+    if not raw_surface:
+        if _request_header(request, "Authorization").startswith("bearer "):
+            raise HTTPException(status_code=403, detail="TASK_ACTIVITY_FIRST_PARTY_CLIENT_REQUIRED")
+        return "web"
+    mapped = {"web": "web", "apple": "apple", "cli": "cli", "npm": "sdk_npm", "pip": "sdk_pip"}.get(raw_surface)
+    if mapped is None:
+        raise HTTPException(status_code=400, detail="TASK_ACTIVITY_CLIENT_INVALID")
+    return mapped
+
+
+def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
+    allowed = {
+        "entry_id",
+        "task_id",
+        "kind",
+        "actor_type",
+        "actor_hash",
+        "event_type",
+        "source_surface",
+        "created_at",
+        "deleted_at",
+        "deleted_by_hash",
+        "encrypted_entry_key",
+        "encrypted_message",
+        "encrypted_embed_key_material",
+        "embed_refs",
+    }
+    projected = {key: value for key, value in entry.items() if key in allowed}
+    if projected.get("kind") == "tombstone":
+        projected["author_hash"] = projected.get("actor_hash")
+    return projected
 
 
 async def _record_task_history(
@@ -627,6 +694,97 @@ async def list_user_task_history(
     current_user = await _current_user(request, response)
     entries = await history_service.list_object_history(current_user.id, object_type="task", object_id=task_id, limit=limit)
     return {"entries": entries}
+
+
+@router.get("/{task_id}/activity")
+@limiter.limit("60/minute")
+async def list_user_task_activity(
+    request: Request,
+    response: Response,
+    task_id: str,
+    team_id: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """First-party ciphertext read; Task authorization applies, no credits."""
+
+    current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    limit = int(_unwrap_query_default(limit))
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member", "viewer"}
+            )
+        entries = await service.list_task_activity(task_id, current_user.id, team_id=team_id, limit=limit)
+        return {"entries": [_task_activity_response(entry) for entry in entries]}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/activity")
+@limiter.limit("30/minute")
+async def create_user_task_activity(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskActivityCreateRequest,
+    team_id: str | None = Query(default=None),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """First-party ciphertext mutation; authenticated Task writers, no credits."""
+
+    current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member"}
+            )
+        entry = await service.create_task_activity(
+            task_id,
+            current_user.id,
+            payload=body.model_dump(),
+            team_id=team_id,
+            source_surface=derive_task_activity_source_surface(request),
+        )
+        return {"entry": _task_activity_response(entry)}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.delete("/{task_id}/activity/{entry_id}")
+@limiter.limit("30/minute")
+async def delete_user_task_activity(
+    request: Request,
+    response: Response,
+    task_id: str,
+    entry_id: str,
+    team_id: str | None = Query(default=None),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """Logical Activity deletion preserving safe tombstone attribution."""
+
+    current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        allow_task_mutation = False
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member"}
+            )
+            allow_task_mutation = True
+        entry = await service.delete_task_activity(
+            task_id,
+            entry_id,
+            current_user.id,
+            team_id=team_id,
+            deleted_at=int(time.time()),
+            allow_task_mutation=allow_task_mutation,
+        )
+        return {"entry": _task_activity_response(entry)}
+    except Exception as exc:
+        _handle_task_error(exc)
 
 
 @router.post("/{task_id}/restore")

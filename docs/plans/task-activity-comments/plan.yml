@@ -1,7 +1,7 @@
 schema_version: 2
 id: task-activity-comments
 title: Task Activity Comments
-status: approved
+status: implementing
 
 goal: >
   Make Activity the single final section of Task detail, with a composer at the
@@ -145,6 +145,11 @@ attempts:
     approach: Discover and extend the existing Task Activity schema, Task routes, encryption clients, message composer, and focused Task detail preview rather than creating parallel product concepts.
     outcome: planned
     recorded_at: "2026-09-03T17:46:03Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run the ciphertext-only Activity verifier against the currently deployed dev API before deploying the new routes.
+    outcome: failed_as_expected
+    recorded_at: "2026-09-03T22:33:47Z"
 
 risks:
   - id: R-1
@@ -346,8 +351,8 @@ tests:
       - Schemas reject plaintext/private extra fields and store only ciphertext plus allowlisted metadata.
       - Owner and Team role checks cover list, create, deletion, viewer rejection, and cross-task/cross-Team denial.
       - Source attribution is server-derived or validated, create retries are idempotent, ordering is stable, and deletion returns the correct tombstone metadata.
-    red_phase: {required: true, expected: fail_or_missing, evidence: {status: pending, run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "local-pytest-activity-red-20260903T222422Z", timestamp: "2026-09-03T22:24:22Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_user_task_activity_api.py backend/tests/test_user_tasks_api.py", run_id: "local-pytest-activity-green-20260903T223347Z", subject_commit: "working-tree-pre-deploy", timestamp: "2026-09-03T22:33:47Z"}}
   - id: T-API-ACTIVITY-LIVE
     type: unit
     file: scripts/verify_task_activity_api_live.py
@@ -358,7 +363,7 @@ tests:
       - Real authenticated create/list/delete reaches the dev API and cleans up the synthetic Task and Activity.
       - Unauthorized or insufficient-role access is rejected, duplicate entry identity is idempotent/conflict-safe, and response payloads contain no plaintext comment.
       - Rate-limit classification and zero-credit behavior are asserted without mocked OpenMates API calls.
-    red_phase: {required: true, expected: fail_or_missing, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "dev-api-activity-red-20260903T223347Z", timestamp: "2026-09-03T22:33:47Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-CLI-ACTIVITY-LIVE
     type: unit
@@ -504,9 +509,12 @@ implementation_notes:
   affected_files:
     - {path: backend/core/directus/schemas/user_tasks.yml, reason: Extend canonical Activity schema and indexes.}
     - {path: backend/core/api/app/routes/user_tasks.py, reason: Add encrypted first-party Activity endpoints and authorization.}
+    - {path: backend/core/api/app/services/user_task_service.py, reason: Enforce parent Task existence before Activity persistence.}
     - {path: backend/core/api/app/services/directus/user_task_methods.py, reason: Add owner/Team-scoped Activity persistence.}
     - {path: backend/tests/test_user_task_activity_api.py, reason: Backend privacy, auth, attribution, ordering, and tombstone contract.}
     - {path: scripts/verify_task_activity_api_live.py, reason: Real dev API phase gate.}
+    - {path: specifications/generated/assertion-index.yml, reason: Regenerated assertion-to-test traceability for Activity contract tests.}
+    - {path: specifications/generated/coverage.yml, reason: Regenerated Specification coverage for Activity contract tests.}
     - {path: frontend/packages/openmates-cli/src/client.ts, reason: Activity wire types and methods.}
     - {path: frontend/packages/openmates-cli/src/tasksCli.ts, reason: Local Activity encryption/decryption and rendering.}
     - {path: frontend/packages/openmates-cli/src/cli.ts, reason: Task Activity commands and help.}
@@ -543,16 +551,16 @@ implementation_notes:
 tasks:
   - id: TASK-1
     title: Implement encrypted Activity persistence and first-party API
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-5, AC-6, AC-7]}
-    expected_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py]
+    expected_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py, backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py, specifications/generated/assertion-index.yml, specifications/generated/coverage.yml]
     verification: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
     verification_ids: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
     specification_assertions: [tasks.content.client-encrypted, tasks.activity.client-encrypted, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization]
     surfaces: [rest_api]
     dependencies: []
-    ownership: {files: [backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py], shared_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py]}
+    ownership: {files: [backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py], shared_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py]}
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
@@ -634,8 +642,8 @@ tasks:
 
 handoff:
   current_task_id: TASK-1
-  next_action: Write the backend red-phase Activity contract tests before product code.
-  command: python3 scripts/plan_validate.py docs/plans/task-activity-comments/plan.yml
-  expected_outcome: The approved Plan remains structurally valid before implementation begins with failing backend/API checks.
+  next_action: Write and run backend red-phase Activity persistence and route contract tests before product code.
+  command: python3 -m pytest backend/tests/test_user_task_activity_api.py
+  expected_outcome: Tests fail because Activity persistence methods and routes do not exist yet.
   blocker: null
-  last_verified_commit: b757479eed719ce2157588c7747fae2f32249bb1
+  last_verified_commit: 070c8f69b16c605194e0e5eca583911c699e9bef

@@ -321,6 +321,29 @@ user_task_activity:
       type: string
       note: "User-facing task id this activity entry belongs to."
 
+    hashed_task_id:
+      type: string
+      note: "[Indexed] SHA256(task_id) used for scoped Activity lookup."
+
+    entry_id:
+      type: string
+      note: "[Indexed, Unique] Client-generated stable Activity entry identity."
+      options:
+        unique: true
+
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256(user_id) of the Activity actor and personal Task owner."
+
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) for Team Task Activity; null for personal Tasks."
+
+    kind:
+      type: string
+      note: "User-facing Activity kind: comment, lifecycle_update, or tombstone."
+
     actor_type:
       type: string
       note: "Actor kind: user, ai, or system."
@@ -334,6 +357,10 @@ user_task_activity:
       type: string
       note: "Safe event type, e.g. created, updated, started, blocked, completed."
 
+    source_surface:
+      type: string
+      note: "Authenticated client source: web, apple, cli, sdk_npm, sdk_pip, or system."
+
     created_at:
       type: integer
       note: "Unix timestamp when the activity entry was recorded."
@@ -343,10 +370,35 @@ user_task_activity:
       nullable: true
       note: "[Client-encrypted durable storage] User-visible activity text."
 
+    encrypted_entry_key:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage] Per-entry key wrapped by the Task key."
+
+    encrypted_embed_key_material:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage] Embed key material decryptable through the Task key boundary."
+
+    embed_refs:
+      type: json
+      nullable: true
+      note: "Opaque embed IDs referenced by this Activity entry; cleared when the comment is deleted."
+
     encrypted_snapshot:
       type: text
       nullable: true
       note: "[Client-encrypted durable storage] Optional encrypted task snapshot."
+
+    deleted_at:
+      type: integer
+      nullable: true
+      note: "Unix timestamp for a logical comment deletion."
+
+    deleted_by_hash:
+      type: string
+      nullable: true
+      note: "Hashed user id of the deleting user for tombstone attribution."
 
 user_task_execution_contexts:
   type: collection

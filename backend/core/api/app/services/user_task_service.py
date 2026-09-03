@@ -3,6 +3,7 @@
 # Tasks V1 orchestration boundary. This service keeps product task semantics
 # separate from Celery task polling and centralizes conflict checks before route,
 # CLI, SDK, and future AI execution layers mutate task records.
+# test-file: backend/tests/test_user_task_activity_api.py
 
 import time
 import uuid
@@ -63,6 +64,36 @@ class UserTaskService:
 
     async def list_tasks(self, user_id: str, **filters: Any) -> list[dict[str, Any]]:
         return await self.task_methods.list_tasks(user_id, **filters)
+
+    async def list_task_activity(self, task_id: str, user_id: str, **filters: Any) -> list[dict[str, Any]]:
+        if not await self.task_methods.get_task(task_id, user_id, filters.get("team_id")):
+            raise UserTaskNotFoundError("Task not found")
+        return await self.task_methods.list_task_activity(user_id, task_id, **filters)
+
+    async def create_task_activity(
+        self,
+        task_id: str,
+        user_id: str,
+        payload: dict[str, Any],
+        **options: Any,
+    ) -> dict[str, Any]:
+        if not await self.task_methods.get_task(task_id, user_id, options.get("team_id")):
+            raise UserTaskNotFoundError("Task not found")
+        created = await self.task_methods.create_task_activity(user_id, task_id, payload, **options)
+        if not created:
+            raise ValueError("Failed to create Task Activity entry")
+        return created
+
+    async def delete_task_activity(
+        self,
+        task_id: str,
+        entry_id: str,
+        user_id: str,
+        **options: Any,
+    ) -> dict[str, Any]:
+        if not await self.task_methods.get_task(task_id, user_id, options.get("team_id")):
+            raise UserTaskNotFoundError("Task not found")
+        return await self.task_methods.delete_task_activity(user_id, task_id, entry_id, **options)
 
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = dict(payload)

@@ -3,6 +3,7 @@
 # Directus access helpers for Tasks V1. User task title, description, tags, and
 # activity text are client-encrypted; the backend stores only minimal metadata
 # needed for ownership, filtering, scheduling, ordering, and execution.
+# test-file: backend/tests/test_user_task_activity_api.py
 
 import hashlib
 import logging
@@ -49,6 +50,18 @@ USER_TASK_KEY_WRAPPER_FIELDS = (
 )
 
 USER_TASK_EXECUTION_CONTEXT_FIELDS = "id,hashed_user_id,hashed_task_id,hashed_chat_id,encrypted_context,created_at,expires_at"
+USER_TASK_ACTIVITY_FIELDS = (
+    "id,entry_id,task_id,hashed_task_id,hashed_user_id,hashed_team_id,kind,actor_type,actor_hash,"
+    "event_type,source_surface,created_at,encrypted_entry_key,encrypted_message,"
+    "encrypted_embed_key_material,embed_refs,encrypted_snapshot,deleted_at,deleted_by_hash"
+)
+TASK_ACTIVITY_IDEMPOTENT_FIELDS = {
+    "encrypted_entry_key",
+    "encrypted_message",
+    "encrypted_embed_key_material",
+    "embed_refs",
+    "created_at",
+}
 
 
 def hash_id(value: str) -> str:
@@ -354,6 +367,123 @@ class UserTaskMethods:
         if response and isinstance(response, list):
             return _with_short_id(response[0])
         return None
+
+    def _activity_filter(self, user_id: str, task_id: str, team_id: str | None = None) -> dict[str, Any]:
+        scope = (
+            {"hashed_team_id": {"_eq": hash_id(team_id)}}
+            if team_id
+            else {"_and": [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]}
+        )
+        return {"_and": [{"hashed_task_id": {"_eq": hash_id(task_id)}}, scope]}
+
+    async def list_task_activity(
+        self,
+        user_id: str,
+        task_id: str,
+        *,
+        team_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict[str, Any]]:
+        response = await self.directus_service.get_items(
+            "user_task_activity",
+            params={
+                "fields": USER_TASK_ACTIVITY_FIELDS,
+                "filter": self._activity_filter(user_id, task_id, team_id),
+                "sort": "created_at,entry_id",
+                "limit": max(1, min(limit, 200)),
+            },
+            no_cache=True,
+        )
+        return response if isinstance(response, list) else []
+
+    async def create_task_activity(
+        self,
+        user_id: str,
+        task_id: str,
+        payload: dict[str, Any],
+        *,
+        team_id: str | None = None,
+        source_surface: str,
+    ) -> dict[str, Any] | None:
+        entry_id = str(payload.get("entry_id") or "")
+        existing = await self.directus_service.get_items(
+            "user_task_activity",
+            params={
+                "fields": USER_TASK_ACTIVITY_FIELDS,
+                "filter": {"_and": [self._activity_filter(user_id, task_id, team_id), {"entry_id": {"_eq": entry_id}}]},
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        if isinstance(existing, list) and existing:
+            current = existing[0]
+            if any(current.get(field) != payload.get(field) for field in TASK_ACTIVITY_IDEMPOTENT_FIELDS):
+                raise ValueError("Task Activity entry id conflicts with different content")
+            return current
+
+        record = {
+            "entry_id": entry_id,
+            "task_id": task_id,
+            "hashed_task_id": hash_id(task_id),
+            "hashed_user_id": hash_id(user_id),
+            "hashed_team_id": hash_id(team_id) if team_id else None,
+            "kind": "comment",
+            "actor_type": "user",
+            "actor_hash": hash_id(user_id),
+            "event_type": "comment_added",
+            "source_surface": source_surface,
+            "created_at": payload["created_at"],
+            "encrypted_entry_key": payload["encrypted_entry_key"],
+            "encrypted_message": payload["encrypted_message"],
+            "encrypted_embed_key_material": payload.get("encrypted_embed_key_material"),
+            "embed_refs": payload.get("embed_refs") or [],
+            "encrypted_snapshot": None,
+            "deleted_at": None,
+            "deleted_by_hash": None,
+        }
+        success, created = await self.directus_service.create_item("user_task_activity", record)
+        return created if success and isinstance(created, dict) else None
+
+    async def delete_task_activity(
+        self,
+        user_id: str,
+        task_id: str,
+        entry_id: str,
+        *,
+        team_id: str | None = None,
+        deleted_at: int,
+        allow_task_mutation: bool = False,
+    ) -> dict[str, Any]:
+        response = await self.directus_service.get_items(
+            "user_task_activity",
+            params={
+                "fields": USER_TASK_ACTIVITY_FIELDS,
+                "filter": {"_and": [self._activity_filter(user_id, task_id, team_id), {"entry_id": {"_eq": entry_id}}]},
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        if not isinstance(response, list) or not response:
+            raise PermissionError("Task Activity entry not found in the authorized scope")
+        entry = response[0]
+        actor_hash = str(entry.get("actor_hash") or "")
+        if actor_hash != hash_id(user_id) and not allow_task_mutation:
+            raise PermissionError("Task Activity deletion is not authorized")
+        patch = {
+            "kind": "tombstone",
+            "event_type": "comment_deleted",
+            "deleted_at": deleted_at,
+            "deleted_by_hash": hash_id(user_id),
+            "encrypted_entry_key": None,
+            "encrypted_message": None,
+            "encrypted_embed_key_material": None,
+            "embed_refs": [],
+            "encrypted_snapshot": None,
+        }
+        updated = await self.directus_service.update_item("user_task_activity", entry["id"], patch)
+        if not updated:
+            raise ValueError("Failed to delete Task Activity entry")
+        return {**entry, **patch, "author_hash": actor_hash}
 
     async def admission_blockers(self, task: dict[str, Any], user_id: str, *, owner_hash: str | None = None) -> list[dict[str, str]]:
         from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods

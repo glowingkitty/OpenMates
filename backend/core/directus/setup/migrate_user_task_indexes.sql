@@ -43,8 +43,13 @@ CREATE INDEX IF NOT EXISTS user_tasks_label_hashes_gin_idx
 CREATE INDEX IF NOT EXISTS user_task_key_wrappers_task_owner_idx
     ON user_task_key_wrappers (hashed_task_id, hashed_user_id);
 
-CREATE INDEX IF NOT EXISTS user_task_activity_task_created_idx
-    ON user_task_activity (task_id, created_at);
+CREATE INDEX IF NOT EXISTS user_task_activity_personal_created_idx
+    ON user_task_activity (hashed_task_id, hashed_user_id, created_at, entry_id)
+    WHERE hashed_team_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS user_task_activity_team_created_idx
+    ON user_task_activity (hashed_task_id, hashed_team_id, created_at, entry_id)
+    WHERE hashed_team_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS user_task_archives_owner_archived_idx
     ON user_task_archives (hashed_user_id, archived_at DESC);
