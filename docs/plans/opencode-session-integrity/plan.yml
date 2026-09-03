@@ -77,6 +77,15 @@ scenarios:
     then:
       - The release is rejected unless it reports the production opencode.db path.
       - No live database is opened or migrated by the compatibility probe.
+  - id: S-6
+    title: Ending one OpenCode repository session preserves the shared host
+    given:
+      - An OpenCode process inherits the shared host zellij name and starts a repository session.
+    when:
+      - That repository session ends.
+    then:
+      - The record does not claim ownership of the shared zellij session.
+      - Legacy OpenCode-bound records cannot cause session cleanup to kill the shared host.
 
 acceptance_criteria:
   - id: AC-1
@@ -119,6 +128,14 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-STORAGE-COMPAT]
+  - id: AC-6
+    scenario: S-6
+    text: New and legacy OpenCode-bound repository sessions cannot kill their inherited shared zellij host during cleanup.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ZELLIJ-OWNERSHIP]
 
 tests:
   - id: T-BOOTSTRAP
@@ -160,6 +177,16 @@ tests:
       - A production-storage binary is accepted in an isolated XDG data directory.
       - A binary reporting opencode-.db is rejected before the current release pointer changes.
     covers: [AC-5]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+  - id: T-ZELLIJ-OWNERSHIP
+    type: pytest
+    file: scripts/tests/test_sessions_worktree_lifecycle.py
+    command: python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py
+    assertions:
+      - New OpenCode-bound records do not capture the host zellij name.
+      - Cleanup ignores a shared zellij name on legacy OpenCode-bound records.
+    covers: [AC-6]
     red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
     green_phase: {required: true, expected: pass, evidence: {status: passed}}
 
@@ -216,6 +243,17 @@ tasks:
     verification_ids: [T-STORAGE-COMPAT, V-RUNTIME-ACTIVATION]
     dependencies: [TASK-3]
     blockers: []
+    follow_up_tasks: [TASK-5]
+  - id: TASK-5
+    title: Prevent repository cleanup from killing the shared OpenCode host
+    status: done
+    phase: complete
+    covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
+    expected_files: [scripts/sessions.py, scripts/tests/test_sessions_worktree_lifecycle.py]
+    ownership: {files: [scripts/sessions.py, scripts/tests/test_sessions_worktree_lifecycle.py], shared_files: []}
+    verification_ids: [T-ZELLIJ-OWNERSHIP]
+    dependencies: [TASK-4]
+    blockers: []
     follow_up_tasks: []
 
 implementation_state:
@@ -257,6 +295,11 @@ decisions:
     decision: Treat production database-path compatibility as an executable release invariant.
     reason: A preview-channel build was healthy but opened opencode-.db, making all historical chats appear missing until rollback.
     decided_at: "2026-09-03T16:25:00Z"
+  - id: D-5
+    status: active
+    decision: OpenCode-bound repository sessions never own the zellij session inherited from their server process.
+    reason: Ending disposable session cf31 killed the shared code zellij and stopped the otherwise healthy server.
+    decided_at: "2026-09-03T16:32:00Z"
 
 attempts:
   - id: ATT-1
@@ -289,6 +332,16 @@ attempts:
     outcome: succeeded
     approach: Add an isolated database-path release gate and rebuild with production channel metadata; verify focused suites, typecheck, and immutable packaging.
     recorded_at: "2026-09-03T16:27:00Z"
+  - id: ATT-7
+    task_id: TASK-4
+    outcome: succeeded
+    approach: Activate the production-storage build, verify historical visibility, and prove a disposable session starts cleanly from commit 35ea39d with Specification-to-Plan guidance.
+    recorded_at: "2026-09-03T16:31:00Z"
+  - id: ATT-8
+    task_id: TASK-5
+    outcome: succeeded
+    approach: Restore the server after disposable cleanup exposed inherited zellij ownership, then add forward and legacy cleanup guards with deterministic tests.
+    recorded_at: "2026-09-03T16:34:00Z"
 
 demonstration:
   eligibility:

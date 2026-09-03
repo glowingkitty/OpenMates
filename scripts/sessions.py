@@ -8626,7 +8626,10 @@ def cmd_start(args: argparse.Namespace) -> None:
             "writing": None,
             "task_id": task_id_arg,
             "linear_issue_id": None,
-            "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
+            # OpenCode inherits the zellij name of the shared server host pane,
+            # but does not own that zellij session. Recording it here would let
+            # `sessions.py end` kill the server and every sibling chat.
+            "zellij_session": None if opencode_session_id else os.environ.get("ZELLIJ_SESSION_NAME"),
             "opencode_session_id": None,
             "opencode_top_level_session_id": opencode_session_id,
             "binding_mode": (
@@ -9152,7 +9155,12 @@ def cmd_end(args: argparse.Namespace) -> None:
     # ── Zellij cleanup ───────────────────────────────────────────────────
     # NEVER kill the zellij session the current process is attached to —
     # that would destroy the user's own terminal. Only kill spawned sub-sessions.
-    zellij_name = session.get("zellij_session")
+    # OpenCode-bound records never own a zellij session. Keep this identity
+    # check for legacy records that captured the shared server's `code` name.
+    has_opencode_identity = bool(
+        session.get("opencode_session_id") or session.get("opencode_top_level_session_id")
+    )
+    zellij_name = None if has_opencode_identity else session.get("zellij_session")
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:

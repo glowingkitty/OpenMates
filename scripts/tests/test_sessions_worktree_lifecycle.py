@@ -211,3 +211,41 @@ def test_cmd_worktree_reports_missing_session_without_traceback(monkeypatch, cap
     assert captured.out == ""
     assert captured.err == "Error: Session missing not found\n"
     assert "Traceback" not in captured.err
+
+
+def test_opencode_session_record_does_not_claim_shared_zellij_host():
+    source = SESSIONS_PATH.read_text(encoding="utf-8")
+
+    assert '"zellij_session": None if opencode_session_id else os.environ.get("ZELLIJ_SESSION_NAME")' in source
+
+
+def test_end_never_kills_zellij_for_legacy_opencode_bound_record(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "locks": {},
+                "sessions": {
+                    "abcd": {
+                        "task": "disposable",
+                        "mode": "question",
+                        "modified_files": [],
+                        "zellij_session": "code",
+                        "opencode_session_id": "ses_disposable",
+                        "opencode_top_level_session_id": "ses_disposable",
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    killed: list[str] = []
+    monkeypatch.setitem(sys.modules, "_zellij_utils", type("Zellij", (), {"kill_session": killed.append}))
+
+    sessions.cmd_end(argparse.Namespace(session="abcd", force=False, skip_visual_smoke_reason=None))
+
+    assert killed == []
+    assert "Session abcd ended" in capsys.readouterr().out
