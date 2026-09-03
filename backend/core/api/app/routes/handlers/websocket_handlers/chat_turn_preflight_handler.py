@@ -144,6 +144,25 @@ async def handle_chat_turn_preflight(
     )
     try:
         turn_id = str(payload.get("turn_id", ""))
+        inference_request_payload = payload.get("inference_request")
+        debug_enabled = (
+            isinstance(inference_request_payload, dict)
+            and isinstance(inference_request_payload.get("test_mock_marker"), str)
+        )
+
+        async def send_debug_phase(phase: str) -> None:
+            if not debug_enabled:
+                return
+            await manager.send_personal_message(
+                {
+                    "type": "chat_turn_preflight_debug",
+                    "payload": {"turn_id": turn_id, "phase": phase},
+                },
+                user_id,
+                device_fingerprint_hash,
+            )
+
+        await send_debug_phase("received")
         logger.info("Chat preflight phase=cutover_started turn=%s", turn_id[:8])
         recovery_service = ChatRecoveryService(directus_service)
         cutover_state = await recovery_service.execute(
@@ -155,6 +174,7 @@ async def handle_chat_turn_preflight(
             turn_id[:8],
             cutover_state.get("protocol_epoch"),
         )
+        await send_debug_phase("cutover_completed")
         if cutover_state.get("protocol_epoch") == 0:
             legacy_preflight_id = str(
                 uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
@@ -215,6 +235,7 @@ async def handle_chat_turn_preflight(
                 transaction_data,
             )
             logger.info("Chat preflight phase=prepare_completed turn=%s", turn_id[:8])
+            await send_debug_phase("prepare_completed")
         finally:
             record_recovery_duration("durable_preflight", started_at)
         result["turn_id"] = payload["turn_id"]

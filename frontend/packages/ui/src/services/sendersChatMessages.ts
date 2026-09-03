@@ -140,13 +140,20 @@ function waitForPreflightAcknowledgement(turnId: string): Promise<{ preflight_id
 			cleanup();
 			reject(new Error(error.message || "Encrypted chat preflight was rejected."));
 		};
+		const handleDebug = (payload: unknown) => {
+			const debug = payload as { turn_id?: string; phase?: string };
+			if (debug.turn_id !== turnId || !debug.phase) return;
+			recordPreflightDebugStep(`preflight_server_${debug.phase}`, { turnId });
+		};
 		const cleanup = () => {
 			window.clearTimeout(timeout);
 			webSocketService.off("chat_turn_preflight_ack", handleAck);
 			webSocketService.off("error", handleError);
+			webSocketService.off("chat_turn_preflight_debug", handleDebug);
 		};
 		webSocketService.on("chat_turn_preflight_ack", handleAck);
 		webSocketService.on("error", handleError);
+		webSocketService.on("chat_turn_preflight_debug", handleDebug);
 	});
 }
 
