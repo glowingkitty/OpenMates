@@ -27,7 +27,7 @@ const API_KEY_SCOPES_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'full-access',
-			text: 'API keys start with Full access enabled and a warning that explains the broad permission level.',
+			text: 'Full access starts enabled before individual permission controls are revealed.',
 			checkpoint: 'full-access',
 			devices: ['web-laptop', 'web-phone']
 		},
