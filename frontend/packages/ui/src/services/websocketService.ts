@@ -1490,13 +1490,19 @@ class WebSocketService extends EventTarget {
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
               tracing.injectTraceparent(message.payload as Record<string, unknown>);
-              this.ws?.send(JSON.stringify(message));
+              if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                throw new Error("WebSocket changed before message dispatch");
+              }
+              this.ws.send(JSON.stringify(message));
             });
             return;
           }
           console.warn("[WebSocketService] Tracing unavailable for WebSocket send.");
         }
-        this.ws?.send(JSON.stringify(message));
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          throw new Error("WebSocket changed before message dispatch");
+        }
+        this.ws.send(JSON.stringify(message));
       } catch (error) {
         if (type !== "ping") {
           console.error("[WebSocketService] Error sending message:", error);
