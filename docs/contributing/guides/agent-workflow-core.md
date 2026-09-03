@@ -198,6 +198,11 @@ Before a success final for Plan work, run `python3 scripts/plan_verify.py
 <plan> --phase complete --json`, require `complete: true`, and paste every delivered
 proof-video `snippet_html` verbatim into the response.
 
+Implementation tasks must not be marked `done` until the scoped `dev` deployment
+has completed successfully and the deployed commit is recorded. A local test pass
+or a prepared deploy is not sufficient; keep the task `in_progress` or `blocked`
+while deployment is pending or failing.
+
 When a final answer needs more than one sentence, use a scan-first layout. Start
 with one state heading: `## ✅ Done`, `## 🚧 Blocked`, `## ❓ Decision Needed`, or
 `## 🧠 Investigation`. Prefer compact tables for files, tests, blockers, risks,
