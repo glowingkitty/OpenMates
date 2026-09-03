@@ -8,6 +8,10 @@ Run: python3 -m pytest scripts/tests/test_sessions_presence_status.py.
 
 # contract-test-file: tooling
 
+from pathlib import Path
+
+import pytest
+
 from scripts import sessions
 
 
@@ -30,6 +34,14 @@ def fixtures():
         "task_claims": {},
     }
     return durable, presence
+
+
+def test_dirty_file_status_tolerates_only_explicitly_allowed_missing_checkout(tmp_path: Path):
+    missing = tmp_path / "agent-missing"
+
+    assert sessions._get_dirty_files(checkout_root=missing, missing_ok=True) == set()
+    with pytest.raises(RuntimeError, match="Cannot inspect missing checkout"):
+        sessions._get_dirty_files(checkout_root=missing)
 
 
 def test_default_status_groups_live_reality_and_excludes_merged_history():

@@ -6685,7 +6685,7 @@ def _get_commit_url(commit_hash: str) -> str | None:
 
 
 
-def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
+def _get_dirty_files(*, checkout_root: Path | None = None, missing_ok: bool = False) -> set[str]:
     """Parse `git status --porcelain` and return set of dirty file paths.
 
     Handles all porcelain v1 status formats including renames/copies
@@ -6696,13 +6696,18 @@ def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
     Without -uall, git collapses untracked dirs to "?? dir/" and
     individual file paths never appear in the dirty set.
     """
+    root = checkout_root or CONTROL_PLANE_ROOT
+    if not root.is_dir():
+        if missing_ok:
+            return set()
+        raise RuntimeError(f"Cannot inspect missing checkout: {root}")
     # Call subprocess directly instead of _run_cmd to preserve leading whitespace.
     # _run_cmd calls .strip() on stdout which removes the leading space from the
     # first line's porcelain status code (e.g., " M file" becomes "M file"),
     # breaking the fixed-offset parsing at line[3:].
     result = subprocess.run(
         ["git", "status", "--porcelain", "-uall"],
-        cwd=str(checkout_root or CONTROL_PLANE_ROOT),
+        cwd=str(root),
         capture_output=True,
         text=True,
         timeout=120,
@@ -9888,7 +9893,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         for sid, info in sessions.items():
             root = _session_checkout_root(info)
             if root not in dirty_by_root:
-                dirty_by_root[root] = _get_dirty_files(checkout_root=root)
+                dirty_by_root[root] = _get_dirty_files(checkout_root=root, missing_ok=True)
             dirty_files = dirty_by_root[root]
             modified = info.get("modified_files", [])
             uncommitted = [f for f in modified if f in dirty_files]
