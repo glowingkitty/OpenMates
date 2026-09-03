@@ -17,6 +17,7 @@ const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PREVIEW_URL = '/dev/preview/settings/developers/SettingsApiKeys?chrome=0';
 const PROOF_KEY_NAME = 'OpenMates integration';
 const PROOF_TYPING_DELAY_MS = 100;
+const PROOF_FULL_ACCESS_FRAME_OFFSET_PX = 100;
 const PROOF_SCOPE_FRAME_OFFSET_PX = 80;
 
 const API_KEY_SCOPES_PROOF = defineVideoProof({
@@ -96,6 +97,9 @@ test.describe('API-key scope selection settings', () => {
 		});
 		await fullAccessRow.scrollIntoViewIfNeeded();
 		await fullAccessWarning.scrollIntoViewIfNeeded();
+		await page.getByTestId('component-preview-canvas').evaluate((element, offset) => {
+			element.scrollBy({ top: offset, behavior: 'instant' });
+		}, PROOF_FULL_ACCESS_FRAME_OFFSET_PX);
 		await proof.assert('full-access-default', async () => {
 			await expect(fullAccessInput).toBeChecked();
 			await expect(fullAccessWarning).toContainText(/full access can read encrypted account metadata/i);
