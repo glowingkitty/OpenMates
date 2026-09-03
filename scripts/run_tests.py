@@ -321,10 +321,10 @@ REVIEWED_BROAD_CHAT_SPECS = frozenset({
     "chat-sync-empty-indexeddb-recovery.spec.ts",
     "cli-workflows-ai-chat-real.spec.ts",
     "daily-inspiration-chat-flow.spec.ts",
-    "demo-chat-embeds.spec.ts",
     "example-chat-clone.spec.ts",
     "example-chat-logout-preserve.spec.ts",
     "example-chat-settings-usage.spec.ts",
+    "example-chat-speech.spec.ts",
     "example-chats-load.spec.ts",
     "explain-in-new-chat.spec.ts",
     "focus-mode-example-chats.spec.ts",
@@ -415,12 +415,26 @@ def daily_playwright_phases(all_specs: list[str]) -> dict[str, list[str]]:
 def execute_daily_playwright_phases(
     phases: dict[str, list[str]],
     run_phase: Callable[[str, list[str]], SuiteResult],
+    registry_issues: Optional[list[str]] = None,
 ) -> dict[str, SuiteResult]:
-    """Execute both daily phases; product failures never suppress broad coverage."""
-    return {
+    """Execute all daily phases even when registry metadata needs repair."""
+    results = {
         "critical": run_phase("critical", phases["critical"]),
         "broad": run_phase("broad", phases["broad"]),
     }
+    if registry_issues:
+        reason = "; ".join(registry_issues)
+        results["registry"] = SuiteResult(
+            status="failed",
+            tests=[{
+                "name": "critical-test-registry",
+                "file": "scripts/run_tests.py",
+                "status": "infrastructure_incident",
+                "error": reason,
+            }],
+            reason=reason,
+        )
+    return results
 
 
 def print_core_journey_matrix() -> None:
@@ -8729,48 +8743,43 @@ class TestOrchestrator:
         try:
             if getattr(self, "daily", False) and not self.spec:
                 registry_issues = audit_critical_test_registry()
-                if registry_issues:
-                    reason = "; ".join(registry_issues)
-                    result = SuiteResult(
-                        status="failed",
-                        tests=[{
-                            "name": "critical-test-registry",
-                            "file": "scripts/run_tests.py",
-                            "status": "infrastructure_incident",
-                            "error": reason,
-                        }, *_not_started_playwright_specs(specs, reason)],
-                        reason=reason,
-                    )
-                    self.critical_phase = {"status": "failed", "reason": "registry_audit_failed"}
-                else:
-                    phases = daily_playwright_phases(specs)
-                    def run_daily_phase(phase: str, phase_specs: list[str]) -> SuiteResult:
-                        self.current_phase = f"Playwright {phase}"
-                        runner.specs = phase_specs
-                        runner.fail_fast = False
-                        return runner.run_all_batches()
+                phases = daily_playwright_phases(specs)
 
-                    phase_results = execute_daily_playwright_phases(phases, run_daily_phase)
-                    critical_result = phase_results["critical"]
-                    self.critical_phase = {
-                        "status": critical_result.status,
-                        "spec_count": len(phases["critical"]),
-                    }
-                    broad_result = phase_results["broad"]
-                    combined_tests = [*critical_result.tests, *broad_result.tests]
-                    incident_seen = False
-                    deduplicated_tests = []
-                    for test in combined_tests:
-                        if test.get("status") == "infrastructure_incident":
-                            if incident_seen:
-                                continue
-                            incident_seen = True
-                        deduplicated_tests.append(test)
-                    result = SuiteResult(
-                        status="failed" if any(_is_problem_status(str(test.get("status") or "")) for test in deduplicated_tests) else "passed",
-                        tests=deduplicated_tests,
-                        duration_seconds=round(critical_result.duration_seconds + broad_result.duration_seconds, 1),
-                    )
+                def run_daily_phase(phase: str, phase_specs: list[str]) -> SuiteResult:
+                    self.current_phase = f"Playwright {phase}"
+                    runner.specs = phase_specs
+                    runner.fail_fast = False
+                    return runner.run_all_batches()
+
+                phase_results = execute_daily_playwright_phases(phases, run_daily_phase, registry_issues)
+                critical_result = phase_results["critical"]
+                self.critical_phase = {
+                    "status": "failed" if registry_issues else critical_result.status,
+                    "spec_count": len(phases["critical"]),
+                }
+                if registry_issues:
+                    self.critical_phase["reason"] = "registry_audit_failed"
+                broad_result = phase_results["broad"]
+                registry_result = phase_results.get("registry")
+                combined_tests = [
+                    *(registry_result.tests if registry_result else []),
+                    *critical_result.tests,
+                    *broad_result.tests,
+                ]
+                incident_seen = False
+                deduplicated_tests = []
+                for test in combined_tests:
+                    if test.get("status") == "infrastructure_incident":
+                        if incident_seen:
+                            continue
+                        incident_seen = True
+                    deduplicated_tests.append(test)
+                result = SuiteResult(
+                    status="failed" if any(_is_problem_status(str(test.get("status") or "")) for test in deduplicated_tests) else "passed",
+                    tests=deduplicated_tests,
+                    duration_seconds=round(critical_result.duration_seconds + broad_result.duration_seconds, 1),
+                    reason=registry_result.reason if registry_result else None,
+                )
             else:
                 result = runner.run_all_batches()
         finally:

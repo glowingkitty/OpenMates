@@ -70,6 +70,38 @@ def test_daily_phases_are_disjoint_and_broad_runs_after_critical_failure() -> No
     assert results["broad"].status == "passed"
 
 
+# contract-test: direct surface=cli assertions=test-orchestration.daily.critical-first-broad-continues,test-orchestration.results.infrastructure-is-not-product-failure
+def test_daily_registry_failure_is_reported_without_suppressing_playwright() -> None:
+    run_tests = load_module("daily_recovery_registry_failure", ROOT / "scripts" / "run_tests.py")
+    calls = []
+
+    def run_phase(name: str, specs: list[str]):
+        calls.append((name, specs))
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{"name": spec, "file": spec, "status": "passed"} for spec in specs],
+        )
+
+    results = run_tests.execute_daily_playwright_phases(
+        {"critical": ["critical.spec.ts"], "broad": ["broad.spec.ts"]},
+        run_phase,
+        ["stale registry entry"],
+    )
+
+    assert calls == [
+        ("critical", ["critical.spec.ts"]),
+        ("broad", ["broad.spec.ts"]),
+    ]
+    assert results["critical"].tests[0]["status"] == "passed"
+    assert results["broad"].tests[0]["status"] == "passed"
+    assert results["registry"].tests == [{
+        "name": "critical-test-registry",
+        "file": "scripts/run_tests.py",
+        "status": "infrastructure_incident",
+        "error": "stale registry entry",
+    }]
+
+
 # contract-test: direct surface=cli assertions=test-orchestration.dispatch.quota-aware-circuit-breaker
 def test_parallel_dispatch_reservations_are_atomic() -> None:
     run_tests = load_module("daily_recovery_budget", ROOT / "scripts" / "run_tests.py")

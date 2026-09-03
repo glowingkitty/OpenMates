@@ -441,6 +441,17 @@ jobs:
         env:
           OPENMATES_CLI_TEST_API_URL: ${{ secrets.E2E_DEV_API_URL }}
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}
+      - name: Validate account credential persistence
+        if: inputs.requires_account && inputs.allow_credential_updates && inputs.create_account_slot != ''
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+        run: |
+          set -euo pipefail
+          PROBE_SECRET="OPENMATES_E2E_WRITE_PROBE_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+          trap 'gh secret delete "$PROBE_SECRET" --repo "${{ github.repository }}" >/dev/null 2>&1 || true' EXIT
+          gh secret set "$PROBE_SECRET" --repo "${{ github.repository }}" --body "write-access-probe"
+          gh secret delete "$PROBE_SECRET" --repo "${{ github.repository }}"
+          trap - EXIT
       - name: Install Playwright browsers
         if: inputs.spec != '__cli_integration_code_docs__'
         run: |
@@ -647,6 +658,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
           EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}
         run: |
+          set -euo pipefail
           CREDS_FILE="frontend/apps/web_app/artifacts/test_account_credentials.json"
           ENV_FILE="frontend/apps/web_app/artifacts/cli-slot-${{ inputs.create_account_slot }}.env"
           if [ -f "$CREDS_FILE" ] || [ -f "$ENV_FILE" ]; then
@@ -685,8 +697,6 @@ jobs:
             echo "::add-mask::$EMAIL"
             echo "::add-mask::$PASSWORD"
             echo "::add-mask::$OTP_KEY"
-            rm -f "$CREDS_FILE"
-            rm -f "$ENV_FILE"
             echo "Updating OPENMATES_TEST_ACCOUNT_${SLOT}_* after account provisioning..."
             if [ "$SLOT" -ge 21 ]; then
               export EMAIL PASSWORD OTP_KEY
@@ -712,6 +722,15 @@ jobs:
             fi
             echo "✅ Updated OPENMATES_TEST_ACCOUNT_${SLOT}_* secrets"
           fi
+      - name: Remove credential artifacts
+        if: always()
+        run: |
+          rm -f frontend/apps/web_app/artifacts/test_account_credentials.json
+          rm -f frontend/apps/web_app/artifacts/new_otp_key.txt
+          rm -f frontend/apps/web_app/artifacts/api_key.txt
+          rm -f frontend/apps/web_app/artifacts/cli-slot-*.env
+          rm -f frontend/apps/web_app/artifacts/cli-slot-*.env.backup-codes
+          rm -f frontend/apps/web_app/artifacts/cli-slot-*.env.recovery-key
       - name: Sanitize artifact name
         if: always()
         id: artifact_name
@@ -728,6 +747,10 @@ jobs:
             test-results/cli-integration.json
             frontend/apps/web_app/test-results/
             frontend/apps/web_app/artifacts/
+            !frontend/apps/web_app/artifacts/test_account_credentials.json
+            !frontend/apps/web_app/artifacts/new_otp_key.txt
+            !frontend/apps/web_app/artifacts/api_key.txt
+            !frontend/apps/web_app/artifacts/cli-slot-*.env*
           if-no-files-found: ignore
           retention-days: 7
       - name: Fail if tests failed

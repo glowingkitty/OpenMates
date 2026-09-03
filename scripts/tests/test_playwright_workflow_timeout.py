@@ -84,3 +84,27 @@ def test_expanded_accounts_use_one_consolidated_repository_secret() -> None:
     for preceding_workflow in bundle_writes[:-1]:
         current_step = preceding_workflow.rsplit("      - name:", 1)[-1]
         assert "EXPANDED_ACCOUNTS_JSON: ${{ secrets.OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON }}" in current_step
+
+
+def test_account_provisioning_validates_secret_access_and_scrubs_credentials() -> None:
+    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+
+    validation = workflow.index("      - name: Validate account credential persistence")
+    run_spec = workflow.index("      - name: Run spec")
+    assert validation < run_spec
+    assert 'gh secret set "$PROBE_SECRET"' in workflow
+    assert 'gh secret delete "$PROBE_SECRET"' in workflow
+
+    cleanup = workflow.index("      - name: Remove credential artifacts")
+    upload = workflow.index("      - uses: actions/upload-artifact@v4")
+    assert cleanup < upload
+    for sensitive_path in (
+        "test_account_credentials.json",
+        "new_otp_key.txt",
+        "api_key.txt",
+        "cli-slot-*.env",
+        "cli-slot-*.env.backup-codes",
+        "cli-slot-*.env.recovery-key",
+    ):
+        assert f'rm -f frontend/apps/web_app/artifacts/{sensitive_path}' in workflow
+    assert "!frontend/apps/web_app/artifacts/cli-slot-*.env*" in workflow
