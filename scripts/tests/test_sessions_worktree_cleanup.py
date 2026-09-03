@@ -161,6 +161,40 @@ def test_orphaned_git_metadata_is_quarantined_with_source_bytes(monkeypatch, tmp
     assert (destination / "recovery.txt").read_text(encoding="utf-8") == "preserve me\n"
 
 
+def test_refresh_does_not_revive_stale_orphan_from_write_markers(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    control_root = tmp_path / "OpenMates"
+    worktree = control_root / ".openmates-agent-worktrees" / "agent-old"
+    missing_gitdir = control_root / ".git" / "worktrees" / "agent-old"
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {missing_gitdir}\n", encoding="utf-8")
+    old = "2026-01-01T00:00:00Z"
+    session = {
+        "last_active": old,
+        "writing": "source.py",
+        "worktree": {"path": str(worktree), "last_active": old},
+    }
+    data = {
+        "sessions": {"old": session},
+        "edit_leases": {"source.py": {"session_id": "old"}},
+    }
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", control_root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", control_root / ".openmates-agent-worktrees")
+    monkeypatch.setattr(sessions, "_candidate_changed_files", lambda *_args: [])
+    monkeypatch.setattr(sessions, "_hours_since", lambda _value: 100.0)
+
+    refreshed = sessions._refresh_reconciliation_candidate(
+        {"session_id": "old", "path": str(worktree), "metadata": session["worktree"]},
+        data,
+        "target",
+        48,
+        set(),
+    )
+
+    assert refreshed["classification"] == "orphaned_git_metadata"
+    assert refreshed["idle_hours"] == 100.0
+
+
 def test_safe_reconciliation_records_orphan_quarantine(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"

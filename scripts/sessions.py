@@ -5592,12 +5592,10 @@ def _refresh_reconciliation_candidate(
         fresh["idle_hours"] = _hours_since(fresh["last_active"]) if fresh["last_active"] else float("inf")
     except (TypeError, ValueError):
         fresh["idle_hours"] = float("inf")
-    live_lease = any(
-        isinstance(lease, dict) and lease.get("session_id") == session_id
-        for lease in data.get("edit_leases", {}).values()
-    )
-    if session.get("writing") or live_lease:
-        fresh["idle_hours"] = 0
+    # A write marker or edit lease can survive a crashed session indefinitely.
+    # Their acquisition paths also refresh session.last_active, so the timestamp
+    # is the authoritative liveness signal here. Treating the marker alone as
+    # activity makes stale orphaned worktrees impossible to reconcile.
     return _classify_worktree_candidate(fresh, target_ref, idle_hours, approved_obsolete)
 
 
