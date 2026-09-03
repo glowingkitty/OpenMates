@@ -63,3 +63,16 @@ def test_runtime_patch_bounds_provider_retries_and_persists_terminal_errors() ->
     assert "RETRY_MAX_NOT_FOUND_RETRIES = 1" in patch
     assert 'ctx.assistantMessage.finish = "error"' in patch
     assert "stops a repeated OpenAI 404 after one retry" in patch
+
+
+def test_runtime_patch_recompacts_after_productive_post_compaction_growth() -> None:
+    patch = (
+        PROJECT_ROOT / "scripts/patches/opencode-v1.17.20-productive-recompaction.patch"
+    ).read_text(encoding="utf-8")
+
+    assert "shouldStopAutomaticCompactionRetry" in patch
+    assert "message.info.summary !== true" in patch
+    assert "message.info.time.completed !== undefined" in patch
+    assert "message.info.error === undefined" in patch
+    assert "allows another compaction after productive post-compaction progress" in patch
+    assert "stops an immediate overflow after synthetic compaction continuation" in patch
