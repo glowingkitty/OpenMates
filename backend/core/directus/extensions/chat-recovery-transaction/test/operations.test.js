@@ -510,6 +510,15 @@ test('activation prunes expired running identities before enforcing the active d
   assert.deepEqual(database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle, []);
 });
 
+test('cutover state reads an initialized valid row without taking the global transaction lock', async () => {
+  const database = fakeDatabase(protocolSeed());
+
+  const state = await executeOperation(database, 'get_cutover_state', { protocol_version: 1 });
+
+  assert.equal(state.protocol_epoch, 0);
+  assert.equal(database.transactions, 0);
+});
+
 test('legacy lifecycle state fails closed on malformed, duplicate, or mismatched records', async () => {
   const corruptStates = [
     protocolSeed({ lifecycle: {} }),

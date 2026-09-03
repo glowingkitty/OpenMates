@@ -15689,39 +15689,39 @@ assertions:
       surface: gui.apple
     - &id1733
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 771
+      line: 780
       name: prepare_preflight atomically writes chat, user message, and preflight
       surface: rest_api
     - &id1734
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 787
+      line: 796
       name: prepare_preflight creates team chat wrapper for new team chats
       surface: rest_api
     - &id1735
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 817
+      line: 826
       name: prepare_preflight rolls back team chat when team wrapper insert fails
       surface: rest_api
     - &id1736
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 831
+      line: 840
       name: prepare_preflight rolls back all writes when the final preflight insert
         fails
       surface: rest_api
     - &id1737
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 845
+      line: 854
       name: prepare_preflight accepts matching metadata for an existing empty draft
         shell
       surface: rest_api
     - &id1738
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 872
+      line: 881
       name: prepare_preflight rejects metadata for an existing non-empty chat
       surface: rest_api
     - &id1739
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 899
+      line: 908
       name: prepare_preflight is idempotent for an exact duplicate and rejects immutable
         key changes
       surface: rest_api
@@ -16254,29 +16254,29 @@ assertions:
     supporting_tests:
     - &id1842
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 771
+      line: 780
       name: prepare_preflight atomically writes chat, user message, and preflight
       surface: rest_api
     - &id1843
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 831
+      line: 840
       name: prepare_preflight rolls back all writes when the final preflight insert
         fails
       surface: rest_api
     - &id1844
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 845
+      line: 854
       name: prepare_preflight accepts matching metadata for an existing empty draft
         shell
       surface: rest_api
     - &id1845
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 872
+      line: 881
       name: prepare_preflight rejects metadata for an existing non-empty chat
       surface: rest_api
     - &id1846
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 899
+      line: 908
       name: prepare_preflight is idempotent for an exact duplicate and rejects immutable
         key changes
       surface: rest_api
@@ -26469,12 +26469,12 @@ assertions:
     supporting_tests:
     - &id3003
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 787
+      line: 796
       name: prepare_preflight creates team chat wrapper for new team chats
       surface: rest_api
     - &id3004
       path: backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
-      line: 817
+      line: 826
       name: prepare_preflight rolls back team chat when team wrapper insert fails
       surface: rest_api
     - &id3005
