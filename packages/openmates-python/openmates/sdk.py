@@ -1710,6 +1710,69 @@ def _task_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
     return task_key
 
 
+def _build_task_activity_comment_input(task: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    message = payload.get("message")
+    if not isinstance(message, str):
+        raise OpenMatesConfigError("Task Activity comment message is required")
+    task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
+    entry_key = os.urandom(32)
+    embed_refs = payload.get("embed_refs", payload.get("embedRefs", []))
+    if not isinstance(embed_refs, list) or not all(isinstance(embed_ref, str) for embed_ref in embed_refs):
+        raise OpenMatesConfigError("Task Activity embed_refs must be a list of strings")
+    result: dict[str, Any] = {
+        "entry_id": str(payload.get("entry_id") or payload.get("entryId") or uuid.uuid4()),
+        "encrypted_entry_key": _encrypt_aes_gcm_bytes(entry_key, task_key),
+        "encrypted_message": _encrypt_aes_gcm_text(message, entry_key),
+        "embed_refs": embed_refs,
+        "created_at": int(payload.get("created_at") or payload.get("createdAt") or time.time()),
+    }
+    embed_key_material = payload.get("embed_key_material", payload.get("embedKeyMaterial"))
+    if embed_key_material is not None:
+        if not isinstance(embed_key_material, str):
+            raise OpenMatesConfigError("Task Activity embed_key_material must be a string")
+        result["encrypted_embed_key_material"] = _encrypt_aes_gcm_text(embed_key_material, task_key)
+    return result
+
+
+def _decrypt_task_activity_entry(task: dict[str, Any], master_key: bytes, record: dict[str, Any]) -> dict[str, Any]:
+    entry = _project_task_activity_entry(record)
+    if record.get("kind") == "tombstone" or record.get("kind") != "comment":
+        return entry
+    encrypted_entry_key = record.get("encrypted_entry_key")
+    encrypted_message = record.get("encrypted_message")
+    if not isinstance(encrypted_entry_key, str) or not isinstance(encrypted_message, str):
+        raise OpenMatesConfigError(f"Task Activity entry {record.get('entry_id')} is missing encrypted content")
+    task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
+    entry_key = _decrypt_aes_gcm_bytes(encrypted_entry_key, task_key)
+    if entry_key is None:
+        raise OpenMatesConfigError(f"Failed to decrypt Task Activity entry key {record.get('entry_id')}")
+    message = _decrypt_aes_gcm_text(encrypted_message, entry_key)
+    if message is None:
+        raise OpenMatesConfigError(f"Failed to decrypt Task Activity entry {record.get('entry_id')}")
+    entry["message"] = message
+    if isinstance(record.get("encrypted_embed_key_material"), str):
+        embed_key_material = _decrypt_aes_gcm_text(record["encrypted_embed_key_material"], task_key)
+        if embed_key_material is None:
+            raise OpenMatesConfigError(f"Failed to decrypt Task Activity embed key material for {record.get('entry_id')}")
+        entry["embed_key_material"] = embed_key_material
+    return entry
+
+
+def _project_task_activity_entry(record: dict[str, Any]) -> dict[str, Any]:
+    allowed = (
+        "entry_id", "task_id", "kind", "actor_type", "actor_hash", "event_type",
+        "actor_display_name", "actor_profile_image_url", "source_surface", "created_at",
+        "deleted_at", "deleted_by_hash", "deleted_by_display_name",
+    )
+    entry = {key: record[key] for key in allowed if key in record}
+    entry["author_hash"] = record.get("author_hash") or record.get("actor_hash")
+    if record.get("kind") == "tombstone":
+        entry["embed_refs"] = []
+    elif isinstance(record.get("embed_refs"), list) and all(isinstance(embed_ref, str) for embed_ref in record["embed_refs"]):
+        entry["embed_refs"] = record["embed_refs"]
+    return entry
+
+
 def _plan_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
     wrappers = record.get("key_wrappers") if isinstance(record.get("key_wrappers"), list) else []
     encrypted_plan_key = next(
@@ -4229,6 +4292,47 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         query = f"?limit={limit}" if limit is not None else ""
         return self._client._get(f"/v1/user-tasks/{_quote(str(task['task_id']))}/history{query}").get("entries", [])
+
+    def list_activity(self, task_id: str, **filters: Any) -> list[dict[str, Any]]:
+        task = self._resolve(task_id, {key: value for key, value in filters.items() if key != "limit"})
+        records: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            response = self._client._get(_with_query(
+                f"/v1/user-tasks/{_quote(str(task['task_id']))}/activity",
+                team_id=filters.get("team_id"),
+                cursor=cursor,
+                limit=filters.get("limit"),
+            ))
+            records.extend(record for record in response.get("entries", []) if isinstance(record, dict))
+            next_cursor = response.get("next_cursor")
+            if not isinstance(next_cursor, str) or not next_cursor:
+                break
+            if next_cursor == cursor:
+                raise OpenMatesConfigError("Task Activity pagination cursor did not advance")
+            cursor = next_cursor
+        master_key = self._client._get_master_key()
+        return [_decrypt_task_activity_entry(task, master_key, record) for record in records]
+
+    def add_activity_comment(self, task_id: str, payload: dict[str, Any], **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        master_key = self._client._get_master_key()
+        entry = self._client._post(
+            _with_query(
+                f"/v1/user-tasks/{_quote(str(task['task_id']))}/activity",
+                team_id=filters.get("team_id"),
+            ),
+            _build_task_activity_comment_input(task, master_key, payload),
+        ).get("entry", {})
+        return _decrypt_task_activity_entry(task, master_key, entry)
+
+    def delete_activity_comment(self, task_id: str, entry_id: str, **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        entry = self._client._delete(_with_query(
+            f"/v1/user-tasks/{_quote(str(task['task_id']))}/activity/{_quote(entry_id)}",
+            team_id=filters.get("team_id"),
+        )).get("entry", {})
+        return _decrypt_task_activity_entry(task, self._client._get_master_key(), entry)
 
     def restore(self, task_id: str, *, entry_id: str, state: str = "after", **filters: Any) -> dict[str, Any]:
         task = self._resolve(task_id, filters)

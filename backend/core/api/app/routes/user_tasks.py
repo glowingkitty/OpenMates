@@ -375,11 +375,14 @@ def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
         "kind",
         "actor_type",
         "actor_hash",
+        "actor_display_name",
+        "actor_profile_image_url",
         "event_type",
         "source_surface",
         "created_at",
         "deleted_at",
         "deleted_by_hash",
+        "deleted_by_display_name",
         "encrypted_entry_key",
         "encrypted_message",
         "encrypted_embed_key_material",
@@ -389,6 +392,10 @@ def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
     if projected.get("kind") == "tombstone":
         projected["author_hash"] = projected.get("actor_hash")
     return projected
+
+
+def _task_activity_cursor(entry: dict[str, Any]) -> str:
+    return f"{int(entry['created_at'])}:{entry['entry_id']}"
 
 
 async def _record_task_history(
@@ -703,6 +710,7 @@ async def list_user_task_activity(
     response: Response,
     task_id: str,
     team_id: str | None = Query(default=None),
+    cursor: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     service: UserTaskService = Depends(get_user_task_service),
 ) -> dict[str, Any]:
@@ -710,14 +718,25 @@ async def list_user_task_activity(
 
     current_user = await _current_user(request, response)
     team_id = _unwrap_query_default(team_id)
+    cursor = _unwrap_query_default(cursor)
     limit = int(_unwrap_query_default(limit))
     try:
         if team_id:
             await request.app.state.directus_service.team.require_team_role(
                 team_id, current_user.id, {"owner", "admin", "member", "viewer"}
             )
-        entries = await service.list_task_activity(task_id, current_user.id, team_id=team_id, limit=limit)
-        return {"entries": [_task_activity_response(entry) for entry in entries]}
+        entries = await service.list_task_activity(
+            task_id,
+            current_user.id,
+            team_id=team_id,
+            cursor=cursor,
+            limit=limit + 1,
+        )
+        visible = entries[:limit]
+        return {
+            "entries": [_task_activity_response(entry) for entry in visible],
+            "next_cursor": _task_activity_cursor(visible[-1]) if len(entries) > limit and visible else None,
+        }
     except Exception as exc:
         _handle_task_error(exc)
 
@@ -747,6 +766,8 @@ async def create_user_task_activity(
             payload=body.model_dump(),
             team_id=team_id,
             source_surface=derive_task_activity_source_surface(request),
+            actor_display_name=getattr(current_user, "username", None),
+            actor_profile_image_url=getattr(current_user, "profile_image_url", None),
         )
         return {"entry": _task_activity_response(entry)}
     except Exception as exc:
@@ -781,6 +802,7 @@ async def delete_user_task_activity(
             team_id=team_id,
             deleted_at=int(time.time()),
             allow_task_mutation=allow_task_mutation,
+            deleted_by_display_name=getattr(current_user, "username", None),
         )
         return {"entry": _task_activity_response(entry)}
     except Exception as exc:

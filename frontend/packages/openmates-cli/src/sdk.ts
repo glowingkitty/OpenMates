@@ -62,8 +62,11 @@ import {
 } from "./shareEncryption.js";
 import {
   buildBlockUserTaskInput,
+  buildCreateTaskActivityInput,
   buildCreateUserTaskInput,
   buildUpdateUserTaskInput,
+  decryptTaskActivityEntries,
+  decryptTaskActivityEntry,
   decryptUserTask,
   decryptUserTasks,
   externalChatLookupHash,
@@ -72,7 +75,9 @@ import {
   normalizeLabels,
   normalizeTaskPriority,
   type DecryptedUserTask,
+  type DecryptedTaskActivityEntry,
   type ExternalChatContext,
+  type TaskActivityCreateOptions,
   type TaskCreateOptions,
   type TaskPriorityLevel,
   type TaskUpdateOptions,
@@ -147,6 +152,7 @@ import type {
   UserPlanUpdateInput,
   UserPlanVerificationRecord,
   UserTaskActionInput,
+  UserTaskActivityRecord,
   UserTaskCreateInput,
   UserTaskReorderInput,
   UserTaskRecord,
@@ -469,6 +475,8 @@ export type TaskBlockOptions = TaskListFilters & { reasonText?: string };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
 export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
+export type TaskActivityRecord = DecryptedTaskActivityEntry;
+export type TaskActivityInput = TaskActivityCreateOptions;
 export type PlanRecord = Omit<DecryptedUserPlan, "encrypted">;
 export type PlanPlainCreateOptions = PlanCreateOptions;
 export type PlanPlainUpdateOptions = PlanUpdateOptions;
@@ -3580,6 +3588,44 @@ export class OpenMatesTasks {
 
   async show(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
     return toPublicTask(await this.resolve(id, filters));
+  }
+
+  async listActivity(id: string, filters: TaskListFilters & { limit?: number } = {}): Promise<TaskActivityRecord[]> {
+    const task = await this.resolve(id, filters);
+    const records: UserTaskActivityRecord[] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await this.client.get<{ entries?: UserTaskActivityRecord[]; next_cursor?: string | null }>(withQuery(
+        `/v1/user-tasks/${encodeURIComponent(task.taskId)}/activity`,
+        { team_id: filters.teamId, cursor, limit: filters.limit },
+      ));
+      records.push(...(response.entries ?? []));
+      const nextCursor = response.next_cursor ?? undefined;
+      if (nextCursor && nextCursor === cursor) throw new OpenMatesConfigError("Task Activity pagination cursor did not advance");
+      cursor = nextCursor;
+    } while (cursor);
+    return decryptTaskActivityEntries(task, await this.client.masterKey(), records);
+  }
+
+  async addActivityComment(id: string, input: TaskActivityInput, filters: TaskListFilters = {}): Promise<TaskActivityRecord> {
+    const task = await this.resolve(id, filters);
+    const masterKey = await this.client.masterKey();
+    const response = await this.client.request<{ entry?: UserTaskActivityRecord }>(withQuery(
+      `/v1/user-tasks/${encodeURIComponent(task.taskId)}/activity`,
+      { team_id: filters.teamId },
+    ), await buildCreateTaskActivityInput(task, masterKey, input));
+    if (!response.entry) throw new OpenMatesApiError(500, { detail: "User task activity response missing entry" });
+    return decryptTaskActivityEntry(task, masterKey, response.entry);
+  }
+
+  async deleteActivityComment(id: string, entryId: string, filters: TaskListFilters = {}): Promise<TaskActivityRecord> {
+    const task = await this.resolve(id, filters);
+    const response = await this.client.delete<{ entry?: UserTaskActivityRecord }>(withQuery(
+      `/v1/user-tasks/${encodeURIComponent(task.taskId)}/activity/${encodeURIComponent(entryId)}`,
+      { team_id: filters.teamId },
+    ));
+    if (!response.entry) throw new OpenMatesApiError(500, { detail: "User task activity response missing entry" });
+    return decryptTaskActivityEntry(task, await this.client.masterKey(), response.entry);
   }
 
   async history(id: string, filters: TaskListFilters & { limit?: number } = {}): Promise<Record<string, unknown>[]> {

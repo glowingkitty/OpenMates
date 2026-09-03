@@ -85,7 +85,9 @@ USER_TASK_INDEXES = (
     'user_tasks_project_hashes_gin_idx',
     'user_tasks_label_hashes_gin_idx',
     'user_task_key_wrappers_task_owner_idx',
-    'user_task_activity_task_created_idx',
+    'user_task_activity_task_entry_uq',
+    'user_task_activity_personal_created_idx',
+    'user_task_activity_team_created_idx',
     'user_task_archives_owner_archived_idx',
 )
 USER_WORK_CONTROL_MIGRATION_PATH = os.getenv(

@@ -13,6 +13,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 
 import { OpenMates } from "../src/sdk.ts";
 import { createApiKeyCryptoMaterial } from "../src/crypto.ts";
+import { buildCreateUserTaskInput } from "../src/tasksCli.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
@@ -48,6 +49,54 @@ async function withServer(
 }
 
 describe("OpenMates SDK user tasks", () => {
+  // contract-test: direct surface=sdks.npm assertions=tasks.activity.client-encrypted,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
+  it("manages decrypted Task Activity with SDK attribution", async () => {
+    const masterKey = Buffer.alloc(32, 12);
+    const material = await createApiKeyCryptoMaterial("sdk activity parity", masterKey.toString("base64"));
+    const task = { ...(await buildCreateUserTaskInput(masterKey, { title: "SDK Activity task" })), short_id: "TASK-ACT" };
+    let storedActivity: Record<string, any> | null = null;
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/sdk/session") {
+          return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        }
+        if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks?") || request.method === "GET" && request.url === "/v1/user-tasks") {
+          return { tasks: [task] };
+        }
+        if (request.method === "POST" && request.url?.includes("/activity")) {
+          assert.doesNotMatch(JSON.stringify(body), /SDK Activity comment/);
+          storedActivity = {
+            ...(body as Record<string, any>),
+            task_id: task.task_id,
+            kind: "comment",
+            actor_type: "user",
+            actor_hash: "author-hash",
+            event_type: "comment_added",
+            source_surface: "sdk_npm",
+          };
+          return { entry: storedActivity };
+        }
+        if (request.method === "GET" && request.url?.includes("/activity")) return { entries: storedActivity ? [storedActivity] : [] };
+        if (request.method === "DELETE" && request.url?.includes("/activity/")) {
+          return { entry: { ...storedActivity, kind: "tombstone", encrypted_entry_key: null, encrypted_message: null, encrypted_embed_key_material: null, embed_refs: [], author_hash: "author-hash", deleted_by_hash: "author-hash", deleted_at: 101 } };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
+        const added = await client.tasks.addActivityComment("TASK-ACT", { message: "SDK Activity comment", entryId: "activity-1", createdAt: 100 });
+        assert.equal(added.message, "SDK Activity comment");
+        assert.equal(added.sourceSurface, "sdk_npm");
+        assert.equal(Object.keys(added).some((key) => /encrypted/i.test(key)), false);
+        assert.equal((await client.tasks.listActivity("TASK-ACT"))[0]?.message, "SDK Activity comment");
+        const deleted = await client.tasks.deleteActivityComment("TASK-ACT", "activity-1");
+        assert.equal(deleted.kind, "tombstone");
+        assert.equal("message" in deleted, false);
+      },
+      `Bearer ${material.apiKey}`,
+    );
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=tasks.surface.semantic-parity
   it("exposes task app-skill child embeds and pending client search state", async () => {
     await withServer(

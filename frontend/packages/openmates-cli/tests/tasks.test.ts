@@ -12,17 +12,25 @@ import assert from "node:assert/strict";
 import { createHmac, hkdfSync } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
+import {
+  OpenMatesClient,
+  type UserTaskActivityCreateInput,
+  type UserTaskActivityRecord,
+  type UserTaskCreateInput,
+} from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
 import {
   buildBlockUserTaskInput,
+  buildCreateTaskActivityInput,
   buildCreateUserTaskInput,
   buildUpdateUserTaskInput,
+  decryptTaskActivityEntry,
   decryptUserTask,
   externalChatLookupHash,
   findTask,
   normalizeBlockedReasonCode,
   parseExternalChatRef,
+  renderTaskActivityList,
   taskEditLookupScope,
   taskLookupScopes,
   type DecryptedUserTask,
@@ -91,6 +99,73 @@ async function withServer(
 }
 
 describe("OpenMatesClient user tasks", () => {
+  // contract-test: direct surface=cli assertions=tasks.activity.client-encrypted,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
+  it("encrypts, transports, decrypts, and tombstones Task Activity", async () => {
+    const masterKey = Buffer.alloc(32, 11);
+    const encryptedTask = await buildCreateUserTaskInput(masterKey, { title: "Activity task" });
+    const task = await decryptUserTask(encryptedTask, masterKey);
+    const activityInput = await buildCreateTaskActivityInput(task, masterKey, {
+      entryId: "activity-1",
+      message: "First line\nSecond line",
+      createdAt: 100,
+    });
+    assert.doesNotMatch(JSON.stringify(activityInput), /First line|Second line/);
+    assert.ok(activityInput.encrypted_entry_key);
+    assert.ok(activityInput.encrypted_message);
+
+    const stored: UserTaskActivityRecord = {
+      ...activityInput,
+      task_id: task.taskId,
+      kind: "comment",
+      actor_type: "user",
+      actor_hash: "author-hash",
+      event_type: "comment_added",
+      source_surface: "cli",
+    };
+    const decrypted = await decryptTaskActivityEntry(task, masterKey, stored);
+    assert.equal(decrypted.message, "First line\nSecond line");
+
+    const tombstone: UserTaskActivityRecord = {
+      entry_id: "activity-1",
+      task_id: task.taskId,
+      kind: "tombstone",
+      actor_type: "user",
+      actor_hash: "author-hash",
+      author_hash: "author-hash",
+      event_type: "comment_deleted",
+      source_surface: "cli",
+      created_at: 100,
+      deleted_at: 101,
+      deleted_by_hash: "deleter-hash",
+      encrypted_entry_key: null,
+      encrypted_message: null,
+      encrypted_embed_key_material: null,
+      embed_refs: [],
+    };
+    assert.match(renderTaskActivityList([await decryptTaskActivityEntry(task, masterKey, tombstone)]), /deleted/i);
+
+    await withServer(
+      (request, body) => request.method === "GET"
+        ? { entries: [stored] }
+        : request.method === "POST"
+          ? { entry: { ...stored, ...(body as UserTaskActivityCreateInput) } }
+          : { entry: tombstone },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        await client.listUserTaskActivity(task.taskId, { teamId: "team-1" });
+        await client.createUserTaskActivity(task.taskId, activityInput, { teamId: "team-1" });
+        await client.deleteUserTaskActivity(task.taskId, "activity-1", { teamId: "team-1" });
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["GET", `/v1/user-tasks/${task.taskId}/activity?team_id=team-1`],
+          ["POST", `/v1/user-tasks/${task.taskId}/activity?team_id=team-1`],
+          ["DELETE", `/v1/user-tasks/${task.taskId}/activity/activity-1?team_id=team-1`],
+        ]);
+        assert.deepEqual(seen[1]?.body, activityInput);
+      },
+    );
+  });
+
   // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
   it("lists, creates, updates, and starts encrypted user tasks", async () => {
     const task = encryptedTaskInput();

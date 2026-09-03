@@ -15,7 +15,58 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from openmates import OpenMates
 from openmates.sdk import OpenMatesConfigError
-from openmates.sdk import _create_api_key_material, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text, _external_chat_lookup_hash
+from openmates.sdk import _build_task_create_input, _create_api_key_material, _encrypt_aes_gcm_bytes, _encrypt_aes_gcm_text, _external_chat_lookup_hash
+
+
+# contract-test: direct surface=sdks.pip assertions=tasks.activity.client-encrypted,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
+def test_pip_sdk_manages_decrypted_task_activity(monkeypatch):
+    master_key = bytes([12]) * 32
+    api_key, material = _create_api_key_material("sdk activity parity", master_key)
+    task = {**_build_task_create_input(master_key, {"title": "SDK Activity task"}), "short_id": "TASK-ACT"}
+    stored_activity = None
+
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
+        if "/activity" in url:
+            return FakeResponse({"entries": [stored_activity] if stored_activity else []})
+        return FakeResponse({"tasks": [task]})
+
+    def fake_post(url, *, json, headers, timeout):
+        nonlocal stored_activity
+        if url.endswith("/v1/sdk/session"):
+            return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
+        assert "/activity" in url
+        assert "SDK Activity comment" not in str(json)
+        stored_activity = {**json, "task_id": task["task_id"], "kind": "comment", "actor_type": "user", "actor_hash": "author-hash", "event_type": "comment_added", "source_surface": "sdk_pip"}
+        return FakeResponse({"entry": stored_activity})
+
+    def fake_delete(url, *, json, headers, timeout):
+        assert "/activity/" in url
+        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_entry_key": None, "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.delete", fake_delete)
+
+    client = OpenMates(api_key=api_key)
+    added = client.tasks.add_activity_comment("TASK-ACT", {"message": "SDK Activity comment", "entry_id": "activity-1", "created_at": 100})
+    assert added["message"] == "SDK Activity comment"
+    assert added["source_surface"] == "sdk_pip"
+    assert not any(key.startswith("encrypted_") for key in added)
+    assert client.tasks.list_activity("TASK-ACT")[0]["message"] == "SDK Activity comment"
+    deleted = client.tasks.delete_activity_comment("TASK-ACT", "activity-1")
+    assert deleted["kind"] == "tombstone"
+    assert "message" not in deleted
 
 
 # contract-test: supporting surface=sdks.pip assertions=tasks.external-chat.encrypted-context

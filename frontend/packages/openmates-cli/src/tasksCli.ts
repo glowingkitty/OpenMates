@@ -13,6 +13,8 @@ import { createHash, createHmac, hkdfSync, randomBytes, randomUUID } from "node:
 
 import type {
   UserTaskAssigneeType,
+  UserTaskActivityCreateInput,
+  UserTaskActivityRecord,
   UserTaskCreateInput,
   UserTaskRecord,
   UserTaskStatus,
@@ -104,6 +106,34 @@ export interface DecryptedUserTask {
   readOnly?: boolean;
   version: number;
   encrypted: UserTaskRecord;
+}
+
+export interface TaskActivityCreateOptions {
+  entryId?: string;
+  message: string;
+  embedRefs?: string[];
+  embedKeyMaterial?: string;
+  createdAt?: number;
+}
+
+export interface DecryptedTaskActivityEntry {
+  entryId: string;
+  taskId: string;
+  kind: UserTaskActivityRecord["kind"];
+  actorType: string;
+  actorHash: string;
+  actorDisplayName: string | null;
+  actorProfileImageUrl: string | null;
+  authorHash: string | null;
+  eventType: string;
+  sourceSurface: string;
+  createdAt: number;
+  deletedAt: number | null;
+  deletedByHash: string | null;
+  deletedByDisplayName: string | null;
+  message?: string;
+  embedKeyMaterial?: string;
+  embedRefs: string[];
 }
 
 export function workflowProjectionDeleteGuidance(task: DecryptedUserTask): string {
@@ -355,6 +385,76 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
   return patch;
 }
 
+export async function buildCreateTaskActivityInput(
+  task: DecryptedUserTask,
+  masterKey: Uint8Array,
+  input: TaskActivityCreateOptions,
+): Promise<UserTaskActivityCreateInput> {
+  const taskKey = await taskKeyFromRecord(task.encrypted, masterKey);
+  const entryKey = randomBytes(32);
+  return {
+    entry_id: input.entryId ?? randomUUIDCompat(),
+    encrypted_entry_key: await encryptBytesWithAesGcm(entryKey, taskKey),
+    encrypted_message: await encryptWithAesGcmCombined(input.message, entryKey),
+    ...(input.embedKeyMaterial
+      ? { encrypted_embed_key_material: await encryptWithAesGcmCombined(input.embedKeyMaterial, taskKey) }
+      : {}),
+    embed_refs: input.embedRefs ?? [],
+    created_at: input.createdAt ?? nowSeconds(),
+  };
+}
+
+export async function decryptTaskActivityEntry(
+  task: DecryptedUserTask,
+  masterKey: Uint8Array,
+  record: UserTaskActivityRecord,
+): Promise<DecryptedTaskActivityEntry> {
+  const base: DecryptedTaskActivityEntry = {
+    entryId: record.entry_id,
+    taskId: record.task_id,
+    kind: record.kind,
+    actorType: record.actor_type,
+    actorHash: record.actor_hash,
+    actorDisplayName: record.actor_display_name ?? null,
+    actorProfileImageUrl: record.actor_profile_image_url ?? null,
+    authorHash: record.author_hash ?? record.actor_hash ?? null,
+    eventType: record.event_type,
+    sourceSurface: record.source_surface,
+    createdAt: record.created_at,
+    deletedAt: record.deleted_at ?? null,
+    deletedByHash: record.deleted_by_hash ?? null,
+    deletedByDisplayName: record.deleted_by_display_name ?? null,
+    embedRefs: record.kind === "tombstone" ? [] : record.embed_refs,
+  };
+  if (record.kind === "tombstone") return base;
+  if (record.kind !== "comment") return base;
+  if (!record.encrypted_entry_key || !record.encrypted_message) {
+    throw new Error(`Task Activity entry ${record.entry_id} is missing encrypted content.`);
+  }
+  const taskKey = await taskKeyFromRecord(task.encrypted, masterKey);
+  const entryKey = await decryptBytesWithAesGcm(record.encrypted_entry_key, taskKey);
+  if (!entryKey) throw new Error(`Failed to decrypt Task Activity entry key ${record.entry_id}.`);
+  const message = await decryptWithAesGcmCombined(record.encrypted_message, entryKey);
+  if (message === null) throw new Error(`Failed to decrypt Task Activity entry ${record.entry_id}.`);
+  const embedKeyMaterial = record.encrypted_embed_key_material
+    ? await decryptWithAesGcmCombined(record.encrypted_embed_key_material, taskKey)
+    : null;
+  if (record.encrypted_embed_key_material && embedKeyMaterial === null) {
+    throw new Error(`Failed to decrypt Task Activity embed key material ${record.entry_id}.`);
+  }
+  return { ...base, message, ...(embedKeyMaterial !== null ? { embedKeyMaterial } : {}) };
+}
+
+export async function decryptTaskActivityEntries(
+  task: DecryptedUserTask,
+  masterKey: Uint8Array,
+  records: UserTaskActivityRecord[],
+): Promise<DecryptedTaskActivityEntry[]> {
+  const entries: DecryptedTaskActivityEntry[] = [];
+  for (const record of records) entries.push(await decryptTaskActivityEntry(task, masterKey, record));
+  return entries;
+}
+
 export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Array): Promise<DecryptedUserTask> {
   if (record.source === "workflow_run") return workflowProjectionToTask(record);
   if (typeof record.version !== "number") throw new Error(`Task ${record.task_id} is missing version.`);
@@ -525,6 +625,29 @@ export function renderTaskDetail(task: DecryptedUserTask): string {
   return lines.join("\n");
 }
 
+export function renderTaskActivityList(entries: DecryptedTaskActivityEntry[]): string {
+  if (entries.length === 0) return "No Activity yet.";
+  const lines = ["Activity"];
+  for (const entry of entries) {
+    const actor = entry.actorType === "user" ? (entry.actorDisplayName ?? "User") : "OpenMates";
+    const source = entry.sourceSurface === "cli"
+      ? " via OpenMates CLI"
+      : entry.sourceSurface === "sdk_npm" || entry.sourceSurface === "sdk_pip"
+        ? " via OpenMates SDK"
+        : "";
+    if (entry.kind === "tombstone") {
+      const deleter = entry.deletedByDisplayName ?? actor;
+      lines.push(`[${formatActivityTime(entry.deletedAt ?? entry.createdAt)}] Comment by ${actor} deleted by ${deleter}`);
+    } else if (entry.kind === "comment") {
+      lines.push(`[${formatActivityTime(entry.createdAt)}] ${actor}${source}`);
+      lines.push(entry.message ?? "");
+    } else {
+      lines.push(`[${formatActivityTime(entry.createdAt)}] ${actor} ${entry.eventType.replaceAll("_", " ")}`);
+    }
+  }
+  return lines.join("\n");
+}
+
 export function renderTaskBoard(tasks: DecryptedUserTask[], width = process.stdout.columns || 100): string {
   const columns = TASK_STATUSES.map((status) => ({ status, tasks: tasks.filter((task) => task.status === status).sort(compareTasks) }));
   if (width < 96) {
@@ -606,6 +729,10 @@ function deriveShortId(record: UserTaskRecord): string {
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
+}
+
+function formatActivityTime(value: number): string {
+  return new Date(value * 1000).toISOString();
 }
 
 function randomUUIDCompat(): string {

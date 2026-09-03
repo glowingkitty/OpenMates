@@ -79,7 +79,12 @@ class UserTaskService:
     ) -> dict[str, Any]:
         if not await self.task_methods.get_task(task_id, user_id, options.get("team_id")):
             raise UserTaskNotFoundError("Task not found")
-        created = await self.task_methods.create_task_activity(user_id, task_id, payload, **options)
+        try:
+            created = await self.task_methods.create_task_activity(user_id, task_id, payload, **options)
+        except ValueError as exc:
+            if "Task Activity entry id conflicts" in str(exc):
+                raise UserTaskConflictError("TASK_ACTIVITY_ENTRY_CONFLICT") from exc
+            raise
         if not created:
             raise ValueError("Failed to create Task Activity entry")
         return created
@@ -93,7 +98,12 @@ class UserTaskService:
     ) -> dict[str, Any]:
         if not await self.task_methods.get_task(task_id, user_id, options.get("team_id")):
             raise UserTaskNotFoundError("Task not found")
-        return await self.task_methods.delete_task_activity(user_id, task_id, entry_id, **options)
+        try:
+            return await self.task_methods.delete_task_activity(user_id, task_id, entry_id, **options)
+        except ValueError as exc:
+            if str(exc) == "TASK_ACTIVITY_ALREADY_DELETED":
+                raise UserTaskConflictError("TASK_ACTIVITY_ALREADY_DELETED") from exc
+            raise
 
     async def create_task(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         payload = dict(payload)

@@ -7,6 +7,7 @@ They cover personal and Team scope, source attribution, and deletion tombstones.
 
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -30,6 +31,7 @@ sys.modules.setdefault("backend.core.api.app.services.limiter", limiter_stub)
 from backend.core.api.app.routes import user_tasks  # noqa: E402
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError  # noqa: E402
 from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods, hash_id  # noqa: E402
+from backend.core.api.app.services.user_task_service import UserTaskConflictError, UserTaskService  # noqa: E402
 
 
 def activity_payload(**overrides: object) -> dict[str, object]:
@@ -155,6 +157,38 @@ async def test_activity_create_is_idempotent_and_list_order_is_created_at_then_e
     assert params["sort"] == "created_at,entry_id"
 
 
+# contract-test: direct surface=rest_api assertions=tasks.activity.single-final-section,tasks.activity.task-scoped-authorization
+@pytest.mark.asyncio
+async def test_activity_cursor_uses_stable_created_at_and_entry_id_order() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[]))
+    methods = UserTaskMethods(directus)
+
+    await methods.list_task_activity("user-1", "task-1", cursor="100:activity-1", limit=2)
+
+    params = directus.get_items.await_args.kwargs["params"]
+    assert params["limit"] == 2
+    assert params["sort"] == "created_at,entry_id"
+    assert {"created_at": {"_gt": 100}} in params["filter"]["_and"][1]["_or"]
+
+
+# contract-test: supporting surface=rest_api assertions=tasks.activity.client-encrypted,tasks.activity.task-scoped-authorization
+def test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill() -> None:
+    root = Path(__file__).parents[1]
+    setup = (root / "core/directus/setup/setup_schemas.py").read_text(encoding="utf-8")
+    migration = (root / "core/directus/setup/migrate_user_task_indexes.sql").read_text(encoding="utf-8")
+
+    for index in (
+        "user_task_activity_task_entry_uq",
+        "user_task_activity_personal_created_idx",
+        "user_task_activity_team_created_idx",
+    ):
+        assert index in setup
+        assert index in migration
+    assert "DROP INDEX IF EXISTS user_task_activity_task_created_idx" in migration
+    assert "UPDATE user_task_activity AS activity" in migration
+    assert "activity.task_id = tasks.task_id" in migration
+
+
 # contract-test: direct surface=rest_api assertions=tasks.activity.deletion-tombstone,tasks.activity.task-scoped-authorization
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
@@ -190,6 +224,28 @@ async def test_activity_delete_allows_author_or_mutation_role_and_tombstones_cip
     assert patch["encrypted_entry_key"] is None
     assert patch["encrypted_embed_key_material"] is None
     assert patch["embed_refs"] == []
+
+
+# contract-test: direct surface=rest_api assertions=tasks.activity.deletion-tombstone
+@pytest.mark.asyncio
+async def test_repeated_activity_delete_is_an_immutable_conflict() -> None:
+    methods = UserTaskMethods(SimpleNamespace(get_items=AsyncMock(return_value=[{
+        "id": "row-1",
+        **activity_payload(),
+        "kind": "tombstone",
+        "actor_hash": hash_id("author-1"),
+    }])))
+
+    with pytest.raises(ValueError, match="TASK_ACTIVITY_ALREADY_DELETED"):
+        await methods.delete_task_activity("author-1", "task-1", "activity-1", deleted_at=201)
+
+    task_methods = SimpleNamespace(
+        get_task=AsyncMock(return_value={"task_id": "task-1"}),
+        delete_task_activity=AsyncMock(side_effect=ValueError("TASK_ACTIVITY_ALREADY_DELETED")),
+    )
+    service = UserTaskService(task_methods)
+    with pytest.raises(UserTaskConflictError, match="TASK_ACTIVITY_ALREADY_DELETED"):
+        await service.delete_task_activity("task-1", "activity-1", "author-1")
 
 
 # contract-test: direct surface=rest_api assertions=tasks.activity.task-scoped-authorization

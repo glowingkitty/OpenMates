@@ -219,8 +219,10 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         "free_testing_credit_grants": {"create", "read", "update", "delete"},
         "free_testing_credits_budget": {"create", "read", "update", "delete"},
         "user_plan_key_wrappers": {"create", "read", "update", "delete"},
+        "user_plan_revisions": {"create", "read", "update", "delete"},
         "user_task_key_wrappers": {"create", "read", "update", "delete"},
         "user_chat_preferences": {"create", "read", "update", "delete"},
+        "user_work_dependencies": {"create", "read", "update", "delete"},
     }
 
 

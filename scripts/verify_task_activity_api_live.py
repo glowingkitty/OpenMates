@@ -45,12 +45,15 @@ ACTIVITY_SAFE_FIELDS = {
     "kind",
     "actor_type",
     "actor_hash",
+    "actor_display_name",
+    "actor_profile_image_url",
     "author_hash",
     "event_type",
     "source_surface",
     "created_at",
     "deleted_at",
     "deleted_by_hash",
+    "deleted_by_display_name",
     "embed_refs",
     *ACTIVITY_CIPHERTEXT_FIELDS,
 }
@@ -202,6 +205,39 @@ def run(api_url: str, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
         assert_ciphertext_projection(matching[0], entry_id, "activity_list")
         scenarios["activity_list_ciphertext_only"] = {"status": "passed"}
 
+        second_entry_id = str(uuid.uuid4())
+        second_payload = activity_payload(second_entry_id)
+        second_payload["created_at"] = payload["created_at"] + 1
+        require(
+            client.request("POST", f"/v1/user-tasks/{task_id}/activity", body=second_payload, scenario="activity_second_create"),
+            200,
+            "activity_second_create",
+        )
+        first_page = client.request(
+            "GET",
+            f"/v1/user-tasks/{task_id}/activity",
+            query={"limit": 1},
+            scenario="activity_first_page",
+        )
+        require(first_page, 200, "activity_first_page")
+        next_cursor = first_page.payload.get("next_cursor")
+        if not isinstance(next_cursor, str) or len(first_page.payload.get("entries", [])) != 1:
+            raise VerificationFailure("activity_first_page", "stable_cursor_missing")
+        second_page = client.request(
+            "GET",
+            f"/v1/user-tasks/{task_id}/activity",
+            query={"limit": 1, "cursor": next_cursor},
+            scenario="activity_second_page",
+        )
+        require(second_page, 200, "activity_second_page")
+        if not any(
+            entry.get("entry_id") == second_entry_id
+            for entry in second_page.payload.get("entries", [])
+            if isinstance(entry, dict)
+        ):
+            raise VerificationFailure("activity_second_page", "cursor_did_not_advance")
+        scenarios["activity_cursor_pagination"] = {"status": "passed"}
+
         plaintext_rejected = client.request(
             "POST",
             f"/v1/user-tasks/{task_id}/activity",
@@ -225,6 +261,8 @@ def run(api_url: str, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
         if len(tombstones) != 1:
             raise VerificationFailure("activity_tombstone_list", "tombstone_not_listed_once")
         assert_tombstone(tombstones[0], entry_id, "activity_tombstone_list")
+        repeated_delete = client.request("DELETE", f"/v1/user-tasks/{task_id}/activity/{entry_id}", scenario="activity_repeat_delete")
+        require(repeated_delete, 409, "activity_repeat_delete")
         scenarios["activity_tombstone"] = {"status": "passed"}
     except VerificationFailure as exc:
         failure = exc

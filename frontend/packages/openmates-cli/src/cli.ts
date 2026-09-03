@@ -156,8 +156,11 @@ import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./sel
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
+  buildCreateTaskActivityInput,
   buildBlockUserTaskInput,
   buildUpdateUserTaskInput,
+  decryptTaskActivityEntries,
+  decryptTaskActivityEntry,
   decryptUserTask,
   decryptUserTasks,
   decryptUserTasksForCli,
@@ -170,6 +173,7 @@ import {
   normalizeTaskStatus,
   parseDueAt,
   renderTaskBoard,
+  renderTaskActivityList,
   renderTaskDetail,
   renderTaskList,
   splitCsvFlag,
@@ -177,6 +181,7 @@ import {
   taskLookupScopes,
   workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
+  type DecryptedTaskActivityEntry,
   type TaskCreateOptions,
   type TaskLookupScope,
   type TaskUpdateOptions,
@@ -807,6 +812,55 @@ async function handleTasks(
 
   const masterKey = client.getMasterKeyBytes();
   const scope = await resolveTaskScope(client, masterKey, flags, taskScopeFromFlags(flags, masterKey));
+
+  if (subcommand === "activity") {
+    const action = rest[0] ?? "list";
+    const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
+    const context = { teamId: scope.teamId, personal: scope.personal };
+    if (action === "list") {
+      const records = [];
+      let cursor: string | undefined;
+      do {
+        const page = await client.listUserTaskActivity(task.taskId, {
+          ...context,
+          cursor,
+          limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
+        });
+        records.push(...page.entries);
+        cursor = page.next_cursor ?? undefined;
+      } while (cursor);
+      const entries = await decryptTaskActivityEntries(task, masterKey, records);
+      if (flags.json === true) printJson({ entries: entries.map(taskActivityToJson) });
+      else console.log(renderTaskActivityList(entries));
+      return;
+    }
+    if (action === "add") {
+      const message = typeof flags.message === "string" ? flags.message : rest.slice(2).join(" ");
+      if (!message.trim()) throw new Error("Missing comment. Usage: openmates tasks activity add <task-id> --message <text>");
+      const input = await buildCreateTaskActivityInput(task, masterKey, { message });
+      const entry = await decryptTaskActivityEntry(
+        task,
+        masterKey,
+        await client.createUserTaskActivity(task.taskId, input, context),
+      );
+      if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
+      else console.log(renderTaskActivityList([entry]));
+      return;
+    }
+    if (action === "delete") {
+      const entryId = rest[2];
+      if (!entryId) throw new Error("Missing Activity entry ID. Usage: openmates tasks activity delete <task-id> <entry-id>");
+      const entry = await decryptTaskActivityEntry(
+        task,
+        masterKey,
+        await client.deleteUserTaskActivity(task.taskId, entryId, context),
+      );
+      if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
+      else console.log(renderTaskActivityList([entry]));
+      return;
+    }
+    throw new Error("Usage: openmates tasks activity list|add|delete <task-id> [<entry-id>] [--message <text>]");
+  }
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
@@ -4021,6 +4075,28 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     blocked_reason: task.blockedReason || null,
     ai_execution_state: task.aiExecutionState,
     version: task.version,
+  };
+}
+
+function taskActivityToJson(entry: DecryptedTaskActivityEntry): Record<string, unknown> {
+  return {
+    entry_id: entry.entryId,
+    task_id: entry.taskId,
+    kind: entry.kind,
+    actor_type: entry.actorType,
+    actor_hash: entry.actorHash,
+    actor_display_name: entry.actorDisplayName,
+    actor_profile_image_url: entry.actorProfileImageUrl,
+    author_hash: entry.authorHash,
+    event_type: entry.eventType,
+    source_surface: entry.sourceSurface,
+    created_at: entry.createdAt,
+    deleted_at: entry.deletedAt,
+    deleted_by_hash: entry.deletedByHash,
+    deleted_by_display_name: entry.deletedByDisplayName,
+    ...(entry.message !== undefined ? { message: entry.message } : {}),
+    ...(entry.embedKeyMaterial !== undefined ? { embed_key_material: entry.embedKeyMaterial } : {}),
+    embed_refs: entry.embedRefs,
   };
 }
 
@@ -13611,6 +13687,9 @@ function printTasksHelp(): void {
   openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
   openmates tasks dependencies list <task-id|short-id> [--json]
   openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
+  openmates tasks activity list <task-id|short-id> [--limit <n>] [--json]
+  openmates tasks activity add <task-id|short-id> --message <text> [--json]
+  openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Chat-scoped aliases:
   openmates chats <chat-id> tasks list

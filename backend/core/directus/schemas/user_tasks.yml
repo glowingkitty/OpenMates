@@ -327,9 +327,7 @@ user_task_activity:
 
     entry_id:
       type: string
-      note: "[Indexed, Unique] Client-generated stable Activity entry identity."
-      options:
-        unique: true
+      note: "[Indexed] Client-generated stable Activity entry identity, unique within its Task."
 
     hashed_user_id:
       type: string
@@ -352,6 +350,16 @@ user_task_activity:
       type: string
       nullable: true
       note: "Hashed actor identifier when applicable."
+
+    actor_display_name:
+      type: string
+      nullable: true
+      note: "Authorized display-name snapshot for Activity attribution."
+
+    actor_profile_image_url:
+      type: string
+      nullable: true
+      note: "Authorized profile-image proxy URL snapshot for Activity attribution."
 
     event_type:
       type: string
@@ -399,6 +407,11 @@ user_task_activity:
       type: string
       nullable: true
       note: "Hashed user id of the deleting user for tombstone attribution."
+
+    deleted_by_display_name:
+      type: string
+      nullable: true
+      note: "Authorized display-name snapshot of the deleting user."
 
 user_task_execution_contexts:
   type: collection

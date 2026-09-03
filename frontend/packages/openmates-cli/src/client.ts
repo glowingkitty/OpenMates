@@ -870,6 +870,41 @@ export interface UserTaskRecord {
   history?: WorkspaceHistoryResult | null;
 }
 
+export interface UserTaskActivityRecord {
+  entry_id: string;
+  task_id: string;
+  kind: "comment" | "lifecycle_update" | "tombstone";
+  actor_type: string;
+  actor_hash: string;
+  actor_display_name?: string | null;
+  actor_profile_image_url?: string | null;
+  author_hash?: string | null;
+  event_type: string;
+  source_surface: string;
+  created_at: number;
+  deleted_at?: number | null;
+  deleted_by_hash?: string | null;
+  deleted_by_display_name?: string | null;
+  encrypted_entry_key: string | null;
+  encrypted_message: string | null;
+  encrypted_embed_key_material: string | null;
+  embed_refs: string[];
+}
+
+export interface UserTaskActivityCreateInput {
+  entry_id: string;
+  encrypted_entry_key: string;
+  encrypted_message: string;
+  encrypted_embed_key_material?: string | null;
+  embed_refs?: string[];
+  created_at: number;
+}
+
+export interface UserTaskActivityPage {
+  entries: UserTaskActivityRecord[];
+  next_cursor: string | null;
+}
+
 export interface WorkspaceHistoryResult {
   change_set?: Record<string, unknown>;
   entries?: Array<Record<string, unknown>>;
@@ -9571,6 +9606,56 @@ export class OpenMatesClient {
       throw new Error(`User task delete failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async listUserTaskActivity(taskId: string, context: TeamContextOptions & { cursor?: string; limit?: number } = {}): Promise<UserTaskActivityPage> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    const teamId = this.resolveTeamContext(context);
+    if (teamId) params.set("team_id", teamId);
+    if (context.cursor) params.set("cursor", context.cursor);
+    if (Number.isSafeInteger(context.limit) && context.limit !== undefined && context.limit > 0) {
+      params.set("limit", String(context.limit));
+    }
+    const query = params.toString();
+    const response = await this.http.get<UserTaskActivityPage>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.entries)) {
+      throw new Error(`User task activity list failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async createUserTaskActivity(taskId: string, input: UserTaskActivityCreateInput, context: TeamContextOptions = {}): Promise<UserTaskActivityRecord> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    const response = await this.http.post<{ entry?: UserTaskActivityRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query}`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.entry) {
+      throw new Error(`User task activity create failed with HTTP ${response.status}`);
+    }
+    return response.data.entry;
+  }
+
+  async deleteUserTaskActivity(taskId: string, entryId: string, context: TeamContextOptions = {}): Promise<UserTaskActivityRecord> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    const response = await this.http.delete<{ entry?: UserTaskActivityRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/activity/${encodeURIComponent(entryId)}${query}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.entry) {
+      throw new Error(`User task activity delete failed with HTTP ${response.status}`);
+    }
+    return response.data.entry;
   }
 
   async addTaskDependency(taskId: string, targetRef: string): Promise<WorkDependencyRecord> {

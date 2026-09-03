@@ -43,6 +43,28 @@ CREATE INDEX IF NOT EXISTS user_tasks_label_hashes_gin_idx
 CREATE INDEX IF NOT EXISTS user_task_key_wrappers_task_owner_idx
     ON user_task_key_wrappers (hashed_task_id, hashed_user_id);
 
+UPDATE user_task_activity AS activity
+SET hashed_task_id = encode(digest(activity.task_id, 'sha256'), 'hex'),
+    hashed_user_id = tasks.hashed_user_id,
+    hashed_team_id = tasks.hashed_team_id,
+    entry_id = COALESCE(activity.entry_id, activity.id::text),
+    kind = COALESCE(activity.kind, 'lifecycle_update'),
+    source_surface = COALESCE(activity.source_surface, 'system')
+FROM user_tasks AS tasks
+WHERE activity.task_id = tasks.task_id
+  AND (
+      activity.hashed_task_id IS NULL
+      OR activity.hashed_user_id IS NULL
+      OR activity.entry_id IS NULL
+      OR activity.kind IS NULL
+      OR activity.source_surface IS NULL
+  );
+
+DROP INDEX IF EXISTS user_task_activity_task_created_idx;
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_task_activity_task_entry_uq
+    ON user_task_activity (hashed_task_id, entry_id);
+
 CREATE INDEX IF NOT EXISTS user_task_activity_personal_created_idx
     ON user_task_activity (hashed_task_id, hashed_user_id, created_at, entry_id)
     WHERE hashed_team_id IS NULL;

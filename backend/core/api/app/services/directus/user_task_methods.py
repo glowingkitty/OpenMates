@@ -52,8 +52,9 @@ USER_TASK_KEY_WRAPPER_FIELDS = (
 USER_TASK_EXECUTION_CONTEXT_FIELDS = "id,hashed_user_id,hashed_task_id,hashed_chat_id,encrypted_context,created_at,expires_at"
 USER_TASK_ACTIVITY_FIELDS = (
     "id,entry_id,task_id,hashed_task_id,hashed_user_id,hashed_team_id,kind,actor_type,actor_hash,"
+    "actor_display_name,actor_profile_image_url,"
     "event_type,source_surface,created_at,encrypted_entry_key,encrypted_message,"
-    "encrypted_embed_key_material,embed_refs,encrypted_snapshot,deleted_at,deleted_by_hash"
+    "encrypted_embed_key_material,embed_refs,encrypted_snapshot,deleted_at,deleted_by_hash,deleted_by_display_name"
 )
 TASK_ACTIVITY_IDEMPOTENT_FIELDS = {
     "encrypted_entry_key",
@@ -382,15 +383,33 @@ class UserTaskMethods:
         task_id: str,
         *,
         team_id: str | None = None,
+        cursor: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
+        activity_filter = self._activity_filter(user_id, task_id, team_id)
+        if cursor:
+            created_at_text, separator, entry_id = cursor.partition(":")
+            if not separator or not created_at_text.isdigit() or not entry_id:
+                raise ValueError("Invalid Task Activity cursor")
+            created_at = int(created_at_text)
+            activity_filter = {
+                "_and": [
+                    activity_filter,
+                    {
+                        "_or": [
+                            {"created_at": {"_gt": created_at}},
+                            {"_and": [{"created_at": {"_eq": created_at}}, {"entry_id": {"_gt": entry_id}}]},
+                        ]
+                    },
+                ]
+            }
         response = await self.directus_service.get_items(
             "user_task_activity",
             params={
                 "fields": USER_TASK_ACTIVITY_FIELDS,
-                "filter": self._activity_filter(user_id, task_id, team_id),
+                "filter": activity_filter,
                 "sort": "created_at,entry_id",
-                "limit": max(1, min(limit, 200)),
+                "limit": max(1, min(limit, 201)),
             },
             no_cache=True,
         )
@@ -404,6 +423,8 @@ class UserTaskMethods:
         *,
         team_id: str | None = None,
         source_surface: str,
+        actor_display_name: str | None = None,
+        actor_profile_image_url: str | None = None,
     ) -> dict[str, Any] | None:
         entry_id = str(payload.get("entry_id") or "")
         existing = await self.directus_service.get_items(
@@ -430,6 +451,8 @@ class UserTaskMethods:
             "kind": "comment",
             "actor_type": "user",
             "actor_hash": hash_id(user_id),
+            "actor_display_name": actor_display_name,
+            "actor_profile_image_url": actor_profile_image_url,
             "event_type": "comment_added",
             "source_surface": source_surface,
             "created_at": payload["created_at"],
@@ -442,7 +465,23 @@ class UserTaskMethods:
             "deleted_by_hash": None,
         }
         success, created = await self.directus_service.create_item("user_task_activity", record)
-        return created if success and isinstance(created, dict) else None
+        if success and isinstance(created, dict):
+            return created
+        raced = await self.directus_service.get_items(
+            "user_task_activity",
+            params={
+                "fields": USER_TASK_ACTIVITY_FIELDS,
+                "filter": {"_and": [self._activity_filter(user_id, task_id, team_id), {"entry_id": {"_eq": entry_id}}]},
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        if isinstance(raced, list) and raced:
+            current = raced[0]
+            if any(current.get(field) != payload.get(field) for field in TASK_ACTIVITY_IDEMPOTENT_FIELDS):
+                raise ValueError("Task Activity entry id conflicts with different content")
+            return current
+        return None
 
     async def delete_task_activity(
         self,
@@ -453,6 +492,7 @@ class UserTaskMethods:
         team_id: str | None = None,
         deleted_at: int,
         allow_task_mutation: bool = False,
+        deleted_by_display_name: str | None = None,
     ) -> dict[str, Any]:
         response = await self.directus_service.get_items(
             "user_task_activity",
@@ -466,6 +506,8 @@ class UserTaskMethods:
         if not isinstance(response, list) or not response:
             raise PermissionError("Task Activity entry not found in the authorized scope")
         entry = response[0]
+        if entry.get("kind") == "tombstone":
+            raise ValueError("TASK_ACTIVITY_ALREADY_DELETED")
         actor_hash = str(entry.get("actor_hash") or "")
         if actor_hash != hash_id(user_id) and not allow_task_mutation:
             raise PermissionError("Task Activity deletion is not authorized")
@@ -474,6 +516,7 @@ class UserTaskMethods:
             "event_type": "comment_deleted",
             "deleted_at": deleted_at,
             "deleted_by_hash": hash_id(user_id),
+            "deleted_by_display_name": deleted_by_display_name,
             "encrypted_entry_key": None,
             "encrypted_message": None,
             "encrypted_embed_key_material": None,

@@ -101,7 +101,7 @@ clarification:
   approved_by_user: true
 
 implementation_state:
-  subject_commit: b757479eed719ce2157588c7747fae2f32249bb1
+  subject_commit: 75cd79c1888e6785009905fc58730edb01bcaaaa
 
 approvals:
   specification:
@@ -352,7 +352,7 @@ tests:
       - Owner and Team role checks cover list, create, deletion, viewer rejection, and cross-task/cross-Team denial.
       - Source attribution is server-derived or validated, create retries are idempotent, ordering is stable, and deletion returns the correct tombstone metadata.
     red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "local-pytest-activity-red-20260903T222422Z", timestamp: "2026-09-03T22:24:22Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_user_task_activity_api.py backend/tests/test_user_tasks_api.py", run_id: "local-pytest-activity-green-20260903T223347Z", subject_commit: "working-tree-pre-deploy", timestamp: "2026-09-03T22:33:47Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_user_task_activity_api.py backend/tests/test_user_tasks_api.py", run_id: "local-pytest-activity-green-20260903T223347Z", subject_commit: "75cd79c1888e6785009905fc58730edb01bcaaaa", timestamp: "2026-09-03T22:33:47Z"}}
   - id: T-API-ACTIVITY-LIVE
     type: unit
     file: scripts/verify_task_activity_api_live.py
@@ -364,7 +364,7 @@ tests:
       - Unauthorized or insufficient-role access is rejected, duplicate entry identity is idempotent/conflict-safe, and response payloads contain no plaintext comment.
       - Rate-limit classification and zero-credit behavior are asserted without mocked OpenMates API calls.
     red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "dev-api-activity-red-20260903T223347Z", timestamp: "2026-09-03T22:33:47Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_task_activity_api_live.py --api-url https://api.dev.openmates.org", run_id: "dev-api-activity-green-20260903T224925Z", subject_commit: "75cd79c1888e6785009905fc58730edb01bcaaaa", timestamp: "2026-09-03T22:49:25Z"}}
   - id: T-CLI-ACTIVITY-LIVE
     type: unit
     file: scripts/verify_tasks_cli_smoke.py
@@ -374,8 +374,8 @@ tests:
     assertions:
       - Real openmates tasks activity list/add/delete commands encrypt locally, render decrypted output locally, and clean up created data.
       - Team CLI comments render via OpenMates CLI and tombstones retain approved author/deleter wording.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "cli-activity-missing-surface-20260903T225544Z", timestamp: "2026-09-03T22:55:44Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build", run_id: "dev-cli-activity-green-20260903T230930Z", subject_commit: "working-tree-after-75cd79c", timestamp: "2026-09-03T23:09:30Z"}}
   - id: T-SDK-ACTIVITY-LIVE
     type: unit
     file: scripts/verify_sdk_tasks_live_smoke.mjs
@@ -385,8 +385,8 @@ tests:
     assertions:
       - npm and pip list/add/delete Activity methods pass against the real dev API with local encryption/decryption.
       - Team SDK comments use via OpenMates SDK and public results do not expose encrypted storage fields.
-    red_phase: {required: true, expected: fail, evidence: {status: pending, run_id: "", timestamp: ""}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "sdk-activity-missing-methods-20260903T231130Z", timestamp: "2026-09-03T23:11:30Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs", run_id: "dev-sdk-activity-green-20260903T231728Z", subject_commit: "working-tree-after-75cd79c", timestamp: "2026-09-03T23:17:28Z"}}
   - id: T-UI-ACTIVITY-UNIT
     type: unit
     file: frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
@@ -417,7 +417,7 @@ tests:
     assertions:
       - CLI, npm, and pip Activity operations remain registered with matching semantics.
     red_phase: {required: false, expected: not_applicable_static_audit, evidence: {status: not_applicable, run_id: static-audit, timestamp: "2026-09-03T17:46:03Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "sdk-cli-parity-89-commands-20260903T231728Z", subject_commit: "working-tree-after-75cd79c", timestamp: "2026-09-03T23:17:28Z"}}
 
 verifications:
   - id: V-UI-VISUAL-SMOKE
@@ -508,10 +508,12 @@ implementation_notes:
     - Authorized deletion removes/suppresses content and embed references and returns safe tombstone metadata.
   affected_files:
     - {path: backend/core/directus/schemas/user_tasks.yml, reason: Extend canonical Activity schema and indexes.}
+    - {path: backend/core/directus/setup/setup_schemas.py, reason: Verify scoped Activity indexes during schema setup.}
     - {path: backend/core/api/app/routes/user_tasks.py, reason: Add encrypted first-party Activity endpoints and authorization.}
     - {path: backend/core/api/app/services/user_task_service.py, reason: Enforce parent Task existence before Activity persistence.}
     - {path: backend/core/api/app/services/directus/user_task_methods.py, reason: Add owner/Team-scoped Activity persistence.}
     - {path: backend/tests/test_user_task_activity_api.py, reason: Backend privacy, auth, attribution, ordering, and tombstone contract.}
+    - {path: backend/tests/test_setup_schemas.py, reason: Keep schema permission expectations aligned for the deploy gate.}
     - {path: scripts/verify_task_activity_api_live.py, reason: Real dev API phase gate.}
     - {path: specifications/generated/assertion-index.yml, reason: Regenerated assertion-to-test traceability for Activity contract tests.}
     - {path: specifications/generated/coverage.yml, reason: Regenerated Specification coverage for Activity contract tests.}
@@ -522,6 +524,9 @@ implementation_notes:
     - {path: packages/openmates-python/openmates/sdk.py, reason: pip Activity facade and encryption.}
     - {path: scripts/verify_tasks_cli_smoke.py, reason: Real CLI Activity phase gate.}
     - {path: scripts/verify_sdk_tasks_live_smoke.mjs, reason: Real npm/pip Activity phase gate.}
+    - {path: docs/user-guide/developers/sdk-reference.md, reason: Regenerated public SDK method reference.}
+    - {path: docs/user-guide/developers/sdk-test-coverage.md, reason: Regenerated SDK contract coverage.}
+    - {path: .github/workflows/task-activity-smoke.yml, reason: Daily/manual real Task Activity contract verification.}
     - {path: frontend/packages/ui/src/services/userTaskService.ts, reason: Browser Activity models, crypto, and API calls.}
     - {path: frontend/packages/ui/src/components/tasks/TaskActivity.svelte, reason: Unified Activity stream and composer adapter.}
     - {path: frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, reason: Deterministic component states.}
@@ -551,22 +556,22 @@ implementation_notes:
 tasks:
   - id: TASK-1
     title: Implement encrypted Activity persistence and first-party API
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-5, AC-6, AC-7]}
-    expected_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py, backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py, specifications/generated/assertion-index.yml, specifications/generated/coverage.yml]
+    expected_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/directus/setup/setup_schemas.py, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py, backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py, specifications/generated/assertion-index.yml, specifications/generated/coverage.yml]
     verification: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
     verification_ids: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
     specification_assertions: [tasks.content.client-encrypted, tasks.activity.client-encrypted, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization]
     surfaces: [rest_api]
     dependencies: []
-    ownership: {files: [backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py], shared_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py]}
+    ownership: {files: [backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py], shared_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/directus/setup/setup_schemas.py, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py]}
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
   - id: TASK-2
     title: Add real CLI Task Activity commands
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-3, AC-4, AC-5]}
     expected_files: [frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/tasksCli.ts, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/tests/tasks.test.ts, scripts/verify_tasks_cli_smoke.py]
@@ -581,10 +586,10 @@ tasks:
     independently_deployable: true
   - id: TASK-3
     title: Add npm and pip Task Activity parity
-    status: pending
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-3, AC-4, AC-5]}
-    expected_files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_tasks.py, scripts/verify_sdk_tasks_live_smoke.mjs]
+    expected_files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_tasks.py, scripts/verify_sdk_tasks_live_smoke.mjs, docs/user-guide/developers/sdk-reference.md, docs/user-guide/developers/sdk-test-coverage.md]
     verification: [T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
     verification_ids: [T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
     specification_assertions: [tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.surface.semantic-parity]
@@ -596,16 +601,16 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Wire real Activity contract checks into CI and daily coverage
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-7]}
-    expected_files: [.github/workflows/task-activity-smoke.yml, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]
+    expected_files: [.github/workflows/task-activity-smoke.yml, backend/tests/test_setup_schemas.py, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]
     verification: [T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
     verification_ids: [T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
     specification_assertions: [tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization, tasks.surface.semantic-parity]
     surfaces: [rest_api, cli, sdk_npm, sdk_pip]
     dependencies: [TASK-3]
-    ownership: {files: [.github/workflows/task-activity-smoke.yml], shared_files: [scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]}
+    ownership: {files: [.github/workflows/task-activity-smoke.yml, backend/tests/test_setup_schemas.py], shared_files: [scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]}
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
@@ -641,7 +646,7 @@ tasks:
     independently_deployable: false
 
 handoff:
-  current_task_id: TASK-1
+  current_task_id: TASK-4
   next_action: Write and run backend red-phase Activity persistence and route contract tests before product code.
   command: python3 -m pytest backend/tests/test_user_task_activity_api.py
   expected_outcome: Tests fail because Activity persistence methods and routes do not exist yet.

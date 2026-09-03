@@ -132,6 +132,12 @@ async function runNpmTasks(apiKey) {
     if (!listed.some((task) => task.shortId === shortId && task.title === created.title)) throw new Error("npm task list did not include plaintext task");
     const shown = await client.tasks.show(shortId);
     if (shown.title !== created.title) throw new Error("npm task show did not decrypt title");
+    const activityMessage = `npm SDK Activity ${suffix}`;
+    const addedActivity = await client.tasks.addActivityComment(shortId, { message: activityMessage });
+    if (addedActivity.message !== activityMessage || addedActivity.sourceSurface !== "sdk_npm" || Object.keys(addedActivity).some((key) => /encrypted/i.test(key))) throw new Error("npm Task Activity add did not return safe decrypted output");
+    if (!(await client.tasks.listActivity(shortId)).some((entry) => entry.entryId === addedActivity.entryId && entry.message === activityMessage)) throw new Error("npm Task Activity list did not decrypt the comment");
+    const deletedActivity = await client.tasks.deleteActivityComment(shortId, addedActivity.entryId);
+    if (deletedActivity.kind !== "tombstone" || "message" in deletedActivity) throw new Error("npm Task Activity delete did not return a safe tombstone");
     const edited = await client.tasks.update(shortId, { title: `${created.title} edited`, status: "in_progress" });
     if (edited.title !== `${created.title} edited` || edited.status !== "in_progress") throw new Error("npm task update failed");
     const blocked = await client.tasks.block(shortId, "external_dependency", { externalChat, reasonText: blockedReason });
@@ -179,6 +185,15 @@ try:
     short_id = created["short_id"]
     assert any(task["short_id"] == short_id and task["title"] == created["title"] for task in client.tasks.list(external_chat=external_chat))
     assert client.tasks.show(short_id)["title"] == created["title"]
+    activity_message = f"pip SDK Activity {suffix}"
+    added_activity = client.tasks.add_activity_comment(short_id, {"message": activity_message})
+    assert added_activity["message"] == activity_message
+    assert added_activity["source_surface"] == "sdk_pip"
+    assert not any(key.startswith("encrypted_") for key in added_activity)
+    assert any(entry["entry_id"] == added_activity["entry_id"] and entry["message"] == activity_message for entry in client.tasks.list_activity(short_id))
+    deleted_activity = client.tasks.delete_activity_comment(short_id, added_activity["entry_id"])
+    assert deleted_activity["kind"] == "tombstone"
+    assert "message" not in deleted_activity
     edited = client.tasks.update(short_id, {"title": created["title"] + " edited", "status": "in_progress"})
     assert edited["title"] == created["title"] + " edited"
     assert edited["status"] == "in_progress"
