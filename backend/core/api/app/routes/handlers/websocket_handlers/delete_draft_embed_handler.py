@@ -11,6 +11,7 @@
 #   - The user's storage_used_bytes counter is decremented
 #   - Other devices of the same user are notified to clean up their IndexedDB
 
+import asyncio
 import logging
 from typing import Dict, Any
 
@@ -22,6 +23,7 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.tasks.celery_config import app
 
 logger = logging.getLogger(__name__)
+BEST_EFFORT_CLEANUP_TIMEOUT_SECONDS = 1.0
 
 
 async def handle_delete_draft_embed(
@@ -54,7 +56,7 @@ async def handle_delete_draft_embed(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("delete_draft_embed", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -89,7 +91,10 @@ async def handle_delete_draft_embed(
         # accidentally use a deleted file.
         try:
             if chat_id:
-                await cache_service.remove_embed_from_chat_cache(chat_id, embed_id)
+                await asyncio.wait_for(
+                    cache_service.remove_embed_from_chat_cache(chat_id, embed_id),
+                    timeout=BEST_EFFORT_CLEANUP_TIMEOUT_SECONDS,
+                )
                 logger.debug(
                     f"User {user_id}: Removed embed {embed_id} from Redis cache (chat {chat_id})."
                 )
@@ -126,20 +131,29 @@ async def handle_delete_draft_embed(
         # Broadcast 'draft_embed_deleted' to all other devices of the same user so they
         # can delete the embed from their local IndexedDB EmbedStore (if it was synced
         # there via update_draft cross-device sync).
-        await manager.broadcast_to_user(
-            message={
-                "type": "draft_embed_deleted",
-                "payload": {
-                    "embed_id": embed_id,
-                    "chat_id": chat_id,
-                },
-            },
-            user_id=user_id,
-            exclude_device_hash=device_fingerprint_hash,  # Don't send back to the originating device
-        )
-        logger.info(
-            f"User {user_id}: Broadcasted draft_embed_deleted for embed_id={embed_id} to other devices."
-        )
+        try:
+            await asyncio.wait_for(
+                manager.broadcast_to_user(
+                    message={
+                        "type": "draft_embed_deleted",
+                        "payload": {
+                            "embed_id": embed_id,
+                            "chat_id": chat_id,
+                        },
+                    },
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash,  # Don't send back to the originating device
+                ),
+                timeout=BEST_EFFORT_CLEANUP_TIMEOUT_SECONDS,
+            )
+            logger.info(
+                f"User {user_id}: Broadcasted draft_embed_deleted for embed_id={embed_id} to other devices."
+            )
+        except Exception as broadcast_err:
+            logger.warning(
+                f"User {user_id}: Failed to broadcast draft_embed_deleted for embed_id={embed_id}: "
+                f"{broadcast_err}"
+            )
 
     finally:
         if _otel_span is not None:
