@@ -6,7 +6,7 @@
 
 id: cerebras-qwen38-27b
 title: Cerebras Qwen 3.8 27B Support and Fast Alias Evaluation
-status: implementing
+status: verified
 
 goal: >
   Add qwen-3.8-27b through Cerebras as a low-capability chat model, validate
@@ -39,15 +39,21 @@ checks:
 tasks:
   - id: metadata
     title: Add Qwen 3.8 provider metadata and catalog coverage
-    status: in_progress
+    status: verified
   - id: benchmark
     title: Run real product-path speed comparison
-    status: todo
+    status: verified
   - id: decision
     title: Record pricing, online benchmarks, and alias recommendation
-    status: todo
+    status: verified
 
 evidence:
+  live_benchmark:
+    comparison_run: c6088de1-ed43-46b0-92a2-9d9f340ab839
+    candidate_run: 548ac951-47ea-4b6d-a121-a3931e622923
+    current_fast_run: be7ac101-2cf9-458d-a541-8303eb3efa25
+    result: "Candidate 23.6s and failed code contract; current @fast 19.1s and judge 5/5. Keep @fast unchanged."
+
   online_sources:
     - url: https://inference-docs.cerebras.ai/models/qwen-3.8-27b
       observed: "2026-09-03"
