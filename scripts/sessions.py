@@ -13571,15 +13571,35 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
         )
 
 
-def _control_plane_sync_warning(commit_hash: str) -> str:
-    """Describe local checkout lag without mutating or downgrading a pushed deploy."""
-    if not commit_hash or _current_git_sha(CONTROL_PLANE_ROOT) == commit_hash:
-        return ""
-    return (
-        "LOCAL CONTROL-PLANE CHECKOUT STALE — informational only; deployment_affected=false. "
-        f"The commit was pushed successfully as {commit_hash}. Preserve unrelated dirty files and "
-        "update this local checkout separately when convenient."
+def _enforce_control_plane_sync_ready(expected_base: str) -> None:
+    """Require canonical dev to be a clean tracked mirror of the deploy base."""
+    current = _current_git_sha(CONTROL_PLANE_ROOT)
+    if current != expected_base:
+        raise RuntimeError(
+            "Local dev is not synchronized with origin/dev before deploy: "
+            f"local={current or '<unknown>'} origin={expected_base}. "
+            "Fast-forward the canonical checkout safely before retrying."
+        )
+    rc, branch, stderr = _run_cmd(
+        ["git", "branch", "--show-current"],
+        cwd=str(CONTROL_PLANE_ROOT),
     )
+    if rc != 0 or branch.strip() != "dev":
+        raise RuntimeError(
+            "Canonical checkout must have local dev checked out before deploy: "
+            f"{stderr or branch or 'branch could not be resolved'}"
+        )
+    rc, dirty, stderr = _run_cmd(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not validate canonical checkout cleanliness: {stderr}")
+    if dirty.strip():
+        raise RuntimeError(
+            "Canonical checkout has tracked changes, so local dev cannot be kept synchronized safely. "
+            "Recover or import those root changes before retrying the deploy."
+        )
 
 
 def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
@@ -13790,7 +13810,6 @@ def _deploy_native_worktree(
     integration: dict | None = None
     deploy_lock_held = False
     commit_hash_full = ""
-    control_plane_warning = ""
     source_sync_warning = ""
 
     try:
@@ -13855,6 +13874,7 @@ def _deploy_native_worktree(
                 )
                 continue
 
+            _enforce_control_plane_sync_ready(final_base)
             print("Checking Vercel web app build machine...")
             _enforce_vercel_standard_build_machine()
             print("Vercel build machine: standard/fixed")
@@ -13893,6 +13913,8 @@ def _deploy_native_worktree(
             )
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
+            print("Fast-forwarding local dev checkout to the deployed commit...")
+            _fast_forward_control_plane(commit_hash_full)
             source_sync_warning = _sync_deployed_files_to_source(
                 worktree_metadata,
                 checkout_root,
@@ -13900,7 +13922,6 @@ def _deploy_native_worktree(
                 to_commit,
                 patch_id,
             )
-            control_plane_warning = _control_plane_sync_warning(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
             deploy_lock_held = False
             break
@@ -13929,8 +13950,6 @@ def _deploy_native_worktree(
 
     _save_last_deploy_sha(commit_hash_full)
     _mark_worktree_deployed(sid, patch_id, commit_hash_full, integration=integration)
-    if control_plane_warning:
-        print(control_plane_warning, file=sys.stderr)
     if source_sync_warning:
         print(source_sync_warning, file=sys.stderr)
     commit_hash = commit_hash_full[:7]

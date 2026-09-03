@@ -212,20 +212,26 @@ def test_successful_integration_fast_forwards_dirty_control_plane_without_losing
     assert unrelated.read_text(encoding="utf-8") == "keep me\n"
 
 
-def test_post_push_control_plane_lag_is_informational(monkeypatch):
+def test_control_plane_sync_preflight_rejects_lag(monkeypatch, tmp_path):
     sessions = load_sessions_module()
-    monkeypatch.setattr(sessions, "_current_git_sha", lambda _root: "local-head")
-    monkeypatch.setattr(
-        sessions,
-        "_fast_forward_control_plane",
-        lambda _commit: (_ for _ in ()).throw(RuntimeError("local overlap")),
-    )
+    root, _source, base = create_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
 
-    warning = sessions._control_plane_sync_warning("abc123")
+    with pytest.raises(RuntimeError, match="not synchronized"):
+        sessions._enforce_control_plane_sync_ready("different-origin-head")
 
-    assert "informational only" in warning
-    assert "deployment_affected=false" in warning
-    assert "abc123" in warning
+
+def test_control_plane_sync_preflight_allows_untracked_but_rejects_tracked_changes(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source, base = create_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    (root / "untracked.local").write_text("preserved\n", encoding="utf-8")
+
+    sessions._enforce_control_plane_sync_ready(base)
+
+    (root / "changed.txt").write_text("dirty\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="tracked changes"):
+        sessions._enforce_control_plane_sync_ready(base)
 
 
 def test_gate_runner_uses_integration_checkout(monkeypatch, tmp_path):

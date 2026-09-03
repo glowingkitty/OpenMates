@@ -280,6 +280,8 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     releases: list[str] = []
     removed: list[str] = []
     protocol_refs: list[str] = []
+    fast_forwarded: list[str] = []
+    sync_ready_refs: list[str] = []
 
     monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: next(fetched))
     monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", protocol_refs.append)
@@ -305,6 +307,8 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
     monkeypatch.setattr(sessions, "_mark_worktree_deployed", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_find_related_docs", lambda _files: [])
+    monkeypatch.setattr(sessions, "_fast_forward_control_plane", fast_forwarded.append)
+    monkeypatch.setattr(sessions, "_enforce_control_plane_sync_ready", sync_ready_refs.append)
 
     def fake_run_cmd(command, cwd=None, timeout=120):
         commands.append((command, cwd))
@@ -335,6 +339,8 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
 
     assert gate_checkouts == [first_checkout, second_checkout]
     assert protocol_refs == ["dev-one", "dev-two", "dev-two"]
+    assert sync_ready_refs == ["dev-two"]
     assert (["git", "push", "origin", "HEAD:refs/heads/dev"], str(second_checkout)) in commands
+    assert fast_forwarded == ["commit-two"]
     assert releases == ["", "commit-two"]
     assert removed == ["integration-second"]

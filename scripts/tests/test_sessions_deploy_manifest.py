@@ -103,19 +103,6 @@ def test_manifest_identity_changes_with_selection_or_patch(monkeypatch, tmp_path
     assert first["selected_files"] == ["a.py"]
 
 
-def test_local_control_plane_lag_is_informational_and_does_not_fast_forward(monkeypatch):
-    sessions = load_sessions_module()
-    monkeypatch.setattr(sessions, "_current_git_sha", lambda _root: "local-head")
-    fast_forward_calls: list[str] = []
-    monkeypatch.setattr(sessions, "_fast_forward_control_plane", fast_forward_calls.append)
-
-    warning = sessions._control_plane_sync_warning("pushed-head")
-
-    assert "informational only" in warning
-    assert "deployment_affected=false" in warning
-    assert fast_forward_calls == []
-
-
 def test_missing_deploy_protocol_marker_defaults_to_legacy_v1(monkeypatch):
     sessions = load_sessions_module()
 
