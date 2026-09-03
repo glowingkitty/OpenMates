@@ -6090,11 +6090,14 @@ def begin_control_plane_dispatch(
         required_services=sorted(resources),
     )
     dispatch_key = str(dispatch["dispatch_key"])
-    if reused:
+    force_proof_dispatch = bool(options.proof_video_profile and "--force" in options.forwarded_args)
+    if reused and not force_proof_dispatch:
         print(
             f"Equivalent test dispatch already {dispatch.get('status')}: {dispatch_key}; not starting a duplicate run."
         )
         return store, dispatch_key, True
+    if reused:
+        print(f"Re-running equivalent proof-video dispatch {dispatch_key} because --force was requested.")
     for service in sorted(resources):
         failures = check_dev_health_urls() if service == session_control.DOCKER_RESOURCE_DEV_STACK else []
         dispatch = store.record_dispatch_canary(dispatch_key, service, healthy=not failures)

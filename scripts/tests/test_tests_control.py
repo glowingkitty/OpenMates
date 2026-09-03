@@ -449,6 +449,41 @@ def test_proof_video_profile_is_part_of_dispatch_identity(tmp_path, monkeypatch)
     assert [call["profile"] for call in seen] == ["playwright:web-laptop", "playwright:web-phone"]
 
 
+def test_force_reopens_only_reused_proof_video_dispatch(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    updates = []
+
+    class FakeDispatchStore(tests_control.ControlPlaneTestControlStore):
+        def __init__(self):
+            pass
+
+        def request_dispatch(self, **kwargs):
+            return {"dispatch_key": "dispatch-proof", "status": "succeeded"}, True
+
+        def record_dispatch_canary(self, dispatch_key, service, *, healthy):
+            return {"dispatch_key": dispatch_key}
+
+        def update_dispatch(self, dispatch_key, status, reason=None):
+            updates.append((dispatch_key, status))
+            return {"dispatch_key": dispatch_key, "status": status}
+
+    monkeypatch.setattr(tests_control, "TEST_STORE", FakeDispatchStore())
+    options = tests_control.parse_control_run_options([
+        "--spec", "embeds-map-view.spec.ts", "--proof-video-profile", "web-phone", "--force",
+    ])
+
+    _, dispatch_key, reused = tests_control.begin_control_plane_dispatch(
+        options,
+        subject_commit="abc123",
+        selected_test_keys=[],
+        resources=set(),
+    )
+
+    assert dispatch_key == "dispatch-proof"
+    assert reused is False
+    assert updates == [("dispatch-proof", "running")]
+
+
 def test_playwright_proof_video_size_also_sets_viewport() -> None:
     config = (PROJECT_ROOT / "frontend" / "apps" / "web_app" / "playwright.config.ts").read_text(encoding="utf-8")
 
