@@ -27,6 +27,14 @@ class FakeManager:
         return self.task_update_jobs
 
 
+class FakeWebSocket:
+    def __init__(self) -> None:
+        self.messages: list[dict] = []
+
+    async def send_json(self, message: dict) -> None:
+        self.messages.append(message)
+
+
 class FakeRecoveryService:
     calls: list[tuple[str, dict]] = []
 
@@ -78,6 +86,7 @@ def _payload() -> dict:
 
 
 @pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
@@ -90,9 +99,11 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     )
     FakeRecoveryService.calls = []
     manager = FakeManager()
+    websocket = FakeWebSocket()
     payload = _payload()
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket,
         manager=manager,
         directus_service=object(),
         user_id="user-1",
@@ -113,13 +124,15 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     assert transaction_data["inference_commitment"] == hmac.new(
         b"commitment-secret", canonical, hashlib.sha256
     ).hexdigest()
-    assert manager.messages[0][0]["type"] == "chat_turn_preflight_ack"
-    assert manager.messages[0][0]["payload"]["preflight_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-    assert manager.messages[0][0]["payload"]["turn_id"] == payload["turn_id"]
+    assert manager.messages == []
+    assert websocket.messages[0]["type"] == "chat_turn_preflight_ack"
+    assert websocket.messages[0]["payload"]["preflight_id"] == "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    assert websocket.messages[0]["payload"]["turn_id"] == payload["turn_id"]
     assert telemetry == [("durable_preflight", 1.0)]
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
 async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeypatch) -> None:
     class EpochZeroRecoveryService(FakeRecoveryService):
         async def execute(self, operation: str, data: dict) -> dict:
@@ -157,6 +170,7 @@ async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeyp
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
 async def test_preflight_fails_closed_without_commitment_key(monkeypatch) -> None:
     monkeypatch.delenv("CHAT_RECOVERY_COMMITMENT_KEY", raising=False)
     monkeypatch.delenv("INTERNAL_API_SHARED_TOKEN", raising=False)
@@ -188,6 +202,7 @@ async def test_preflight_fails_closed_without_commitment_key(monkeypatch) -> Non
     ]
 
 
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
 def test_preflight_derives_a_purpose_bound_commitment_key_from_internal_token(monkeypatch) -> None:
     monkeypatch.delenv("CHAT_RECOVERY_COMMITMENT_KEY", raising=False)
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "internal-token")
@@ -206,6 +221,7 @@ def test_preflight_derives_a_purpose_bound_commitment_key_from_internal_token(mo
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
 async def test_enqueue_uses_stable_identities_and_matching_commitment(monkeypatch) -> None:
     monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
     monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)

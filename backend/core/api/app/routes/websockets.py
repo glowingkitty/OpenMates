@@ -2511,6 +2511,7 @@ async def websocket_endpoint(
 
             elif message_type == "chat_turn_preflight":
                 await handle_chat_turn_preflight(
+                    websocket=websocket,
                     manager=manager,
                     directus_service=directus_service,
                     user_id=user_id,
