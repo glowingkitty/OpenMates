@@ -90,7 +90,9 @@ test.describe('API-key scope selection settings', () => {
 
 		const fullAccessRow = page.getByTestId('api-key-full-access');
 		const fullAccessInput = page.getByTestId('api-key-full-access-toggle').locator('input');
-		const fullAccessWarning = page.getByRole('alert');
+		const fullAccessWarning = page.getByRole('alert').filter({
+			hasText: /full access can read encrypted account metadata/i
+		});
 		await fullAccessRow.scrollIntoViewIfNeeded();
 		await fullAccessWarning.scrollIntoViewIfNeeded();
 		await proof.assert('full-access-default', async () => {
