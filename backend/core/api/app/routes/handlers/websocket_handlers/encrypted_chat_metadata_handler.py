@@ -1,4 +1,5 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+import asyncio
 import logging
 from typing import Dict, Any
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ from backend.core.api.app.tasks.persistence_tasks import (
 from backend.core.api.app.services.directus.team_methods import hash_id
 
 logger = logging.getLogger(__name__)
+METADATA_BROADCAST_TIMEOUT_SECONDS = 1.0
 
 
 def _effective_metadata_version(metadata: Dict[str, Any]) -> int:
@@ -578,12 +580,20 @@ async def handle_encrypted_chat_metadata(
                     broadcast_payload["payload"]["encrypted_category"] = encrypted_chat_category
             
                 try:
-                    await manager.broadcast_to_user(
-                        message=broadcast_payload,
-                        user_id=user_id,
-                        exclude_device_hash=device_fingerprint_hash  # Exclude the sender's device
+                    await asyncio.wait_for(
+                        manager.broadcast_to_user(
+                            message=broadcast_payload,
+                            user_id=user_id,
+                            exclude_device_hash=device_fingerprint_hash  # Exclude the sender's device
+                        ),
+                        timeout=METADATA_BROADCAST_TIMEOUT_SECONDS,
                     )
                     logger.info(f"Broadcasted encrypted_chat_metadata update for chat {chat_id} to other devices of user {user_id}")
+                except TimeoutError:
+                    logger.warning(
+                        "Timed out broadcasting encrypted chat metadata for chat %s; continuing receive loop",
+                        chat_id,
+                    )
                 except Exception as broadcast_error:
                     logger.error(f"Error broadcasting encrypted_chat_metadata update for chat {chat_id}: {broadcast_error}", exc_info=True)
 
