@@ -449,6 +449,51 @@ def test_proof_video_profile_is_part_of_dispatch_identity(tmp_path, monkeypatch)
     assert [call["profile"] for call in seen] == ["playwright:web-laptop", "playwright:web-phone"]
 
 
+def test_account_provisioning_slot_is_part_of_dispatch_identity(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen = []
+
+    class FakeDispatchStore(tests_control.ControlPlaneTestControlStore):
+        def __init__(self):
+            pass
+
+        def request_dispatch(self, **kwargs):
+            seen.append(kwargs)
+            return {"dispatch_key": f"dispatch-{len(seen)}", "status": "queued"}, False
+
+        def update_dispatch(self, dispatch_key, status, reason=None):
+            return {"dispatch_key": dispatch_key, "status": status}
+
+    monkeypatch.setattr(tests_control, "TEST_STORE", FakeDispatchStore())
+    slot_15 = tests_control.parse_control_run_options([
+        "--spec", "cli-provision-auth-accounts.spec.ts", "--create-account-slot", "15",
+    ])
+    slot_19 = tests_control.parse_control_run_options([
+        "--spec", "cli-provision-auth-accounts.spec.ts", "--create-account-slot", "19",
+    ])
+
+    tests_control.begin_control_plane_dispatch(
+        slot_15,
+        subject_commit="abc123",
+        selected_test_keys=[],
+        resources=set(),
+        selected_account=2,
+    )
+    tests_control.begin_control_plane_dispatch(
+        slot_19,
+        subject_commit="abc123",
+        selected_test_keys=[],
+        resources=set(),
+        selected_account=3,
+    )
+
+    assert [call["profile"] for call in seen] == [
+        "playwright:create-account-slot-15",
+        "playwright:create-account-slot-19",
+    ]
+    assert [call["account"] for call in seen] == ["2", "3"]
+
+
 def test_force_reopens_only_reused_proof_video_dispatch(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     updates = []

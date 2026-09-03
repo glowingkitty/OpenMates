@@ -446,6 +446,7 @@ class ControlPlaneTestControlStore(InMemoryTestControlStore):
         commit: str,
         tests: list[str],
         profile: str,
+        account: str | None = None,
         required_services: list[str],
     ) -> tuple[dict[str, Any], bool]:
         response = self._request(
@@ -456,7 +457,7 @@ class ControlPlaneTestControlStore(InMemoryTestControlStore):
                 "commit": commit,
                 "tests": tests,
                 "profile": profile,
-                "account": os.getenv("OPENMATES_TEST_ACCOUNT", "default"),
+                "account": account or os.getenv("OPENMATES_TEST_ACCOUNT", "default"),
                 "mocks": {},
                 "required_services": required_services,
             },
@@ -6073,6 +6074,7 @@ def begin_control_plane_dispatch(
     subject_commit: str,
     selected_test_keys: list[str],
     resources: set[str],
+    selected_account: int | None = None,
 ) -> tuple[ControlPlaneTestControlStore | None, str, bool]:
     """Fingerprint a run and suppress an equivalent live/successful dispatch."""
     store = get_store()
@@ -6083,10 +6085,19 @@ def begin_control_plane_dispatch(
     dispatch_profile = suite
     if options.proof_video_profile:
         dispatch_profile = f"{suite}:{options.proof_video_profile}"
+    create_account_slot = _argument_value(options.forwarded_args, "--create-account-slot")
+    if create_account_slot:
+        dispatch_profile = f"{dispatch_profile}:create-account-slot-{create_account_slot}"
+    account = str(
+        selected_account
+        or _argument_value(options.forwarded_args, "--account")
+        or os.getenv("OPENMATES_TEST_ACCOUNT", "default")
+    )
     dispatch, reused = store.request_dispatch(
         commit=subject_commit or current_git_sha(),
         tests=selection,
         profile=dispatch_profile,
+        account=account,
         required_services=sorted(resources),
     )
     dispatch_key = str(dispatch["dispatch_key"])
@@ -6241,6 +6252,7 @@ def command_run(runner_args: list[str]) -> int:
             subject_commit=subject_commit,
             selected_test_keys=selected_test_keys,
             resources=resources,
+            selected_account=selected_account,
         )
     except RuntimeError as exc:
         print(f"Test dispatch rejected by the engineering control plane: {exc}", file=sys.stderr)
