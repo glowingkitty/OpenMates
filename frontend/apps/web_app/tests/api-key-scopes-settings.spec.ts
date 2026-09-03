@@ -95,7 +95,7 @@ test.describe('API-key scope selection settings', () => {
 			await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible();
 		});
 		await proof.checkpoint('full-access');
-		const nameInput = page.getByTestId('api-key-name-input').locator('input');
+		const nameInput = page.getByTestId('api-key-name-input');
 		await nameInput.pressSequentially(PROOF_KEY_NAME, { delay: PROOF_TYPING_DELAY_MS });
 		await expect(nameInput).toHaveValue(PROOF_KEY_NAME);
 		await fullAccessRow.hover();
