@@ -25,10 +25,36 @@ RUNTIME_MIRRORS = (
     Path(".agents/skills/define-specification/SKILL.md"),
 )
 DEPRECATED_RUNTIME_PATHS = (Path(".agents/skills/define-contract/SKILL.md"),)
+RECOVERY_DIR_NAME = ".openmates-runtime-mirror-recovery"
 
 
 def _digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _preserve_previous(project_root: Path, relative: Path, data: bytes) -> Path | None:
+    """Preserve displaced runtime-mirror bytes outside the shared checkout."""
+    if not data:
+        return None
+    configured = os.environ.get("OPENMATES_RUNTIME_MIRROR_RECOVERY")
+    recovery_root = Path(configured).expanduser() if configured else project_root.parent / RECOVERY_DIR_NAME
+    project_id = hashlib.sha256(str(project_root).encode("utf-8")).hexdigest()[:12]
+    destination = recovery_root / project_id / _digest(data) / relative
+    if destination.is_file():
+        if destination.read_bytes() != data:
+            raise RuntimeError(f"runtime mirror recovery hash collision: {destination}")
+        return destination
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=f".{destination.name}-", delete=False) as handle:
+        temporary = Path(handle.name)
+        handle.write(data)
+        handle.flush()
+        os.fsync(handle.fileno())
+    try:
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
 
 
 def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
@@ -47,6 +73,7 @@ def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
             raise ValueError(f"deployed hook does not export OpenMatesHooks: {source}")
         previous_data = target.read_bytes() if target.is_file() else b""
         changed = previous_data != source_data
+        recovery_path = _preserve_previous(project_root, relative, previous_data) if changed else None
         if changed:
             target.parent.mkdir(parents=True, exist_ok=True)
             with tempfile.NamedTemporaryFile(dir=target.parent, prefix=f".{target.name}-", delete=False) as handle:
@@ -64,6 +91,7 @@ def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
                 "changed": changed,
                 "path": str(relative),
                 "previous_hash": _digest(previous_data) if previous_data else "",
+                "recovery_path": str(recovery_path) if recovery_path else "",
                 "source_hash": _digest(source_data),
                 "target": str(target),
             }
@@ -74,6 +102,7 @@ def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
             raise IsADirectoryError(f"deprecated runtime file is unexpectedly a directory: {target}")
         previous_data = target.read_bytes() if target.is_file() else b""
         changed = target.is_file() or target.is_symlink()
+        recovery_path = _preserve_previous(project_root, relative, previous_data) if changed else None
         if changed:
             target.unlink()
         files.append(
@@ -81,6 +110,7 @@ def sync_hook(runtime_checkout: Path, project_root: Path) -> dict[str, object]:
                 "changed": changed,
                 "path": str(relative),
                 "previous_hash": _digest(previous_data) if previous_data else "",
+                "recovery_path": str(recovery_path) if recovery_path else "",
                 "source_hash": "",
                 "target": str(target),
             }

@@ -1,0 +1,116 @@
+diff --git a/packages/opencode/src/session/processor.ts b/packages/opencode/src/session/processor.ts
+index 39c5eb9f8..d1d86e443 100644
+--- a/packages/opencode/src/session/processor.ts
++++ b/packages/opencode/src/session/processor.ts
+@@ -609,6 +609,7 @@ const layer = Layer.effect(
+           return
+         }
+         ctx.assistantMessage.error = error
++        ctx.assistantMessage.finish = "error"
+         yield* events.publish(Session.Event.Error, {
+           sessionID: ctx.assistantMessage.sessionID,
+           error: ctx.assistantMessage.error,
+diff --git a/packages/opencode/src/session/retry.ts b/packages/opencode/src/session/retry.ts
+index 4139665bd..3c3e853cb 100644
+--- a/packages/opencode/src/session/retry.ts
++++ b/packages/opencode/src/session/retry.ts
+@@ -27,6 +27,8 @@ export const RETRY_INITIAL_DELAY = 2000
+ export const RETRY_BACKOFF_FACTOR = 2
+ export const RETRY_MAX_DELAY_NO_HEADERS = 30_000 // 30 seconds
+ export const RETRY_MAX_DELAY = 2_147_483_647 // max 32-bit signed integer for setTimeout
++export const RETRY_MAX_RETRIES = 5
++export const RETRY_MAX_NOT_FOUND_RETRIES = 1
+ 
+ function cap(ms: number) {
+   return Math.min(ms, RETRY_MAX_DELAY)
+@@ -183,6 +185,11 @@ export function policy(opts: {
+       const error = opts.parse(meta.input)
+       const retry = retryable(error, opts.provider)
+       if (!retry) return Cause.done(meta.attempt)
++      const maxRetries =
++        SessionV1.APIError.isInstance(error) && error.data.statusCode === 404
++          ? RETRY_MAX_NOT_FOUND_RETRIES
++          : RETRY_MAX_RETRIES
++      if (meta.attempt > maxRetries) return Cause.done(meta.attempt)
+       return Effect.gen(function* () {
+         const wait = delay(meta.attempt, SessionV1.APIError.isInstance(error) ? error : undefined)
+         const now = yield* Clock.currentTimeMillis
+diff --git a/packages/opencode/test/session/processor-effect.test.ts b/packages/opencode/test/session/processor-effect.test.ts
+index 528760543..ae5298729 100644
+--- a/packages/opencode/test/session/processor-effect.test.ts
++++ b/packages/opencode/test/session/processor-effect.test.ts
+@@ -552,6 +552,7 @@ it.live("session.processor effect tests do not retry unknown json errors", () =>
+         expect(value).toBe("stop")
+         expect(yield* llm.calls).toBe(1)
+         expect(handle.message.error?.name).toBe("APIError")
++        expect(handle.message.finish).toBe("error")
+       }),
+     { config: (url) => providerCfg(url) },
+   ),
+diff --git a/packages/opencode/test/session/retry.test.ts b/packages/opencode/test/session/retry.test.ts
+index 30ac879a6..08be26420 100644
+--- a/packages/opencode/test/session/retry.test.ts
++++ b/packages/opencode/test/session/retry.test.ts
+@@ -18,11 +18,15 @@ const providerID = ProviderV2.ID.make("test")
+ const retryProvider = "test"
+ const it = testEffect(LayerNode.compile(LayerNode.group([SessionStatus.node, CrossSpawnSpawner.node])))
+ 
+-function apiError(headers?: Record<string, string>): SessionV1.APIError {
++function apiError(
++  headers?: Record<string, string>,
++  options: { statusCode?: number; isRetryable?: boolean } = {},
++): SessionV1.APIError {
+   return Schema.decodeUnknownSync(SessionV1.APIError.Schema)(
+     new SessionV1.APIError({
+       message: "boom",
+-      isRetryable: true,
++      isRetryable: options.isRetryable ?? true,
++      statusCode: options.statusCode,
+       responseHeaders: headers,
+     }).toObject(),
+   )
+@@ -117,6 +121,44 @@ describe("session.retry.delay", () => {
+   )
+ })
+ 
++describe("session.retry.policy", () => {
++  const attemptsFor = (error: SessionV1.APIError) =>
++    Effect.gen(function* () {
++      const attempts: number[] = []
++      const step = yield* Schedule.toStepWithMetadata(
++        SessionRetry.policy({
++          provider: "openai",
++          parse: Schema.decodeUnknownSync(SessionV1.APIError.Schema),
++          set: (info) =>
++            Effect.sync(() => {
++              attempts.push(info.attempt)
++            }),
++        }),
++      )
++
++      yield* Effect.forEach(Array.from({ length: SessionRetry.RETRY_MAX_RETRIES + 2 }), () =>
++        Effect.ignore(step(error)),
++      )
++      return attempts
++    })
++
++  it.instance("stops a repeated OpenAI 404 after one retry", () =>
++    Effect.gen(function* () {
++      const attempts = yield* attemptsFor(
++        apiError({ "retry-after-ms": "0" }, { statusCode: 404, isRetryable: true }),
++      )
++      expect(attempts).toStrictEqual([1])
++    }),
++  )
++
++  it.instance("caps other retryable provider failures", () =>
++    Effect.gen(function* () {
++      const attempts = yield* attemptsFor(apiError({ "retry-after-ms": "0" }))
++      expect(attempts).toStrictEqual([1, 2, 3, 4, 5])
++    }),
++  )
++})
++
+ describe("session.retry.retryable", () => {
+   test("maps too_many_requests json messages", () => {
+     const error = wrap(JSON.stringify({ type: "error", error: { type: "too_many_requests" } }))

@@ -1,0 +1,263 @@
+schema_version: 2
+id: opencode-session-integrity
+title: OpenCode Session Bootstrap, Runtime, and Provider-Failure Integrity
+status: implementing
+
+goal: >
+  Make every new OpenCode coding chat start from current fetched origin/dev in a
+  clean managed worktree, load the current Specification-to-Plan workflow,
+  preserve displaced local bytes, and surface provider failures without losing
+  the user's message or retrying forever.
+
+scope:
+  in:
+    - Route lifecycle commands through the verified control-plane runtime before a worktree exists.
+    - Preserve every runtime-mirror file displaced from the canonical checkout.
+    - Bound provider retries and persist terminal assistant errors.
+    - Preserve and separately reconcile dirty canonical and incident worktrees.
+    - Stage one controlled runtime activation after build and disposable-session verification.
+  out:
+    - Automatically merging obsolete contract changes from affected chats.
+    - Resetting, cleaning, stashing, or deleting the dirty canonical checkout.
+    - Restarting the live OpenCode server without capturing the active-chat set.
+    - Renaming legitimate API contracts or stable assertion identifiers.
+
+source_of_truth:
+  user_direction:
+    - Specifications are definitive product truth.
+    - Plans are the path from current state to the Specification goal.
+    - A dirty canonical checkout must never become the execution base for a new coding chat.
+    - Investigation and repair must not abandon recoverable work.
+  related_plan: docs/plans/opencode-recovery/plan.yml
+
+scenarios:
+  - id: S-1
+    title: A new chat starts from current development state
+    given:
+      - The canonical checkout is old and dirty but the clean runtime can fetch origin/dev.
+    when:
+      - An unbound chat invokes sessions.py start.
+    then:
+      - The hook routes the command through the verified runtime before a worktree exists.
+      - The managed worktree is based on the fetched origin/dev commit.
+      - The chat discovers define-specification and create-plan rather than deprecated workflows.
+  - id: S-2
+    title: Runtime mirroring preserves displaced work
+    given:
+      - A mirrored or deprecated path contains different local bytes.
+    when:
+      - Startup synchronizes the verified runtime files into the canonical checkout.
+    then:
+      - Existing bytes are content-addressed outside the checkout before replacement or deletion.
+      - A no-op second synchronization creates no additional recovery record.
+  - id: S-3
+    title: Provider failure terminates visibly
+    given:
+      - A durable user turn receives a retryable OpenAI 404 or another repeated retryable provider error.
+    when:
+      - The pinned OpenCode retry policy evaluates the failure.
+    then:
+      - An OpenAI 404 receives at most one retry and other retryable failures are capped.
+      - The user message remains stored and the terminal assistant row is marked as an error.
+  - id: S-4
+    title: Runtime activation does not fan out into historical chats
+    given:
+      - A tested runtime release is ready while live or historical chats exist.
+    when:
+      - An operator performs the controlled activation.
+    then:
+      - The busy-chat set is captured once and only selected chats are resumed.
+      - Disposable bootstrap and provider-error probes pass before historical recovery.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: An actual unbound tool.execute.before call rewrites standalone sessions.py start to the verified runtime and preserves chat identity.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BOOTSTRAP]
+  - id: AC-2
+    scenario: S-2
+    text: Changed mirrored bytes and removed deprecated-skill bytes are recoverable by their recorded content-addressed paths.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MIRROR-RECOVERY]
+  - id: AC-3
+    scenario: S-3
+    text: The pinned runtime patch limits 404 and general retries and records terminal assistant failure state.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PROVIDER-RETRY]
+  - id: AC-4
+    scenario: S-4
+    text: Live activation is blocked until a compatible isolated Bun build and controlled restart verification are available.
+    required: true
+    status: blocked
+    coverage_status: blocked
+    verification_scope: custom
+    verification_ids: [V-RUNTIME-ACTIVATION]
+
+tests:
+  - id: T-BOOTSTRAP
+    type: unit
+    file: scripts/tests/test_opencode_hooks_contract.mjs
+    command: node --test scripts/tests/test_opencode_hooks_contract.mjs scripts/tests/test_opencode_native_worktree_binding.mjs
+    assertions:
+      - The actual hook routes unbound session startup through the clean runtime.
+      - Bound and merged session routing remains isolated to its managed worktree.
+    covers: [AC-1]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+  - id: T-MIRROR-RECOVERY
+    type: pytest
+    file: scripts/tests/test_sync_opencode_runtime_hook.py
+    command: python3 -m pytest scripts/tests/test_sync_opencode_runtime_hook.py scripts/tests/test_opencode_control_plane_guard.py
+    assertions:
+      - Displaced hook, configuration, and deprecated-skill bytes are archived before mutation.
+      - The new provider patch is protected as control-plane source.
+    covers: [AC-2]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+  - id: T-PROVIDER-RETRY
+    type: unit
+    file: scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch
+    command: bun test test/session/retry.test.ts test/session/processor-effect.test.ts --timeout 30000
+    assertions:
+      - A repeated OpenAI 404 stops after one retry.
+      - Other retryable failures stop after five retries.
+      - Terminal API failure sets the assistant finish state to error.
+    covers: [AC-3]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+
+verifications:
+  - id: V-RUNTIME-ACTIVATION
+    kind: deterministic_check
+    phase: final
+    status: blocked
+    required_for_done: true
+    covers: [AC-4]
+    evidence: {status: blocked}
+
+tasks:
+  - id: TASK-1
+    title: Repair pre-worktree bootstrap routing
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files: [.opencode/plugins/openmates-hooks.js, scripts/tests/test_opencode_hooks_contract.mjs]
+    ownership: {files: [.opencode/plugins/openmates-hooks.js, scripts/tests/test_opencode_hooks_contract.mjs], shared_files: []}
+    verification_ids: [T-BOOTSTRAP]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+  - id: TASK-2
+    title: Preserve runtime-mirror displacement
+    status: done
+    phase: complete
+    covers: {scenarios: [S-2], acceptance_criteria: [AC-2]}
+    expected_files: [scripts/sync_opencode_runtime_hook.py, scripts/tests/test_sync_opencode_runtime_hook.py]
+    ownership: {files: [scripts/sync_opencode_runtime_hook.py, scripts/tests/test_sync_opencode_runtime_hook.py], shared_files: []}
+    verification_ids: [T-MIRROR-RECOVERY]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+  - id: TASK-3
+    title: Bound and expose provider failures
+    status: done
+    phase: complete
+    covers: {scenarios: [S-3], acceptance_criteria: [AC-3]}
+    expected_files: [scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch, scripts/tests/test_opencode_runtime_config.py]
+    ownership: {files: [scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch, scripts/tests/test_opencode_runtime_config.py], shared_files: []}
+    verification_ids: [T-PROVIDER-RETRY]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+  - id: TASK-4
+    title: Build and activate one tested runtime release
+    status: blocked
+    phase: blocked
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
+    expected_files: [docs/plans/opencode-session-integrity/plan.yml]
+    ownership: {files: [docs/plans/opencode-session-integrity/plan.yml], shared_files: []}
+    verification_ids: [V-RUNTIME-ACTIVATION]
+    dependencies: [TASK-3]
+    blockers: [The pinned source requires Bun 1.3.14 while the installed host Bun is 1.3.11.]
+    follow_up_tasks: []
+
+implementation_state:
+  phase: implementation
+  subject_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215
+  active_task: TASK-4
+  last_updated: "2026-09-03T16:10:00Z"
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-03T15:00:00Z"
+    actor: user
+    basis: The user defined Specifications as definitive truth and Plans as the path to reach them.
+  plan:
+    status: approved
+    approved_at: "2026-09-03T15:00:00Z"
+    actor: user
+    basis: The user explicitly requested investigation, planning, implementation, and testing of the architecture repair.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Bootstrap all lifecycle commands through the clean verified control plane before worktree binding.
+    reason: The former post-binding-only call allowed stale canonical code to create the initial worktree.
+    decided_at: "2026-09-03T15:30:00Z"
+  - id: D-2
+    status: active
+    decision: Preserve overwritten runtime-mirror bytes outside the canonical checkout by content hash.
+    reason: Atomic replacement alone prevented torn writes but did not make displaced local work recoverable.
+    decided_at: "2026-09-03T15:40:00Z"
+  - id: D-3
+    status: active
+    decision: Bound retries in the pinned OpenCode runtime and persist terminal assistant error state.
+    reason: A universal retryable 404 classification and unbounded schedule produced seven retries and an empty-looking assistant turn after cancellation.
+    decided_at: "2026-09-03T15:50:00Z"
+
+attempts:
+  - id: ATT-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Reproduce the actual unbound hook path, add a failing regression, and route Bash lifecycle calls before worktree creation.
+    recorded_at: "2026-09-03T15:35:00Z"
+  - id: ATT-2
+    task_id: TASK-3
+    outcome: succeeded
+    approach: Patch the exact pinned source in isolation and run its retry, processor, and typecheck suites.
+    recorded_at: "2026-09-03T15:55:00Z"
+  - id: ATT-3
+    task_id: TASK-4
+    outcome: blocked
+    approach: Invoke the pinned source build without changing the host toolchain.
+    recorded_at: "2026-09-03T16:00:00Z"
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This is private orchestration/runtime infrastructure with no changed product UI surface.
+    classified_at: "2026-09-03T16:00:00Z"
+    verification_ids: [T-BOOTSTRAP, T-MIRROR-RECOVERY, T-PROVIDER-RETRY]
+
+handoff:
+  current_task_id: TASK-4
+  status: blocked
+  last_verified: "2026-09-03T16:08:00Z"
+  last_verified_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215
+  next_action: Build the pinned OpenCode source with an isolated Bun 1.3.14 toolchain, stage an atomic release, and run controlled disposable-session probes before any historical-chat recovery.
+  command: bun run build --single --skip-install --skip-embed-web-ui
+  expected_outcome: A hash-identified OpenCode release is ready for a separately approved captured-chat restart.
+  blocker:
+    reason: The host Bun is 1.3.11 and the pinned source requires Bun 1.3.14.

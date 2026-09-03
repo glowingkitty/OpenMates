@@ -43,6 +43,7 @@ def load_sessions_module():
         "scripts/opencode_runtime_release.py",
         "scripts/sync_opencode_runtime_hook.py",
         "scripts/patches/opencode-v1.17.20-productive-recompaction.patch",
+        "scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch",
         ".opencode/plugins/openmates-hooks.js",
         ".opencode/agents/code-reviewer.md",
         "opencode.json",

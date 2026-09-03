@@ -40,6 +40,15 @@ def test_sync_hook_atomically_updates_shared_runtime_mirror(tmp_path: Path) -> N
     assert not (project / legacy_contract_skill).exists()
     assert specification_skill in RUNTIME_MIRRORS
     assert legacy_contract_skill in DEPRECATED_RUNTIME_PATHS
+    recovered = {
+        item["path"]: Path(item["recovery_path"]).read_text(encoding="utf-8")
+        for item in first["files"]
+        if item["recovery_path"]
+    }
+    assert recovered[str(HOOK_PATH)] == "stale\n"
+    assert recovered["opencode.json"] == '{"agent":{"build":{"steps":8}}}\n'
+    assert recovered[str(legacy_contract_skill)] == "# Legacy contract workflow\n"
+    assert all(not item["recovery_path"] for item in second["files"])
 
 
 def test_sync_hook_rejects_invalid_or_same_checkout(tmp_path: Path) -> None:

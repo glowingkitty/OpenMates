@@ -173,6 +173,27 @@ test("root-hosted routing forces tool paths and shell workdir", () => {
   assert.match(source, /OPENMATES_SESSION_WORKTREE/);
 });
 
+test("actual hook routes unbound session startup through the clean runtime", async () => {
+  const hooks = await pluginModule.OpenMatesHooks({ routingData: { sessions: {} }, recordRouting: false });
+  const output = {
+    args: {
+      command: 'python3 scripts/sessions.py start --mode feature --task "Example"',
+      workdir: "/home/superdev/projects/OpenMates",
+    },
+  };
+
+  await hooks["tool.execute.before"](
+    { tool: "bash", sessionID: "ses_unbound" },
+    output,
+  );
+
+  assert.equal(
+    output.args.command,
+    'python3 scripts/sessions.py start --mode feature --task "Example" --opencode-session ses_unbound',
+  );
+  assert.equal(output.args.workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
+});
+
 test("OpenCode shells isolate personal OpenMates CLI credentials", async () => {
   assert.match(source, /OPENMATES_PROFILE/);
   assert.match(source, /opencode-personal/);

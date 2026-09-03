@@ -52,3 +52,14 @@ def test_launcher_uses_agent_skills_without_claude_skill_compatibility() -> None
     launcher = (PROJECT_ROOT / "scripts/start-opencode-server.sh").read_text(encoding="utf-8")
 
     assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in launcher
+
+
+def test_runtime_patch_bounds_provider_retries_and_persists_terminal_errors() -> None:
+    patch = (
+        PROJECT_ROOT / "scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch"
+    ).read_text(encoding="utf-8")
+
+    assert "RETRY_MAX_RETRIES = 5" in patch
+    assert "RETRY_MAX_NOT_FOUND_RETRIES = 1" in patch
+    assert 'ctx.assistantMessage.finish = "error"' in patch
+    assert "stops a repeated OpenAI 404 after one retry" in patch

@@ -1265,7 +1265,9 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
     if (controlPlaneScriptRuntime) return { ...input, command, workdir: CURRENT_CONTROL_PLANE_ROOT };
   }
-  if (!worktreePath) return input;
+  // Callers replace the live tool-argument object in place, so never return
+  // that same object even when no routing rewrite is necessary.
+  if (!worktreePath) return { ...input };
   if (BASH_TOOLS.has(tool)) {
     const command = bashCommand(input);
     if (command.includes("$'")) {
@@ -3742,7 +3744,13 @@ export const OpenMatesHooks = async ({
         return;
       }
 
-      if (route.worktreePath) {
+      // Bootstrap commands must pass through the same router before a session
+      // worktree exists. The router leaves ordinary unbound shell commands
+      // unchanged, but forces standalone sessions.py/tests.py invocations onto
+      // the verified control-plane runtime. Without this call, sessions.py
+      // start can execute from a stale dirty canonical checkout and create the
+      // very first worktree from the wrong commit.
+      if (route.worktreePath || BASH_TOOLS.has(tool)) {
         const currentArgs = output?.args || input?.args;
         const routedArgs = routeLocalToolArgsWithCircuitBreakerForTest(
           tool,
