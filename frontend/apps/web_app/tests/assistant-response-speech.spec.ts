@@ -19,6 +19,7 @@ const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = requ
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
 const SPEECH_TIMEOUT_MS = 240_000;
+const SERVER_RESPONSE_TIMEOUT_MS = 20_000;
 const PROOF_FINAL_STATE_HOLD_MS = 5_000;
 const LIVE_MOCK_GROUP = 'assistant_response_speech_web';
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
@@ -163,7 +164,7 @@ test.describe.serial('Assistant response speech', () => {
 			screenshot,
 			'assistant-speech-source'
 		);
-		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 300_000 });
+		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: SERVER_RESPONSE_TIMEOUT_MS });
 		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
 		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 		expect(chatId, 'voice-first chat should become durable after its first message').toBeTruthy();

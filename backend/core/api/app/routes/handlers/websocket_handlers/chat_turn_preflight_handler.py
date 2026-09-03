@@ -143,10 +143,17 @@ async def handle_chat_turn_preflight(
         user_otel_attrs,
     )
     try:
+        turn_id = str(payload.get("turn_id", ""))
+        logger.info("Chat preflight phase=cutover_started turn=%s", turn_id[:8])
         recovery_service = ChatRecoveryService(directus_service)
         cutover_state = await recovery_service.execute(
             "get_cutover_state",
             {"protocol_version": 1},
+        )
+        logger.info(
+            "Chat preflight phase=cutover_completed turn=%s epoch=%s",
+            turn_id[:8],
+            cutover_state.get("protocol_epoch"),
         )
         if cutover_state.get("protocol_epoch") == 0:
             legacy_preflight_id = str(
@@ -202,10 +209,12 @@ async def handle_chat_turn_preflight(
             transaction_data["encrypted_chat_metadata"] = payload["encrypted_chat_metadata"]
         started_at = start_recovery_timing()
         try:
+            logger.info("Chat preflight phase=prepare_started turn=%s", turn_id[:8])
             result = await recovery_service.execute(
                 "prepare_preflight",
                 transaction_data,
             )
+            logger.info("Chat preflight phase=prepare_completed turn=%s", turn_id[:8])
         finally:
             record_recovery_duration("durable_preflight", started_at)
         result["turn_id"] = payload["turn_id"]
@@ -214,6 +223,7 @@ async def handle_chat_turn_preflight(
             user_id,
             device_fingerprint_hash,
         )
+        logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
     except ChatRecoveryProtocolError as exc:
         await manager.send_personal_message(
             {

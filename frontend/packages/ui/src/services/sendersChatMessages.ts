@@ -58,6 +58,17 @@ const PREFLIGHT_ERROR_CODES = new Set([
 	"version_conflict"
 ]);
 
+function recordPreflightDebugStep(step: string, details: Record<string, unknown> = {}): void {
+	const debugWindow = window as Window & {
+		__openmatesLastPreflightDebug?: Record<string, unknown>;
+	};
+	debugWindow.__openmatesLastPreflightDebug = {
+		step,
+		details,
+		timestamp: new Date().toISOString()
+	};
+}
+
 // The acknowledged protocol does not echo turn_id. Keep one preflight in flight
 // per browser service so the one-shot acknowledgement is unambiguously bound to
 // the request that opened its waiter.
@@ -94,24 +105,38 @@ function encodeBase64Url(bytes: Uint8Array): string {
 
 function waitForPreflightAcknowledgement(turnId: string): Promise<{ preflight_id: string }> {
 	return new Promise((resolve, reject) => {
+		recordPreflightDebugStep("preflight_waiter_registered", { turnId });
 		const timeout = window.setTimeout(() => {
+			recordPreflightDebugStep("preflight_ack_timeout", { turnId });
 			cleanup();
 			reject(new Error(CHAT_PREFLIGHT_TIMEOUT_MESSAGE));
 		}, CHAT_PREFLIGHT_TIMEOUT_MS);
 		const handleAck = (payload: unknown) => {
 			const ack = payload as { turn_id?: string; preflight_id?: string };
-			if (ack.turn_id && ack.turn_id !== turnId) return;
+			if (ack.turn_id && ack.turn_id !== turnId) {
+				recordPreflightDebugStep("preflight_ack_ignored_turn_mismatch", {
+					turnId,
+					receivedTurnId: ack.turn_id
+				});
+				return;
+			}
 			if (!ack.preflight_id) {
+				recordPreflightDebugStep("preflight_ack_missing_id", { turnId });
 				cleanup();
 				reject(new Error("Encrypted chat preflight acknowledgement omitted preflight_id."));
 				return;
 			}
+			recordPreflightDebugStep("preflight_ack_received", { turnId });
 			cleanup();
 			resolve({ preflight_id: ack.preflight_id });
 		};
 		const handleError = (payload: unknown) => {
 			const error = payload as { code?: string; message?: string };
 			if (!error.code || !PREFLIGHT_ERROR_CODES.has(error.code)) return;
+			recordPreflightDebugStep("preflight_error_received", {
+				turnId,
+				code: error.code
+			});
 			cleanup();
 			reject(new Error(error.message || "Encrypted chat preflight was rejected."));
 		};
@@ -1510,7 +1535,12 @@ export async function sendNewMessageImpl(
 		try {
 			const { preflight_id } = await runSerializedPreflight(async () => {
 				const acknowledgement = waitForPreflightAcknowledgement(turnId);
+				recordPreflightDebugStep("preflight_dispatch_started", {
+					turnId,
+					webSocketConnected: serviceInstance.webSocketConnected_FOR_SENDERS_ONLY
+				});
 				await webSocketService.sendMessage("chat_turn_preflight", preflightPayload);
+				recordPreflightDebugStep("preflight_dispatch_complete", { turnId });
 				return acknowledgement;
 			});
 			payload.protocol_version = CHAT_RECOVERY_PROTOCOL_VERSION;
