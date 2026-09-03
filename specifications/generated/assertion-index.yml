@@ -18615,7 +18615,7 @@ assertions:
       surface: gui.web
     - &id2135
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 443
+      line: 445
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
@@ -18753,7 +18753,7 @@ assertions:
       surface: gui.apple
     - &id2149
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 443
+      line: 445
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
@@ -18899,19 +18899,19 @@ assertions:
       surface: gui.web
     - &id2162
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 386
+      line: 388
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
     - &id2163
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 424
+      line: 426
       name: tablet portrait keeps every Privacy animation inside the daily inspiration
         banner
       surface: gui.web
     - &id2164
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 456
+      line: 458
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id2169
@@ -18977,7 +18977,7 @@ assertions:
       surface: gui.web
     - &id2174
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 443
+      line: 445
       name: guest New chat from an example focuses a blank composer without replaying
         slide zero
       surface: gui.web
@@ -19006,7 +19006,7 @@ assertions:
     supporting_tests:
     - &id2175
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 456
+      line: 458
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id2177
@@ -19065,7 +19065,7 @@ assertions:
     supporting_tests:
     - &id2182
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 386
+      line: 388
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
@@ -19109,19 +19109,19 @@ assertions:
       surface: gui.web
     - &id2188
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 386
+      line: 388
       name: tablet landscape keeps Actionable and Privacy animations inside the daily
         inspiration banner
       surface: gui.web
     - &id2189
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 424
+      line: 426
       name: tablet portrait keeps every Privacy animation inside the daily inspiration
         banner
       surface: gui.web
     - &id2190
       path: frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
-      line: 456
+      line: 458
       name: reduced motion is static and manually navigable
       surface: gui.web
     - &id2191

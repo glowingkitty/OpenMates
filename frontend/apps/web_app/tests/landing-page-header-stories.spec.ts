@@ -222,6 +222,8 @@ test.describe('Landing page header stories', () => {
 		await page.waitForLoadState('networkidle');
 		await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('dark');
 		await expect(page.getByTestId('landing-intro-request')).toBeVisible({ timeout: 15000 });
+		await expect(page.locator('.landing-intro-headline-mobile')).toHaveText('Your AI team\nfor getting things done');
+		await expect(page.locator('.landing-intro-headline-desktop')).toBeHidden();
 
 		const introGap = await page.evaluate(() => {
 			const heading = document.querySelector('[data-testid="landing-intro-headline"]')?.getBoundingClientRect();

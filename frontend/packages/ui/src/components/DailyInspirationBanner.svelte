@@ -1617,8 +1617,14 @@
                   <LandingHeadingMotion phase={introHeadingMotionPhase} testId="landing-intro-heading-motion">
                     <div class="guest-intro-ai-icon landing-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
                     <h1 class="landing-intro-headline" data-testid="landing-intro-headline">
-                      <span>{$text('guest_onboarding.landing_intro_headline_line1')}</span>
-                      <span>{$text('guest_onboarding.landing_intro_headline_line2')}</span>
+                      <span class="landing-intro-headline-desktop">
+                        <span>{$text('guest_onboarding.landing_intro_headline_line1')}</span>
+                        <span>{$text('guest_onboarding.landing_intro_headline_line2')}</span>
+                      </span>
+                      <span class="landing-intro-headline-mobile">
+                        <span>{$text('guest_onboarding.landing_intro_headline_line1')}</span>
+                        <span>{$text('guest_onboarding.landing_intro_headline_line2')}</span>
+                      </span>
                     </h1>
                   </LandingHeadingMotion>
                   <div class="landing-intro-examples" class:visible={landingIntroExamplesVisible}>
@@ -2290,6 +2296,16 @@
     transform-origin: center;
     white-space: nowrap;
     animation: landingIntroHeadlineScale 1800ms ease-in-out infinite alternate;
+  }
+
+  .landing-intro-headline-mobile {
+    display: none;
+  }
+
+  .landing-intro-headline-desktop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
 
   .landing-intro-headline span:nth-child(2) {
@@ -3432,6 +3448,21 @@
     .landing-intro-expanded .banner-content {
       display: grid;
       align-items: center;
+    }
+
+    .landing-intro-headline-desktop {
+      display: none;
+    }
+
+    .landing-intro-headline-mobile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .landing-intro-headline-mobile > span:nth-child(2) {
+      max-width: 18rem;
+      white-space: normal;
     }
 
     .landing-intro-headline {
