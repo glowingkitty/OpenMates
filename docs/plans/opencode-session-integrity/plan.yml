@@ -96,10 +96,10 @@ acceptance_criteria:
     verification_ids: [T-PROVIDER-RETRY]
   - id: AC-4
     scenario: S-4
-    text: Live activation is blocked until a compatible isolated Bun build and controlled restart verification are available.
+    text: Live activation remains gated on a captured-chat restart and disposable bootstrap and provider-failure verification.
     required: true
-    status: blocked
-    coverage_status: blocked
+    status: pending
+    coverage_status: covered
     verification_scope: custom
     verification_ids: [V-RUNTIME-ACTIVATION]
 
@@ -181,14 +181,14 @@ tasks:
     follow_up_tasks: [TASK-4]
   - id: TASK-4
     title: Build and activate one tested runtime release
-    status: blocked
-    phase: blocked
+    status: in_progress
+    phase: running_checks
     covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
     expected_files: [docs/plans/opencode-session-integrity/plan.yml]
     ownership: {files: [docs/plans/opencode-session-integrity/plan.yml], shared_files: []}
     verification_ids: [V-RUNTIME-ACTIVATION]
     dependencies: [TASK-3]
-    blockers: [The pinned source requires Bun 1.3.14 while the installed host Bun is 1.3.11.]
+    blockers: []
     follow_up_tasks: []
 
 implementation_state:
@@ -242,6 +242,11 @@ attempts:
     outcome: blocked
     approach: Invoke the pinned source build without changing the host toolchain.
     recorded_at: "2026-09-03T16:00:00Z"
+  - id: ATT-4
+    task_id: TASK-4
+    outcome: succeeded
+    approach: Download and checksum an isolated Bun 1.3.14 toolchain, build the patched source, and validate a non-live immutable release manifest.
+    recorded_at: "2026-09-03T16:16:00Z"
 
 demonstration:
   eligibility:
@@ -253,11 +258,10 @@ demonstration:
 
 handoff:
   current_task_id: TASK-4
-  status: blocked
-  last_verified: "2026-09-03T16:08:00Z"
-  last_verified_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215
-  next_action: Build the pinned OpenCode source with an isolated Bun 1.3.14 toolchain, stage an atomic release, and run controlled disposable-session probes before any historical-chat recovery.
-  command: bun run build --single --skip-install --skip-embed-web-ui
-  expected_outcome: A hash-identified OpenCode release is ready for a separately approved captured-chat restart.
-  blocker:
-    reason: The host Bun is 1.3.11 and the pinned source requires Bun 1.3.14.
+  status: in_progress
+  last_verified: "2026-09-03T16:17:00Z"
+  last_verified_commit: 68a63f563a58307d20281be6cd9c79a8a3b267cc
+  next_action: Capture the exact active-chat set, activate release ac5bb6346867-68a63f563a58 in one controlled restart, and run disposable bootstrap and provider-failure probes before selected recovery.
+  command: python3 scripts/sessions.py opencode-restart capture
+  expected_outcome: Restart input is an immutable busy-chat manifest and no historical chat is mass-resumed.
+  blocker: null
