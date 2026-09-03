@@ -2041,7 +2041,15 @@ export async function handleSend(
     // This prevents race conditions where the backend starts processing the message
     // and tries to stream chunks before knowing which chat is active, causing chunks to be dropped
     // This is especially important for new chats where the active_chat might be null or the old chat ID
-    await chatSyncService.sendSetActiveChat(chatIdToUse);
+		recordSendDebugStep("send_set_active_chat_started", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
+		await chatSyncService.sendSetActiveChat(chatIdToUse);
+		recordSendDebugStep("send_set_active_chat_complete", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
     console.debug(
       "[handleSend] Notified backend about active chat before sending message:",
       chatIdToUse,
@@ -2062,10 +2070,18 @@ export async function handleSend(
     const serverMessagePayload = e2eServerContentOverride
       ? ({ ...messagePayload, testMockMarker: e2eServerContentOverride.testMockMarker } as Message & { testMockMarker: string })
       : messagePayload;
-    await chatSyncService.sendNewMessage(
-      serverMessagePayload,
-      encryptedSuggestionToDelete,
-    );
+		recordSendDebugStep("send_new_message_started", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
+		await chatSyncService.sendNewMessage(
+			serverMessagePayload,
+			encryptedSuggestionToDelete,
+		);
+		recordSendDebugStep("send_new_message_complete", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
     console.debug(
       "[handleSend] Message sent to chatSyncService:",
       {

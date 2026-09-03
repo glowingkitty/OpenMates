@@ -221,7 +221,7 @@ async function waitForUserMessageAcceptedByServer(
 			)
 			.toBeTruthy();
 	} catch (error) {
-		const lastSendDebug = await page.evaluate(() => (window as any).__lastSendDebug ?? null).catch(() => null);
+		const lastSendDebug = await page.evaluate(() => (window as any).__openmatesLastSendDebug ?? null).catch(() => null);
 		const diagnostics = await page.evaluate(() => {
 			const input = document.querySelector('[data-action="message-input"]') as HTMLElement | null;
 			const lastUser = Array.from(document.querySelectorAll('[data-testid="message-user"]')).at(-1) as HTMLElement | undefined;
