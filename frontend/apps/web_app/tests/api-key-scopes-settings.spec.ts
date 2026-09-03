@@ -33,13 +33,13 @@ const API_KEY_SCOPES_PROOF = defineVideoProof({
 		},
 		{
 			id: 'limited-scopes',
-			text: 'Turning Full access off reveals individual permission toggles grouped by Chats, Tasks, Projects, Plans, Workflows, Memories, Account, API keys, Devices, and App skills.',
+			text: 'Turning Full access off reveals individual permissions grouped into labeled categories with consistent toggle rows.',
 			checkpoint: 'limited-scopes',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'independent-selection',
-			text: 'Each permission starts disabled and can be enabled independently, including create-only and account export access.',
+			text: 'Each permission starts disabled and can be enabled independently, including create-only access.',
 			checkpoint: 'independent-selection',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -54,7 +54,7 @@ const API_KEY_SCOPES_PROOF = defineVideoProof({
 		{
 			id: 'categorized-scope-list',
 			checkpoint: 'limited-scopes',
-			visual: 'The long scope list uses readable category headings and canonical Settings toggle rows.',
+			visual: 'The limited-access list uses readable category headings and canonical Settings toggle rows.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -90,9 +90,12 @@ test.describe('API-key scope selection settings', () => {
 
 		const fullAccessRow = page.getByTestId('api-key-full-access');
 		const fullAccessInput = page.getByTestId('api-key-full-access-toggle').locator('input');
+		const fullAccessWarning = page.getByRole('alert');
+		await fullAccessRow.scrollIntoViewIfNeeded();
+		await fullAccessWarning.scrollIntoViewIfNeeded();
 		await proof.assert('full-access-default', async () => {
 			await expect(fullAccessInput).toBeChecked();
-			await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible();
+			await expect(fullAccessWarning).toContainText(/full access can read encrypted account metadata/i);
 		});
 		await proof.checkpoint('full-access');
 		const nameInput = page.getByTestId('api-key-name-input');
@@ -122,13 +125,12 @@ test.describe('API-key scope selection settings', () => {
 
 		await proof.action('select-independent-scopes', async () => {
 			await page.getByTestId('api-key-scope-task-create').click();
-			await page.getByTestId('api-key-scope-account-export').click();
 		});
-		await page.getByTestId('api-key-scope-account-export').scrollIntoViewIfNeeded();
+		await page.getByTestId('api-key-scope-task-create').scrollIntoViewIfNeeded();
 		await proof.assert('scope-toggle-independence', async () => {
 			await expect(page.getByTestId('api-key-scope-task-create-toggle').locator('input')).toBeChecked();
-			await expect(page.getByTestId('api-key-scope-account-export-toggle').locator('input')).toBeChecked();
 			await expect(page.getByTestId('api-key-scope-task-read-toggle').locator('input')).not.toBeChecked();
+			await expect(page.getByTestId('api-key-scope-project-create-toggle').locator('input')).not.toBeChecked();
 		});
 		await proof.checkpoint('independent-selection');
 		await proof.attach();
