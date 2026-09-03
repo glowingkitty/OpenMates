@@ -29261,7 +29261,7 @@ assertions:
       surface: rest_api
     - &id3337
       path: frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
-      line: 83
+      line: 84
       name: switches from full access to independent scope toggles
       surface: gui.web
     - &id3338
