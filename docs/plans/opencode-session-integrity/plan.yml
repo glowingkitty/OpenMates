@@ -1,7 +1,7 @@
 schema_version: 2
 id: opencode-session-integrity
 title: OpenCode Session Bootstrap, Runtime, and Provider-Failure Integrity
-status: implementing
+status: verified
 
 goal: >
   Make every new OpenCode coding chat start from current fetched origin/dev in a
@@ -116,7 +116,7 @@ acceptance_criteria:
     scenario: S-4
     text: Live activation remains gated on a captured-chat restart and disposable bootstrap and provider-failure verification.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [V-RUNTIME-ACTIVATION]
@@ -146,8 +146,14 @@ tests:
       - The actual hook routes unbound session startup through the clean runtime.
       - Bound and merged session routing remains isolated to its managed worktree.
     covers: [AC-1]
-    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence: {status: failed_as_expected, timestamp: "2026-09-03T15:30:00Z", command: "node --test scripts/tests/test_opencode_hooks_contract.mjs", run_id: bootstrap-red-20260903, subject_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, timestamp: "2026-09-03T16:35:00Z", command: "node --test scripts/tests/test_opencode_hooks_contract.mjs scripts/tests/test_opencode_native_worktree_binding.mjs", run_id: bootstrap-green-20260903, subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd}
   - id: T-MIRROR-RECOVERY
     type: pytest
     file: scripts/tests/test_sync_opencode_runtime_hook.py
@@ -156,8 +162,14 @@ tests:
       - Displaced hook, configuration, and deprecated-skill bytes are archived before mutation.
       - The new provider patch is protected as control-plane source.
     covers: [AC-2]
-    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence: {status: failed_as_expected, timestamp: "2026-09-03T15:40:00Z", command: "python3 -m pytest scripts/tests/test_sync_opencode_runtime_hook.py", run_id: mirror-red-20260903, subject_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, timestamp: "2026-09-03T16:35:00Z", command: "python3 -m pytest scripts/tests/test_sync_opencode_runtime_hook.py scripts/tests/test_opencode_control_plane_guard.py", run_id: mirror-green-20260903, subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd}
   - id: T-PROVIDER-RETRY
     type: unit
     file: scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch
@@ -167,8 +179,14 @@ tests:
       - Other retryable failures stop after five retries.
       - Terminal API failure sets the assistant finish state to error.
     covers: [AC-3]
-    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence: {status: failed_as_expected, timestamp: "2026-09-03T15:50:00Z", command: "bun test test/session/retry.test.ts test/session/processor-effect.test.ts --timeout 30000", run_id: provider-red-20260903, subject_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, timestamp: "2026-09-03T16:27:00Z", command: "bun test test/session/retry.test.ts test/session/processor-effect.test.ts --timeout 30000", run_id: provider-green-20260903, subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd}
   - id: T-STORAGE-COMPAT
     type: pytest
     file: scripts/tests/test_opencode_runtime_release.py
@@ -177,8 +195,14 @@ tests:
       - A production-storage binary is accepted in an isolated XDG data directory.
       - A binary reporting opencode-.db is rejected before the current release pointer changes.
     covers: [AC-5]
-    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence: {status: failed_as_expected, timestamp: "2026-09-03T16:21:00Z", command: "python3 scripts/opencode_runtime_release.py validate --release preview-channel-release", run_id: storage-red-20260903, subject_commit: aa6ed53eb16a3019b33c663466753fe87c1649ba}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, timestamp: "2026-09-03T16:35:00Z", command: "python3 -m pytest scripts/tests/test_opencode_runtime_release.py", run_id: storage-green-20260903, subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd}
   - id: T-ZELLIJ-OWNERSHIP
     type: pytest
     file: scripts/tests/test_sessions_worktree_lifecycle.py
@@ -187,17 +211,34 @@ tests:
       - New OpenCode-bound records do not capture the host zellij name.
       - Cleanup ignores a shared zellij name on legacy OpenCode-bound records.
     covers: [AC-6]
-    red_phase: {required: true, expected: fail_before_fix, evidence: {status: failed_as_expected}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed}}
+    red_phase:
+      required: true
+      expected: fail_before_fix
+      evidence: {status: failed_as_expected, timestamp: "2026-09-03T16:32:00Z", command: "python3 scripts/sessions.py end --session cf31", run_id: zellij-red-20260903, subject_commit: 35ea39d74a88faff7b69268380e95a9093cd99a4}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, timestamp: "2026-09-03T16:35:00Z", command: "python3 -m pytest scripts/tests/test_sessions_worktree_lifecycle.py", run_id: zellij-green-20260903, subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd}
 
 verifications:
   - id: V-RUNTIME-ACTIVATION
     kind: deterministic_check
     phase: final
-    status: blocked
+    status: passed
     required_for_done: true
     covers: [AC-4]
-    evidence: {status: blocked}
+    evidence:
+      status: passed
+      timestamp: "2026-09-03T16:38:00Z"
+      command: "fork failed session before empty assistant row; prompt openai/gpt-5.6-sol with tools disabled"
+      run_id: provider-fork-live-20260903
+      subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd
+      runtime_version: 1.17.20-openmates.1
+      control_plane_commit: 35ea39d74a88faff7b69268380e95a9093cd99a4
+      bootstrap_session: ses_f97e5d28affeZvjGrXVNpBHH3Q
+      bootstrap_base_commit: 35ea39d74a88faff7b69268380e95a9093cd99a4
+      provider_fork_session: ses_f97dd31edffeLVWd4qqdvgArZ1
+      provider_result: PROVIDER_OK
 
 tasks:
   - id: TASK-1
@@ -235,8 +276,8 @@ tasks:
     follow_up_tasks: [TASK-4]
   - id: TASK-4
     title: Build and activate one tested runtime release
-    status: in_progress
-    phase: running_checks
+    status: done
+    phase: complete
     covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5]}
     expected_files: [docs/plans/opencode-session-integrity/plan.yml, scripts/opencode_runtime_release.py, scripts/tests/test_opencode_runtime_release.py]
     ownership: {files: [docs/plans/opencode-session-integrity/plan.yml, scripts/opencode_runtime_release.py, scripts/tests/test_opencode_runtime_release.py], shared_files: []}
@@ -257,10 +298,10 @@ tasks:
     follow_up_tasks: []
 
 implementation_state:
-  phase: implementation
-  subject_commit: a45dd8a45754c78c4e431cb0856f2fcb03190215
-  active_task: TASK-4
-  last_updated: "2026-09-03T16:10:00Z"
+  phase: verification
+  subject_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd
+  active_task: TASK-5
+  last_updated: "2026-09-03T16:38:00Z"
 
 approvals:
   specification:
@@ -342,6 +383,11 @@ attempts:
     outcome: succeeded
     approach: Restore the server after disposable cleanup exposed inherited zellij ownership, then add forward and legacy cleanup guards with deterministic tests.
     recorded_at: "2026-09-03T16:34:00Z"
+  - id: ATT-9
+    task_id: TASK-4
+    outcome: succeeded
+    approach: Fork the failed historical conversation immediately before its empty assistant row and verify the same provider and preserved context return PROVIDER_OK without mutating the original.
+    recorded_at: "2026-09-03T16:38:00Z"
 
 demonstration:
   eligibility:
@@ -352,11 +398,11 @@ demonstration:
     verification_ids: [T-BOOTSTRAP, T-MIRROR-RECOVERY, T-PROVIDER-RETRY]
 
 handoff:
-  current_task_id: TASK-4
-  status: in_progress
-  last_verified: "2026-09-03T16:17:00Z"
-  last_verified_commit: 68a63f563a58307d20281be6cd9c79a8a3b267cc
-  next_action: Capture the exact active-chat set, activate the production-storage release in one controlled restart, and run disposable bootstrap and provider-failure probes before selected recovery.
-  command: python3 scripts/sessions.py opencode-restart capture
-  expected_outcome: Restart input is an immutable busy-chat manifest and no historical chat is mass-resumed.
+  current_task_id: TASK-5
+  status: complete
+  last_verified: "2026-09-03T16:38:00Z"
+  last_verified_commit: b5f480efc00a40f72892fd7c8288afcbffb676dd
+  next_action: Resume affected historical chats only when the user chooses; reconcile preserved canonical changes through separately reviewed clean sessions.
+  command: python3 scripts/sessions.py chat read ses_f98a71775ffegDh2g8pcKKxZsz
+  expected_outcome: The original chat and user turn remain durable and can be resumed without mass-resuming unrelated historical work.
   blocker: null
