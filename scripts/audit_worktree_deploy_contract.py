@@ -44,6 +44,8 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
     ],
     "scripts/worktree-reconciliation-setup.sh": [
         "worktree-reconciliation.service",
+        "OPENMATES_RECONCILIATION_RUNTIME_ROOT",
+        "EXECUTION_ROOT",
         "worktree expire --max-age-hours 72",
         "git fetch origin dev",
         "worktree reconcile --target origin/dev --idle-hours 48 --apply-safe",

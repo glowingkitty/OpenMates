@@ -243,6 +243,7 @@ WORKTREE_ROOT_HANDOFF_DENIED_PATHS = frozenset({"config.json"})
 WORKTREE_ROOT_HANDOFF_DENIED_PREFIXES = (".git/", "logs/nightly-reports/")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
+WORKTREE_ORPHAN_RECOVERY_DIR = CONTROL_PLANE_ROOT.parent / ".openmates-worktree-recovery"
 DEFAULT_REPO_ID = "openmates"
 OPENMATESCLOUD_REPO_ID = "openmatescloud"
 OPENMATESCLOUD_REPO_ROOT = (CONTROL_PLANE_ROOT.parent / "OpenMatesCloud").resolve()
@@ -4988,6 +4989,31 @@ def _candidate_changed_files(path: Path, metadata: dict | None) -> list[str]:
     return _worktree_changed_files(effective)
 
 
+def _missing_managed_worktree_gitdir(path: Path) -> str:
+    """Return a missing Git administrative path referenced by one managed worktree."""
+    if not is_valid_managed_worktree_path(path) or not path.is_dir():
+        return ""
+    marker = path / ".git"
+    try:
+        marker_text = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    prefix = "gitdir: "
+    if not marker_text.startswith(prefix):
+        return ""
+    gitdir = Path(marker_text[len(prefix):].strip())
+    if not gitdir.is_absolute():
+        gitdir = (path / gitdir).resolve(strict=False)
+    else:
+        gitdir = gitdir.resolve(strict=False)
+    expected_root = (CONTROL_PLANE_ROOT / ".git" / "worktrees").resolve(strict=False)
+    try:
+        gitdir.relative_to(expected_root)
+    except ValueError:
+        return ""
+    return str(gitdir) if not gitdir.exists() else ""
+
+
 def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -> list[dict]:
     """Join sessions, linked worktrees, and physical worktree directories."""
     data = _load_sessions()
@@ -5060,6 +5086,8 @@ def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -
                 "idle_hours": idle_hours,
                 "changed_files": changed_files,
                 "inspection_error": inspection_error,
+                "path_exists": path.is_dir(),
+                "missing_gitdir": _missing_managed_worktree_gitdir(path),
             }
         )
     return candidates
@@ -5432,6 +5460,12 @@ def _classify_worktree_candidate(
     if session_id in approved_obsolete:
         result.update(classification="superseded", reason_code="review_approved_obsolete")
         return result
+    if result.get("path_exists") is False:
+        result.update(classification="missing_worktree", reason_code="registered_path_missing")
+        return result
+    if result.get("missing_gitdir"):
+        result.update(classification="orphaned_git_metadata", reason_code="git_admin_missing")
+        return result
     if result.get("inspection_error"):
         result.update(classification="malformed", reason_code="inspection_failed")
         return result
@@ -5498,6 +5532,33 @@ def _remove_reconciled_worktree(candidate: dict) -> None:
     _run_cmd(["git", "worktree", "prune"])
 
 
+def _quarantine_orphaned_worktree(candidate: dict) -> Path:
+    """Move an unreadable managed worktree aside without deleting source bytes."""
+    source = _validate_managed_worktree_path(str(candidate.get("path") or ""))
+    if not source.is_dir() or not _missing_managed_worktree_gitdir(source):
+        raise RuntimeError(f"Refusing to quarantine a worktree without missing Git metadata: {source}")
+    try:
+        WORKTREE_ORPHAN_RECOVERY_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(f"Could not create orphan recovery directory: {exc}") from exc
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    destination = WORKTREE_ORPHAN_RECOVERY_DIR / f"{source.name}-{timestamp}-{secrets.token_hex(3)}"
+    try:
+        shutil.move(str(source), str(destination))
+    except OSError as exc:
+        raise RuntimeError(f"Could not quarantine orphaned worktree {source}: {exc}") from exc
+    if source.exists() or not destination.is_dir():
+        raise RuntimeError(f"Could not quarantine orphaned worktree {source}")
+    _run_cmd(["git", "worktree", "prune"])
+    return destination
+
+
+def _retained_worktree_checkpoint_ref(session_id: str) -> str:
+    checkpoint_ref = _worktree_checkpoint_ref(session_id)
+    rc, _stdout, _stderr = _run_cmd(["git", "show-ref", "--verify", "--quiet", checkpoint_ref])
+    return checkpoint_ref if rc == 0 else ""
+
+
 def _refresh_reconciliation_candidate(
     candidate: dict,
     data: dict,
@@ -5524,6 +5585,8 @@ def _refresh_reconciliation_candidate(
     except (OSError, RuntimeError) as exc:
         fresh["changed_files"] = []
         fresh["inspection_error"] = str(exc)
+    fresh["path_exists"] = path.is_dir()
+    fresh["missing_gitdir"] = _missing_managed_worktree_gitdir(path)
     fresh["last_active"] = _candidate_last_active(session, metadata or {}, path, fresh["changed_files"])
     try:
         fresh["idle_hours"] = _hours_since(fresh["last_active"]) if fresh["last_active"] else float("inf")
@@ -5591,7 +5654,14 @@ def reconcile_session_worktrees(
             item = _classify_worktree_candidate(candidate, target_commit, idle_hours, approved)
         items.append(item)
 
-    safe_classes = {"integrated", "duplicated", "superseded", "disposable_integration"}
+    safe_classes = {
+        "integrated",
+        "duplicated",
+        "superseded",
+        "disposable_integration",
+        "missing_worktree",
+        "orphaned_git_metadata",
+    }
     deletable = [
         item for item in items
         if item.get("classification") in safe_classes and float(item.get("idle_hours", float("inf"))) >= idle_hours
@@ -5615,7 +5685,11 @@ def reconcile_session_worktrees(
                 ):
                     continue
                 try:
-                    _remove_reconciled_worktree(fresh)
+                    recovery_path = ""
+                    if fresh.get("classification") == "orphaned_git_metadata":
+                        recovery_path = str(_quarantine_orphaned_worktree(fresh))
+                    else:
+                        _remove_reconciled_worktree(fresh)
                 except RuntimeError as exc:
                     fresh["classification"] = "cleanup_blocked"
                     fresh["reason_code"] = "remove_failed"
@@ -5635,6 +5709,12 @@ def reconcile_session_worktrees(
                         "changed_file_count": len(fresh.get("changed_files") or []),
                         "head": str(fresh.get("head") or ""),
                         "target_commit": target_commit,
+                        "recovery_path": recovery_path,
+                        "checkpoint_ref": (
+                            _retained_worktree_checkpoint_ref(session_id)
+                            if fresh.get("classification") == "orphaned_git_metadata"
+                            else ""
+                        ),
                         "deleted_at": _now_iso(),
                     }
                 )

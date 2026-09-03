@@ -137,6 +137,69 @@ def test_orphan_activity_fallback_ignores_recent_directory_metadata(monkeypatch,
     assert last_active == sessions.datetime.fromtimestamp(old_timestamp, sessions.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def test_orphaned_git_metadata_is_quarantined_with_source_bytes(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    control_root = tmp_path / "OpenMates"
+    managed = control_root / ".openmates-agent-worktrees"
+    worktree = managed / "agent-old"
+    missing_gitdir = control_root / ".git" / "worktrees" / "agent-old"
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text(f"gitdir: {missing_gitdir}\n", encoding="utf-8")
+    (worktree / "recovery.txt").write_text("preserve me\n", encoding="utf-8")
+    recovery_root = tmp_path / ".openmates-worktree-recovery"
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", control_root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
+    monkeypatch.setattr(sessions, "WORKTREE_ORPHAN_RECOVERY_DIR", recovery_root)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "", ""))
+
+    detected = sessions._missing_managed_worktree_gitdir(worktree)
+    destination = sessions._quarantine_orphaned_worktree({"path": str(worktree)})
+
+    assert detected == str(missing_gitdir)
+    assert not worktree.exists()
+    assert destination.parent == recovery_root
+    assert (destination / "recovery.txt").read_text(encoding="utf-8") == "preserve me\n"
+
+
+def test_safe_reconciliation_records_orphan_quarantine(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps({"sessions": {"old": {"worktree": {"path": "/tmp/agent-old"}}}}),
+        encoding="utf-8",
+    )
+    candidate = {
+        "session_id": "old",
+        "path": "/tmp/agent-old",
+        "path_exists": True,
+        "missing_gitdir": "/repo/.git/worktrees/agent-old",
+        "idle_hours": 100,
+        "changed_files": [],
+        "inspection_error": "fatal: not a git repository",
+        "metadata": {},
+    }
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, "target", ""))
+    monkeypatch.setattr(sessions, "_discover_worktree_candidates", lambda: [candidate])
+    monkeypatch.setattr(sessions, "_refresh_reconciliation_candidate", lambda item, *_args: item)
+    monkeypatch.setattr(sessions, "_quarantine_orphaned_worktree", lambda _item: Path("/recovery/agent-old"))
+    monkeypatch.setattr(
+        sessions,
+        "_remove_reconciled_worktree",
+        lambda _item: (_ for _ in ()).throw(AssertionError("orphan was deleted instead of quarantined")),
+    )
+
+    report = sessions.reconcile_session_worktrees(target_ref="origin/dev", idle_hours=48, apply_safe=True)
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+
+    assert report["deleted"] == ["old"]
+    assert "old" not in data["sessions"]
+    manifest = data["worktree_deletion_manifests"][0]
+    assert manifest["classification"] == "orphaned_git_metadata"
+    assert manifest["recovery_path"] == "/recovery/agent-old"
+    assert manifest["checkpoint_ref"] == "refs/openmates/checkpoints/old"
+
+
 def test_reconciliation_report_persists_unresolved_health_summary(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     report_path = tmp_path / "worktree-reconciliation.json"

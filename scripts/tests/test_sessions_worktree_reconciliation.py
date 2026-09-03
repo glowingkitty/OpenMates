@@ -112,6 +112,42 @@ def test_inspection_error_is_never_safe_deletable():
     assert result["reason_code"] == "inspection_failed"
 
 
+def test_missing_registered_worktree_is_retirable_after_idle_threshold(tmp_path):
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "missing",
+        "path": str(tmp_path / "agent-missing"),
+        "path_exists": False,
+        "idle_hours": 100,
+        "changed_files": [],
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "missing_worktree"
+    assert result["reason_code"] == "registered_path_missing"
+
+
+def test_missing_git_admin_is_recoverable_not_generic_malformed(tmp_path):
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "orphan",
+        "path": str(tmp_path / "agent-orphan"),
+        "path_exists": True,
+        "missing_gitdir": "/repo/.git/worktrees/agent-orphan",
+        "idle_hours": 100,
+        "changed_files": [],
+        "inspection_error": "fatal: not a git repository",
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "orphaned_git_metadata"
+    assert result["reason_code"] == "git_admin_missing"
+
+
 def test_dirty_integration_worktree_is_never_disposable():
     sessions = load_sessions_module()
     candidate = {
