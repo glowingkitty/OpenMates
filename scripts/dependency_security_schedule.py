@@ -18,6 +18,15 @@ END_MARKER = "# END OpenMates dev dependency security"
 SCANNER_NAMES = ("check-dependabot-daily.sh", "check-eu-vulns-daily.sh")
 
 
+def default_project_root() -> Path:
+    """Use the canonical dev checkout even when invoked from a session worktree."""
+    script_root = Path(__file__).resolve().parent.parent
+    marker = ".openmates-agent-worktrees"
+    if marker in script_root.parts:
+        return Path(*script_root.parts[: script_root.parts.index(marker)])
+    return script_root
+
+
 def render_crontab(existing: str, project_root: Path) -> str:
     """Return a crontab with one canonical dependency-security block."""
     retained: list[str] = []
@@ -61,7 +70,7 @@ def main() -> int:
     parser.add_argument(
         "--project-root",
         type=Path,
-        default=Path(__file__).resolve().parent.parent,
+        default=default_project_root(),
     )
     args = parser.parse_args()
     if args.install == args.check:
