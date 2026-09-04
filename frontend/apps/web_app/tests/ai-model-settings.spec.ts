@@ -204,7 +204,7 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 	await proof.assert('ai-model-routing.catalog.provider-models', async () => {
 		const fable = providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.1' });
 		await expect(fable).toBeVisible();
-		await expect(fable.getByTestId('ai-capability-scale')).toHaveAttribute('data-level', 'max');
+		await expect(fable).toContainText('Max capabilities');
 		await expect(providerCatalog.getByText(/Recommended/i).first()).toBeVisible();
 		await expect(settingsMenu).not.toContainText('[T:');
 	});
