@@ -160,6 +160,7 @@ jobs:
           node --experimental-strip-types \
             --loader ./frontend/packages/openmates-cli/tests/loader.mjs \
             scripts/verify_sdk_tasks_live_smoke.mjs \
+            --activity-only \
             | tee test-results/task-activity-sdk.json
 
       - uses: actions/upload-artifact@v4

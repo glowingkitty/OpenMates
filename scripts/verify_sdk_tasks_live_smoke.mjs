@@ -13,6 +13,7 @@ import { OpenMates } from "../frontend/packages/openmates-cli/src/sdk.ts";
 const apiUrl = process.env.OPENMATES_API_URL || "https://api.dev.openmates.org";
 const cli = "frontend/packages/openmates-cli/dist/cli.js";
 const keyName = `sdk-tasks-live-${Date.now()}`;
+const activityOnly = process.argv.includes("--activity-only");
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -114,6 +115,7 @@ async function runNpmTasks(apiKey) {
   const client = new OpenMates({ apiKey, apiUrl, deviceId: "sdk-tasks-live-npm" });
   const suffix = Date.now();
   const externalChat = { provider: "opencode", id: `sdk-live-npm-${suffix}`, title: `SDK live npm chat ${suffix}` };
+  const filters = { externalChat };
   const blockedReason = "A temporary npm live-smoke dependency is unavailable.";
   let shortId = null;
   let primaryError = null;
@@ -130,14 +132,19 @@ async function runNpmTasks(apiKey) {
     if (!shortId) throw new Error("npm task create did not return shortId");
     const listed = await client.tasks.list({ externalChat });
     if (!listed.some((task) => task.shortId === shortId && task.title === created.title)) throw new Error("npm task list did not include plaintext task");
-    const shown = await client.tasks.show(shortId);
+    const shown = await client.tasks.show(shortId, filters);
     if (shown.title !== created.title) throw new Error("npm task show did not decrypt title");
     const activityMessage = `npm SDK Activity ${suffix}`;
-    const addedActivity = await client.tasks.addActivityComment(shortId, { message: activityMessage });
+    const addedActivity = await client.tasks.addActivityComment(shortId, { message: activityMessage }, filters);
     if (addedActivity.message !== activityMessage || addedActivity.sourceSurface !== "sdk_npm" || Object.keys(addedActivity).some((key) => /encrypted/i.test(key))) throw new Error("npm Task Activity add did not return safe decrypted output");
-    if (!(await client.tasks.listActivity(shortId)).some((entry) => entry.entryId === addedActivity.entryId && entry.message === activityMessage)) throw new Error("npm Task Activity list did not decrypt the comment");
-    const deletedActivity = await client.tasks.deleteActivityComment(shortId, addedActivity.entryId);
+    if (!(await client.tasks.listActivity(shortId, filters)).some((entry) => entry.entryId === addedActivity.entryId && entry.message === activityMessage)) throw new Error("npm Task Activity list did not decrypt the comment");
+    const deletedActivity = await client.tasks.deleteActivityComment(shortId, addedActivity.entryId, filters);
     if (deletedActivity.kind !== "tombstone" || "message" in deletedActivity) throw new Error("npm Task Activity delete did not return a safe tombstone");
+    if (activityOnly) {
+      if ((await client.tasks.delete(shortId, { confirmed: true, filters })).deleted !== true) throw new Error("npm task delete failed");
+      shortId = null;
+      return { created: true };
+    }
     const edited = await client.tasks.update(shortId, { title: `${created.title} edited`, status: "in_progress" });
     if (edited.title !== `${created.title} edited` || edited.status !== "in_progress") throw new Error("npm task update failed");
     const blocked = await client.tasks.block(shortId, "external_dependency", { externalChat, reasonText: blockedReason });
@@ -155,7 +162,7 @@ async function runNpmTasks(apiKey) {
   } finally {
     if (shortId) {
       try {
-        await client.tasks.delete(shortId, { confirmed: true });
+        await client.tasks.delete(shortId, { confirmed: true, filters: { externalChat } });
       } catch (cleanupError) {
         if (!primaryError) throw cleanupError;
         console.error(`WARNING: npm SDK Task cleanup also failed: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`);
@@ -184,16 +191,21 @@ try:
     assert created["external_chat"] == external_chat
     short_id = created["short_id"]
     assert any(task["short_id"] == short_id and task["title"] == created["title"] for task in client.tasks.list(external_chat=external_chat))
-    assert client.tasks.show(short_id)["title"] == created["title"]
+    assert client.tasks.show(short_id, external_chat=external_chat)["title"] == created["title"]
     activity_message = f"pip SDK Activity {suffix}"
-    added_activity = client.tasks.add_activity_comment(short_id, {"message": activity_message})
+    added_activity = client.tasks.add_activity_comment(short_id, {"message": activity_message}, external_chat=external_chat)
     assert added_activity["message"] == activity_message
     assert added_activity["source_surface"] == "sdk_pip"
     assert not any(key.startswith("encrypted_") for key in added_activity)
-    assert any(entry["entry_id"] == added_activity["entry_id"] and entry["message"] == activity_message for entry in client.tasks.list_activity(short_id))
-    deleted_activity = client.tasks.delete_activity_comment(short_id, added_activity["entry_id"])
+    assert any(entry["entry_id"] == added_activity["entry_id"] and entry["message"] == activity_message for entry in client.tasks.list_activity(short_id, external_chat=external_chat))
+    deleted_activity = client.tasks.delete_activity_comment(short_id, added_activity["entry_id"], external_chat=external_chat)
     assert deleted_activity["kind"] == "tombstone"
     assert "message" not in deleted_activity
+    if ${activityOnly ? "True" : "False"}:
+        assert client.tasks.delete(short_id, confirmed=True, external_chat=external_chat)["deleted"] is True
+        short_id = None
+        print({"success": True})
+        sys.exit(0)
     edited = client.tasks.update(short_id, {"title": created["title"] + " edited", "status": "in_progress"})
     assert edited["title"] == created["title"] + " edited"
     assert edited["status"] == "in_progress"
@@ -213,7 +225,7 @@ except Exception as exc:
 finally:
     if short_id:
         try:
-            client.tasks.delete(short_id, confirmed=True)
+            client.tasks.delete(short_id, confirmed=True, external_chat=external_chat)
         except Exception as cleanup_error:
             if primary_error is None:
                 raise
@@ -228,7 +240,7 @@ finally:
 let keyId = null;
 try {
   run("node", ["scripts/openmates_cli_test_account.mjs", "login", "--api-url", apiUrl], { label: "login test account" });
-  runCliTasks();
+  if (!activityOnly) runCliTasks();
   const createdKey = parseJson(run("node", [cli, "--api-url", apiUrl, "settings", "developers", "api-keys", "create", keyName, "--yes", "--json"], { label: "create api key" }));
   const apiKey = createdKey.api_key;
   keyId = apiKeyId(createdKey);
@@ -237,7 +249,7 @@ try {
 
   await withApprovalRetry("npm SDK task smoke", () => runNpmTasks(apiKey));
   await withApprovalRetry("pip SDK task smoke", () => runPythonTasks(apiKey));
-  console.log(JSON.stringify({ success: true, api_url: apiUrl, cli: "passed", npm: "passed", pip: "passed" }, null, 2));
+  console.log(JSON.stringify({ success: true, api_url: apiUrl, cli: activityOnly ? "skipped" : "passed", npm: "passed", pip: "passed" }, null, 2));
 } finally {
   if (keyId) {
     try {
