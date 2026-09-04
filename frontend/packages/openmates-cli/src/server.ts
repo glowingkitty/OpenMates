@@ -115,6 +115,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
 };
 const CORE_NO_WEBAPP_TEMPLATE_FILE = join("core", "docker-compose.no-webapp.yml");
 const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
+const CORE_ALERTMANAGER_CONFIG_FILE = join("backend", "core", "monitoring", "alertmanager", "alertmanager.yml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -765,6 +766,10 @@ function packagedCaddyTemplatePath(role: ServerRole): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "caddy", role, "Caddyfile");
 }
 
+function packagedCoreAlertmanagerTemplatePath(): string {
+  return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "alertmanager", "alertmanager.yml");
+}
+
 function readOfficialCloudNoWebappComposeTemplate(): string {
   const packaged = packagedNoWebappTemplatePath();
   if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
@@ -828,6 +833,11 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
     writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
+    const alertmanagerTemplatePath = packagedCoreAlertmanagerTemplatePath();
+    if (!existsSync(alertmanagerTemplatePath)) throw new Error(`Packaged Alertmanager config not found: ${alertmanagerTemplatePath}`);
+    const alertmanagerConfigPath = join(installPath, CORE_ALERTMANAGER_CONFIG_FILE);
+    mkdirSync(dirname(alertmanagerConfigPath), { recursive: true });
+    copyFileSync(alertmanagerTemplatePath, alertmanagerConfigPath);
   }
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
   ensureImageRuntimeConfig(installPath);
@@ -2402,8 +2412,10 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
 function runtimeNotificationConfig(installPath: string) {
   const env = readEnvMap(installPath);
   const value = (key: string): string | undefined => process.env[key] || env[key] || undefined;
-  const deploymentMode = getInstallDeploymentMode(installPath, loadConfigForInstallPath(installPath));
+  const serverConfig = loadConfigForInstallPath(installPath);
+  const deploymentMode = getInstallDeploymentMode(installPath, serverConfig);
   const serverEnvironment = value("SERVER_ENVIRONMENT") === "production" ? "production" : "development";
+  const environment: RuntimeNotificationPayload["environment"] = deploymentMode === "self_host" ? "self_host" : serverEnvironment;
   const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
   const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
   const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
@@ -2429,6 +2441,10 @@ function runtimeNotificationConfig(installPath: string) {
       : value("DISCORD_WEBHOOK_DEV_NIGHTLY") || value("DISCORD_WEBHOOK_DEV_SMOKE");
   const discordWebhookUrl = canonicalDiscordWebhookUrl || fallbackDiscordWebhookUrl;
   return {
+    environment,
+    deploymentMode,
+    serverName: value("OPENMATES_RUNTIME_SERVER_NAME"),
+    version: value("OPENMATES_IMAGE_TAG") || serverConfig?.imageTag || "source",
     email,
     discordWebhookUrl,
     discordDestinationSource: canonicalDiscordWebhookUrl
@@ -2531,11 +2547,22 @@ async function dispatchRuntimeEvent(
   occurredAt: string,
 ): Promise<RuntimeNotificationDelivery[]> {
   const failedChecks = checks.filter((check) => check.status === "failed");
-  return deliverRuntimeNotification(runtimeNotificationConfig(installPath), {
+  const notificationConfig = runtimeNotificationConfig(installPath);
+  const reportedChecks = failedChecks.length ? failedChecks : checks;
+  return deliverRuntimeNotification(notificationConfig, {
     role,
     kind,
     occurredAt,
-    checkIds: (failedChecks.length ? failedChecks : checks).map((check) => check.id),
+    environment: notificationConfig.environment,
+    serverName: notificationConfig.serverName || `${notificationConfig.environment}-${role}`,
+    deploymentMode: notificationConfig.deploymentMode,
+    version: notificationConfig.version,
+    checkIds: reportedChecks.map((check) => check.id),
+    checkDetails: reportedChecks.map((check) => ({
+      id: check.id,
+      failureClass: check.failureClass,
+      reason: check.sanitized_reason,
+    })),
     sanitizedReason: failedChecks[0]?.sanitized_reason ?? (kind === "recovery" ? "required_checks_recovered" : "runtime_health_event"),
   });
 }
@@ -3327,6 +3354,10 @@ async function serverNotifications(rest: string[], flags: Record<string, string 
     role,
     kind: eventKind as RuntimeNotificationPayload["kind"],
     occurredAt: new Date().toISOString(),
+    environment: notificationConfig.environment,
+    serverName: notificationConfig.serverName || `${notificationConfig.environment}-${role}`,
+    deploymentMode: notificationConfig.deploymentMode,
+    version: notificationConfig.version,
     checkIds: [eventKind === "delivery_test" ? "monitor" : "core.object_storage"],
     sanitizedReason: eventKind === "recovery" ? "storage_available" : eventKind === "delivery_test" ? "operator_requested_delivery_test" : "storage_unavailable",
   });

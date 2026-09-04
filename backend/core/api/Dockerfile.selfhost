@@ -47,6 +47,7 @@ RUN test -s /shared/config/pricing.yml && test -s /shared/config/urls.yml
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
 COPY frontend/apps/web_app/static/newsletter-assets /app/frontend/apps/web_app/static/newsletter-assets
+RUN test -s /app/frontend/packages/ui/src/i18n/locales/en.json
 
 RUN mkdir -p /app/logs /app/backend/core/api/logs /celerybeat-data \
     && chmod -R 777 /app/logs /app/backend/core/api/logs \

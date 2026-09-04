@@ -65,7 +65,12 @@ export type RuntimeNotificationPayload = {
   role: ServerRole;
   kind: RuntimeNotificationDecision["kind"] | "post_update_failed" | "service_unhealthy" | "critical" | "monitor_stale" | "recovered" | "daily_heartbeat" | "delivery_test";
   occurredAt: string;
+  environment: OperationalEnvironment;
+  serverName: string;
+  deploymentMode: "official_cloud" | "self_host";
+  version: string;
   checkIds: string[];
+  checkDetails?: Array<{ id: string; failureClass?: string; reason?: string }>;
   sanitizedReason: string;
 };
 
@@ -686,21 +691,66 @@ export async function sendDiscordWebhook(target: string, payload: RuntimeNotific
     method: "POST",
     redirect: "error",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ content: `[OpenMates ${payload.role}] ${payload.kind}: ${payload.sanitizedReason}` }),
+    body: JSON.stringify({ content: `[OpenMates ${payload.environment.toUpperCase()} ${payload.serverName} ${payload.role}] ${payload.kind}: ${payload.sanitizedReason}` }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!response.ok) throw new Error(`discord_delivery_failed:${response.status}`);
+}
+
+function runtimeCheckAction(checkId: string): string {
+  if (checkId === "billing.health_freshness") {
+    return "Review Stripe readiness, repair the configured destination, then rerun `openmates server verify --json`.";
+  }
+  return "Inspect the named service and rerun `openmates server verify --json`.";
+}
+
+export function buildRuntimeEmail(payload: RuntimeNotificationPayload): { subject: string; textContent: string } {
+  const status = payload.kind === "recovery" || payload.kind === "recovered"
+    ? "recovered"
+    : payload.kind === "daily_heartbeat"
+      ? "healthy"
+      : payload.kind === "delivery_test"
+        ? "notification test"
+        : "degraded";
+  const details: Array<{ id: string; failureClass?: string; reason?: string }> = payload.checkDetails?.length
+    ? payload.checkDetails
+    : payload.checkIds.map((id) => ({ id, reason: payload.sanitizedReason }));
+  const checkSections = details.map((check) => [
+    `Check: ${check.id}`,
+    `Failure class: ${check.failureClass ?? "not_reported"}`,
+    `Reason: ${check.reason ?? payload.sanitizedReason}`,
+    `Next action: ${runtimeCheckAction(check.id)}`,
+  ].join("\n"));
+
+  return {
+    subject: `[${payload.environment.toUpperCase()}] OpenMates ${payload.role} ${status}: ${payload.checkIds.join(", ") || payload.kind}`,
+    textContent: [
+      "OpenMates runtime health alert",
+      "",
+      `Environment: ${payload.environment}`,
+      `Server: ${payload.serverName}`,
+      `Deployment: ${payload.deploymentMode}`,
+      `Role: ${payload.role}`,
+      `Version: ${payload.version}`,
+      `Event: ${payload.kind}`,
+      `Status: ${status}`,
+      `Detected: ${payload.occurredAt}`,
+      "",
+      ...checkSections,
+    ].join("\n"),
+  };
 }
 
 export async function sendRuntimeEmail(
   config: NonNullable<RuntimeNotificationConfig["email"]>,
   payload: RuntimeNotificationPayload,
 ): Promise<void> {
+  const email = buildRuntimeEmail(payload);
   await requestBrevo("/v3/smtp/email", "POST", config.apiKey, {
     sender: { email: config.from },
     to: [{ email: config.to }],
-    subject: `[OpenMates ${payload.role}] ${payload.kind}`,
-    textContent: `${payload.sanitizedReason}\nChecks: ${payload.checkIds.join(", ")}\nTime: ${payload.occurredAt}`,
+    subject: email.subject,
+    textContent: email.textContent,
   });
 }
 

@@ -381,7 +381,7 @@ async def _check_billing_freshness() -> None:
         raw = await client.get("health_check:external:stripe")
         payload = json.loads(raw) if raw else {}
         if payload.get("status") != "healthy" or time.time() - int(payload.get("last_check", 0)) > 60 * 60:
-            raise RuntimeError("billing_health_stale")
+            raise CheckFailed("billing_health_stale")
     finally:
         await client.aclose()
 

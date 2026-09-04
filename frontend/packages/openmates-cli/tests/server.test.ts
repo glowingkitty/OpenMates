@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { parse as parseYaml } from "yaml";
 
 // Use dynamic imports to avoid ESM .js extension resolution issues with
 // --experimental-strip-types. tsx handles this automatically, but we use
@@ -85,6 +86,7 @@ import {
   buildUpdateCompletionEmail,
   buildUpdateCompletionOutcome,
   buildOperationalDeliveryReceipt,
+  buildRuntimeEmail,
   deliverUpdateCompletionEmail,
   evaluateOperationalReportFreshness,
   isBrevoIdempotencyDuplicate,
@@ -875,6 +877,17 @@ describe("role-based server planning", () => {
     assert.match(promtailBlock, /-config\.file=\/etc\/promtail\/promtail-config\.yaml/);
     assert.match(source, /CORE_PROMTAIL_CONFIG_FILE = join\("backend", "core", "monitoring", "promtail", "promtail-config\.yaml"\)/);
     assert.match(source, /writeFileSync\(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE\)/);
+  });
+
+  it("packages Alertmanager config for image installs and updates", () => {
+    const packaged = readFileSync(new URL("../templates/core/monitoring/alertmanager/alertmanager.yml", import.meta.url), "utf-8");
+    const canonical = readFileSync(new URL("../../../../backend/core/monitoring/alertmanager/alertmanager.yml", import.meta.url), "utf-8");
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+
+    assert.deepEqual(parseYaml(packaged), parseYaml(canonical));
+    assert.match(source, /CORE_ALERTMANAGER_CONFIG_FILE = join\("backend", "core", "monitoring", "alertmanager", "alertmanager\.yml"\)/);
+    assert.match(source, /copyFileSync\(alertmanagerTemplatePath, alertmanagerConfigPath\)/);
+    assert.match(source, /version: value\("OPENMATES_IMAGE_TAG"\) \|\| serverConfig\?\.imageTag \|\| "source"/);
   });
 
   it("keeps packaged core task workers wired to Vault and config volumes", () => {
@@ -1700,5 +1713,36 @@ describe("hasLlmCredentials", () => {
       "OTHER_VAR=something",
     ].join("\n") + "\n");
     assert.equal(hasLlmCredentials(tempEnv), true);
+  });
+});
+
+describe("runtime notification email", () => {
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.environments.isolated-labeled
+  it("labels alerts with server identity and actionable check details", () => {
+    const email = buildRuntimeEmail({
+      role: "core",
+      kind: "post_update_failed",
+      occurredAt: "2026-09-04T13:52:27.000Z",
+      environment: "production",
+      serverName: "production-core",
+      deploymentMode: "official_cloud",
+      version: "v0.17.0",
+      checkIds: ["billing.health_freshness"],
+      checkDetails: [{ id: "billing.health_freshness", failureClass: "billing_health_stale", reason: "check_failed" }],
+      sanitizedReason: "check_failed",
+    });
+
+    assert.equal(email.subject, "[PRODUCTION] OpenMates core degraded: billing.health_freshness");
+    for (const expected of [
+      "Environment: production",
+      "Server: production-core",
+      "Deployment: official_cloud",
+      "Version: v0.17.0",
+      "Check: billing.health_freshness",
+      "Failure class: billing_health_stale",
+      "Next action: Review Stripe readiness, repair the configured destination, then rerun `openmates server verify --json`.",
+    ]) {
+      assert.match(email.textContent, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
   });
 });
