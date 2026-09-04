@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 4
+version: 5
 status: draft
 title: Assistant Response Speech
 summary: >
@@ -327,6 +327,10 @@ models:
       constraints: {playing_segment_normal_emphasis: true, other_segments_temporarily_muted: true, paused_or_closed_restores_equal_emphasis: true}
 
   ResponseSpeakAction:
+    placement:
+      type: layout_invariant
+      required: true
+      constraints: {adjacent_to_mate_name: true, assistant_identity_row: true, generated_by_footer: false}
     default_presentation:
       type: compact_icon_action
       required: true
@@ -349,6 +353,10 @@ assertions:
     type: invariant
     must: The initial processing acknowledgement is selected deterministically from prerecorded clips using the resolved mate voice profile, response language, and preprocessor request category; missing exact matches use a documented deterministic fallback, never invoke runtime TTS or another inference pass, incur no runtime generation credit charge, start without waiting for optional thinking or app-skill execution, and show the top speech bar in passive waveform mode without track-navigation controls.
     depends_on: [models.AcknowledgementClip, models.MateVoiceProfile, examples.acknowledgements]
+  - id: assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds
+    type: behavior
+    must: Within five seconds after an Auto speak response send is accepted, the web client presents useful speech feedback by either starting the prerecorded acknowledgement or showing the explicit autoplay-recovery action; this client-observed threshold is independent from generated ElevenLabs segment latency, which is measured separately with a real-provider smoke and never hidden by fixture-only evidence.
+    depends_on: [models.AcknowledgementClip, models.PlaybackQueue.state, examples.acknowledgements, examples.failures]
   - id: assistant-speech.voice.fixed-versioned-mate-profile
     type: security
     must: Each mate resolves to one product-curated, versioned voice profile with a deterministic language-compatible fallback; assistant-message speech uses Eleven v3 Conversational for expressive low-latency output while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model; clients cannot submit or discover raw provider voice IDs, request voice cloning, or silently substitute an unapproved provider or model.
@@ -430,7 +438,7 @@ assertions:
     depends_on: [models.PlaybackQueue.state, examples.failures]
   - id: assistant-speech.on-demand.generate-missing-only
     type: behavior
-    must: Every assistant response exposes a compact audio-icon Speak action whose localized Speak response label expands smoothly on pointer hover and keyboard focus and remains available as an accessible name on touch; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
+    must: Every assistant response exposes a compact audio-icon Speak action beside the mate name in the assistant identity row, never in the generated-by footer; its localized Speak response label expands smoothly on pointer hover and keyboard focus and remains available as an accessible name on touch; selecting it starts with reusable current segment files, requests only missing or invalidated segments, begins playback after the first segment is ready, and never regenerates or recharges a matching ready source hash and voice-profile version.
     depends_on: [models.ResponseSpeakAction, models.SpeechManifest, models.SpeechSegment.source_hash, examples.on_demand]
   - id: assistant-speech.cli.owner-generated-existing-messages
     type: behavior
