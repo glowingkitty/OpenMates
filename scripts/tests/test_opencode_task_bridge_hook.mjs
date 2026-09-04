@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * OpenCode hook contracts for request-only OpenMates Task context and
+ * OpenCode hook Specification tests for request-only OpenMates Task context and
  * response-boundary reconciliation. These tests use exported pure helpers so
  * they cannot call the live CLI, mutate sessions, or prompt a real chat.
  */

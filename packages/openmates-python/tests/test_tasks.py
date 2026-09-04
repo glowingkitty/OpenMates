@@ -1,7 +1,7 @@
-"""Python SDK user task contract tests.
+"""Python SDK user Task Specification tests.
 
 Purpose: verify the pip SDK encrypts/decrypts task content behind plaintext
-task helpers, matching the CLI contract without real network calls.
+task helpers, matching the CLI Specification behavior without real network calls.
 Security: monkeypatches requests; no API keys or task payloads leave tests.
 Run: python3 -m pytest packages/openmates-python/tests/test_tasks.py
 """

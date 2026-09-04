@@ -4,7 +4,7 @@
  *
  * Uses the deterministic component preview to verify the Figma-aligned content,
  * responsive layout, keyboard close behavior, and visible linked-work context.
- * Product contract: contracts/features/tasks/contract.yml
+ * Product Specification: specifications/features/tasks/specification.yml
  */
 export {};
 

@@ -1,7 +1,7 @@
 /**
  * Unit tests for OpenMates user task CLI client methods.
  *
- * Purpose: lock the shared encrypted /v1/user-tasks contract without a real API.
+ * Purpose: lock the shared encrypted /v1/user-tasks Specification behavior without a real API.
  * Security: uses a local HTTP server and synthetic session only; no account data
  * or task ciphertext leaves the process.
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts

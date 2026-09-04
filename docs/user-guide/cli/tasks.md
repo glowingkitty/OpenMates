@@ -16,7 +16,7 @@ Task Activity uses ordinary comments and server-generated lifecycle rows:
 
 ```bash
 openmates tasks activity list TASK-1234
-openmates tasks activity add TASK-1234 --message "The API contract is green."
+openmates tasks activity add TASK-1234 --message "The API specification behavior is verified."
 openmates tasks activity delete TASK-1234 <entry-id>
 ```
 

@@ -1,5 +1,5 @@
 /**
- * OpenMates npm SDK user task contract tests.
+ * OpenMates npm SDK user Task Specification tests.
  *
  * Purpose: verify API-key SDK task CRUD/start parity with CLI and pip.
  * Security: uses a local HTTP server and synthetic API key only; no task data or

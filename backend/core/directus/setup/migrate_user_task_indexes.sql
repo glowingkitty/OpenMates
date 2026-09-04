@@ -92,21 +92,21 @@ RETURNS trigger AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         INSERT INTO user_task_activity (
-            task_id, hashed_task_id, entry_id, hashed_user_id, hashed_team_id,
+            id, task_id, hashed_task_id, entry_id, hashed_user_id, hashed_team_id,
             kind, actor_type, event_type, source_surface, previous_status,
             next_status, created_at, embed_refs
         ) VALUES (
-            NEW.task_id, encode(digest(NEW.task_id, 'sha256'), 'hex'), gen_random_uuid()::text,
+            gen_random_uuid(), NEW.task_id, encode(digest(NEW.task_id, 'sha256'), 'hex'), gen_random_uuid()::text,
             NEW.hashed_user_id, NEW.hashed_team_id, 'lifecycle_update', 'system',
             'created', 'system', NULL, NEW.status, NEW.created_at, '[]'::json
         );
     ELSIF TG_OP = 'UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
         INSERT INTO user_task_activity (
-            task_id, hashed_task_id, entry_id, hashed_user_id, hashed_team_id,
+            id, task_id, hashed_task_id, entry_id, hashed_user_id, hashed_team_id,
             kind, actor_type, event_type, source_surface, previous_status,
             next_status, created_at, embed_refs
         ) VALUES (
-            NEW.task_id, encode(digest(NEW.task_id, 'sha256'), 'hex'), gen_random_uuid()::text,
+            gen_random_uuid(), NEW.task_id, encode(digest(NEW.task_id, 'sha256'), 'hex'), gen_random_uuid()::text,
             NEW.hashed_user_id, NEW.hashed_team_id, 'lifecycle_update', 'system',
             'status', 'system', OLD.status, NEW.status, NEW.updated_at, '[]'::json
         );

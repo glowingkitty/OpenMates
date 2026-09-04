@@ -2,7 +2,7 @@
  * Deterministic preview fixture for the read-only Task detail fullscreen.
  * Includes every Figma-referenced section without API or IndexedDB reads.
  * Access path: /dev/preview/tasks/TaskDetailFullscreen.
- * Product contract: contracts/features/tasks/contract.yml.
+ * Product Specification: specifications/features/tasks/specification.yml.
  */
 
 import type { UserTaskActivityEntry, UserTaskViewModel } from '../../services/userTaskService';

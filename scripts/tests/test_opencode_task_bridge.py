@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic contracts for the OpenCode-to-OpenMates Task bridge.
+"""Deterministic Specification tests for the OpenCode-to-OpenMates Task bridge.
 
 The bridge may read decrypted Task text only from trusted CLI JSON for the
 current request. Durable repository-session state must retain identifiers,
@@ -428,7 +428,7 @@ def test_typed_tool_posts_activity_as_opencode_and_can_create_human_work(monkeyp
     )
     sessions._openmates_task_tool(
         "ses_parent",
-        {"action": "activity_add", "task_id": "TASK-9", "message": "Milestone: API contract is green."},
+        {"action": "activity_add", "task_id": "TASK-9", "message": "Milestone: API specification behavior is verified."},
         cli_runner=cli,
     )
 
@@ -438,7 +438,7 @@ def test_typed_tool_posts_activity_as_opencode_and_can_create_human_work(monkeyp
             "--external-chat", "opencode:ses_parent", "--json",
         ],
         [
-            "tasks", "activity", "add", "TASK-9", "--message", "Milestone: API contract is green.",
+            "tasks", "activity", "add", "TASK-9", "--message", "Milestone: API specification behavior is verified.",
             "--as-assignee", "--external-chat", "opencode:ses_parent", "--json",
         ],
     ]

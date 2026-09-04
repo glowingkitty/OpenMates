@@ -198,6 +198,8 @@ def test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill() -> 
     assert "UPDATE user_task_activity AS activity" in migration
     assert "record_user_task_lifecycle_activity" in migration
     assert "AFTER INSERT OR UPDATE OF status ON user_tasks" in migration
+    assert migration.count("id, task_id, hashed_task_id, entry_id") == 2
+    assert migration.count("gen_random_uuid(), NEW.task_id") == 2
     assert "'lifecycle_update', 'system'" in migration
     assert "'status', 'system', OLD.status, NEW.status" in migration
     assert "activity.task_id = tasks.task_id" in migration

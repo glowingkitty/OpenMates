@@ -24997,7 +24997,7 @@ assertions:
       surface: rest_api
     - &id2830
       path: backend/tests/test_user_task_activity_api.py
-      line: 321
+      line: 323
       name: test_activity_response_hides_storage_scope_and_derives_tombstone_author
       surface: rest_api
     - &id2831
@@ -25081,7 +25081,7 @@ assertions:
       surface: rest_api
     - &id2837
       path: backend/tests/test_user_task_activity_api.py
-      line: 294
+      line: 296
       name: test_create_activity_route_derives_source_and_never_accepts_body_attribution
       surface: rest_api
     - &id2838
@@ -25156,22 +25156,22 @@ assertions:
     direct_tests:
     - &id2843
       path: backend/tests/test_user_task_activity_api.py
-      line: 212
+      line: 214
       name: test_activity_delete_allows_author_or_mutation_role_and_tombstones_ciphertext
       surface: rest_api
     - &id2844
       path: backend/tests/test_user_task_activity_api.py
-      line: 245
+      line: 247
       name: test_repeated_activity_delete_is_an_immutable_conflict
       surface: rest_api
     - &id2845
       path: backend/tests/test_user_task_activity_api.py
-      line: 321
+      line: 323
       name: test_activity_response_hides_storage_scope_and_derives_tombstone_author
       surface: rest_api
     - &id2846
       path: backend/tests/test_user_task_activity_api.py
-      line: 346
+      line: 348
       name: test_delete_activity_route_allows_author_or_team_mutation_role_and_denies_cross_scope
       surface: rest_api
     - &id2847
@@ -25253,22 +25253,22 @@ assertions:
       surface: rest_api
     - &id2855
       path: backend/tests/test_user_task_activity_api.py
-      line: 212
+      line: 214
       name: test_activity_delete_allows_author_or_mutation_role_and_tombstones_ciphertext
       surface: rest_api
     - &id2856
       path: backend/tests/test_user_task_activity_api.py
-      line: 267
+      line: 269
       name: test_create_activity_route_rejects_team_viewer_before_persistence
       surface: rest_api
     - &id2857
       path: backend/tests/test_user_task_activity_api.py
-      line: 294
+      line: 296
       name: test_create_activity_route_derives_source_and_never_accepts_body_attribution
       surface: rest_api
     - &id2858
       path: backend/tests/test_user_task_activity_api.py
-      line: 346
+      line: 348
       name: test_delete_activity_route_allows_author_or_team_mutation_role_and_denies_cross_scope
       surface: rest_api
     supporting_tests:

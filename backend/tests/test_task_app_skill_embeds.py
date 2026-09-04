@@ -1,4 +1,4 @@
-"""Task app-skill embed contract tests.
+"""Task app-skill embed Specification tests.
 
 These tests define the backend-only first slice for the Tasks app skill. The
 skill returns embed-ready child task results for the existing EmbedService parent

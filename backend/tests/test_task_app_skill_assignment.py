@@ -1,4 +1,4 @@
-"""Task app-skill assignment contract tests.
+"""Task app-skill assignment Specification tests.
 
 Tasks use the persisted assignee names `user` and `openmates`. These helpers
 keep native execution ownership explicit so the assistant cannot execute
